@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/pages/login/info_setting/info_setting_controller.dart';
 
 class InfoSettingPage extends StatelessWidget {
   final InfoSettingController controller = Get.put(InfoSettingController());
@@ -55,7 +56,7 @@ class InfoSettingPage extends StatelessWidget {
                           );
                         }),
                         GestureDetector(
-                          onTap: controller.pickImage,
+                          onTap: null,
                           child: Image.asset(
                             'assets/kissu_info_setting_camera.webp',
                             width: 30,
@@ -119,8 +120,8 @@ class InfoSettingPage extends StatelessWidget {
                             controller.selectedGender.value == '男'
                                 ? 'assets/kissu_info_setting_boysel.webp'
                                 : 'assets/kissu_info_setting_boyunsel.webp',
-                            width: 50,
-                            height: 50,
+                            width: 140,
+                            height: 64,
                           );
                         }),
                       ),
@@ -132,8 +133,8 @@ class InfoSettingPage extends StatelessWidget {
                             controller.selectedGender.value == '女'
                                 ? 'assets/kissu_info_setting_girlsel.webp'
                                 : 'assets/kissu_info_setting_girlunsel.webp',
-                            width: 50,
-                            height: 50,
+                             width: 140,
+                            height: 64,
                           );
                         }),
                       ),
@@ -163,9 +164,10 @@ class InfoSettingPage extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            SizedBox(width: 30,),
                             Text(
-                              DateFormat('yyyy年MM月dd日').format(controller.selectedDate.value),
-                              style: TextStyle(fontSize: 16),
+                              DateFormat('yyyy 年     MM 月     dd日').format(controller.selectedDate.value),
+                              style: TextStyle(fontSize: 16,color: Color(0xff333333)),
                             ),
                             Icon(
                               Icons.arrow_forward_ios,
