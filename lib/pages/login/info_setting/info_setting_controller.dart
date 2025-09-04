@@ -1,7 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart'; // 用于选择头像
+import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart'; // 用于选择头像
 
 class InfoSettingController extends GetxController {
   // 初始化变量
@@ -81,6 +82,7 @@ class InfoSettingController extends GetxController {
   // 提交表单
   void onSubmit() {
     // 提交的逻辑
+    Get.offAllNamed(KissuRoutePath.home,);
     print('提交信息');
   }
 

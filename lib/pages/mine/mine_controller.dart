@@ -1,7 +1,11 @@
  
 
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/mine/sub_pages/feed_back_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 
 
@@ -17,7 +21,7 @@ class MineController extends GetxController {
     SettingItem(
       icon: "assets/kissu_mine_item_syst.webp",
       title: "首页视图",
-      onTap: () => Get.snackbar("点击", "首页视图"),
+      onTap: () => Get.to(SettingHomePage())
     ),
     SettingItem(
       icon: "assets/kissu_mine_item_xtqx.webp",
@@ -27,7 +31,7 @@ class MineController extends GetxController {
     SettingItem(
       icon: "assets/kissu_mine_item_gywm.webp",
       title: "关于我们",
-      onTap: () => Get.snackbar("点击", "关于我们"),
+      onTap: () => Get.to(AboutUsPage())
     ),
     SettingItem(
       icon: "assets/kissu_mine_item_cjwt.webp",
@@ -42,12 +46,12 @@ class MineController extends GetxController {
     SettingItem(
       icon: "assets/kissu_mine_item_yjfk.webp",
       title: "意见反馈",
-      onTap: () => Get.snackbar("点击", "意见反馈"),
+      onTap: () => Get.to(FeedbackPage()),
     ),
     SettingItem(
       icon: "assets/kissu_mine_item_ysaq.webp",
       title: "账号及隐私安全",
-      onTap: () => Get.snackbar("点击", "账号及隐私安全"),
+      onTap: () => Get.to(PrivacySettingPage()),
     ),
   ];
 

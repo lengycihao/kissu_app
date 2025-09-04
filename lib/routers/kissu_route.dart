@@ -1,6 +1,7 @@
 import 'package:get/get_navigation/src/routes/get_route.dart';
  import 'package:kissu_app/pages/home/home_binding.dart';
 import 'package:kissu_app/pages/home/home_page.dart';
+import 'package:kissu_app/pages/login/login_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
  
@@ -12,6 +13,10 @@ class KissuRoute {
       page: () =>  KissuHomePage(),
       binding: HomeBinding(),
     ),
+    GetPage(
+      name: KissuRoutePath.login,
+      page: () =>  LoginPage(),
+     ),
      GetPage(
       name: KissuRoutePath.home,
       page: () =>  KissuHomePage(),

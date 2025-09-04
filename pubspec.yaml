@@ -50,6 +50,7 @@ dev_dependencies:
   permission_handler: ^11.3.1
   dio: ^5.7.0
   flutter_localization: any
+  
 
   # Intl for date formatting
   # intl: ^0.17.0

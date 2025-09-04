@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       ],
       locale: const Locale('zh', 'CN'), // 👈 默认中文
       getPages: KissuRoute.routes,
-      initialRoute: KissuRoutePath.home,
+      initialRoute: KissuRoutePath.login,
       unknownRoute: GetPage(
         name: '/notfound',
         page: () => Scaffold(body: Center(child: Text('页面不存在'))),
