@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
+import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
+import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
 
 class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
@@ -10,8 +12,25 @@ class HomeController extends GetxController {
   void onButtonTap(int index) {
     selectedIndex.value = index;
     debugPrint("按钮 $index 被点击");
-    if (index == 3) {
-      Get.to(MinePage(),binding: MineBinding(),);
+    
+    switch (index) {
+      case 2:
+        // 用机记录
+        Get.to(
+          () => const PhoneHistoryPage(),
+          binding: PhoneHistoryBinding(),
+        );
+        break;
+      case 3:
+        // 我的
+        Get.to(
+          () => MinePage(),
+          binding: MineBinding(),
+        );
+        break;
+      default:
+        // 其他功能待实现
+        break;
     }
   }
 

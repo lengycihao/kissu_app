@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/mine/sub_pages/break_relationship_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/account_cancellation_page.dart';
+import 'package:kissu_app/widgets/dialogs/dialog_example.dart';
+import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 
 class PrivacySettingPage extends StatelessWidget {
   const PrivacySettingPage({super.key});
@@ -61,20 +65,20 @@ class PrivacySettingPage extends StatelessWidget {
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_jcgx.webp",
                     title: "解除关系",
-                    onTap: () => Get.snackbar("点击", "解除关系"),
+                    onTap: () => Get.to(BreakRelationshipPage()),
                   ),
                   const SizedBox(height: 14),
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_zxzh.webp",
                     title: "注销账号",
-                    onTap: () => Get.snackbar("点击", "注销账号"),
+                    onTap: () => Get.to(() => DialogExamplePage()),
                   ),
                   const SizedBox(height: 14),
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_sjh.webp",
                     title: "手机号",
                     trailingText: phoneNumber,
-                    onTap: () => Get.snackbar("点击", "手机号"),
+                    onTap: () => DialogManager.showPhoneChangeConfirm(context, '+86 192****2378'),
                   ),
                 ],
               ),

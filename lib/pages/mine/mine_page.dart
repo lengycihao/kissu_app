@@ -80,7 +80,7 @@ class MinePage extends GetView<MineController> {
                   shape: BoxShape.circle,
                   color: Colors.red,
                   image: DecorationImage(
-                    image: AssetImage("assets/kissu_mine_avatar.webp"),
+                    image: AssetImage("assets/kissu_icon.webp"),
                     fit: BoxFit.cover,
                   ),
                 ),

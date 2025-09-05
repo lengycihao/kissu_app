@@ -2,6 +2,7 @@
 
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/sub_pages/feed_back_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/love_info_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
@@ -62,7 +63,7 @@ class MineController extends GetxController {
 
   // 点击标签
   void onLabelTap() {
-    Get.snackbar("提示", "点击了标签");
+    Get.to(LoveInfoPage());
   }
 
   // 会员续费
