@@ -108,33 +108,7 @@ class PhoneHistoryController extends GetxController {
     _overlayEntry = null;
   }
 
-  // 获取最近7天的日期
-  List<DateTime> get recentDates {
-    final now = DateTime.now();
-    return List.generate(7, (index) => now.subtract(Duration(days: index)));
-  }
-
-  // 获取日期显示文本
-  String getDateText(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date).inDays;
-
-    if (difference == 0) return '今天';
-    if (difference == 1) return '昨天';
-
-    final weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return weekdays[date.weekday % 7];
-  }
-
-  // 获取日期数字
-  String getDateNumber(DateTime date) {
-    return date.day.toString();
-  }
-
-  // 选择日期
-  void selectDate(int index) {
-    selectedDateIndex.value = index;
-  }
+  
 
   // 显示设置弹窗
   void showSettingDialog() {

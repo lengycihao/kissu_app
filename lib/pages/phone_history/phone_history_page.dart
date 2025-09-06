@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/selector/date_selector.dart';
+import 'package:kissu_app/widgets/device_info_item.dart';
 import 'phone_history_controller.dart';
 
 class PhoneHistoryPage extends GetView<PhoneHistoryController> {
@@ -11,43 +13,48 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
     return Scaffold(
       body: Stack(
         children: [
-          // 背景图
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/phone_history/kissu_phone_bg.webp'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                // 顶部标题栏
-                _buildHeader(),
-                // 日期选择器
-                _buildDateSelector(),
-                // 内容区域
-                Expanded(
-                  child: Obx(
-                    () =>
-                        controller.isBinding.value
-                            ? _buildUsageList()
-                            : _buildEmptyState(),
-                  ),
-                ),
-                // 底部提示文字（始终显示）
-                Container(
-                  padding: const EdgeInsets.only(bottom: 20, top: 20),
-                  child: const Text(
-                    'Kissu统计也可能存在偏差，仅提供参考哦',
-                    style: TextStyle(fontSize: 10, color: Color(0xFFD1CDCD)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildBackground(),
+          SafeArea(child: _buildMainContent()),
         ],
+      ),
+    );
+  }
+
+  // 背景图
+  Widget _buildBackground() {
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/phone_history/kissu_phone_bg.webp'),
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
+  // 主内容
+  Widget _buildMainContent() {
+    return Column(
+      children: [
+        _buildHeader(),
+        _buildDateSelector(),
+        Expanded(
+          child: Obx(() => controller.isBinding.value
+              ? _buildUsageList()
+              : _buildEmptyState()),
+        ),
+        _buildBottomTip(),
+      ],
+    );
+  }
+
+  // 底部提示
+  Widget _buildBottomTip() {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 20, top: 20),
+      child: const Text(
+        'Kissu统计也可能存在偏差，仅提供参考哦',
+        style: TextStyle(fontSize: 10, color: Color(0xFFD1CDCD)),
       ),
     );
   }
@@ -94,62 +101,12 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
 
   // 构建日期选择器
   Widget _buildDateSelector() {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      margin: EdgeInsets.only(bottom: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(7, (index) {
-          // 反转索引，让最新日期在右边
-          final reversedIndex = 6 - index;
-          final date = controller.recentDates[reversedIndex];
-          return Obx(
-            () => GestureDetector(
-              onTap: () => controller.selectDate(reversedIndex),
-              child: Container(
-                width: 44,
-                height: 60,
-                decoration: BoxDecoration(
-                  color:
-                      controller.selectedDateIndex.value == reversedIndex
-                          ? const Color(0xFFFF6B9D)
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      controller.getDateText(date),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            controller.selectedDateIndex.value == reversedIndex
-                                ? Colors.white
-                                : const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      controller.getDateNumber(date),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color:
-                            controller.selectedDateIndex.value == reversedIndex
-                                ? Colors.white
-                                : const Color(0xFF333333),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
+    return DateSelector(
+  onSelect: (date) {
+    print("选择了日期: $date");
+  },
+);
+
   }
 
   // 构建空状态
@@ -279,9 +236,30 @@ Widget _buildInfoHeader() {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: _buildDeviceInfo('Vivo iQOO ', 'assets/phone_history/kissu_phone_type.webp', true)),
-                    Expanded(child: _buildDeviceInfo('90%', 'assets/phone_history/kissu_phone_barry.webp', false)),
-                    Expanded(child: _buildDeviceInfo('ChinaNet', 'assets/phone_history/kissu_phone_wifi.webp', false)),
+                    Expanded(
+                      child: DeviceInfoItem(
+                        text: 'Vivo iQOO',
+                        iconPath: 'assets/phone_history/kissu_phone_type.webp',
+                        isDevice: true,
+                        onLongPress: controller.showTooltip,
+                      ),
+                    ),
+                    Expanded(
+                      child: DeviceInfoItem(
+                        text: '90%',
+                        iconPath: 'assets/phone_history/kissu_phone_barry.webp',
+                        isDevice: false,
+                        onLongPress: controller.showTooltip,
+                      ),
+                    ),
+                    Expanded(
+                      child: DeviceInfoItem(
+                        text: 'ChinaNet',
+                        iconPath: 'assets/phone_history/kissu_phone_wifi.webp',
+                        isDevice: false,
+                        onLongPress: controller.showTooltip,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -328,40 +306,6 @@ Widget _buildInfoHeader() {
       ],
     );
   });
-}
-
-  // 构建设备信息项（支持长按提示）
-Widget _buildDeviceInfo(String text, String icon, bool isDevice) {
-  return GestureDetector(
-    onLongPressStart: (details) {
-      // details.globalPosition 获取手指长按的全局坐标
-      controller.showTooltip(
-         text, 
-        details.globalPosition + const Offset(0, -40), // 提示框显示在组件上方一点
-      );
-    },
-    onLongPressEnd: (_) {
-      // 长按松开也可以选择自动关闭，或者保留直到点 X
-      // controller.hideTooltip();
-    },
-    child: Container(
-      color: Colors.transparent,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(icon, width: 22, height: 22),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF666666), fontWeight: FontWeight.w500),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 

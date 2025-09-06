@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/location/location_binding.dart';
+import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
+import 'package:kissu_app/pages/track/track_binding.dart';
+import 'package:kissu_app/pages/track/track_page.dart';
 
 class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
@@ -14,6 +18,20 @@ class HomeController extends GetxController {
     debugPrint("按钮 $index 被点击");
     
     switch (index) {
+      case 0:
+        // 定位
+        Get.to(
+          () =>   LocationPage(),
+          binding: LocationBinding(),
+        );
+        break;
+      case 1:
+        // 足迹
+        Get.to(
+          () =>   TrackPage(),
+          binding: TrackBinding(),
+        );
+        break;
       case 2:
         // 用机记录
         Get.to(

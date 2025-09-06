@@ -19,55 +19,53 @@ class PhoneHistorySettingDialog {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 标题
-          // 标题
-Padding(
-  padding: const EdgeInsets.only(left: 16, right: 16, top: 30),
-  child: Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Image.asset(
-        "assets/phone_history/kissu_phone_setting.webp",
-        width: 20,
-        height: 20,
-      ),
-      const SizedBox(width: 8),
-      Expanded( // ✅ 保证文本可以自动换行
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              '敏感行为推送设置',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF333333),
+             // 标题
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 30),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Image.asset(
+                    "assets/phone_history/kissu_phone_setting.webp",
+                    width: 20,
+                    height: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    // ✅ 保证文本可以自动换行
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          '敏感行为推送设置',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '关闭后敏感行为将不会通过消息进行推送，但是仍会在此列表展示',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF999999),
+                          ),
+                          softWrap: true, // ✅ 自动换行
+                          overflow: TextOverflow.visible, // ✅ 不截断
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              '关闭后敏感行为将不会通过消息进行推送，但是仍会在此列表展示',
-              style: TextStyle(
-                fontSize: 10,
-                color: Color(0xFF999999),
-              ),
-              softWrap: true,                 // ✅ 自动换行
-              overflow: TextOverflow.visible, // ✅ 不截断
-            ),
-          ],
-        ),
-      ),
-    ],
-  ),
-),
- 
+
             // 虚线
             Container(
               height: 1,
-              margin: const EdgeInsets.only(left: 16,right: 16,bottom: 16),
-              child: CustomPaint(
-                painter: _DashedLinePainter(),
-              ),
+              margin: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+              child: CustomPaint(painter: _DashedLinePainter()),
             ),
             // 内容区（固定，不可滚动）
             Expanded(
@@ -103,7 +101,8 @@ Padding(
                   ),
                 ),
               ),
-            ),const SizedBox(height: 10,)
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -131,10 +130,7 @@ Padding(
               const SizedBox(width: 12),
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF333333),
-                ),
+                style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
               ),
             ],
           ),
@@ -150,17 +146,14 @@ class _DashedLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const dashWidth = 5.0;
     const dashSpace = 3.0;
-    final paint = Paint()
-      ..color = const Color(0xFFDDDDDD)
-      ..strokeWidth = 1;
+    final paint =
+        Paint()
+          ..color = const Color(0xFFDDDDDD)
+          ..strokeWidth = 1;
 
     double startX = 0;
     while (startX < size.width) {
-      canvas.drawLine(
-        Offset(startX, 0),
-        Offset(startX + dashWidth, 0),
-        paint,
-      );
+      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
       startX += dashWidth + dashSpace;
     }
   }

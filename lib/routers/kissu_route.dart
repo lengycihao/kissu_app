@@ -8,11 +8,11 @@ import 'package:get/get.dart';
 
 class KissuRoute {
   static final routes = [
-    GetPage(
-      name: KissuRoutePath.home,
-      page: () =>  KissuHomePage(),
-      binding: HomeBinding(),
-    ),
+    // GetPage(
+    //   name: KissuRoutePath.home,
+    //   page: () =>  KissuHomePage(),
+    //   binding: HomeBinding(),
+    // ),
     GetPage(
       name: KissuRoutePath.login,
       page: () =>  LoginPage(),
