@@ -4,7 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:kissu_app/pages/location/location_controller.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
- 
+
 class LocationPage extends StatelessWidget {
   LocationPage({super.key});
 
@@ -249,7 +249,7 @@ class LocationPage extends StatelessWidget {
               image: DecorationImage(
                 image: AssetImage('assets/kissu_track_header_bbg.webp'),
               ),
-             ),
+            ),
             child: Image.asset(
               'assets/kissu_track_header_boy.webp', // 替换为你的图片路径
               width: 32, // 设置图片宽度
@@ -264,12 +264,13 @@ class LocationPage extends StatelessWidget {
             // 处理点击事件
             print('Image 2 clicked');
           },
-          child: Container(padding: EdgeInsets.all(1), // 内边距，增加点击区域
+          child: Container(
+            padding: EdgeInsets.all(1), // 内边距，增加点击区域
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/kissu_track_header_bgirl.webp'),
               ),
-             ),
+            ),
             child: Image.asset(
               'assets/kissu_track_header_girl.webp', // 替换为你的图片路径
               width: 26, // 设置图片宽度

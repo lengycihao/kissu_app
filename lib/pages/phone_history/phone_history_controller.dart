@@ -11,104 +11,112 @@ class PhoneHistoryController extends GetxController {
   var tooltipText = Rxn<String>(); // 保存当前提示信息，null 表示不显示
   OverlayEntry? _overlayEntry;
   late BuildContext pageContext;
- void showTooltip(  String text, Offset position) {
-  hideTooltip(); // 先移除旧的
+  void showTooltip(String text, Offset position) {
+    hideTooltip(); // 先移除旧的
 
-  final screenSize = MediaQuery.of(pageContext).size;
-  const padding = 12.0;
+    final screenSize = MediaQuery.of(pageContext).size;
+    const padding = 12.0;
 
-  // 先预估提示框的大小
-  final maxWidth = screenSize.width * 0.6;
-  final estimatedHeight = 40.0;
+    // 先预估提示框的大小
+    final maxWidth = screenSize.width * 0.6;
+    final estimatedHeight = 40.0;
 
-  double left = position.dx;
-  double top = position.dy;
+    double left = position.dx;
+    double top = position.dy;
 
-  // 避免溢出右边
-  if (left + maxWidth + padding > screenSize.width) {
-    left = screenSize.width - maxWidth - padding;
-  }
+    // 避免溢出右边
+    if (left + maxWidth + padding > screenSize.width) {
+      left = screenSize.width - maxWidth - padding;
+    }
 
-  // 避免溢出下边
-  if (top + estimatedHeight + padding > screenSize.height) {
-    top = screenSize.height - estimatedHeight - padding;
-  }
+    // 避免溢出下边
+    if (top + estimatedHeight + padding > screenSize.height) {
+      top = screenSize.height - estimatedHeight - padding;
+    }
 
-  _overlayEntry = OverlayEntry(
-    builder: (_) {
-      return Stack(
-        children: [
-          // ✅ 全屏透明点击区域
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: hideTooltip,
-              behavior: HitTestBehavior.translucent, // 即使透明也能点到
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-          // 提示框
-          Positioned(
-            left: left,
-            top: top,
-            child: Material(
-              color: Colors.transparent,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    constraints: BoxConstraints(maxWidth: maxWidth),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      text,
-                      style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
-                    ),
-                  ),
-                  // 关闭按钮
-                  Positioned(
-                    top: -8,
-                    right: -8,
-                    child: GestureDetector(
-                      onTap: hideTooltip,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: const BoxDecoration(
-                          color: Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.close, size: 14, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
+    _overlayEntry = OverlayEntry(
+      builder: (_) {
+        return Stack(
+          children: [
+            // ✅ 全屏透明点击区域
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: hideTooltip,
+                behavior: HitTestBehavior.translucent, // 即使透明也能点到
+                child: Container(color: Colors.transparent),
               ),
             ),
-          ),
-        ],
-      );
-    },
-  );
+            // 提示框
+            Positioned(
+              left: left,
+              top: top,
+              child: Material(
+                color: Colors.transparent,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        text,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ),
+                    // 关闭按钮
+                    Positioned(
+                      top: -8,
+                      right: -8,
+                      child: GestureDetector(
+                        onTap: hideTooltip,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
 
-  Overlay.of(pageContext, rootOverlay: true).insert(_overlayEntry!);
-}
+    Overlay.of(pageContext, rootOverlay: true).insert(_overlayEntry!);
+  }
 
   void hideTooltip() {
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
-
-  
 
   // 显示设置弹窗
   void showSettingDialog() {

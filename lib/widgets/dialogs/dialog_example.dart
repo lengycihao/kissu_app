@@ -8,9 +8,7 @@ class DialogExamplePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('弹窗组件示例'),
-      ),
+      appBar: AppBar(title: const Text('弹窗组件示例')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -21,7 +19,10 @@ class DialogExamplePage extends StatelessWidget {
             ),
             _buildButton(
               '手机号更改确认',
-              () => DialogManager.showPhoneChangeConfirm(context, '+86 192****2378'),
+              () => DialogManager.showPhoneChangeConfirm(
+                context,
+                '+86 192****2378',
+              ),
             ),
             _buildButton(
               '解除关系确认',
@@ -40,52 +41,43 @@ class DialogExamplePage extends StatelessWidget {
             ),
           ]),
           _buildSection('性别选择弹窗', [
-            _buildButton(
-              '选择性别',
-              () async {
-                final gender = await DialogManager.showGenderSelect(
-                  context: context,
-                  selectedGender: '男生',
-                );
-                if (gender != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('选择了: $gender')),
-                  );
-                }
-              },
-            ),
+            _buildButton('选择性别', () async {
+              final gender = await DialogManager.showGenderSelect(
+                context: context,
+                selectedGender: '男生',
+              );
+              if (gender != null) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('选择了: $gender')));
+              }
+            }),
           ]),
           _buildSection('输入框弹窗', [
-            _buildButton(
-              '输入昵称',
-              () async {
-                final nickname = await DialogManager.showNicknameInput(
+            _buildButton('输入昵称', () async {
+              final nickname = await DialogManager.showNicknameInput(
+                context,
+                currentNickname: '当前昵称',
+              );
+              if (nickname != null) {
+                ScaffoldMessenger.of(
                   context,
-                  currentNickname: '当前昵称',
-                );
-                if (nickname != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('输入的昵称: $nickname')),
-                  );
-                }
-              },
-            ),
-            _buildButton(
-              '自定义输入框',
-              () async {
-                final input = await DialogManager.showInput(
-                  context: context,
-                  title: '请输入内容',
-                  hintText: '在这里输入...',
-                  maxLength: 20,
-                );
-                if (input != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('输入的内容: $input')),
-                  );
-                }
-              },
-            ),
+                ).showSnackBar(SnackBar(content: Text('输入的昵称: $nickname')));
+              }
+            }),
+            _buildButton('自定义输入框', () async {
+              final input = await DialogManager.showInput(
+                context: context,
+                title: '请输入内容',
+                hintText: '在这里输入...',
+                maxLength: 20,
+              );
+              if (input != null) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('输入的内容: $input')));
+              }
+            }),
           ]),
           _buildSection('绑定确认弹窗', [
             _buildButton(
@@ -115,10 +107,7 @@ class DialogExamplePage extends StatelessWidget {
               '任务完成',
               () => DialogManager.showVipTaskComplete(context),
             ),
-            _buildButton(
-              '开通会员成功',
-              () => DialogManager.showVipSuccess(context),
-            ),
+            _buildButton('开通会员成功', () => DialogManager.showVipSuccess(context)),
             _buildButton(
               '自定义VIP弹窗',
               () => DialogManager.showVip(
@@ -143,10 +132,7 @@ class DialogExamplePage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
         ...children,

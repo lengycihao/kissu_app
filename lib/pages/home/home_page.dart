@@ -171,45 +171,45 @@ class KissuHomePage extends GetView<HomeController> {
 }
 
 // Expanded(
-          //   flex: 1,
-          //   child: Obx(() {
-          //     return AMapWidget(
-          //       apiKey: const AMapApiKey( // 这里要换成你自己的高德 key
-          //         androidKey: "your-android-key",
-          //         iosKey: "your-ios-key",
-          //       ),
-          //       markers: {
-          //         // 实时位置
-          //         Marker(
-          //           position: controller.person1Location.value,
-          //           infoWindow: const InfoWindow(title: "人1"),
-          //         ),
-          //         Marker(
-          //           position: controller.person2Location.value,
-          //           infoWindow: const InfoWindow(title: "人2"),
-          //         ),
-          //         // 停留点
-          //         ...controller.stayPoints.map((p) => Marker(
-          //               position: p,
-          //               infoWindow: const InfoWindow(title: "停留点"),
-          //               icon: BitmapDescriptor.defaultMarkerWithHue(
-          //                 BitmapDescriptor.hueBlue,
-          //               ),
-          //             )),
-          //       },
-          //       polylines: {
-          //         // 人1轨迹
-          //         Polyline(
-          //           points: controller.person1Track,
-          //           color: Colors.red,
-          //           width: 5,
-          //         ),
-          //         // 人2轨迹
-          //         Polyline(
-          //           points: controller.person2Track,
-          //           color: Colors.green,
-          //           width: 5,
-          //         ),
-          //       },
-          //     );   }),
-          // ),
+//   flex: 1,
+//   child: Obx(() {
+//     return AMapWidget(
+//       apiKey: const AMapApiKey( // 这里要换成你自己的高德 key
+//         androidKey: "your-android-key",
+//         iosKey: "your-ios-key",
+//       ),
+//       markers: {
+//         // 实时位置
+//         Marker(
+//           position: controller.person1Location.value,
+//           infoWindow: const InfoWindow(title: "人1"),
+//         ),
+//         Marker(
+//           position: controller.person2Location.value,
+//           infoWindow: const InfoWindow(title: "人2"),
+//         ),
+//         // 停留点
+//         ...controller.stayPoints.map((p) => Marker(
+//               position: p,
+//               infoWindow: const InfoWindow(title: "停留点"),
+//               icon: BitmapDescriptor.defaultMarkerWithHue(
+//                 BitmapDescriptor.hueBlue,
+//               ),
+//             )),
+//       },
+//       polylines: {
+//         // 人1轨迹
+//         Polyline(
+//           points: controller.person1Track,
+//           color: Colors.red,
+//           width: 5,
+//         ),
+//         // 人2轨迹
+//         Polyline(
+//           points: controller.person2Track,
+//           color: Colors.green,
+//           width: 5,
+//         ),
+//       },
+//     );   }),
+// ),

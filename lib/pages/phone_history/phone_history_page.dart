@@ -12,10 +12,7 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
     controller.pageContext = context; // ✅ 保存 Scaffold 的 context
     return Scaffold(
       body: Stack(
-        children: [
-          _buildBackground(),
-          SafeArea(child: _buildMainContent()),
-        ],
+        children: [_buildBackground(), SafeArea(child: _buildMainContent())],
       ),
     );
   }
@@ -39,9 +36,12 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
         _buildHeader(),
         _buildDateSelector(),
         Expanded(
-          child: Obx(() => controller.isBinding.value
-              ? _buildUsageList()
-              : _buildEmptyState()),
+          child: Obx(
+            () =>
+                controller.isBinding.value
+                    ? _buildUsageList()
+                    : _buildEmptyState(),
+          ),
         ),
         _buildBottomTip(),
       ],
@@ -68,12 +68,12 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
         children: [
           GestureDetector(
             onTap: () => Get.back(),
-            child:   Image.asset(
+            child: Image.asset(
               'assets/kissu_mine_back.webp',
               width: 24,
               height: 24,
             ),
-          ), 
+          ),
           const Expanded(
             child: Center(
               child: Text(
@@ -102,11 +102,10 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
   // 构建日期选择器
   Widget _buildDateSelector() {
     return DateSelector(
-  onSelect: (date) {
-    print("选择了日期: $date");
-  },
-);
-
+      onSelect: (date) {
+        print("选择了日期: $date");
+      },
+    );
   }
 
   // 构建空状态
@@ -174,142 +173,163 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
   }
 
   // 构建顶部信息栏
- // 构建顶部信息栏
-Widget _buildInfoHeader() {
-  return Obx(() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 20),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/phone_history/kissu_phone_list_bg.webp'),
-              fit: BoxFit.fill,
+  // 构建顶部信息栏
+  Widget _buildInfoHeader() {
+    return Obx(() {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 20),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(
+                  'assets/phone_history/kissu_phone_list_bg.webp',
+                ),
+                fit: BoxFit.fill,
+              ),
+            ),
+            child: Column(
+              children: [
+                // 距离和更新时间
+                Row(
+                  children: [
+                    const Text(
+                      '当前相距',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '12KM',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF6B9D),
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(width: 1, color: Color(0xffFFEDF2)),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Color(0xFF4CAF50),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            '1分钟前更新',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF47493C),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 设备信息行
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: DeviceInfoItem(
+                          text: 'Vivo iQOO',
+                          iconPath:
+                              'assets/phone_history/kissu_phone_type.webp',
+                          isDevice: true,
+                          onLongPress: controller.showTooltip,
+                        ),
+                      ),
+                      Expanded(
+                        child: DeviceInfoItem(
+                          text: '90%',
+                          iconPath:
+                              'assets/phone_history/kissu_phone_barry.webp',
+                          isDevice: false,
+                          onLongPress: controller.showTooltip,
+                        ),
+                      ),
+                      Expanded(
+                        child: DeviceInfoItem(
+                          text: 'ChinaNet',
+                          iconPath:
+                              'assets/phone_history/kissu_phone_wifi.webp',
+                          isDevice: false,
+                          onLongPress: controller.showTooltip,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Column(
-            children: [
-              // 距离和更新时间
-              Row(
-                children: [
-                  const Text(
-                    '当前相距',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '12KM',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFF6B9D),
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                    decoration: BoxDecoration(
-                      border: Border.all(width: 1, color: Color(0xffFFEDF2)),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.check_circle, size: 16, color: Color(0xFF4CAF50)),
-                        SizedBox(width: 4),
-                        Text('1分钟前更新',
-                            style: TextStyle(fontSize: 12, color: Color(0xFF47493C))),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // 设备信息行
-              Container(
+
+          // 🔽 浮层提示（显示在 InfoHeader 顶部）
+          if (controller.tooltipText.value != null)
+            Positioned(
+              top: -60, // 调整距离
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: DeviceInfoItem(
-                        text: 'Vivo iQOO',
-                        iconPath: 'assets/phone_history/kissu_phone_type.webp',
-                        isDevice: true,
-                        onLongPress: controller.showTooltip,
+                      child: Text(
+                        controller.tooltipText.value!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF333333),
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                    Expanded(
-                      child: DeviceInfoItem(
-                        text: '90%',
-                        iconPath: 'assets/phone_history/kissu_phone_barry.webp',
-                        isDevice: false,
-                        onLongPress: controller.showTooltip,
-                      ),
-                    ),
-                    Expanded(
-                      child: DeviceInfoItem(
-                        text: 'ChinaNet',
-                        iconPath: 'assets/phone_history/kissu_phone_wifi.webp',
-                        isDevice: false,
-                        onLongPress: controller.showTooltip,
+                    GestureDetector(
+                      onTap: () => controller.hideTooltip(),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-
-        // 🔽 浮层提示（显示在 InfoHeader 顶部）
-        if (controller.tooltipText.value != null)
-          Positioned(
-            top: -60, // 调整距离
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      controller.tooltipText.value!,
-                      style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => controller.hideTooltip(),
-                    child: const Icon(Icons.close, size: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
             ),
-          ),
-      ],
-    );
-  });
-}
-
-
- 
+        ],
+      );
+    });
+  }
 
   // 构建空列表
   Widget _buildEmptyList() {
@@ -343,7 +363,7 @@ Widget _buildInfoHeader() {
         ),
       ),
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 30,vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 5),
         itemCount: records.length,
         itemBuilder: (context, index) {
           final record = records[index];
@@ -367,16 +387,20 @@ Widget _buildInfoHeader() {
                       const SizedBox(height: 8),
                       Container(
                         width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 4,horizontal: 15),
+                        padding: EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 15,
+                        ),
                         decoration: BoxDecoration(
                           color: Color(0xffF6F6F6),
-                          borderRadius: BorderRadius.circular(1000)
+                          borderRadius: BorderRadius.circular(1000),
                         ),
                         child: Text(
                           record.action,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF333333),fontWeight: FontWeight.w500
+                            color: Color(0xFF333333),
+                            fontWeight: FontWeight.w500,
                           ),
                           textAlign: TextAlign.center,
                         ),

@@ -41,17 +41,10 @@ class AboutUsPage extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF333333),
-                ),
+                style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
               ),
             ),
-            Image.asset(
-              "assets/kissu_mine_arrow.webp",
-              width: 16,
-              height: 16,
-            ),
+            Image.asset("assets/kissu_mine_arrow.webp", width: 16, height: 16),
           ],
         ),
       ),

@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.kissu_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 // 更新到最新的 API 版本以满足依赖要求
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -24,8 +24,8 @@ android {
         applicationId = "com.example.kissu_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion // 保持兼容性
+        targetSdk = 34 // 保持稳定的目标版本
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

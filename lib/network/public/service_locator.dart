@@ -1,0 +1,33 @@
+ import 'package:get_it/get_it.dart';
+import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
+
+ 
+final GetIt getIt = GetIt.instance;
+
+Future<void> setupServiceLocator() async {
+  // ✅ 注册 AuthService 单例
+  final authService = AuthService();
+  getIt.registerSingleton<AuthService>(authService);
+  
+  // 初始化 AuthService
+  await authService.init();
+  
+  logger.info('Service locator setup completed', tag: 'ServiceLocator');
+}
+
+/// Clean up all registered services
+Future<void> cleanupServiceLocator() async {
+  logger.info('Cleaning up service locator', tag: 'ServiceLocator');
+
+  // Reset GetIt instance
+  await getIt.reset();
+
+  logger.info('Service locator cleanup completed', tag: 'ServiceLocator');
+}
+
+/// Convenience methods for common service access
+extension ServiceLocatorExtensions on GetIt {
+  // Business services
+  AuthService get authService => get<AuthService>();
+}

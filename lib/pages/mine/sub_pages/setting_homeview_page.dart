@@ -57,7 +57,7 @@ class SettingHomePage extends StatelessWidget {
             children: [
               // 顶部导航
               Padding(
-                padding:   EdgeInsets.only(left: 16,right: 16,top: 56),
+                padding: EdgeInsets.only(left: 16, right: 16, top: 56),
                 child: Row(
                   children: [
                     GestureDetector(

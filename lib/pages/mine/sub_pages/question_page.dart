@@ -17,8 +17,7 @@ class _QuestionPageState extends State<QuestionPage> {
     ),
     QuestionItem(
       question: "如果我们绑定且充值会员，解除关系后会员还会存在吗？",
-      answer:
-          "会员会在解除关系后失效，但充值记录会保留在系统中，可用于后续恢复。",
+      answer: "会员会在解除关系后失效，但充值记录会保留在系统中，可用于后续恢复。",
     ),
     QuestionItem(
       question: "解除关系后再重新绑定，我们之前的记录数据还会存在吗？",
@@ -27,8 +26,7 @@ class _QuestionPageState extends State<QuestionPage> {
     ),
     QuestionItem(
       question: "我们是情侣，为什么绑定关系还需要对方审核？",
-      answer:
-          "为了保护双方的隐私和安全，绑定需要双方确认，避免误操作或骚扰。",
+      answer: "为了保护双方的隐私和安全，绑定需要双方确认，避免误操作或骚扰。",
     ),
   ];
 
@@ -53,7 +51,10 @@ class _QuestionPageState extends State<QuestionPage> {
             children: [
               const SizedBox(height: 40),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 16,
+                ),
                 child: Row(
                   children: [
                     GestureDetector(
@@ -94,7 +95,9 @@ class _QuestionPageState extends State<QuestionPage> {
                       child: Container(
                         decoration: BoxDecoration(
                           image: const DecorationImage(
-                            image: AssetImage('assets/kissu_mine_question_bg.webp'),
+                            image: AssetImage(
+                              'assets/kissu_mine_question_bg.webp',
+                            ),
                             fit: BoxFit.fill,
                           ),
                           borderRadius: BorderRadius.circular(10),

@@ -122,11 +122,8 @@ class _VipButton extends StatelessWidget {
   final String text;
   final VoidCallback? onTap;
 
-  const _VipButton({
-    Key? key,
-    required this.text,
-    this.onTap,
-  }) : super(key: key);
+  const _VipButton({Key? key, required this.text, this.onTap})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {

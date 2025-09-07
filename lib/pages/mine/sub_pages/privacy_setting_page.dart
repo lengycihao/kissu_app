@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/account_cancellation_page.dart';
-import 'package:kissu_app/widgets/dialogs/dialog_example.dart';
+import 'package:kissu_app/pages/mine/love_info/phone_change_page.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 class PrivacySettingPage extends StatelessWidget {
   const PrivacySettingPage({super.key});
@@ -71,14 +73,14 @@ class PrivacySettingPage extends StatelessWidget {
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_zxzh.webp",
                     title: "注销账号",
-                    onTap: () => Get.to(() => DialogExamplePage()),
+                    onTap: () => Get.to(() => AccountCancellationPage()),
                   ),
                   const SizedBox(height: 14),
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_sjh.webp",
                     title: "手机号",
                     trailingText: phoneNumber,
-                    onTap: () => DialogManager.showPhoneChangeConfirm(context, '+86 192****2378'),
+                    onTap: () => Get.to(() => PhoneChangePage()),
                   ),
                 ],
               ),
@@ -96,7 +98,7 @@ class PrivacySettingPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(25),
                     ),
                   ),
-                  onPressed: () => Get.snackbar("退出", "已退出登录"),
+                  onPressed: () => _handleLogout(context),
                   child: const Text(
                     "退出登录",
                     style: TextStyle(
@@ -113,6 +115,42 @@ class PrivacySettingPage extends StatelessWidget {
         ),
       ),
     );
+  }
+  
+  /// 处理退出登录
+  void _handleLogout(BuildContext context) async {
+    final result = await DialogManager.showLogoutConfirm(context);
+    if (result == true) {
+      // 执行退出登录逻辑
+      _performLogout();
+    }
+  }
+  
+  /// 执行退出登录
+  void _performLogout() async {
+    try {
+      // 清除本地用户数据（这里已经包含了API调用）
+      await UserManager.logout();
+      
+      // 跳转到登录页面
+      Get.offAllNamed(KissuRoutePath.login);
+      
+      Get.snackbar(
+        '提示',
+        '已退出登录',
+        backgroundColor: Colors.green.withOpacity(0.8),
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      Get.snackbar(
+        '错误',
+        '退出登录失败：$e',
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+    }
   }
 }
 

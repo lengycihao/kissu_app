@@ -50,7 +50,10 @@ class DialogManager {
   }
 
   /// 显示手机号更改确认弹窗
-  static Future<bool?> showPhoneChangeConfirm(BuildContext context, String phoneNumber) {
+  static Future<bool?> showPhoneChangeConfirm(
+    BuildContext context,
+    String phoneNumber,
+  ) {
     return PhoneChangeConfirmDialog.show(context, phoneNumber);
   }
 
@@ -96,7 +99,10 @@ class DialogManager {
   }
 
   /// 显示昵称输入弹窗
-  static Future<String?> showNicknameInput(BuildContext context, {String? currentNickname}) {
+  static Future<String?> showNicknameInput(
+    BuildContext context, {
+    String? currentNickname,
+  }) {
     return NicknameInputDialog.show(context, currentNickname: currentNickname);
   }
 
@@ -124,7 +130,8 @@ class DialogManager {
   }
 
   /// 显示情侣绑定确认弹窗
-  static Future<bool?> showCoupleBindConfirm(BuildContext context, {
+  static Future<bool?> showCoupleBindConfirm(
+    BuildContext context, {
     String? userAvatar1,
     String? userAvatar2,
   }) {

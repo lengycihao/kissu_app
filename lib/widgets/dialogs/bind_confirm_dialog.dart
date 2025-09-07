@@ -107,11 +107,7 @@ class BindConfirmDialog extends BaseDialog {
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.3),
             ),
-            child: const Icon(
-              Icons.close,
-              size: 14,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.close, size: 14, color: Colors.white),
           ),
         ),
       ],
@@ -125,10 +121,7 @@ class BindConfirmDialog extends BaseDialog {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: isLeft ? Colors.pink.shade200 : Colors.blue.shade200,
-        border: Border.all(
-          color: Colors.white,
-          width: 3,
-        ),
+        border: Border.all(color: Colors.white, width: 3),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -137,25 +130,26 @@ class BindConfirmDialog extends BaseDialog {
           ),
         ],
       ),
-      child: avatarUrl != null
-          ? ClipOval(
-              child: Image.network(
-                avatarUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.person,
-                    size: 35,
-                    color: Colors.white.withOpacity(0.8),
-                  );
-                },
+      child:
+          avatarUrl != null
+              ? ClipOval(
+                child: Image.network(
+                  avatarUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.person,
+                      size: 35,
+                      color: Colors.white.withOpacity(0.8),
+                    );
+                  },
+                ),
+              )
+              : Icon(
+                Icons.person,
+                size: 35,
+                color: Colors.white.withOpacity(0.8),
               ),
-            )
-          : Icon(
-              Icons.person,
-              size: 35,
-              color: Colors.white.withOpacity(0.8),
-            ),
     );
   }
 
@@ -188,7 +182,8 @@ class BindConfirmDialog extends BaseDialog {
 
 /// 情侣绑定确认弹窗
 class CoupleBindConfirmDialog {
-  static Future<bool?> show(BuildContext context, {
+  static Future<bool?> show(
+    BuildContext context, {
     String? userAvatar1,
     String? userAvatar2,
   }) {

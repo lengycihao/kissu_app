@@ -13,10 +13,11 @@ class LocationController extends GetxController {
   final moveDistance = "9.63km".obs;
 
   /// 最近 7 天
-  final recentDays = List.generate(7, (i) {
-    final date = DateTime.now().subtract(Duration(days: i));
-    return "${date.month}-${date.day}";
-  }).obs;
+  final recentDays =
+      List.generate(7, (i) {
+        final date = DateTime.now().subtract(Duration(days: i));
+        return "${date.month}-${date.day}";
+      }).obs;
 
   final selectedDayIndex = 0.obs;
   final sheetPercent = 0.4.obs;
@@ -25,54 +26,59 @@ class LocationController extends GetxController {
   final MapController mapController = MapController();
 
   /// 轨迹点（这里用停留点生成的路线，你可以替换为接口数据）
-  late final List<LatLng> trackPoints = stayPoints.map((e) => e.position).toList();
+  late final List<LatLng> trackPoints =
+      stayPoints.map((e) => e.position).toList();
 
   /// 停留点 marker 缓存
   late final List<Marker> stayMarkers = _buildStayMarkers();
 
   /// 地图配置缓存
   late final MapOptions mapOptions = MapOptions(
-    initialCenter: trackPoints.isNotEmpty ? trackPoints.first : const LatLng(30.0, 120.0),
+    initialCenter:
+        trackPoints.isNotEmpty ? trackPoints.first : const LatLng(30.0, 120.0),
     initialZoom: 16.0,
-    maxZoom: 18,    // 最大缩放
-  minZoom: 10,     // 最小缩放
+    maxZoom: 18, // 最大缩放
+    minZoom: 10, // 最小缩放
   );
 
   /// 轨迹回放状态
   final currentReplayIndex = 0.obs;
-  final isReplaying = false.obs;  // 改为响应式变量
+  final isReplaying = false.obs; // 改为响应式变量
   Timer? _replayTimer;
-  
+
   /// 平滑动画相关
   final currentPosition = Rx<LatLng?>(null);
   final animationProgress = 0.0.obs;
   static const int animationSteps = 20; // 每两个点之间的插值步数
   int _currentStep = 0;
 
-    final List<StopRecord> stopRecords = [
+  final List<StopRecord> stopRecords = [
     StopRecord(
-      time: '18:30',leftTime: "当前",
+      time: '18:30',
+      leftTime: "当前",
       location: '浙江省杭州市上城区彭埠街道云峰家园附近',
       stayDuration: '停留中 已停留 51 分钟停留中 已停留 51 分钟',
       isCurrent: true,
     ),
     StopRecord(
-      time: '18:17~18:30',leftTime: "21:52",
+      time: '18:17~18:30',
+      leftTime: "21:52",
       location: '浙江省杭州市上城区四季青街道杭州市上城区仁本职业培训学校中豪·湘和国际附近',
       stayDuration: '停留 13 分钟 41 秒',
     ),
     StopRecord(
-      time: '17:46~18:05',leftTime: "21:52",
+      time: '17:46~18:05',
+      leftTime: "21:52",
       location: '浙江省杭州市上城区彭埠街道新塘路维萨新筑附近',
       stayDuration: '停留 18 分钟 51 秒',
     ),
     StopRecord(
-      time: '17:27',leftTime: "21:52",
+      time: '17:27',
+      leftTime: "21:52",
       location: '浙江省杭州市上城区四季青街道五福新村（景芳路）天虹购物中心 B 座附近',
       stayDuration: '',
     ),
   ];
-
 
   List<Marker> _buildStayMarkers() {
     return stayPoints.map((point) {
@@ -88,7 +94,10 @@ class LocationController extends GetxController {
           alignment: Alignment.center,
           child: Text(
             '${point.index}',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       );
@@ -122,13 +131,13 @@ class LocationController extends GetxController {
   /// 计算小人的朝向角度
   double _getRotationAngle() {
     if (currentReplayIndex.value >= trackPoints.length - 1) return 0;
-    
+
     final current = trackPoints[currentReplayIndex.value];
     final next = trackPoints[currentReplayIndex.value + 1];
-    
+
     final dx = next.longitude - current.longitude;
     final dy = next.latitude - current.latitude;
-    
+
     return atan2(dx, dy);
   }
 
@@ -144,30 +153,34 @@ class LocationController extends GetxController {
     if (trackPoints.isEmpty) return;
     isReplaying.value = true;
     _currentStep = 0;
-    
+
     // 设置初始位置
     if (currentPosition.value == null && trackPoints.isNotEmpty) {
       currentPosition.value = trackPoints[currentReplayIndex.value];
     }
-    
+
     _replayTimer?.cancel();
     // 更快的定时器，实现平滑动画
     _replayTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (currentReplayIndex.value < trackPoints.length - 1) {
         final startPoint = trackPoints[currentReplayIndex.value];
         final endPoint = trackPoints[currentReplayIndex.value + 1];
-        
+
         // 计算插值进度
         final progress = _currentStep / animationSteps;
-        
+
         // 更新当前位置（插值）
-        currentPosition.value = _interpolatePosition(startPoint, endPoint, progress);
-        
+        currentPosition.value = _interpolatePosition(
+          startPoint,
+          endPoint,
+          progress,
+        );
+
         // 平滑移动地图视角
         mapController.move(currentPosition.value!, mapController.camera.zoom);
-        
+
         _currentStep++;
-        
+
         // 到达下一个点
         if (_currentStep >= animationSteps) {
           _currentStep = 0;

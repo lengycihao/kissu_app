@@ -19,7 +19,7 @@ class PhoneHistorySettingDialog {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-             // 标题
+            // 标题
             Padding(
               padding: const EdgeInsets.only(left: 16, right: 16, top: 30),
               child: Row(

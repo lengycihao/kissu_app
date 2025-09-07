@@ -1,10 +1,11 @@
 import 'package:get/get_navigation/src/routes/get_route.dart';
- import 'package:kissu_app/pages/home/home_binding.dart';
+import 'package:kissu_app/pages/home/home_binding.dart';
 import 'package:kissu_app/pages/home/home_page.dart';
+import 'package:kissu_app/pages/login/info_setting/info_setting_binding.dart';
+import 'package:kissu_app/pages/login/info_setting/info_setting_page.dart';
 import 'package:kissu_app/pages/login/login_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
- 
 
 class KissuRoute {
   static final routes = [
@@ -13,15 +14,18 @@ class KissuRoute {
     //   page: () =>  KissuHomePage(),
     //   binding: HomeBinding(),
     // ),
+    GetPage(name: KissuRoutePath.login, page: () => LoginPage()),
     GetPage(
-      name: KissuRoutePath.login,
-      page: () =>  LoginPage(),
-     ),
-     GetPage(
       name: KissuRoutePath.home,
-      page: () =>  KissuHomePage(),
+      page: () => KissuHomePage(),
       binding: HomeBinding(),
       transition: Transition.downToUp,
+    ),
+GetPage(
+      name: KissuRoutePath.infoSetting,
+      page: () => InfoSettingPage(),
+      binding: InfoSettingBinding(),
+      transition: Transition.rightToLeft,
     ),
     // GetPage(name: BBRoutePath.aboutUs, page: () => const AboutUsPage()),
     // GetPage(
@@ -30,9 +34,9 @@ class KissuRoute {
     //   transition: Transition.cupertino, // 配置过渡动画
     //   binding: WebViewBinding(),
     // ),
-
   ];
 }
+
 // // 路由列表
 // class KissuRoute {
 //   static final List<GetPage> routes = [

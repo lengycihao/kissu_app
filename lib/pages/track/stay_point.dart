@@ -47,10 +47,7 @@ const List<StayPoint> stayPoints = [
     duration: "停留 1小时5分钟",
     index: 5,
   ),
-
-  
 ];
-
 
 class StopRecord {
   final String time;

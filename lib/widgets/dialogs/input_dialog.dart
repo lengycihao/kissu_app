@@ -131,10 +131,7 @@ class _InputDialogContentState extends State<_InputDialogContent> {
               maxLength: widget.maxLength,
               keyboardType: widget.keyboardType,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFF333333),
-              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 hintStyle: const TextStyle(

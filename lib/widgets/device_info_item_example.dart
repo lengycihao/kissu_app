@@ -13,7 +13,10 @@ class ExampleUsagePage extends StatelessWidget {
         child: Column(
           children: [
             // 基础使用方式
-            Text('基础使用：', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              '基础使用：',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 16),
             Row(
               children: [
@@ -38,11 +41,14 @@ class ExampleUsagePage extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 32),
-            
+
             // 带长按提示功能的使用方式
-            Text('带长按提示功能：', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              '带长按提示功能：',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 16),
             Row(
               children: [

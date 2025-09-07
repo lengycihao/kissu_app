@@ -98,25 +98,7 @@ class AccountCancellationPage extends StatelessWidget {
       child: Column(
         children: [
           // 头像
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: DecorationImage(
-                image: AssetImage(controller.userAvatar.value),
-                fit: BoxFit.fill,
-              ),
-
-              // boxShadow: [
-              //   BoxShadow(
-              //     color: Colors.black.withOpacity(0.1),
-              //     blurRadius: 10,
-              //     offset: const Offset(0, 5),
-              //   ),
-              // ],
-            ),
-          ),
+          _buildMyAvatar(),
 
           const SizedBox(height: 15),
 
@@ -139,33 +121,86 @@ class AccountCancellationPage extends StatelessWidget {
   // 注销须知
   Widget _buildCancellationNotice() {
     return Container(
-     padding: const EdgeInsets.all(15),
-     decoration: BoxDecoration(
-       color: Colors.white.withOpacity(0.8),
-       borderRadius: BorderRadius.circular(12),
-     ),
-     child: Column(crossAxisAlignment: CrossAxisAlignment.center,
-       children: [
-         const Text(
-           '注销须知',
-           style: TextStyle(
-             fontSize: 14,
-             fontWeight: FontWeight.w500,
-             color: Color(0xFF333333),
-           ),
-         ),const SizedBox(height: 15),
-         const Text(
-           '在注销账户前，请仔细阅读APP的隐私政策，了解个人信息的使用规则和授权情况。注销账户将撤销您在服务生命周期中的各种业务授权。',
-           style: TextStyle(
-             fontSize: 13,
-             color: Color(0xFF333333),
-             height: 1.6,
-           ),
-         ),
-       ],
-     ),
-            );
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            '注销须知',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            '在注销账户前，请仔细阅读APP的隐私政策，了解个人信息的使用规则和授权情况。注销账户将撤销您在服务生命周期中的各种业务授权。',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF333333),
+              height: 1.8,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+
+  Widget _buildMyAvatar() {
+    return Container(
+      width: 80,
+      height: 80,
+      padding: const EdgeInsets.all(2),
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+          fit: BoxFit.fill,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: ClipOval(
+          child: controller.userAvatar.value.isNotEmpty
+              ? Image.network(
+                  controller.userAvatar.value,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(40),
+                        color: const Color(0xFFE8B4CB),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(40),
+                    color: const Color(0xFFE8B4CB),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 40,
+                    color: Colors.white,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
 
   // 注销按钮
   Widget _buildCancelButton() {
@@ -181,7 +216,7 @@ class AccountCancellationPage extends StatelessWidget {
         child: const Text(
           '注销',
           style: TextStyle(
-            color: Color(0xff333333),
+            color: Color(0xffA29D9D),
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),

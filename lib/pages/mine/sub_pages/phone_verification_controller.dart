@@ -1,58 +1,77 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../network/public/auth_api.dart';
+import '../../../utils/user_manager.dart';
+import '../../../routers/kissu_route_path.dart';
+import '../../../widgets/dialogs/confirm_dialog.dart';
 
 class PhoneVerificationController extends GetxController {
   // 输入内容
   final phoneNumber = ''.obs;
   final verificationCode = ''.obs;
-  
+
   // 状态控制
   final isCodeSent = false.obs;
   final countdown = 0.obs;
   final canResend = true.obs;
   final isLoading = false.obs;
-  
+
   Timer? _countdownTimer;
-  
+
+  @override
+  void onInit() {
+    super.onInit();
+    // 初始化时自动填充用户手机号
+    loadUserPhone();
+  }
+
   @override
   void onClose() {
     _countdownTimer?.cancel();
     super.onClose();
   }
-  
+
+  /// 加载用户手机号
+  void loadUserPhone() {
+    final userPhone = UserManager.userPhone;
+    if (userPhone?.isNotEmpty == true) {
+      phoneNumber.value = userPhone!;
+    }
+  }
+
   // 验证手机号格式
   bool validatePhoneNumber() {
     final phone = phoneNumber.value.trim();
     if (phone.isEmpty) {
       Get.snackbar(
         '提示',
-        '请输入手机号',
+        '未获取到绑定手机号',
         backgroundColor: Colors.red.withOpacity(0.8),
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
       );
       return false;
     }
-    
+
     if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(phone)) {
       Get.snackbar(
         '提示',
-        '请输入正确的手机号',
+        '绑定手机号格式不正确',
         backgroundColor: Colors.red.withOpacity(0.8),
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
       );
       return false;
     }
-    
+
     return true;
   }
-  
+
   // 发送验证码
   Future<void> sendVerificationCode() async {
     if (!validatePhoneNumber()) return;
-    
+
     if (!canResend.value) {
       Get.snackbar(
         '提示',
@@ -63,27 +82,41 @@ class PhoneVerificationController extends GetxController {
       );
       return;
     }
-    
+
     isLoading.value = true;
-    
+
     try {
-      // 模拟发送验证码
-      await Future.delayed(const Duration(seconds: 1));
-      
-      isCodeSent.value = true;
-      startCountdown();
-      
-      Get.snackbar(
-        '提示',
-        '验证码已发送',
-        backgroundColor: Colors.green.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
+      // 调用发送验证码API，type为logout
+      final authApi = AuthApi();
+      final result = await authApi.getPhoneCode(
+        phone: phoneNumber.value.trim(),
+        type: 'logout',
       );
+
+      if (result.isSuccess) {
+        isCodeSent.value = true;
+        startCountdown();
+
+        Get.snackbar(
+          '提示',
+          '验证码已发送',
+          backgroundColor: Colors.green.withOpacity(0.8),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+      } else {
+        Get.snackbar(
+          '错误',
+          result.msg ?? '发送验证码失败',
+          backgroundColor: Colors.red.withOpacity(0.8),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+      }
     } catch (e) {
       Get.snackbar(
         '错误',
-        '发送验证码失败，请重试',
+        '发送验证码失败：$e',
         backgroundColor: Colors.red.withOpacity(0.8),
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
@@ -92,12 +125,12 @@ class PhoneVerificationController extends GetxController {
       isLoading.value = false;
     }
   }
-  
+
   // 开始倒计时
   void startCountdown() {
     countdown.value = 60;
     canResend.value = false;
-    
+
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (countdown.value > 0) {
@@ -108,7 +141,7 @@ class PhoneVerificationController extends GetxController {
       }
     });
   }
-  
+
   // 验证验证码
   bool validateCode() {
     final code = verificationCode.value.trim();
@@ -122,7 +155,7 @@ class PhoneVerificationController extends GetxController {
       );
       return false;
     }
-    
+
     if (!RegExp(r'^\d{6}$').hasMatch(code)) {
       Get.snackbar(
         '提示',
@@ -133,97 +166,66 @@ class PhoneVerificationController extends GetxController {
       );
       return false;
     }
-    
+
     return true;
   }
-  
+
   // 确认注销
   Future<void> confirmCancellation() async {
     if (!validatePhoneNumber() || !validateCode()) return;
-    
+
     // 显示确认对话框
     showCancellationDialog();
   }
-  
+
   // 显示注销确认对话框
-  void showCancellationDialog() {
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        title: const Text(
-          '确认注销',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        content: const Text(
-          '注销账户后，您的所有数据将被永久删除，无法恢复。确定要注销吗？',
-          style: TextStyle(
-            fontSize: 14,
-            color: Color(0xFF666666),
-            height: 1.5,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              '取消',
-              style: TextStyle(
-                color: Color(0xFF999999),
-                fontSize: 16,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Get.back();
-              await performCancellation();
-            },
-            child: const Text(
-              '确认注销',
-              style: TextStyle(
-                color: Color(0xFFFF4444),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  void showCancellationDialog() async {
+    final result = await CancellationConfirmDialog.show(Get.context!);
+    if (result == true) {
+      // 执行注销操作
+      await performCancellation();
+    }
   }
-  
+
   // 执行注销操作
   Future<void> performCancellation() async {
     isLoading.value = true;
-    
+
     try {
-      // 模拟注销请求
-      await Future.delayed(const Duration(seconds: 2));
-      
-      Get.snackbar(
-        '提示',
-        '账户已注销',
-        backgroundColor: Colors.green.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
-      );
-      
-      // 延迟后返回到登录页面
-      await Future.delayed(const Duration(seconds: 1));
-      // TODO: 导航到登录页面
-      // Get.offAllNamed('/login');
-      Get.until((route) => route.isFirst);
+      // 调用注销API
+      final authApi = AuthApi();
+      final result = await authApi.cancelAccount(captcha: verificationCode.value.trim());
+
+      if (result.isSuccess) {
+        // 清除本地用户数据（注销成功后只清理本地数据，不再调用退出登录API）
+        await UserManager.clearLocalUserData();
+        
+        // 跳转到登录页面并显示成功消息
+        Get.offAllNamed(KissuRoutePath.login);
+        
+        // 延迟显示消息，确保页面已经切换
+        Future.delayed(const Duration(milliseconds: 500), () {
+          Get.snackbar(
+            '提示',
+            '账号注销成功',
+            backgroundColor: Colors.green.withOpacity(0.8),
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+          );
+        });
+      } else {
+        Get.snackbar(
+          '错误',
+          result.msg ?? '注销失败，请重试',
+          backgroundColor: Colors.red.withOpacity(0.8),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+      }
     } catch (e) {
       Get.snackbar(
         '错误',
-        '注销失败，请重试',
+        '注销失败：$e',
         backgroundColor: Colors.red.withOpacity(0.8),
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
@@ -232,7 +234,7 @@ class PhoneVerificationController extends GetxController {
       isLoading.value = false;
     }
   }
-  
+
   // 返回上一页
   void goBack() {
     Get.back();

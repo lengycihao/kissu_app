@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 
 class ImageHandler {
   final ImagePicker _imagePicker = ImagePicker();
-  
+
   // 显示选择来源弹窗
   void showImageSourceDialog(
     BuildContext context, {
@@ -20,15 +20,16 @@ class ImageHandler {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => _buildBottomSheet(
-        context,
-        onSelected: onSelected,
-        maxImages: maxImages,
-        currentImages: currentImages,
-      ),
+      builder:
+          (context) => _buildBottomSheet(
+            context,
+            onSelected: onSelected,
+            maxImages: maxImages,
+            currentImages: currentImages,
+          ),
     );
   }
-  
+
   // 构建底部弹窗内容
   Widget _buildBottomSheet(
     BuildContext context, {
@@ -43,10 +44,7 @@ class ImageHandler {
         children: [
           const Text(
             "选择图片来源",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 24),
           Row(
@@ -64,7 +62,7 @@ class ImageHandler {
                   }
                 },
               ),
-              
+
               // 相册选项
               _buildOptionItem(
                 icon: Icons.photo_library,
@@ -76,8 +74,11 @@ class ImageHandler {
                   //   _showMessage(context, "最多只能选择$maxImages张图片");
                   //   return;
                   // }
-                  
-                  final images = await _getImagesFromGallery(context, remaining);
+
+                  final images = await _getImagesFromGallery(
+                    context,
+                    remaining,
+                  );
                   if (images.isNotEmpty) {
                     onSelected(images);
                   }
@@ -89,7 +90,7 @@ class ImageHandler {
       ),
     );
   }
-  
+
   // 构建选项按钮
   Widget _buildOptionItem({
     required IconData icon,
@@ -113,16 +114,13 @@ class ImageHandler {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-            ),
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
         ],
       ),
     );
   }
-  
+
   // 从相机获取图片
   Future<File?> _getImageFromCamera(BuildContext context) async {
     try {
@@ -130,13 +128,13 @@ class ImageHandler {
       if (!await _checkPermission(Permission.camera, "相机", context)) {
         return null;
       }
-      
+
       // 调用相机
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.camera,
         imageQuality: 80,
       );
-      
+
       if (image != null) {
         return File(image.path);
       }
@@ -145,10 +143,10 @@ class ImageHandler {
     }
     return null;
   }
-  
+
   // 从相册获取图片
   Future<List<File>> _getImagesFromGallery(
-    BuildContext context, 
+    BuildContext context,
     int maxSelectable,
   ) async {
     try {
@@ -161,30 +159,30 @@ class ImageHandler {
       final List<XFile> images = await _imagePicker.pickMultiImage(
         imageQuality: 80,
       );
-      
+
       // 处理选择数量限制
       if (images.length > maxSelectable) {
         if (context.mounted) {
-          _showMessage(context, 
-          "已为您保留前$maxSelectable张图片（最多可选择$maxSelectable张）"
-        );
+          _showMessage(
+            context,
+            "已为您保留前$maxSelectable张图片（最多可选择$maxSelectable张）",
+          );
         }
         return images
             .sublist(0, maxSelectable)
             .map((xfile) => File(xfile.path))
             .toList();
       }
-      
+
       return images.map((xfile) => File(xfile.path)).toList();
     } catch (e) {
       if (context.mounted) {
         _showMessage(context, "相册调用失败: ${e.toString()}");
-        
       }
       return [];
     }
   }
-  
+
   // 根据平台获取相册权限
   Permission _getGalleryPermission() {
     if (Platform.isAndroid) {
@@ -194,23 +192,23 @@ class ImageHandler {
     }
     return Permission.storage;
   }
-  
+
   // 检查并请求权限
   Future<bool> _checkPermission(
-    Permission permission, 
+    Permission permission,
     String permissionName,
     BuildContext context,
   ) async {
     // 检查权限状态
     final status = await permission.status;
-    
+
     if (status.isGranted) {
       return true;
     }
-    
+
     // 请求权限
     final result = await permission.request();
-    
+
     if (result.isGranted) {
       return true;
     } else {
@@ -218,40 +216,45 @@ class ImageHandler {
       return false;
     }
   }
-  
+
   // 显示权限被拒绝对话框
-  void _showPermissionDeniedDialog(BuildContext context, String permissionName) {
+  void _showPermissionDeniedDialog(
+    BuildContext context,
+    String permissionName,
+  ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("权限不足"),
-        content: Text("需要$permissionName权限才能继续，请在设置中开启。"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("确定"),
+      builder:
+          (context) => AlertDialog(
+            title: const Text("权限不足"),
+            content: Text("需要$permissionName权限才能继续，请在设置中开启。"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("确定"),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
-  
+
   // 显示提示消息
   void _showMessage(BuildContext context, String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("确定"),
+      builder:
+          (context) => AlertDialog(
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("确定"),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
-  
+
   // 上传图片到服务器
   Future<String> uploadImages(
     String url,
@@ -262,11 +265,11 @@ class ImageHandler {
     if (images.isEmpty) {
       return "请先选择图片";
     }
-    
+
     try {
       final dio = Dio();
       final formData = FormData();
-      
+
       // 添加图片文件
       for (int i = 0; i < images.length; i++) {
         final file = await MultipartFile.fromFile(
@@ -275,14 +278,14 @@ class ImageHandler {
         );
         formData.files.add(MapEntry('images[]', file));
       }
-      
+
       // 添加额外数据
       if (extraData != null) {
         extraData.forEach((key, value) {
           formData.fields.add(MapEntry(key, value));
         });
       }
-      
+
       // 执行上传
       final response = await dio.post(
         url,
@@ -293,7 +296,7 @@ class ImageHandler {
           }
         },
       );
-      
+
       if (response.statusCode == 200) {
         return "上传成功";
       } else {
@@ -304,4 +307,3 @@ class ImageHandler {
     }
   }
 }
-    

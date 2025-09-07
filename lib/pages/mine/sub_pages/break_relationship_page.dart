@@ -14,10 +14,10 @@ class BreakRelationshipPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: Image.asset(
-              'assets/kissu_mine_back.webp',
-              width: 24,
-              height: 24,
-            ),
+            'assets/kissu_mine_back.webp',
+            width: 24,
+            height: 24,
+          ),
           onPressed: () => Get.back(),
         ),
         title: const Text(
@@ -37,19 +37,19 @@ class BreakRelationshipPage extends StatelessWidget {
             // 头像部分
             _buildAvatarSection(),
             const SizedBox(height: 30),
-            
+
             // 在一起天数卡片
             _buildTogetherCard(),
             const SizedBox(height: 20),
-            
+
             // 提示文字
             _buildWarningText(),
             const SizedBox(height: 30),
-            
+
             // 解除须知
             _buildNoticeSection(),
             const SizedBox(height: 40),
-            
+
             // 解除关系按钮
             _buildBreakButton(context),
             const SizedBox(height: 20),
@@ -141,18 +141,11 @@ class BreakRelationshipPage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.favorite,
-            color: Color(0xFFFF69B4),
-            size: 20,
-          ),
+          const Icon(Icons.favorite, color: Color(0xFFFF69B4), size: 20),
           const SizedBox(width: 10),
           const Text(
             '在一起',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF666666),
-            ),
+            style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
           ),
           const SizedBox(width: 10),
           const Text(
@@ -166,17 +159,10 @@ class BreakRelationshipPage extends StatelessWidget {
           const SizedBox(width: 5),
           const Text(
             '天',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF666666),
-            ),
+            style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
           ),
           const SizedBox(width: 10),
-          const Icon(
-            Icons.favorite,
-            color: Color(0xFFFF69B4),
-            size: 20,
-          ),
+          const Icon(Icons.favorite, color: Color(0xFFFF69B4), size: 20),
         ],
       ),
     );
@@ -185,11 +171,7 @@ class BreakRelationshipPage extends StatelessWidget {
   Widget _buildWarningText() {
     return const Text(
       '任意一方可以发起解除关系，请务必查阅解除关系的代价后再进行操作',
-      style: TextStyle(
-        fontSize: 14,
-        color: Color(0xFF999999),
-        height: 1.5,
-      ),
+      style: TextStyle(fontSize: 14, color: Color(0xFF999999), height: 1.5),
       textAlign: TextAlign.center,
     );
   }
@@ -243,7 +225,7 @@ class BreakRelationshipPage extends StatelessWidget {
     return notices.asMap().entries.map((entry) {
       int index = entry.key;
       String notice = entry.value;
-      
+
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(
@@ -251,10 +233,7 @@ class BreakRelationshipPage extends StatelessWidget {
           children: [
             Text(
               '${index + 1}.',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF666666),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -280,7 +259,7 @@ class BreakRelationshipPage extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
         onPressed: () {
-           DialogManager.showUnbindConfirm(context);
+          DialogManager.showUnbindConfirm(context);
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF6B6B),
@@ -292,16 +271,11 @@ class BreakRelationshipPage extends StatelessWidget {
         ),
         child: const Text(
           '解除关系',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
       ),
     );
   }
-
-  
 
   void _handleBreakRelationship() {
     // 这里处理解除关系的逻辑
@@ -313,7 +287,7 @@ class BreakRelationshipPage extends StatelessWidget {
       colorText: Colors.white,
       duration: const Duration(seconds: 2),
     );
-    
+
     // 返回上一页或跳转到其他页面
     Get.back();
   }

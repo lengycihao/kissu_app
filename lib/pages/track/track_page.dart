@@ -59,10 +59,11 @@ class TrackPage extends StatelessWidget {
           Obx(() {
             final sheetPercent = controller.sheetPercent.value;
             final initialPosition = initialHeight / screenHeight;
-            
+
             // 当sheet在初始位置附近时显示播放控制器
             // 扩大显示范围，确保进入页面时就能看到
-            final opacity = (sheetPercent <= initialPosition + 0.15) ? 1.0 : 0.0;
+            final opacity =
+                (sheetPercent <= initialPosition + 0.15) ? 1.0 : 0.0;
 
             return AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
@@ -250,7 +251,7 @@ class TrackPage extends StatelessWidget {
               image: DecorationImage(
                 image: AssetImage('assets/kissu_track_header_bbg.webp'),
               ),
-             ),
+            ),
             child: Image.asset(
               'assets/kissu_track_header_boy.webp', // 替换为你的图片路径
               width: 32, // 设置图片宽度
@@ -265,12 +266,13 @@ class TrackPage extends StatelessWidget {
             // 处理点击事件
             print('Image 2 clicked');
           },
-          child: Container(padding: EdgeInsets.all(1), // 内边距，增加点击区域
+          child: Container(
+            padding: EdgeInsets.all(1), // 内边距，增加点击区域
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/kissu_track_header_bgirl.webp'),
               ),
-             ),
+            ),
             child: Image.asset(
               'assets/kissu_track_header_girl.webp', // 替换为你的图片路径
               width: 26, // 设置图片宽度

@@ -24,13 +24,9 @@ abstract class BaseDialog extends StatelessWidget {
         return FadeTransition(
           opacity: animation,
           child: ScaleTransition(
-            scale: Tween<double>(
-              begin: 0.8,
-              end: 1.0,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            )),
+            scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+            ),
             child: child,
           ),
         );
@@ -44,10 +40,7 @@ abstract class BaseDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: buildContent(context),
-      ),
+      child: Material(color: Colors.transparent, child: buildContent(context)),
     );
   }
 }
@@ -76,19 +69,22 @@ class DialogContainer extends StatelessWidget {
     return Container(
       width: width ?? 300,
       height: height,
-      constraints: constraints ?? BoxConstraints(
-        minHeight: 0,
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
-      ),
+      constraints:
+          constraints ??
+          BoxConstraints(
+            minHeight: 0,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
       padding: padding ?? const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        image: backgroundImage != null
-            ? DecorationImage(
-                image: AssetImage(backgroundImage!),
-                fit: BoxFit.fill,
-              )
-            : null,
+        image:
+            backgroundImage != null
+                ? DecorationImage(
+                  image: AssetImage(backgroundImage!),
+                  fit: BoxFit.fill,
+                )
+                : null,
         color: backgroundImage == null ? Colors.white : null,
       ),
       child: child,
@@ -126,16 +122,19 @@ class DialogButton extends StatelessWidget {
       child: Container(
         width: width ?? 120,
         height: height ?? 44,
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding:
+            padding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           // borderRadius: BorderRadius.circular(22),
-          image: backgroundImage != null
-              ? DecorationImage(
-                  image: AssetImage(backgroundImage!),
-                  fit: BoxFit.fill,
-                )
-              : null,
-          color: backgroundImage == null ? (backgroundColor ?? Colors.pink) : null,
+          image:
+              backgroundImage != null
+                  ? DecorationImage(
+                    image: AssetImage(backgroundImage!),
+                    fit: BoxFit.fill,
+                  )
+                  : null,
+          color:
+              backgroundImage == null ? (backgroundColor ?? Colors.pink) : null,
         ),
         child: Center(
           child: Text(

@@ -16,35 +16,23 @@ class HomeController extends GetxController {
   void onButtonTap(int index) {
     selectedIndex.value = index;
     debugPrint("按钮 $index 被点击");
-    
+
     switch (index) {
       case 0:
         // 定位
-        Get.to(
-          () =>   LocationPage(),
-          binding: LocationBinding(),
-        );
+        Get.to(() => LocationPage(), binding: LocationBinding());
         break;
       case 1:
         // 足迹
-        Get.to(
-          () =>   TrackPage(),
-          binding: TrackBinding(),
-        );
+        Get.to(() => TrackPage(), binding: TrackBinding());
         break;
       case 2:
         // 用机记录
-        Get.to(
-          () => const PhoneHistoryPage(),
-          binding: PhoneHistoryBinding(),
-        );
+        Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
         break;
       case 3:
         // 我的
-        Get.to(
-          () => MinePage(),
-          binding: MineBinding(),
-        );
+        Get.to(() => MinePage(), binding: MineBinding());
         break;
       default:
         // 其他功能待实现
@@ -55,7 +43,6 @@ class HomeController extends GetxController {
   // 点击通知按钮
   void onNotificationTap() {
     // 示例逻辑：跳转到通知页面
-     
 
     // 或者增加调试打印
     print("通知按钮被点击");
@@ -64,7 +51,6 @@ class HomeController extends GetxController {
   // 点击钱包按钮
   void onMoneyTap() {
     // 示例逻辑：跳转到钱包/充值页面
-     
 
     // 或者增加调试打印
     print("钱包按钮被点击");
@@ -82,13 +68,13 @@ class HomeController extends GetxController {
       case 3:
         return "assets/kissu_home_tab_mine.webp";
       default:
-      return "assets/kissu_home_tab_location.webp";
+        return "assets/kissu_home_tab_location.webp";
     }
   }
 
   /// 获取底部图标路径
   String getBottomIconPath(int index) {
-     switch (index) {
+    switch (index) {
       case 0:
         return "assets/kissu_home_tab_locationT.webp";
       case 1:
@@ -98,7 +84,7 @@ class HomeController extends GetxController {
       case 3:
         return "assets/kissu_home_tab_mineT.webp";
       default:
-      return "assets/kissu_home_tab_locationT.webp";
+        return "assets/kissu_home_tab_locationT.webp";
     }
   }
 }

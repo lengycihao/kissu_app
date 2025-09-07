@@ -1,0 +1,78 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'half_user_info.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+HalfUserInfo _$HalfUserInfoFromJson(Map<String, dynamic> json) => HalfUserInfo(
+  id: (json['id'] as num?)?.toInt(),
+  phone: json['phone'] as String?,
+  nickname: json['nickname'] as String?,
+  headPortrait: json['head_portrait'] as String?,
+  gender: (json['gender'] as num?)?.toInt(),
+  birthday: json['birthday'] as String?,
+  halfUid: (json['half_uid'] as num?)?.toInt(),
+  status: (json['status'] as num?)?.toInt(),
+  loverId: (json['lover_id'] as num?)?.toInt(),
+  inviterId: (json['inviter_id'] as num?)?.toInt(),
+  friendCode: json['friend_code'] as String?,
+  friendQrCode: json['friend_qr_code'] as String?,
+  isForEverVip: (json['is_for_ever_vip'] as num?)?.toInt(),
+  vipEndTime: (json['vip_end_time'] as num?)?.toInt(),
+  channel: json['channel'] as String?,
+  mobileModel: json['mobile_model'] as String?,
+  deviceId: json['device_id'] as String?,
+  uniqueId: json['unique_id'] as String?,
+  provinceName: json['province_name'] as String?,
+  cityName: json['city_name'] as String?,
+  bindStatus: json['bind_status'] as String?,
+  latelyBindTime: json['lately_bind_time'] as String?,
+  latelyUnbindTime: json['lately_unbind_time'] as String?,
+  latelyLoginTime: json['lately_login_time'] as String?,
+  latelyPayTime: json['lately_pay_time'] as String?,
+  loginNums: json['login_nums'] as String?,
+  openAppNums: json['open_app_nums'] as String?,
+  latelyOpenAppTime: json['lately_open_app_time'] as String?,
+  isTest: json['is_test'] as String?,
+  isOrderVip: json['is_order_vip'] as String?,
+  vipEndDate: json['vip_end_date'] as String?,
+  isVip: (json['is_vip'] as num?)?.toInt(),
+);
+
+Map<String, dynamic> _$HalfUserInfoToJson(HalfUserInfo instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'phone': instance.phone,
+      'nickname': instance.nickname,
+      'head_portrait': instance.headPortrait,
+      'gender': instance.gender,
+      'birthday': instance.birthday,
+      'half_uid': instance.halfUid,
+      'status': instance.status,
+      'lover_id': instance.loverId,
+      'inviter_id': instance.inviterId,
+      'friend_code': instance.friendCode,
+      'friend_qr_code': instance.friendQrCode,
+      'is_for_ever_vip': instance.isForEverVip,
+      'vip_end_time': instance.vipEndTime,
+      'channel': instance.channel,
+      'mobile_model': instance.mobileModel,
+      'device_id': instance.deviceId,
+      'unique_id': instance.uniqueId,
+      'province_name': instance.provinceName,
+      'city_name': instance.cityName,
+      'bind_status': instance.bindStatus,
+      'lately_bind_time': instance.latelyBindTime,
+      'lately_unbind_time': instance.latelyUnbindTime,
+      'lately_login_time': instance.latelyLoginTime,
+      'lately_pay_time': instance.latelyPayTime,
+      'login_nums': instance.loginNums,
+      'open_app_nums': instance.openAppNums,
+      'lately_open_app_time': instance.latelyOpenAppTime,
+      'is_test': instance.isTest,
+      'is_order_vip': instance.isOrderVip,
+      'vip_end_date': instance.vipEndDate,
+      'is_vip': instance.isVip,
+    };

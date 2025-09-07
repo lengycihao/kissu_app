@@ -48,7 +48,8 @@ class ConfirmDialog extends BaseDialog {
               content!,
               textAlign: TextAlign.left,
               style: const TextStyle(
-                fontSize: 14,height: 1.7,
+                fontSize: 14,
+                height: 1.7,
                 color: Color(0xFF333333),
               ),
             ),
@@ -58,10 +59,7 @@ class ConfirmDialog extends BaseDialog {
             Text(
               subContent!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF999999),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF999999)),
             ),
           ],
           const SizedBox(height: 25),
@@ -71,7 +69,8 @@ class ConfirmDialog extends BaseDialog {
             children: [
               if (showCancel) ...[
                 DialogButton(
-                  text: cancelText ?? '取消',width: 100,
+                  text: cancelText ?? '取消',
+                  width: 110,
                   backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp',
                   onTap: () {
                     Navigator.of(context).pop(false);
@@ -82,7 +81,7 @@ class ConfirmDialog extends BaseDialog {
               ],
               DialogButton(
                 text: confirmText,
-                width: 100,
+                width: 110,
                 backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp',
                 onTap: () {
                   Navigator.of(context).pop(true);
@@ -129,12 +128,72 @@ class ConfirmDialog extends BaseDialog {
 /// 退出登录确认弹窗
 class LogoutConfirmDialog {
   static Future<bool?> show(BuildContext context) {
-    return ConfirmDialog.show(
+    return BaseDialog.show<bool>(
       context: context,
-      title: '提示',
-      content: '确定要退出登录吗？',
-      cancelText: '取消',
-      confirmText: '我再想想',
+      dialog: _LogoutConfirmDialogContent(),
+    );
+  }
+}
+
+/// 退出登录弹窗内容（自定义按钮布局）
+class _LogoutConfirmDialogContent extends BaseDialog {
+  const _LogoutConfirmDialogContent({Key? key}) : super(key: key);
+
+  @override
+  Widget buildContent(BuildContext context) {
+    return DialogContainer(
+      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      width: 300,
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 标题
+          const Text(
+            '提示',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            '确定要退出登录吗？',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.7,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const SizedBox(height: 25),
+          // 按钮
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // 左边：确认按钮（执行退出操作）
+              DialogButton(
+                text: '确认',
+                width: 110,
+                backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                onTap: () {
+                  Navigator.of(context).pop(true); // 返回 true 表示确认退出
+                },
+              ),
+              // 右边：我再想想按钮（取消操作）  
+              DialogButton(
+                text: '我再想想',
+                width: 110,
+                backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                onTap: () {
+                  Navigator.of(context).pop(false); // 返回 false 表示取消
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -153,10 +212,8 @@ class PhoneChangeConfirmDialog {
 class _PhoneChangeDialog extends BaseDialog {
   final String phoneNumber;
 
-  const _PhoneChangeDialog({
-    Key? key,
-    required this.phoneNumber,
-  }) : super(key: key);
+  const _PhoneChangeDialog({Key? key, required this.phoneNumber})
+    : super(key: key);
 
   @override
   Widget buildContent(BuildContext context) {
@@ -180,19 +237,13 @@ class _PhoneChangeDialog extends BaseDialog {
           const Text(
             '当前的手机号为',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF666666),
-            ),
+            style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
           ),
           const SizedBox(height: 8),
           Text(
             phoneNumber,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF999999),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF999999)),
           ),
           const SizedBox(height: 25),
           // 按钮（上下排列）
@@ -232,6 +283,79 @@ class UnbindConfirmDialog {
       content: '解除关系意味着你将清空以上数据，此操作无法撤回，是否确认解除关系？',
       cancelText: '确认解除',
       confirmText: '再想想',
+    );
+  }
+}
+
+/// 注销账户确认弹窗
+class CancellationConfirmDialog {
+  static Future<bool?> show(BuildContext context) {
+    return BaseDialog.show<bool>(
+      context: context,
+      dialog: _CancellationConfirmDialogContent(),
+    );
+  }
+}
+
+/// 注销账户弹窗内容（与退出登录弹窗保持一致的UI）
+class _CancellationConfirmDialogContent extends BaseDialog {
+  const _CancellationConfirmDialogContent({Key? key}) : super(key: key);
+
+  @override
+  Widget buildContent(BuildContext context) {
+    return DialogContainer(
+      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      width: 300,
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 标题
+          const Text(
+            '确认注销',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            '注销账户后，您的所有数据将被永久删除，无法恢复。确定要注销吗？',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.7,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const SizedBox(height: 25),
+          // 按钮
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // 左边：确认按钮（执行注销操作）
+              DialogButton(
+                text: '确认',
+                width: 110,
+                backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                onTap: () {
+                  Navigator.of(context).pop(true); // 返回 true 表示确认注销
+                },
+              ),
+              // 右边：我再想想按钮（取消操作）  
+              DialogButton(
+                text: '我再想想',
+                width: 110,
+                backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                onTap: () {
+                  Navigator.of(context).pop(false); // 返回 false 表示取消
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
