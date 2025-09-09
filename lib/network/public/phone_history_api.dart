@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/model/phone_history_model/phone_history_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 class PhoneHistoryApi {
   // 简单的内存缓存，避免相同请求的重复网络调用
@@ -23,8 +23,9 @@ class PhoneHistoryApi {
       params['date'] = date;
     }
     
-    // 生成缓存key
-    final cacheKey = '${page}_${pageSize}_${date ?? 'today'}';
+    // 生成缓存key，包含用户ID以避免不同用户间的缓存冲突
+    final userId = UserManager.userId ?? 'anonymous';
+    final cacheKey = '${userId}_${page}_${pageSize}_${date ?? 'today'}';
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final isToday = (date == null || date.isEmpty) ? true : (date == today);
     
@@ -80,5 +81,18 @@ class PhoneHistoryApi {
   /// 清空所有缓存
   static void clearCache() {
     _cache.clear();
+  }
+  
+  /// 清空特定用户的缓存
+  static void clearUserCache(String userId) {
+    _cache.removeWhere((key, value) => key.startsWith('${userId}_'));
+  }
+  
+  /// 清空当前用户的缓存
+  static void clearCurrentUserCache() {
+    final userId = UserManager.userId;
+    if (userId != null) {
+      clearUserCache(userId);
+    }
   }
 }

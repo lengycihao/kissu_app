@@ -65,9 +65,20 @@ class ApiResponseInterceptor extends Interceptor {
 
           default:
             // 检查是否是其他常见的token过期错误码
-            final tokenExpiredCodes = [401, 1001, 1002, 10001, 403];
+            final tokenExpiredCodes = [
+              401,   // Unauthorized
+              403,   // Forbidden  
+              1001,  // token无效
+              1002,  // token过期
+              10001, // 登录失效
+              40001, // token异常
+              40002, // 用户未登录
+              40003, // 登录过期
+              42000, // 认证失败
+              43000, // token失效或账号异常
+            ];
             if (tokenExpiredCodes.contains(processedResponse.code)) {
-              print('检测到业务层面token过期，错误码: ${processedResponse.code}');
+              print('🔍 检测到业务层面token过期，错误码: ${processedResponse.code}, 错误消息: ${processedResponse.msg}');
               final message = processedResponse.msg ?? '登录已过期，请重新登录';
               _handleTokenExpired(message);
               return;
@@ -78,12 +89,33 @@ class ApiResponseInterceptor extends Interceptor {
             final tokenExpiredKeywords = [
               'token',
               'unauthorized',
+              'unauthenticated',
+              'invalid token',
+              'expired token',
+              'token expired',
+              'login expired',
+              'session expired',
               '未授权',
               '登录失效',
               '登录过期',
+              '会话过期',
+              'token无效',
+              'token过期',
+              '用户未登录',
+              '请重新登录',
+              '登录状态异常',
+              '账号异常',
+              '认证失败',
+              '身份验证失败',
             ];
-            if (tokenExpiredKeywords.any((keyword) => msg.contains(keyword))) {
-              print('检测到错误消息中包含token过期关键词: ${processedResponse.msg}');
+            
+            final foundKeyword = tokenExpiredKeywords.firstWhere(
+              (keyword) => msg.contains(keyword),
+              orElse: () => '',
+            );
+            
+            if (foundKeyword.isNotEmpty) {
+              print('🔍 检测到错误消息中包含token过期关键词: "$foundKeyword", 完整消息: ${processedResponse.msg}');
               final message = processedResponse.msg ?? '登录已过期，请重新登录';
               _handleTokenExpired(message);
               return;
@@ -131,22 +163,29 @@ class ApiResponseInterceptor extends Interceptor {
   void _handleTokenExpired(String message) {
     final now = DateTime.now();
     
+    print('⚠️ Token失效处理开始: $message');
+    print('📊 当前处理状态: _isHandlingUnauthorized=$_isHandlingUnauthorized');
+    print('⏰ 上次处理时间: $_lastUnauthorizedTime');
+    
     // 检查是否正在处理中
     if (_isHandlingUnauthorized) {
-      print('正在处理token失效，跳过重复处理');
+      print('⏸️ 正在处理token失效，跳过重复处理');
       return;
     }
     
     // 检查距离上次处理是否太近（3秒内不重复处理）
     if (_lastUnauthorizedTime != null && 
         now.difference(_lastUnauthorizedTime!) < const Duration(seconds: 3)) {
-      print('距离上次token失效处理太近，跳过重复处理');
+      final timeDiff = now.difference(_lastUnauthorizedTime!).inSeconds;
+      print('⏸️ 距离上次token失效处理太近（${timeDiff}秒），跳过重复处理');
       return;
     }
     
     // 标记正在处理并记录时间
     _isHandlingUnauthorized = true;
     _lastUnauthorizedTime = now;
+    
+    print('🚀 开始执行token失效处理流程...');
     
     // 显示消息
     _showMessage(message);
@@ -157,37 +196,76 @@ class ApiResponseInterceptor extends Interceptor {
 
   /// 处理未授权错误
   void _handleUnauthorized() async {
-    print('检测到token过期，清除用户数据并跳转到登录页');
+    print('🔐 检测到token过期，开始清除用户数据并跳转到登录页');
 
     try {
-      // 通过AuthService清除所有用户数据
+      // 直接清除本地用户数据，不调用退出登录API（因为token已失效）
       final authService = GetIt.instance<AuthService>();
-      await authService.logout();
-      print('用户数据已清除');
+      await authService.clearLocalUserData();
+      print('✅ 本地用户数据已清除');
     } catch (e) {
-      print('清除用户信息失败: $e');
-      // 备用清除方式
+      print('❌ 清除用户信息失败: $e');
+      // 备用清除方式 - 直接删除存储的用户数据
       try {
         const storage = FlutterSecureStorage();
         await storage.delete(key: 'current_user');
+        print('✅ 备用清除方式成功');
       } catch (fallbackError) {
-        print('备用清除方式也失败: $fallbackError');
+        print('❌ 备用清除方式也失败: $fallbackError');
       }
     }
 
     // 跳转到登录页
     try {
-      gg.Get.offAllNamed(KissuRoutePath.login);
-      print('已跳转到登录页');
+      print('🔄 准备跳转到登录页...');
+      
+      // 检查Get路由是否已经初始化
+      if (gg.Get.isRegistered<gg.GetMaterialController>()) {
+        gg.Get.offAllNamed(KissuRoutePath.login);
+        print('✅ 已成功跳转到登录页');
+      } else {
+        print('⚠️ Get路由尚未初始化，延迟跳转...');
+        // 延迟跳转，等待Get路由初始化完成
+        Future.delayed(const Duration(milliseconds: 500), () {
+          try {
+            gg.Get.offAllNamed(KissuRoutePath.login);
+            print('✅ 延迟跳转到登录页成功');
+          } catch (delayedError) {
+            print('❌ 延迟跳转也失败: $delayedError');
+            _tryFallbackNavigation();
+          }
+        });
+      }
     } catch (e) {
-      print('导航到登录页失败: $e');
+      print('❌ 导航到登录页失败: $e');
+      _tryFallbackNavigation();
     }
     
     // 延迟重置处理状态，确保跳转完成
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 2), () {
       _isHandlingUnauthorized = false;
-      print('token失效处理状态已重置');
+      print('🔄 token失效处理状态已重置');
     });
+  }
+
+  /// 尝试备用跳转方式
+  void _tryFallbackNavigation() {
+    print('🔧 尝试备用跳转方式...');
+    
+    // 尝试多种跳转方式
+    final fallbackRoutes = ['/login', KissuRoutePath.login];
+    
+    for (final route in fallbackRoutes) {
+      try {
+        gg.Get.offAllNamed(route);
+        print('✅ 备用跳转方式成功: $route');
+        return;
+      } catch (e) {
+        print('❌ 备用跳转失败 ($route): $e');
+      }
+    }
+    
+    print('🚨 所有跳转方式都失败了，将在应用下次启动时重定向到登录页');
   }
 
   /// 处理API响应

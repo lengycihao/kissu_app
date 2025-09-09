@@ -296,7 +296,7 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
             decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage(
-                  'assets/phone_history/kissu_phone_list_bg.webp',
+                  'assets/track_device_bg.webp',
                 ),
                 fit: BoxFit.fill,
               ),

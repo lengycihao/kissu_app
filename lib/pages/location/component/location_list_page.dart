@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 
-class StopListItem extends StatelessWidget {
+class LocationListItem extends StatelessWidget {
   final StopRecord record;
   final int index; // 用于显示连接线等，保留以防需要
   final bool isLast; // 是否是最后一个item
 
-  const StopListItem({
+  const LocationListItem({
     Key? key,
     required this.record,
     required this.index,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:kissu_app/network/example/http_manager_example.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/network/interceptor/api_response_interceptor.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
@@ -28,6 +29,10 @@ void main() async {
 
     // 步骤3: 初始化HTTP管理器（会使用已注册的AuthService）
     await HttpManagerExample.initializeHttpManager();
+
+    // 步骤4: 重置token失效处理状态，确保拦截器正常工作
+    ApiResponseInterceptor.resetUnauthorizedState();
+    print('Token失效拦截器状态已重置');
 
     print('应用初始化完成');
   } catch (e) {

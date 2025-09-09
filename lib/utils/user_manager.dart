@@ -1,6 +1,8 @@
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/network/public/phone_history_api.dart';
+import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 
 /// 全局用户数据管理工具类
@@ -96,16 +98,34 @@ class UserManager {
 
   /// 用户登出
   static Future<void> logout() async {
+    // 清除缓存
+    clearPhoneHistoryCache();
+    clearLocationCache();
+    
     await _authService.logout();
   }
 
   /// 清除本地用户数据（用于注销后的数据清理，不调用退出登录API）
   static Future<void> clearLocalUserData() async {
+    // 清除缓存
+    clearPhoneHistoryCache();
+    clearLocationCache();
+    
     // 清除协议同意状态（注销时需要重新同意协议）
     await LoginController.clearAgreementStatus();
 
     // 清除用户数据
     await _authService.clearLocalUserData();
+  }
+
+  /// 清除当前用户的通话记录缓存
+  static void clearPhoneHistoryCache() {
+    PhoneHistoryApi.clearCurrentUserCache();
+  }
+
+  /// 清除当前用户的位置数据缓存
+  static void clearLocationCache() {
+    LocationApi.clearCurrentUserCache();
   }
 
   /// 刷新用户信息（从服务器获取最新数据）

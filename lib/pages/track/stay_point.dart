@@ -49,18 +49,157 @@ const List<StayPoint> stayPoints = [
   ),
 ];
 
+/// 测试数据 - 根据JSON结构创建的停留记录
+final List<StopRecord> testStopRecords = [
+  StopRecord(
+    latitude: 30.274905327690973,
+    longitude: 120.22095160590278,
+    locationName: "浙江省杭州市上城区中豪·湘和国际",
+    startTime: "23:59",
+    endTime: "",
+    duration: "",
+    status: "",
+    pointType: "end",
+    serialNumber: "终",
+  ),
+  StopRecord(
+    latitude: 30.27518744574653,
+    longitude: 120.22067518446181,
+    locationName: "浙江省杭州市上城区中豪湘悦中心",
+    startTime: "23:03",
+    endTime: "",
+    duration: "56分钟",
+    status: "staying",
+    pointType: "stop",
+    serialNumber: "1",
+  ),
+  StopRecord(
+    latitude: 30.280328776041667,
+    longitude: 120.22582980685763,
+    locationName: "浙江省杭州市上城区云峰家园",
+    startTime: "22:09",
+    endTime: "22:26",
+    duration: "17分钟1秒",
+    status: "ended",
+    pointType: "stop",
+    serialNumber: "2",
+  ),
+  StopRecord(
+    latitude: 30.27518744574653,
+    longitude: 120.22067572699653,
+    locationName: "浙江省杭州市上城区中豪·湘和国际",
+    startTime: "21:44",
+    endTime: "22:00",
+    duration: "16分钟2秒",
+    status: "ended",
+    pointType: "stop",
+    serialNumber: "3",
+  ),
+  StopRecord(
+    latitude: 30.27518744574653,
+    longitude: 120.22067572699653,
+    locationName: "浙江省杭州市上城区中豪·湘和国际",
+    startTime: "21:44",
+    endTime: "",
+    duration: "",
+    status: "",
+    pointType: "start",
+    serialNumber: "起",
+  ),
+];
+
 class StopRecord {
-  final String time;
-  final String leftTime;
-  final String location;
-  final String stayDuration; // 停留时间，如果是当前停留可写"停留中"
-  final bool isCurrent;
+  final double latitude;
+  final double longitude;
+  final String locationName;
+  final String startTime;
+  final String endTime;
+  final String duration;
+  final String status; // "staying", "ended", 或空字符串
+  final String pointType; // "start", "end", "stop"
+  final String serialNumber; // "起", "终", "1", "2", "3"...
+  
+  // 计算出的显示字段
+  final String time; // 时间文案
+  final String leftTime; // 左边时间text
+  final String stayDuration; // 文字文案
 
   StopRecord({
-    required this.time,
-    required this.leftTime,
-    required this.location,
-    required this.stayDuration,
-    this.isCurrent = false,
-  });
+    required this.latitude,
+    required this.longitude,
+    required this.locationName,
+    required this.startTime,
+    required this.endTime,
+    required this.duration,
+    required this.status,
+    required this.pointType,
+    required this.serialNumber,
+  }) : 
+    time = _calculateTimeText(pointType, status, startTime, endTime, duration),
+    leftTime = _calculateLeftTime(pointType, startTime, endTime),
+    stayDuration = _calculateStayDuration(pointType, status, duration);
+  
+  // 工厂构造函数，从JSON创建
+  factory StopRecord.fromJson(Map<String, dynamic> json) {
+    return StopRecord(
+      latitude: double.parse(json['latitude'].toString()),
+      longitude: double.parse(json['longitude'].toString()),
+      locationName: json['location_name'] ?? '',
+      startTime: json['start_time'] ?? '',
+      endTime: json['end_time'] ?? '',
+      duration: json['duration'] ?? '',
+      status: json['status'] ?? '',
+      pointType: json['point_type'] ?? '',
+      serialNumber: json['serial_number'] ?? '',
+    );
+  }
+  
+  // 计算时间文案
+  static String _calculateTimeText(String pointType, String status, String startTime, String endTime, String duration) {
+    switch (pointType) {
+      case 'start':
+        return startTime; // 时间文案显示 start_time
+      case 'end':
+        return endTime; // 时间文案显示 end_time
+      case 'stop':
+        if (status == 'ended') {
+          return '$startTime ~ $endTime'; // 时间文案显示 start_time ~ end_time
+        } else if (status == 'staying') {
+          return '已停留$duration'; // 时间文案显示 已停留+duration
+        }
+        break;
+    }
+    return '';
+  }
+  
+  // 计算左边时间text
+  static String _calculateLeftTime(String pointType, String startTime, String endTime) {
+    switch (pointType) {
+      case 'start':
+        return startTime; // 左边时间text 显示 start_time
+      case 'end':
+        return endTime; // 左边时间text 显示 end_time
+      case 'stop':
+        return endTime; // 左边时间text 显示 end_time
+    }
+    return '';
+  }
+  
+  // 计算文字文案
+  static String _calculateStayDuration(String pointType, String status, String duration) {
+    switch (pointType) {
+      case 'start':
+        return ''; // 文字文案不显示
+      case 'end':
+        return ''; // 文字文案显示空（根据需求可能需要调整）
+      case 'stop':
+        if (status == 'ended') {
+          return '停留$duration'; // 文字文案显示 停留+duration
+        } else if (status == 'staying') {
+          return '停留中'; // 文字文案显示 停留中
+        }
+        break;
+    }
+    return '';
+  }
 }

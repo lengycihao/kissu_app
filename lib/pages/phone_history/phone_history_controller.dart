@@ -372,11 +372,12 @@ class PhoneHistoryController extends GetxController {
   }
 
   // 获取设备信息
-  String get deviceModel => phoneHistoryModel.value?.mobileLocationInfo?.mobileModel ?? 'Unknown';
-  String get batteryLevel => phoneHistoryModel.value?.mobileLocationInfo?.power ?? '0%';
-  String get networkName => phoneHistoryModel.value?.mobileLocationInfo?.networkName ?? 'Unknown';
-  String get distance => phoneHistoryModel.value?.mobileLocationInfo?.distance ?? '0KM';
+  String get deviceModel => phoneHistoryModel.value?.mobileLocationInfo?.mobileModel ?? '未知';
+  String get batteryLevel => phoneHistoryModel.value?.mobileLocationInfo?.power ?? '未知';
+  String get networkName => phoneHistoryModel.value?.mobileLocationInfo?.networkName ?? '未知';
+  String get distance => phoneHistoryModel.value?.mobileLocationInfo?.distance ?? '';
   String get updateTime => phoneHistoryModel.value?.mobileLocationInfo?.calculateLocationTime ?? '';
+
 }
 
 // 用机记录数据模型
