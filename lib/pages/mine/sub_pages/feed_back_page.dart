@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/network/public/setting_api.dart';
 import '../../../network/public/file_upload_api.dart';
-import '../../../network/public/feedback_api.dart';
 import '../../../utils/user_manager.dart';
 import '../../../widgets/login_loading_widget.dart';
 
@@ -22,7 +22,7 @@ class FeedbackController extends GetxController {
 
   final picker = ImagePicker();
   final fileUploadApi = FileUploadApi();
-  final feedbackApi = FeedbackApi();
+  final settingApi = SettingApi();
 
   @override
   void onClose() {
@@ -40,7 +40,7 @@ class FeedbackController extends GetxController {
   /// 验证联系方式
   String? validateContact(String value) {
     if (value.isEmpty) return null; // 选填字段，空值有效
-    
+
     // 判断是否是手机号格式（纯数字且以1开头）
     if (RegExp(r'^1\d+$').hasMatch(value)) {
       // 按手机号校验
@@ -59,7 +59,7 @@ class FeedbackController extends GetxController {
     } else {
       return "请输入有效的手机号或邮箱";
     }
-    
+
     return null;
   }
 
@@ -146,7 +146,7 @@ class FeedbackController extends GetxController {
           ? contact.value.trim()
           : (UserManager.userPhone ?? '');
 
-      final result = await feedbackApi.submitFeedback(
+      final result = await settingApi.submitFeedback(
         content: content.value.trim(),
         contactWay: contactWay,
         attachment: attachmentUrl,
@@ -424,8 +424,10 @@ class FeedbackPage extends StatelessWidget {
                                   focusNode: controller.contactFocusNode,
                                   onChanged: (val) =>
                                       controller.contact.value = val,
-                                  onSubmitted: (_) => controller.onContactFocusLost(),
-                                  onTapOutside: (_) => controller.onContactFocusLost(),
+                                  onSubmitted: (_) =>
+                                      controller.onContactFocusLost(),
+                                  onTapOutside: (_) =>
+                                      controller.onContactFocusLost(),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF333333),
@@ -435,7 +437,9 @@ class FeedbackPage extends StatelessWidget {
                                     FilteringTextInputFormatter.allow(
                                       RegExp(r'[0-9a-zA-Z@._\-]'),
                                     ),
-                                    LengthLimitingTextInputFormatter(50), // 限制最大长度
+                                    LengthLimitingTextInputFormatter(
+                                      50,
+                                    ), // 限制最大长度
                                   ],
                                   decoration: const InputDecoration(
                                     hintText: "请输入您的手机号/邮箱",

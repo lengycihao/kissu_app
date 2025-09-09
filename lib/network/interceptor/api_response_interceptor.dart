@@ -11,20 +11,28 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 /// API响应拦截器
 /// 处理统一的响应格式和错误处理
 class ApiResponseInterceptor extends Interceptor {
-
+  // 防重复弹窗机制
+  static bool _isHandlingUnauthorized = false;
+  static DateTime? _lastUnauthorizedTime;
+  
+  /// 重置token失效处理状态（应用启动时调用）
+  static void resetUnauthorizedState() {
+    _isHandlingUnauthorized = false;
+    _lastUnauthorizedTime = null;
+    print('token失效处理状态已重置');
+  }
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     try {
       // 处理401未授权
       if (response.statusCode == 401) {
-        _showMessage('登录已过期，请重新登录');
-        _handleUnauthorized();
+        _handleTokenExpired('登录已过期，请重新登录');
         return;
       }
 
       // 转换响应为统一格式
       final processedResponse = _processApiResponse(response);
-      
+
       // 检查业务层面的错误码处理
       if (!processedResponse.isSuccess) {
         // 检查各种错误码并给出相应处理
@@ -33,54 +41,57 @@ class ApiResponseInterceptor extends Interceptor {
             // token失效或账号异常 - 跳到登录页
             print('检测到code 43000，token失效或账号异常，需要重新登录');
             final message = processedResponse.msg ?? 'token失效或账号异常，请重新登录';
-            _showMessage(message);
-            _handleUnauthorized();
+            _handleTokenExpired(message);
             return;
-            
+
           case 41000:
             // header公共参数缺失
             print('检测到code 41000，header公共参数缺失');
             final message = processedResponse.msg ?? 'header公共参数缺失';
             _showMessage(message);
             break;
-            
+
           case 51000:
             // 签名错误
             print('检测到code 51000，签名错误');
             final message = processedResponse.msg ?? '签名错误';
             _showMessage(message);
             break;
-            
+
           case 1:
             // 接口处理失败 - 一般业务错误，不需要特殊处理，让上层业务处理
             print('检测到code 1，接口处理失败: ${processedResponse.msg}');
             break;
-            
+
           default:
             // 检查是否是其他常见的token过期错误码
             final tokenExpiredCodes = [401, 1001, 1002, 10001, 403];
             if (tokenExpiredCodes.contains(processedResponse.code)) {
               print('检测到业务层面token过期，错误码: ${processedResponse.code}');
               final message = processedResponse.msg ?? '登录已过期，请重新登录';
-              _showMessage(message);
-              _handleUnauthorized();
+              _handleTokenExpired(message);
               return;
             }
-            
+
             // 检查错误消息中是否包含token过期关键词
             final msg = processedResponse.msg?.toLowerCase() ?? '';
-            final tokenExpiredKeywords = ['token', 'unauthorized', '未授权', '登录失效', '登录过期'];
+            final tokenExpiredKeywords = [
+              'token',
+              'unauthorized',
+              '未授权',
+              '登录失效',
+              '登录过期',
+            ];
             if (tokenExpiredKeywords.any((keyword) => msg.contains(keyword))) {
               print('检测到错误消息中包含token过期关键词: ${processedResponse.msg}');
               final message = processedResponse.msg ?? '登录已过期，请重新登录';
-              _showMessage(message);
-              _handleUnauthorized();
+              _handleTokenExpired(message);
               return;
             }
             break;
         }
       }
-      
+
       response.data = processedResponse;
       super.onResponse(response, handler);
     } catch (e) {
@@ -99,8 +110,7 @@ class ApiResponseInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     // 处理401错误
     if (err.response?.statusCode == 401) {
-      _showMessage('登录已过期，请重新登录');
-      _handleUnauthorized();
+      _handleTokenExpired('登录已过期，请重新登录');
       return;
     }
 
@@ -117,10 +127,38 @@ class ApiResponseInterceptor extends Interceptor {
     handler.resolve(errorResponse);
   }
 
+  /// 处理token失效（防重复弹窗）
+  void _handleTokenExpired(String message) {
+    final now = DateTime.now();
+    
+    // 检查是否正在处理中
+    if (_isHandlingUnauthorized) {
+      print('正在处理token失效，跳过重复处理');
+      return;
+    }
+    
+    // 检查距离上次处理是否太近（3秒内不重复处理）
+    if (_lastUnauthorizedTime != null && 
+        now.difference(_lastUnauthorizedTime!) < const Duration(seconds: 3)) {
+      print('距离上次token失效处理太近，跳过重复处理');
+      return;
+    }
+    
+    // 标记正在处理并记录时间
+    _isHandlingUnauthorized = true;
+    _lastUnauthorizedTime = now;
+    
+    // 显示消息
+    _showMessage(message);
+    
+    // 处理未授权
+    _handleUnauthorized();
+  }
+
   /// 处理未授权错误
   void _handleUnauthorized() async {
     print('检测到token过期，清除用户数据并跳转到登录页');
-    
+
     try {
       // 通过AuthService清除所有用户数据
       final authService = GetIt.instance<AuthService>();
@@ -136,13 +174,20 @@ class ApiResponseInterceptor extends Interceptor {
         print('备用清除方式也失败: $fallbackError');
       }
     }
-    
+
     // 跳转到登录页
     try {
       gg.Get.offAllNamed(KissuRoutePath.login);
+      print('已跳转到登录页');
     } catch (e) {
       print('导航到登录页失败: $e');
     }
+    
+    // 延迟重置处理状态，确保跳转完成
+    Future.delayed(const Duration(seconds: 1), () {
+      _isHandlingUnauthorized = false;
+      print('token失效处理状态已重置');
+    });
   }
 
   /// 处理API响应
@@ -201,7 +246,11 @@ class ApiResponseInterceptor extends Interceptor {
   }
 
   /// 创建成功结果
-  HttpResultN _createSuccessResult(dynamic data, dynamic code, String? message) {
+  HttpResultN _createSuccessResult(
+    dynamic data,
+    dynamic code,
+    String? message,
+  ) {
     if (data is List) {
       return HttpResultN(
         isSuccess: true,
@@ -226,7 +275,9 @@ class ApiResponseInterceptor extends Interceptor {
     } else if (data is String) {
       return json.decode(data) as Map<String, dynamic>;
     } else {
-      throw FormatException('Unsupported response data type: ${data.runtimeType}');
+      throw FormatException(
+        'Unsupported response data type: ${data.runtimeType}',
+      );
     }
   }
 
@@ -250,14 +301,22 @@ class ApiResponseInterceptor extends Interceptor {
   /// 获取HTTP状态码错误消息
   String _getHttpStatusMessage(int? statusCode) {
     switch (statusCode) {
-      case 400: return 'Bad Request';
-      case 401: return 'Unauthorized';
-      case 403: return 'Forbidden';
-      case 404: return 'Not Found';
-      case 500: return 'Internal Server Error';
-      case 502: return 'Bad Gateway';
-      case 503: return 'Service Unavailable';
-      default: return 'HTTP Error: $statusCode';
+      case 400:
+        return 'Bad Request';
+      case 401:
+        return 'Unauthorized';
+      case 403:
+        return 'Forbidden';
+      case 404:
+        return 'Not Found';
+      case 500:
+        return 'Internal Server Error';
+      case 502:
+        return 'Bad Gateway';
+      case 503:
+        return 'Service Unavailable';
+      default:
+        return 'HTTP Error: $statusCode';
     }
   }
 
@@ -267,7 +326,7 @@ class ApiResponseInterceptor extends Interceptor {
       try {
         final jsonMap = _parseResponseData(e.response!.data);
         final message = _extractValue(jsonMap, ['message', 'msg', 'error']);
-        
+
         return HttpResultN(
           isSuccess: false,
           code: e.response!.statusCode ?? -1,
@@ -277,7 +336,8 @@ class ApiResponseInterceptor extends Interceptor {
         return HttpResultN(
           isSuccess: false,
           code: e.response!.statusCode ?? -1,
-          msg: 'HTTP ${e.response!.statusCode}: ${e.response!.statusMessage ?? 'Unknown error'}',
+          msg:
+              'HTTP ${e.response!.statusCode}: ${e.response!.statusMessage ?? 'Unknown error'}',
         );
       }
     }
@@ -293,14 +353,22 @@ class ApiResponseInterceptor extends Interceptor {
   /// 获取Dio错误码
   int _getDioErrorCode(DioExceptionType type) {
     switch (type) {
-      case DioExceptionType.connectionTimeout: return -1001;
-      case DioExceptionType.sendTimeout: return -1002;
-      case DioExceptionType.receiveTimeout: return -1003;
-      case DioExceptionType.cancel: return -1004;
-      case DioExceptionType.connectionError: return -1005;
-      case DioExceptionType.badCertificate: return -1006;
-      case DioExceptionType.badResponse: return -1007;
-      case DioExceptionType.unknown: return -1000;
+      case DioExceptionType.connectionTimeout:
+        return -1001;
+      case DioExceptionType.sendTimeout:
+        return -1002;
+      case DioExceptionType.receiveTimeout:
+        return -1003;
+      case DioExceptionType.cancel:
+        return -1004;
+      case DioExceptionType.connectionError:
+        return -1005;
+      case DioExceptionType.badCertificate:
+        return -1006;
+      case DioExceptionType.badResponse:
+        return -1007;
+      case DioExceptionType.unknown:
+        return -1000;
     }
   }
 
@@ -332,10 +400,10 @@ class ApiResponseInterceptor extends Interceptor {
       gg.Get.snackbar(
         isError ? '错误' : '提示',
         message,
-        backgroundColor: isError 
+        backgroundColor: isError
             ? gg.Get.theme.colorScheme.error.withOpacity(0.1)
             : gg.Get.theme.colorScheme.primary.withOpacity(0.1),
-        colorText: isError 
+        colorText: isError
             ? gg.Get.theme.colorScheme.error
             : gg.Get.theme.colorScheme.primary,
         snackPosition: gg.SnackPosition.TOP,
@@ -344,7 +412,7 @@ class ApiResponseInterceptor extends Interceptor {
         borderRadius: 8,
         icon: Icon(
           isError ? Icons.warning_amber_rounded : Icons.info_outline,
-          color: isError 
+          color: isError
               ? gg.Get.theme.colorScheme.error
               : gg.Get.theme.colorScheme.primary,
         ),

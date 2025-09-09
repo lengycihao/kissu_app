@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(flutter packages pub run build_runner build:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

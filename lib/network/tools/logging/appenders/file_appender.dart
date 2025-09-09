@@ -172,10 +172,9 @@ class FileAppender extends LogAppender {
           tag: json['tag'] ?? '',
           timestamp: DateTime.parse(json['timestamp']),
           error: json['error'],
-          stackTrace:
-              json['stackTrace'] != null
-                  ? StackTrace.fromString(json['stackTrace'])
-                  : null,
+          stackTrace: json['stackTrace'] != null
+              ? StackTrace.fromString(json['stackTrace'])
+              : null,
           extra: json['extra'],
         );
         events.add(event);

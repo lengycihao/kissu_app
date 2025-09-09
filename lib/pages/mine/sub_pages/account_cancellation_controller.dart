@@ -21,7 +21,7 @@ class AccountCancellationController extends GetxController {
       if (currentUser.nickname?.isNotEmpty == true) {
         userName.value = currentUser.nickname!;
       }
-      
+
       // 设置用户头像
       if (currentUser.headPortrait?.isNotEmpty == true) {
         userAvatar.value = currentUser.headPortrait!;

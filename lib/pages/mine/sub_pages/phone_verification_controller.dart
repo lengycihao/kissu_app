@@ -194,15 +194,17 @@ class PhoneVerificationController extends GetxController {
     try {
       // 调用注销API
       final authApi = AuthApi();
-      final result = await authApi.cancelAccount(captcha: verificationCode.value.trim());
+      final result = await authApi.cancelAccount(
+        captcha: verificationCode.value.trim(),
+      );
 
       if (result.isSuccess) {
         // 清除本地用户数据（注销成功后只清理本地数据，不再调用退出登录API）
         await UserManager.clearLocalUserData();
-        
+
         // 跳转到登录页面并显示成功消息
         Get.offAllNamed(KissuRoutePath.login);
-        
+
         // 延迟显示消息，确保页面已经切换
         Future.delayed(const Duration(milliseconds: 500), () {
           Get.snackbar(

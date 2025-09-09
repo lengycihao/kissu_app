@@ -4,7 +4,6 @@ import 'package:kissu_app/utils/user_manager.dart';
 /// 用户数据使用示例
 /// 展示如何在应用的各个页面中使用缓存的用户数据
 class UserDataUsageExample {
-  
   /// 示例1: 在AppBar中显示用户信息
   static AppBar buildUserAppBar() {
     return AppBar(
@@ -13,13 +12,9 @@ class UserDataUsageExample {
         if (UserManager.isVip)
           const Icon(Icons.star, color: Colors.amber), // VIP标识
         if (UserManager.userAvatar?.isNotEmpty == true)
-          CircleAvatar(
-            backgroundImage: NetworkImage(UserManager.userAvatar!),
-          )
+          CircleAvatar(backgroundImage: NetworkImage(UserManager.userAvatar!))
         else
-          const CircleAvatar(
-            child: Icon(Icons.person),
-          ),
+          const CircleAvatar(child: Icon(Icons.person)),
       ],
     );
   }
@@ -110,19 +105,11 @@ class UserDataUsageExample {
             width: 60,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ),
           const Text(': '),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
@@ -147,7 +134,7 @@ class UserDataUsageExample {
               // 跳转到VIP购买页面
             },
           ),
-        
+
         if (UserManager.needsPerfectInfo)
           ListTile(
             leading: const Icon(Icons.warning, color: Colors.orange),
@@ -164,11 +151,11 @@ class UserDataUsageExample {
   /// 示例4: 在网络请求中使用用户Token
   static Map<String, String> buildAuthHeaders() {
     final headers = <String, String>{};
-    
+
     if (UserManager.isLoggedIn && UserManager.userToken?.isNotEmpty == true) {
       headers['Authorization'] = 'Bearer ${UserManager.userToken}';
     }
-    
+
     return headers;
   }
 

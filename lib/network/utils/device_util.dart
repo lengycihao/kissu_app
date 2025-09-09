@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
-import 'package:package_info_plus/package_info_plus.dart'; 
+import 'package:package_info_plus/package_info_plus.dart';
 
 class DeviceUtil {
   static DeviceUtil? _instance;

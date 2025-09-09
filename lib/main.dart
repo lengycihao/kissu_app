@@ -10,28 +10,30 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 确保Flutter绑定初始化
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-  statusBarColor: Colors.transparent,
-  statusBarIconBrightness: Brightness.dark,
-  statusBarBrightness: Brightness.dark,
-));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.dark,
+    ),
+  );
   try {
     // 步骤1: 初始化服务定位器
     await setupServiceLocator();
-    
+
     // 步骤2: 预加载用户数据（确保AuthService能正确获取缓存）
     final authService = getIt<AuthService>();
     await authService.loadCurrentUser();
     print('用户数据预加载完成，登录状态: ${authService.isLoggedIn}');
-    
+
     // 步骤3: 初始化HTTP管理器（会使用已注册的AuthService）
     await HttpManagerExample.initializeHttpManager();
-    
+
     print('应用初始化完成');
   } catch (e) {
     print('应用初始化失败: $e');
   }
-  
+
   runApp(const MyApp());
 }
 
@@ -41,8 +43,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-
-    
     return GetMaterialApp(
       title: 'Kissu App',
       theme: ThemeData(

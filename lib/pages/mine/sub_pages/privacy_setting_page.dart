@@ -13,7 +13,9 @@ class PrivacySettingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 示例手机号
-    final phoneNumber = "138****1234";
+    final phoneNumber = UserManager.formatPhoneWithExcept(
+      UserManager.userPhone ?? "",
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6F0),
@@ -64,12 +66,8 @@ class PrivacySettingPage extends StatelessWidget {
                     onTap: () => Get.snackbar("点击", "隐私安全"),
                   ),
                   const SizedBox(height: 14),
-                  _SettingItem(
-                    iconPath: "assets/kissu_setting_account_jcgx.webp",
-                    title: "解除关系",
-                    onTap: () => Get.to(BreakRelationshipPage()),
-                  ),
-                  const SizedBox(height: 14),
+                  // 根据绑定状态显示解除关系选项
+                  _buildBreakRelationshipItem(),
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_zxzh.webp",
                     title: "注销账号",
@@ -116,7 +114,32 @@ class PrivacySettingPage extends StatelessWidget {
       ),
     );
   }
-  
+
+  /// 构建解除关系选项（根据绑定状态显示）
+  Widget _buildBreakRelationshipItem() {
+    final user = UserManager.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    // 检查绑定状态，只有已绑定（bindStatus == "2"）才显示解除关系选项
+    final bindStatus = user.bindStatus ?? "1";
+    final isBindPartner = bindStatus == "2";
+
+    if (isBindPartner) {
+      return Column(
+        children: [
+          _SettingItem(
+            iconPath: "assets/kissu_setting_account_jcgx.webp",
+            title: "解除关系",
+            onTap: () => Get.to(() => const BreakRelationshipPage()),
+          ),
+          const SizedBox(height: 14),
+        ],
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
+  }
+
   /// 处理退出登录
   void _handleLogout(BuildContext context) async {
     final result = await DialogManager.showLogoutConfirm(context);
@@ -125,16 +148,16 @@ class PrivacySettingPage extends StatelessWidget {
       _performLogout();
     }
   }
-  
+
   /// 执行退出登录
   void _performLogout() async {
     try {
       // 清除本地用户数据（这里已经包含了API调用）
       await UserManager.logout();
-      
+
       // 跳转到登录页面
       Get.offAllNamed(KissuRoutePath.login);
-      
+
       Get.snackbar(
         '提示',
         '已退出登录',

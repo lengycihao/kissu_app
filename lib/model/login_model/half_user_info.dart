@@ -61,7 +61,7 @@ class HalfUserInfo {
   String? vipEndDate;
   @JsonKey(name: 'is_vip')
   int? isVip;
-  
+
   HalfUserInfo({
     this.id,
     this.phone,

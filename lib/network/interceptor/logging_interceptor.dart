@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
- 
+
 class LoggingInterceptor extends Interceptor {
   final bool logHeaders;
   final bool logRequestBody;

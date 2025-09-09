@@ -60,8 +60,9 @@ class LocationPage extends StatelessWidget {
             final sheetPercent = controller.sheetPercent.value;
             // 只在接近初始位置的小范围内显示（0.3-0.35）
             final initialPosition = initialHeight / screenHeight;
-            final opacity =
-                (sheetPercent <= initialPosition + 0.05) ? 1.0 : 0.0;
+            final opacity = (sheetPercent <= initialPosition + 0.05)
+                ? 1.0
+                : 0.0;
 
             return AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
@@ -168,10 +169,10 @@ class LocationPage extends StatelessWidget {
                               ), // 添加边框
                             ),
                             child: Column(
-                              children:
-                                  controller.stopRecords.asMap().entries.map((
-                                    entry,
-                                  ) {
+                              children: controller.stopRecords
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
                                     final index = entry.key;
                                     final record = entry.value;
                                     final isLast =
@@ -182,7 +183,8 @@ class LocationPage extends StatelessWidget {
                                       index: index,
                                       isLast: isLast,
                                     );
-                                  }).toList(),
+                                  })
+                                  .toList(),
                             ),
                           ),
                         ),
@@ -299,19 +301,19 @@ class LocationPage extends StatelessWidget {
         ],
       ),
       child: Obx(() {
-        final progress =
-            controller.trackPoints.isEmpty
-                ? 0.0
-                : controller.currentReplayIndex.value /
-                    (controller.trackPoints.length - 1);
+        final progress = controller.trackPoints.isEmpty
+            ? 0.0
+            : controller.currentReplayIndex.value /
+                  (controller.trackPoints.length - 1);
         final isReplaying = controller.isReplaying.value;
 
         return Row(
           children: [
             // 播放/暂停按钮
             GestureDetector(
-              onTap:
-                  isReplaying ? controller.pauseReplay : controller.startReplay,
+              onTap: isReplaying
+                  ? controller.pauseReplay
+                  : controller.startReplay,
               child: Container(
                 decoration: BoxDecoration(
                   color: isReplaying ? Colors.orange : Colors.green,

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
-import 'package:kissu_app/network/tools/cons/network_constants.dart'; 
+import 'package:kissu_app/network/tools/cons/network_constants.dart';
 
 import 'mixin_debug.dart';
 

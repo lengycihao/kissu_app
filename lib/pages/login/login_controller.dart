@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/interceptor/api_response_interceptor.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
@@ -30,6 +31,8 @@ class LoginController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 重置token失效处理状态，防止重复弹窗
+    ApiResponseInterceptor.resetUnauthorizedState();
     _loadAgreementStatus();
   }
 
@@ -38,7 +41,8 @@ class LoginController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       // 检查是否曾经同意过协议（退出登录时保持同意状态）
-      final hasAgreedBefore = prefs.getBool('has_agreed_privacy_terms') ?? false;
+      final hasAgreedBefore =
+          prefs.getBool('has_agreed_privacy_terms') ?? false;
       isChecked.value = hasAgreedBefore;
     } catch (e) {
       print('加载协议状态失败: $e');
@@ -174,7 +178,7 @@ class LoginController extends GetxController {
         () {
           Navigator.pop(context);
           isChecked.value = true;
-           _loginWithApi(name: phoneNumber.value, psw: verificationCode.value);
+          _loginWithApi(name: phoneNumber.value, psw: verificationCode.value);
         },
         height: 230.0, // 传递弹窗的高度（例如：500.0）
         onLinkTap: (linkName) {
@@ -205,13 +209,13 @@ class LoginController extends GetxController {
       if (result.isSuccess) {
         // 登录成功，保存协议同意状态
         await _saveAgreementStatus(true);
-        
+
         loadingText.value = "登录成功";
-        
+
         // 延迟一下让用户看到成功提示，然后跳转
         await Future.delayed(const Duration(milliseconds: 800));
 
-       //判断是否需要完善信息
+        //判断是否需要完善信息
         if (UserManager.needsPerfectInfo) {
           // 需要完善信息，跳转到信息完善页面
           Get.offAllNamed(KissuRoutePath.infoSetting);
@@ -219,7 +223,6 @@ class LoginController extends GetxController {
           // 使用命名路由跳转，确保HomeBinding被正确初始化
           Get.offAllNamed(KissuRoutePath.home);
         }
-        
       } else {
         Get.snackbar(
           '提示',

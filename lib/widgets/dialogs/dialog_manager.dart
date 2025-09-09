@@ -3,6 +3,7 @@ import 'confirm_dialog.dart';
 import 'gender_select_dialog.dart';
 import 'input_dialog.dart';
 import 'bind_confirm_dialog.dart';
+import 'binding_input_dialog.dart';
 import 'vip_dialog.dart';
 
 /// 导出所有弹窗组件
@@ -11,6 +12,7 @@ export 'confirm_dialog.dart';
 export 'gender_select_dialog.dart';
 export 'input_dialog.dart';
 export 'bind_confirm_dialog.dart';
+export 'binding_input_dialog.dart';
 export 'vip_dialog.dart';
 
 /// 弹窗管理器
@@ -139,6 +141,23 @@ class DialogManager {
       context,
       userAvatar1: userAvatar1,
       userAvatar2: userAvatar2,
+    );
+  }
+
+  /// 显示绑定输入弹窗
+  static Future<bool?> showBindingInput({
+    required BuildContext context,
+    String title = '输入对方匹配码',
+    String hintText = '输入对方匹配码',
+    String confirmText = '确认绑定',
+    Function(String code)? onConfirm,
+  }) {
+    return BindingInputDialog.show(
+      context: context,
+      title: title,
+      hintText: hintText,
+      confirmText: confirmText,
+      onConfirm: onConfirm,
     );
   }
 

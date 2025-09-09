@@ -209,7 +209,7 @@ class ToastDialog {
           ),
           backgroundColor: Colors.transparent,
           child: Container(
-            padding: EdgeInsets.only(top: 20,left: 10,right: 10),
+            padding: EdgeInsets.only(top: 20, left: 10, right: 10),
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
@@ -223,7 +223,11 @@ class ToastDialog {
               children: [
                 _buildTitle(title),
                 Padding(
-                  padding: const EdgeInsets.only(left: 20,right: 20,bottom: 20),
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    bottom: 20,
+                  ),
                   child: _buildContent(content, onLinkTap),
                 ),
                 _buildSingleButton(onConfirm, sureStr: "同意并继续"),
@@ -249,72 +253,83 @@ class ToastDialog {
         return Text(
           content,
           textAlign: TextAlign.start,
-          style: TextStyle(color: Color(0xff333333), fontSize: 14,height: 1.5),
+          style: TextStyle(color: Color(0xff333333), fontSize: 14, height: 1.5),
         );
       }
     } else {
       return Text(
-        content.toString(),textAlign: TextAlign.start,
-        style: TextStyle(color: Color(0xff333333), fontSize: 14,height: 1.5),
+        content.toString(),
+        textAlign: TextAlign.start,
+        style: TextStyle(color: Color(0xff333333), fontSize: 14, height: 1.5),
       );
     }
   }
 
   // 构建富文本内容（带可点击链接）
-  static Widget _buildRichTextContent(String content, Function(String)? onLinkTap) {
+  static Widget _buildRichTextContent(
+    String content,
+    Function(String)? onLinkTap,
+  ) {
     final linkColor = Color(0xFFFF7C98); // #FF7C98
     final normalColor = Color(0xff333333);
-    
+
     List<TextSpan> spans = [];
-    
+
     // 使用正则表达式匹配《xxx》格式的文本
     final regex = RegExp(r'《([^》]+)》');
     final matches = regex.allMatches(content);
-    
+
     int lastEnd = 0;
-    
+
     for (final match in matches) {
       // 添加匹配前的普通文本
       if (match.start > lastEnd) {
         final normalText = content.substring(lastEnd, match.start);
         if (normalText.isNotEmpty) {
-          spans.add(TextSpan(
-            text: normalText,
-            style: TextStyle(color: normalColor, fontSize: 14,height: 1.5),
-          ));
+          spans.add(
+            TextSpan(
+              text: normalText,
+              style: TextStyle(color: normalColor, fontSize: 14, height: 1.5),
+            ),
+          );
         }
       }
-      
+
       // 添加链接文本（包含《》）
       final fullLinkText = match.group(0)!; // 完整的《xxx》
       final linkName = match.group(1)!; // 只有xxx部分
-      
-      spans.add(TextSpan(
-        text: fullLinkText,
-        style: TextStyle(
-          color: linkColor,
-          fontSize: 14,height: 1.5
-          // decoration: TextDecoration.underline, // 移除下划线
+
+      spans.add(
+        TextSpan(
+          text: fullLinkText,
+          style: TextStyle(
+            color: linkColor,
+            fontSize: 14,
+            height: 1.5,
+            // decoration: TextDecoration.underline, // 移除下划线
+          ),
+          recognizer: onLinkTap != null
+              ? (TapGestureRecognizer()..onTap = () => onLinkTap(linkName))
+              : null,
         ),
-        recognizer: onLinkTap != null 
-          ? (TapGestureRecognizer()..onTap = () => onLinkTap(linkName))
-          : null,
-      ));
-      
+      );
+
       lastEnd = match.end;
     }
-    
+
     // 添加最后一段普通文本
     if (lastEnd < content.length) {
       final remainingText = content.substring(lastEnd);
       if (remainingText.isNotEmpty) {
-        spans.add(TextSpan(
-          text: remainingText,
-          style: TextStyle(color: normalColor, fontSize: 14),
-        ));
+        spans.add(
+          TextSpan(
+            text: remainingText,
+            style: TextStyle(color: normalColor, fontSize: 14),
+          ),
+        );
       }
     }
-    
+
     return RichText(
       textAlign: TextAlign.start,
       text: TextSpan(children: spans),

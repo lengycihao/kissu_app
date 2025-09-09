@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:dio/dio.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
- 
+
 class EncryptInterceptor extends Interceptor {
   final String _defaultAesKey;
   final String _defaultAesIv;

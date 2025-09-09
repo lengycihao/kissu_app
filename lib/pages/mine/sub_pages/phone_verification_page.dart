@@ -27,7 +27,13 @@ class PhoneVerificationPage extends StatelessWidget {
                     const SizedBox(height: 40),
 
                     const SizedBox(height: 50),
-                    Image(image: AssetImage("assets/kissu_delete_phone_lable_bg.webp"),width: 96  ,height: 21,),
+                    Image(
+                      image: AssetImage(
+                        "assets/kissu_delete_phone_lable_bg.webp",
+                      ),
+                      width: 96,
+                      height: 21,
+                    ),
                     const SizedBox(height: 25),
                     // 输入框组
                     _buildInputSection(),
@@ -101,10 +107,12 @@ class PhoneVerificationPage extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: TextEditingController()..addListener(() {
-                      // 监听输入变化
-                    }),
-                    onChanged: (value) => controller.verificationCode.value = value,
+                    controller: TextEditingController()
+                      ..addListener(() {
+                        // 监听输入变化
+                      }),
+                    onChanged: (value) =>
+                        controller.verificationCode.value = value,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -122,10 +130,9 @@ class PhoneVerificationPage extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
-                  onTap:
-                      controller.isLoading.value
-                          ? null
-                          : controller.sendVerificationCode,
+                  onTap: controller.isLoading.value
+                      ? null
+                      : controller.sendVerificationCode,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
@@ -133,10 +140,9 @@ class PhoneVerificationPage extends StatelessWidget {
                           ? '获取验证码'
                           : '${controller.countdown.value}s',
                       style: TextStyle(
-                        color:
-                            controller.canResend.value
-                                ? const Color(0xFFFF69B4)
-                                : const Color(0xFF999999),
+                        color: controller.canResend.value
+                            ? const Color(0xFFFF69B4)
+                            : const Color(0xFF999999),
                         fontSize: 14,
                       ),
                     ),
@@ -154,32 +160,35 @@ class PhoneVerificationPage extends StatelessWidget {
   Widget _buildCancelButton() {
     return Obx(
       () => GestureDetector(
-        onTap:
-            controller.isLoading.value ? null : controller.confirmCancellation,
+        onTap: controller.isLoading.value
+            ? null
+            : controller.confirmCancellation,
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            image: DecorationImage(image: AssetImage("assets/kissu_delete_btn_bg.webp"), fit: BoxFit.fill),
+            image: DecorationImage(
+              image: AssetImage("assets/kissu_delete_btn_bg.webp"),
+              fit: BoxFit.fill,
+            ),
           ),
           alignment: Alignment.center,
-          child:
-              controller.isLoading.value
-                  ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                  : const Text(
-                    '注销',
-                    style: TextStyle(
-                      color: Color(0xffA29D9D),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                    ),
+          child: controller.isLoading.value
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
                   ),
+                )
+              : const Text(
+                  '注销',
+                  style: TextStyle(
+                    color: Color(0xffA29D9D),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
         ),
       ),
     );

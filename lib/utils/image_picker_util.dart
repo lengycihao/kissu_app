@@ -20,13 +20,12 @@ class ImageHandler {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder:
-          (context) => _buildBottomSheet(
-            context,
-            onSelected: onSelected,
-            maxImages: maxImages,
-            currentImages: currentImages,
-          ),
+      builder: (context) => _buildBottomSheet(
+        context,
+        onSelected: onSelected,
+        maxImages: maxImages,
+        currentImages: currentImages,
+      ),
     );
   }
 
@@ -224,17 +223,16 @@ class ImageHandler {
   ) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("权限不足"),
-            content: Text("需要$permissionName权限才能继续，请在设置中开启。"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("确定"),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text("权限不足"),
+        content: Text("需要$permissionName权限才能继续，请在设置中开启。"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("确定"),
           ),
+        ],
+      ),
     );
   }
 
@@ -242,16 +240,15 @@ class ImageHandler {
   void _showMessage(BuildContext context, String message) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("确定"),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("确定"),
           ),
+        ],
+      ),
     );
   }
 

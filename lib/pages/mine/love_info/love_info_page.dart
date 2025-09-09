@@ -84,7 +84,7 @@ class LoveInfoPage extends StatelessWidget {
 
                               // 相恋时间
                               LoveTimeSection(controller: controller),
-                                const SizedBox(height: 20),
+                              const SizedBox(height: 20),
 
                               // 我的信息
                               MyInfoSection(controller: controller),

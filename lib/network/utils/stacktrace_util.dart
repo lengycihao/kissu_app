@@ -8,18 +8,17 @@ class StacktraceUtil {
   );
 
   static String format(StackTrace stackTrace, int methodCount) {
-    List<String> lines =
-        stackTrace
-            .toString()
-            .split('\n')
-            .where(
-              (line) =>
-                  !_discardDeviceStacktraceLine(line) &&
-                  !_discardWebStacktraceLine(line) &&
-                  !_discardBrowserStacktraceLine(line) &&
-                  line.isNotEmpty,
-            )
-            .toList();
+    List<String> lines = stackTrace
+        .toString()
+        .split('\n')
+        .where(
+          (line) =>
+              !_discardDeviceStacktraceLine(line) &&
+              !_discardWebStacktraceLine(line) &&
+              !_discardBrowserStacktraceLine(line) &&
+              line.isNotEmpty,
+        )
+        .toList();
 
     if (lines.isEmpty) return "";
     List<String> formatted = [];

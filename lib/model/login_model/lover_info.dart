@@ -15,7 +15,7 @@ class LoverInfo {
   String? provinceName;
   @JsonKey(name: 'city_name')
   String? cityName;
-  
+
   // 绑定关系相关字段
   @JsonKey(name: 'bind_time')
   String? bindTime;
@@ -25,7 +25,7 @@ class LoverInfo {
   String? loveTime;
   @JsonKey(name: 'love_days')
   int? loveDays;
-  
+
   LoverInfo({
     this.id,
     this.phone,

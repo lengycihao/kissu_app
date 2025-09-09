@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class DateSelector extends StatelessWidget {
-  /// 当前选中索引
-  final RxInt selectedIndex;
+  /// 当前选中索引 - 现在从外部传入
+  final RxInt? externalSelectedIndex;
 
   /// 点击日期回调，返回选中的 DateTime
   final void Function(DateTime date)? onSelect;
 
-  DateSelector({Key? key, this.onSelect})
-    : selectedIndex = 6.obs, // 默认选中今天（最右边）
-      super(key: key);
+  DateSelector({Key? key, this.onSelect, this.externalSelectedIndex})
+      : super(key: key);
 
   /// 最近7天日期列表（今天及之前6天）
   List<DateTime> get recentDates {
@@ -39,10 +38,13 @@ class DateSelector extends StatelessWidget {
     final dates = recentDates;
     final screenWidth = MediaQuery.of(context).size.width;
     final itemWidth = (screenWidth - 40) / 7; // 平分屏幕宽度
+    
+    // 使用外部传入的selectedIndex或者创建本地的
+    final selectedIndex = externalSelectedIndex ?? 6.obs;
 
     return Container(
       height: 50,
-      margin: EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: List.generate(dates.length, (index) {
           final date = dates[index];
@@ -57,10 +59,9 @@ class DateSelector extends StatelessWidget {
                 width: itemWidth,
                 height: 50,
                 decoration: BoxDecoration(
-                  color:
-                      selectedIndex.value == index
-                          ? const Color(0xFFFF6B9D)
-                          : Colors.transparent,
+                  color: selectedIndex.value == index
+                      ? const Color(0xFFFF6B9D)
+                      : Colors.transparent,
 
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -71,10 +72,9 @@ class DateSelector extends StatelessWidget {
                       getDateText(date),
                       style: TextStyle(
                         fontSize: 13,
-                        color:
-                            selectedIndex.value == index
-                                ? Colors.white
-                                : const Color(0xFF666666),
+                        color: selectedIndex.value == index
+                            ? Colors.white
+                            : const Color(0xFF666666),
                       ),
                     ),
                     Text(
@@ -82,10 +82,9 @@ class DateSelector extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color:
-                            selectedIndex.value == index
-                                ? Colors.white
-                                : const Color(0xFF333333),
+                        color: selectedIndex.value == index
+                            ? Colors.white
+                            : const Color(0xFF333333),
                       ),
                     ),
                   ],

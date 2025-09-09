@@ -30,11 +30,7 @@ class FileUploadApi {
         );
       }
     } catch (e) {
-      return HttpResultN<String>(
-        isSuccess: false,
-        code: -1,
-        msg: '上传失败: $e',
-      );
+      return HttpResultN<String>(isSuccess: false, code: -1, msg: '上传失败: $e');
     }
   }
 }

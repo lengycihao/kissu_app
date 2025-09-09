@@ -201,7 +201,6 @@ class AccountCancellationPage extends StatelessWidget {
     );
   }
 
-
   // 注销按钮
   Widget _buildCancelButton() {
     return GestureDetector(

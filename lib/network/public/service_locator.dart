@@ -1,18 +1,17 @@
- import 'package:get_it/get_it.dart';
+import 'package:get_it/get_it.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
- 
 final GetIt getIt = GetIt.instance;
 
 Future<void> setupServiceLocator() async {
-  // ✅ 注册 AuthService 单例
+  // ✅ 注册 AuthService 单例run
   final authService = AuthService();
   getIt.registerSingleton<AuthService>(authService);
-  
+
   // 初始化 AuthService
   await authService.init();
-  
+
   logger.info('Service locator setup completed', tag: 'ServiceLocator');
 }
 

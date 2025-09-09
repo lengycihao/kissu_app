@@ -146,10 +146,9 @@ class _DashedLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const dashWidth = 5.0;
     const dashSpace = 3.0;
-    final paint =
-        Paint()
-          ..color = const Color(0xFFDDDDDD)
-          ..strokeWidth = 1;
+    final paint = Paint()
+      ..color = const Color(0xFFDDDDDD)
+      ..strokeWidth = 1;
 
     double startX = 0;
     while (startX < size.width) {

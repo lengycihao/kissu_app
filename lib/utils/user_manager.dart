@@ -61,7 +61,6 @@ class UserManager {
 
   /// 获取用户显示名称
   static String get displayName => _authService.displayName;
-  
 
   /// 获取完整地址
   static String get fullAddress {
@@ -104,7 +103,7 @@ class UserManager {
   static Future<void> clearLocalUserData() async {
     // 清除协议同意状态（注销时需要重新同意协议）
     await LoginController.clearAgreementStatus();
-    
+
     // 清除用户数据
     await _authService.clearLocalUserData();
   }
@@ -152,7 +151,7 @@ class UserManager {
   /// 获取VIP剩余天数
   static int? get vipRemainingDays {
     if (!isVip || vipEndDate == null) return null;
-    
+
     try {
       final endDate = DateTime.parse(vipEndDate!);
       final now = DateTime.now();
@@ -174,5 +173,12 @@ class UserManager {
       return 'VIP用户';
     }
     return '非VIP用户';
+  }
+
+  static String formatPhoneWithExcept(String phone) {
+    if (phone.length >= 11) {
+      return '${phone.substring(0, 3)}****${phone.substring(7)}';
+    }
+    return phone.isEmpty ? "未知" : phone;
   }
 }

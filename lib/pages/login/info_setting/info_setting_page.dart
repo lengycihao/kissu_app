@@ -16,7 +16,12 @@ class InfoSettingPage extends StatelessWidget {
           Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
           SingleChildScrollView(
             child: Padding(
-              padding:   EdgeInsets.only(left: 34,right: 34,bottom: 34,top: MediaQuery.of(context).padding.top+20),
+              padding: EdgeInsets.only(
+                left: 34,
+                right: 34,
+                bottom: 34,
+                top: MediaQuery.of(context).padding.top + 20,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, // 修改为左对齐
                 children: [
@@ -39,10 +44,19 @@ class InfoSettingPage extends StatelessWidget {
                     children: [
                       Text(
                         '完善信息',
-                        style: TextStyle(color: Color(0xFF333333), fontSize: 18),
+                        style: TextStyle(
+                          color: Color(0xFF333333),
+                          fontSize: 18,
+                        ),
                       ),
                       const SizedBox(width: 3),
-                      Image(image: AssetImage('assets/kissu_info_complet_header_icon.webp'), width: 29, height: 29,),
+                      Image(
+                        image: AssetImage(
+                          'assets/kissu_info_complet_header_icon.webp',
+                        ),
+                        width: 29,
+                        height: 29,
+                      ),
                     ],
                   ),
                   SizedBox(height: 24),
@@ -61,7 +75,8 @@ class InfoSettingPage extends StatelessWidget {
                         // 用户头像
                         Obx(() {
                           return ClipOval(
-                            child: controller.avatarUrl.value.startsWith('assets/')
+                            child:
+                                controller.avatarUrl.value.startsWith('assets/')
                                 ? Image.asset(
                                     controller.avatarUrl.value,
                                     width: 80,
@@ -111,32 +126,34 @@ class InfoSettingPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 10),
-                  Obx(() => TextField(
-                    controller: controller.nicknameController,
-                    focusNode: controller.nicknameFocusNode,
-                    onChanged: (value) {
-                      controller.updateNickname(value); // 使用新的更新方法
-                    },
-                    decoration: InputDecoration(
-                      hintText: controller.nickname.value.isNotEmpty 
-                          ? null 
-                          : '请输入昵称',
-                      hintStyle: TextStyle(color: Color(0xFF999999)),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 15,
+                  Obx(
+                    () => TextField(
+                      controller: controller.nicknameController,
+                      focusNode: controller.nicknameFocusNode,
+                      onChanged: (value) {
+                        controller.updateNickname(value); // 使用新的更新方法
+                      },
+                      decoration: InputDecoration(
+                        hintText: controller.nickname.value.isNotEmpty
+                            ? null
+                            : '请输入昵称',
+                        hintStyle: TextStyle(color: Color(0xFF999999)),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 15,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide(color: Color(0xFF6D383E)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide(color: Color(0xFF6D383E)),
+                        ),
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide(color: Color(0xFF6D383E)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide(color: Color(0xFF6D383E)),
-                      ),
+                      style: TextStyle(fontSize: 16, color: Color(0xFF333333)),
                     ),
-                    style: TextStyle(fontSize: 16, color: Color(0xFF333333)),
-                  )),
+                  ),
                   SizedBox(height: 24),
 
                   // 性别选择部分
@@ -191,18 +208,26 @@ class InfoSettingPage extends StatelessWidget {
                       children: [
                         Text(
                           '选择你的生日',
-                          style: TextStyle(color: Color(0xFF333333), fontSize: 11),
-                        ),const SizedBox(width: 3),
-                      Image(image: AssetImage('assets/kissu_info_complet_sex_icon.webp'), width: 13, height: 13,),
+                          style: TextStyle(
+                            color: Color(0xFF333333),
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Image(
+                          image: AssetImage(
+                            'assets/kissu_info_complet_sex_icon.webp',
+                          ),
+                          width: 13,
+                          height: 13,
+                        ),
                       ],
                     ),
                   ),
                   SizedBox(height: 10),
                   GestureDetector(
-                    onTap:
-                        () => controller.pickBirthday(
-                          controller.selectedDate.value,
-                        ),
+                    onTap: () =>
+                        controller.pickBirthday(controller.selectedDate.value),
                     child: Obx(() {
                       return Container(
                         height: 50,
@@ -239,12 +264,14 @@ class InfoSettingPage extends StatelessWidget {
                   // 开启陪伴按钮
                   Obx(() {
                     return GestureDetector(
-                      onTap: controller.isLoading.value ? null : controller.onSubmit,
+                      onTap: controller.isLoading.value
+                          ? null
+                          : controller.onSubmit,
                       child: Container(
                         height: 50,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: controller.isLoading.value 
+                          color: controller.isLoading.value
                               ? Color(0xFFFEA39C).withOpacity(0.6)
                               : Color(0xFFFEA39C),
                           borderRadius: BorderRadius.circular(25),
@@ -259,19 +286,28 @@ class InfoSettingPage extends StatelessWidget {
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     ),
                                     SizedBox(width: 8),
                                     Text(
                                       '保存中...',
-                                      style: TextStyle(color: Colors.white, fontSize: 18),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                      ),
                                     ),
                                   ],
                                 )
                               : Text(
                                   '开启陪伴',
-                                  style: TextStyle(color: Colors.white, fontSize: 18),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
                                 ),
                         ),
                       ),

@@ -210,17 +210,22 @@ class LoveTimeSection extends StatelessWidget {
               '相恋时间',
               style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
             ),
-           controller.isBindPartner.value ? Text(
-              controller.loveTime.value,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
-            ) : Container(
-              height: 4,
-              width: 30,
-              decoration: BoxDecoration(
-                color: Color(0xffFFD4D1),
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
+            controller.isBindPartner.value
+                ? Text(
+                    controller.loveTime.value,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF666666),
+                    ),
+                  )
+                : Container(
+                    height: 4,
+                    width: 30,
+                    decoration: BoxDecoration(
+                      color: Color(0xffFFD4D1),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
           ],
         ),
       ),
@@ -504,7 +509,8 @@ class AvatarSection extends StatelessWidget {
       onTap: () => controller.showAddPartnerDialog(context),
       child: Container(
         width: 50,
-        height: 50,margin: EdgeInsets.only(left: 50),
+        height: 50,
+        margin: EdgeInsets.only(left: 50),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,

@@ -43,185 +43,202 @@ class _LoginPageState extends State<LoginPage> {
     controller.context = context;
     return Scaffold(
       resizeToAvoidBottomInset: false, // 禁用自动调整，手动控制
-      body: Obx(() => LoginLoadingWidget(
-        isLoading: controller.isLoading.value,
-        loadingText: controller.loadingText.value,
-        child: GestureDetector(
-          onTap: () {
-            // 释放所有焦点
-            _phoneFocusNode.unfocus();
-            _codeFocusNode.unfocus();
-            FocusScope.of(context).unfocus();
+      body: Obx(
+        () => LoginLoadingWidget(
+          isLoading: controller.isLoading.value,
+          loadingText: controller.loadingText.value,
+          child: GestureDetector(
+            onTap: () {
+              // 释放所有焦点
+              _phoneFocusNode.unfocus();
+              _codeFocusNode.unfocus();
+              FocusScope.of(context).unfocus();
 
-            // 延迟后滚动回顶部
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (mounted && MediaQuery.of(context).viewInsets.bottom == 0) {
-                _scrollController.animateTo(
-                  0.0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }
-            });
-          },
-          behavior: HitTestBehavior.translucent,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset('assets/kissu_login_bg.webp', fit: BoxFit.cover),
-              Center(
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(40.0),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // SizedBox(
-                      //   height: MediaQuery.of(context).size.height * 0.15,
-                      // ), // 动态高度
-                      Image.asset(
-                        'assets/kissu_login_title.webp',
-                        width: 80,
-                        height: 25,
-                      ),const SizedBox(height: 20),
-                      _buildInputField(
-                        '请输入手机号',
-                        false,
-                        controller.phoneNumber,
-                        context,
-                        focusNode: _phoneFocusNode,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildInputField(
-                        '请输入验证码',
-                        true,
-                        controller.verificationCode,
-                        context,
-                        focusNode: _codeFocusNode,
-                      ),
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: () {
-                          // 释放所有焦点并收起键盘
-                          _phoneFocusNode.unfocus();
-                          _codeFocusNode.unfocus();
-                          FocusScope.of(context).unfocus();
-                          controller.login();
-                        },
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            image: const DecorationImage(
-                              image: AssetImage(
-                                  'assets/kissu_login_btn_bg.webp'),
-                              fit: BoxFit.fill,
-                            ),
+              // 延迟后滚动回顶部
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted && MediaQuery.of(context).viewInsets.bottom == 0) {
+                  _scrollController.animateTo(
+                    0.0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              });
+            },
+            behavior: HitTestBehavior.translucent,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset('assets/kissu_login_bg.webp', fit: BoxFit.cover),
+                Center(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Padding(
+                      padding: const EdgeInsets.all(40.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // SizedBox(
+                          //   height: MediaQuery.of(context).size.height * 0.15,
+                          // ), // 动态高度
+                          Image.asset(
+                            'assets/kissu_login_title.webp',
+                            width: 80,
+                            height: 25,
                           ),
-                          child: const Center(
-                            child: Text(
-                              '登录/注册',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          const SizedBox(height: 20),
+                          _buildInputField(
+                            '请输入手机号',
+                            false,
+                            controller.phoneNumber,
+                            context,
+                            focusNode: _phoneFocusNode,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildInputField(
+                            '请输入验证码',
+                            true,
+                            controller.verificationCode,
+                            context,
+                            focusNode: _codeFocusNode,
+                          ),
+                          const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: () {
+                              // 释放所有焦点并收起键盘
+                              _phoneFocusNode.unfocus();
+                              _codeFocusNode.unfocus();
+                              FocusScope.of(context).unfocus();
+                              controller.login();
+                            },
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                image: const DecorationImage(
+                                  image: AssetImage(
+                                    'assets/kissu_login_btn_bg.webp',
+                                  ),
+                                  fit: BoxFit.fill,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '登录/注册',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
+
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 80,
+                  left: 1,
+                  right: 1,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Obx(
+                        () => GestureDetector(
+                          onTap: () {
+                            controller.isChecked.value =
+                                !controller.isChecked.value;
+                          },
+                          child: Container(
+                            width: 16, // 设置圆的宽度
+                            height: 16, // 设置圆的高度
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(
+                                  controller.isChecked.value
+                                      ? 'assets/kissu_login_privite_sel.webp'
+                                      : 'assets/kissu_login_privite_unsel.webp',
+                                ),
+                              ),
+                              // color: controller.isChecked.value
+                              //     ? Color(0xFFFF839E) // 勾选时的颜色
+                              //     : Colors.white,
+                              // shape: BoxShape.circle,
+                              // border: Border.all(
+                              //   color: Color(0xFF666666), // 未勾选时的边框颜色
+                              //   width: 1.5,
+                              // ),
+                            ),
+                          ),
                         ),
                       ),
-
-                      const SizedBox(height: 40),
+                      const SizedBox(width: 7),
+                      const Text(
+                        '登录即代表同意 ',
+                        style: TextStyle(
+                          color: Color(0xFF666666),
+                          fontSize: 12,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          ToastDialog.showTitleWithImageDialog(
+                            context,
+                            '带背景图的标题',
+                            'assets/kissu_toast_title_bg.webp',
+                            '这是弹窗的内容',
+                            () {
+                              print('确认按钮被点击');
+                            },
+                          );
+                        },
+                        child: const Text(
+                          '《隐私协议》',
+                          style: TextStyle(
+                            color: Color(0xFFFF839E),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        ' 和 ',
+                        style: TextStyle(
+                          color: Color(0xFF666666),
+                          fontSize: 12,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          ToastDialog.showBasicDialog(
+                            context,
+                            '弹窗标题',
+                            '这是弹窗的内容',
+                            () {
+                              print('确认按钮被点击');
+                            },
+                            height: 400.0,
+                          );
+                        },
+                        child: const Text(
+                          '《用户协议》',
+                          style: TextStyle(
+                            color: Color(0xFFFF839E),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
-            Positioned(
-              bottom: 80,
-              left: 1,
-              right: 1,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Obx(
-                    () => GestureDetector(
-                      onTap: () {
-                        controller.isChecked.value =
-                            !controller.isChecked.value;
-                      },
-                      child: Container(
-                        width: 16, // 设置圆的宽度
-                        height: 16, // 设置圆的高度
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage(
-                              controller.isChecked.value
-                                  ? 'assets/kissu_login_privite_sel.webp'
-                                  : 'assets/kissu_login_privite_unsel.webp',
-                            ),
-                          ),
-                          // color: controller.isChecked.value
-                          //     ? Color(0xFFFF839E) // 勾选时的颜色
-                          //     : Colors.white,
-                          // shape: BoxShape.circle,
-                          // border: Border.all(
-                          //   color: Color(0xFF666666), // 未勾选时的边框颜色
-                          //   width: 1.5,
-                          // ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  const Text(
-                    '登录即代表同意 ',
-                    style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      ToastDialog.showTitleWithImageDialog(
-                        context,
-                        '带背景图的标题',
-                        'assets/kissu_toast_title_bg.webp',
-                        '这是弹窗的内容',
-                        () {
-                          print('确认按钮被点击');
-                        },
-                      );
-                    },
-                    child: const Text(
-                      '《隐私协议》',
-                      style: TextStyle(color: Color(0xFFFF839E), fontSize: 12),
-                    ),
-                  ),
-                  const Text(
-                    ' 和 ',
-                    style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      ToastDialog.showBasicDialog(
-                        context,
-                        '弹窗标题',
-                        '这是弹窗的内容',
-                        () {
-                          print('确认按钮被点击');
-                        },
-                        height: 400.0,
-                      );
-                    },
-                    child: const Text(
-                      '《用户协议》',
-                      style: TextStyle(color: Color(0xFFFF839E), fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-        ),
-      )),
+      ),
     );
   }
 

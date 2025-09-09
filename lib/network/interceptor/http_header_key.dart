@@ -9,7 +9,7 @@ class HttpHeaderKey {
   static const String responseDecrypt = 'response_decrypt';
   static const String encrypted = 'encrypted';
   static const String encryptAlgorithm = 'encrypt_algorithm';
-  
+
   // 新增的业务请求头
   static const String token = 'token';
   static const String sign = 'sign';

@@ -13,11 +13,10 @@ class LocationController extends GetxController {
   final moveDistance = "9.63km".obs;
 
   /// 最近 7 天
-  final recentDays =
-      List.generate(7, (i) {
-        final date = DateTime.now().subtract(Duration(days: i));
-        return "${date.month}-${date.day}";
-      }).obs;
+  final recentDays = List.generate(7, (i) {
+    final date = DateTime.now().subtract(Duration(days: i));
+    return "${date.month}-${date.day}";
+  }).obs;
 
   final selectedDayIndex = 0.obs;
   final sheetPercent = 0.4.obs;
@@ -26,16 +25,18 @@ class LocationController extends GetxController {
   final MapController mapController = MapController();
 
   /// 轨迹点（这里用停留点生成的路线，你可以替换为接口数据）
-  late final List<LatLng> trackPoints =
-      stayPoints.map((e) => e.position).toList();
+  late final List<LatLng> trackPoints = stayPoints
+      .map((e) => e.position)
+      .toList();
 
   /// 停留点 marker 缓存
   late final List<Marker> stayMarkers = _buildStayMarkers();
 
   /// 地图配置缓存
   late final MapOptions mapOptions = MapOptions(
-    initialCenter:
-        trackPoints.isNotEmpty ? trackPoints.first : const LatLng(30.0, 120.0),
+    initialCenter: trackPoints.isNotEmpty
+        ? trackPoints.first
+        : const LatLng(30.0, 120.0),
     initialZoom: 16.0,
     maxZoom: 18, // 最大缩放
     minZoom: 10, // 最小缩放

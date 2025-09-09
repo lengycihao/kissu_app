@@ -21,7 +21,7 @@ class KissuRoute {
       binding: HomeBinding(),
       transition: Transition.downToUp,
     ),
-GetPage(
+    GetPage(
       name: KissuRoutePath.infoSetting,
       page: () => InfoSettingPage(),
       binding: InfoSettingBinding(),

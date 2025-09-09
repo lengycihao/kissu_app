@@ -176,16 +176,18 @@ class _LogoutConfirmDialogContent extends BaseDialog {
               DialogButton(
                 text: '确认',
                 width: 110,
-                backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                backgroundImage:
+                    'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
                 onTap: () {
                   Navigator.of(context).pop(true); // 返回 true 表示确认退出
                 },
               ),
-              // 右边：我再想想按钮（取消操作）  
+              // 右边：我再想想按钮（取消操作）
               DialogButton(
                 text: '我再想想',
                 width: 110,
-                backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                backgroundImage:
+                    'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
                 onTap: () {
                   Navigator.of(context).pop(false); // 返回 false 表示取消
                 },
@@ -338,16 +340,18 @@ class _CancellationConfirmDialogContent extends BaseDialog {
               DialogButton(
                 text: '确认',
                 width: 110,
-                backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                backgroundImage:
+                    'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
                 onTap: () {
                   Navigator.of(context).pop(true); // 返回 true 表示确认注销
                 },
               ),
-              // 右边：我再想想按钮（取消操作）  
+              // 右边：我再想想按钮（取消操作）
               DialogButton(
                 text: '我再想想',
                 width: 110,
-                backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                backgroundImage:
+                    'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
                 onTap: () {
                   Navigator.of(context).pop(false); // 返回 false 表示取消
                 },

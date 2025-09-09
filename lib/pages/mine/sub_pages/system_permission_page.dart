@@ -76,74 +76,68 @@ class SystemPermissionPage extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    children:
-                        items.map((item) {
-                          return Container(
-                            margin: const EdgeInsets.symmetric(
-                              vertical: 14,
-                            ), // item间距14px
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Color(0xFF6D4128)),
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.white.withOpacity(0.1), // 可调透明度
-                            ),
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  item["icon"]!,
-                                  width: 44,
-                                  height: 44,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item["title"]!,
-                                        style: TextStyle(
-                                          color: Color(0xff333333),
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        item["subtitle"]!,
-                                        style: TextStyle(
-                                          color: Color(0xff666666),
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 60,
-                                  height: 24,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(15),
-                                      color: Color(0xffFF88AA),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      "去设置",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
+                    children: items.map((item) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ), // item间距14px
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Color(0xFF6D4128)),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white.withOpacity(0.1), // 可调透明度
+                        ),
+                        child: Row(
+                          children: [
+                            Image.asset(item["icon"]!, width: 44, height: 44),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item["title"]!,
+                                    style: TextStyle(
+                                      color: Color(0xff333333),
+                                      fontSize: 14,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item["subtitle"]!,
+                                    style: TextStyle(
+                                      color: Color(0xff666666),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          );
-                        }).toList(),
+                            SizedBox(
+                              width: 60,
+                              height: 24,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(15),
+                                  color: Color(0xffFF88AA),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  "去设置",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               ),

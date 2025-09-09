@@ -1,4 +1,3 @@
-    
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
@@ -13,7 +12,7 @@ class AuthApi {
     final params = {
       if (phone != null) "phone": phone,
       if (captcha != null) "captcha": captcha,
-       "friend_code": friendCode,
+      "friend_code": friendCode,
     };
     final result = await HttpManagerN.instance.executePost(
       ApiRequest.authLoginByCode,
@@ -22,9 +21,7 @@ class AuthApi {
     );
 
     if (result.isSuccess) {
-      return result.convert(
-        data: LoginModel.fromJson(result.getDataJson()),
-      );
+      return result.convert(data: LoginModel.fromJson(result.getDataJson()));
     } else {
       return result.convert();
     }
@@ -36,9 +33,11 @@ class AuthApi {
     // );
   }
 
-
   ///获取验证码
-  Future<HttpResultN> getPhoneCode({required String phone, required String type}) async {
+  Future<HttpResultN> getPhoneCode({
+    required String phone,
+    required String type,
+  }) async {
     final params = {
       "phone": phone,
       "type": type, // login登录验证码 change_phone更换手机号 logout注销账号
@@ -72,11 +71,23 @@ class AuthApi {
 
   /// 注销账号
   Future<HttpResultN> cancelAccount({required String captcha}) async {
-    final params = {
-      "captcha": captcha,
-    };
+    final params = {"captcha": captcha};
     final result = await HttpManagerN.instance.executePost(
       "/logout", // 注销API路径
+      jsonParam: params,
+      paramEncrypt: false,
+    );
+    return result;
+  }
+
+  /// 更换手机号
+  Future<HttpResultN> changePhone({
+    required String phone,
+    required String captcha,
+  }) async {
+    final params = {"phone": phone, "captcha": captcha};
+    final result = await HttpManagerN.instance.executePost(
+      ApiRequest.changePhone,
       jsonParam: params,
       paramEncrypt: false,
     );
@@ -114,13 +125,30 @@ class AuthApi {
     );
 
     if (result.isSuccess) {
-      return result.convert(
-        data: LoginModel.fromJson(result.getDataJson()),
-      );
+      return result.convert(data: LoginModel.fromJson(result.getDataJson()));
     } else {
       return result.convert();
     }
   }
 
- 
+  /// 绑定另一半
+  Future<HttpResultN> bindPartner({required String friendCode}) async {
+    final params = {"friend_code": friendCode};
+    final result = await HttpManagerN.instance.executePost(
+      ApiRequest.bindPartner,
+      jsonParam: params,
+      paramEncrypt: false,
+    );
+    return result;
+  }
+
+  /// 解除关系
+  Future<HttpResultN> unbindPartner() async {
+    final result = await HttpManagerN.instance.executePost(
+      "/unbind",
+      jsonParam: {},
+      paramEncrypt: false,
+    );
+    return result;
+  }
 }

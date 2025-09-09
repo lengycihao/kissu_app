@@ -130,26 +130,21 @@ class BindConfirmDialog extends BaseDialog {
           ),
         ],
       ),
-      child:
-          avatarUrl != null
-              ? ClipOval(
-                child: Image.network(
-                  avatarUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(
-                      Icons.person,
-                      size: 35,
-                      color: Colors.white.withOpacity(0.8),
-                    );
-                  },
-                ),
-              )
-              : Icon(
-                Icons.person,
-                size: 35,
-                color: Colors.white.withOpacity(0.8),
+      child: avatarUrl != null
+          ? ClipOval(
+              child: Image.network(
+                avatarUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.person,
+                    size: 35,
+                    color: Colors.white.withOpacity(0.8),
+                  );
+                },
               ),
+            )
+          : Icon(Icons.person, size: 35, color: Colors.white.withOpacity(0.8)),
     );
   }
 

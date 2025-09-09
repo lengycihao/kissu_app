@@ -78,13 +78,12 @@ class DialogContainer extends StatelessWidget {
       padding: padding ?? const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        image:
-            backgroundImage != null
-                ? DecorationImage(
-                  image: AssetImage(backgroundImage!),
-                  fit: BoxFit.fill,
-                )
-                : null,
+        image: backgroundImage != null
+            ? DecorationImage(
+                image: AssetImage(backgroundImage!),
+                fit: BoxFit.fill,
+              )
+            : null,
         color: backgroundImage == null ? Colors.white : null,
       ),
       child: child,
@@ -126,15 +125,15 @@ class DialogButton extends StatelessWidget {
             padding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           // borderRadius: BorderRadius.circular(22),
-          image:
-              backgroundImage != null
-                  ? DecorationImage(
-                    image: AssetImage(backgroundImage!),
-                    fit: BoxFit.fill,
-                  )
-                  : null,
-          color:
-              backgroundImage == null ? (backgroundColor ?? Colors.pink) : null,
+          image: backgroundImage != null
+              ? DecorationImage(
+                  image: AssetImage(backgroundImage!),
+                  fit: BoxFit.fill,
+                )
+              : null,
+          color: backgroundImage == null
+              ? (backgroundColor ?? Colors.pink)
+              : null,
         ),
         child: Center(
           child: Text(

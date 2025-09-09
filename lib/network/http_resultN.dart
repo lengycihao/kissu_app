@@ -169,8 +169,10 @@ class HttpResultN<T> {
         );
       }
 
-      final models =
-          jsonList.cast<Map<String, dynamic>>().map(fromJson).toList();
+      final models = jsonList
+          .cast<Map<String, dynamic>>()
+          .map(fromJson)
+          .toList();
 
       return HttpResultN<R>.success(
         dataList: models,
@@ -293,12 +295,11 @@ class HttpResultN<T> {
   @override
   String toString() {
     final status = isSuccess ? 'Success' : 'Failure';
-    final dataInfo =
-        hasData
-            ? 'hasData: true'
-            : hasDataList
-            ? 'hasDataList: true'
-            : 'noData';
+    final dataInfo = hasData
+        ? 'hasData: true'
+        : hasDataList
+        ? 'hasDataList: true'
+        : 'noData';
 
     return 'HttpResultN<$T>($status, code: $code, $dataInfo, msg: $msg)';
   }

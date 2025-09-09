@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class DashedLine extends StatelessWidget {
-  final double height;      // 线条厚度
-  final double dashWidth;   // 每个短横宽度
-  final double dashSpace;   // 短横间距
+  final double height; // 线条厚度
+  final double dashWidth; // 每个短横宽度
+  final double dashSpace; // 短横间距
   final Color color;
 
   const DashedLine({
@@ -26,9 +26,7 @@ class DashedLine extends StatelessWidget {
             return SizedBox(
               width: dashWidth,
               height: height,
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: color),
-              ),
+              child: DecoratedBox(decoration: BoxDecoration(color: color)),
             );
           }),
         );

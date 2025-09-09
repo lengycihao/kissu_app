@@ -12,7 +12,10 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
     controller.pageContext = context; // ✅ 保存 Scaffold 的 context
     return Scaffold(
       body: Stack(
-        children: [_buildBackground(), SafeArea(child: _buildMainContent())],
+        children: [
+          _buildBackground(),
+          SafeArea(child: _buildMainContent()),
+        ],
       ),
     );
   }
@@ -36,16 +39,48 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
         _buildHeader(),
         _buildDateSelector(),
         Expanded(
-          child: Obx(
-            () =>
-                controller.isBinding.value
-                    ? _buildUsageList()
-                    : _buildEmptyState(),
-          ),
+          child: _buildPageView(),
         ),
         _buildBottomTip(),
       ],
     );
+  }
+
+  // PageView实现页面切换效果
+  Widget _buildPageView() {
+    return PageView.builder(
+      controller: controller.pageController,
+      onPageChanged: controller.onPageChanged,
+      itemCount: 7, // 最近7天
+      itemBuilder: (context, index) {
+        return _buildPageContent(index);
+      },
+    );
+  }
+
+  // 构建单个页面内容
+  Widget _buildPageContent(int index) {
+    return Obx(() {
+      // 只有当前页面才显示内容，避免性能问题
+      if (index != controller.currentPageIndex.value) {
+        return const SizedBox();
+      }
+
+      return Column(
+        children: [
+          // 加载指示器 - 放在页面内容顶部
+          _buildDateLoadingIndicator(),
+          // 滑动提示
+          _buildSwipeHint(),
+          // 页面内容
+          Expanded(
+            child: Obx(() => controller.isBinding.value
+                ? _buildUsageList()
+                : _buildEmptyState()),
+          ),
+        ],
+      );
+    });
   }
 
   // 底部提示
@@ -102,44 +137,118 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
   // 构建日期选择器
   Widget _buildDateSelector() {
     return DateSelector(
+      externalSelectedIndex: controller.selectedDateIndex,
       onSelect: (date) {
-        print("选择了日期: $date");
+        controller.changeDate(date);
       },
     );
   }
 
-  // 构建空状态
-  Widget _buildEmptyState() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        // height: MediaQuery.of(Get.context!).size.height * 0.5,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-        child: Stack(
-          alignment: Alignment.bottomCenter,
+  // 构建日期切换加载指示器 - 移到页面内容顶部
+  Widget _buildDateLoadingIndicator() {
+    return Obx(() {
+      if (!controller.isDateLoading.value) {
+        return const SizedBox.shrink();
+      }
+      
+      return Container(
+        height: 50,
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/phone_history/kissu_phone_placeholder.webp',
-              //  fit: BoxFit.cover,
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)),
+              ),
             ),
-            Positioned(
-              bottom: 44,
-              // left: 0,
-              child: Container(
-                width: 110,
-                height: 35,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Color(0xffFF88AA),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  "立即绑定",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
+            SizedBox(width: 8),
+            Text(
+              '加载中...',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF999999),
               ),
             ),
           ],
+        ),
+      );
+    });
+  }
+
+  // 构建滑动提示
+  Widget _buildSwipeHint() {
+    return Obx(() {
+      if (controller.swipeHintText.value.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF6B9D).withOpacity(0.9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            controller.swipeHintText.value,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  // 构建空状态（带下拉刷新） - 背景延伸到底部
+  Widget _buildEmptyState() {
+    return RefreshIndicator(
+      onRefresh: controller.onRefresh,
+      color: const Color(0xFFFF6B9D),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          // 计算高度，延伸到底部小文字上方，留间距
+          height: MediaQuery.of(Get.context!).size.height - 200, // 预留底部空间
+          margin: const EdgeInsets.only(top: 20, left: 18, right: 18),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              image: const DecorationImage(
+                image: AssetImage('assets/phone_history/kissu_phone_placeholder.webp'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                Positioned(
+                  bottom: 44,
+                  child: GestureDetector(
+                    onTap: () => controller.showBindingDialog(),
+                    child: Container(
+                      width: 110,
+                      height: 35,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        color: const Color(0xffFF88AA),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        "立即绑定",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -147,8 +256,6 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
 
   // 构建使用记录列表
   Widget _buildUsageList() {
-    final records = controller.getUsageRecords();
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
       child: Stack(
@@ -156,14 +263,19 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
           // 背景容器
           Column(
             children: [
-              // 顶部信息栏 - 根据UI调整样式
+              // 顶部信息栏
               _buildInfoHeader(),
-              // 记录列表
+              // 记录列表（支持左右滑动）
               Expanded(
-                child:
-                    records.isEmpty
-                        ? _buildEmptyList()
-                        : _buildRecordsList(records),
+                child: Obx(() {
+                  if (controller.isLoading.value && controller.recordList.isEmpty) {
+                    return _buildLoadingList();
+                  }
+                  if (controller.recordList.isEmpty) {
+                    return _buildEmptyList();
+                  }
+                  return _buildRecordsListWithRefresh();
+                }),
               ),
             ],
           ),
@@ -173,7 +285,6 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
   }
 
   // 构建顶部信息栏
-  // 构建顶部信息栏
   Widget _buildInfoHeader() {
     return Obx(() {
       return Stack(
@@ -181,7 +292,7 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 20),
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 12, top: 18),
             decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage(
@@ -200,14 +311,14 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
                       style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      '12KM',
-                      style: TextStyle(
+                    Obx(() => Text(
+                      controller.distance,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFFFF6B9D),
                       ),
-                    ),
+                    )),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -215,24 +326,26 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        border: Border.all(width: 1, color: Color(0xffFFEDF2)),
+                        border: Border.all(width: 1, color: const Color(0xffFFEDF2)),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.check_circle,
                             size: 16,
                             color: Color(0xFF4CAF50),
                           ),
-                          SizedBox(width: 4),
-                          Text(
-                            '1分钟前更新',
-                            style: TextStyle(
+                          const SizedBox(width: 4),
+                          Obx(() => Text(
+                            controller.updateTime.isEmpty 
+                                ? '暂无更新' 
+                                : controller.updateTime,
+                            style: const TextStyle(
                               fontSize: 12,
                               color: Color(0xFF47493C),
                             ),
-                          ),
+                          )),
                         ],
                       ),
                     ),
@@ -242,7 +355,7 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
                 // 设备信息行
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
+                    color: const Color(0xFFF7F7F7),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -250,31 +363,31 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: DeviceInfoItem(
-                          text: 'Vivo iQOO',
+                        child: Obx(() => DeviceInfoItem(
+                          text: controller.deviceModel,
                           iconPath:
                               'assets/phone_history/kissu_phone_type.webp',
                           isDevice: true,
                           onLongPress: controller.showTooltip,
-                        ),
+                        )),
                       ),
                       Expanded(
-                        child: DeviceInfoItem(
-                          text: '90%',
+                        child: Obx(() => DeviceInfoItem(
+                          text: controller.batteryLevel,
                           iconPath:
                               'assets/phone_history/kissu_phone_barry.webp',
                           isDevice: false,
                           onLongPress: controller.showTooltip,
-                        ),
+                        )),
                       ),
                       Expanded(
-                        child: DeviceInfoItem(
-                          text: 'ChinaNet',
+                        child: Obx(() => DeviceInfoItem(
+                          text: controller.networkName,
                           iconPath:
                               'assets/phone_history/kissu_phone_wifi.webp',
                           isDevice: false,
                           onLongPress: controller.showTooltip,
-                        ),
+                        )),
                       ),
                     ],
                   ),
@@ -331,88 +444,202 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
     });
   }
 
-  // 构建空列表
+  // 构建空列表（带背景和下拉刷新） - 背景延伸到合适高度
   Widget _buildEmptyList() {
-    return Center(
-      child: Column(
+    return RefreshIndicator(
+      onRefresh: controller.onRefresh,
+      color: const Color(0xFFFF6B9D),
+      child: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/phone_history/kissu_phone_list_bg.webp'),
+            fit: BoxFit.fill,
+          ),
+        ),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: 300, // 给一个固定高度确保可以滑动
+            alignment: Alignment.topCenter,
+            padding: const EdgeInsets.only(top: 80),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/phone_history/kissu_phone_list_empty.webp',
+                  width: 120,
+                  height: 120,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  '对方目前还没有敏感行为',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 构建加载状态
+  Widget _buildLoadingList() {
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/phone_history/kissu_phone_list_bg.webp'),
+          fit: BoxFit.fill,
+        ),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)),
+        ),
+      ),
+    );
+  }
+
+  // 构建带下拉刷新和上拉加载的记录列表
+  Widget _buildRecordsListWithRefresh() {
+    return RefreshIndicator(
+      onRefresh: controller.onRefresh,
+      color: const Color(0xFFFF6B9D),
+      child: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/phone_history/kissu_phone_list_bg.webp'),
+            fit: BoxFit.fill,
+          ),
+        ),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
+                controller.hasMoreData.value &&
+                !controller.isLoadingMore.value) {
+              controller.loadMore();
+            }
+            return false;
+          },
+          child: Obx(() => ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            itemCount: controller.recordList.length + (controller.hasMoreData.value ? 1 : 0),
+            // 性能优化：添加缓存extent和预估高度
+            cacheExtent: 500,
+            itemExtent: null, // 让系统自动计算
+            itemBuilder: (context, index) {
+              if (index == controller.recordList.length) {
+                return _buildLoadMoreWidget();
+              }
+              
+              return _buildRecordItem(index);
+            },
+          )),
+        ),
+      ),
+    );
+  }
+
+  // 构建单个记录项（性能优化：避免在itemBuilder中重复创建对象）
+  Widget _buildRecordItem(int index) {
+    final record = controller.recordList[index];
+    final time = record.createTime ?? '';
+    final action = record.content ?? '';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/phone_history/kissu_phone_list_empty.webp',
-            width: 150,
-            height: 150,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '暂无记录',
-            style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min, // 性能优化：最小化尺寸
+              children: [
+                Text(
+                  time,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF999999),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 15,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffF6F6F6),
+                    borderRadius: BorderRadius.circular(1000),
+                  ),
+                  child: Text(
+                    action,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: null, // 允许多行显示
+                    overflow: TextOverflow.visible,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // 构建记录列表
-  Widget _buildRecordsList(List<PhoneUsageRecord> records) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 15),
-      decoration: BoxDecoration(
-        image: const DecorationImage(
-          image: AssetImage('assets/phone_history/kissu_phone_list_bg.webp'),
-          fit: BoxFit.fill,
-        ),
-      ),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 5),
-        itemCount: records.length,
-        itemBuilder: (context, index) {
-          final record = records[index];
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        record.time,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF999999),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 15,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Color(0xffF6F6F6),
-                          borderRadius: BorderRadius.circular(1000),
-                        ),
-                        child: Text(
-                          record.action,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF333333),
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
+  // 构建加载更多组件
+  Widget _buildLoadMoreWidget() {
+    return Obx(() {
+      if (controller.isLoadingMore.value) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)),
                 ),
-              ],
+              ),
+              SizedBox(width: 8),
+              Text(
+                '加载中...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF999999),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      if (!controller.hasMoreData.value) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: const Text(
+            '没有更多数据了',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF999999),
             ),
-          );
-        },
-      ),
-    );
+            textAlign: TextAlign.center,
+          ),
+        );
+      }
+      
+      return const SizedBox.shrink();
+    });
   }
 }

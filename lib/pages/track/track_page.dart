@@ -62,8 +62,9 @@ class TrackPage extends StatelessWidget {
 
             // 当sheet在初始位置附近时显示播放控制器
             // 扩大显示范围，确保进入页面时就能看到
-            final opacity =
-                (sheetPercent <= initialPosition + 0.15) ? 1.0 : 0.0;
+            final opacity = (sheetPercent <= initialPosition + 0.15)
+                ? 1.0
+                : 0.0;
 
             return AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
@@ -170,10 +171,10 @@ class TrackPage extends StatelessWidget {
                               ), // 添加边框
                             ),
                             child: Column(
-                              children:
-                                  controller.stopRecords.asMap().entries.map((
-                                    entry,
-                                  ) {
+                              children: controller.stopRecords
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
                                     final index = entry.key;
                                     final record = entry.value;
                                     final isLast =
@@ -184,7 +185,8 @@ class TrackPage extends StatelessWidget {
                                       index: index,
                                       isLast: isLast,
                                     );
-                                  }).toList(),
+                                  })
+                                  .toList(),
                             ),
                           ),
                         ),
@@ -301,19 +303,19 @@ class TrackPage extends StatelessWidget {
         ],
       ),
       child: Obx(() {
-        final progress =
-            controller.trackPoints.isEmpty
-                ? 0.0
-                : controller.currentReplayIndex.value /
-                    (controller.trackPoints.length - 1);
+        final progress = controller.trackPoints.isEmpty
+            ? 0.0
+            : controller.currentReplayIndex.value /
+                  (controller.trackPoints.length - 1);
         final isReplaying = controller.isReplaying.value;
 
         return Row(
           children: [
             // 播放/暂停按钮
             GestureDetector(
-              onTap:
-                  isReplaying ? controller.pauseReplay : controller.startReplay,
+              onTap: isReplaying
+                  ? controller.pauseReplay
+                  : controller.startReplay,
               child: Container(
                 decoration: BoxDecoration(
                   color: isReplaying ? Colors.orange : Colors.green,

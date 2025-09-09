@@ -24,7 +24,7 @@ class InfoSettingController extends GetxController {
   var selectedDate = Rx<DateTime>(DateTime.now()); // 默认当前日期，后续会根据用户数据更新
   var isLoading = false.obs;
   var uploadedHeadPortrait = RxString(''); // 上传后的头像URL
-  
+
   // 昵称输入框控制器
   late TextEditingController nicknameController;
   late FocusNode nicknameFocusNode;
@@ -56,18 +56,18 @@ class InfoSettingController extends GetxController {
         // 如果没有头像，使用默认头像背景
         avatarUrl.value = 'assets/kissu_info_setting_headerbg.webp';
       }
-      
+
       // 设置昵称
       if (user.nickname?.isNotEmpty == true) {
         nickname.value = user.nickname!;
         nicknameController.text = user.nickname!;
       }
-      
+
       // 设置性别 (1男2女)
       if (user.gender != null) {
         selectedGender.value = user.gender == 1 ? '男' : '女';
       }
-      
+
       // 设置生日
       if (user.birthday?.isNotEmpty == true) {
         try {
@@ -108,11 +108,11 @@ class InfoSettingController extends GetxController {
 
       if (pickedFile != null) {
         isLoading.value = true;
-        
+
         // 上传图片
         final file = File(pickedFile.path);
         final result = await _fileUploadApi.uploadFile(file);
-        
+
         if (result.isSuccess && result.data != null) {
           avatarUrl.value = result.data!;
           uploadedHeadPortrait.value = result.data!;
@@ -138,9 +138,7 @@ class InfoSettingController extends GetxController {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: SafeArea(
             child: Column(
@@ -157,7 +155,7 @@ class InfoSettingController extends GetxController {
                   ),
                 ),
                 SizedBox(height: 20),
-                
+
                 // 标题
                 Text(
                   '选择图片来源',
@@ -168,7 +166,7 @@ class InfoSettingController extends GetxController {
                   ),
                 ),
                 SizedBox(height: 20),
-                
+
                 // 选项列表
                 _buildImageSourceOption(
                   icon: Icons.photo_library_outlined,
@@ -181,9 +179,9 @@ class InfoSettingController extends GetxController {
                   title: '拍照',
                   onTap: () => Navigator.of(context).pop(ImageSource.camera),
                 ),
-                
+
                 SizedBox(height: 10),
-                
+
                 // 取消按钮
                 Container(
                   width: double.infinity,
@@ -199,10 +197,7 @@ class InfoSettingController extends GetxController {
                     ),
                     child: Text(
                       '取消',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   ),
                 ),
@@ -230,11 +225,7 @@ class InfoSettingController extends GetxController {
           color: Color(0xFFFEA39C).withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: Color(0xFFFEA39C),
-          size: 24,
-        ),
+        child: Icon(icon, color: Color(0xFFFEA39C), size: 24),
       ),
       title: Text(
         title,
@@ -258,7 +249,7 @@ class InfoSettingController extends GetxController {
     // 隐藏键盘并移除输入框焦点
     nicknameFocusNode.unfocus();
     FocusScope.of(Get.context!).unfocus();
-    
+
     await showModalBottomSheet(
       context: Get.context!,
       backgroundColor: Colors.white,
@@ -314,7 +305,7 @@ class InfoSettingController extends GetxController {
   Future<void> onSubmit() async {
     // 从TextEditingController获取最新的昵称值
     final currentNickname = nicknameController.text.trim();
-    
+
     if (currentNickname.isEmpty) {
       Get.snackbar('提示', '请输入昵称');
       return;
@@ -326,14 +317,16 @@ class InfoSettingController extends GetxController {
       // 格式化生日为 YYYY-MM-DD 格式
       final birthday = DateFormat('yyyy-MM-dd').format(selectedDate.value);
       final loveTime = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      
+
       // 转换性别为数字 (1男2女)
       final gender = selectedGender.value == '男' ? 1 : 2;
 
       // 更新用户信息，使用TextEditingController中的值
       final result = await _authApi.updateUserInfo(
         nickname: currentNickname,
-        headPortrait: uploadedHeadPortrait.value.isNotEmpty ? uploadedHeadPortrait.value : null,
+        headPortrait: uploadedHeadPortrait.value.isNotEmpty
+            ? uploadedHeadPortrait.value
+            : null,
         gender: gender,
         birthday: birthday,
         loveTime: loveTime,
@@ -341,14 +334,14 @@ class InfoSettingController extends GetxController {
 
       if (result.isSuccess) {
         Get.snackbar('成功', '信息更新成功');
-        
+
         // 先本地更新用户数据
         await _updateLocalUserInfo(currentNickname, gender, birthday);
-        
+
         // 然后尝试从服务器刷新最新数据并缓存
         try {
           final refreshSuccess = await _authService.refreshUserInfoFromServer();
-          
+
           if (refreshSuccess) {
             print('用户信息刷新成功');
             // 通知其他Controller刷新数据（使用最新的缓存数据）
@@ -361,7 +354,7 @@ class InfoSettingController extends GetxController {
           print('刷新用户信息时发生异常: $e');
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
-        
+
         // 无论刷新是否成功，都跳转到首页
         Get.offAllNamed(KissuRoutePath.home);
       } else {
@@ -392,7 +385,11 @@ class InfoSettingController extends GetxController {
   }
 
   /// 本地更新用户信息（在服务器更新成功后立即更新本地缓存）
-  Future<void> _updateLocalUserInfo(String nickname, int gender, String birthday) async {
+  Future<void> _updateLocalUserInfo(
+    String nickname,
+    int gender,
+    String birthday,
+  ) async {
     try {
       final currentUser = UserManager.currentUser;
       if (currentUser != null) {
@@ -400,7 +397,9 @@ class InfoSettingController extends GetxController {
         final updatedUser = LoginModel(
           id: currentUser.id,
           nickname: nickname,
-          headPortrait: uploadedHeadPortrait.value.isNotEmpty ? uploadedHeadPortrait.value : currentUser.headPortrait,
+          headPortrait: uploadedHeadPortrait.value.isNotEmpty
+              ? uploadedHeadPortrait.value
+              : currentUser.headPortrait,
           gender: gender,
           birthday: birthday,
           token: currentUser.token,
@@ -438,10 +437,12 @@ class InfoSettingController extends GetxController {
           isOrderVip: currentUser.isOrderVip,
           imSign: currentUser.imSign,
         );
-        
+
         // 更新本地缓存
         await _authService.updateCurrentUser(updatedUser);
-        print('本地用户信息已更新: nickname=$nickname, gender=$gender, birthday=$birthday');
+        print(
+          '本地用户信息已更新: nickname=$nickname, gender=$gender, birthday=$birthday',
+        );
       }
     } catch (e) {
       print('更新本地用户信息失败: $e');

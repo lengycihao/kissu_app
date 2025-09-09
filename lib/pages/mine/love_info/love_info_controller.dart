@@ -47,8 +47,8 @@ class LoveInfoController extends GetxController {
       print('Loading user info: ${user.nickname}');
 
       // 绑定状态处理 (1未绑定，2绑定)
-      final bindStatus = user.bindStatus ?? 1;
-      isBindPartner.value = bindStatus == 2;
+      final bindStatus = user.bindStatus ?? "1";
+      isBindPartner.value = bindStatus == "2";
       // isBindPartner.value  = false;
       print('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
 
@@ -87,35 +87,7 @@ class LoveInfoController extends GetxController {
       togetherDays.value = difference;
       print('Calculated together days: ${togetherDays.value}');
     }
-
-    // 处理伴侣信息 - 优先使用loverInfo，其次halfUserInfo
-    if (user.loverInfo != null) {
-      print('Using loverInfo for partner data');
-      final lover = user.loverInfo!;
-      partnerAvatar.value = lover.headPortrait ?? "";
-      partnerNickname.value = lover.nickname ?? "";
-      partnerGender.value = lover.gender == 1
-          ? "男"
-          : lover.gender == 2
-          ? "女"
-          : "未选择";
-      partnerBirthday.value = lover.birthday ?? "未选择";
-      partnerPhone.value = lover.phone ?? "";
-
-      print(
-        'Partner info - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
-      );
-
-      // 从LoverInfo获取恋爱信息
-      if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
-        bindDate.value = lover.bindDate!;
-        print('Bind date from loverInfo: ${bindDate.value}');
-      }
-      if (lover.loveDays != null) {
-        loveDays.value = lover.loveDays!;
-        print('Love days from loverInfo: ${loveDays.value}');
-      }
-    } else if (user.halfUserInfo != null) {
+    if (user.halfUserInfo != null) {
       print('Using halfUserInfo for partner data');
       final half = user.halfUserInfo!;
       partnerAvatar.value = half.headPortrait ?? "";
@@ -131,8 +103,21 @@ class LoveInfoController extends GetxController {
       print(
         'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
       );
-    } else {
-      print('No partner info found in loverInfo or halfUserInfo');
+    }
+    // 处理伴侣信息 - 优先使用loverInfo，其次halfUserInfo
+    if (user.loverInfo != null) {
+      print('Using loverInfo for partner data');
+      final lover = user.loverInfo!;
+
+      // 从LoverInfo获取恋爱信息
+      if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
+        bindDate.value = lover.bindDate!;
+        print('Bind date from loverInfo: ${bindDate.value}');
+      }
+      if (lover.loveDays != null) {
+        loveDays.value = lover.loveDays!;
+        print('Love days from loverInfo: ${loveDays.value}');
+      }
     }
   }
 
@@ -169,9 +154,7 @@ class LoveInfoController extends GetxController {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: SafeArea(
             child: Column(
@@ -188,7 +171,7 @@ class LoveInfoController extends GetxController {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // 标题
                 const Text(
                   '选择图片来源',
@@ -199,7 +182,7 @@ class LoveInfoController extends GetxController {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // 选项列表
                 _buildImageSourceOption(
                   icon: Icons.photo_library_outlined,
@@ -218,9 +201,9 @@ class LoveInfoController extends GetxController {
                     await _pickImageFromSource(ImageSource.camera);
                   },
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // 取消按钮
                 Container(
                   width: double.infinity,
@@ -236,10 +219,7 @@ class LoveInfoController extends GetxController {
                     ),
                     child: Text(
                       '取消',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   ),
                 ),
@@ -266,11 +246,7 @@ class LoveInfoController extends GetxController {
           color: const Color(0xFFFEA39C).withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: const Color(0xFFFEA39C),
-          size: 24,
-        ),
+        child: Icon(icon, color: const Color(0xFFFEA39C), size: 24),
       ),
       title: Text(
         title,
@@ -303,9 +279,7 @@ class LoveInfoController extends GetxController {
       if (pickedFile != null) {
         // 显示加载指示器
         Get.dialog(
-          const Center(
-            child: CircularProgressIndicator(),
-          ),
+          const Center(child: CircularProgressIndicator()),
           barrierDismissible: false,
         );
 
@@ -398,14 +372,22 @@ class LoveInfoController extends GetxController {
   /// 处理性别点击
   void onGenderTap(BuildContext context) {
     // 转换当前性别为弹窗需要的格式
-    String currentGender = myGender.value == '男' ? '男生' : myGender.value == '女' ? '女生' : '男生';
-    
+    String currentGender = myGender.value == '男'
+        ? '男生'
+        : myGender.value == '女'
+        ? '女生'
+        : '男生';
+
     DialogManager.showGenderSelect(
       context: context,
       selectedGender: currentGender,
       onGenderSelected: (gender) {
         // 转换弹窗返回的格式为数据库格式
-        String genderText = gender == '男生' ? '男' : gender == '女生' ? '女' : '未选择';
+        String genderText = gender == '男生'
+            ? '男'
+            : gender == '女生'
+            ? '女'
+            : '未选择';
         _updateUserGender(genderText);
       },
     );
@@ -418,7 +400,10 @@ class LoveInfoController extends GetxController {
 
   /// 处理手机号点击
   void onPhoneTap(BuildContext context) {
-    DialogManager.showPhoneChangeConfirm(context, formatPhone(myPhone.value)).then((result) {
+    DialogManager.showPhoneChangeConfirm(
+      context,
+      formatPhone(myPhone.value),
+    ).then((result) {
       if (result == true) {
         // 跳转到手机号更换页面
         Get.to(() => PhoneChangePage())?.then((result) {
@@ -493,8 +478,12 @@ class LoveInfoController extends GetxController {
   Future<void> _updateUserGender(String genderText) async {
     try {
       // 转换性别文本为数字
-      int genderValue = genderText == '男' ? 1 : genderText == '女' ? 2 : 0;
-      
+      int genderValue = genderText == '男'
+          ? 1
+          : genderText == '女'
+          ? 2
+          : 0;
+
       final authApi = AuthApi();
       final result = await authApi.updateUserInfo(gender: genderValue);
 
