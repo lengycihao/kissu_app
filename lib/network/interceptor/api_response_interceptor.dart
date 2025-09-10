@@ -351,12 +351,85 @@ class ApiResponseInterceptor extends Interceptor {
     if (data is Map<String, dynamic>) {
       return data;
     } else if (data is String) {
-      return json.decode(data) as Map<String, dynamic>;
+      try {
+        // 添加详细的JSON解析错误处理
+        if (data.isEmpty) {
+          throw FormatException('Empty JSON string');
+        }
+        
+        // 检查JSON字符串是否包含常见的格式问题
+        final trimmedData = data.trim();
+        if (!trimmedData.startsWith('{') && !trimmedData.startsWith('[')) {
+          throw FormatException('Invalid JSON format: does not start with { or [');
+        }
+        
+        // 尝试解析JSON
+        final result = json.decode(trimmedData);
+        if (result is Map<String, dynamic>) {
+          return result;
+        } else {
+          throw FormatException('JSON decoded to ${result.runtimeType}, expected Map<String, dynamic>');
+        }
+      } catch (e) {
+        // 记录详细的错误信息和原始数据
+        print('🚨 JSON解析失败:');
+        print('📝 原始数据长度: ${data.length}');
+        print('📝 原始数据前100字符: ${data.length > 100 ? data.substring(0, 100) + '...' : data}');
+        print('📝 错误详情: $e');
+        
+        // 尝试修复常见的JSON问题
+        try {
+          final fixedData = _tryFixJsonString(data);
+          if (fixedData != data) {
+            print('🔧 尝试修复JSON后重新解析...');
+            final result = json.decode(fixedData);
+            if (result is Map<String, dynamic>) {
+              return result;
+            }
+          }
+        } catch (fixError) {
+          print('🚫 JSON修复也失败了: $fixError');
+        }
+        
+        throw FormatException(
+          'Failed to parse JSON response: $e. Data preview: ${data.length > 50 ? data.substring(0, 50) + '...' : data}',
+        );
+      }
     } else {
       throw FormatException(
         'Unsupported response data type: ${data.runtimeType}',
       );
     }
+  }
+  
+  /// 尝试修复常见的JSON字符串问题
+  String _tryFixJsonString(String jsonString) {
+    String fixed = jsonString.trim();
+    
+    // 修复常见的转义问题
+    fixed = fixed.replaceAll('\\"', '"');
+    fixed = fixed.replaceAll('\\n', '\n');
+    fixed = fixed.replaceAll('\\r', '\r');
+    fixed = fixed.replaceAll('\\t', '\t');
+    
+    // 移除可能的BOM标记
+    if (fixed.startsWith('\uFEFF')) {
+      fixed = fixed.substring(1);
+    }
+    
+    // 修复可能的编码问题
+    if (fixed.contains('\\u')) {
+      try {
+        fixed = fixed.replaceAllMapped(
+          RegExp(r'\\u([0-9a-fA-F]{4})'),
+          (match) => String.fromCharCode(int.parse(match.group(1)!, radix: 16)),
+        );
+      } catch (e) {
+        print('修复Unicode转义失败: $e');
+      }
+    }
+    
+    return fixed;
   }
 
   /// 提取字段值

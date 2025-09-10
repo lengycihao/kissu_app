@@ -6,9 +6,11 @@ import 'package:get/get.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
-import 'package:kissu_app/network/public/location_api.dart';
+import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:intl/intl.dart';
 
 class TrackController extends GetxController {
@@ -95,7 +97,7 @@ class TrackController extends GetxController {
   final RxList<LatLng> trackPoints = <LatLng>[].obs;
 
   /// 停留点列表（从API数据获取）
-  final RxList<StopPoint> stopPoints = <StopPoint>[].obs;
+  final RxList<TrackStopPoint> stopPoints = <TrackStopPoint>[].obs;
 
   /// 停留点 marker 列表
   final RxList<Marker> stayMarkers = <Marker>[].obs;
@@ -128,6 +130,9 @@ class TrackController extends GetxController {
 
   /// 停留记录列表（从API数据转换而来）
   final RxList<StopRecord> stopRecords = <StopRecord>[].obs;
+  
+  /// 是否使用虚拟数据（未绑定状态下使用）
+  final isUsingMockData = false.obs;
 
   /// 加载位置数据 - 添加防抖和缓存优化
   Future<void> loadLocationData() async {
@@ -145,14 +150,22 @@ class TrackController extends GetxController {
     isLoading.value = true;
     _resetReplayState();
     
+    // 检查是否应该使用虚拟数据
+    if (!isBindPartner.value) {
+      _loadMockData();
+      isLoading.value = false;
+      return;
+    }
+    
     try {
       final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-      final result = await LocationApi.getLocation(
+      final result = await TrackApi.getTrack(
         date: dateString,
         isOneself: isOneself.value,
       );
       
       if (result.isSuccess && result.data != null) {
+        isUsingMockData.value = false;
         locationData.value = result.data;
         await _updateTrackDataAsync();
         _updateStatistics();
@@ -161,13 +174,31 @@ class TrackController extends GetxController {
         Get.snackbar('错误', result.msg ?? '获取数据失败');
         _clearData();
       }
-    } catch (e) {
-      print('loadLocationData error: $e');
-      if (e.toString().contains('is not a subtype')) {
-        Get.snackbar('错误', '数据格式解析失败，请稍后重试');
+    } catch (e, stackTrace) {
+      final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+      print('🚨 Track Controller loadLocationData error: $e');
+      print('📍 请求参数: date=$dateString, isOneself=${isOneself.value}');
+      print('📚 Stack trace: $stackTrace');
+      
+      String errorMessage;
+      if (e.toString().contains('FormatException')) {
+        errorMessage = 'JSON数据格式错误，请检查服务器返回的数据格式';
+        print('💡 建议检查API返回的JSON格式是否正确');
+      } else if (e.toString().contains('is not a subtype')) {
+        errorMessage = '数据类型不匹配，请稍后重试';
+      } else if (e.toString().contains('Unterminated string')) {
+        errorMessage = 'JSON字符串格式错误，可能存在未转义的特殊字符';
+        print('💡 建议检查JSON中是否有未正确转义的引号或换行符');
       } else {
-        Get.snackbar('错误', '加载数据失败: $e');
+        errorMessage = '加载数据失败: ${e.toString().length > 100 ? e.toString().substring(0, 100) + '...' : e.toString()}';
       }
+      
+      Get.snackbar(
+        '错误', 
+        errorMessage,
+        duration: const Duration(seconds: 5),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       _clearData();
     } finally {
       isLoading.value = false;
@@ -206,15 +237,15 @@ class TrackController extends GetxController {
     final data = locationData.value!;
     
     // 在后台线程处理数据以避免阻塞UI
-    final rawPoints = await compute(_processLocationData, data.locations);
+    final rawPoints = await compute(_processLocationData, data.locations ?? []);
     
     // 对轨迹点进行平滑处理
     trackPoints.value = _smoothTrackPoints(rawPoints);
     
     // 过滤停留点
-    stopPoints.value = data.trace.stops
+    stopPoints.value = data.trace?.stops
         .where((stop) => stop.lat != 0.0 && stop.lng != 0.0)
-        .toList();
+        .toList() ?? [];
     
     // 更新停留点markers
     _updateStayMarkers();
@@ -230,7 +261,7 @@ class TrackController extends GetxController {
   }
   
   /// 在后台线程处理位置数据
-  static List<LatLng> _processLocationData(List<dynamic> locations) {
+  static List<LatLng> _processLocationData(List<TrackLocation> locations) {
     return locations
         .map((location) => LatLng(location.lat, location.lng))
         .where((point) => point.latitude != 0.0 && point.longitude != 0.0)
@@ -241,28 +272,28 @@ class TrackController extends GetxController {
   void _updateStatistics() {
     if (locationData.value == null) return;
     
-    final stayCollect = locationData.value!.trace.stayCollect;
-    stayCount.value = stayCollect.stayCount;
-    stayDuration.value = stayCollect.stayTime;
-    moveDistance.value = stayCollect.moveDistance;
+    final stayCollect = locationData.value!.userLocationMobileDevice?.stayCollect;
+    stayCount.value = stayCollect?.stayCount ?? 0;
+    stayDuration.value = stayCollect?.stayTime ?? '';
+    moveDistance.value = stayCollect?.moveDistance ?? '';
   }
 
   /// 更新停留记录列表
   void _updateStopRecords() {
     if (locationData.value == null) return;
     
-    final stops = locationData.value!.trace.stops;
+    final stops = locationData.value!.trace?.stops ?? [];
     stopRecords.value = stops.map((stop) {
       return StopRecord(
         latitude: stop.lat,
         longitude: stop.lng,
-        locationName: stop.locationName,
-        startTime: stop.startTime,
-        endTime: stop.endTime.isNotEmpty ? stop.endTime : stop.startTime, // 如果endTime为空，使用startTime
-        duration: stop.duration,
-        status: stop.status,
-        pointType: stop.pointType, // 需要确保API数据包含这个字段
-        serialNumber: stop.serialNumber, // 需要确保API数据包含这个字段
+        locationName: stop.locationName ?? '',
+        startTime: stop.startTime ?? '',
+        endTime: (stop.endTime?.isNotEmpty == true) ? stop.endTime! : (stop.startTime ?? ''), // 如果endTime为空，使用startTime
+        duration: stop.duration ?? '',
+        status: stop.status ?? '',
+        pointType: stop.pointType ?? '', // 需要确保API数据包含这个字段
+        serialNumber: stop.serialNumber ?? '', // 需要确保API数据包含这个字段
       );
     }).toList();
   }
@@ -274,17 +305,17 @@ class TrackController extends GetxController {
     final data = locationData.value!;
     
     // 尝试使用起点
-    if (data.trace.startPoint.lat != 0.0 && data.trace.startPoint.lng != 0.0) {
+    if (data.trace?.startPoint.lat != 0.0 && data.trace?.startPoint.lng != 0.0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(LatLng(data.trace.startPoint.lat, data.trace.startPoint.lng), 16.0);
+        mapController.move(LatLng(data.trace!.startPoint.lat, data.trace!.startPoint.lng), 16.0);
       });
       return;
     }
     
     // 尝试使用终点
-    if (data.trace.endPoint.lat != 0.0 && data.trace.endPoint.lng != 0.0) {
+    if (data.trace?.endPoint.lat != 0.0 && data.trace?.endPoint.lng != 0.0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(LatLng(data.trace.endPoint.lat, data.trace.endPoint.lng), 16.0);
+        mapController.move(LatLng(data.trace!.endPoint.lat, data.trace!.endPoint.lng), 16.0);
       });
       return;
     }
@@ -296,6 +327,27 @@ class TrackController extends GetxController {
   void switchUser() {
     isOneself.value = isOneself.value == 1 ? 0 : 1;
     loadLocationData();
+  }
+
+  /// 执行绑定操作 - 显示绑定输入弹窗
+  void performBindAction() {
+    DialogManager.showBindingInput(
+      title: "",
+      context: Get.context!,
+      onConfirm: (code) {
+        // 绑定完成后会自动刷新数据，这里不需要额外操作
+        // 因为BindingInputDialog内部已经会调用UserManager.refreshUserInfo()
+        // 并且会更新各个页面的数据
+        _loadUserInfo(); // 重新加载用户信息更新绑定状态
+        
+        // 延迟执行导航，确保弹窗完全关闭后再执行
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (Get.context != null) {
+            Get.offAllNamed(KissuRoutePath.home);
+          }
+        });
+      },
+    );
   }
 
   /// 选择日期
@@ -671,6 +723,142 @@ class TrackController extends GetxController {
         startReplay();
       }
     }
+  }
+
+  /// 加载虚拟数据
+  void _loadMockData() {
+    isUsingMockData.value = true;
+    
+    // 生成基于日期的虚拟数据
+    final mockData = _generateMockDataForDate(selectedDate.value);
+    
+    // 设置虚拟轨迹点
+    trackPoints.value = mockData['trackPoints'];
+    
+    // 设置虚拟停留记录
+    stopRecords.value = mockData['stopRecords'];
+    
+    // 从停留记录生成停留点
+    stopPoints.value = stopRecords.map((record) => TrackStopPoint(
+      lat: record.latitude,
+      lng: record.longitude,
+      startTime: record.startTime,
+      endTime: record.endTime,
+      duration: record.duration,
+      locationName: record.locationName,
+      status: record.status,
+    )).toList();
+    
+    // 更新停留点markers
+    _updateStayMarkers();
+    
+    // 设置虚拟统计数据
+    stayCount.value = mockData['stayCount'];
+    stayDuration.value = mockData['stayDuration'];
+    moveDistance.value = mockData['moveDistance'];
+    
+    // 移动地图到第一个点
+    if (trackPoints.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        mapController.move(trackPoints.first, 16.0);
+      });
+    }
+  }
+  
+  /// 为指定日期生成虚拟数据 - 7天内数据完全一致
+  Map<String, dynamic> _generateMockDataForDate(DateTime date) {
+    // 不使用日期，改为固定数据确保7天内完全一致
+    final List<StopRecord> mockStopRecords = [];
+    final List<LatLng> mockTrackPoints = [];
+    
+    // 固定的虚拟地点和坐标数据
+    final List<Map<String, dynamic>> fixedLocations = [
+      {
+        'name': '杭州西湖风景区',
+        'lat': 30.2741,
+        'lng': 120.2206,
+        'startTime': '09:00',
+        'endTime': '',
+        'duration': '',
+        'pointType': 'start',
+        'serialNumber': '起',
+        'status': '',
+      },
+      {
+        'name': '浙江省杭州市上城区中豪·湘和国际',
+        'lat': 30.2850,
+        'lng': 120.2320,
+        'startTime': '11:15',
+        'endTime': '12:45',
+        'duration': '90分钟',
+        'pointType': 'stop',
+        'serialNumber': '1',
+        'status': 'ended',
+      },
+      {
+        'name': '杭州东站',
+        'lat': 30.2905,
+        'lng': 120.2142,
+        'startTime': '13:30',
+        'endTime': '14:20',
+        'duration': '50分钟',
+        'pointType': 'stop',
+        'serialNumber': '2',
+        'status': 'ended',
+      },
+      {
+        'name': '钱塘江边',
+        'lat': 30.2635,
+        'lng': 120.2285,
+        'startTime': '15:30',
+        'endTime': '',
+        'duration': '',
+        'pointType': 'end',
+        'serialNumber': '终',
+        'status': '',
+      },
+    ];
+    
+    // 创建固定的停留记录
+    for (var location in fixedLocations) {
+      mockStopRecords.add(StopRecord(
+        latitude: location['lat'],
+        longitude: location['lng'],
+        locationName: location['name'],
+        startTime: location['startTime'],
+        endTime: location['endTime'],
+        duration: location['duration'],
+        status: location['status'],
+        pointType: location['pointType'],
+        serialNumber: location['serialNumber'],
+      ));
+    }
+    
+    // 生成固定的轨迹点
+    for (int i = 0; i < fixedLocations.length; i++) {
+      final location = fixedLocations[i];
+      mockTrackPoints.add(LatLng(location['lat'], location['lng']));
+      
+      // 在点之间生成连接轨迹（除了最后一个点）
+      if (i < fixedLocations.length - 1) {
+        final nextLocation = fixedLocations[i + 1];
+        for (int j = 1; j <= 5; j++) {
+          final progress = j / 5.0;
+          final trackLat = location['lat'] + (nextLocation['lat'] - location['lat']) * progress;
+          final trackLng = location['lng'] + (nextLocation['lng'] - location['lng']) * progress;
+          mockTrackPoints.add(LatLng(trackLat, trackLng));
+        }
+      }
+    }
+    
+    // 固定的统计数据
+    return {
+      'trackPoints': mockTrackPoints,
+      'stopRecords': mockStopRecords,
+      'stayCount': 3, // 起点+2个停留点+终点，但统计中只算停留点  
+      'stayDuration': '3小时25分钟',
+      'moveDistance': '4.2km',
+    };
   }
 
   @override

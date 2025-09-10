@@ -1,261 +1,405 @@
-class LocationResponse {
-  final List<Location> locations;
-  final TraceData trace;
-  final UserData user;
+class LocationResponseModel {
+  final UserLocationMobileDevice? userLocationMobileDevice;
+  final UserLocationMobileDevice? halfLocationMobileDevice;
 
-  LocationResponse({
-    required this.locations,
-    required this.trace,
-    required this.user,
+  LocationResponseModel({
+    this.userLocationMobileDevice,
+    this.halfLocationMobileDevice,
   });
 
-  factory LocationResponse.fromJson(Map<String, dynamic> json) {
-    return LocationResponse(
-      locations: (json['locations'] as List<dynamic>? ?? [])
-          .map((e) => Location.fromJson(e))
-          .toList(),
-      trace: TraceData.fromJson(json['trace'] ?? {}),
-      user: UserData.fromJson(json['user'] ?? {}),
-    );
-  }
-}
-
-/// 位置数据点
-class Location {
-  final String longitude;
-  final String latitude;
-
-  Location({
-    required this.longitude,
-    required this.latitude,
-  });
-
-  factory Location.fromJson(Map<String, dynamic> json) {
-    return Location(
-      longitude: json['longitude'] ?? '',
-      latitude: json['latitude'] ?? '',
+  factory LocationResponseModel.fromJson(Map<String, dynamic> json) {
+    return LocationResponseModel(
+      userLocationMobileDevice: json['user_location_mobile_device'] != null
+          ? UserLocationMobileDevice.fromJson(json['user_location_mobile_device'])
+          : null,
+      halfLocationMobileDevice: json['half_location_mobile_device'] != null
+          ? UserLocationMobileDevice.fromJson(json['half_location_mobile_device'])
+          : null,
     );
   }
 
-  // 获取纬度的double值
-  double get lat => double.tryParse(latitude) ?? 0.0;
-
-  // 获取经度的double值
-  double get lng => double.tryParse(longitude) ?? 0.0;
+  Map<String, dynamic> toJson() {
+    return {
+      'user_location_mobile_device': userLocationMobileDevice?.toJson(),
+      'half_location_mobile_device': halfLocationMobileDevice?.toJson(),
+    };
+  }
 }
 
-/// 轨迹数据
-class TraceData {
-  final StartPoint startPoint;
-  final List<StopPoint> stops;
-  final EndPoint endPoint;
-  final StayCollect stayCollect;
+class UserLocationMobileDevice {
+  final String? power;
+  final String? networkName;
+  final String? mobileModel;
+  final String? isWifi;
+  final String? longitude;
+  final String? latitude;
+  final String? location;
+  final String? locationTime;
+  final String? speed;
+  final String? calculateLocationTime;
+  final int? isOneself;
+  final String? distance;
+  final List<StopPoint>? stops;
+  final StayCollect? stayCollect;
+  final String? headPortrait;
 
-  TraceData({
-    required this.startPoint,
-    required this.stops,
-    required this.endPoint,
-    required this.stayCollect,
+  UserLocationMobileDevice({
+    this.power,
+    this.networkName,
+    this.mobileModel,
+    this.isWifi,
+    this.longitude,
+    this.latitude,
+    this.location,
+    this.locationTime,
+    this.speed,
+    this.calculateLocationTime,
+    this.isOneself,
+    this.distance,
+    this.stops,
+    this.stayCollect,
+    this.headPortrait,
   });
 
-  factory TraceData.fromJson(Map<String, dynamic> json) {
-    return TraceData(
-      startPoint: StartPoint.fromJson(json['start_point'] ?? {}),
-      stops: (json['stops'] as List<dynamic>? ?? [])
-          .map((e) => StopPoint.fromJson(e))
-          .toList(),
-      endPoint: EndPoint.fromJson(json['end_point'] ?? {}),
-      stayCollect: StayCollect.fromJson(json['stay_collect'] ?? {}),
-    );
-  }
-}
-
-/// 起点数据
-class StartPoint {
-  final String longitude;
-  final String latitude;
-  final String locationTime;
-  final String locationName;
-
-  StartPoint({
-    required this.longitude,
-    required this.latitude,
-    required this.locationTime,
-    required this.locationName,
-  });
-
-  factory StartPoint.fromJson(Map<String, dynamic> json) {
-    return StartPoint(
-      longitude: json['longitude'] ?? '',
-      latitude: json['latitude'] ?? '',
-      locationTime: json['location_time'] ?? '',
-      locationName: json['location_name'] ?? '',
+  factory UserLocationMobileDevice.fromJson(Map<String, dynamic> json) {
+    return UserLocationMobileDevice(
+      power: json['power'],
+      networkName: json['network_name'],
+      mobileModel: json['mobile_model'],
+      isWifi: json['is_wifi'],
+      longitude: json['longitude'],
+      latitude: json['latitude'],
+      location: json['location'],
+      locationTime: json['location_time'],
+      speed: json['speed'],
+      calculateLocationTime: json['calculate_location_time'],
+      isOneself: json['is_oneself'],
+      distance: json['distance'],
+      stops: json['stops'] != null
+          ? (json['stops'] as List).map((i) => StopPoint.fromJson(i)).toList()
+          : null,
+      stayCollect: json['stay_collect'] != null
+          ? StayCollect.fromJson(json['stay_collect'])
+          : null,
+      headPortrait: json['head_portrait'],
     );
   }
 
-  // 获取纬度的double值
-  double get lat => double.tryParse(latitude) ?? 0.0;
-
-  // 获取经度的double值
-  double get lng => double.tryParse(longitude) ?? 0.0;
-}
-
-/// 终点数据
-class EndPoint {
-  final String longitude;
-  final String latitude;
-  final int locationTime;
-  final String locationName;
-
-  EndPoint({
-    required this.longitude,
-    required this.latitude,
-    required this.locationTime,
-    required this.locationName,
-  });
-
-  factory EndPoint.fromJson(Map<String, dynamic> json) {
-    return EndPoint(
-      longitude: json['longitude'] ?? '',
-      latitude: json['latitude'] ?? '',
-      locationTime: _parseLocationTime(json['location_time']),
-      locationName: json['location_name'] ?? '',
-    );
-  }
-  
-  static int _parseLocationTime(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
-
-  // 获取纬度的double值
-  double get lat => double.tryParse(latitude) ?? 0.0;
-
-  // 获取经度的double值
-  double get lng => double.tryParse(longitude) ?? 0.0;
-}
-
-/// 用户数据
-class UserData {
-  final String headPortrait;
-  final int isVip;
-  final int isBind;
-  final String halfHeadPortrait;
-
-  UserData({
-    required this.headPortrait,
-    required this.isVip,
-    required this.isBind,
-    required this.halfHeadPortrait,
-  });
-
-  factory UserData.fromJson(Map<String, dynamic> json) {
-    return UserData(
-      headPortrait: json['head_portrait'] ?? '',
-      isVip: _parseInt(json['is_vip']),
-      isBind: _parseInt(json['is_bind']),
-      halfHeadPortrait: json['half_head_portrait'] ?? '',
-    );
-  }
-  
-  static int _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
+  Map<String, dynamic> toJson() {
+    return {
+      'power': power,
+      'network_name': networkName,
+      'mobile_model': mobileModel,
+      'is_wifi': isWifi,
+      'longitude': longitude,
+      'latitude': latitude,
+      'location': location,
+      'location_time': locationTime,
+      'speed': speed,
+      'calculate_location_time': calculateLocationTime,
+      'is_oneself': isOneself,
+      'distance': distance,
+      'stops': stops?.map((e) => e.toJson()).toList(),
+      'stay_collect': stayCollect?.toJson(),
+      'head_portrait': headPortrait,
+    };
   }
 }
 
-/// 停留点数据
 class StopPoint {
-  final String latitude;
-  final String longitude;
-  final String locationName;
-  final String startTime;
-  final String endTime;
-  final String duration;
-  final String status; // staying 停留中, ended 已结束
-  final String pointType; // start 起点, stop 停留点, end 终点
-  final String serialNumber;
+  final String? latitude;
+  final String? longitude;
+  final String? locationName;
+  final String? startTime;
+  final String? endTime;
+  final String? duration;
+  final String? status;
+  final String? pointType;
+  final String? serialNumber;
 
   StopPoint({
-    required this.latitude,
-    required this.longitude,
-    required this.locationName,
-    required this.startTime,
-    required this.endTime,
-    required this.duration,
-    required this.status,
-    required this.pointType,
-    required this.serialNumber,
+    this.latitude,
+    this.longitude,
+    this.locationName,
+    this.startTime,
+    this.endTime,
+    this.duration,
+    this.status,
+    this.pointType,
+    this.serialNumber,
   });
 
   factory StopPoint.fromJson(Map<String, dynamic> json) {
     return StopPoint(
-      latitude: json['latitude'] ?? '',
-      longitude: json['longitude'] ?? '',
-      locationName: json['location_name'] ?? '',
-      startTime: json['start_time'] ?? '',
-      endTime: json['end_time'] ?? '',
-      duration: json['duration'] ?? '',
-      status: json['status'] ?? '',
-      pointType: json['point_type'] ?? '',
-      serialNumber: json['serial_number'] ?? '',
+      latitude: json['latitude'],
+      longitude: json['longitude'],
+      locationName: json['location_name'],
+      startTime: json['start_time'],
+      endTime: json['end_time'],
+      duration: json['duration'],
+      status: json['status'],
+      pointType: json['point_type'],
+      serialNumber: json['serial_number'],
     );
   }
 
-  // 获取纬度的double值
-  double get lat => double.tryParse(latitude) ?? 0.0;
-
-  // 获取经度的double值
-  double get lng => double.tryParse(longitude) ?? 0.0;
-
-  // 是否正在停留中
-  bool get isStaying => status == 'staying';
-
-  // 是否已结束
-  bool get isEnded => status == 'ended';
-
-  // 是否是起点
-  bool get isStartPoint => pointType == 'start';
-
-  // 是否是终点
-  bool get isEndPoint => pointType == 'end';
-
-  // 是否是停留点
-  bool get isStopPoint => pointType == 'stop';
-
-  // 获取时间范围显示文本（用于已结束状态）
-  String get timeRangeText {
-    if (isEnded && startTime.isNotEmpty && endTime.isNotEmpty) {
-      return '$startTime ~ $endTime';
-    }
-    return '';
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_name': locationName,
+      'start_time': startTime,
+      'end_time': endTime,
+      'duration': duration,
+      'status': status,
+      'point_type': pointType,
+      'serial_number': serialNumber,
+    };
   }
 }
 
 class StayCollect {
-  final int stayCount;
-  final String stayTime;
-  final String moveDistance;
+  final int? stayCount;
+  final String? stayTime;
+  final String? moveDistance;
 
   StayCollect({
-    required this.stayCount,
-    required this.stayTime,
-    required this.moveDistance,
+    this.stayCount,
+    this.stayTime,
+    this.moveDistance,
   });
 
   factory StayCollect.fromJson(Map<String, dynamic> json) {
     return StayCollect(
-      stayCount: _parseInt(json['stay_count']),
-      stayTime: json['stay_time'] ?? '',
-      moveDistance: json['move_distance'] ?? '',
+      stayCount: json['stay_count'],
+      stayTime: json['stay_time'],
+      moveDistance: json['move_distance'],
     );
   }
-  
-  static int _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'stay_count': stayCount,
+      'stay_time': stayTime,
+      'move_distance': moveDistance,
+    };
+  }
+}
+
+// TrackApi 使用的响应模型
+class LocationResponse {
+  final UserLocationMobileDevice? userLocationMobileDevice;
+  final UserLocationMobileDevice? halfLocationMobileDevice;
+  final List<TrackLocation>? locations;  // 轨迹点列表
+  final TraceData? trace;  // 轨迹数据
+
+  LocationResponse({
+    this.userLocationMobileDevice,
+    this.halfLocationMobileDevice,
+    this.locations,
+    this.trace,
+  });
+
+  factory LocationResponse.fromJson(Map<String, dynamic> json) {
+    return LocationResponse(
+      userLocationMobileDevice: json['user_location_mobile_device'] != null
+          ? UserLocationMobileDevice.fromJson(json['user_location_mobile_device'])
+          : null,
+      halfLocationMobileDevice: json['half_location_mobile_device'] != null
+          ? UserLocationMobileDevice.fromJson(json['half_location_mobile_device'])
+          : null,
+      locations: json['locations'] != null
+          ? (json['locations'] as List)
+              .map((i) => TrackLocation.fromJson(i))
+              .toList()
+          : null,
+      trace: json['trace'] != null ? TraceData.fromJson(json['trace']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user_location_mobile_device': userLocationMobileDevice?.toJson(),
+      'half_location_mobile_device': halfLocationMobileDevice?.toJson(),
+      'locations': locations?.map((e) => e.toJson()).toList(),
+      'trace': trace?.toJson(),
+    };
+  }
+}
+
+// 轨迹位置点
+class TrackLocation {
+  final double lat;
+  final double lng;
+  final String? time;
+
+  TrackLocation({
+    required this.lat,
+    required this.lng,
+    this.time,
+  });
+
+  factory TrackLocation.fromJson(Map<String, dynamic> json) {
+    return TrackLocation(
+      lat: _parseDouble(json['lat'] ?? json['latitude']),
+      lng: _parseDouble(json['lng'] ?? json['longitude']),
+      time: json['time'],
+    );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      return parsed ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': lat,
+      'longitude': lng,
+      'time': time,
+    };
+  }
+}
+
+// 轨迹数据
+class TraceData {
+  final List<TrackStopPoint> stops;
+  final TrackPoint startPoint;
+  final TrackPoint endPoint;
+
+  TraceData({
+    required this.stops,
+    required this.startPoint,
+    required this.endPoint,
+  });
+
+  factory TraceData.fromJson(Map<String, dynamic> json) {
+    return TraceData(
+      stops: json['stops'] != null
+          ? (json['stops'] as List)
+              .map((i) => TrackStopPoint.fromJson(i))
+              .toList()
+          : <TrackStopPoint>[],
+      startPoint: json['start_point'] != null
+          ? TrackPoint.fromJson(json['start_point'])
+          : TrackPoint(lat: 0.0, lng: 0.0),
+      endPoint: json['end_point'] != null
+          ? TrackPoint.fromJson(json['end_point'])
+          : TrackPoint(lat: 0.0, lng: 0.0),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'stops': stops.map((e) => e.toJson()).toList(),
+      'start_point': startPoint.toJson(),
+      'end_point': endPoint.toJson(),
+    };
+  }
+}
+
+// 轨迹停留点
+class TrackStopPoint {
+  final double lat;
+  final double lng;
+  final String? locationName;
+  final String? startTime;
+  final String? endTime;
+  final String? duration;
+  final String? status;
+  final String? pointType;
+  final String? serialNumber;
+
+  TrackStopPoint({
+    required this.lat,
+    required this.lng,
+    this.locationName,
+    this.startTime,
+    this.endTime,
+    this.duration,
+    this.status,
+    this.pointType,
+    this.serialNumber,
+  });
+
+  factory TrackStopPoint.fromJson(Map<String, dynamic> json) {
+    return TrackStopPoint(
+      lat: _parseDoubleForStopPoint(json['lat'] ?? json['latitude']),
+      lng: _parseDoubleForStopPoint(json['lng'] ?? json['longitude']),
+      locationName: json['location_name'],
+      startTime: json['start_time'],
+      endTime: json['end_time'],
+      duration: json['duration'],
+      status: json['status'],
+      pointType: json['point_type'],
+      serialNumber: json['serial_number'],
+    );
+  }
+
+  static double _parseDoubleForStopPoint(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      return parsed ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': lat,
+      'longitude': lng,
+      'location_name': locationName,
+      'start_time': startTime,
+      'end_time': endTime,
+      'duration': duration,
+      'status': status,
+      'point_type': pointType,
+      'serial_number': serialNumber,
+    };
+  }
+}
+
+// 轨迹点
+class TrackPoint {
+  final double lat;
+  final double lng;
+
+  TrackPoint({
+    required this.lat,
+    required this.lng,
+  });
+
+  factory TrackPoint.fromJson(Map<String, dynamic> json) {
+    return TrackPoint(
+      lat: _parseDoubleForTrackPoint(json['lat'] ?? json['latitude']),
+      lng: _parseDoubleForTrackPoint(json['lng'] ?? json['longitude']),
+    );
+  }
+
+  static double _parseDoubleForTrackPoint(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      return parsed ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': lat,
+      'longitude': lng,
+    };
   }
 }

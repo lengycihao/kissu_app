@@ -23,13 +23,28 @@ class BindingInputDialog {
       isDismissible: true,
       enableDrag: true,
       isScrollControlled: true,
-      builder: (context) => const _BindingInputBottomSheet(),
+      builder: (context) => _BindingInputBottomSheet(
+        title: title,
+        hintText: hintText,
+        confirmText: confirmText,
+        onConfirm: onConfirm,
+      ),
     );
   }
 }
 
 class _BindingInputBottomSheet extends StatefulWidget {
-  const _BindingInputBottomSheet();
+  final String title;
+  final String hintText;
+  final String confirmText;
+  final Function(String code)? onConfirm;
+
+  const _BindingInputBottomSheet({
+    this.title = '',
+    this.hintText = '输入对方匹配码',
+    this.confirmText = '确认绑定',
+    this.onConfirm,
+  });
 
   @override
   State<_BindingInputBottomSheet> createState() =>
@@ -97,9 +112,16 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
           print('刷新用户信息失败: $e');
         }
 
+        // 先关闭弹窗
         if (mounted) {
           Navigator.of(context).pop(true);
         }
+        
+        // 调用外部传入的onConfirm回调
+        if (widget.onConfirm != null) {
+          widget.onConfirm!(code);
+        }
+
         Get.snackbar('成功', '申请成功');
       } else {
         isLoading.value = false;
@@ -157,9 +179,9 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
                   const SizedBox(height: 25),
 
                   // 标题
-                  const Text(
-                    ' ',
-                    style: TextStyle(
+                  Text(
+                    widget.title.isEmpty ? ' ' : widget.title,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF333333),
@@ -183,14 +205,14 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 20,
-                      decoration: const InputDecoration(
-                        hintText: '输入对方匹配码',
-                        hintStyle: TextStyle(
+                      decoration: InputDecoration(
+                        hintText: widget.hintText,
+                        hintStyle: const TextStyle(
                           fontSize: 14,
                           color: Color(0xFF999999),
                         ),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         counterText: '', // 隐藏字符计数器
                       ),
                       style: const TextStyle(
@@ -218,9 +240,9 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
                         borderRadius: BorderRadius.circular(25),
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
-                        '确认绑定',
-                        style: TextStyle(
+                      child: Text(
+                        widget.confirmText,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,

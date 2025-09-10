@@ -2,7 +2,7 @@ import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
-import 'package:kissu_app/network/public/location_api.dart';
+import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 
 /// 全局用户数据管理工具类
@@ -125,7 +125,7 @@ class UserManager {
 
   /// 清除当前用户的位置数据缓存
   static void clearLocationCache() {
-    LocationApi.clearCurrentUserCache();
+    TrackApi.clearCurrentUserCache();
   }
 
   /// 刷新用户信息（从服务器获取最新数据）

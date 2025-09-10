@@ -76,7 +76,7 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
           Expanded(
             child: Obx(() => controller.isBinding.value
                 ? _buildUsageList()
-                : _buildEmptyState()),
+                : _buildEmptyStateWithBackground()),
           ),
         ],
       );
@@ -203,6 +203,63 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
         ),
       );
     });
+  }
+
+  // 构建未绑定状态背景图片
+  Widget _buildUnbindBackground() {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            margin: const EdgeInsets.only(
+              left: 12, // 与设备信息栏左边距对齐
+              right: 12, // 与设备信息栏右边距对齐
+              top: 18, // 与设备信息栏顶部边距对齐
+              bottom: 12, // 距离底部文字上方20px + 底部文字高度约40px
+            ),
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/kissu_history_unbind_bg.webp'),
+                fit: BoxFit.fill,
+              ),
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+             
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: GestureDetector(
+          onTap: () => controller.showBindingDialog(),
+          child: Container(
+            width: 110,
+            height: 35,
+            margin: EdgeInsets.only(bottom: 50), // 底部间距
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: const Color(0xffFF88AA),
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              "立即绑定",
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ),)
+      ],
+    );
+  }
+
+  // 构建未绑定状态（带背景图片和下拉刷新）
+  Widget _buildEmptyStateWithBackground() {
+    return Stack(
+      children: [
+        // 背景图片 - 仅在未绑定时显示
+        _buildUnbindBackground(),
+        // 原有的空状态内容
+        // _buildEmptyState(),
+      ],
+    );
   }
 
   // 构建空状态（带下拉刷新） - 背景延伸到底部

@@ -6,7 +6,7 @@ import 'package:kissu_app/model/phone_history_model/phone_history_model.dart';
 import 'package:kissu_app/model/phone_history_model/datum.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
-import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_history_setting_dialog.dart';
 
 class PhoneHistoryController extends GetxController {
@@ -115,7 +115,7 @@ class PhoneHistoryController extends GetxController {
       if (result.isSuccess && result.data != null) {
         phoneHistoryModel.value = result.data!;
         
-        // 更新绑定状态
+        // 更新绑定状态 - 修正：1=未绑定，2=绑定
         isBinding.value = result.data!.user?.isBind == 1;
         
         if (isRefresh || _currentPage == 1) {
@@ -208,8 +208,29 @@ class PhoneHistoryController extends GetxController {
     }
   }
 
+  /// 根据设备组件类型生成简化信息
+  String _getDeviceSimpleInfo(String componentText) {
+    // 根据当前显示的文本判断是哪个组件
+    if (componentText == deviceModel) {
+      // 手机设备组件
+      return "设备型号：$deviceModel";
+    } else if (componentText == batteryLevel) {
+      // 电量组件
+      return "当前电量：$batteryLevel";
+    } else if (componentText == networkName) {
+      // 网络组件
+      return "网络名称：$networkName";
+    }
+    
+    // 默认返回原文本
+    return componentText;
+  }
+
   void showTooltip(String text, Offset position) {
     hideTooltip(); // 先移除旧的
+
+    // 获取简化信息
+    final simpleText = _getDeviceSimpleInfo(text);
 
     final screenSize = MediaQuery.of(pageContext).size;
     const padding = 12.0;
@@ -270,7 +291,7 @@ class PhoneHistoryController extends GetxController {
                         ],
                       ),
                       child: Text(
-                        text,
+                        simpleText,
                         style: const TextStyle(
                           fontSize: 14,
                           color: Color(0xFF333333),
@@ -321,12 +342,21 @@ class PhoneHistoryController extends GetxController {
   }
 
   /// 显示绑定弹窗
-  void showBindingDialog() async {
-    final result = await BindingInputDialog.show(context: pageContext);
-    if (result == true) {
-      // 绑定成功后刷新当前页面数据
-      await loadData(isRefresh: true);
-    }
+  void showBindingDialog() {
+    BindingInputDialog.show(
+      context: pageContext,
+      onConfirm: (code) {
+        // 绑定完成后刷新当前页面数据
+        loadData(isRefresh: true);
+        
+        // 延迟执行导航，确保弹窗完全关闭后再执行
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (Get.context != null) {
+            Get.offAllNamed(KissuRoutePath.home);
+          }
+        });
+      },
+    );
   }
 
   /// 左滑切换到后一天

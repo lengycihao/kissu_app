@@ -14,4 +14,6 @@ class ApiRequest {
   static const changePhone = '/change/phone';
 
   static const bindPartner = '/start/bind';
+
+  static const getLocation = '/get/location';
 }

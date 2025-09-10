@@ -19,9 +19,9 @@ class TrackPage extends StatelessWidget {
 // 将主要内容提取为单独的StatefulWidget以优化性能
 class _TrackPageContent extends StatefulWidget {
   final TrackController controller;
-  
+
   const _TrackPageContent({required this.controller});
-  
+
   @override
   State<_TrackPageContent> createState() => _TrackPageContentState();
 }
@@ -32,18 +32,18 @@ class _TrackPageContentState extends State<_TrackPageContent> {
   late final double minHeight;
   late final double maxHeight;
   late final double mapHeight;
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // 在这里计算屏幕尺寸相关参数
     screenHeight = MediaQuery.of(context).size.height;
-    initialHeight = screenHeight * 0.3;
-    minHeight = screenHeight * 0.3;
+    initialHeight = screenHeight * 0.4;
+    minHeight = screenHeight * 0.4;
     maxHeight = screenHeight - 150;
     mapHeight = screenHeight - initialHeight + 30;
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,127 +85,169 @@ class _TrackPageContentState extends State<_TrackPageContent> {
               minChildSize: minHeight / screenHeight,
               maxChildSize: maxHeight / screenHeight,
               builder: (context, scrollController) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, -2),
+                return Column(
+                  children: [
+                    // 未绑定提示 - 放置在播放按钮和下半屏之间
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        bottom: 15,
                       ),
-                    ],
-                  ),
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (notification) {
-                      if (notification is ScrollStartNotification) {
-                        return true;
-                      }
-                      return false;
-                    },
-                    child: CustomScrollView(
-                      controller: scrollController,
-                      slivers: [
-                        // 顶部固定区域
-                        SliverToBoxAdapter(
-                          child: Stack(
-                            children: [
-                              Container(
-                                width: double.infinity,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Color(0xffFFF7D0), Colors.white],
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
+                      child: _FloatingUnbindNotification(
+                        controller: widget.controller,
+                        screenHeight: screenHeight,
+                        initialHeight: initialHeight,
+                      ),
+                    ),
+
+                    Expanded(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              offset: Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification is ScrollStartNotification) {
+                              return true;
+                            }
+                            return false;
+                          },
+                          child: CustomScrollView(
+                            controller: scrollController,
+                            slivers: [
+                              // 顶部固定区域
+                              SliverToBoxAdapter(
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: double.infinity,
+                                      height: 30,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Color(0xffFFF7D0),
+                                            Colors.white,
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                    Column(
+                                      children: [
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: 40,
+                                          height: 4,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[300],
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // 虚拟数据提示
+                                        Obx(() {
+                                          if (widget
+                                              .controller
+                                              .isUsingMockData
+                                              .value) {
+                                            return Column(
+                                              children: [
+                                                Text(
+                                                  '以下为虚拟数据',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Color(0xFFFF88AA),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                              ],
+                                            );
+                                          }
+                                          return const SizedBox.shrink();
+                                        }),
+                                        _buildDateSelector(),
+                                        const SizedBox(height: 16),
+                                        _buildStatisticsRow(),
+                                        const SizedBox(height: 12),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Column(
-                                children: [
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    width: 40,
-                                    height: 4,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(2),
+                              // 列表 + 背景色
+                              SliverToBoxAdapter(
+                                child: Container(
+                                  margin: EdgeInsets.only(
+                                    left: 25,
+                                    right: 25,
+                                    top: 20,
+                                    bottom: 15,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 20,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: Color(0xffFFECEA),
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
-                                  _buildDateSelector(),
-                                  const SizedBox(height: 16),
-                                  _buildStatisticsRow(),
-                                  const SizedBox(height: 12),
-                                ],
+                                  child: Obx(() {
+                                    if (widget.controller.stopRecords.isEmpty) {
+                                      return Container(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 40,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Image.asset(
+                                              'assets/kissu_track_empty.webp',
+                                              width: 128,
+                                              height: 128,
+                                            ),
+                                            SizedBox(height: 16),
+                                            Text(
+                                              '对方目前还没有足迹内容哦～',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xff666666),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+
+                                    return _OptimizedStopRecordsList(
+                                      controller: widget.controller,
+                                    );
+                                  }),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        // 列表 + 背景色
-                        SliverToBoxAdapter(
-                          child: Container(
-                            margin: EdgeInsets.symmetric(
-                              horizontal: 25,
-                              vertical: 15,
-                            ),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 20,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Color(0xffFFECEA),
-                              ),
-                            ),
-                            child: Obx(() {
-                              if (widget.controller.stopRecords.isEmpty) {
-                                return Container(
-                                  padding: EdgeInsets.symmetric(vertical: 40),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.location_off,
-                                        size: 48,
-                                        color: Colors.grey[400],
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        '暂无轨迹数据',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.grey[600],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        '该日期没有位置记录',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-
-                              return _OptimizedStopRecordsList(
-                                controller: widget.controller,
-                              );
-                            }),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 );
               },
             ),
@@ -270,7 +312,12 @@ class _TrackPageContentState extends State<_TrackPageContent> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Obx(() => _buildStat("保留次数", widget.controller.stayCount.value.toString())),
+          Obx(
+            () => _buildStat(
+              "保留次数",
+              widget.controller.stayCount.value.toString(),
+            ),
+          ),
           Obx(() => _buildStat("停留时间", widget.controller.stayDuration.value)),
           Obx(() => _buildStat("移动距离", widget.controller.moveDistance.value)),
         ],
@@ -310,8 +357,10 @@ class _OptimizedOverlayWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       // 计算遮罩透明度：从 0 到 0.4
-      final opacity = (controller.sheetPercent.value - (initialHeight / screenHeight)) * 0.6;
-      
+      final opacity =
+          (controller.sheetPercent.value - (initialHeight / screenHeight)) *
+          0.6;
+
       return Positioned(
         top: 0,
         left: 0,
@@ -344,7 +393,8 @@ class _CachedMapWidget extends StatelessWidget {
           options: controller.mapOptions,
           children: [
             TileLayer(
-              urlTemplate: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=2&style=8&x={x}&y={y}&z={z}',
+              urlTemplate:
+                  'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=2&style=8&x={x}&y={y}&z={z}',
               subdomains: const ['1', '2', '3', '4'],
               userAgentPackageName: 'com.example.kissu_app',
               tileProvider: NetworkTileProvider(),
@@ -424,9 +474,7 @@ class _CachedMovingAvatar extends StatelessWidget {
                 ),
               ),
               padding: EdgeInsets.all(2),
-              child: ClipOval(
-                child: _buildAvatarImage(),
-              ),
+              child: ClipOval(child: _buildAvatarImage()),
             ),
           ),
         ],
@@ -436,8 +484,12 @@ class _CachedMovingAvatar extends StatelessWidget {
 
   Widget _buildAvatarImage() {
     final isMyself = controller.isOneself.value == 1;
-    final avatarUrl = isMyself ? controller.myAvatar.value : controller.partnerAvatar.value;
-    final defaultAsset = isMyself ? 'assets/kissu_track_header_boy.webp' : 'assets/kissu_track_header_girl.webp';
+    final avatarUrl = isMyself
+        ? controller.myAvatar.value
+        : controller.partnerAvatar.value;
+    final defaultAsset = isMyself
+        ? 'assets/kissu_track_header_boy.webp'
+        : 'assets/kissu_track_header_girl.webp';
 
     if (avatarUrl.isNotEmpty) {
       return Image.network(
@@ -446,11 +498,21 @@ class _CachedMovingAvatar extends StatelessWidget {
         height: 30,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          return Image.asset(defaultAsset, width: 30, height: 30, fit: BoxFit.cover);
+          return Image.asset(
+            defaultAsset,
+            width: 30,
+            height: 30,
+            fit: BoxFit.cover,
+          );
         },
       );
     } else {
-      return Image.asset(defaultAsset, width: 30, height: 30, fit: BoxFit.cover);
+      return Image.asset(
+        defaultAsset,
+        width: 30,
+        height: 30,
+        fit: BoxFit.cover,
+      );
     }
   }
 }
@@ -476,13 +538,13 @@ class _PlayerControlWidget extends StatelessWidget {
 
       return AnimatedPositioned(
         duration: const Duration(milliseconds: 200),
-        bottom: screenHeight * 0.3 + 20,
+        bottom: screenHeight * 0.4 + 20,
         left: 20,
         right: 20,
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 200),
           opacity: shouldShow ? 1.0 : 0.0,
-          child: controller.showFullPlayer.value 
+          child: controller.showFullPlayer.value
               ? _FullPlayerControls(controller: controller)
               : _SimplePlayButton(controller: controller),
         ),
@@ -547,15 +609,19 @@ class _FullPlayerControls extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Obx(() => Text(
-                controller.replayDistance.value,
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
-              )),
-                const SizedBox(width: 20),
-              Obx(() => Text(
-                controller.replayTime.value,
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
-              )),
+              Obx(
+                () => Text(
+                  controller.replayDistance.value,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Obx(
+                () => Text(
+                  controller.replayTime.value,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ),
             ],
           ),
         ),
@@ -579,7 +645,10 @@ class _FullPlayerControls extends StatelessWidget {
             if (controller.trackPoints.isNotEmpty) {
               final maxIndex = controller.trackPoints.length - 1;
               if (maxIndex > 0) {
-                final currentIndex = controller.currentReplayIndex.value.clamp(0, maxIndex);
+                final currentIndex = controller.currentReplayIndex.value.clamp(
+                  0,
+                  maxIndex,
+                );
                 progress = currentIndex / maxIndex;
               } else {
                 progress = 1.0;
@@ -598,11 +667,15 @@ class _FullPlayerControls extends StatelessWidget {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: controller.isReplaying.value ? Colors.orange : Colors.green,
+                      color: controller.isReplaying.value
+                          ? Colors.orange
+                          : Colors.green,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      controller.isReplaying.value ? Icons.pause : Icons.play_arrow,
+                      controller.isReplaying.value
+                          ? Icons.pause
+                          : Icons.play_arrow,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -616,7 +689,9 @@ class _FullPlayerControls extends StatelessWidget {
                       inactiveTrackColor: Color(0x33FFDC73),
                       thumbColor: Color(0xffFFDC73),
                       overlayColor: Color(0x33FFDC73),
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
                       trackHeight: 4,
                     ),
                     child: Slider(
@@ -625,7 +700,10 @@ class _FullPlayerControls extends StatelessWidget {
                         if (controller.trackPoints.isNotEmpty) {
                           final maxIndex = controller.trackPoints.length - 1;
                           if (maxIndex > 0) {
-                            final newIndex = (value * maxIndex).round().clamp(0, maxIndex);
+                            final newIndex = (value * maxIndex).round().clamp(
+                              0,
+                              maxIndex,
+                            );
                             controller.seekToIndex(newIndex);
                           }
                         }
@@ -681,7 +759,8 @@ class _CachedAvatarRow extends StatelessWidget {
       ];
 
       // 绑定状态时显示另一半头像
-      if (controller.isBindPartner.value && controller.partnerAvatar.value.isNotEmpty) {
+      if (controller.isBindPartner.value &&
+          controller.partnerAvatar.value.isNotEmpty) {
         avatars.add(const SizedBox(width: 8));
         avatars.add(
           _AvatarButton(
@@ -721,9 +800,15 @@ class _AvatarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = isMyself ? 32.0 : 26.0;
     final radius = size / 2;
-    final isSelected = isMyself ? controller.isOneself.value == 1 : controller.isOneself.value == 0;
-    final avatarUrl = isMyself ? controller.myAvatar.value : controller.partnerAvatar.value;
-    final defaultAsset = isMyself ? 'assets/kissu_track_header_boy.webp' : 'assets/kissu_track_header_girl.webp';
+    final isSelected = isMyself
+        ? controller.isOneself.value == 1
+        : controller.isOneself.value == 0;
+    final avatarUrl = isMyself
+        ? controller.myAvatar.value
+        : controller.partnerAvatar.value;
+    final defaultAsset = isMyself
+        ? 'assets/kissu_track_header_boy.webp'
+        : 'assets/kissu_track_header_girl.webp';
 
     return GestureDetector(
       onTap: onTap,
@@ -748,10 +833,20 @@ class _AvatarButton extends StatelessWidget {
                   height: size,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(defaultAsset, width: size, height: size, fit: BoxFit.cover);
+                    return Image.asset(
+                      defaultAsset,
+                      width: size,
+                      height: size,
+                      fit: BoxFit.cover,
+                    );
                   },
                 )
-              : Image.asset(defaultAsset, width: size, height: size, fit: BoxFit.cover),
+              : Image.asset(
+                  defaultAsset,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                ),
         ),
       ),
     );
@@ -768,7 +863,7 @@ class _OptimizedStopRecordsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final records = controller.stopRecords;
-      
+
       // 使用ListView.builder优化大列表性能
       if (records.length > 10) {
         return SizedBox(
@@ -798,15 +893,87 @@ class _OptimizedStopRecordsList extends StatelessWidget {
             final record = entry.value;
             final isLast = index == records.length - 1;
             return RepaintBoundary(
-              child: StopListItem(
-                record: record,
-                index: index,
-                isLast: isLast,
-              ),
+              child: StopListItem(record: record, index: index, isLast: isLast),
             );
           }).toList(),
         );
       }
+    });
+  }
+}
+
+// 浮动未绑定提示组件 - 位于播放按钮和下半屏之间
+class _FloatingUnbindNotification extends StatelessWidget {
+  final TrackController controller;
+  final double screenHeight;
+  final double initialHeight;
+
+  const _FloatingUnbindNotification({
+    required this.controller,
+    required this.screenHeight,
+    required this.initialHeight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      // 只在未绑定时显示
+      if (controller.isBindPartner.value) {
+        return const SizedBox.shrink();
+      }
+
+      // final sheetPercent = controller.sheetPercent.value;
+      // final initialPosition = initialHeight / screenHeight;
+      // final shouldShow = (sheetPercent <= initialPosition + 0.15);
+
+      return Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/kissu_unbind_bg.webp'),
+            fit: BoxFit.fill,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "还没有绑定另一半，快去绑定吧！",
+                  style: TextStyle(fontSize: 14, color: Color(0xff333333)),
+                ),
+                Text(
+                  "绑定关系，开启甜蜜之旅",
+                  style: TextStyle(fontSize: 12, color: Color(0xff666666)),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: () => controller.performBindAction(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xffFF88AA),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  "立即绑定",
+                  style: TextStyle(fontSize: 12, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     });
   }
 }

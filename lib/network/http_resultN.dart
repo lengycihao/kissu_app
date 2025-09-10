@@ -320,4 +320,17 @@ class HttpResultN<T> {
   int get hashCode {
     return Object.hash(isSuccess, code, msg, data, dataList);
   }
+
+  /// 支持JSON序列化
+  Map<String, dynamic> toJson() {
+    return {
+      'isSuccess': isSuccess,
+      'code': code,
+      'msg': msg,
+      'data': data,
+      'dataList': dataList,
+      'dataJson': dataJson,
+      'listJson': listJson,
+    };
+  }
 }
