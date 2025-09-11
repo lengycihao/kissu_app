@@ -5,6 +5,8 @@ import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_binding.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_page.dart';
 import 'package:kissu_app/pages/login/login_page.dart';
+import 'package:kissu_app/pages/vip/vip_binding.dart';
+import 'package:kissu_app/pages/vip/vip_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -32,6 +34,12 @@ class KissuRoute {
       name: KissuRoutePath.location,
       page: () => LocationPage(),
       binding: LocationBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.vip,
+      page: () => const VipPage(),
+      binding: VipBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(name: BBRoutePath.aboutUs, page: () => const AboutUsPage()),

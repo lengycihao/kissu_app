@@ -5,4 +5,5 @@ class KissuRoutePath {
   static const login = '/kisssu_app/login';
   static const breakRelationship = '/kisssu_app/break_relationship';
   static const location = '/kisssu_app/location';
+  static const vip = '/kisssu_app/vip';
 }

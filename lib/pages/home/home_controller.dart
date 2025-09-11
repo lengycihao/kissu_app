@@ -93,9 +93,9 @@ class HomeController extends GetxController {
       // 重新加载当前页面数据
       loadUserInfo();
       
-      print('首页绑定状态已刷新');
+      // 首页绑定状态已刷新
     } catch (e) {
-      print('刷新首页绑定状态失败: $e');
+      // 刷新首页绑定状态失败
     }
   }
 
@@ -131,7 +131,7 @@ class HomeController extends GetxController {
     // 示例逻辑：跳转到通知页面
 
     // 或者增加调试打印
-    print("通知按钮被点击");
+    // 通知按钮被点击
   }
 
   // 点击钱包按钮
@@ -139,7 +139,7 @@ class HomeController extends GetxController {
     // 示例逻辑：跳转到钱包/充值页面
 
     // 或者增加调试打印
-    print("钱包按钮被点击");
+    // 钱包按钮被点击
   }
 
   /// 获取顶部图标路径

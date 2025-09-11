@@ -16,4 +16,9 @@ class ApiRequest {
   static const bindPartner = '/start/bind';
 
   static const getLocation = '/get/location';
+
+  // VIP 相关 API
+  static const vipPackageList = '/get/vipPackageList';
+  static const wxPay = '/pay/wxPay';
+  static const aliPay = '/pay/aliPay';
 }

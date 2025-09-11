@@ -7,6 +7,7 @@ import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:flutter/material.dart';
@@ -296,9 +297,12 @@ class MineController extends GetxController {
     }
   }
 
-  // 会员续费
+  // 会员续费/开通
   void onRenewTap() {
-    Get.snackbar("提示", "去续费");
+    print('💫 VIP按钮被点击，即将导航到VIP页面');
+    // 跳转到VIP页面
+    Get.toNamed(KissuRoutePath.vip);
+    print('💫 已调用 Get.toNamed(KissuRoutePath.vip)');
   }
 
   /// 退出登录功能
