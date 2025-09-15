@@ -147,7 +147,7 @@ class DialogManager {
   /// 显示绑定输入弹窗
   static Future<bool?> showBindingInput({
     required BuildContext context,
-    String title = '输入对方匹配码',
+    String title = ' ',
     String hintText = '输入对方匹配码',
     String confirmText = '确认绑定',
     Function(String code)? onConfirm,

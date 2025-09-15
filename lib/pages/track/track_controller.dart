@@ -3,8 +3,8 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:amap_map/amap_map.dart';
+import 'package:x_amap_base/x_amap_base.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
@@ -12,6 +12,9 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/services/permission_state_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class TrackController extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
@@ -53,24 +56,73 @@ class TrackController extends GetxController {
   final isLoading = false.obs;
 
   /// 地图控制器 - 延迟初始化
-  late final MapController mapController;
+  AMapController? mapController;
   
   /// 防抖定时器
   Timer? _debounceTimer;
+  
+  /// 数据缓存 - 按日期缓存已加载的数据
+  final Map<String, LocationResponse> _dataCache = {};
 
   @override
   void onInit() {
     super.onInit();
     // 初始化地图控制器
-    mapController = MapController();
+    // 地图控制器将在地图创建时初始化
     // 确保初始状态下播放控制器可见
     sheetPercent.value = 0.3;
     // 加载用户信息
     _loadUserInfo();
-    // 加载初始数据
-    loadLocationData();
+    // 请求定位权限并加载初始数据
+    _requestLocationPermissionAndLoadData();
   }
   
+  /// 请求定位权限并加载数据
+  Future<void> _requestLocationPermissionAndLoadData() async {
+    try {
+      final permissionService = PermissionStateService.instance;
+      
+      // 检查是否应该请求权限
+      if (permissionService.shouldRequestTrackPagePermission()) {
+        print('🗺️ 轨迹页面请求定位权限');
+        
+        // 标记已请求权限
+        await permissionService.markTrackPagePermissionRequested();
+        
+        final status = await Permission.location.request();
+        if (status.isGranted) {
+          print('✅ 轨迹页面权限获取成功');
+          // 权限获取成功，加载位置数据
+          loadLocationData();
+        } else if (status.isPermanentlyDenied) {
+          print('❌ 轨迹页面权限被永久拒绝');
+          await permissionService.markTrackPagePermissionDenied();
+          CustomToast.show(
+            Get.context!,
+            '定位权限被永久拒绝，请在设置中开启定位权限',
+          );
+        } else {
+          print('❌ 轨迹页面权限被拒绝');
+          await permissionService.markTrackPagePermissionDenied();
+          CustomToast.show(
+            Get.context!,
+            '需要定位权限来显示轨迹信息',
+          );
+        }
+      } else {
+        // 不需要请求权限，直接加载数据
+        print('📱 轨迹页面无需请求权限，直接加载数据');
+        loadLocationData();
+      }
+    } catch (e) {
+      print('❌ 轨迹页面权限请求失败: $e');
+      CustomToast.show(
+        Get.context!,
+        '定位权限请求失败',
+      );
+    }
+  }
+
   /// 加载用户信息
   void _loadUserInfo() {
     final user = UserManager.currentUser;
@@ -79,8 +131,8 @@ class TrackController extends GetxController {
       myAvatar.value = user.headPortrait ?? '';
       
       // 检查绑定状态
-      final bindStatus = user.bindStatus ?? "1";
-      isBindPartner.value = bindStatus == "2";
+      final bindStatus = user.bindStatus.toString(); //0从未绑定，1绑定中，2已解绑
+      isBindPartner.value = bindStatus.toString() == "1";
       
       if (isBindPartner.value) {
         // 已绑定状态，获取伴侣头像
@@ -93,6 +145,26 @@ class TrackController extends GetxController {
     }
   }
 
+
+  /// 地图初始相机位置
+  CameraPosition get initialCameraPosition => CameraPosition(
+    target: trackPoints.isNotEmpty
+        ? trackPoints.first
+        : const LatLng(30.2741, 120.2206), // 杭州默认坐标
+    zoom: 16.0,
+  );
+
+  /// 地图创建完成回调
+  void onMapCreated(AMapController controller) {
+    mapController = controller;
+    print('轨迹页面高德地图创建成功');
+  }
+
+  /// 移动地图到指定位置
+  void _moveMapToLocation(LatLng location) {
+    mapController?.moveCamera(CameraUpdate.newLatLng(location));
+  }
+
   /// 轨迹点（从API数据获取）
   final RxList<LatLng> trackPoints = <LatLng>[].obs;
 
@@ -101,16 +173,6 @@ class TrackController extends GetxController {
 
   /// 停留点 marker 列表
   final RxList<Marker> stayMarkers = <Marker>[].obs;
-
-  /// 地图配置
-  MapOptions get mapOptions => MapOptions(
-    initialCenter: trackPoints.isNotEmpty
-        ? trackPoints.first
-        : const LatLng(30.2741, 120.2206), // 杭州默认坐标
-    initialZoom: 16.0,
-    maxZoom: 18, // 最大缩放
-    minZoom: 10, // 最小缩放
-  );
 
   /// 轨迹回放状态
   final currentReplayIndex = 0.obs;
@@ -147,6 +209,19 @@ class TrackController extends GetxController {
   Future<void> _performLoadLocationData() async {
     if (isLoading.value) return; // 防止重复加载
     
+    final dateKey = _getDateKey(selectedDate.value);
+    final userKey = '${dateKey}_${isOneself.value}';
+    
+    // 检查缓存中是否有数据
+    if (_dataCache.containsKey(userKey)) {
+      print('📦 使用缓存数据: $userKey');
+      locationData.value = _dataCache[userKey];
+      await _updateTrackDataAsync();
+      _updateStatistics();
+      _updateStopRecords();
+      return;
+    }
+    
     isLoading.value = true;
     _resetReplayState();
     
@@ -159,6 +234,8 @@ class TrackController extends GetxController {
     
     try {
       final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+      print('🌐 请求API数据: $dateString, isOneself=${isOneself.value}');
+      
       final result = await TrackApi.getTrack(
         date: dateString,
         isOneself: isOneself.value,
@@ -167,11 +244,16 @@ class TrackController extends GetxController {
       if (result.isSuccess && result.data != null) {
         isUsingMockData.value = false;
         locationData.value = result.data;
+        
+        // 缓存数据
+        _dataCache[userKey] = result.data!;
+        print('💾 数据已缓存: $userKey');
+        
         await _updateTrackDataAsync();
         _updateStatistics();
         _updateStopRecords();
       } else {
-        Get.snackbar('错误', result.msg ?? '获取数据失败');
+        CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
         _clearData();
       }
     } catch (e, stackTrace) {
@@ -190,14 +272,12 @@ class TrackController extends GetxController {
         errorMessage = 'JSON字符串格式错误，可能存在未转义的特殊字符';
         print('💡 建议检查JSON中是否有未正确转义的引号或换行符');
       } else {
-        errorMessage = '加载数据失败: ${e.toString().length > 100 ? e.toString().substring(0, 100) + '...' : e.toString()}';
+        errorMessage = '加载数据失败: ${e.toString().length > 100 ? '${e.toString().substring(0, 100)}...' : e.toString()}';
       }
       
-      Get.snackbar(
-        '错误', 
+      CustomToast.show(
+        Get.context!,
         errorMessage,
-        duration: const Duration(seconds: 5),
-        snackPosition: SnackPosition.BOTTOM,
       );
       _clearData();
     } finally {
@@ -253,7 +333,7 @@ class TrackController extends GetxController {
     // 移动地图
     if (trackPoints.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(trackPoints.first, 16.0);
+        _moveMapToLocation(trackPoints.first);
       });
     } else {
       _moveToValidPoint();
@@ -307,7 +387,7 @@ class TrackController extends GetxController {
     // 尝试使用起点
     if (data.trace?.startPoint.lat != 0.0 && data.trace?.startPoint.lng != 0.0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(LatLng(data.trace!.startPoint.lat, data.trace!.startPoint.lng), 16.0);
+        _moveMapToLocation(LatLng(data.trace!.startPoint.lat, data.trace!.startPoint.lng));
       });
       return;
     }
@@ -315,7 +395,7 @@ class TrackController extends GetxController {
     // 尝试使用终点
     if (data.trace?.endPoint.lat != 0.0 && data.trace?.endPoint.lng != 0.0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(LatLng(data.trace!.endPoint.lat, data.trace!.endPoint.lng), 16.0);
+        _moveMapToLocation(LatLng(data.trace!.endPoint.lat, data.trace!.endPoint.lng));
       });
       return;
     }
@@ -326,7 +406,24 @@ class TrackController extends GetxController {
   /// 切换查看用户（自己/另一半）
   void switchUser() {
     isOneself.value = isOneself.value == 1 ? 0 : 1;
+    // 切换用户时不需要清理缓存，因为缓存是按用户分别存储的
     loadLocationData();
+  }
+  
+  /// 清理缓存数据
+  void clearCache() {
+    _dataCache.clear();
+    print('🗑️ 已清理所有缓存数据');
+  }
+  
+  /// 清理指定日期的缓存
+  void clearDateCache(DateTime date) {
+    final dateKey = _getDateKey(date);
+    final keysToRemove = _dataCache.keys.where((key) => key.startsWith(dateKey)).toList();
+    for (final key in keysToRemove) {
+      _dataCache.remove(key);
+    }
+    print('🗑️ 已清理日期缓存: $dateKey');
   }
 
   /// 执行绑定操作 - 显示绑定输入弹窗
@@ -353,11 +450,34 @@ class TrackController extends GetxController {
   /// 选择日期
   void selectDate(DateTime date) {
     selectedDate.value = date;
+    
+    // 如果是今天，每次都刷新数据（因为可能有新的位置数据）
+    final today = DateTime.now();
+    final isToday = date.year == today.year && 
+                   date.month == today.month && 
+                   date.day == today.day;
+    
+    if (isToday) {
+      // 清除今天的缓存，强制刷新
+      final dateKey = _getDateKey(date);
+      final userKey = '${dateKey}_${isOneself.value}';
+      _dataCache.remove(userKey);
+      print('🔄 今天数据，清除缓存强制刷新: $userKey');
+    }
+    
     loadLocationData();
+  }
+  
+  /// 获取日期字符串键
+  String _getDateKey(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
   }
 
   /// 更新停留点markers
   void _updateStayMarkers() {
+    // TODO: 需要重新实现高德地图的Marker格式
+    stayMarkers.clear();
+    /*
     stayMarkers.value = stopPoints.asMap().entries.map((entry) {
       final index = entry.key;
       final stop = entry.value;
@@ -366,12 +486,11 @@ class TrackController extends GetxController {
       final isEndPoint = index == stopPoints.length - 1;
       
       return Marker(
-        point: LatLng(stop.lat, stop.lng),
-        width: (isStartPoint || isEndPoint) ? 46 : 24, // 起点终点用46px，普通标记用24px
-        height: (isStartPoint || isEndPoint) ? 46 : 24,
-        child: _buildStopMarker(stopIndex, isStartPoint, isEndPoint),
+        position: LatLng(stop.lat, stop.lng),
+        icon: BitmapDescriptor.defaultMarker,
       );
     }).toList();
+    */
   }
 
   /// 构建停留点标记
@@ -434,17 +553,8 @@ class TrackController extends GetxController {
       // 创建一个新的 marker 在当前位置
       markers.add(
         Marker(
-          point: currentPosition.value!,
-          width: 40,
-          height: 40,
-          child: Transform.rotate(
-            angle: _getRotationAngle(),
-            child: const Icon(
-              Icons.directions_walk, // 改为行走的小人图标
-              color: Colors.blue,
-              size: 32,
-            ),
-          ),
+          position: currentPosition.value!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
         ),
       );
     }
@@ -574,7 +684,7 @@ class TrackController extends GetxController {
     
     // 更新当前位置
     currentPosition.value = trackPoints[safeIndex];
-    mapController.move(trackPoints[safeIndex], mapController.camera.zoom);
+    _moveMapToLocation(trackPoints[safeIndex]);
     
     // 更新累计距离
     _cumulativeDistance = _calculateCumulativeDistance(0, safeIndex);
@@ -594,7 +704,7 @@ class TrackController extends GetxController {
   /// 开始回放
   void startReplay() {
     if (trackPoints.isEmpty) {
-      Get.snackbar('提示', '暂无轨迹数据可回放');
+      CustomToast.show(Get.context!, '暂无轨迹数据可回放');
       return;
     }
     isReplaying.value = true;
@@ -648,7 +758,7 @@ class TrackController extends GetxController {
         );
 
         // 平滑移动地图视角
-        mapController.move(currentPosition.value!, mapController.camera.zoom);
+        _moveMapToLocation(currentPosition.value!);
 
         _currentStep++;
 
@@ -689,7 +799,7 @@ class TrackController extends GetxController {
     // 重置位置
     if (trackPoints.isNotEmpty) {
       currentPosition.value = trackPoints.first;
-      mapController.move(trackPoints.first, mapController.camera.zoom);
+      _moveMapToLocation(trackPoints.first);
     }
   }
   
@@ -699,9 +809,8 @@ class TrackController extends GetxController {
     showFullPlayer.value = false; // 隐藏完整播放器
     currentPosition.value = null; // 清除当前位置标记
     // 重置地图视图到初始状态
-    if (stayMarkers.isNotEmpty) {
-      final firstMarker = stayMarkers.first;
-      mapController.move(firstMarker.point, 15.0);
+    if (trackPoints.isNotEmpty) {
+      _moveMapToLocation(trackPoints.first);
     }
   }
 
@@ -760,7 +869,7 @@ class TrackController extends GetxController {
     // 移动地图到第一个点
     if (trackPoints.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        mapController.move(trackPoints.first, 16.0);
+        _moveMapToLocation(trackPoints.first);
       });
     }
   }
@@ -870,7 +979,7 @@ class TrackController extends GetxController {
     _debounceTimer = null;
     
     // 清理地图控制器
-    mapController.dispose();
+    // AMapController 无需手动dispose
     
     // 清空大型数据结构
     trackPoints.clear();

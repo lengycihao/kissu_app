@@ -7,6 +7,7 @@ import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 /// API响应拦截器
 /// 处理统一的响应格式和错误处理
@@ -548,25 +549,10 @@ class ApiResponseInterceptor extends Interceptor {
   /// 显示消息提示
   void _showMessage(String message, {bool isError = true}) {
     try {
-      gg.Get.snackbar(
-        isError ? '错误' : '提示',
+      CustomToast.show(
+        gg.Get.context!,
         message,
-        backgroundColor: isError
-            ? gg.Get.theme.colorScheme.error.withOpacity(0.1)
-            : gg.Get.theme.colorScheme.primary.withOpacity(0.1),
-        colorText: isError
-            ? gg.Get.theme.colorScheme.error
-            : gg.Get.theme.colorScheme.primary,
-        snackPosition: gg.SnackPosition.TOP,
-        duration: Duration(seconds: isError ? 4 : 3), // 错误消息显示更久
-        margin: EdgeInsets.all(16),
-        borderRadius: 8,
-        icon: Icon(
-          isError ? Icons.warning_amber_rounded : Icons.info_outline,
-          color: isError
-              ? gg.Get.theme.colorScheme.error
-              : gg.Get.theme.colorScheme.primary,
-        ),
+   
       );
     } catch (e) {
       print('显示消息失败: $e, 消息内容: $message');

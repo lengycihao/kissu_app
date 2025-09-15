@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:amap_map/amap_map.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'track_controller.dart';
@@ -387,51 +387,45 @@ class _CachedMapWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      // 创建标记集合
+      Set<Marker> markers = {};
+      
+      // 暂时简化停留点标记的实现
+      // TODO: 需要将flutter_map的Marker转换为高德地图的Marker格式
+      
+      // 添加当前回放位置标记
+      if (controller.currentPosition.value != null) {
+        markers.add(Marker(
+          position: controller.currentPosition.value!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        ));
+      }
+      
+      // 创建轨迹线集合
+      Set<Polyline> polylines = {};
+      if (controller.trackPoints.isNotEmpty) {
+        polylines.add(Polyline(
+          points: controller.trackPoints,
+          color: controller.isOneself.value == 1
+              ? const Color(0xFF3B96FF)
+              : const Color(0xFFFF88AA),
+          width: 4,
+        ));
+      }
+      
       return RepaintBoundary(
-        child: FlutterMap(
-          mapController: controller.mapController,
-          options: controller.mapOptions,
-          children: [
-            TileLayer(
-              urlTemplate:
-                  'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=2&style=8&x={x}&y={y}&z={z}',
-              subdomains: const ['1', '2', '3', '4'],
-              userAgentPackageName: 'com.example.kissu_app',
-              tileProvider: NetworkTileProvider(),
-              retinaMode: true,
-            ),
-            // 轨迹线
-            if (controller.trackPoints.isNotEmpty)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: controller.trackPoints,
-                    color: controller.isOneself.value == 1
-                        ? const Color(0xFF3B96FF)
-                        : const Color(0xFFFF88AA),
-                    strokeWidth: 4.0,
-                    strokeJoin: StrokeJoin.round,
-                    strokeCap: StrokeCap.round,
-                    useStrokeWidthInMeter: false,
-                  ),
-                ],
-              ),
-            // 停留点Markers
-            if (controller.stayMarkers.isNotEmpty)
-              MarkerLayer(markers: controller.stayMarkers),
-            // 当前回放位置标记
-            if (controller.currentPosition.value != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: controller.currentPosition.value!,
-                    width: 76,
-                    height: 76,
-                    child: _CachedMovingAvatar(controller: controller),
-                  ),
-                ],
-              ),
-          ],
+        child: AMapWidget(
+          initialCameraPosition: controller.initialCameraPosition,
+          onMapCreated: controller.onMapCreated,
+          mapType: MapType.normal,
+          markers: markers,
+          polylines: polylines,
+          zoomGesturesEnabled: true,
+          scrollGesturesEnabled: true,
+          rotateGesturesEnabled: true,
+          tiltGesturesEnabled: true,
+          compassEnabled: false,
+          scaleEnabled: false,
         ),
       );
     });

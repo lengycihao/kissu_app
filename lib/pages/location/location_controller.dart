@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:amap_map/amap_map.dart';
+import 'package:x_amap_base/x_amap_base.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/model/location_model/location_report_model.dart';
 
 class LocationController extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
@@ -47,13 +50,16 @@ class LocationController extends GetxController {
   final sheetPercent = 0.3.obs;
   
   /// 地图控制器
-  late final MapController mapController;
+  AMapController? mapController;
   
   /// 加载状态
   final isLoading = false.obs;
   
   /// 虚拟数据标识
   final isUsingMockData = false.obs;
+  
+  /// 定位服务
+  SimpleLocationService? _locationService;
   
   /// Tooltip相关
   OverlayEntry? _overlayEntry;
@@ -62,14 +68,91 @@ class LocationController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // 初始化地图控制器
-    mapController = MapController();
+    print('🔧 LocationController onInit 开始');
     // 加载用户信息
     _loadUserInfo();
-    // 加载位置数据
+    // 初始化定位服务（不自动启动）
+    _initLocationService();
+    // 检查并启动定位服务
+    _checkAndStartLocationService();
+    // 只加载历史位置数据，不自动启动定位
     loadLocationData();
+    print('🔧 LocationController onInit 完成');
   }
   
+  /// 初始化定位服务
+  void _initLocationService() {
+    try {
+      print('🔧 开始初始化定位服务');
+      _locationService = SimpleLocationService.instance;
+      print('🔧 定位服务实例获取成功: ${_locationService != null}');
+      // 监听实时定位数据变化（使用ever来监听Rx变量的变化）
+      ever(_locationService!.currentLocation, (LocationReportModel? location) {
+        if (location != null) {
+          print('📍 收到实时定位数据: ${location.latitude}, ${location.longitude}');
+          // 更新我的位置
+          final lat = double.tryParse(location.latitude);
+          final lng = double.tryParse(location.longitude);
+          if (lat != null && lng != null) {
+            myLocation.value = LatLng(lat, lng);
+            currentLocationText.value = location.locationName;
+            speed.value = "${location.speed}m/s";
+            
+            // 移动地图到当前位置
+            if (mapController != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _moveMapToLocation(myLocation.value!);
+              });
+            }
+          }
+        }
+      });
+      
+      print('✅ 定位服务监听器初始化完成（未启动定位）');
+    } catch (e) {
+      print('❌ 定位服务初始化失败: $e');
+    }
+  }
+  
+  /// 检查并启动定位服务（仅在用户已登录时）
+  Future<void> _checkAndStartLocationService() async {
+    try {
+      if (_locationService == null) {
+        print('❌ 定位服务未初始化');
+        return;
+      }
+      
+      // 检查用户是否已登录
+      if (!UserManager.isLoggedIn) {
+        print('ℹ️ 用户未登录，跳过自动启动定位服务');
+        return;
+      }
+      
+      // 检查定位服务状态
+      final status = _locationService!.currentServiceStatus;
+      print('🔍 定位服务状态: $status');
+      
+      if (!_locationService!.isLocationEnabled.value) {
+        print('🚀 用户已登录，定位服务未启动，尝试启动...');
+        
+        // 启动定位服务
+        bool success = await _locationService!.startLocation();
+        
+        if (success) {
+          print('✅ 定位服务启动成功');
+        } else {
+          print('❌ 定位服务启动失败');
+        }
+      } else {
+        print('ℹ️ 定位服务已在运行');
+      }
+    } catch (e) {
+      print('❌ 检查并启动定位服务失败: $e');
+    }
+  }
+  
+  
+
   /// 加载用户信息
   void _loadUserInfo() {
     final user = UserManager.currentUser;
@@ -78,8 +161,8 @@ class LocationController extends GetxController {
       myAvatar.value = user.headPortrait ?? '';
       
       // 检查绑定状态
-      final bindStatus = user.bindStatus ?? "1";
-      isBindPartner.value = bindStatus == "2";
+      final bindStatus = user.bindStatus.toString();
+      isBindPartner.value = bindStatus.toString() == "1";
       
       // 根据绑定状态设置虚拟数据标识
       isUsingMockData.value = !isBindPartner.value;
@@ -95,13 +178,23 @@ class LocationController extends GetxController {
     }
   }
 
-  /// 地图配置
-  MapOptions get mapOptions => MapOptions(
-    initialCenter: myLocation.value ?? const LatLng(30.2741, 120.2206), // 杭州默认坐标
-    initialZoom: 16.0,
-    maxZoom: 18,
-    minZoom: 10,
+
+  /// 地图初始相机位置
+  CameraPosition get initialCameraPosition => CameraPosition(
+    target: myLocation.value ?? const LatLng(30.2741, 120.2206), // 杭州默认坐标
+    zoom: 16.0,
   );
+
+  /// 地图创建完成回调
+  void onMapCreated(AMapController controller) {
+    mapController = controller;
+    print('高德地图创建成功');
+  }
+
+  /// 移动地图到指定位置
+  void _moveMapToLocation(LatLng location) {
+    mapController?.moveCamera(CameraUpdate.newLatLng(location));
+  }
 
   /// 加载位置数据
   Future<void> loadLocationData() async {
@@ -150,17 +243,17 @@ class LocationController extends GetxController {
           // 移动地图到当前位置
           if (myLocation.value != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              mapController.move(myLocation.value!, 15.0);
+              _moveMapToLocation(myLocation.value!);
             });
           }
           
         } else {
-          Get.snackbar('提示', result.msg ?? '获取定位数据失败');
+          CustomToast.show(Get.context!, result.msg ?? '获取定位数据失败');
         }
       }
       
     } catch (e) {
-      Get.snackbar('错误', '加载位置数据失败: $e');
+      CustomToast.show(Get.context!, '加载位置数据失败: $e');
     } finally {
       isLoading.value = false;
     }
@@ -290,14 +383,16 @@ class LocationController extends GetxController {
     
     // 移动地图到虚拟位置
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      mapController.move(myLocation.value!, 15.0);
+      if (myLocation.value != null) {
+        _moveMapToLocation(myLocation.value!);
+      }
     });
   }
   
   /// 执行绑定操作
   void performBindAction() {
     DialogManager.showBindingInput(
-      title: "绑定设备",
+      title: "",
       context: pageContext,
       onConfirm: (code) {
         // 绑定完成后会自动刷新数据
@@ -447,9 +542,45 @@ class LocationController extends GetxController {
     });
   }
   
+  
+  /// 测试单次定位 - 使用独立插件实例避免Stream冲突
+  Future<void> testSingleLocation() async {
+    try {
+      print('🧪 手动触发单次定位测试...');
+      if (_locationService != null) {
+        CustomToast.show(pageContext, '正在进行单次定位测试...');
+        
+        // 使用新的testSingleLocation方法
+        final result = await _locationService!.testSingleLocation();
+        
+        if (result != null) {
+          double? latitude = double.tryParse(result['latitude']?.toString() ?? '');
+          double? longitude = double.tryParse(result['longitude']?.toString() ?? '');
+          double? accuracy = double.tryParse(result['accuracy']?.toString() ?? '');
+          
+          CustomToast.show(pageContext, 
+            '✅ 单次定位成功\n'
+            '位置: ${latitude?.toStringAsFixed(6)}, ${longitude?.toStringAsFixed(6)}\n'
+            '精度: ${accuracy?.toStringAsFixed(2)}米'
+          );
+          
+          print('✅ 单次定位成功: $latitude, $longitude, 精度: ${accuracy}米');
+        } else {
+          CustomToast.show(pageContext, '❌ 单次定位失败，请检查权限和网络');
+          print('❌ 单次定位失败');
+        }
+      } else {
+        CustomToast.show(pageContext, '定位服务未初始化');
+      }
+    } catch (e) {
+      print('❌ 测试定位失败: $e');
+      CustomToast.show(pageContext, '测试定位失败: $e');
+    }
+  }
+
   @override
   void onClose() {
-    mapController.dispose();
+    // AMapController 无需手动dispose
     hideTooltip(); // 清理overlay
     super.onClose();
   }

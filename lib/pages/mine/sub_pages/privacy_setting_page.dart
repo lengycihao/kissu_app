@@ -6,6 +6,8 @@ import 'package:kissu_app/pages/mine/love_info/phone_change_page.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/utils/agreement_utils.dart';
 
 class PrivacySettingPage extends StatelessWidget {
   const PrivacySettingPage({super.key});
@@ -63,7 +65,7 @@ class PrivacySettingPage extends StatelessWidget {
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_ysaq.webp",
                     title: "隐私安全",
-                    onTap: () => Get.snackbar("点击", "隐私安全"),
+                    onTap: () => AgreementUtils.toPrivacySecurity(),
                   ),
                   const SizedBox(height: 14),
                   // 根据绑定状态显示解除关系选项
@@ -120,9 +122,8 @@ class PrivacySettingPage extends StatelessWidget {
     final user = UserManager.currentUser;
     if (user == null) return const SizedBox.shrink();
 
-    // 检查绑定状态，只有已绑定（bindStatus == "2"）才显示解除关系选项
-    final bindStatus = user.bindStatus ?? "1";
-    final isBindPartner = bindStatus == "2";
+     final bindStatus = user.bindStatus.toString();
+    final isBindPartner = bindStatus.toString() == "1";
 
     if (isBindPartner) {
       return Column(
@@ -158,20 +159,14 @@ class PrivacySettingPage extends StatelessWidget {
       // 跳转到登录页面
       Get.offAllNamed(KissuRoutePath.login);
 
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '已退出登录',
-        backgroundColor: Colors.green.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
-      Get.snackbar(
-        '错误',
+      CustomToast.show(
+        Get.context!,
         '退出登录失败：$e',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
     }
   }

@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/network/public/setting_api.dart';
 import '../../../network/public/file_upload_api.dart';
 import '../../../utils/user_manager.dart';
-import '../../../widgets/login_loading_widget.dart';
+ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 /// 控制器
 class FeedbackController extends GetxController {
@@ -69,7 +69,7 @@ class FeedbackController extends GetxController {
     // 验证联系方式格式
     final error = validateContact(contact.value.trim());
     if (error != null) {
-      Get.snackbar("提示", error);
+      CustomToast.show(Get.context!, error);
     }
   }
 
@@ -106,12 +106,12 @@ class FeedbackController extends GetxController {
   /// 提交
   Future<void> submit() async {
     if (isSubmitting.value) {
-      Get.snackbar("提示", "正在提交中，请稍候...");
+      CustomToast.show(Get.context!, "正在提交中，请稍候...");
       return;
     }
 
     if (content.value.trim().isEmpty) {
-      Get.snackbar("提示", "请填写问题和意见");
+      CustomToast.show(Get.context!, "请填写问题和意见");
       return;
     }
 
@@ -119,7 +119,7 @@ class FeedbackController extends GetxController {
     if (contact.value.isNotEmpty) {
       final error = validateContact(contact.value.trim());
       if (error != null) {
-        Get.snackbar("提示", error);
+        CustomToast.show(Get.context!, error);
         return;
       }
     }
@@ -136,7 +136,7 @@ class FeedbackController extends GetxController {
         if (selectedImage.value != null && attachmentUrl == null) {
           // 有图片但上传失败
           isSubmitting.value = false;
-          Get.snackbar("错误", "图片上传失败，请重试");
+          CustomToast.show(Get.context!, "图片上传失败，请重试");
           return;
         }
       }
@@ -177,11 +177,11 @@ class FeedbackController extends GetxController {
         });
       } else {
         isSubmitting.value = false;
-        Get.snackbar("提交失败", result.msg ?? "提交失败，请重试");
+        CustomToast.show(Get.context!, result.msg ?? "提交失败，请重试");
       }
     } catch (e) {
       isSubmitting.value = false;
-      Get.snackbar("提交失败", "提交失败: $e");
+      CustomToast.show(Get.context!, "提交失败: $e");
     }
   }
 }
@@ -230,10 +230,7 @@ class FeedbackPage extends StatelessWidget {
 
     return Scaffold(
       body: Obx(
-        () => LoginLoadingWidget(
-          isLoading: controller.isSubmitting.value,
-          loadingText: controller.loadingText.value,
-          child: Stack(
+        () => Stack(
             children: [
               // 背景
               Positioned.fill(
@@ -312,14 +309,21 @@ class FeedbackPage extends StatelessWidget {
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF333333),
+                                    height: 1.2, // 设置行高确保垂直居中
                                   ),
                                   decoration: const InputDecoration(
                                     hintText: "期待您写下宝贵的意见~",
                                     hintStyle: TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF999999),
+                                      height: 1.2, // 设置占位符行高确保垂直居中
                                     ),
                                     border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 0,
+                                      vertical: 8, // 增加垂直内边距确保居中
+                                    ),
+                                    isDense: true, // 减少默认内边距
                                     counterText: "",
                                   ),
                                 ),
@@ -431,6 +435,7 @@ class FeedbackPage extends StatelessWidget {
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF333333),
+                                    height: 1.0, // 设置行高确保垂直居中
                                   ),
                                   keyboardType: TextInputType.emailAddress,
                                   inputFormatters: [
@@ -446,8 +451,14 @@ class FeedbackPage extends StatelessWidget {
                                     hintStyle: TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF999999),
+                                      height: 1.0, // 设置占位符行高确保垂直居中
                                     ),
                                     border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 0,
+                                      vertical: 8, // 增加垂直内边距确保居中
+                                    ),
+                                    isDense: true, // 减少默认内边距
                                   ),
                                 ),
                               ],
@@ -491,7 +502,7 @@ class FeedbackPage extends StatelessWidget {
               ),
             ],
           ),
-        ),
+        
       ),
     );
   }

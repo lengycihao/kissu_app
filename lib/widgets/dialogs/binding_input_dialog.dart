@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 import '../../network/public/auth_api.dart';
 import '../../utils/user_manager.dart';
 import '../../network/example/http_manager_example.dart';
-import '../../widgets/login_loading_widget.dart';
 import '../../pages/mine/mine_controller.dart';
 import '../../pages/phone_history/phone_history_controller.dart';
+import '../custom_toast_widget.dart';
 
 /// 绑定输入弹窗
 class BindingInputDialog {
@@ -68,7 +68,7 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
 
     final code = _controller.text.trim();
     if (code.isEmpty) {
-      Get.snackbar('提示', '请输入对方的匹配码');
+      CustomToast.show(Get.context!, '请输入对方的匹配码');
       return;
     }
 
@@ -122,14 +122,14 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
           widget.onConfirm!(code);
         }
 
-        Get.snackbar('成功', '申请成功');
+        CustomToast.show(Get.context!, '申请成功');
       } else {
         isLoading.value = false;
-        Get.snackbar('错误', result.msg ?? '申请失败');
+        CustomToast.show(Get.context!, result.msg ?? '申请失败');
       }
     } catch (e) {
       isLoading.value = false;
-      Get.snackbar('错误', '网络异常，请重试');
+      CustomToast.show(Get.context!, '网络异常，请重试');
     }
   }
 
@@ -139,10 +139,7 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return Obx(
-      () => LoginLoadingWidget(
-        isLoading: isLoading.value,
-        loadingText: loadingText.value,
-        child: Padding(
+      () => Padding(
           padding: EdgeInsets.only(bottom: keyboardHeight),
           child: Container(
             width: double.infinity,
@@ -205,19 +202,25 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 20,
-                      decoration: InputDecoration(
-                        hintText: widget.hintText,
-                        hintStyle: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF999999),
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        counterText: '', // 隐藏字符计数器
-                      ),
                       style: const TextStyle(
                         fontSize: 16,
                         color: Color(0xFF333333),
+                        height: 1.0, // 设置行高为1.0确保垂直居中
+                      ),
+                      decoration: InputDecoration(
+                        hintText: widget.hintText,
+                        hintStyle: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF999999),
+                          height: 1.0, // 设置占位符行高为1.0确保垂直居中
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 15, // 增加垂直内边距确保居中
+                        ),
+                        isDense: true, // 减少默认内边距
+                        counterText: '', // 隐藏字符计数器
                       ),
                     ),
                   ),
@@ -226,7 +229,7 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
 
                   // 确认按钮
                   GestureDetector(
-                    onTap: _handleConfirm,
+                    onTap: isLoading.value ? null : _handleConfirm,
                     child: Container(
                       width: double.infinity,
                       height: 50,
@@ -241,7 +244,7 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        widget.confirmText,
+                        isLoading.value ? loadingText.value : widget.confirmText,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -255,7 +258,6 @@ class _BindingInputBottomSheetState extends State<_BindingInputBottomSheet> {
             ),
           ),
         ),
-      ),
     );
   }
 }

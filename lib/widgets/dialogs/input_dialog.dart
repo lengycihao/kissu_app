@@ -131,14 +131,24 @@ class _InputDialogContentState extends State<_InputDialogContent> {
               maxLength: widget.maxLength,
               keyboardType: widget.keyboardType,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+              style: const TextStyle(
+                fontSize: 16, 
+                color: Color(0xFF333333),
+                height: 1.0, // 设置行高为1.0确保垂直居中
+              ),
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 hintStyle: const TextStyle(
                   fontSize: 16,
                   color: Color(0xFFCCCCCC),
+                  height: 1.0, // 设置占位符行高为1.0确保垂直居中
                 ),
                 border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 12, // 增加垂直内边距确保居中
+                ),
+                isDense: true, // 减少默认内边距
                 counterText: '',
               ),
             ),

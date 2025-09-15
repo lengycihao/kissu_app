@@ -5,6 +5,7 @@ import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
 import '../../../routers/kissu_route_path.dart';
 import '../../../widgets/dialogs/confirm_dialog.dart';
+import '../../../widgets/custom_toast_widget.dart';
 
 class PhoneVerificationController extends GetxController {
   // 输入内容
@@ -44,23 +45,17 @@ class PhoneVerificationController extends GetxController {
   bool validatePhoneNumber() {
     final phone = phoneNumber.value.trim();
     if (phone.isEmpty) {
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '未获取到绑定手机号',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
       return false;
     }
 
     if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(phone)) {
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '绑定手机号格式不正确',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
       return false;
     }
@@ -73,12 +68,9 @@ class PhoneVerificationController extends GetxController {
     if (!validatePhoneNumber()) return;
 
     if (!canResend.value) {
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '请等待${countdown.value}秒后重试',
-        backgroundColor: Colors.orange.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -97,29 +89,20 @@ class PhoneVerificationController extends GetxController {
         isCodeSent.value = true;
         startCountdown();
 
-        Get.snackbar(
-          '提示',
-          '验证码已发送',
-          backgroundColor: Colors.green.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
+        CustomToast.show(
+          Get.context!,
+          '验证码已发送', 
         );
       } else {
-        Get.snackbar(
-          '错误',
+        CustomToast.show(
+          Get.context!,
           result.msg ?? '发送验证码失败',
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
-      Get.snackbar(
-        '错误',
+      CustomToast.show(
+        Get.context!,
         '发送验证码失败：$e',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
     } finally {
       isLoading.value = false;
@@ -146,23 +129,17 @@ class PhoneVerificationController extends GetxController {
   bool validateCode() {
     final code = verificationCode.value.trim();
     if (code.isEmpty) {
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '请输入验证码',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
       return false;
     }
 
     if (!RegExp(r'^\d{6}$').hasMatch(code)) {
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '请输入6位数字验证码',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
       return false;
     }
@@ -207,30 +184,21 @@ class PhoneVerificationController extends GetxController {
 
         // 延迟显示消息，确保页面已经切换
         Future.delayed(const Duration(milliseconds: 500), () {
-          Get.snackbar(
-            '提示',
+          CustomToast.show(
+            Get.context!,
             '账号注销成功',
-            backgroundColor: Colors.green.withOpacity(0.8),
-            colorText: Colors.white,
-            snackPosition: SnackPosition.TOP,
           );
         });
       } else {
-        Get.snackbar(
-          '错误',
+        CustomToast.show(
+          Get.context!,
           result.msg ?? '注销失败，请重试',
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
-      Get.snackbar(
-        '错误',
+      CustomToast.show(
+        Get.context!,
         '注销失败：$e',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
       );
     } finally {
       isLoading.value = false;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
-import 'package:kissu_app/utils/toast_toalog.dart';
 import 'package:flutter/services.dart';
-import 'package:kissu_app/widgets/login_loading_widget.dart';
+import 'package:kissu_app/widgets/loading_dots_widget.dart';
+import 'package:kissu_app/utils/agreement_utils.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -43,11 +43,7 @@ class _LoginPageState extends State<LoginPage> {
     controller.context = context;
     return Scaffold(
       resizeToAvoidBottomInset: false, // 禁用自动调整，手动控制
-      body: Obx(
-        () => LoginLoadingWidget(
-          isLoading: controller.isLoading.value,
-          loadingText: controller.loadingText.value,
-          child: GestureDetector(
+      body: GestureDetector(
             onTap: () {
               // 释放所有焦点
               _phoneFocusNode.unfocus();
@@ -121,13 +117,20 @@ class _LoginPageState extends State<LoginPage> {
                                   fit: BoxFit.fill,
                                 ),
                               ),
-                              child: const Center(
-                                child: Text(
-                                  '登录/注册',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                  ),
+                              child: Obx(
+                                () => Center(
+                                  child: controller.isLoading.value
+                                      ? const LoadingDotsWidget(
+                                          color: Colors.white,
+                                          size: 4.0,
+                                        )
+                                      : const Text(
+                                          '登录/注册',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                          ),
+                                        ),
                                 ),
                               ),
                             ),
@@ -186,18 +189,10 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          ToastDialog.showTitleWithImageDialog(
-                            context,
-                            '带背景图的标题',
-                            'assets/kissu_toast_title_bg.webp',
-                            '这是弹窗的内容',
-                            () {
-                              print('确认按钮被点击');
-                            },
-                          );
+                          AgreementUtils.toUserAgreement();
                         },
                         child: const Text(
-                          '《隐私协议》',
+                          '《用户协议》',
                           style: TextStyle(
                             color: Color(0xFFFF839E),
                             fontSize: 12,
@@ -205,7 +200,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const Text(
-                        ' 和 ',
+                        '和',
                         style: TextStyle(
                           color: Color(0xFF666666),
                           fontSize: 12,
@@ -213,18 +208,10 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          ToastDialog.showBasicDialog(
-                            context,
-                            '弹窗标题',
-                            '这是弹窗的内容',
-                            () {
-                              print('确认按钮被点击');
-                            },
-                            height: 400.0,
-                          );
+                          AgreementUtils.toPrivacyAgreement();
                         },
                         child: const Text(
-                          '《用户协议》',
+                          '《隐私政策》',
                           style: TextStyle(
                             color: Color(0xFFFF839E),
                             fontSize: 12,
@@ -237,9 +224,7 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   // 处理焦点变化，智能滚动
@@ -297,13 +282,23 @@ class _LoginPageState extends State<LoginPage> {
       onChanged: (value) {
         field.value = value;
       },
+      style: const TextStyle(
+        fontSize: 16,
+        color: Color(0xFF333333),
+        height: 1.0, // 设置行高为1.0确保垂直居中
+      ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(color: Color(0xFF999999)),
+        hintStyle: const TextStyle(
+          color: Color(0xFF999999),
+          fontSize: 16,
+          height: 1.0, // 设置占位符行高为1.0确保垂直居中
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
-          vertical: 15,
+          vertical: 18, // 增加垂直内边距确保居中
         ),
+        isDense: true, // 减少默认内边距
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
           borderSide: const BorderSide(color: Color(0xFF6D383E)),
@@ -329,11 +324,9 @@ class _LoginPageState extends State<LoginPage> {
                       () => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 21),
                         child: Text(
-                          controller.codeButtonText,
+                          controller.codeButtonText.value,
                           style: TextStyle(
-                            color: controller.isCountdownActive.value
-                                ? const Color(0xFF999999)
-                                : const Color(0xFFFF839E),
+                            color: controller.codeButtonColor.value,
                             fontSize: 15,
                           ),
                         ),
@@ -346,7 +339,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
       keyboardType: isCodeField ? TextInputType.number : TextInputType.phone,
       inputFormatters: isCodeField
-          ? [FilteringTextInputFormatter.digitsOnly] // 验证码只能输入数字
+          ? [FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(6),] // 验证码只能输入数字
           : [
               FilteringTextInputFormatter.digitsOnly, // 手机号只能输入数字
               LengthLimitingTextInputFormatter(11), // 最多 11 位

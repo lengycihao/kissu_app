@@ -10,6 +10,9 @@ import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
@@ -21,11 +24,98 @@ class HomeController extends GetxController {
   // 头像信息
   var userAvatar = "assets/kissu_icon.webp".obs;
   var partnerAvatar = "assets/kissu_home_add_avair.webp".obs;
+  
+  // 定位服务相关
+  late SimpleLocationService _locationService;
+  var isLocationPermissionRequested = false.obs;
+  var isLocationServiceStarted = false.obs;
 
   @override
   void onInit() {
     super.onInit();
+    _initializeLocationService();
     loadUserInfo();
+  }
+  
+  /// 初始化定位服务
+  void _initializeLocationService() {
+    try {
+      // 获取定位服务实例
+      _locationService = SimpleLocationService.instance;
+      
+      // 只检查权限状态，不自动启动服务
+      _checkLocationPermissionStatusOnly();
+    } catch (e) {
+      debugPrint('初始化定位服务失败: $e');
+    }
+  }
+  
+  /// 只检查定位权限状态，不自动启动服务
+  Future<void> _checkLocationPermissionStatusOnly() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasRequested = prefs.getBool('location_permission_requested') ?? false;
+      
+      if (hasRequested) {
+        // 已经请求过权限，检查服务状态（但不自动启动）
+        debugPrint('已请求过定位权限，检查服务状态');
+        if (_locationService.isLocationEnabled.value) {
+          isLocationServiceStarted.value = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('检查定位权限状态失败: $e');
+    }
+  }
+
+  
+  /// 请求定位权限并启动服务
+  Future<void> _requestLocationPermissionAndStartService() async {
+    try {
+      isLocationPermissionRequested.value = true;
+      
+      // 请求定位权限
+      bool hasPermission = await _locationService.requestLocationPermission();
+      
+      if (hasPermission) {
+        // 权限获取成功，启动定位服务
+        debugPrint('定位权限获取成功，启动定位服务');
+        bool started = await _locationService.startLocation();
+        
+        if (started) {
+          isLocationServiceStarted.value = true;
+          debugPrint('定位服务启动成功，开始记录和上报位置');
+          
+          // 保存已请求权限的状态
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('location_permission_requested', true);
+          
+          // 显示成功提示
+          CustomToast.show(
+            Get.context!,
+            '定位服务已启动，开始记录您的足迹',
+          );
+        } else {
+          debugPrint('定位服务启动失败');
+          CustomToast.show(
+            Get.context!,
+            '定位服务启动失败，请检查定位设置',
+          );
+        }
+      } else {
+        debugPrint('定位权限被拒绝');
+        CustomToast.show(
+          Get.context!,
+          '需要定位权限来记录您的足迹',
+        );
+      }
+    } catch (e) {
+      debugPrint('请求定位权限并启动服务失败: $e');
+      CustomToast.show(
+        Get.context!,
+        '定位服务初始化失败',
+      );
+    }
   }
   
   /// 加载用户信息和绑定状态
@@ -38,8 +128,8 @@ class HomeController extends GetxController {
       }
       
       // 绑定状态处理 (1未绑定，2绑定)
-      final bindStatus = user.bindStatus ?? "1";
-      isBound.value = bindStatus == "2";
+      final bindStatus = user.bindStatus.toString();
+      isBound.value = bindStatus.toString() == "1";
       
       if (isBound.value) {
         // 已绑定状态，获取伴侣头像
@@ -172,5 +262,40 @@ class HomeController extends GetxController {
       default:
         return "assets/kissu_home_tab_locationT.webp";
     }
+  }
+  
+  /// 手动启动定位服务
+  Future<void> startLocationService() async {
+    await _requestLocationPermissionAndStartService();
+  }
+  
+  /// 停止定位服务
+  void stopLocationService() {
+    try {
+      _locationService.stopLocation();
+      isLocationServiceStarted.value = false;
+      debugPrint('定位服务已停止');
+      CustomToast.show(
+        Get.context!,
+        '定位服务已停止',
+      );
+    } catch (e) {
+      debugPrint('停止定位服务失败: $e');
+    }
+  }
+  
+  /// 获取定位服务状态
+  Map<String, dynamic> getLocationServiceStatus() {
+    return _locationService.serviceStatus;
+  }
+  
+  /// 手动上报当前位置
+  Future<bool> reportCurrentLocation() async {
+    return await _locationService.reportCurrentLocation();
+  }
+  
+  /// 强制上报所有待上报数据
+  Future<bool> forceReportAllPending() async {
+    return await _locationService.forceReportAllPending();
   }
 }

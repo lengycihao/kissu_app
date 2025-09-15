@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/widgets/banner_widget.dart';
+import 'package:kissu_app/widgets/video_background.dart';
 
 class KissuHomePage extends GetView<HomeController> {
   const KissuHomePage({super.key});
@@ -10,14 +13,14 @@ class KissuHomePage extends GetView<HomeController> {
     return Scaffold(
       body: Stack(
         children: [
-          // 背景图
+          // 视频背景
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Image.asset(
-              "assets/kissu_home_bg.webp",
+            child: VideoBackground(
+              videoPath: "assets/home4k.mp4",
+              placeholderImagePath: "assets/kissu_home_bg.webp",
               width: 1500,
-              height: 812,
-              fit: BoxFit.cover,
+              height: MediaQuery.of(context).size.height,
             ),
           ),
 
@@ -271,7 +274,7 @@ class KissuHomePage extends GetView<HomeController> {
                   ),
                 )),
                 
-          // 未绑定背景图 - 只在未绑定时显示
+          // Banner - 只在未绑定时显示
           Obx(
             () => !controller.isBound.value
                 ? Positioned(
@@ -283,11 +286,18 @@ class KissuHomePage extends GetView<HomeController> {
                         onTap: () {
                           controller.onUnbindTipTap();
                         },
-                        child: Image.asset(
-                          "assets/kissu_home_bottom_map_vip_unbing.webp",
+                        child: SizedBox(
                           width: 303,
                           height: 81,
-                          fit: BoxFit.cover,
+                          child: BannerWidget(
+                              imagePaths: const [
+                                "assets/kissu_home_bottom_map_vip_unbing.webp",
+                                "assets/kissu_home_banner_bg2.webp",
+                              ],
+                              animationDuration: const Duration(seconds: 2),
+                              switchDuration: const Duration(seconds: 3),
+                              scaleFactor: 1.05,
+                            ),
                         ),
                       ),
                     ),
@@ -295,7 +305,7 @@ class KissuHomePage extends GetView<HomeController> {
                 : const SizedBox.shrink(),
           ),
 
-          // 已绑定提示 - 只在已绑定时显示
+          // Banner - 只在已绑定时显示
           Obx(
             () => controller.isBound.value
                 ? Positioned(
@@ -303,121 +313,132 @@ class KissuHomePage extends GetView<HomeController> {
                     left: 0,
                     right: 0,
                     child: Center(
-                      child: Container(
+                      child: SizedBox(
                         width: 303,
                         height: 81,
-                        padding: const EdgeInsets.only(left: 20, right: 40),
-                        decoration: const BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage("assets/kissu_home_bind_bg.webp"),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Stack(
                           children: [
-                            // 自己头像背景
-                            Container(
-                              decoration: const BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                    "assets/kissu_home_header_bg.webp",
-                                  ),
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-
-                              width: 45,
-                              height: 58,
-                              padding: EdgeInsets.only(left: 2,right: 2,bottom: 4),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Obx(
-                                  () => Container(
-                                    padding: EdgeInsets.all(2), // 边框厚度
-                                    decoration: BoxDecoration(
-                                      color: Colors.white, // 背景色（边框颜色）
-                                      shape: BoxShape.circle, // 圆形边框（如果头像是圆的）
-                                      // border: Border.all(color: Colors.white, width: 2), // 方形边框写法
-                                    ),
-                                    child: ClipOval(
-                                      child:
-                                          controller.userAvatar.value
-                                              .startsWith('http')
-                                          ? Image.network(
-                                              controller.userAvatar.value,
-
-                                              fit: BoxFit.contain,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Image.asset(
-                                                      "assets/kissu_icon.webp",
-                                                      width: 26,
-                                                      height: 26,
-                                                      fit: BoxFit.contain,
-                                                    );
-                                                  },
-                                            )
-                                          : Image.asset(
-                                              controller.userAvatar.value,
-
-                                              fit: BoxFit.contain,
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            // Banner背景
+                            BannerWidget(
+                              imagePaths: const [
+                                "assets/kissu_home_bottom_map_vip_unbing.webp",
+                                "assets/kissu_home_banner_bg2.webp",
+                              ],
+                              animationDuration: const Duration(seconds: 2),
+                              switchDuration: const Duration(seconds: 3),
+                              scaleFactor: 1.05,
                             ),
-                            // 伴侣头像背景
+                            // 头像显示层
                             Container(
-                              decoration: const BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                    "assets/kissu_home_header_bg.webp",
-                                  ),
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-
-                              width: 45,
-                              height: 58,
-                              padding: EdgeInsets.only(left: 2,right: 2,bottom: 4),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Obx(
-                                  () => Container(
-                                    padding: EdgeInsets.all(2), // 边框厚度
-                                    decoration: BoxDecoration(
-                                      color: Colors.white, // 背景色（边框颜色）
-                                      shape: BoxShape.circle, // 圆形边框（如果头像是圆的）
-                                      // border: Border.all(color: Colors.white, width: 2), // 方形边框写法
+                              padding: const EdgeInsets.only(left: 20, right: 40),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // 自己头像背景
+                                  Container(
+                                    decoration: const BoxDecoration(
+                                      image: DecorationImage(
+                                        image: AssetImage(
+                                          "assets/kissu_home_header_bg.webp",
+                                        ),
+                                        fit: BoxFit.contain,
+                                      ),
                                     ),
-                                    child: ClipOval(
-                                      child:
-                                          controller.partnerAvatar.value
-                                              .startsWith('http')
-                                          ? Image.network(
-                                              controller.partnerAvatar.value,
 
-                                              fit: BoxFit.contain,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Image.asset(
-                                                      "assets/kissu_icon.webp",
-                                                      width: 26,
-                                                      height: 26,
-                                                      fit: BoxFit.contain,
-                                                    );
-                                                  },
-                                            )
-                                          : Image.asset(
-                                              controller.partnerAvatar.value,
+                                    width: 45,
+                                    height: 58,
+                                    padding: EdgeInsets.only(left: 2,right: 2,bottom: 4),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Obx(
+                                        () => Container(
+                                          padding: EdgeInsets.all(2), // 边框厚度
+                                          decoration: BoxDecoration(
+                                            color: Colors.white, // 背景色（边框颜色）
+                                            shape: BoxShape.circle, // 圆形边框（如果头像是圆的）
+                                            // border: Border.all(color: Colors.white, width: 2), // 方形边框写法
+                                          ),
+                                          child: ClipOval(
+                                            child:
+                                                controller.userAvatar.value
+                                                    .startsWith('http')
+                                                ? Image.network(
+                                                    controller.userAvatar.value,
 
-                                              fit: BoxFit.contain,
-                                            ),
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder:
+                                                        (context, error, stackTrace) {
+                                                          return Image.asset(
+                                                            "assets/kissu_icon.webp",
+                                                            width: 26,
+                                                            height: 26,
+                                                            fit: BoxFit.contain,
+                                                          );
+                                                        },
+                                                  )
+                                                : Image.asset(
+                                                    controller.userAvatar.value,
+
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  // 伴侣头像背景
+                                  Container(
+                                    decoration: const BoxDecoration(
+                                      image: DecorationImage(
+                                        image: AssetImage(
+                                          "assets/kissu_home_header_bg.webp",
+                                        ),
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+
+                                    width: 45,
+                                    height: 58,
+                                    padding: EdgeInsets.only(left: 2,right: 2,bottom: 4),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Obx(
+                                        () => Container(
+                                          padding: EdgeInsets.all(2), // 边框厚度
+                                          decoration: BoxDecoration(
+                                            color: Colors.white, // 背景色（边框颜色）
+                                            shape: BoxShape.circle, // 圆形边框（如果头像是圆的）
+                                            // border: Border.all(color: Colors.white, width: 2), // 方形边框写法
+                                          ),
+                                          child: ClipOval(
+                                            child:
+                                                controller.partnerAvatar.value
+                                                    .startsWith('http')
+                                                ? Image.network(
+                                                    controller.partnerAvatar.value,
+
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder:
+                                                        (context, error, stackTrace) {
+                                                          return Image.asset(
+                                                            "assets/kissu_icon.webp",
+                                                            width: 26,
+                                                            height: 26,
+                                                            fit: BoxFit.contain,
+                                                          );
+                                                        },
+                                                  )
+                                                : Image.asset(
+                                                    controller.partnerAvatar.value,
+
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -426,6 +447,94 @@ class KissuHomePage extends GetView<HomeController> {
                     ),
                   )
                 : const SizedBox.shrink(),
+          ),
+
+          // 调试按钮（仅在开发模式显示）
+          Positioned(
+            top: 50,
+            left: 20,
+            child: Column(
+              children: [
+                // 定位诊断按钮
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final locationService = Get.find<SimpleLocationService>();
+                    await locationService.runLocationDiagnosticAndFix();
+                  },
+                  icon: const Icon(Icons.location_searching, size: 16),
+                  label: const Text('定位诊断', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(80, 30),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 重启定位按钮
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final locationService = Get.find<SimpleLocationService>();
+                    await locationService.forceRestartLocation();
+                  },
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('重启定位', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(80, 30),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 网络定位测试按钮
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final locationService = Get.find<SimpleLocationService>();
+                    await locationService.tryNetworkLocationOnly();
+                  },
+                  icon: const Icon(Icons.wifi, size: 16),
+                  label: const Text('网络定位', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(80, 30),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 插件状态检查按钮
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final locationService = Get.find<SimpleLocationService>();
+                    await locationService.checkAMapPluginStatus();
+                  },
+                  icon: const Icon(Icons.build, size: 16),
+                  label: const Text('插件检查', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(80, 30),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 定位测试页面按钮
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Get.toNamed('/kisssu_app/location_example');
+                  },
+                  icon: const Icon(Icons.science, size: 16),
+                  label: const Text('定位测试', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(80, 30),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

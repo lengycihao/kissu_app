@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../../../utils/user_manager.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class BreakRelationshipController extends GetxController {
   // 用户数据
@@ -21,8 +22,8 @@ class BreakRelationshipController extends GetxController {
       myAvatar.value = user.headPortrait ?? '';
 
       // 检查绑定状态
-      final bindStatus = user.bindStatus ?? "1";
-      isBindPartner.value = bindStatus == "2";
+      final bindStatus = user.bindStatus.toString();
+      isBindPartner.value = bindStatus.toString() == "1";
 
       if (isBindPartner.value) {
         // 已绑定状态，获取伴侣数据和天数

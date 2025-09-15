@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
 import 'package:chewie/chewie.dart';
 import 'package:video_player/video_player.dart';
+import 'package:kissu_app/utils/agreement_utils.dart';
 
 class VipPage extends GetView<VipController> {
   const VipPage({super.key});
@@ -876,25 +877,32 @@ class VipPage extends GetView<VipController> {
 
           // 服务协议勾选
           Obx(
-            () => GestureDetector(
-              onTap: controller.toggleAgreement,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
+            () => Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: controller.toggleAgreement,
+                  child: Image.asset(
                     controller.agreementChecked.value
                         ? "assets/kissu_vip_agree.webp"
                         : "assets/kissu_vip_unagree.webp",
                     width: 16,
                     height: 16,
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => AgreementUtils.toVipAgreement(),
+                  child: const Text(
                     '会员服务协议',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+                    style: TextStyle(
+                      fontSize: 14, 
+                      color: Color(0xFFFF839E),
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

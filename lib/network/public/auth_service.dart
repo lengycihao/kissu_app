@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
+import 'package:kissu_app/services/simple_location_service.dart';
 
 class AuthService {
   // ✅ 公开构造函数，GetIt 可以直接 new 出来
@@ -96,7 +98,41 @@ class AuthService {
       extra: {'userId': user.id, 'nickname': user.nickname},
     );
 
+    // 登录成功后自动启动定位服务
+    _startLocationServiceAfterLogin();
+
     // Get.offAll(() => ScreenNavPage());
+  }
+
+  /// 登录后启动定位服务
+  void _startLocationServiceAfterLogin() {
+    try {
+      // 延迟启动，确保登录流程完成
+      Future.delayed(const Duration(milliseconds: 1000), () async {
+        try {
+          // 检查是否已经注册了定位服务
+          if (Get.isRegistered<SimpleLocationService>()) {
+            final locationService = Get.find<SimpleLocationService>();
+            if (!locationService.isLocationEnabled.value) {
+              final success = await locationService.startLocation();
+              if (success) {
+                logger.info('登录后自动启动定位服务成功', tag: 'AuthService');
+              } else {
+                logger.warning('登录后自动启动定位服务失败', tag: 'AuthService');
+              }
+            } else {
+              logger.info('定位服务已在运行', tag: 'AuthService');
+            }
+          } else {
+            logger.warning('定位服务尚未注册，跳过自动启动', tag: 'AuthService');
+          }
+        } catch (e) {
+          logger.error('登录后启动定位服务异常: $e', tag: 'AuthService');
+        }
+      });
+    } catch (e) {
+      logger.error('准备启动定位服务失败: $e', tag: 'AuthService');
+    }
   }
 
   Future<void> _saveCurrentUser(LoginModel user) async {

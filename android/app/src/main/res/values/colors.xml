@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 应用主色调 -->
+    <color name="primary_color">#FF6B9D</color>
+    <color name="primary_dark">#E91E63</color>
+    <color name="accent_color">#FF4081</color>
+    
+    <!-- 通知相关颜色 -->
+    <color name="notification_color">#FF6B9D</color>
+    <color name="notification_accent">#FF4081</color>
+    
+    <!-- 系统颜色 -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+</resources>

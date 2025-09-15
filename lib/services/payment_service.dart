@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 /// 支付服务类 - 使用 MethodChannel 直接与 Android 原生通信
 class PaymentService extends GetxService {
@@ -280,25 +281,17 @@ class PaymentService extends GetxService {
   
   /// 显示成功消息
   void _showSuccess(String message) {
-    Get.snackbar(
-      '支付成功',
+    CustomToast.show(
+      Get.context!,
       message,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
-      snackPosition: SnackPosition.TOP,
     );
   }
   
   /// 显示错误消息
   void _showError(String message) {
-    Get.snackbar(
-      '支付失败',
+    CustomToast.show(
+      Get.context!,
       message,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
-      snackPosition: SnackPosition.TOP,
     );
   }
   

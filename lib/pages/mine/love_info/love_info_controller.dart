@@ -10,6 +10,7 @@ import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -47,8 +48,8 @@ class LoveInfoController extends GetxController {
       print('Loading user info: ${user.nickname}');
 
       // 绑定状态处理 (1未绑定，2绑定)
-      final bindStatus = user.bindStatus ?? "1";
-      isBindPartner.value = bindStatus == "2";
+      final bindStatus = user.bindStatus.toString();
+      isBindPartner.value = bindStatus.toString() == "1";
       // isBindPartner.value  = false;
       print('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
 
@@ -295,7 +296,7 @@ class LoveInfoController extends GetxController {
           // 更新头像
           await _updateUserAvatar(result.data!);
         } else {
-          Get.snackbar('失败', result.msg ?? '头像上传失败');
+          CustomToast.show(Get.context!, result.msg ?? '头像上传失败');
         }
       }
     } catch (e) {
@@ -303,7 +304,7 @@ class LoveInfoController extends GetxController {
       if (Get.isDialogOpen == true) {
         Get.back();
       }
-      Get.snackbar('错误', '选择图片失败：$e');
+      CustomToast.show(Get.context!, '选择图片失败：$e');
     }
   }
 
@@ -348,12 +349,12 @@ class LoveInfoController extends GetxController {
           print('Mine page not found: $e');
         }
 
-        Get.snackbar('成功', '头像更新成功');
+        CustomToast.show(Get.context!, '头像更新成功');
       } else {
-        Get.snackbar('错误', result.msg ?? '头像更新失败');
+        CustomToast.show(Get.context!, result.msg ?? '头像更新失败');
       }
     } catch (e) {
-      Get.snackbar('错误', '头像更新失败：$e');
+      CustomToast.show(Get.context!, '头像更新失败：$e');
     }
   }
 
@@ -465,12 +466,12 @@ class LoveInfoController extends GetxController {
           print('Mine page not found: $e');
         }
 
-        Get.snackbar('成功', '昵称更新成功');
+        CustomToast.show(Get.context!, '昵称更新成功');
       } else {
-        Get.snackbar('错误', result.msg ?? '昵称更新失败');
+        CustomToast.show(Get.context!, result.msg ?? '昵称更新失败');
       }
     } catch (e) {
-      Get.snackbar('错误', '昵称更新失败：$e');
+      CustomToast.show(Get.context!, '昵称更新失败：$e');
     }
   }
 
@@ -522,12 +523,12 @@ class LoveInfoController extends GetxController {
           print('Mine page not found: $e');
         }
 
-        Get.snackbar('成功', '性别更新成功');
+        CustomToast.show(Get.context!, '性别更新成功');
       } else {
-        Get.snackbar('错误', result.msg ?? '性别更新失败');
+        CustomToast.show(Get.context!, result.msg ?? '性别更新失败');
       }
     } catch (e) {
-      Get.snackbar('错误', '性别更新失败：$e');
+      CustomToast.show(Get.context!, '性别更新失败：$e');
     }
   }
 
@@ -632,12 +633,12 @@ class LoveInfoController extends GetxController {
           print('Mine page not found: $e');
         }
 
-        Get.snackbar('成功', '生日更新成功');
+        CustomToast.show(Get.context!, '生日更新成功');
       } else {
-        Get.snackbar('错误', result.msg ?? '生日更新失败');
+        CustomToast.show(Get.context!, result.msg ?? '生日更新失败');
       }
     } catch (e) {
-      Get.snackbar('错误', '生日更新失败：$e');
+      CustomToast.show(Get.context!, '生日更新失败：$e');
     }
   }
 

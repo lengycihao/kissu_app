@@ -199,10 +199,13 @@ class ToastDialog {
     double height = 300.0,
     Function(String)? onLinkTap, // 链接点击回调
   }) {
-    return showDialog(
+    return showGeneralDialog(
       context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Color(0xB3000000),
-      builder: (BuildContext context) {
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -234,6 +237,50 @@ class ToastDialog {
                 _buildCloseButton(context),
               ],
             ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        // 出现动画：由小到大，带回弹效果
+        final scaleAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: Curves.elasticOut, // 回弹效果
+          ),
+        );
+
+        // 消失动画：由大到小
+        final scaleOutAnimation = Tween<double>(
+          begin: 1.0,
+          end: 0.0,
+        ).animate(
+          CurvedAnimation(
+            parent: secondaryAnimation,
+            curve: Curves.easeInBack,
+          ),
+        );
+
+        // 透明度动画
+        final fadeAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          ),
+        );
+
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: ScaleTransition(
+            scale: animation.status == AnimationStatus.reverse
+                ? scaleOutAnimation
+                : scaleAnimation,
+            child: child,
           ),
         );
       },

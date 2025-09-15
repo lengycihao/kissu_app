@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/agreement_utils.dart';
 
 class AboutUsPage extends StatelessWidget {
   const AboutUsPage({super.key});
@@ -126,11 +127,11 @@ class AboutUsPage extends StatelessWidget {
                       }),
                       _buildDashedDivider(),
                       _buildItem("隐私协议", () {
-                        // TODO: 跳转隐私协议页面
+                        AgreementUtils.toPrivacyAgreement();
                       }),
                       _buildDashedDivider(),
                       _buildItem("用户协议", () {
-                        // TODO: 跳转用户协议页面
+                        AgreementUtils.toUserAgreement();
                       }),
                     ],
                   ),

@@ -6,9 +6,11 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/toast_toalog.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/services/location_permission_service.dart';
 
 class LoginController extends GetxController {
   var isChecked = false.obs;
@@ -25,6 +27,8 @@ class LoginController extends GetxController {
   // 加载状态
   var isLoading = false.obs; // 是否正在登录
   var loadingText = "正在登录...".obs; // loading文案
+  var codeButtonText = "获取验证码".obs; // 验证码按钮文本
+  var codeButtonColor = const Color(0xFFFF839E).obs; // 验证码按钮颜色
 
   late BuildContext context;
 
@@ -75,14 +79,14 @@ class LoginController extends GetxController {
   Future<void> validatePhoneNumber() async {
     // 如果正在倒计时，不允许重复发送
     if (isCountdownActive.value) {
-      Get.snackbar('提示', '请等待倒计时结束后再次获取');
+      OKToastUtil.show('请等待倒计时结束后再次获取');
       return;
     }
 
     if (isValidPhone(phoneNumber.value)) {
       await _sendVerificationCode();
     } else {
-      Get.snackbar('提示', '请输入有效的手机号');
+      OKToastUtil.show ('请输入有效的手机号');
     }
   }
 
@@ -94,14 +98,13 @@ class LoginController extends GetxController {
         type: 'login', // 登录验证码
       );
 
-      if (result.isSuccess) {
-        Get.snackbar('提示', '验证码发送成功');
-        _startCountdown(); // 启动倒计时
+      if (result.isSuccess) {OKToastUtil.show("验证码发送成功");
+         _startCountdown(); // 启动倒计时
       } else {
-        Get.snackbar('提示', result.msg ?? '验证码发送失败');
+        OKToastUtil.show(result.msg ?? '验证码发送失败');
       }
     } catch (e) {
-      Get.snackbar('提示', '验证码发送失败: $e');
+      OKToastUtil.show('验证码发送失败: $e');
     }
   }
 
@@ -109,10 +112,13 @@ class LoginController extends GetxController {
   void _startCountdown() {
     countdownSeconds.value = 30;
     isCountdownActive.value = true;
+    codeButtonText.value = '${countdownSeconds.value}s';
+    codeButtonColor.value = const Color(0xFF999999);
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (countdownSeconds.value > 0) {
         countdownSeconds.value--;
+        codeButtonText.value = '${countdownSeconds.value}s';
       } else {
         _stopCountdown();
       }
@@ -125,16 +131,10 @@ class LoginController extends GetxController {
     _countdownTimer = null;
     isCountdownActive.value = false;
     countdownSeconds.value = 0;
+    codeButtonText.value = '获取验证码';
+    codeButtonColor.value = const Color(0xFFFF839E);
   }
 
-  // 获取验证码按钮显示的文本
-  String get codeButtonText {
-    if (isCountdownActive.value) {
-      return '${countdownSeconds.value}s';
-    } else {
-      return '获取验证码';
-    }
-  }
 
   @override
   void onClose() {
@@ -168,7 +168,7 @@ class LoginController extends GetxController {
     }
 
     if (phoneNumber.value.isEmpty || verificationCode.value.isEmpty) {
-      Get.snackbar('提示', '账号或验证码不能为空');
+       OKToastUtil.show('账号或验证码不能为空');
       return;
     } else if (!isChecked.value) {
       ToastDialog.showDialogWithCloseButton(
@@ -210,10 +210,12 @@ class LoginController extends GetxController {
         // 登录成功，保存协议同意状态
         await _saveAgreementStatus(true);
 
-        loadingText.value = "登录成功";
-
+        OKToastUtil.show(  '登录成功');
         // 延迟一下让用户看到成功提示，然后跳转
         await Future.delayed(const Duration(milliseconds: 800));
+
+        // 首次登录请求定位权限
+        _requestLocationPermissionAfterLogin();
 
         //判断是否需要完善信息
         if (UserManager.needsPerfectInfo) {
@@ -224,20 +226,10 @@ class LoginController extends GetxController {
           Get.offAllNamed(KissuRoutePath.home);
         }
       } else {
-        Get.snackbar(
-          '提示',
-          result.msg ?? '登录失败',
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-        );
+        OKToastUtil.show(result.msg ?? '登录失败');
       }
     } catch (e) {
-      Get.snackbar(
-        '提示',
-        '登录失败: $e',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-      );
+        OKToastUtil.show("登录失败");
     } finally {
       // 结束加载状态
       isLoading.value = false;
@@ -249,18 +241,35 @@ class LoginController extends GetxController {
     return regExp.hasMatch(phone);
   }
 
+  /// 登录成功后请求定位权限
+  void _requestLocationPermissionAfterLogin() {
+    try {
+      // 异步请求定位权限，不阻塞页面跳转
+      Future.microtask(() async {
+        try {
+          final locationPermissionService = Get.find<LocationPermissionService>();
+          await locationPermissionService.requestLocationPermissionAfterLogin();
+        } catch (e) {
+          debugPrint('请求定位权限失败: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('启动定位权限请求失败: $e');
+    }
+  }
+
   // 处理协议链接点击
   void _handleLinkTap(String linkName) {
     switch (linkName) {
       case '用户协议':
         print('跳转到用户协议页面');
-        Get.snackbar('提示', '用户协议页面（待实现）');
+         OKToastUtil.show('用户协议页面（待实现）');
         // TODO: 实现跳转到用户协议页面
         // Get.toNamed('/user-agreement');
         break;
       case '隐私协议':
         print('跳转到隐私协议页面');
-        Get.snackbar('提示', '隐私协议页面（待实现）');
+         OKToastUtil.show('隐私协议页面（待实现）');
         // TODO: 实现跳转到隐私协议页面
         // Get.toNamed('/privacy-policy');
         break;

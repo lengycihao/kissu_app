@@ -1,4 +1,4 @@
-import 'package:latlong2/latlong.dart';
+import 'package:x_amap_base/x_amap_base.dart';
 
 /// 停留点数据模型
 class StayPoint {

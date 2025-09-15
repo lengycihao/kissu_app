@@ -5,13 +5,18 @@ import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
-import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+// import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
+import 'package:kissu_app/pages/test/sensitive_data_test_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:oktoast/oktoast.dart';
 import '../phone_history/phone_history_controller.dart';
+import 'package:kissu_app/utils/simple_toast_util.dart';
+import 'package:kissu_app/utils/permission_helper.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -60,8 +65,8 @@ class MineController extends GetxController {
       }
 
       // 绑定状态处理 (1未绑定，2绑定)
-      final bindStatus = user.bindStatus ?? "1";
-      isBound.value = bindStatus == "2";
+      final bindStatus = user.bindStatus.toString();
+      isBound.value = bindStatus.toString() == "1";
 
       if (isBound.value) {
         // 已绑定状态
@@ -186,7 +191,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_xtqx.webp",
         title: "系统权限",
-        onTap: () => Get.to(SystemPermissionPage()),
+        onTap: () => Get.toNamed(KissuRoutePath.systemPermission),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_gywm.webp",
@@ -196,12 +201,13 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_cjwt.webp",
         title: "常见问题",
-        onTap: () => Get.to(QuestionPage()),
+        onTap: () => Get.to((SensitiveDataTestPage())),
+        // onTap: () => Get.to(QuestionPage()),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_lxwm.webp",
         title: "联系我们",
-        onTap: () => Get.snackbar("点击", "联系我们"),
+        onTap: openContact,
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_yjfk.webp",
@@ -214,6 +220,19 @@ class MineController extends GetxController {
         onTap: () => Get.to(PrivacySettingPage()),
       ),
     ];
+  }
+
+  /// 打开联系渠道（微信/企业微信客服）
+  void openContact() {
+    // 你的企业微信客服链接（kfid）
+    const String kfidUrl =
+        'https://work.weixin.qq.com/kfid/kfcf77b8b4a2a2a61d9';
+
+    try {
+      PermissionHelper.openWeComKf(kfidUrl);
+    } catch (e) {
+       OKToastUtil.show('无法打开微信/企业微信: $e');
+    }
   }
 
   // 顶部返回
@@ -270,30 +289,14 @@ class MineController extends GetxController {
         
         // 下拉刷新时不显示snackbar，避免界面干扰
         if (!isRefreshing.value) {
-          Get.snackbar(
-            '提示',
-            '用户信息已更新',
-            backgroundColor: Colors.green.withOpacity(0.8),
-            colorText: Colors.white,
-            duration: const Duration(seconds: 2),
-          );
+          OKToastUtil.show('用户信息已更新');
         }
       } else {
-        Get.snackbar(
-          '提示',
-          '刷新用户信息失败',
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-        );
+        OKToastUtil.show('刷新用户信息失败');
       }
     } catch (e) {
       print('刷新用户信息失败: $e');
-      Get.snackbar(
-        '提示',
-        '刷新用户信息失败: $e',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-      );
+       OKToastUtil.show('刷新用户信息失败: $e');
     }
   }
 
@@ -361,30 +364,12 @@ class MineController extends GetxController {
         // 跳转到登录页面
         Get.offAllNamed('/login');
 
-        Get.snackbar(
-          '提示',
-          '已退出登录',
-          backgroundColor: Colors.green.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-        );
+        OKToastUtil.show('已退出登录');
       } else {
-        Get.snackbar(
-          '错误',
-          result.msg ?? '退出登录失败',
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-        );
+        OKToastUtil.showError(result.msg ?? '退出登录失败');
       }
     } catch (e) {
-      Get.snackbar(
-        '错误',
-        '退出登录失败：$e',
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
-      );
+      OKToastUtil.showError('退出登录失败：$e');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:kissu_app/model/phone_history_model/phone_history_model.dart';
+import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -94,5 +95,43 @@ class PhoneHistoryApi {
     if (userId != null) {
       clearUserCache(userId);
     }
+  }
+
+  /// 获取系统信息设置
+  Future<HttpResultN<SystemInfoModel>> getSystemInfo() async {
+    final result = await HttpManagerN.instance.executeGet(
+      '/set/system/info',
+      paramEncrypt: false,
+    );
+
+    if (result.isSuccess) {
+      final model = SystemInfoModel.fromJson(result.getDataJson());
+      return result.convert(data: model);
+    } else {
+      return result.convert();
+    }
+  }
+
+  /// 设置系统开关
+  Future<HttpResultN<dynamic>> setSystemSwitch({
+    required String isPushKissuMsg,
+    required String isPushSystemMsg,
+    required String isPushPhoneStatusMsg,
+    required String isPushLocationMsg,
+  }) async {
+    final params = {
+      'is_push_kissu_msg': isPushKissuMsg,
+      'is_push_system_msg': isPushSystemMsg,
+      'is_push_phone_status_msg': isPushPhoneStatusMsg,
+      'is_push_location_msg': isPushLocationMsg,
+    };
+
+    final result = await HttpManagerN.instance.executePost(
+      '/set/system/switch',
+      jsonParam: params,
+      paramEncrypt: false,
+    );
+
+    return result;
   }
 }

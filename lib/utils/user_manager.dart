@@ -1,9 +1,11 @@
+import 'package:get/get.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
+import 'package:kissu_app/services/simple_location_service.dart';
 
 /// 全局用户数据管理工具类
 /// 提供便捷的用户数据访问方法
@@ -98,6 +100,9 @@ class UserManager {
 
   /// 用户登出
   static Future<void> logout() async {
+    // 停止定位服务
+    stopLocationService();
+    
     // 清除缓存
     clearPhoneHistoryCache();
     clearLocationCache();
@@ -107,6 +112,9 @@ class UserManager {
 
   /// 清除本地用户数据（用于注销后的数据清理，不调用退出登录API）
   static Future<void> clearLocalUserData() async {
+    // 停止定位服务
+    stopLocationService();
+    
     // 清除缓存
     clearPhoneHistoryCache();
     clearLocationCache();
@@ -126,6 +134,19 @@ class UserManager {
   /// 清除当前用户的位置数据缓存
   static void clearLocationCache() {
     TrackApi.clearCurrentUserCache();
+  }
+
+  /// 停止定位服务
+  static void stopLocationService() {
+    try {
+      final locationService = Get.find<SimpleLocationService>();
+      if (locationService.isLocationEnabled.value) {
+        locationService.stopLocation();
+        print('🔧 UserManager: 定位服务已停止');
+      }
+    } catch (e) {
+      print('❌ UserManager: 停止定位服务失败: $e');
+    }
   }
 
   /// 刷新用户信息（从服务器获取最新数据）

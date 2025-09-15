@@ -6,8 +6,7 @@ import 'dart:async';
 
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
-import '../../../routers/kissu_route.dart';
-import '../../../widgets/login_loading_widget.dart';
+import '../../../widgets/custom_toast_widget.dart';
 
 class PhoneChangeController extends GetxController {
   final phoneNumber = ''.obs;
@@ -57,12 +56,12 @@ class PhoneChangeController extends GetxController {
 
     // 手机号格式验证
     if (phone.isEmpty) {
-      Get.snackbar('错误', '请输入手机号');
+      CustomToast.show(Get.context!, '请输入手机号');
       return;
     }
 
     if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(phone)) {
-      Get.snackbar('错误', '请输入正确的手机号');
+      CustomToast.show(Get.context!, '请输入正确的手机号');
       return;
     }
 
@@ -91,15 +90,15 @@ class PhoneChangeController extends GetxController {
         type: 'change_phone',
       );
       if (result.isSuccess) {
-        Get.snackbar('成功', '验证码已发送');
+        CustomToast.show(Get.context!, '验证码已发送');
       } else {
-        Get.snackbar('错误', result.msg ?? '发送验证码失败');
+        CustomToast.show(Get.context!, result.msg ?? '发送验证码失败');
         // 如果发送失败，停止倒计时
         _timer?.cancel();
         countdownTime.value = 0;
       }
     } catch (e) {
-      Get.snackbar('错误', '发送验证码失败：$e');
+      CustomToast.show(Get.context!, '发送验证码失败：$e');
       // 如果发送失败，停止倒计时
       _timer?.cancel();
       countdownTime.value = 0;
@@ -111,17 +110,17 @@ class PhoneChangeController extends GetxController {
     String code = codeController.text.trim();
 
     if (phone.isEmpty) {
-      Get.snackbar('错误', '请输入手机号');
+      CustomToast.show(Get.context!, '请输入手机号');
       return;
     }
 
     if (code.isEmpty) {
-      Get.snackbar('错误', '请输入验证码');
+      CustomToast.show(Get.context!, '请输入验证码');
       return;
     }
 
     if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(phone)) {
-      Get.snackbar('错误', '请输入正确的手机号');
+      CustomToast.show(Get.context!, '请输入正确的手机号');
       return;
     }
 
@@ -141,11 +140,11 @@ class PhoneChangeController extends GetxController {
         });
       } else {
         isLoading.value = false;
-        Get.snackbar('错误', result.msg ?? '更换手机号失败');
+        CustomToast.show(Get.context!, result.msg ?? '更换手机号失败');
       }
     } catch (e) {
       isLoading.value = false;
-      Get.snackbar('错误', '更换手机号失败：$e');
+      CustomToast.show(Get.context!, '更换手机号失败：$e');
     }
   }
 
@@ -173,10 +172,7 @@ class PhoneChangePage extends StatelessWidget {
 
     return Scaffold(
       body: Obx(
-        () => LoginLoadingWidget(
-          isLoading: controller.isLoading.value,
-          loadingText: controller.loadingText.value,
-          child: Stack(
+        () => Stack(
             fit: StackFit.expand,
             children: [
               // 背景图片
@@ -296,7 +292,6 @@ class PhoneChangePage extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -316,15 +311,25 @@ class PhoneChangePage extends StatelessWidget {
       onChanged: (value) {
         field.value = value;
       },
+      style: const TextStyle(
+        fontSize: 16,
+        color: Color(0xFF333333),
+        height: 1.0, // 设置行高为1.0确保垂直居中
+      ),
       decoration: InputDecoration(
         hintText: hintText,
         filled: true,
         fillColor: Colors.white,
-        hintStyle: const TextStyle(color: Color(0xFF999999)),
+        hintStyle: const TextStyle(
+          color: Color(0xFF999999),
+          fontSize: 16,
+          height: 1.0, // 设置占位符行高为1.0确保垂直居中
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
-          vertical: 15,
+          vertical: 18, // 增加垂直内边距确保居中
         ),
+        isDense: true, // 减少默认内边距
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
           borderSide: const BorderSide(color: Color(0xFF6D383E)),

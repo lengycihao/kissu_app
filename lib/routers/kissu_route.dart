@@ -4,9 +4,17 @@ import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_binding.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_page.dart';
+import 'package:kissu_app/pages/login/info_setting/share_page.dart';
+import 'package:kissu_app/pages/qr/qr_scan_page.dart';
 import 'package:kissu_app/pages/login/login_page.dart';
+import 'package:kissu_app/pages/test/sensitive_data_test_page.dart';
 import 'package:kissu_app/pages/vip/vip_binding.dart';
 import 'package:kissu_app/pages/vip/vip_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/system_permission_binding.dart';
+import 'package:kissu_app/pages/permission_setting_page.dart';
+import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
+import 'package:kissu_app/pages/location_example_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -42,6 +50,46 @@ class KissuRoute {
       binding: VipBinding(),
       transition: Transition.rightToLeft,
     ),
+    GetPage(
+      name: KissuRoutePath.share,
+      page: () => const SharePage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.qrScanPage,
+      page: () => const QrScanPage(),
+      transition: Transition.downToUp,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermission,
+      page: () => const SystemPermissionPage(),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.permissionSetting,
+      page: () => const PermissionSettingPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.agreementWebView,
+      page: () => const AgreementWebViewPage(
+        title: '',
+        url: '',
+      ),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.locationExample,
+      page: () => const LocationExamplePage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.sensitiveDataTest,
+      page: () => const SensitiveDataTestPage(),
+      transition: Transition.rightToLeft,
+    ),
+    
     // GetPage(name: BBRoutePath.aboutUs, page: () => const AboutUsPage()),
     // GetPage(
     //   name: BBRoutePath.webView,

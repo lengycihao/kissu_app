@@ -9,12 +9,17 @@ class InfoSettingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand, // 使背景铺满整个页面
-        children: [
-          // 背景图片铺满整个页面
-          Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
-          SingleChildScrollView(
+      body: GestureDetector(
+        onTap: () {
+          // 点击空白区域时释放焦点
+          FocusScope.of(context).unfocus();
+        },
+        child: Stack(
+          fit: StackFit.expand, // 使背景铺满整个页面
+          children: [
+            // 背景图片铺满整个页面
+            Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
+            SingleChildScrollView(
             child: Padding(
               padding: EdgeInsets.only(
                 left: 34,
@@ -133,15 +138,25 @@ class InfoSettingPage extends StatelessWidget {
                       onChanged: (value) {
                         controller.updateNickname(value); // 使用新的更新方法
                       },
+                      style: TextStyle(
+                        fontSize: 16, 
+                        color: Color(0xFF333333),
+                        height: 1.0, // 设置行高为1.0确保垂直居中
+                      ),
                       decoration: InputDecoration(
                         hintText: controller.nickname.value.isNotEmpty
                             ? null
                             : '请输入昵称',
-                        hintStyle: TextStyle(color: Color(0xFF999999)),
+                        hintStyle: TextStyle(
+                          color: Color(0xFF999999),
+                          fontSize: 16,
+                          height: 1.0, // 设置占位符行高为1.0确保垂直居中
+                        ),
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: 20,
-                          vertical: 15,
+                          vertical: 18, // 增加垂直内边距确保居中
                         ),
+                        isDense: true, // 减少默认内边距
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25),
                           borderSide: BorderSide(color: Color(0xFF6D383E)),
@@ -150,8 +165,20 @@ class InfoSettingPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(25),
                           borderSide: BorderSide(color: Color(0xFF6D383E)),
                         ),
+                        suffixIcon: controller.nicknameController.text.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  controller.nicknameController.clear();
+                                  controller.updateNickname('');
+                                },
+                                child: Icon(
+                                  Icons.clear,
+                                  color: Color(0xFF999999),
+                                  size: 20,
+                                ),
+                              )
+                            : null,
                       ),
-                      style: TextStyle(fontSize: 16, color: Color(0xFF333333)),
                     ),
                   ),
                   SizedBox(height: 24),
@@ -318,6 +345,7 @@ class InfoSettingPage extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

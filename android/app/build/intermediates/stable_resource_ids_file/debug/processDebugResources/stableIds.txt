@@ -1,0 +1,4 @@
+com.yuluo.kissu:style/NormalTheme = 0x7f030001
+com.yuluo.kissu:style/LaunchTheme = 0x7f030000
+com.yuluo.kissu:mipmap/ic_launcher = 0x7f020000
+com.yuluo.kissu:drawable/launch_background = 0x7f010000

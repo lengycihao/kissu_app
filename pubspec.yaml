@@ -38,8 +38,6 @@ dependencies:
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
   flutter_localization: any
-  flutter_map: ^6.1.0
-  latlong2: ^0.9.0
   http: ^1.1.0
   encrypt: ^5.0.3
   dio: ^5.7.0
@@ -48,6 +46,7 @@ dependencies:
   shared_preferences: ^2.3.5
   flutter_image_compress: ^2.4.0
   sprintf: any
+  flutter_local_notifications: ^17.2.3
   device_info_plus: ^11.2.0
   package_info_plus: ^8.1.2
   path_provider: ^2.1.3
@@ -60,6 +59,18 @@ dependencies:
   chewie: ^1.8.3
   fluwx: ^5.7.2  # 微信支付
   tobias: ^3.1.0  # 支付宝支付
+  amap_map: ^1.0.15  # 高德地图SDK
+  amap_flutter_location: ^3.0.0  # 高德定位SDK
+  x_amap_base: ^1.0.3  # 高德地图基础包
+  jpush_flutter: 3.3.6
+  oktoast: ^3.3.1  # Toast插件
+  webview_flutter: ^4.4.2  # WebView插件
+  url_launcher: ^6.2.6  # URL启动器，用于打开系统设置页面
+  share_plus: ^10.0.2  # 系统分享面板
+  mobile_scanner: ^6.0.2  # 二维码扫描（替代 qr_code_scanner，支持新AGP）
+  connectivity_plus: ^6.0.5  # 网络状态监听
+  battery_plus: ^7.0.0  # 电池状态监听
+  network_info_plus: ^6.1.0  # 网络信息获取（包括WiFi SSID）
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +99,13 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  
+  # 字体配置
+  fonts:
+    - family: LiuHuanKaTongShouShu
+      fonts:
+        - asset: assets/font/LiuHuanKaTongShouShu.ttf
+  
   assets:
     - assets/
     - assets/phone_history/

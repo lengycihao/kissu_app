@@ -5,13 +5,44 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/interceptor/api_response_interceptor.dart';
 import 'package:kissu_app/services/payment_service.dart';
+import 'package:kissu_app/services/jpush_service.dart';
+import 'package:kissu_app/services/share_service.dart';
+import 'package:kissu_app/services/permission_state_service.dart';
+import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/location_permission_service.dart';
+import 'package:kissu_app/services/app_lifecycle_service.dart';
+import 'package:kissu_app/services/sensitive_data_service.dart';
+import 'package:amap_flutter_location/amap_flutter_location.dart';
+import 'package:amap_map/amap_map.dart';
+import 'package:x_amap_base/x_amap_base.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:oktoast/oktoast.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 确保Flutter绑定初始化
+  
+  // 设置高德地图隐私合规（必须在任何定位操作之前）
+  try {
+    // 设置定位插件隐私合规
+    AMapFlutterLocation.updatePrivacyShow(true, true);
+    AMapFlutterLocation.updatePrivacyAgree(true);
+    
+    // 设置地图插件隐私合规
+    const AMapPrivacyStatement amapPrivacyStatement = 
+        AMapPrivacyStatement(hasContains: true, hasShow: true, hasAgree: true);
+    AMapInitializer.updatePrivacyAgree(amapPrivacyStatement);
+    
+    // 设置高德地图API Key
+    AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
+    
+    print('高德地图隐私合规设置完成');
+  } catch (e) {
+    print('设置高德地图隐私合规失败: $e');
+  }
+  
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -39,12 +70,51 @@ void main() async {
     Get.put(PaymentService(), permanent: true);
     print('支付服务初始化完成');
 
+    // 步骤6: 初始化极光推送服务
+    Get.put(JPushService(), permanent: true);
+    print('极光推送服务初始化完成');
+    
+    // 步骤7: 初始化友盟分享服务
+    Get.put(ShareService(), permanent: true);
+    print('友盟分享服务初始化完成');
+    
+    // 步骤8: 初始化权限状态管理服务
+    Get.put(PermissionStateService(), permanent: true);
+    print('权限状态管理服务初始化完成');
+    
+    // 步骤9: 初始化定位服务
+    Get.put(SimpleLocationService(), permanent: true);
+    print('定位服务初始化完成');
+    
+    // 步骤10: 初始化定位权限服务
+    Get.put(LocationPermissionService(), permanent: true);
+    print('定位权限服务初始化完成');
+    
+    // 步骤11: 初始化应用生命周期服务
+    Get.put(AppLifecycleService(), permanent: true);
+    print('应用生命周期服务初始化完成');
+    
+    // 步骤12: 初始化敏感数据上报服务
+    Get.put(SensitiveDataService(), permanent: true);
+    print('敏感数据上报服务初始化完成');
+    
+    // 步骤13: 上报APP打开事件
+    try {
+      final sensitiveDataService = getIt<SensitiveDataService>();
+      await sensitiveDataService.reportAppOpen();
+      print('APP打开事件上报完成');
+    } catch (e) {
+      print('APP打开事件上报失败: $e');
+    }
+
     print('应用初始化完成');
   } catch (e) {
     print('应用初始化失败: $e');
   }
 
-  runApp(const MyApp());
+  runApp(OKToast(
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {

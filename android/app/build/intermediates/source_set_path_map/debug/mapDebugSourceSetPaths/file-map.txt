@@ -1,0 +1,7 @@
+com.yuluo.kissu.app-pngs-0 D:\workspace\kissu_app\android\app\build\generated\res\pngs\debug
+com.yuluo.kissu.app-resValues-1 D:\workspace\kissu_app\android\app\build\generated\res\resValues\debug
+com.yuluo.kissu.app-packageDebugResources-2 D:\workspace\kissu_app\android\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.yuluo.kissu.app-packageDebugResources-3 D:\workspace\kissu_app\android\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.yuluo.kissu.app-debug-4 D:\workspace\kissu_app\android\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.yuluo.kissu.app-debug-5 D:\workspace\kissu_app\android\app\src\debug\res
+com.yuluo.kissu.app-main-6 D:\workspace\kissu_app\android\app\src\main\res

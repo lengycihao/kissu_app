@@ -4,9 +4,9 @@ import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'break_relationship_controller.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
-import '../../../widgets/login_loading_widget.dart';
 import '../mine_controller.dart';
 import '../../phone_history/phone_history_controller.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class BreakRelationshipPage extends StatefulWidget {
   const BreakRelationshipPage({super.key});
@@ -29,10 +29,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => LoginLoadingWidget(
-        isLoading: isLoading.value,
-        loadingText: loadingText.value,
-        child: Scaffold(
+      () => Scaffold(
           body: Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -79,7 +76,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
             ),
           ),
         ),
-      ),
+      
     );
   }
 
@@ -271,32 +268,23 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
         // 刷新敏感记录页面数据
         _refreshPhoneHistoryPage();
 
-        Get.snackbar(
-          '成功',
+        CustomToast.show(
+          Get.context!,
           '关系已解除',
-          snackPosition: SnackPosition.TOP,
           backgroundColor: const Color(0xFF4CAF50),
-          colorText: Colors.white,
+          textColor: Colors.white,
           duration: const Duration(seconds: 2),
         );
       } else {
-        Get.snackbar(
-          '失败',
+        CustomToast.show(
+          Get.context!,
           result.msg ?? '解除关系失败',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: const Color(0xFFFF6B6B),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
-      Get.snackbar(
-        '错误',
+      CustomToast.show(
+        Get.context!,
         '网络异常，请重试',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: const Color(0xFFFF6B6B),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
       );
     } finally {
       isLoading.value = false;

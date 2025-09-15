@@ -17,8 +17,13 @@ class ApiRequest {
 
   static const getLocation = '/get/location';
 
+  static const reportLocation = '/location/report';
+
   // VIP 相关 API
   static const vipPackageList = '/get/vipPackageList';
   static const wxPay = '/pay/wxPay';
   static const aliPay = '/pay/aliPay';
+  
+  // 敏感数据上报 API
+  static const sensitiveDataReport = '/reporting/sensitive/record';
 }

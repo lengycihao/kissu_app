@@ -10,7 +10,9 @@ import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/simple_toast_util.dart';
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -21,7 +23,7 @@ class InfoSettingController extends GetxController {
   var avatarUrl = RxString(''); // 头像URL
   var nickname = RxString('');
   var selectedGender = RxString('男');
-  var selectedDate = Rx<DateTime>(DateTime.now()); // 默认当前日期，后续会根据用户数据更新
+  var selectedDate = Rx<DateTime>(DateTime(2007, 1, 1)); // 默认2007年1月1日，后续会根据用户数据更新
   var isLoading = false.obs;
   var uploadedHeadPortrait = RxString(''); // 上传后的头像URL
 
@@ -75,19 +77,19 @@ class InfoSettingController extends GetxController {
           print('用户生日已设置: ${user.birthday}');
         } catch (e) {
           print('生日解析失败: $e，使用默认生日');
-          // 如果解析失败，设置为1990年1月1日作为合理的默认值
-          selectedDate.value = DateTime(1990, 1, 1);
+          // 如果解析失败，设置为2007年1月1日作为合理的默认值
+          selectedDate.value = DateTime(2007, 1, 1);
         }
       } else {
         print('用户生日为空，使用默认生日');
-        // 如果没有生日信息，设置为1990年1月1日作为合理的默认值
-        selectedDate.value = DateTime(1990, 1, 1);
+        // 如果没有生日信息，设置为2007年1月1日作为合理的默认值
+        selectedDate.value = DateTime(2007, 1, 1);
       }
     } else {
       print('用户信息为空，使用默认值');
       // 如果没有用户信息，设置默认值
       avatarUrl.value = 'assets/kissu_info_setting_headerbg.webp';
-      selectedDate.value = DateTime(1990, 1, 1);
+      selectedDate.value = DateTime(2007, 1, 1);
     }
   }
 
@@ -116,13 +118,13 @@ class InfoSettingController extends GetxController {
         if (result.isSuccess && result.data != null) {
           avatarUrl.value = result.data!;
           uploadedHeadPortrait.value = result.data!;
-          Get.snackbar('成功', '头像上传成功');
+          OKToastUtil.show('头像上传成功');
         } else {
-          Get.snackbar('失败', result.msg ?? '头像上传失败');
+           OKToastUtil.show(result.msg ?? '头像上传失败');
         }
       }
     } catch (e) {
-      Get.snackbar('错误', '选择图片失败: $e');
+      OKToastUtil.show('选择图片失败: $e');
     } finally {
       isLoading.value = false;
     }
@@ -307,7 +309,7 @@ class InfoSettingController extends GetxController {
     final currentNickname = nicknameController.text.trim();
 
     if (currentNickname.isEmpty) {
-      Get.snackbar('提示', '请输入昵称');
+       OKToastUtil.show('请输入昵称');
       return;
     }
 
@@ -333,7 +335,6 @@ class InfoSettingController extends GetxController {
       );
 
       if (result.isSuccess) {
-        Get.snackbar('成功', '信息更新成功');
 
         // 先本地更新用户数据
         await _updateLocalUserInfo(currentNickname, gender, birthday);
@@ -355,13 +356,20 @@ class InfoSettingController extends GetxController {
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
 
-        // 无论刷新是否成功，都跳转到首页
-        Get.offAllNamed(KissuRoutePath.home);
+        // 根据is_perfect_information字段决定跳转
+        final currentUser = UserManager.currentUser;
+        if (currentUser?.isPerfectInformation == 0) {
+          // 跳转到分享页面
+          Get.offAllNamed(KissuRoutePath.share);
+        } else {
+          // 跳转到首页
+          Get.offAllNamed(KissuRoutePath.home);
+        }
       } else {
-        Get.snackbar('失败', result.msg ?? '更新失败');
+         OKToastUtil.show(result.msg ?? '更新失败');
       }
     } catch (e) {
-      Get.snackbar('错误', '更新失败: $e');
+      OKToastUtil.show('更新失败: $e');
     } finally {
       isLoading.value = false;
     }

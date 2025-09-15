@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:amap_map/amap_map.dart';
 import 'package:kissu_app/widgets/device_info_item.dart';
 import 'location_controller.dart';
 
@@ -48,6 +48,17 @@ class _LocationPageContentState extends State<_LocationPageContent> {
     widget.controller.pageContext = context; // 保存 Scaffold 的 context
     return Scaffold(
       backgroundColor: Colors.white,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // 测试单次定位
+          widget.controller.testSingleLocation();
+        },
+        backgroundColor: const Color(0xFFFF4177),
+        child: const Icon(
+          Icons.gps_fixed,
+          color: Colors.white,
+        ),
+      ),
       body: Stack(
         children: [
           // 固定的地图模块 - 使用缓存优化
@@ -453,144 +464,58 @@ class _CachedMapWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      return RepaintBoundary(
-        child: FlutterMap(
-          mapController: controller.mapController,
-          options: controller.mapOptions,
-          children: [
-            TileLayer(
-              urlTemplate:
-                  'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=2&style=8&x={x}&y={y}&z={z}',
-              subdomains: const ['1', '2', '3', '4'],
-              userAgentPackageName: 'com.example.kissu_app',
-              tileProvider: NetworkTileProvider(),
-              retinaMode: true,
-            ),
-            // 连接线
-            if (controller.myLocation.value != null &&
-                controller.partnerLocation.value != null)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: [
-                      controller.myLocation.value!,
-                      controller.partnerLocation.value!,
-                    ],
-                    color: const Color(0xFFFF6B9D),
-                    strokeWidth: 3.0,
-                    strokeJoin: StrokeJoin.round,
-                    strokeCap: StrokeCap.round,
-                    useStrokeWidthInMeter: false,
-                  ),
-                ],
-              ),
-            // 我的位置标记
-            if (controller.myLocation.value != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: controller.myLocation.value!,
-                    width: 40,
-                    height: 40,
-                    child: _LocationMarker(
-                      avatarUrl: controller.myAvatar.value,
-                      isMyself: true,
-                    ),
-                  ),
-                ],
-              ),
-            // 另一半位置标记
-            if (controller.partnerLocation.value != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: controller.partnerLocation.value!,
-                    width: 40,
-                    height: 40,
-                    child: _LocationMarker(
-                      avatarUrl: controller.partnerAvatar.value,
-                      isMyself: false,
-                    ),
-                  ),
-                ],
-              ),
+      // 创建标记集合
+      Set<Marker> markers = {};
+      
+      // 添加我的位置标记
+      if (controller.myLocation.value != null) {
+        markers.add(Marker(
+          position: controller.myLocation.value!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ));
+      }
+      
+      // 添加另一半位置标记
+      if (controller.partnerLocation.value != null) {
+        markers.add(Marker(
+          position: controller.partnerLocation.value!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
+        ));
+      }
+      
+      // 创建连接线集合
+      Set<Polyline> polylines = {};
+      if (controller.myLocation.value != null &&
+          controller.partnerLocation.value != null) {
+        polylines.add(Polyline(
+          points: [
+            controller.myLocation.value!,
+            controller.partnerLocation.value!,
           ],
+          color: const Color(0xFFFF6B9D),
+          width: 3,
+        ));
+      }
+      
+      return RepaintBoundary(
+        child: AMapWidget(
+          initialCameraPosition: controller.initialCameraPosition,
+          onMapCreated: controller.onMapCreated,
+          mapType: MapType.normal,
+          markers: markers,
+          polylines: polylines,
+          zoomGesturesEnabled: true,
+          scrollGesturesEnabled: true,
+          rotateGesturesEnabled: true,
+          tiltGesturesEnabled: true,
+          compassEnabled: false,
+          scaleEnabled: false,
         ),
       );
     });
   }
 }
 
-// 位置标记Widget
-class _LocationMarker extends StatelessWidget {
-  final String avatarUrl;
-  final bool isMyself;
-
-  const _LocationMarker({required this.avatarUrl, required this.isMyself});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // 背景圆圈
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isMyself ? const Color(0xFF3B96FF) : const Color(0xFFFF88AA),
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-        ),
-        // 头像
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            image: DecorationImage(
-              image: AssetImage('assets/kissu_location_header_bg.webp'),
-              fit: BoxFit.cover,
-            ),
-          ),
-          padding: EdgeInsets.all(2),
-          child: ClipOval(child: _buildAvatarImage()),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAvatarImage() {
-    final defaultAsset = isMyself
-        ? 'assets/kissu_track_header_boy.webp'
-        : 'assets/kissu_track_header_girl.webp';
-
-    if (avatarUrl.isNotEmpty) {
-      return Image.network(
-        avatarUrl,
-        width: 26,
-        height: 26,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset(
-            defaultAsset,
-            width: 26,
-            height: 26,
-            fit: BoxFit.cover,
-          );
-        },
-      );
-    } else {
-      return Image.asset(
-        defaultAsset,
-        width: 26,
-        height: 26,
-        fit: BoxFit.cover,
-      );
-    }
-  }
-}
 
 // 优化的头像行Widget
 class _CachedAvatarRow extends StatelessWidget {

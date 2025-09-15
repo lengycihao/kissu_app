@@ -4,9 +4,11 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/model/phone_history_model/phone_history_model.dart';
 import 'package:kissu_app/model/phone_history_model/datum.dart';
+import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'phone_history_setting_dialog.dart';
 
 class PhoneHistoryController extends GetxController {
@@ -50,6 +52,11 @@ class PhoneHistoryController extends GetxController {
   // 滑动提示相关
   final swipeHintText = ''.obs;
   Timer? _swipeHintTimer;
+
+  // 系统设置相关
+  final systemInfo = Rxn<SystemInfoModel>();
+  final isSystemInfoLoading = false.obs;
+  final isSystemSwitchLoading = false.obs;
 
   /// 最近7天日期列表（今天及之前6天）
   List<DateTime> get recentDates {
@@ -337,8 +344,55 @@ class PhoneHistoryController extends GetxController {
   }
 
   // 显示设置弹窗
-  void showSettingDialog() {
-    PhoneHistorySettingDialog.show();
+  void showSettingDialog() async {
+    // 先加载系统信息
+    await loadSystemInfo();
+    // 然后显示弹窗
+    PhoneHistorySettingDialog.show(
+      systemInfo: systemInfo.value,
+      onConfirm: _updateSystemSettings,
+    );
+  }
+
+  /// 获取系统信息设置
+  Future<void> loadSystemInfo() async {
+    isSystemInfoLoading.value = true;
+    try {
+      final result = await _api.getSystemInfo();
+      if (result.isSuccess && result.data != null) {
+        systemInfo.value = result.data!;
+      } else {
+        OKToastUtil.show('获取系统设置失败: ${result.msg}');
+      }
+    } catch (e) {
+      OKToastUtil.show('获取系统设置异常: $e');
+    } finally {
+      isSystemInfoLoading.value = false;
+    }
+  }
+
+  /// 更新系统设置
+  Future<void> _updateSystemSettings(SystemInfoModel newSystemInfo) async {
+    isSystemSwitchLoading.value = true;
+    try {
+      final result = await _api.setSystemSwitch(
+        isPushKissuMsg: newSystemInfo.isPushKissuMsg.toString(),
+        isPushSystemMsg: newSystemInfo.isPushSystemMsg.toString(),
+        isPushPhoneStatusMsg: newSystemInfo.isPushPhoneStatusMsg.toString(),
+        isPushLocationMsg: newSystemInfo.isPushLocationMsg.toString(),
+      );
+
+      if (result.isSuccess) {
+        systemInfo.value = newSystemInfo;
+        OKToastUtil.show('设置成功');
+      } else {
+        OKToastUtil.show('设置失败: ${result.msg}');
+      }
+    } catch (e) {
+      OKToastUtil.showError('设置异常: $e');
+    } finally {
+      isSystemSwitchLoading.value = false;
+    }
   }
 
   /// 显示绑定弹窗

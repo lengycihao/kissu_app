@@ -8,6 +8,7 @@ import 'package:kissu_app/services/vip_service.dart';
 import 'package:kissu_app/services/payment_service.dart';
 import 'package:chewie/chewie.dart';
 import 'package:video_player/video_player.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class VipController extends GetxController {
   // Logger实例
@@ -681,10 +682,10 @@ class VipController extends GetxController {
           selectedPriceIndex.value = 0;
         }
       } else {
-        Get.snackbar('错误', result.msg ?? '加载套餐数据失败');
+        CustomToast.show(Get.context!, result.msg ?? '加载套餐数据失败', );
       }
     } catch (e) {
-      Get.snackbar('错误', '加载套餐数据失败: $e');
+      CustomToast.show(Get.context!, '加载套餐数据失败: $e', );
     } finally {
       isLoadingPackages.value = false;
     }
@@ -717,13 +718,9 @@ class VipController extends GetxController {
     
     if (!agreementChecked.value) {
       debugPrint('💫 协议未勾选，显示提示');
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '请先同意会员服务协议',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
       );
       return;
     }
@@ -731,11 +728,9 @@ class VipController extends GetxController {
     // 检查是否选择了套餐
     final package = selectedPackage;
     if (package == null) {
-      Get.snackbar(
-        '提示',
+      CustomToast.show(
+        Get.context!,
         '请选择一个套餐',
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
       );
       return;
     }
@@ -756,13 +751,9 @@ class VipController extends GetxController {
       await _processPurchase(package);
       
       // 购买成功提示
-      Get.snackbar(
-        '购买成功',
+      CustomToast.show(
+        Get.context!,
         '恭喜您成功开通${package.title}！',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
       );
       
       // 延迟后返回上一页
@@ -772,13 +763,9 @@ class VipController extends GetxController {
       
     } catch (e) {
       // 购买失败提示
-      Get.snackbar(
-        '购买失败',
+      CustomToast.show(
+        Get.context!,
         '购买过程中出现错误，请重试',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
       );
     } finally {
       isPurchasing.value = false;
