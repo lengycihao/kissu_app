@@ -8,47 +8,45 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/model/location_model/location_report_model.dart';
 import 'package:kissu_app/network/public/location_report_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
-import 'package:kissu_app/services/sensitive_data_service.dart';
-import 'package:kissu_app/network/public/service_locator.dart';
 
 /// 基于高德定位的简化版定位服务类
 class SimpleLocationService extends GetxService {
   static SimpleLocationService get instance => Get.find<SimpleLocationService>();
-  
-  // 高德定位插件
+
+  // 高德定位插件 - 单例确保整个应用生命周期只创建一次
   final AMapFlutterLocation _locationPlugin = AMapFlutterLocation();
-  
+
   // 当前最新位置
   final Rx<LocationReportModel?> currentLocation = Rx<LocationReportModel?>(null);
-  
+
   // 位置历史记录（用于采样点检测）
   final RxList<LocationReportModel> locationHistory = <LocationReportModel>[].obs;
-  
+
   // 待上报的位置数据
   final RxList<LocationReportModel> pendingReports = <LocationReportModel>[].obs;
-  
+
   // 定时器
   Timer? _reportTimer;
   Timer? _periodicLocationTimer;
-  
-  // 定位流订阅
-  StreamSubscription<Map<String, Object>>? _locationSub;
-  
+
+  // 全局唯一的定位流订阅 - 整个应用生命周期只创建一次
+  StreamSubscription<Map<String, Object>>? _globalLocationSub;
+
   // 暴露定位流，让外部管理订阅（参考用户示例）
   Stream<Map<String, Object>> get locationStream => _locationPlugin.onLocationChanged();
-  
+
   /// 简单启动定位（参考用户示例）
   void start() => _locationPlugin.startLocation();
-  
-  /// 简单停止定位（参考用户示例）  
+
+  /// 简单停止定位（参考用户示例）
   void stop() => _locationPlugin.stopLocation();
-  
+
   // 服务状态
   final RxBool isLocationEnabled = false.obs;
   final RxBool isReporting = false.obs;
   final RxBool hasInitialReport = false.obs; // 是否已进行初始上报
   bool _isSingleLocationInProgress = false; // 是否正在进行单次定位
-  bool _isStreamListenerActive = false; // 追踪监听器状态
+  bool _isGlobalListenerSetup = false; // 全局监听器是否已设置
   int _locationRetryCount = 0; // 定位重试计数
   
   // 配置参数
@@ -57,9 +55,23 @@ class SimpleLocationService extends GetxService {
   static const int _maxHistorySize = 200; // 最大历史记录数（增加容量）
   
   @override
+  void onInit() {
+    super.onInit();
+    // 服务初始化时立即设置API Key和隐私合规
+    init();
+    // 设置全局唯一的监听器
+    _setupGlobalLocationListener();
+    debugPrint('✅ SimpleLocationService 初始化完成');
+  }
+
+  @override
   void onClose() {
     stopLocation();
     _reportTimer?.cancel();
+    // 清理全局监听器
+    _globalLocationSub?.cancel();
+    _globalLocationSub = null;
+    _isGlobalListenerSetup = false;
     super.onClose();
   }
   
@@ -67,20 +79,13 @@ class SimpleLocationService extends GetxService {
   /// 初始化定位服务（参考用户示例风格）
   void init() {
     try {
-      // 设置隐私合规
+      // 确保在应用启动时就设置隐私合规
       AMapFlutterLocation.updatePrivacyShow(true, true);
       AMapFlutterLocation.updatePrivacyAgree(true);
-      
-      // 设置API Key
+
+      // 设置API Key - 确保在任何定位操作前执行
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
-      
-      // 设置定位参数（参考用户示例）
-      _locationPlugin.setLocationOption(AMapLocationOption(
-        needAddress: true,
-        onceLocation: false,
-        locationInterval: 2000, // 2秒间隔
-      ));
-      
+
       debugPrint('✅ 高德定位服务初始化完成');
     } catch (e) {
       debugPrint('❌ 初始化高德定位服务失败: $e');
@@ -92,33 +97,80 @@ class SimpleLocationService extends GetxService {
       // 重新设置隐私合规（确保在定位前生效）
       AMapFlutterLocation.updatePrivacyShow(true, true);
       AMapFlutterLocation.updatePrivacyAgree(true);
-      
+
       // 重新设置API Key（确保在定位前生效）
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
-      
+
       debugPrint('🔧 高德定位隐私合规和API Key设置完成');
     } catch (e) {
       debugPrint('❌ 设置高德定位隐私合规失败: $e');
     }
   }
+
+  /// 设置全局唯一的定位监听器（基于高德插件内部机制优化）
+  void _setupGlobalLocationListener() {
+    if (_isGlobalListenerSetup) {
+      debugPrint('✅ 全局定位监听器已设置，复用现有监听器');
+      return;
+    }
+
+    try {
+      debugPrint('🔧 设置全局定位监听器...');
+
+      // 基于高德插件源码分析：
+      // 插件内部使用 _receiveStream 判断是否已创建 StreamController
+      // 只要不重复调用 onLocationChanged()，就不会有冲突
+      Stream<Map<String, Object>> locationStream = _locationPlugin.onLocationChanged();
+
+      _globalLocationSub = locationStream.listen(
+        (Map<String, Object> result) {
+          debugPrint('📍 全局监听器收到定位数据: ${result.toString()}');
+          _onLocationUpdate(result);
+        },
+        onError: (error) {
+          debugPrint('❌ 全局监听器定位错误: $error');
+        },
+        onDone: () {
+          debugPrint('⚠️ 全局监听器定位流已关闭');
+          _isGlobalListenerSetup = false;
+        },
+      );
+      _isGlobalListenerSetup = true;
+      debugPrint('✅ 全局定位监听器设置完成');
+
+    } catch (e) {
+      debugPrint('❌ 设置全局定位监听器失败: $e');
+      if (e.toString().contains('Stream has already been listened to')) {
+        debugPrint('⚠️ 检测到Stream冲突，这可能是热重载导致的');
+        debugPrint('💡 请完全重启应用以清理Stream状态');
+        _isGlobalListenerSetup = true; // 标记为已设置，避免重复尝试
+      }
+    }
+  }
   
-  /// 请求定位权限
+  /// 请求定位权限（改进版，支持Android 10+后台定位）
   Future<bool> requestLocationPermission() async {
     try {
-      // 检查定位权限
-      var status = await Permission.location.status;
-      if (status.isDenied) {
-        status = await Permission.location.request();
-        if (status.isDenied) {
+      debugPrint('🔐 开始申请定位权限...');
+
+      // 1. 首先申请前台定位权限
+      var locationStatus = await Permission.location.status;
+      debugPrint('🔐 前台定位权限状态: $locationStatus');
+
+      if (locationStatus.isDenied) {
+        locationStatus = await Permission.location.request();
+        debugPrint('🔐 申请前台定位权限结果: $locationStatus');
+
+        if (locationStatus.isDenied) {
           CustomToast.show(
             Get.context!,
-            '定位权限被拒绝',
+            '定位权限被拒绝，无法使用定位功能',
           );
           return false;
         }
       }
 
-      if (status.isPermanentlyDenied) {
+      if (locationStatus.isPermanentlyDenied) {
         CustomToast.show(
           Get.context!,
           '定位权限被永久拒绝，请在设置中开启定位权限',
@@ -126,9 +178,33 @@ class SimpleLocationService extends GetxService {
         return false;
       }
 
-      return true;
+      // 2. 申请后台定位权限（Android 10+需要）
+      if (locationStatus.isGranted) {
+        debugPrint('🔐 前台定位权限已获得，检查后台定位权限...');
+
+        var backgroundLocationStatus = await Permission.locationAlways.status;
+        debugPrint('🔐 后台定位权限状态: $backgroundLocationStatus');
+
+        if (backgroundLocationStatus.isDenied) {
+          debugPrint('🔐 申请后台定位权限...');
+          backgroundLocationStatus = await Permission.locationAlways.request();
+          debugPrint('🔐 申请后台定位权限结果: $backgroundLocationStatus');
+
+          // 后台定位权限不是必需的，但建议用户开启
+          if (backgroundLocationStatus.isDenied) {
+            debugPrint('⚠️ 后台定位权限被拒绝，但前台定位仍可使用');
+            CustomToast.show(
+              Get.context!,
+              '建议开启后台定位权限以获得更好的定位体验',
+            );
+          }
+        }
+      }
+
+      debugPrint('✅ 定位权限申请完成');
+      return locationStatus.isGranted;
     } catch (e) {
-      debugPrint('请求定位权限失败: $e');
+      debugPrint('❌ 请求定位权限失败: $e');
       return false;
     }
   }
@@ -137,7 +213,11 @@ class SimpleLocationService extends GetxService {
   Future<bool> startLocation() async {
     try {
       debugPrint('🚀 SimpleLocationService.startLocation() 开始执行');
-      
+
+      // 确保先初始化（这很关键！）
+      init();
+      await Future.delayed(Duration(milliseconds: 100)); // 给初始化一点时间
+
       // 设置高德地图隐私合规（必须在任何定位操作之前）
       _setupPrivacyCompliance();
       debugPrint('🔧 隐私合规设置完成');
@@ -177,8 +257,7 @@ class SimpleLocationService extends GetxService {
         _locationPlugin.stopLocation();
         debugPrint('🔧 高德定位插件已停止');
         
-        // 使用新的清理方法
-        await _cleanupStreamListener();
+        // 全局监听器无需清理，直接继续
         
         debugPrint('🔧 所有流监听器清理完成');
         
@@ -230,8 +309,12 @@ class SimpleLocationService extends GetxService {
         throw e;
       }
 
-      // 启动位置流监听（使用安全的监听器设置方法）
-      await _setupStreamListener();
+      // 确保全局监听器已设置
+      if (!_isGlobalListenerSetup) {
+        _setupGlobalLocationListener();
+      } else {
+        debugPrint('✅ 全局监听器已激活，直接启动定位');
+      }
 
       // 启动定位（高德定位插件3.0.0版本的startLocation()方法返回void）
       debugPrint('🔧 调用高德定位插件启动定位');
@@ -287,10 +370,6 @@ class SimpleLocationService extends GetxService {
       isLocationEnabled.value = true;
       hasInitialReport.value = false; // 重置初始上报状态
       debugPrint('✅ 高德定位服务已启动完成');
-      
-      // 上报定位打开事件
-      _reportLocationOpen();
-      
       return true;
     } catch (e) {
       debugPrint('启动高德定位失败: $e');
@@ -358,13 +437,12 @@ class SimpleLocationService extends GetxService {
         // 智能重试逻辑
         if (shouldRetry && _locationRetryCount < 3) {
           _locationRetryCount++;
-          debugPrint('🔄 第${_locationRetryCount}次重试定位...');
+          debugPrint('🔄 第$_locationRetryCount 次重试定位...');
           
           // 延迟后重试
           Future.delayed(Duration(seconds: 2), () async {
             try {
-              await _forceReinitializePlugin();
-              await _setupStreamListener();
+              await _lightweightReinitializePlugin();
               _locationPlugin.startLocation();
             } catch (e) {
               debugPrint('❌ 重试定位失败: $e');
@@ -393,7 +471,7 @@ class SimpleLocationService extends GetxService {
       
       // 成功定位，重置重试计数
       _locationRetryCount = 0;
-      debugPrint('✅ 高德定位成功: 纬度=$latitude, 经度=$longitude, 精度=${accuracy}米');
+      // debugPrint('✅ 高德定位成功: 纬度=$latitude, 经度=$longitude, 精度=$accuracy 米');
 
       final location = LocationReportModel(
         longitude: longitude.toString(),
@@ -422,13 +500,13 @@ class SimpleLocationService extends GetxService {
       } else if (shouldAdd) {
         // 后续位置点，添加到待上报列表
         _addToPendingReports(location);
-        debugPrint('📍 添加新的采样点到待上报列表 (总采样点: ${locationHistory.length}, 待上报: ${pendingReports.length})');
+        // debugPrint('📍 添加新的采样点到待上报列表 (总采样点: ${locationHistory.length}, 待上报: ${pendingReports.length})');
       } else {
         // 位置点被过滤，但记录调试信息
-        debugPrint('📍 位置点被过滤 (距离不足$_samplingDistance米)');
+        // debugPrint('📍 位置点被过滤 (距离不足$_samplingDistance米)');
       }
       
-      debugPrint('🎯 高德实时定位: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}米, 速度: ${location.speed}m/s');
+      // debugPrint('🎯 高德实时定位: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}米, 速度: ${location.speed}m/s');
       
       // 如果正在进行单次定位，现在收到了数据，说明单次定位成功
       if (_isSingleLocationInProgress) {
@@ -451,26 +529,20 @@ class SimpleLocationService extends GetxService {
       // 停止定时器
       _reportTimer?.cancel();
       _reportTimer = null;
-      
+
       // 停止定时单次定位
       _periodicLocationTimer?.cancel();
       _periodicLocationTimer = null;
-      
-      // 停止位置流监听
-      _cleanupStreamListener();
-      
-      // 停止高德定位
+
+      // 停止高德定位（但保持全局监听器）
       _locationPlugin.stopLocation();
-      
+
       // 重置状态
       isLocationEnabled.value = false;
       isReporting.value = false;
       hasInitialReport.value = false;
-      
-      // 上报定位关闭事件
-      _reportLocationClose();
-      
-      debugPrint('高德定位服务已停止');
+
+      debugPrint('高德定位服务已停止（全局监听器保持激活）');
     } catch (e) {
       debugPrint('停止高德定位失败: $e');
     }
@@ -553,15 +625,15 @@ class SimpleLocationService extends GetxService {
           case 1:
             // 第一次超时：重新启动监听器
             debugPrint('🔧 策略1: 重新启动流监听器');
-            await _setupStreamListener();
+            // 全局监听器已激活，无需重新设置
             _locationPlugin.startLocation();
             break;
             
           case 2:
             // 第二次超时：强制重新初始化插件
             debugPrint('🔧 策略2: 强制重新初始化插件');
-            await _forceReinitializePlugin();
-            await _setupStreamListener();
+            await _lightweightReinitializePlugin();
+            // 全局监听器已激活，无需重新设置
             _locationPlugin.startLocation();
             break;
             
@@ -610,7 +682,7 @@ class SimpleLocationService extends GetxService {
       _locationPlugin.setLocationOption(locationOption);
       
       // 重新设置监听器并启动
-      await _setupStreamListener();
+      // 全局监听器已激活，无需重新设置
       _locationPlugin.startLocation();
       
       debugPrint('✅ 已切换到高精度定位模式');
@@ -621,121 +693,28 @@ class SimpleLocationService extends GetxService {
     }
   }
 
-  /// 强制重新初始化插件（解决Stream监听冲突）
-  Future<void> _forceReinitializePlugin() async {
+  /// 轻量级重新初始化插件（避免Stream冲突）
+  Future<void> _lightweightReinitializePlugin() async {
     try {
-      debugPrint('🔧 强制重新初始化高德定位插件...');
-      
-      // 完全停止定位
+      debugPrint('🔧 轻量级重新初始化高德定位插件...');
+
+      // 只停止定位，不干扰Stream
       _locationPlugin.stopLocation();
-      await Future.delayed(Duration(milliseconds: 1000));
-      
-      // 重新设置隐私合规和API Key（无法重新创建final实例，但可以重新配置）
+      await Future.delayed(Duration(milliseconds: 300));
+
+      // 重新设置隐私合规和API Key
       _setupPrivacyCompliance();
-      
-      await Future.delayed(Duration(milliseconds: 500));
-      debugPrint('✅ 插件强制重新初始化完成');
-      
+
+      await Future.delayed(Duration(milliseconds: 200));
+      debugPrint('✅ 插件轻量级重新初始化完成');
+
     } catch (e) {
-      debugPrint('❌ 强制重新初始化插件失败: $e');
+      debugPrint('❌ 轻量级重新初始化插件失败: $e');
       throw e;
     }
   }
 
-  /// 安全地设置流监听器（避免重复监听）
-  Future<void> _setupStreamListener() async {
-    try {
-      // 如果已有活跃的监听器，跳过
-      if (_isStreamListenerActive && _locationSub != null) {
-        debugPrint('✅ 流监听器已活跃，跳过重新设置');
-        return;
-      }
-      
-      // 完全清理现有监听器
-      await _cleanupStreamListener();
-      
-      debugPrint('🔧 设置新的位置流监听器');
-      try {
-        // 使用更安全的监听器设置方式
-        _locationSub = _locationPlugin.onLocationChanged().listen(
-          (Map<String, Object> result) {
-            debugPrint('🔧 收到定位数据回调');
-            _onLocationUpdate(result);
-          },
-          onError: (error) {
-            debugPrint('❌ 高德定位错误: $error');
-            _isStreamListenerActive = false;
-          },
-          onDone: () {
-            debugPrint('⚠️ 高德定位流已关闭');
-            _isStreamListenerActive = false;
-          },
-        );
-        _isStreamListenerActive = true;
-        debugPrint('✅ 位置流监听器设置完成');
-      } catch (e) {
-        if (e.toString().contains('Stream has already been listened to')) {
-          debugPrint('! 高德插件Stream已被监听，使用现有监听器');
-          // 不要简单假设活跃，而是尝试重新初始化
-          _isStreamListenerActive = false;
-          
-          // 尝试强制重新创建插件实例
-          await _forceReinitializePlugin();
-          
-          // 重新尝试一次监听
-          try {
-            _locationSub = _locationPlugin.onLocationChanged().listen(
-              (Map<String, Object> result) {
-                debugPrint('🔧 收到定位数据回调');
-                _onLocationUpdate(result);
-              },
-              onError: (error) {
-                debugPrint('❌ 高德定位错误: $error');
-                _isStreamListenerActive = false;
-              },
-              onDone: () {
-                debugPrint('⚠️ 高德定位流已关闭');
-                _isStreamListenerActive = false;
-              },
-            );
-            _isStreamListenerActive = true;
-            debugPrint('✅ 重新初始化后监听器设置成功');
-          } catch (retryError) {
-            debugPrint('❌ 重新尝试监听器设置失败: $retryError');
-            _isStreamListenerActive = false;
-            throw retryError;
-          }
-        } else {
-          debugPrint('❌ 设置流监听器时发生未知错误: $e');
-          _isStreamListenerActive = false;
-          throw e;
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 设置流监听器失败: $e');
-      _isStreamListenerActive = false;
-      rethrow;
-    }
-  }
-
-  /// 清理流监听器
-  Future<void> _cleanupStreamListener() async {
-    try {
-      if (_locationSub != null) {
-        debugPrint('🔄 清理现有的流监听器');
-        await _locationSub?.cancel();
-        _locationSub = null;
-        _isStreamListenerActive = false;
-        // 等待清理完成
-        await Future.delayed(Duration(milliseconds: 300));
-        debugPrint('✅ 流监听器清理完成');
-      }
-    } catch (e) {
-      debugPrint('⚠️ 清理流监听器时出错: $e');
-      _locationSub = null;
-      _isStreamListenerActive = false;
-    }
-  }
+  // 旧的Stream监听器方法已移除，现在使用全局监听器
   
   /// 重启持续定位
   Future<void> _restartContinuousLocation() async {
@@ -846,7 +825,7 @@ class SimpleLocationService extends GetxService {
       debugPrint('✅ 网络定位参数设置完成');
       
       // 重新设置监听器
-      await _setupStreamListener();
+      // 全局监听器已激活，无需重新设置
       
       // 启动定位
       _locationPlugin.startLocation();
@@ -953,7 +932,7 @@ class SimpleLocationService extends GetxService {
         _locationPlugin.setLocationOption(locationOption);
         
         // 重新启动定位
-        await _setupStreamListener();
+        // 全局监听器已激活，无需重新设置
         _locationPlugin.startLocation();
         
         debugPrint('   启动 ${modeInfo['name']}，等待10秒测试...');
@@ -1017,7 +996,7 @@ class SimpleLocationService extends GetxService {
       debugPrint('📊 当前位置数据: ${currentLocation.value?.toJson() ?? "❌ 无数据"}');
       
       // 3. 检查流监听器状态
-      debugPrint('📊 流监听器状态: ${_locationSub != null ? "✅ 已创建" : "❌ 未创建"}');
+      debugPrint('📊 流监听器状态: ${_globalLocationSub != null ? "✅ 已创建" : "❌ 未创建"}');
       
       // 4. 检查定时器状态
       debugPrint('📊 上报定时器: ${_reportTimer != null && _reportTimer!.isActive ? "✅ 运行中" : "❌ 未运行"}');
@@ -1227,17 +1206,17 @@ class SimpleLocationService extends GetxService {
       
       // 检查当前的监听器状态
       debugPrint('📊 当前监听器状态:');
-      debugPrint('   _isStreamListenerActive: $_isStreamListenerActive');
-      debugPrint('   _locationSub是否为null: ${_locationSub == null}');
+      debugPrint('   _isGlobalListenerSetup: $_isGlobalListenerSetup');
+      debugPrint('   _globalLocationSub是否为null: ${_globalLocationSub == null}');
       debugPrint('   isLocationEnabled: ${isLocationEnabled.value}');
       
       // 尝试重新创建监听器
       try {
-        await _cleanupStreamListener();
+        // 全局监听器无需清理
         await Future.delayed(Duration(milliseconds: 1000));
         
         debugPrint('🔧 尝试重新设置监听器...');
-        await _setupStreamListener();
+        // 全局监听器已激活，无需重新设置
         
       } catch (e) {
         debugPrint('❌ 重新设置监听器失败: $e');
@@ -1258,12 +1237,12 @@ class SimpleLocationService extends GetxService {
       // 完全停止服务
       try {
         _locationPlugin.stopLocation();
-        await _cleanupStreamListener();
+        // 全局监听器无需清理
         
         // 重置所有状态
         isLocationEnabled.value = false;
         isReporting.value = false;
-        _isStreamListenerActive = false;
+        _isGlobalListenerSetup = false;
         
         // 停止定时器
         _reportTimer?.cancel();
@@ -1536,26 +1515,6 @@ class SimpleLocationService extends GetxService {
     if (stats['currentLocation'] != null) {
       final loc = stats['currentLocation'] as Map<String, dynamic>;
       debugPrint('   最新位置: ${loc['latitude']}, ${loc['longitude']} (精度: ${loc['accuracy']}米)');
-    }
-  }
-  
-  /// 上报定位打开事件
-  void _reportLocationOpen() {
-    try {
-      final sensitiveDataService = getIt<SensitiveDataService>();
-      sensitiveDataService.reportLocationOpen();
-    } catch (e) {
-      debugPrint('❌ 上报定位打开事件失败: $e');
-    }
-  }
-  
-  /// 上报定位关闭事件
-  void _reportLocationClose() {
-    try {
-      final sensitiveDataService = getIt<SensitiveDataService>();
-      sensitiveDataService.reportLocationClose();
-    } catch (e) {
-      debugPrint('❌ 上报定位关闭事件失败: $e');
     }
   }
 }

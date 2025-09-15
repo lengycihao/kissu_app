@@ -8,6 +8,7 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -135,9 +136,10 @@ class LoveInfoController extends GetxController {
     return phone.isEmpty ? "未绑定" : phone;
   }
 
-  // 显示添加伴侣对话框
+  // 显示添加伴侣对话框 - 直接跳转到分享页面
   void showAddPartnerDialog(BuildContext context) {
-    DialogManager.showGenderSelect(context: context, selectedGender: '男生');
+    // 直接跳转到分享页面，不再显示弹窗
+    Get.toNamed(KissuRoutePath.share);
   }
 
   /// 处理头像点击

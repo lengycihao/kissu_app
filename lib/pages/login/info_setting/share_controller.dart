@@ -5,7 +5,6 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/utils/simple_toast_util.dart';
 import 'package:kissu_app/services/share_service.dart';
 
 class ShareController extends GetxController {
@@ -13,10 +12,10 @@ class ShareController extends GetxController {
   var userAvatar = ''.obs;
   var matchCode = ''.obs;
   var qrCodeUrl = ''.obs;
-  
+
   // 匹配码输入框控制器
   late TextEditingController matchCodeController;
-  
+
   // 加载状态
   var isLoading = false.obs;
 
@@ -43,15 +42,15 @@ class ShareController extends GetxController {
       } else {
         userAvatar.value = 'assets/kissu_icon.webp';
       }
-      
+
       // 设置匹配码
       matchCode.value = user.friendCode ?? '1000000';
-      
+
       // 设置二维码
       if (user.friendQrCode?.isNotEmpty == true) {
         qrCodeUrl.value = user.friendQrCode!;
       }
-      
+
       print('分享页面用户信息加载完成:');
       print('头像: ${userAvatar.value}');
       print('匹配码: ${matchCode.value}');
@@ -65,7 +64,7 @@ class ShareController extends GetxController {
 
   /// 安全显示Toast
   void _showToast(String message) {
-     OKToastUtil.show(message);
+    OKToastUtil.show(message);
   }
 
   /// 绑定另一半
@@ -83,17 +82,17 @@ class ShareController extends GetxController {
 
     try {
       isLoading.value = true;
-      
+
       // 调用绑定API
       final authApi = AuthApi();
       final result = await authApi.bindPartner(friendCode: inputCode);
-      
+
       if (result.isSuccess) {
         OKToastUtil.show('绑定成功');
 
         // 刷新用户信息
         await _refreshUserInfo();
-        
+
         // 跳转到首页
         Get.offAllNamed(KissuRoutePath.home);
       } else {
@@ -160,11 +159,18 @@ class ShareController extends GetxController {
     final numeric = RegExp(r'^\d{4,}$');
     if (numeric.hasMatch(input)) return input;
 
-    // URL 中形如 friendCode=123456 或 code=123456
-    final match = RegExp(r'(?:(?:friendCode|code)=)(\d{4,})').firstMatch(input);
-    if (match != null) {
-      return match.group(1);
+    // invite:// 格式，如 invite://1000060
+    final inviteMatch = RegExp(r'^invite://(\d{4,})$').firstMatch(input);
+    if (inviteMatch != null) {
+      return inviteMatch.group(1);
     }
+
+    // URL 中形如 friendCode=123456 或 code=123456
+    final paramMatch = RegExp(r'(?:(?:friendCode|code)=)(\d{4,})').firstMatch(input);
+    if (paramMatch != null) {
+      return paramMatch.group(1);
+    }
+    
     return null;
   }
 
@@ -172,34 +178,55 @@ class ShareController extends GetxController {
   Future<void> _shareInvite({required String target}) async {
     try {
       final code = matchCode.value;
-      final shareText = '和我一起用KISSU恋爱日常吧～ 我的匹配码：$code \n下载并输入匹配码即可绑定～';
-      print('发起$target分享: $shareText');
-      
-      // 使用系统分享作为备用方案
+      // final shareText = '和我一起用KISSU恋爱日常吧～ 我的匹配码：$code \n下载并输入匹配码即可绑定～';
+ 
+      // 使用友盟分享
       try {
         final shareService = Get.put(ShareService(), permanent: true);
-        bool ok = false;
-        if (target == '微信') {
-          ok = await shareService.shareTextToWeChatSession(text: shareText);
-        } else if (target == 'QQ') {
-          ok = await shareService.shareTextToQQ(text: shareText);
-        }
+        Map<String, dynamic>? shareResult;
         
-        if (ok) {
-          OKToastUtil.show('分享成功');
-        } else {
-          // 如果友盟分享失败，使用系统分享
-          await _systemShare(shareText);
+        if (target == '微信') {
+          await shareService.shareToWeChat(
+            title: "绑定邀请",
+            description: '快来和我绑定吧！',
+            webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
+          );
+          // 微信分享暂时不返回结果，假设成功
+          OKToastUtil.show('已调起微信分享');
+        } else if (target == 'QQ') {
+          shareResult = await shareService.shareToQQ(
+            title: "绑定邀请",
+            description: '快来和我绑定吧！',
+            webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
+          );
+          
+          print('QQ分享结果: $shareResult');
+          
+          if (shareResult['success'] == true) {
+            OKToastUtil.show('QQ分享成功');
+          } else {
+            final errorMsg = shareResult['message'] ?? '分享失败';
+            print('QQ分享失败: $errorMsg');
+            OKToastUtil.show('QQ分享失败: $errorMsg');
+            
+            // 如果友盟QQ分享失败，尝试系统分享
+            final shareText = '和我一起用KISSU恋爱日常吧～ 我的匹配码：$code \n下载并输入匹配码即可绑定～';
+            await _systemShare(shareText);
+          }
         }
       } catch (e) {
-        print('友盟分享失败，使用系统分享: $e');
+        print('分享异常: $e');
+        OKToastUtil.show('分享失败: $e');
+        
+        // 异常时使用系统分享作为备用
+        final shareText = '和我一起用KISSU恋爱日常吧～ 我的匹配码：$code \n下载并输入匹配码即可绑定～';
         await _systemShare(shareText);
-      }
+       }
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
     }
   }
-  
+
   /// 系统分享备用方案
   Future<void> _systemShare(String text) async {
     try {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_map/amap_map.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
+import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'track_controller.dart';
 
 class TrackPage extends StatelessWidget {
@@ -42,6 +44,13 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     minHeight = screenHeight * 0.4;
     maxHeight = screenHeight - 150;
     mapHeight = screenHeight - initialHeight + 30;
+  }
+
+  @override
+  void dispose() {
+    // 确保控制器被正确清理
+    print('🚪 轨迹页面即将销毁，触发控制器清理...');
+    super.dispose();
   }
 
   @override
@@ -308,33 +317,91 @@ class _TrackPageContentState extends State<_TrackPageContent> {
       decoration: BoxDecoration(
         color: Color(0xffFFFCE8),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Obx(
             () => _buildStat(
-              "保留次数",
+              "停留次数",
               widget.controller.stayCount.value.toString(),
+              icon: Icons.location_on,
+              color: Color(0xFFFF6B6B),
             ),
           ),
-          Obx(() => _buildStat("停留时间", widget.controller.stayDuration.value)),
-          Obx(() => _buildStat("移动距离", widget.controller.moveDistance.value)),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey.withValues(alpha: 0.3),
+          ),
+          Obx(() => _buildStat(
+            "停留时间", 
+            widget.controller.stayDuration.value.isEmpty 
+              ? "0分钟" 
+              : widget.controller.stayDuration.value,
+            icon: Icons.access_time,
+            color: Color(0xFF4ECDC4),
+          )),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey.withValues(alpha: 0.3),
+          ),
+          Obx(() => _buildStat(
+            "移动距离", 
+            widget.controller.moveDistance.value.isEmpty 
+              ? "0.0km" 
+              : widget.controller.moveDistance.value,
+            icon: Icons.directions_walk,
+            color: Color(0xFF45B7D1),
+          )),
         ],
       ),
     );
   }
 
-  Widget _buildStat(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 12)),
-      ],
+  Widget _buildStat(String label, String value, {IconData? icon, Color? color}) {
+    return Expanded(
+      child: Column(
+        children: [
+          if (icon != null) ...[
+            Icon(
+              icon,
+              size: 16,
+              color: color ?? Color(0xFF666666),
+            ),
+            const SizedBox(height: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Color(0xFF666666),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              color: color ?? Color(0xFF333333),
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -367,10 +434,8 @@ class _OptimizedOverlayWidget extends StatelessWidget {
         right: 0,
         height: mapHeight,
         child: IgnorePointer(
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 100),
-            opacity: opacity.clamp(0.0, 0.4),
-            child: Container(color: Colors.black.withValues(alpha: 1.0)),
+          child: Container(
+            color: Colors.black.withValues(alpha: opacity.clamp(0.0, 0.4)),
           ),
         ),
       );
@@ -390,124 +455,74 @@ class _CachedMapWidget extends StatelessWidget {
       // 创建标记集合
       Set<Marker> markers = {};
       
-      // 暂时简化停留点标记的实现
-      // TODO: 需要将flutter_map的Marker转换为高德地图的Marker格式
+      // 安全地添加停留点标记
+      try {
+        markers.addAll(controller.stayMarkers);
+      } catch (e) {
+        print('❌ 添加停留点标记失败: $e');
+      }
       
-      // 添加当前回放位置标记
+      // 安全地添加当前回放位置标记s
       if (controller.currentPosition.value != null) {
-        markers.add(Marker(
-          position: controller.currentPosition.value!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        ));
+        try {
+          // 尝试使用自定义图标，如果失败则使用默认标记
+           markers.add(Marker(
+            position: controller.currentPosition.value!,
+            icon:  BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            infoWindow: const InfoWindow(
+              title: '当前位置',
+              snippet: '轨迹回放中',
+            ),
+          ));
+          print('✅ 当前位置标记创建成功');
+        } catch (e) {
+          print('❌ 添加当前位置标记失败: $e，使用简化标记');
+          // 降级方案：使用最简单的标记
+          try {
+            markers.add(Marker(
+              position: controller.currentPosition.value!,
+            ));
+          } catch (fallbackError) {
+            print('❌ 简化标记也失败: $fallbackError');
+          }
+        }
       }
       
       // 创建轨迹线集合
       Set<Polyline> polylines = {};
-      if (controller.trackPoints.isNotEmpty) {
+      if (controller.trackPoints.isNotEmpty && controller.trackPoints.length > 1) {
+        // 主轨迹线
         polylines.add(Polyline(
           points: controller.trackPoints,
           color: controller.isOneself.value == 1
+              ? const Color(0xFF3B96FF)  // 男性 - 蓝色轨迹
+              : const Color(0xFFFF88AA), // 女性 - 粉色轨迹
+          width: 5,
+        ));
+        
+        // 添加轨迹阴影效果（可选）
+        polylines.add(Polyline(
+          points: controller.trackPoints,
+          color: (controller.isOneself.value == 1
               ? const Color(0xFF3B96FF)
-              : const Color(0xFFFF88AA),
-          width: 4,
+              : const Color(0xFFFF88AA)).withValues(alpha: 0.3),
+          width: 8,
         ));
       }
       
-      return RepaintBoundary(
-        child: AMapWidget(
-          initialCameraPosition: controller.initialCameraPosition,
-          onMapCreated: controller.onMapCreated,
-          mapType: MapType.normal,
-          markers: markers,
-          polylines: polylines,
-          zoomGesturesEnabled: true,
-          scrollGesturesEnabled: true,
-          rotateGesturesEnabled: true,
-          tiltGesturesEnabled: true,
-          compassEnabled: false,
-          scaleEnabled: false,
-        ),
+      return SafeAMapWidget(
+        initialCameraPosition: controller.initialCameraPosition,
+        onMapCreated: controller.onMapCreated,
+        markers: markers,
+        polylines: polylines,
+        compassEnabled: true,
+        scaleEnabled: true,
+        zoomGesturesEnabled: true,
+        scrollGesturesEnabled: true,
+        rotateGesturesEnabled: true,
+        tiltGesturesEnabled: true,
       );
     });
-  }
-}
-
-// 优化的移动头像Widget
-class _CachedMovingAvatar extends StatelessWidget {
-  final TrackController controller;
-
-  const _CachedMovingAvatar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // 76x76 方向指引箭头
-          Transform.rotate(
-            angle: controller.getRotationAngle(),
-            child: Image.asset(
-              'assets/kissu_location_run.webp',
-              width: 76,
-              height: 76,
-              fit: BoxFit.contain,
-            ),
-          ),
-          // 头像
-          Positioned(
-            top: 16,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: AssetImage('assets/kissu_location_header_bg.webp'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              padding: EdgeInsets.all(2),
-              child: ClipOval(child: _buildAvatarImage()),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatarImage() {
-    final isMyself = controller.isOneself.value == 1;
-    final avatarUrl = isMyself
-        ? controller.myAvatar.value
-        : controller.partnerAvatar.value;
-    final defaultAsset = isMyself
-        ? 'assets/kissu_track_header_boy.webp'
-        : 'assets/kissu_track_header_girl.webp';
-
-    if (avatarUrl.isNotEmpty) {
-      return Image.network(
-        avatarUrl,
-        width: 30,
-        height: 30,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset(
-            defaultAsset,
-            width: 30,
-            height: 30,
-            fit: BoxFit.cover,
-          );
-        },
-      );
-    } else {
-      return Image.asset(
-        defaultAsset,
-        width: 30,
-        height: 30,
-        fit: BoxFit.cover,
-      );
-    }
   }
 }
 
@@ -530,13 +545,11 @@ class _PlayerControlWidget extends StatelessWidget {
       final initialPosition = initialHeight / screenHeight;
       final shouldShow = (sheetPercent <= initialPosition + 0.15);
 
-      return AnimatedPositioned(
-        duration: const Duration(milliseconds: 200),
+      return Positioned(
         bottom: screenHeight * 0.4 + 20,
         left: 20,
         right: 20,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
+        child: Opacity(
           opacity: shouldShow ? 1.0 : 0.0,
           child: controller.showFullPlayer.value
               ? _FullPlayerControls(controller: controller)
@@ -746,7 +759,10 @@ class _CachedAvatarRow extends StatelessWidget {
           onTap: () {
             if (controller.isOneself.value != 1) {
               controller.isOneself.value = 1;
-              controller.loadLocationData();
+              controller.refreshCurrentUserData();
+              // 添加触觉反馈
+              HapticFeedback.lightImpact();
+              print('🔄 切换到查看自己的数据');
             }
           },
         ),
@@ -763,7 +779,10 @@ class _CachedAvatarRow extends StatelessWidget {
             onTap: () {
               if (controller.isOneself.value != 0) {
                 controller.isOneself.value = 0;
-                controller.loadLocationData();
+                controller.refreshCurrentUserData();
+                // 添加触觉反馈
+                HapticFeedback.lightImpact();
+                print('🔄 切换到查看另一半的数据');
               }
             },
           ),
@@ -792,58 +811,76 @@ class _AvatarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = isMyself ? 32.0 : 26.0;
-    final radius = size / 2;
-    final isSelected = isMyself
-        ? controller.isOneself.value == 1
-        : controller.isOneself.value == 0;
-    final avatarUrl = isMyself
-        ? controller.myAvatar.value
-        : controller.partnerAvatar.value;
-    final defaultAsset = isMyself
-        ? 'assets/kissu_track_header_boy.webp'
-        : 'assets/kissu_track_header_girl.webp';
+    return Obx(() {
+      final baseSize = 32.0;
+      
+      // 检查当前头像是否被选中
+      final isSelected = (isMyself && controller.isOneself.value == 1) || 
+                        (!isMyself && controller.isOneself.value == 0);
+      
+      // 根据选中状态调整缩放比例
+      final scale = isSelected ? 1.2 : 0.9;
+      final actualSize = baseSize * scale;
+      
+      final avatarUrl = isMyself
+          ? controller.myAvatar.value
+          : controller.partnerAvatar.value;
+      final defaultAsset = isMyself
+          ? 'assets/kissu_track_header_boy.webp'
+          : 'assets/kissu_track_header_girl.webp';
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          image: isSelected
-              ? const DecorationImage(
-                  image: AssetImage('assets/kissu_track_header_bbg.webp'),
-                  fit: BoxFit.cover,
-                )
-              : null,
-          borderRadius: BorderRadius.circular(radius),
+      return GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          width: actualSize,
+          height: actualSize,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(actualSize / 2),
+            border: isSelected 
+                ? Border.all(
+                    color: const Color(0xFFFF88AA),
+                    width: 3,
+                  )
+                : null,
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFFF88AA).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(actualSize / 2),
+            child: avatarUrl.isNotEmpty
+                ? Image.network(
+                    avatarUrl,
+                    width: actualSize,
+                    height: actualSize,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        defaultAsset,
+                        width: actualSize,
+                        height: actualSize,
+                        fit: BoxFit.cover,
+                      );
+                    },
+                  )
+                : Image.asset(
+                    defaultAsset,
+                    width: actualSize,
+                    height: actualSize,
+                    fit: BoxFit.cover,
+                  ),
+          ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: avatarUrl.isNotEmpty
-              ? Image.network(
-                  avatarUrl,
-                  width: size,
-                  height: size,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      defaultAsset,
-                      width: size,
-                      height: size,
-                      fit: BoxFit.cover,
-                    );
-                  },
-                )
-              : Image.asset(
-                  defaultAsset,
-                  width: size,
-                  height: size,
-                  fit: BoxFit.cover,
-                ),
-        ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -869,12 +906,10 @@ class _OptimizedStopRecordsList extends StatelessWidget {
             itemBuilder: (context, index) {
               final record = records[index];
               final isLast = index == records.length - 1;
-              return RepaintBoundary(
-                child: StopListItem(
-                  record: record,
-                  index: index,
-                  isLast: isLast,
-                ),
+              return StopListItem(
+                record: record,
+                index: index,
+                isLast: isLast,
               );
             },
           ),
@@ -886,9 +921,7 @@ class _OptimizedStopRecordsList extends StatelessWidget {
             final index = entry.key;
             final record = entry.value;
             final isLast = index == records.length - 1;
-            return RepaintBoundary(
-              child: StopListItem(record: record, index: index, isLast: isLast),
-            );
+            return StopListItem(record: record, index: index, isLast: isLast);
           }).toList(),
         );
       }

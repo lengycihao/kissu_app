@@ -103,10 +103,20 @@ class TrackApi {
   }
 
   /// 清空指定用户的缓存
-  static void clearUserCache(String userId) {
-    final keysToRemove = _cache.keys.where((key) => key.startsWith('${userId}_')).toList();
+  static void clearUserCache(String userId, [String? date]) {
+    List<String> keysToRemove;
+    if (date != null) {
+      // 清除指定日期的缓存（包括自己和另一半的数据）
+      keysToRemove = _cache.keys.where((key) => 
+        key.startsWith('${userId}_${date}_')).toList();
+    } else {
+      // 清除所有日期的缓存
+      keysToRemove = _cache.keys.where((key) => key.startsWith('${userId}_')).toList();
+    }
+    
     for (final key in keysToRemove) {
       _cache.remove(key);
+      print('🧹 TrackApi清除缓存: $key');
     }
   }
 

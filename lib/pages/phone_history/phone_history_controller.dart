@@ -395,22 +395,10 @@ class PhoneHistoryController extends GetxController {
     }
   }
 
-  /// 显示绑定弹窗
+  /// 显示绑定弹窗 - 直接跳转到分享页面
   void showBindingDialog() {
-    BindingInputDialog.show(
-      context: pageContext,
-      onConfirm: (code) {
-        // 绑定完成后刷新当前页面数据
-        loadData(isRefresh: true);
-        
-        // 延迟执行导航，确保弹窗完全关闭后再执行
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (Get.context != null) {
-            Get.offAllNamed(KissuRoutePath.home);
-          }
-        });
-      },
-    );
+    // 直接跳转到分享页面，不再显示弹窗
+    Get.toNamed(KissuRoutePath.share);
   }
 
   /// 左滑切换到后一天

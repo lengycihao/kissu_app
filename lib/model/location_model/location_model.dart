@@ -201,13 +201,20 @@ class LocationResponse {
   });
 
   factory LocationResponse.fromJson(Map<String, dynamic> json) {
+    print('🔍 LocationResponse 解析JSON: ${json.keys.toList()}');
+    
     return LocationResponse(
+      // 优先检查标准字段名，如果不存在则尝试其他可能的字段名
       userLocationMobileDevice: json['user_location_mobile_device'] != null
           ? UserLocationMobileDevice.fromJson(json['user_location_mobile_device'])
-          : null,
+          : json['user'] != null
+              ? _createUserLocationFromUserData(json['user'], 1) // isOneself = 1
+              : null,
       halfLocationMobileDevice: json['half_location_mobile_device'] != null
           ? UserLocationMobileDevice.fromJson(json['half_location_mobile_device'])
-          : null,
+          : json['user'] != null
+              ? _createUserLocationFromUserData(json['user'], 0) // isOneself = 0
+              : null,
       locations: json['locations'] != null
           ? (json['locations'] as List)
               .map((i) => TrackLocation.fromJson(i))
@@ -215,6 +222,40 @@ class LocationResponse {
           : null,
       trace: json['trace'] != null ? TraceData.fromJson(json['trace']) : null,
     );
+  }
+
+  /// 从user数据和trace数据创建UserLocationMobileDevice
+  static UserLocationMobileDevice? _createUserLocationFromUserData(
+    Map<String, dynamic> userData, 
+    int isOneself
+  ) {
+    try {
+      print('🔄 从user数据创建UserLocationMobileDevice, isOneself=$isOneself');
+      
+      return UserLocationMobileDevice(
+        isOneself: isOneself,
+        headPortrait: isOneself == 1 
+            ? userData['head_portrait'] 
+            : userData['half_head_portrait'],
+        // 其他字段暂时为空，主要数据从trace中获取
+        power: null,
+        networkName: null,
+        mobileModel: null,
+        isWifi: null,
+        longitude: null,
+        latitude: null,
+        location: null,
+        locationTime: null,
+        speed: null,
+        calculateLocationTime: null,
+        distance: null,
+        stops: null, // stops数据从trace中获取
+        stayCollect: null, // stayCollect数据从trace中获取
+      );
+    } catch (e) {
+      print('❌ 创建UserLocationMobileDevice失败: $e');
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -272,11 +313,13 @@ class TraceData {
   final List<TrackStopPoint> stops;
   final TrackPoint startPoint;
   final TrackPoint endPoint;
+  final StayCollect? stayCollect;  // 🎯 添加统计数据字段
 
   TraceData({
     required this.stops,
     required this.startPoint,
     required this.endPoint,
+    this.stayCollect,
   });
 
   factory TraceData.fromJson(Map<String, dynamic> json) {
@@ -292,6 +335,9 @@ class TraceData {
       endPoint: json['end_point'] != null
           ? TrackPoint.fromJson(json['end_point'])
           : TrackPoint(lat: 0.0, lng: 0.0),
+      stayCollect: json['stay_collect'] != null  // 🎯 解析统计数据
+          ? StayCollect.fromJson(json['stay_collect'])
+          : null,
     );
   }
 
@@ -300,6 +346,7 @@ class TraceData {
       'stops': stops.map((e) => e.toJson()).toList(),
       'start_point': startPoint.toJson(),
       'end_point': endPoint.toJson(),
+      'stay_collect': stayCollect?.toJson(),  // 🎯 序列化统计数据
     };
   }
 }

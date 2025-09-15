@@ -21,6 +21,9 @@ class HomeController extends GetxController {
   // 绑定状态
   var isBound = false.obs;
   
+  // 轮播图当前索引
+  var currentSwiperIndex = 0.obs;
+  
   // 头像信息
   var userAvatar = "assets/kissu_icon.webp".obs;
   var partnerAvatar = "assets/kissu_home_add_avair.webp".obs;
@@ -36,17 +39,56 @@ class HomeController extends GetxController {
     _initializeLocationService();
     loadUserInfo();
   }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // 首页准备完成后，检查并启动定位服务
+    _checkAndStartLocationOnHomePage();
+  }
   
   /// 初始化定位服务
   void _initializeLocationService() {
     try {
       // 获取定位服务实例
       _locationService = SimpleLocationService.instance;
-      
+
       // 只检查权限状态，不自动启动服务
       _checkLocationPermissionStatusOnly();
     } catch (e) {
       debugPrint('初始化定位服务失败: $e');
+    }
+  }
+
+  /// 首页检查并启动定位服务
+  Future<void> _checkAndStartLocationOnHomePage() async {
+    try {
+      debugPrint('🏠 首页检查定位权限和服务状态...');
+
+      // 检查定位权限
+      bool hasPermission = await _locationService.requestLocationPermission();
+
+      if (hasPermission) {
+        // 权限正常，检查定位服务是否已启动
+        if (!_locationService.isLocationEnabled.value) {
+          debugPrint('🏠 首页启动定位服务...');
+          bool started = await _locationService.startLocation();
+
+          if (started) {
+            isLocationServiceStarted.value = true;
+            debugPrint('✅ 首页定位服务启动成功');
+          } else {
+            debugPrint('❌ 首页定位服务启动失败');
+          }
+        } else {
+          debugPrint('✅ 首页定位服务已在运行');
+          isLocationServiceStarted.value = true;
+        }
+      } else {
+        debugPrint('⚠️ 首页定位权限未授予');
+      }
+    } catch (e) {
+      debugPrint('❌ 首页检查定位权限失败: $e');
     }
   }
   
@@ -199,8 +241,8 @@ class HomeController extends GetxController {
         Get.to(() => LocationPage(), binding: LocationBinding());
         break;
       case 1:
-        // 足迹
-        Get.to(() => TrackPage(), binding: TrackBinding());
+        // 地图
+        Get.to(() =>  TrackPage(), binding: TrackBinding());
         break;
       case 2:
         // 用机记录
@@ -238,7 +280,7 @@ class HomeController extends GetxController {
       case 0:
         return "assets/kissu_home_tab_location.webp";
       case 1:
-        return "assets/kissu_home_tab_foot.webp";
+        return "assets/kissu_home_tab_map.webp";
       case 2:
         return "assets/kissu_home_tab_history.webp";
       case 3:
@@ -254,7 +296,7 @@ class HomeController extends GetxController {
       case 0:
         return "assets/kissu_home_tab_locationT.webp";
       case 1:
-        return "assets/kissu_home_tab_footT.webp";
+        return "assets/kissu_home_tab_mapT.webp";
       case 2:
         return "assets/kissu_home_tab_historyT.webp";
       case 3:

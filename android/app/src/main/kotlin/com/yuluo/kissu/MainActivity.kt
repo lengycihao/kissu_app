@@ -496,10 +496,16 @@ class MainActivity : FlutterActivity() {
 
     private fun configPlatforms(qqAppKey: String, qqAppSecret: String, weChatAppId: String, weChatFileProvider: String) {
         try {
-            // 配置QQ平台
+            // 配置QQ平台（同时配置QQ好友和QQ空间）
             if (qqAppKey.isNotEmpty() && qqAppSecret.isNotEmpty()) {
                 PlatformConfig.setQQZone(qqAppKey, qqAppSecret)
+                // QQ好友分享也需要相同的配置
+                // PlatformConfig.setQQ(qqAppKey, qqAppSecret)
+                Log.d("MainActivity", "QQ平台配置成功: appKey=$qqAppKey")
+            } else {
+                Log.w("MainActivity", "QQ平台配置失败: appKey或appSecret为空")
             }
+            
             // 配置微信平台
             if (weChatAppId.isNotEmpty()) {
                 PlatformConfig.setWeixin(weChatAppId, "")
@@ -507,8 +513,12 @@ class MainActivity : FlutterActivity() {
                 if (weChatFileProvider.isNotEmpty()) {
                     PlatformConfig.setWXFileProvider(weChatFileProvider)
                 }
+                Log.d("MainActivity", "微信平台配置成功: appId=$weChatAppId")
+            } else {
+                Log.w("MainActivity", "微信平台配置失败: appId为空")
             }
         } catch (e: Exception) {
+            Log.e("MainActivity", "配置平台失败", e)
             e.printStackTrace()
         }
     }
@@ -538,6 +548,23 @@ class MainActivity : FlutterActivity() {
                 else -> SHARE_MEDIA.WEIXIN
             }
 
+            Log.d("MainActivity", "开始分享到平台: $shareMedia (code: $sharemedia)")
+            Log.d("MainActivity", "分享参数: title=$title, text=$text, weburl=$weburl, img=$img")
+            
+            // 检查平台是否安装
+            val isInstalled = UMShareAPI.get(this).isInstall(this, shareMedia)
+            Log.d("MainActivity", "平台是否安装: $isInstalled")
+            
+            if (!isInstalled) {
+                val platformName = when (sharemedia) {
+                    2, 3 -> "QQ"
+                    0, 1 -> "微信"
+                    else -> "未知平台"
+                }
+                result.success(mapOf("success" to false, "message" to "${platformName}未安装"))
+                return
+            }
+
             val shareAction = ShareAction(this).setPlatform(shareMedia)
 
             // 如果有网页链接，分享网页
@@ -549,30 +576,36 @@ class MainActivity : FlutterActivity() {
                     web.setThumb(UMImage(this, img))
                 }
                 shareAction.withMedia(web)
+                Log.d("MainActivity", "分享网页内容")
             } else {
                 // 分享纯文本
                 shareAction.withText(text)
+                Log.d("MainActivity", "分享纯文本内容")
             }
 
             shareAction.setCallback(object : UMShareListener {
                 override fun onStart(platform: SHARE_MEDIA?) {
-                    // 分享开始
+                    Log.d("MainActivity", "分享开始: platform=$platform")
                 }
 
                 override fun onResult(platform: SHARE_MEDIA?) {
+                    Log.d("MainActivity", "分享成功: platform=$platform")
                     result.success(mapOf("success" to true, "message" to "分享成功"))
                 }
 
                 override fun onError(platform: SHARE_MEDIA?, t: Throwable?) {
+                    Log.e("MainActivity", "分享失败: platform=$platform, error=${t?.message}", t)
                     result.success(mapOf("success" to false, "message" to "分享失败: ${t?.message}"))
                 }
 
                 override fun onCancel(platform: SHARE_MEDIA?) {
+                    Log.d("MainActivity", "分享取消: platform=$platform")
                     result.success(mapOf("success" to false, "message" to "分享取消"))
                 }
             }).share()
 
         } catch (e: Exception) {
+            Log.e("MainActivity", "分享异常", e)
             result.success(mapOf("success" to false, "message" to "分享异常: ${e.message}"))
         }
     }

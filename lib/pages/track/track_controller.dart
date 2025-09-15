@@ -20,6 +20,8 @@ class TrackController extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
   final isOneself = 1.obs;
   
+  /// 移除了自定义图标，直接使用彩色默认标记
+  
   /// 用户信息
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
@@ -61,9 +63,20 @@ class TrackController extends GetxController {
   /// 防抖定时器
   Timer? _debounceTimer;
   
-  /// 数据缓存 - 按日期缓存已加载的数据
-  final Map<String, LocationResponse> _dataCache = {};
+  /// 轨迹数据缓存 - 基于用户ID和日期缓存
+  final Map<String, LocationResponse> _trackDataCache = {};
+  
+  /// 获取缓存键 - 基于用户ID、日期和查看对象
+  String _getCacheKey(DateTime date, int? userId) {
+    final dateKey = DateFormat('yyyy-MM-dd').format(date);
+    return '${userId ?? 'unknown'}_${dateKey}_${isOneself.value}';
+  }
 
+  /// 移除了自定义图标加载功能，直接使用彩色默认标记
+  
+  /// 移除了图标加载函数
+  
+  
   @override
   void onInit() {
     super.onInit();
@@ -75,6 +88,7 @@ class TrackController extends GetxController {
     _loadUserInfo();
     // 请求定位权限并加载初始数据
     _requestLocationPermissionAndLoadData();
+    
   }
   
   /// 请求定位权限并加载数据
@@ -154,15 +168,105 @@ class TrackController extends GetxController {
     zoom: 16.0,
   );
 
+  /// 计算适合所有轨迹点的相机位置
+  CameraPosition? _calculateOptimalCameraPosition() {
+    if (trackPoints.isEmpty) return null;
+    
+    // 计算边界
+    double minLat = trackPoints.first.latitude;
+    double maxLat = trackPoints.first.latitude;
+    double minLng = trackPoints.first.longitude;
+    double maxLng = trackPoints.first.longitude;
+    
+    for (final point in trackPoints) {
+      minLat = minLat < point.latitude ? minLat : point.latitude;
+      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
+      minLng = minLng < point.longitude ? minLng : point.longitude;
+      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
+    }
+    
+    // 添加边距（10%的padding）
+    final latPadding = (maxLat - minLat) * 0.1;
+    final lngPadding = (maxLng - minLng) * 0.1;
+    
+    minLat -= latPadding;
+    maxLat += latPadding;
+    minLng -= lngPadding;
+    maxLng += lngPadding;
+    
+    // 计算中心点
+    final centerLat = (minLat + maxLat) / 2;
+    final centerLng = (minLng + maxLng) / 2;
+    
+    // 计算合适的缩放级别
+    final latDiff = maxLat - minLat;
+    final lngDiff = maxLng - minLng;
+    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+    
+    // 根据距离计算缩放级别
+    double zoom;
+    if (maxDiff < 0.001) {
+      zoom = 18.0; // 非常小的区域
+    } else if (maxDiff < 0.01) {
+      zoom = 16.0; // 小区域
+    } else if (maxDiff < 0.1) {
+      zoom = 14.0; // 中等区域
+    } else if (maxDiff < 0.5) {
+      zoom = 12.0; // 大区域
+    } else {
+      zoom = 10.0; // 很大区域
+    }
+    
+    return CameraPosition(
+      target: LatLng(centerLat, centerLng),
+      zoom: zoom,
+    );
+  }
+
+  /// 自动调整地图视图以显示所有轨迹点
+  Future<void> _fitMapToTrackPoints() async {
+    if (mapController == null || trackPoints.isEmpty) return;
+    
+    final optimalPosition = _calculateOptimalCameraPosition();
+    if (optimalPosition == null) return;
+    
+    try {
+      await mapController!.moveCamera(
+        CameraUpdate.newCameraPosition(optimalPosition),
+      );
+      print('🗺️ 地图已自动调整到最佳视图');
+    } catch (e) {
+      print('❌ 调整地图视图失败: $e');
+    }
+  }
+
   /// 地图创建完成回调
   void onMapCreated(AMapController controller) {
     mapController = controller;
     print('轨迹页面高德地图创建成功');
   }
 
+
   /// 移动地图到指定位置
   void _moveMapToLocation(LatLng location) {
     mapController?.moveCamera(CameraUpdate.newLatLng(location));
+  }
+  
+  /// 移动地图到停留点（公共方法，用于列表点击）
+  void moveToStopPoint(double latitude, double longitude) {
+    final targetLocation = LatLng(latitude, longitude);
+    
+    // 移动地图并调整缩放级别以更好地显示该点
+    mapController?.moveCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: targetLocation,
+          zoom: 17.0, // 使用较高的缩放级别以便更清楚地看到该位置
+        ),
+      ),
+    );
+    
+    print('🗺️ 地图移动到停留点: $latitude, $longitude');
   }
 
   /// 轨迹点（从API数据获取）
@@ -209,17 +313,20 @@ class TrackController extends GetxController {
   Future<void> _performLoadLocationData() async {
     if (isLoading.value) return; // 防止重复加载
     
-    final dateKey = _getDateKey(selectedDate.value);
-    final userKey = '${dateKey}_${isOneself.value}';
-    
-    // 检查缓存中是否有数据
-    if (_dataCache.containsKey(userKey)) {
-      print('📦 使用缓存数据: $userKey');
-      locationData.value = _dataCache[userKey];
-      await _updateTrackDataAsync();
-      _updateStatistics();
-      _updateStopRecords();
-      return;
+    // 检查缓存
+    final currentUser = UserManager.currentUser;
+    if (currentUser?.id != null) {
+      final cacheKey = _getCacheKey(selectedDate.value, currentUser!.id);
+      final cachedData = _trackDataCache[cacheKey];
+      
+      if (cachedData != null) {
+        print('📦 使用缓存数据: $cacheKey');
+        locationData.value = cachedData;
+        _updateStatistics();
+        _updateStopRecords();
+        await _updateTrackDataAsync();
+        return;
+      }
     }
     
     isLoading.value = true;
@@ -227,7 +334,7 @@ class TrackController extends GetxController {
     
     // 检查是否应该使用虚拟数据
     if (!isBindPartner.value) {
-      _loadMockData();
+      await _loadMockData();
       isLoading.value = false;
       return;
     }
@@ -245,13 +352,18 @@ class TrackController extends GetxController {
         isUsingMockData.value = false;
         locationData.value = result.data;
         
-        // 缓存数据
-        _dataCache[userKey] = result.data!;
-        print('💾 数据已缓存: $userKey');
+        // 保存到缓存
+        final currentUser = UserManager.currentUser;
+        if (currentUser?.id != null) {
+          final cacheKey = _getCacheKey(selectedDate.value, currentUser!.id);
+          _trackDataCache[cacheKey] = result.data!;
+          print('💾 数据已缓存: $cacheKey');
+        }
         
-        await _updateTrackDataAsync();
         _updateStatistics();
         _updateStopRecords();
+        await _updateTrackDataAsync();
+        
       } else {
         CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
         _clearData();
@@ -312,23 +424,37 @@ class TrackController extends GetxController {
 
   /// 异步更新轨迹数据 - 优化性能
   Future<void> _updateTrackDataAsync() async {
-    if (locationData.value == null) return;
+    if (locationData.value == null) {
+      print('❌ 位置数据为空，无法更新轨迹');
+      return;
+    }
     
     final data = locationData.value!;
+    print('🔄 更新轨迹数据: isOneself=${isOneself.value}, 位置点=${data.locations?.length ?? 0}个');
     
     // 在后台线程处理数据以避免阻塞UI
     final rawPoints = await compute(_processLocationData, data.locations ?? []);
     
     // 对轨迹点进行平滑处理
     trackPoints.value = _smoothTrackPoints(rawPoints);
+    print('📍 轨迹点数量: ${trackPoints.length}');
     
     // 过滤停留点
     stopPoints.value = data.trace?.stops
         .where((stop) => stop.lat != 0.0 && stop.lng != 0.0)
         .toList() ?? [];
+    print('📍 停留点数量: ${stopPoints.length}');
     
-    // 更新停留点markers
-    _updateStayMarkers();
+    // 更新停留点标记
+    try {
+      await _safeUpdateStayMarkers();
+    } catch (e) {
+      print('❌ 更新停留点标记失败: $e');
+      // 即使失败也继续执行，避免阻塞整个流程
+    }
+    
+    // 自动调整地图视图以显示所有轨迹点
+    await _fitMapToTrackPoints();
     
     // 移动地图
     if (trackPoints.isNotEmpty) {
@@ -350,32 +476,161 @@ class TrackController extends GetxController {
 
   /// 更新统计数据
   void _updateStatistics() {
-    if (locationData.value == null) return;
+    if (locationData.value == null) {
+      print('❌ locationData为空，无法更新统计数据');
+      return;
+    }
     
-    final stayCollect = locationData.value!.userLocationMobileDevice?.stayCollect;
-    stayCount.value = stayCollect?.stayCount ?? 0;
-    stayDuration.value = stayCollect?.stayTime ?? '';
-    moveDistance.value = stayCollect?.moveDistance ?? '';
+    print('🔍 开始更新统计数据');
+    
+    // 🎯 优先从 trace.stay_collect 获取统计数据（根据实际JSON结构）
+    final traceStayCollect = locationData.value!.trace?.stayCollect;
+    if (traceStayCollect != null) {
+      print('✅ 使用trace.stay_collect的统计数据 (主要数据源)');
+      stayCount.value = traceStayCollect.stayCount ?? 0;
+      stayDuration.value = traceStayCollect.stayTime ?? '';
+      moveDistance.value = traceStayCollect.moveDistance ?? '';
+      print('📊 统计数据: 停留次数=${stayCount.value}, 停留时间=${stayDuration.value}, 移动距离=${moveDistance.value}');
+      return;
+    }
+    
+    print('📊 userLocationMobileDevice存在: ${locationData.value!.userLocationMobileDevice != null}');
+    
+    final userDevice = locationData.value!.userLocationMobileDevice;
+    if (userDevice == null) {
+      print('⚠️ userLocationMobileDevice为空，检查API数据结构');
+      print('📊 halfLocationMobileDevice存在: ${locationData.value!.halfLocationMobileDevice != null}');
+      
+      // 尝试使用halfLocationMobileDevice（查看另一半时）
+      final halfDevice = locationData.value!.halfLocationMobileDevice;
+      final stayCollect = halfDevice?.stayCollect;
+      
+      if (stayCollect != null) {
+        print('✅ 使用halfLocationMobileDevice的统计数据 (备用数据源)');
+        stayCount.value = stayCollect.stayCount ?? 0;
+        stayDuration.value = stayCollect.stayTime ?? '';
+        moveDistance.value = stayCollect.moveDistance ?? '';
+        print('📊 统计数据: 停留次数=${stayCount.value}, 停留时间=${stayDuration.value}, 移动距离=${moveDistance.value}');
+      } else {
+        print('⚠️ 所有数据源的stayCollect都为空');
+        stayCount.value = 0;
+        stayDuration.value = '';
+        moveDistance.value = '';
+      }
+      return;
+    }
+    
+    final stayCollect = userDevice.stayCollect;
+    print('📊 stayCollect存在: ${stayCollect != null}');
+    
+    if (stayCollect != null) {
+      print('📋 stayCollect数据: ${stayCollect.toJson()}');
+      stayCount.value = stayCollect.stayCount ?? 0;
+      stayDuration.value = stayCollect.stayTime ?? '';
+      moveDistance.value = stayCollect.moveDistance ?? '';
+      print('📊 统计数据更新: 停留次数=${stayCount.value}, 停留时间=${stayDuration.value}, 移动距离=${moveDistance.value}');
+    } else {
+      print('⚠️ stayCollect为空');
+      stayCount.value = 0;
+      stayDuration.value = '';
+      moveDistance.value = '';
+    }
   }
 
   /// 更新停留记录列表
   void _updateStopRecords() {
-    if (locationData.value == null) return;
+    if (locationData.value == null) {
+      print('❌ locationData为空，无法更新停留记录');
+      return;
+    }
     
-    final stops = locationData.value!.trace?.stops ?? [];
+    print('🔍 开始更新停留记录列表');
+    print('📊 locationData存在: ${locationData.value != null}');
+    
+    // 检查各种数据源
+    final userStops = locationData.value!.userLocationMobileDevice?.stops ?? [];
+    final halfStops = locationData.value!.halfLocationMobileDevice?.stops ?? [];
+    final traceStops = locationData.value!.trace?.stops ?? [];
+    
+    print('📊 userDevice.stops数量: ${userStops.length}');
+    print('📊 halfDevice.stops数量: ${halfStops.length}');
+    print('📊 🎯 trace.stops数量: ${traceStops.length} (主要数据源)');
+    print('📊 trace存在: ${locationData.value!.trace != null}');
+    
+    List<dynamic> stops = [];
+    String dataSource = '';
+    
+    // 🎯 根据实际JSON结构，优先使用 trace.stops
+    if (traceStops.isNotEmpty) {
+      stops = traceStops.map((stop) => {
+        'lat': stop.lat,
+        'lng': stop.lng,
+        'location_name': stop.locationName,
+        'start_time': stop.startTime,
+        'end_time': stop.endTime,
+        'duration': stop.duration,
+        'status': stop.status,
+        'point_type': stop.pointType,
+        'serial_number': stop.serialNumber,
+      }).toList();
+      dataSource = 'trace.stops (主要数据源)';
+    } else if (userStops.isNotEmpty) {
+      stops = userStops.map((stop) => {
+        'lat': double.tryParse(stop.latitude ?? '0') ?? 0.0,
+        'lng': double.tryParse(stop.longitude ?? '0') ?? 0.0,
+        'location_name': stop.locationName,
+        'start_time': stop.startTime,
+        'end_time': stop.endTime,
+        'duration': stop.duration,
+        'status': stop.status,
+        'point_type': stop.pointType,
+        'serial_number': stop.serialNumber,
+      }).toList();
+      dataSource = 'userDevice.stops (备用数据源)';
+    } else if (halfStops.isNotEmpty) {
+      stops = halfStops.map((stop) => {
+        'lat': double.tryParse(stop.latitude ?? '0') ?? 0.0,
+        'lng': double.tryParse(stop.longitude ?? '0') ?? 0.0,
+        'location_name': stop.locationName,
+        'start_time': stop.startTime,
+        'end_time': stop.endTime,
+        'duration': stop.duration,
+        'status': stop.status,
+        'point_type': stop.pointType,
+        'serial_number': stop.serialNumber,
+      }).toList();
+      dataSource = 'halfDevice.stops';
+    }
+    
+    print('📊 使用数据源: $dataSource, 停留点数量: ${stops.length}');
+    
+    if (stops.isEmpty) {
+      print('⚠️ 所有数据源的stops都为空，检查API数据结构');
+      print('📋 完整locationData结构: ${locationData.value!.toJson()}');
+    } else {
+      print('📋 第一个stop数据: ${stops.first}');
+    }
+    
     stopRecords.value = stops.map((stop) {
-      return StopRecord(
-        latitude: stop.lat,
-        longitude: stop.lng,
-        locationName: stop.locationName ?? '',
-        startTime: stop.startTime ?? '',
-        endTime: (stop.endTime?.isNotEmpty == true) ? stop.endTime! : (stop.startTime ?? ''), // 如果endTime为空，使用startTime
-        duration: stop.duration ?? '',
-        status: stop.status ?? '',
-        pointType: stop.pointType ?? '', // 需要确保API数据包含这个字段
-        serialNumber: stop.serialNumber ?? '', // 需要确保API数据包含这个字段
+      final record = StopRecord(
+        latitude: stop['lat'] is double ? stop['lat'] : (stop['lat'] is String ? double.tryParse(stop['lat']) ?? 0.0 : 0.0),
+        longitude: stop['lng'] is double ? stop['lng'] : (stop['lng'] is String ? double.tryParse(stop['lng']) ?? 0.0 : 0.0),
+        locationName: stop['location_name']?.toString() ?? '',
+        startTime: stop['start_time']?.toString() ?? '',
+        endTime: (stop['end_time']?.toString().isNotEmpty == true) ? stop['end_time'].toString() : (stop['start_time']?.toString() ?? ''),
+        duration: stop['duration']?.toString() ?? '',
+        status: stop['status']?.toString() ?? '',
+        pointType: stop['point_type']?.toString() ?? '',
+        serialNumber: stop['serial_number']?.toString() ?? '',
       );
+      print('📍 转换停留记录: ${record.locationName}, 时间: ${record.time}, 时长: ${record.stayDuration}');
+      return record;
     }).toList();
+    
+    print('✅ 停留记录更新完成，总数量: ${stopRecords.length}');
+    if (stopRecords.isNotEmpty) {
+      print('📋 第一条记录详情: 位置=${stopRecords.first.locationName}, 时间=${stopRecords.first.time}');
+    }
   }
 
   /// 当没有有效轨迹点时，尝试移动到起点或终点
@@ -406,157 +661,323 @@ class TrackController extends GetxController {
   /// 切换查看用户（自己/另一半）
   void switchUser() {
     isOneself.value = isOneself.value == 1 ? 0 : 1;
-    // 切换用户时不需要清理缓存，因为缓存是按用户分别存储的
+    // 切换用户时，缓存是按用户和日期分别存储的，会自动加载对应用户的缓存数据
     loadLocationData();
   }
   
-  /// 清理缓存数据
-  void clearCache() {
-    _dataCache.clear();
-    print('🗑️ 已清理所有缓存数据');
+  /// 强制刷新当前用户数据（用于头像点击）
+  void refreshCurrentUserData() {
+    print('🔄 刷新用户数据: isOneself=${isOneself.value}');
+    
+    // 清除当前选择日期的所有相关缓存，包括两个用户的数据
+    final currentUser = UserManager.currentUser;
+    if (currentUser?.id != null) {
+      // 清除两个用户的缓存（isOneself=0和isOneself=1）
+      final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+      final cacheKey0 = '${currentUser!.id}_${dateKey}_0';
+      final cacheKey1 = '${currentUser.id}_${dateKey}_1';
+      
+      _trackDataCache.remove(cacheKey0);
+      _trackDataCache.remove(cacheKey1);
+      print('🧹 清除缓存: $cacheKey0, $cacheKey1');
+      
+      // 同时清除TrackApi中的缓存
+      TrackApi.clearUserCache(currentUser.id.toString(), dateKey);
+    }
+    
+    // 先停止播放和清理状态
+    _resetReplayState();
+    
+    // 清空当前数据，确保UI立即更新
+    _clearData();
+    
+    // 延迟一小段时间确保状态清理完成，然后重新加载数据
+    Future.delayed(const Duration(milliseconds: 100), () {
+      loadLocationData().then((_) {
+        // 数据加载完成后自动调整地图视图
+        _fitMapToTrackPoints();
+      });
+    });
   }
   
-  /// 清理指定日期的缓存
-  void clearDateCache(DateTime date) {
-    final dateKey = _getDateKey(date);
-    final keysToRemove = _dataCache.keys.where((key) => key.startsWith(dateKey)).toList();
-    for (final key in keysToRemove) {
-      _dataCache.remove(key);
-    }
-    print('🗑️ 已清理日期缓存: $dateKey');
-  }
+  // 移除所有缓存相关方法
 
   /// 执行绑定操作 - 显示绑定输入弹窗
   void performBindAction() {
-    DialogManager.showBindingInput(
-      title: "",
-      context: Get.context!,
-      onConfirm: (code) {
-        // 绑定完成后会自动刷新数据，这里不需要额外操作
-        // 因为BindingInputDialog内部已经会调用UserManager.refreshUserInfo()
-        // 并且会更新各个页面的数据
-        _loadUserInfo(); // 重新加载用户信息更新绑定状态
+    Get.toNamed(KissuRoutePath.share);
+    // DialogManager.showBindingInput(
+    //   title: "",
+    //   context: Get.context!,
+    //   onConfirm: (code) {
+    //     // 绑定完成后会自动刷新数据，这里不需要额外操作
+    //     // 因为BindingInputDialog内部已经会调用UserManager.refreshUserInfo()
+    //     // 并且会更新各个页面的数据
+    //     _loadUserInfo(); // 重新加载用户信息更新绑定状态
         
-        // 延迟执行导航，确保弹窗完全关闭后再执行
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (Get.context != null) {
-            Get.offAllNamed(KissuRoutePath.home);
-          }
-        });
-      },
-    );
+    //     // 延迟执行导航，确保弹窗完全关闭后再执行
+    //     Future.delayed(const Duration(milliseconds: 300), () {
+    //       if (Get.context != null) {
+    //         Get.offAllNamed(KissuRoutePath.home);
+    //       }
+    //     });
+    //   },
+    // );
   }
 
   /// 选择日期
   void selectDate(DateTime date) {
     selectedDate.value = date;
     
-    // 如果是今天，每次都刷新数据（因为可能有新的位置数据）
-    final today = DateTime.now();
-    final isToday = date.year == today.year && 
-                   date.month == today.month && 
-                   date.day == today.day;
-    
-    if (isToday) {
-      // 清除今天的缓存，强制刷新
-      final dateKey = _getDateKey(date);
-      final userKey = '${dateKey}_${isOneself.value}';
-      _dataCache.remove(userKey);
-      print('🔄 今天数据，清除缓存强制刷新: $userKey');
-    }
+    print('🔄 选择日期: ${DateFormat('yyyy-MM-dd').format(date)}, 检查缓存或加载数据');
     
     loadLocationData();
   }
   
-  /// 获取日期字符串键
-  String _getDateKey(DateTime date) {
-    return DateFormat('yyyy-MM-dd').format(date);
+  /// 清除所有轨迹数据缓存
+  void clearTrackDataCache() {
+    _trackDataCache.clear();
+    print('🧹 轨迹数据缓存已清除');
+  }
+  
+  /// 清除特定用户的轨迹数据缓存
+  void clearUserTrackDataCache(int userId) {
+    final keysToRemove = _trackDataCache.keys.where((key) => key.startsWith('${userId}_')).toList();
+    for (final key in keysToRemove) {
+      _trackDataCache.remove(key);
+    }
+    print('🧹 用户 $userId 的轨迹数据缓存已清除');
   }
 
-  /// 更新停留点markers
-  void _updateStayMarkers() {
-    // TODO: 需要重新实现高德地图的Marker格式
+  /// 安全地更新停留点 markers
+  Future<void> _safeUpdateStayMarkers() async {
+    print('🔄 更新停留点 markers...');
+    await _updateStayMarkersWithIcons();
+  }
+
+  /// 更新停留点 markers（优先使用自定义图标，失败时使用彩色默认图标）
+  Future<void> _updateStayMarkersWithIcons() async {
     stayMarkers.clear();
-    /*
-    stayMarkers.value = stopPoints.asMap().entries.map((entry) {
-      final index = entry.key;
-      final stop = entry.value;
-      final stopIndex = index + 1;
-      final isStartPoint = index == 0;
-      final isEndPoint = index == stopPoints.length - 1;
+    
+    if (stopPoints.isEmpty) {
+      print('📍 没有停留点数据');
+      return;
+    }
+    
+    print('📍 创建停留点标记: ${stopPoints.length}个点');
+    
+    // 尝试使用自定义图标，如果不可用则使用彩色默认图标
+    
+    try {
+      final List<Marker> tempMarkers = [];
       
-      return Marker(
-        position: LatLng(stop.lat, stop.lng),
-        icon: BitmapDescriptor.defaultMarker,
-      );
-    }).toList();
-    */
+      for (int i = 0; i < stopPoints.length; i++) {
+        final stop = stopPoints[i];
+        
+        // 根据 pointType 和 serialNumber 判断点的类型
+        bool isStartPoint = stop.pointType == 'start' || stop.serialNumber == '起';
+        bool isEndPoint = stop.pointType == 'end' || stop.serialNumber == '终';
+        
+        try {
+          // 安全创建标记，避免FlutterLoader空指针异常
+          String title;
+          BitmapDescriptor? icon;
+          
+          if (isStartPoint) {
+            title = '起点';
+          } else if (isEndPoint) {
+            title = '终点';
+          } else {
+            title = '停留点 ${stop.serialNumber ?? (i + 1).toString()}';
+          }
+          
+          // 延迟创建BitmapDescriptor，在try-catch中处理可能的异常
+          try {
+            // 等待一小段时间确保Flutter引擎初始化完成
+            await Future.delayed(Duration(milliseconds: 10));
+            
+            if (isStartPoint) {
+              icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+            } else if (isEndPoint) {
+              icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+            } else {
+              icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+            }
+          } catch (iconError) {
+            print('⚠️ BitmapDescriptor创建失败，使用默认标记: $iconError');
+            icon = null; // 使用系统默认标记
+          }
+          
+          // 创建标记，根据icon是否可用决定是否设置
+          final marker = icon != null 
+            ? Marker(
+                position: LatLng(stop.lat, stop.lng),
+                icon: icon,
+                infoWindow: InfoWindow(
+                  title: title,
+                  snippet: '${stop.locationName ?? '未知位置'}\n${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}',
+                ),
+                onTap: (String markerId) {
+                  print('点击了停留点: $title - ${stop.locationName}');
+                  // 点击标记时，可以跳转到对应的轨迹回放位置
+                  if (trackPoints.isNotEmpty) {
+                    _moveMapToLocation(LatLng(stop.lat, stop.lng));
+                  }
+                },
+              )
+            : Marker(
+                position: LatLng(stop.lat, stop.lng),
+                infoWindow: InfoWindow(
+                  title: title,
+                  snippet: '${stop.locationName ?? '未知位置'}\n${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}',
+                ),
+                onTap: (String markerId) {
+                  print('点击了停留点: $title - ${stop.locationName}');
+                  // 点击标记时，可以跳转到对应的轨迹回放位置
+                  if (trackPoints.isNotEmpty) {
+                    _moveMapToLocation(LatLng(stop.lat, stop.lng));
+                  }
+                },
+              );
+          
+          tempMarkers.add(marker);
+          print('✅ 停留点 $i ($title) 标记创建成功');
+        } catch (e) {
+          print('❌ 停留点 $i 标记创建失败: $e，尝试降级方案');
+          // 降级方案：使用最基本的标记（完全不设置图标）
+          try {
+            String title;
+            if (isStartPoint) {
+              title = '起点';
+            } else if (isEndPoint) {
+              title = '终点';
+            } else {
+              title = '停留点 ${stop.serialNumber ?? (i + 1).toString()}';
+            }
+            
+            final fallbackMarker = Marker(
+              position: LatLng(stop.lat, stop.lng),
+              // 完全不设置icon，让系统使用最基础的默认标记
+              infoWindow: InfoWindow(
+                title: title,
+                snippet: '${stop.locationName ?? '未知位置'}\n${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}',
+              ),
+              onTap: (String markerId) {
+                print('点击了停留点: $title - ${stop.locationName}');
+                if (trackPoints.isNotEmpty) {
+                  _moveMapToLocation(LatLng(stop.lat, stop.lng));
+                }
+              },
+            );
+            
+            tempMarkers.add(fallbackMarker);
+            print('✅ 停留点 $i ($title) 降级标记创建成功');
+          } catch (fallbackError) {
+            print('❌ 停留点 $i 降级方案也失败: $fallbackError，跳过此点');
+            continue;
+          }
+        }
+      }
+      
+      // 如果至少有一个标记创建成功，就更新列表
+      if (tempMarkers.isNotEmpty) {
+        stayMarkers.addAll(tempMarkers);
+        print('✅ 更新停留点标记成功: ${stayMarkers.length}个');
+      } else {
+        print('❌ 没有成功创建任何停留点标记');
+      }
+    } catch (e) {
+      print('❌ 停留点标记更新过程失败: $e');
+      
+      // 最后的降级方案：创建一个基础彩色标记
+      try {
+        if (stopPoints.isNotEmpty) {
+          stayMarkers.add(Marker(
+            position: LatLng(stopPoints.first.lat, stopPoints.first.lng),
+            // 使用彩色默认图标
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            infoWindow: InfoWindow(
+              title: '位置点',
+              snippet: stopPoints.first.locationName ?? '未知位置',
+            ),
+          ));
+          print('✅ 降级方案：成功创建彩色标记');
+        }
+      } catch (fallbackError) {
+        print('❌ 降级方案也失败: $fallbackError');
+        // 完全放弃添加标记点，避免崩溃
+      }
+    }
   }
 
-  /// 构建停留点标记
-  Widget _buildStopMarker(int index, bool isStartPoint, bool isEndPoint) {
-    // 如果是起点或终点，使用特殊图标
-    if (isStartPoint) {
-      return Image.asset(
-        'assets/kissu_location_start.webp',
-        width: 46,
-        height: 46,
-        fit: BoxFit.contain,
-      );
-    }
-    
-    if (isEndPoint) {
-      return Image.asset(
-        'assets/kissu_location_end.webp',
-        width: 46,
-        height: 46,
-        fit: BoxFit.contain,
-      );
-    }
-    
-    // 普通停留点，根据性别设置颜色
-    final markerColor = isOneself.value == 1 
-        ? const Color(0xFF3B96FF)  // 男性蓝色
-        : const Color(0xFFFF88AA); // 女性粉色
-    
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: markerColor,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2), // 白色边框
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        '$index',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 10,
-        ),
-      ),
-    );
-  }
 
   /// 获取当前所有 markers
-  List<Marker> get allMarkers {
-    final markers = List<Marker>.from(stayMarkers);
+  Future<List<Marker>> get allMarkers async {
+    final markers = <Marker>[];
+    
+    // 安全地添加停留点标记
+    try {
+      markers.addAll(stayMarkers);
+    } catch (e) {
+      print('❌ 获取停留点标记失败: $e');
+    }
+    
     if (currentPosition.value != null) {
-      // 创建一个新的 marker 在当前位置
-      markers.add(
-        Marker(
-          position: currentPosition.value!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        ),
-      );
+      try {
+        // 安全创建当前位置标记
+        BitmapDescriptor? icon;
+        try {
+          // 尝试创建彩色标记
+          icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+        } catch (iconError) {
+          print('⚠️ 当前位置标记图标创建失败，使用默认标记: $iconError');
+          icon = null; // 使用系统默认标记
+        }
+        
+        // 根据icon是否可用决定如何创建标记
+        final currentMarker = icon != null
+          ? Marker(
+              position: currentPosition.value!,
+              icon: icon,
+              infoWindow: InfoWindow(
+                title: '当前位置',
+                snippet: '轨迹回放当前位置',
+              ),
+              onTap: (String markerId) {
+                print('点击了当前位置: $markerId');
+              },
+            )
+          : Marker(
+              position: currentPosition.value!,
+              infoWindow: InfoWindow(
+                title: '当前位置',
+                snippet: '轨迹回放当前位置',
+              ),
+              onTap: (String markerId) {
+                print('点击了当前位置: $markerId');
+              },
+            );
+        
+        markers.add(currentMarker);
+      } catch (e) {
+        print('❌ 创建当前位置标记失败: $e');
+        // 降级：使用无图标的简单标记
+        try {
+          markers.add(
+            Marker(
+              position: currentPosition.value!,
+              infoWindow: InfoWindow(
+                title: '当前位置',
+                snippet: '轨迹回放当前位置',
+              ),
+              onTap: (String markerId) {
+                print('点击了当前位置: $markerId');
+              },
+            ),
+          );
+        } catch (fallbackError) {
+          print('❌ 简单当前位置标记也失败: $fallbackError');
+        }
+      }
     }
     return markers;
   }
@@ -726,8 +1147,8 @@ class TrackController extends GetxController {
     _updateReplayStatus();
 
     _replayTimer?.cancel();
-    // 根据播放速度调整定时器间隔
-    final intervalMs = (50 / replaySpeed.value).round();
+    // 根据播放速度调整定时器间隔，使动画更流畅
+    final intervalMs = (30 / replaySpeed.value).round(); // 从50ms改为30ms，让动画更流畅
     _replayTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
       // 检查轨迹点是否仍然有效
       if (trackPoints.isEmpty) {
@@ -750,15 +1171,20 @@ class TrackController extends GetxController {
         // 计算插值进度，避免除零
         final progress = animationSteps > 0 ? _currentStep / animationSteps : 0.0;
 
+        // 使用平滑插值算法，让动画更自然
+        final smoothProgress = _applySmoothEasing(progress.clamp(0.0, 1.0));
+
         // 更新当前位置（插值）
         currentPosition.value = _interpolatePosition(
           startPoint,
           endPoint,
-          progress.clamp(0.0, 1.0),
+          smoothProgress,
         );
 
-        // 平滑移动地图视角
-        _moveMapToLocation(currentPosition.value!);
+        // 平滑移动地图视角，添加一些延迟避免过于频繁
+        if (_currentStep % 3 == 0) { // 每3步更新一次地图位置
+          _moveMapToLocation(currentPosition.value!);
+        }
 
         _currentStep++;
 
@@ -769,13 +1195,53 @@ class TrackController extends GetxController {
           // 更新累计距离和播放状态
           _cumulativeDistance = _calculateCumulativeDistance(0, currentReplayIndex.value);
           _updateReplayStatus();
+          
+          // 检查是否经过停留点，给予提示
+          _checkPassingStopPoint(currentReplayIndex.value);
         }
       } else {
         // 到达终点
         currentPosition.value = trackPoints.last;
+        _showReplayCompleteMessage();
         stopReplay();
       }
     });
+  }
+  
+  /// 应用平滑缓动函数，让动画更自然
+  double _applySmoothEasing(double t) {
+    // 使用ease-in-out缓动函数
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+  
+  /// 检查是否经过停留点
+  void _checkPassingStopPoint(int currentIndex) {
+    if (currentIndex >= trackPoints.length || stopPoints.isEmpty) return;
+    
+    final currentPos = trackPoints[currentIndex];
+    
+    // 检查当前位置是否靠近任何停留点
+    for (final stop in stopPoints) {
+      final distance = _calculateDistance(
+        currentPos, 
+        LatLng(stop.lat, stop.lng)
+      );
+      
+      // 如果距离小于50米，认为经过了停留点
+      if (distance < 50) {
+        print('🚩 经过停留点: ${stop.locationName}');
+        // 可以在这里添加UI提示，比如闪烁标记点或显示toast
+        break;
+      }
+    }
+  }
+  
+  /// 显示回放完成消息
+  void _showReplayCompleteMessage() {
+    CustomToast.show(
+      Get.context!, 
+      '轨迹回放完成！总距离：${moveDistance.value}，总停留：${stayDuration.value}'
+    );
   }
 
   /// 暂停
@@ -835,14 +1301,16 @@ class TrackController extends GetxController {
   }
 
   /// 加载虚拟数据
-  void _loadMockData() {
+  Future<void> _loadMockData() async {
     isUsingMockData.value = true;
+    print('🎭 加载虚拟数据: isOneself=${isOneself.value}');
     
     // 生成基于日期的虚拟数据
     final mockData = _generateMockDataForDate(selectedDate.value);
     
     // 设置虚拟轨迹点
     trackPoints.value = mockData['trackPoints'];
+    print('🎭 虚拟轨迹点数量: ${trackPoints.length}');
     
     // 设置虚拟停留记录
     stopRecords.value = mockData['stopRecords'];
@@ -857,9 +1325,15 @@ class TrackController extends GetxController {
       locationName: record.locationName,
       status: record.status,
     )).toList();
+    print('🎭 虚拟停留点数量: ${stopPoints.length}');
     
     // 更新停留点markers
-    _updateStayMarkers();
+    try {
+      await _safeUpdateStayMarkers();
+    } catch (e) {
+      print('❌ 虚拟数据更新停留点标记失败: $e');
+      // 即使失败也继续执行，避免阻塞整个流程
+    }
     
     // 设置虚拟统计数据
     stayCount.value = mockData['stayCount'];
@@ -972,6 +1446,8 @@ class TrackController extends GetxController {
 
   @override
   void onClose() {
+    print('🧹 开始清理轨迹页面资源和缓存...');
+    
     // 清理所有定时器和资源
     _replayTimer?.cancel();
     _replayTimer = null;
@@ -987,6 +1463,25 @@ class TrackController extends GetxController {
     stayMarkers.clear();
     stopRecords.clear();
     
+    // 页面销毁时保留缓存，缓存将在用户退出登录时清除
+    
+    // 重置所有状态
+    isLoading.value = false;
+    isReplaying.value = false;
+    showFullPlayer.value = false;
+    currentReplayIndex.value = 0;
+    replaySpeed.value = 1.0;
+    animationProgress.value = 0.0;
+    currentPosition.value = null;
+    
+    // 重置统计数据
+    stayCount.value = 0;
+    stayDuration.value = "";
+    moveDistance.value = "";
+    replayDistance.value = "0.00km";
+    replayTime.value = "00:00:00";
+    
+    print('✅ 轨迹页面资源清理完成');
     super.onClose();
   }
 }

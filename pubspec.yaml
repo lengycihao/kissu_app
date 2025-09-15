@@ -59,9 +59,8 @@ dependencies:
   chewie: ^1.8.3
   fluwx: ^5.7.2  # 微信支付
   tobias: ^3.1.0  # 支付宝支付
-  amap_map: ^1.0.15  # 高德地图SDK
+  amap_map: ^1.0.15  # 高德地图Flutter插件
   amap_flutter_location: ^3.0.0  # 高德定位SDK
-  x_amap_base: ^1.0.3  # 高德地图基础包
   jpush_flutter: 3.3.6
   oktoast: ^3.3.1  # Toast插件
   webview_flutter: ^4.4.2  # WebView插件
@@ -71,6 +70,7 @@ dependencies:
   connectivity_plus: ^6.0.5  # 网络状态监听
   battery_plus: ^7.0.0  # 电池状态监听
   network_info_plus: ^6.1.0  # 网络信息获取（包括WiFi SSID）
+  card_swiper: ^3.0.1
 
 dev_dependencies:
   flutter_test:

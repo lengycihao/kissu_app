@@ -5,6 +5,7 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
+import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 
 /// 全局用户数据管理工具类
@@ -106,6 +107,7 @@ class UserManager {
     // 清除缓存
     clearPhoneHistoryCache();
     clearLocationCache();
+    clearTrackDataCache();
     
     await _authService.logout();
   }
@@ -118,6 +120,7 @@ class UserManager {
     // 清除缓存
     clearPhoneHistoryCache();
     clearLocationCache();
+    clearTrackDataCache();
     
     // 清除协议同意状态（注销时需要重新同意协议）
     await LoginController.clearAgreementStatus();
@@ -134,6 +137,20 @@ class UserManager {
   /// 清除当前用户的位置数据缓存
   static void clearLocationCache() {
     TrackApi.clearCurrentUserCache();
+  }
+
+  /// 清除轨迹数据缓存
+  static void clearTrackDataCache() {
+    try {
+      // 尝试获取TrackController实例并清除缓存
+      if (Get.isRegistered<TrackController>()) {
+        final trackController = Get.find<TrackController>();
+        trackController.clearTrackDataCache();
+      }
+    } catch (e) {
+      // 如果TrackController未注册或出错，忽略错误
+      print('🔧 UserManager: 清除轨迹缓存失败（可能控制器未初始化）: $e');
+    }
   }
 
   /// 停止定位服务

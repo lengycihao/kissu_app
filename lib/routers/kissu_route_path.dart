@@ -13,4 +13,8 @@ class KissuRoutePath {
   static const qrScanPage = '/kisssu_app/qr_scan';
   static const locationExample = '/kisssu_app/location_example';
   static const sensitiveDataTest = '/kisssu_app/sensitive_data_test';
+  static const testLocationNow = '/kisssu_app/test_location_now';
+  static const quickLocationTest = '/kisssu_app/quick_location_test';
+  static const testMapMarkers = '/kisssu_app/test_map_markers';
+  static const simpleMarkerTest = '/kisssu_app/simple_marker_test';
 }

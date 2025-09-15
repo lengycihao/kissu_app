@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:amap_map/amap_map.dart';
+import 'package:x_amap_base/x_amap_base.dart';
+import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:kissu_app/network/example/http_manager_example.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
@@ -12,14 +15,13 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/location_permission_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
-import 'package:amap_flutter_location/amap_flutter_location.dart';
-import 'package:amap_map/amap_map.dart';
-import 'package:x_amap_base/x_amap_base.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:oktoast/oktoast.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 确保Flutter绑定初始化
@@ -83,8 +85,21 @@ void main() async {
     print('权限状态管理服务初始化完成');
     
     // 步骤9: 初始化定位服务
-    Get.put(SimpleLocationService(), permanent: true);
-    print('定位服务初始化完成');
+    try {
+      final locationService = SimpleLocationService();
+      locationService.init(); // 关键：立即调用init方法设置API Key和隐私合规
+      Get.put(locationService, permanent: true);
+      print('定位服务初始化完成');
+    } catch (e) {
+      print('定位服务初始化失败: $e');
+    }
+
+    // 步骤9.1: 应用启动时检测和申请定位权限
+    try {
+      await _checkAndRequestLocationPermission();
+    } catch (e) {
+      print('❌ 应用启动时检测定位权限失败: $e');
+    }
     
     // 步骤10: 初始化定位权限服务
     Get.put(LocationPermissionService(), permanent: true);
@@ -123,6 +138,17 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    // 安全地初始化高德地图
+    try {
+      AMapInitializer.init(context, apiKey: const AMapApiKey(
+        androidKey: '38edb925a25f22e3aae2f86ce7f2ff3b',
+        iosKey: '38edb925a25f22e3aae2f86ce7f2ff3b',
+      ));
+      print('高德地图初始化成功');
+    } catch (e) {
+      print('高德地图初始化失败: $e');
+    }
+    
     return GetMaterialApp(
       title: 'Kissu App',
       theme: ThemeData(
@@ -151,6 +177,12 @@ class MyApp extends StatelessWidget {
   /// 根据登录状态确定初始路由
   String _getInitialRoute() {
     try {
+      // 确保服务定位器已初始化
+      if (!getIt.isRegistered<AuthService>()) {
+        print('AuthService 尚未注册，默认进入登录页');
+        return KissuRoutePath.login;
+      }
+      
       final authService = getIt<AuthService>();
       // 检查用户是否已登录且有有效token
       if (authService.isLoggedIn && authService.userToken?.isNotEmpty == true) {
@@ -161,7 +193,7 @@ class MyApp extends StatelessWidget {
           return KissuRoutePath.infoSetting;
         } else {
           // 已登录且信息完善，直接进入首页
-          print('用户已登录，进入首页: ${authService.userNickname}');
+          print('用户已登录，进入首页: ${authService.userNickname ?? "未知用户"}');
           return KissuRoutePath.home;
         }
       } else {
@@ -174,5 +206,98 @@ class MyApp extends StatelessWidget {
       print('检查登录状态时发生错误: $e，默认进入登录页');
       return KissuRoutePath.login;
     }
+  }
+}
+
+/// 检测和申请定位权限
+Future<void> _checkAndRequestLocationPermission() async {
+  try {
+    print('🔐 应用启动检测定位权限...');
+
+    // 检查是否首次启动
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
+
+    if (isFirstLaunch) {
+      // 首次启动，标记已启动并申请权限
+      await prefs.setBool('is_first_launch', false);
+      print('🆕 检测到首次启动，申请定位权限');
+      await _requestLocationPermissionOnStartup();
+    } else {
+      // 非首次启动，检查权限状态
+      print('🔄 检测到非首次启动，检查定位权限状态');
+      await _checkLocationPermissionOnStartup();
+    }
+  } catch (e) {
+    print('❌ 检测定位权限失败: $e');
+  }
+}
+
+/// 首次启动申请定位权限
+Future<void> _requestLocationPermissionOnStartup() async {
+  try {
+    final locationStatus = await Permission.location.status;
+    print('🔐 当前定位权限状态: $locationStatus');
+
+    if (locationStatus.isDenied) {
+      print('🔐 申请定位权限...');
+      final result = await Permission.location.request();
+      print('🔐 权限申请结果: $result');
+
+      if (result.isGranted) {
+        // 权限获取成功，启动定位服务
+        print('✅ 定位权限获取成功，启动定位服务');
+        await _startLocationServiceIfNeeded();
+      } else {
+        print('❌ 定位权限申请被拒绝');
+      }
+    } else if (locationStatus.isGranted) {
+      print('✅ 定位权限已授予，启动定位服务');
+      await _startLocationServiceIfNeeded();
+    }
+  } catch (e) {
+    print('❌ 首次启动申请权限失败: $e');
+  }
+}
+
+/// 非首次启动检查定位权限
+Future<void> _checkLocationPermissionOnStartup() async {
+  try {
+    final locationStatus = await Permission.location.status;
+    print('🔐 检查定位权限状态: $locationStatus');
+
+    if (locationStatus.isGranted) {
+      print('✅ 定位权限已授予，启动定位服务');
+      await _startLocationServiceIfNeeded();
+    } else if (locationStatus.isDenied) {
+      print('⚠️ 定位权限被拒绝，将在需要时重新申请');
+    } else if (locationStatus.isPermanentlyDenied) {
+      print('❌ 定位权限被永久拒绝');
+    }
+  } catch (e) {
+    print('❌ 检查定位权限状态失败: $e');
+  }
+}
+
+/// 启动定位服务（如果需要）
+Future<void> _startLocationServiceIfNeeded() async {
+  try {
+    if (Get.isRegistered<SimpleLocationService>()) {
+      final locationService = Get.find<SimpleLocationService>();
+      if (!locationService.isLocationEnabled.value) {
+        final success = await locationService.startLocation();
+        if (success) {
+          print('✅ 应用启动时定位服务启动成功');
+        } else {
+          print('❌ 应用启动时定位服务启动失败');
+        }
+      } else {
+        print('✅ 定位服务已在运行');
+      }
+    } else {
+      print('⚠️ SimpleLocationService 尚未注册');
+    }
+  } catch (e) {
+    print('❌ 启动定位服务失败: $e');
   }
 }

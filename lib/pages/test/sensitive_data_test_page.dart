@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 敏感数据上报测试页面
 class SensitiveDataTestPage extends StatelessWidget {
@@ -59,6 +60,17 @@ class SensitiveDataTestPage extends StatelessWidget {
             ElevatedButton(
               onPressed: () => _testChargingEvents(),
               child: const Text('测试充电事件上报'),
+            ),
+            const SizedBox(height: 10),
+            
+            // 地图标记测试
+            ElevatedButton(
+              onPressed: () => Get.toNamed(KissuRoutePath.testMapMarkers),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('测试地图标记功能'),
             ),
             const SizedBox(height: 20),
             

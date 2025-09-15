@@ -14,7 +14,8 @@ import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_binding.dart';
 import 'package:kissu_app/pages/permission_setting_page.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
-import 'package:kissu_app/pages/location_example_page.dart';
+import 'package:kissu_app/pages/test_map_markers.dart';
+import 'package:kissu_app/pages/simple_marker_test.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -79,16 +80,36 @@ class KissuRoute {
       ),
       transition: Transition.rightToLeft,
     ),
-    GetPage(
-      name: KissuRoutePath.locationExample,
-      page: () => const LocationExamplePage(),
-      transition: Transition.rightToLeft,
-    ),
+    // GetPage(
+    //   name: KissuRoutePath.locationExample,
+    //   page: () => const LocationExamplePage(),
+    //   transition: Transition.rightToLeft,
+    // ),
     GetPage(
       name: KissuRoutePath.sensitiveDataTest,
       page: () => const SensitiveDataTestPage(),
       transition: Transition.rightToLeft,
     ),
+    // GetPage(
+    //   name: KissuRoutePath.testLocationNow,
+    //   page: () => TestLocationNowPage(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: KissuRoutePath.quickLocationTest,
+    //   page: () => QuickLocationTest(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    GetPage(
+      name: KissuRoutePath.testMapMarkers,
+      page: () => const TestMapMarkersPage(),
+      transition: Transition.rightToLeft,
+    ),
+    // GetPage(
+    //   name: KissuRoutePath.simpleMarkerTest,
+    //   page: () => const SimpleMarkerTestPage(),
+    //   transition: Transition.rightToLeft,
+    // ),
     
     // GetPage(name: BBRoutePath.aboutUs, page: () => const AboutUsPage()),
     // GetPage(

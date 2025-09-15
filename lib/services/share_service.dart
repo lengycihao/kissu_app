@@ -25,8 +25,7 @@ class ShareService extends GetxService {
       await _channel.invokeMethod('platformConfig', {
         'qqAppKey': '102797447',
         'qqAppSecret': 'c5KJ2VipiMRMCpJf',
-        'qqUniversalLink': 'https://kissu.app/qq/redirect',
-        'weChatAppId': 'wxca15128b8c388c13',
+         'weChatAppId': 'wxca15128b8c388c13',
         'weChatUniversalLink': 'https://ulink.ikissu.cn/',
         'weChatFileProvider': 'com.yuluo.kissu.fileprovider', // 微信FileProvider配置
       });
@@ -109,35 +108,65 @@ class ShareService extends GetxService {
   }
 
   // 分享到QQ好友
-  Future<void> shareToQQ({
+  Future<Map<String, dynamic>> shareToQQ({
     required String title,
     required String description,
     String? imageUrl,
     required String webpageUrl,
   }) async {
-    await _channel.invokeMethod('umShare', {
-      'title': title,
-      'text': description,
-      'img': imageUrl ?? '',
-      'weburl': webpageUrl,
-      'sharemedia': 2, // 2 = QQ好友
-    });
+    try {
+      print('开始分享到QQ好友: title=$title, description=$description, webpageUrl=$webpageUrl');
+      
+      final result = await _channel.invokeMethod('umShare', {
+        'title': title,
+        'text': description,
+        'img': imageUrl ?? '',
+        'weburl': webpageUrl,
+        'sharemedia': 2, // 2 = QQ好友
+      });
+      
+      print('QQ好友分享结果: $result');
+      
+      if (result is Map<String, dynamic>) {
+        return result;
+      } else {
+        return {'success': false, 'message': '分享结果格式错误'};
+      }
+    } catch (e) {
+      print('QQ好友分享异常: $e');
+      return {'success': false, 'message': '分享异常: $e'};
+    }
   }
 
   // 分享到QQ空间
-  Future<void> shareToQZone({
+  Future<Map<String, dynamic>> shareToQZone({
     required String title,
     required String description,
     String? imageUrl,
     required String webpageUrl,
   }) async {
-    await _channel.invokeMethod('umShare', {
-      'title': title,
-      'text': description,
-      'img': imageUrl ?? '',
-      'weburl': webpageUrl,
-      'sharemedia': 3, // 3 = QQ空间
-    });
+    try {
+      print('开始分享到QQ空间: title=$title, description=$description, webpageUrl=$webpageUrl');
+      
+      final result = await _channel.invokeMethod('umShare', {
+        'title': title,
+        'text': description,
+        'img': imageUrl ?? '',
+        'weburl': webpageUrl,
+        'sharemedia': 3, // 3 = QQ空间
+      });
+      
+      print('QQ空间分享结果: $result');
+      
+      if (result is Map<String, dynamic>) {
+        return result;
+      } else {
+        return {'success': false, 'message': '分享结果格式错误'};
+      }
+    } catch (e) {
+      print('QQ空间分享异常: $e');
+      return {'success': false, 'message': '分享异常: $e'};
+    }
   }
 
   // 分享文本到微信好友

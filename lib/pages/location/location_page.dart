@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_map/amap_map.dart';
 import 'package:kissu_app/widgets/device_info_item.dart';
+import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'location_controller.dart';
 
 class LocationPage extends StatelessWidget {
@@ -48,17 +49,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
     widget.controller.pageContext = context; // 保存 Scaffold 的 context
     return Scaffold(
       backgroundColor: Colors.white,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // 测试单次定位
-          widget.controller.testSingleLocation();
-        },
-        backgroundColor: const Color(0xFFFF4177),
-        child: const Icon(
-          Icons.gps_fixed,
-          color: Colors.white,
-        ),
-      ),
+       
       body: Stack(
         children: [
           // 固定的地图模块 - 使用缓存优化
@@ -498,18 +489,17 @@ class _CachedMapWidget extends StatelessWidget {
       }
       
       return RepaintBoundary(
-        child: AMapWidget(
+        child: SafeAMapWidget(
           initialCameraPosition: controller.initialCameraPosition,
           onMapCreated: controller.onMapCreated,
-          mapType: MapType.normal,
           markers: markers,
           polylines: polylines,
+          compassEnabled: true,
+          scaleEnabled: true,
           zoomGesturesEnabled: true,
           scrollGesturesEnabled: true,
           rotateGesturesEnabled: true,
           tiltGesturesEnabled: true,
-          compassEnabled: false,
-          scaleEnabled: false,
         ),
       );
     });

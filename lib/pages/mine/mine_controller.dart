@@ -8,6 +8,7 @@ import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
 // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/pages/test/sensitive_data_test_page.dart';
+import 'package:kissu_app/pages/test_map_markers.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -196,7 +197,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_gywm.webp",
         title: "关于我们",
-        onTap: () => Get.to(AboutUsPage()),
+        onTap: () => Get.to(TestMapMarkersPage()),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_cjwt.webp",
@@ -259,15 +260,9 @@ class MineController extends GetxController {
 
   // 点击另一半头像
   void onPartnerAvatarTap() {
-    // 如果未绑定，显示绑定输入弹窗
+    // 如果未绑定，直接跳转到分享页面
     if (!isBound.value) {
-      DialogManager.showBindingInput(
-        context: Get.context!,
-        onConfirm: (code) {
-          // 这个回调实际上在BindingInputDialog内部处理，这里不需要额外操作
-          // 因为dialog内部已经会刷新数据并调用loadUserInfo()
-        },
-      );
+      Get.toNamed(KissuRoutePath.share);
     } else {
       // 如果已绑定，跳转到恋爱信息页面
       Get.to(LoveInfoPage());

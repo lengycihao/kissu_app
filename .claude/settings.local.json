@@ -8,7 +8,8 @@
       "Bash(flutter pub:*)",
       "Bash(nc:*)",
       "Bash(flutter run:*)",
-      "Bash(adb logcat:*)"
+      "Bash(adb logcat:*)",
+      "Read(//d/**)"
     ],
     "deny": [],
     "ask": []

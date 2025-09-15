@@ -11,6 +11,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/model/location_model/location_report_model.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class LocationController extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
@@ -73,11 +74,16 @@ class LocationController extends GetxController {
     _loadUserInfo();
     // 初始化定位服务（不自动启动）
     _initLocationService();
-    // 检查并启动定位服务
-    _checkAndStartLocationService();
     // 只加载历史位置数据，不自动启动定位
     loadLocationData();
     print('🔧 LocationController onInit 完成');
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // 页面准备完成后，检查定位权限
+    _checkLocationPermissionOnPageEnter();
   }
   
   /// 初始化定位服务
@@ -114,6 +120,98 @@ class LocationController extends GetxController {
     }
   }
   
+  /// 定位页面进入时检查权限
+  Future<void> _checkLocationPermissionOnPageEnter() async {
+    try {
+      print('📍 定位页面检查权限状态...');
+
+      // 检查定位权限
+      var locationStatus = await Permission.location.status;
+      print('📍 定位权限状态: $locationStatus');
+
+      if (locationStatus.isDenied || locationStatus.isPermanentlyDenied) {
+        // 权限未授予，显示弹窗提示
+        _showLocationPermissionDialog();
+      } else if (locationStatus.isGranted) {
+        // 权限已授予，检查并启动定位服务
+        _checkAndStartLocationService();
+      }
+    } catch (e) {
+      print('❌ 定位页面检查权限失败: $e');
+    }
+  }
+
+  /// 显示定位权限提示弹窗
+  void _showLocationPermissionDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: Text('需要定位权限'),
+        content: Text('定位页面需要开启定位权限才能正常使用，是否前往开启？'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back();
+              await _requestLocationPermission();
+            },
+            child: Text('开启权限'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  /// 申请定位权限
+  Future<void> _requestLocationPermission() async {
+    try {
+      print('📍 定位页面申请权限...');
+
+      var status = await Permission.location.request();
+      print('📍 权限申请结果: $status');
+
+      if (status.isGranted) {
+        CustomToast.show(Get.context!, '定位权限已开启');
+        // 权限获取成功，启动定位服务
+        _checkAndStartLocationService();
+      } else if (status.isPermanentlyDenied) {
+        // 权限被永久拒绝，提示用户手动开启
+        _showOpenSettingsDialog();
+      } else {
+        CustomToast.show(Get.context!, '定位权限获取失败');
+      }
+    } catch (e) {
+      print('❌ 申请定位权限失败: $e');
+      CustomToast.show(Get.context!, '申请定位权限失败');
+    }
+  }
+
+  /// 显示打开系统设置的提示弹窗
+  void _showOpenSettingsDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: Text('权限被拒绝'),
+        content: Text('定位权限已被永久拒绝，请前往系统设置手动开启定位权限。'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back();
+              await openAppSettings();
+            },
+            child: Text('打开设置'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 检查并启动定位服务（仅在用户已登录时）
   Future<void> _checkAndStartLocationService() async {
     try {
@@ -121,23 +219,23 @@ class LocationController extends GetxController {
         print('❌ 定位服务未初始化');
         return;
       }
-      
+
       // 检查用户是否已登录
       if (!UserManager.isLoggedIn) {
         print('ℹ️ 用户未登录，跳过自动启动定位服务');
         return;
       }
-      
+
       // 检查定位服务状态
       final status = _locationService!.currentServiceStatus;
       print('🔍 定位服务状态: $status');
-      
+
       if (!_locationService!.isLocationEnabled.value) {
         print('🚀 用户已登录，定位服务未启动，尝试启动...');
-        
+
         // 启动定位服务
         bool success = await _locationService!.startLocation();
-        
+
         if (success) {
           print('✅ 定位服务启动成功');
         } else {
@@ -391,16 +489,8 @@ class LocationController extends GetxController {
   
   /// 执行绑定操作
   void performBindAction() {
-    DialogManager.showBindingInput(
-      title: "",
-      context: pageContext,
-      onConfirm: (code) {
-        // 绑定完成后会自动刷新数据
-        _loadUserInfo(); // 重新加载用户信息更新绑定状态
-        // 绑定成功后返回到主页
-        Get.offAllNamed(KissuRoutePath.home);
-      },
-    );
+    // 直接跳转到分享页面，不再显示弹窗
+    Get.toNamed(KissuRoutePath.share);
   }
 
   /// 根据设备组件类型生成详细信息

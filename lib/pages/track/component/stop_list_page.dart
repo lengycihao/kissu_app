@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
+import 'package:kissu_app/pages/track/track_controller.dart';
 
 class StopListItem extends StatelessWidget {
   final StopRecord record;
@@ -15,9 +18,18 @@ class StopListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      child: IntrinsicHeight(
-        child: Row(
+    return GestureDetector(
+      onTap: () {
+        try {
+          final controller = Get.find<TrackController>();
+          controller.moveToStopPoint(record.latitude, record.longitude);
+        } catch (e) {
+          print('无法找到轨迹控制器: $e');
+        }
+      },
+      child: Container(
+        child: IntrinsicHeight(
+          child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 左边时间部分 - 对齐
@@ -150,6 +162,7 @@ class StopListItem extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
