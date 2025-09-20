@@ -72,6 +72,7 @@ class LoveInfoPage extends StatelessWidget {
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(20),
                       child: Stack(
+                        alignment: Alignment.topCenter,
                         children: [
                           Column(
                             children: [
@@ -97,11 +98,170 @@ class LoveInfoPage extends StatelessWidget {
                               ],
                             ],
                           ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: AvatarSection(controller: controller),
+                          Obx(
+                            () => Stack(
+                              children: [
+                                // 我的头像
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    image: DecorationImage(
+                                      image: AssetImage(
+                                        'assets/kissu_loveinfo_header_bg.webp',
+                                      ),
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      left: 6,
+                                      top: 6,
+                                      right: 0,
+                                      bottom: 3,
+                                    ),
+                                    child: ClipOval(
+                                      child:
+                                          controller.myAvatar.value.isNotEmpty
+                                          ? Image.network(
+                                              controller.myAvatar.value,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) {
+                                                    return Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              40,
+                                                            ),
+                                                        color: const Color(
+                                                          0xFFE8B4CB,
+                                                        ),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.person,
+                                                        size: 40,
+                                                        color: Colors.white,
+                                                      ),
+                                                    );
+                                                  },
+                                            )
+                                          : Container(
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(40),
+                                                color: const Color(
+                                                  0xFFE8B4CB,
+                                                ),
+                                              ),
+                                              child: const Icon(
+                                                Icons.person,
+                                                size: 40,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                                // 另一半头像或添加按钮
+                                controller.isBindPartner.value
+                                    ? Container(
+                                        width: 50,
+                                        height: 50,
+                                        margin: EdgeInsets.only(left: 60, top: 20),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: const Color(0xFFFFB6C1),
+                                            width: 1,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.1),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: controller.partnerAvatar.value.isNotEmpty
+                                              ? Image.network(
+                                                  controller.partnerAvatar.value,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    return Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius: BorderRadius.circular(25),
+                                                        color: const Color(0xFFE8B4CB),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.person,
+                                                        size: 25,
+                                                        color: Colors.white,
+                                                      ),
+                                                    );
+                                                  },
+                                                )
+                                              : Container(
+                                                  decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.circular(25),
+                                                    color: const Color(0xFFE8B4CB),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.person,
+                                                    size: 25,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                        ),
+                                      )
+                                    : GestureDetector(
+                                        onTap: () => controller.showAddPartnerDialog(context),
+                                        child: Container(
+                                          width: 50,
+                                          height: 50,
+                                          margin: EdgeInsets.only(left: 60, top: 20),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.white,
+                                            border: Border.all(
+                                              color: const Color(0xFFFFB6C1),
+                                              width: 1,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 5),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Icon(
+                                            Icons.add,
+                                            size: 30,
+                                            color: Color(0xFFFF69B4),
+                                          ),
+                                        ),
+                                      ),
+                                Positioned(
+                                  right: 30,
+                                  top: 40,
+                                  child: Image(
+                                    image: AssetImage(
+                                      "assets/kissu_heart.webp",
+                                    ),
+                                    width: 29,
+                                    height: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -115,4 +275,52 @@ class LoveInfoPage extends StatelessWidget {
       ),
     );
   }
+
+  //  Widget _buildAvatar() {
+  //   return Container(
+  //     width: 80,
+  //     height: 80,
+  //     padding: const EdgeInsets.all(2),
+  //     decoration: const BoxDecoration(
+  //       image: DecorationImage(
+  //         image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+  //         fit: BoxFit.fill,
+  //       ),
+  //     ),
+  //     child: Padding(
+  //       padding: EdgeInsets.only(left: 6, top: 6, right: 0, bottom: 3),
+  //       child: ClipOval(
+  //         child: controller.userAvatar.value.isNotEmpty
+  //             ? Image.network(
+  //                 controller.userAvatar.value,
+  //                 fit: BoxFit.cover,
+  //                 errorBuilder: (context, error, stackTrace) {
+  //                   return Container(
+  //                     decoration: BoxDecoration(
+  //                       borderRadius: BorderRadius.circular(40),
+  //                       color: const Color(0xFFE8B4CB),
+  //                     ),
+  //                     child: const Icon(
+  //                       Icons.person,
+  //                       size: 40,
+  //                       color: Colors.white,
+  //                     ),
+  //                   );
+  //                 },
+  //               )
+  //             : Container(
+  //                 decoration: BoxDecoration(
+  //                   borderRadius: BorderRadius.circular(40),
+  //                   color: const Color(0xFFE8B4CB),
+  //                 ),
+  //                 child: const Icon(
+  //                   Icons.person,
+  //                   size: 40,
+  //                   color: Colors.white,
+  //                 ),
+  //               ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }

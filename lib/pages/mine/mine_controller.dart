@@ -7,17 +7,13 @@ import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
 // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
-import 'package:kissu_app/pages/test/sensitive_data_test_page.dart';
-import 'package:kissu_app/pages/test_map_markers.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:flutter/material.dart';
-import 'package:oktoast/oktoast.dart';
 import '../phone_history/phone_history_controller.dart';
-import 'package:kissu_app/utils/simple_toast_util.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
+import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -65,7 +61,7 @@ class MineController extends GetxController {
         userAvatar.value = user.headPortrait!;
       }
 
-      // 绑定状态处理 (1未绑定，2绑定)
+      // 绑定状态处理 (0和2未绑定，1绑定)
       final bindStatus = user.bindStatus.toString();
       isBound.value = bindStatus.toString() == "1";
 
@@ -86,6 +82,14 @@ class MineController extends GetxController {
 
   /// 处理已绑定状态的数据
   void _handleBoundState(user) {
+    // 处理绑定日期和恋爱天数
+    _handleDateAndDays(user);
+    
+    // 处理另一半头像
+    _handlePartnerAvatar(user);
+  }
+
+  void _handleDateAndDays(user) {
     // 优先使用LoverInfo中的绑定信息
     if (user.loverInfo != null) {
       // 如果有绑定日期，使用LoverInfo中的数据
@@ -96,7 +100,7 @@ class MineController extends GetxController {
       // 如果有恋爱天数，直接使用
       if (user.loverInfo!.loveDays != null && user.loverInfo!.loveDays! > 0) {
         days.value = "${user.loverInfo!.loveDays}天";
-        // return; // 使用了LoverInfo的数据，就不需要再计算了
+        return; // 使用了LoverInfo的数据，就不需要再计算了
       }
 
       // 如果有bindTime但没有loveDays，尝试从bindTime计算
@@ -116,7 +120,7 @@ class MineController extends GetxController {
           final now = DateTime.now();
           final difference = now.difference(bindTime).inDays;
           days.value = "${difference}天";
-          // return;
+          return;
         } catch (e) {
           print('解析LoverInfo bindTime失败: $e');
         }
@@ -135,7 +139,9 @@ class MineController extends GetxController {
       final difference = now.difference(bindTime).inDays;
       days.value = "${difference}天";
     }
+  }
 
+  void _handlePartnerAvatar(user) {
     // 处理另一半头像
     if (user.loverInfo?.headPortrait?.isNotEmpty == true) {
       partnerAvatar.value = user.loverInfo!.headPortrait!;
@@ -185,6 +191,11 @@ class MineController extends GetxController {
   void _initSettingItems() {
     settingItems = [
       SettingItem(
+        icon: "assets/kissu_share_item.webp",
+        title: "分享APP",
+        onTap: () => _onShareAppTap(),
+      ),
+      SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",
         title: "首页视图",
         onTap: () => Get.to(SettingHomePage()),
@@ -197,13 +208,12 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_gywm.webp",
         title: "关于我们",
-        onTap: () => Get.to(TestMapMarkersPage()),
+        onTap: () => Get.to(AboutUsPage()),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_cjwt.webp",
         title: "常见问题",
-        onTap: () => Get.to((SensitiveDataTestPage())),
-        // onTap: () => Get.to(QuestionPage()),
+         onTap: () => Get.to(QuestionPage()),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_lxwm.webp",
@@ -269,6 +279,21 @@ class MineController extends GetxController {
     }
   }
 
+  // 点击自己的头像
+  void onAvatarTap() {
+    print('🔥 头像被点击了！');
+    print('🔥 当前绑定状态: ${isBound.value}');
+    
+    // 如果已绑定，跳转到恋爱信息页面
+    if (isBound.value) {
+      print('🔥 用户已绑定，跳转到恋爱信息页面');
+      Get.to(LoveInfoPage());
+    } else {
+      print('🔥 用户未绑定，不执行跳转');
+    }
+    // 如果未绑定，暂时不做任何操作
+  }
+
   // 刷新用户信息（从服务器获取最新数据）
   Future<void> refreshUserInfo() async {
     try {
@@ -297,10 +322,17 @@ class MineController extends GetxController {
 
   // 会员续费/开通
   void onRenewTap() {
-    print('💫 VIP按钮被点击，即将导航到VIP页面');
-    // 跳转到VIP页面
-    Get.toNamed(KissuRoutePath.vip);
-    print('💫 已调用 Get.toNamed(KissuRoutePath.vip)');
+    print('💫 VIP按钮被点击');
+
+    if (isForeverVip.value) {
+      // 永久会员，跳转到权益页面
+      print('💫 永久会员，跳转到权益页面');
+      Get.toNamed(KissuRoutePath.foreverVip);
+    } else {
+      // 普通会员或非会员，跳转到VIP页面
+      print('💫 普通会员或非会员，跳转到VIP页面');
+      Get.toNamed(KissuRoutePath.vip);
+     }
   }
 
   /// 退出登录功能
@@ -379,6 +411,11 @@ class MineController extends GetxController {
     } catch (e) {
       print('刷新敏感记录页面数据失败: $e');
     }
+  }
+
+  /// 分享APP点击事件
+  void _onShareAppTap() {
+    ShareBottomSheet.showShareApp(Get.context!);
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:kissu_app/widgets/dialogs/base_dialog.dart';
 
 class ToastDialog {
   // 显示基本的弹窗（带标题、内容和确认按钮）
@@ -242,10 +243,7 @@ class ToastDialog {
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         // 出现动画：由小到大，带回弹效果
-        final scaleAnimation = Tween<double>(
-          begin: 0.0,
-          end: 1.0,
-        ).animate(
+        final scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
           CurvedAnimation(
             parent: animation,
             curve: Curves.elasticOut, // 回弹效果
@@ -253,26 +251,120 @@ class ToastDialog {
         );
 
         // 消失动画：由大到小
-        final scaleOutAnimation = Tween<double>(
-          begin: 1.0,
-          end: 0.0,
-        ).animate(
-          CurvedAnimation(
-            parent: secondaryAnimation,
-            curve: Curves.easeInBack,
-          ),
+        final scaleOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+          CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeInBack),
         );
 
         // 透明度动画
         final fadeAnimation = Tween<double>(
           begin: 0.0,
           end: 1.0,
-        ).animate(
-          CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: ScaleTransition(
+            scale: animation.status == AnimationStatus.reverse
+                ? scaleOutAnimation
+                : scaleAnimation,
+            child: child,
           ),
         );
+      },
+    );
+  }
+
+  // 第一次登录弹窗
+  static Future<void> showDialogWithCloseButtonWithFirst(
+    BuildContext context,
+    String title,
+    dynamic content, // 可以是String或Widget（如RichText）
+    VoidCallback onConfirm, {
+    double height = 320.0,
+    Function(String)? onLinkTap, // 链接点击回调
+  }) {
+    return showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Color(0xB3000000),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: EdgeInsets.only(top: 20, left: 10, right: 10),
+            height: height, // 设置弹窗的高度
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/kissu_privacy_bg.webp'),
+                fit: BoxFit.cover,
+              ),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // _buildTitle(title),
+                SizedBox(height: 50),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    bottom: 20,
+                  ),
+                  child: _buildContent(content, onLinkTap),
+                ),
+                // _buildSingleButton(onConfirm, sureStr: "同意并继续"),
+                // _buildCloseButton(context),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                     
+                    DialogButton(
+                      text: '暂不同意',
+                      width: 100,
+                      backgroundImage:
+                          'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                      onTap: () {
+                        Navigator.of(context).pop(false); // 返回 false 表示取消
+                      },
+                    ), DialogButton(
+                      text: '同意并继续',
+                      width: 100,
+                      backgroundImage:
+                          'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                      onTap: onConfirm,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        // 出现动画：由小到大，带回弹效果
+        final scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: Curves.elasticOut, // 回弹效果
+          ),
+        );
+
+        // 消失动画：由大到小
+        final scaleOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+          CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeInBack),
+        );
+
+        // 透明度动画
+        final fadeAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
 
         return FadeTransition(
           opacity: fadeAnimation,
@@ -293,7 +385,7 @@ class ToastDialog {
       return content;
     } else if (content is String) {
       // 如果是字符串且包含协议关键词，则创建富文本
-      if (content.contains('《用户协议》') || content.contains('《隐私协议》')) {
+      if (content.contains('《用户协议》') || content.contains('《隐私政策》')) {
         return _buildRichTextContent(content, onLinkTap);
       } else {
         // 普通文本

@@ -1,3 +1,4 @@
+import 'package:kissu_app/pages/splash/splash_page.dart';
 import 'package:kissu_app/pages/home/home_binding.dart';
 import 'package:kissu_app/pages/home/home_page.dart';
 import 'package:kissu_app/pages/location/location_binding.dart';
@@ -10,17 +11,24 @@ import 'package:kissu_app/pages/login/login_page.dart';
 import 'package:kissu_app/pages/test/sensitive_data_test_page.dart';
 import 'package:kissu_app/pages/vip/vip_binding.dart';
 import 'package:kissu_app/pages/vip/vip_page.dart';
+import 'package:kissu_app/pages/vip/forever_vip_page.dart';
+import 'package:kissu_app/pages/vip/forever_vip_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_binding.dart';
 import 'package:kissu_app/pages/permission_setting_page.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
-import 'package:kissu_app/pages/test_map_markers.dart';
-import 'package:kissu_app/pages/simple_marker_test.dart';
+import 'package:kissu_app/pages/test/first_agreement_test_page.dart';
+import 'package:kissu_app/pages/openinstall_test_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
 class KissuRoute {
   static final routes = [
+    GetPage(
+      name: KissuRoutePath.splash,
+      page: () => const SplashPage(),
+      transition: Transition.fadeIn,
+    ),
     // GetPage(
     //   name: KissuRoutePath.home,
     //   page: () =>  KissuHomePage(),
@@ -49,6 +57,14 @@ class KissuRoute {
       name: KissuRoutePath.vip,
       page: () => const VipPage(),
       binding: VipBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.foreverVip,
+      page: () => const ForeverVipPage(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<ForeverVipController>(() => ForeverVipController());
+      }),
       transition: Transition.rightToLeft,
     ),
     GetPage(
@@ -101,8 +117,13 @@ class KissuRoute {
     //   transition: Transition.rightToLeft,
     // ),
     GetPage(
-      name: KissuRoutePath.testMapMarkers,
-      page: () => const TestMapMarkersPage(),
+      name: KissuRoutePath.firstAgreementTest,
+      page: () => const FirstAgreementTestPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.openinstallTest,
+      page: () => const OpenInstallTestPage(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

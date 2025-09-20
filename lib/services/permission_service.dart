@@ -233,7 +233,7 @@ class PermissionService {
       case PermissionType.notification:
         return isGranted ? "已开启" : "未开启";
       case PermissionType.battery:
-        return isGranted ? "已关闭" : "未关闭";
+        return isGranted ? "已开启" : "未开启";
       case PermissionType.usage:
         return isGranted ? "已授权" : "未授权";
     }

@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.yuluo.kissu"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -18,6 +18,19 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    // 解决资源链接问题
+    packagingOptions {
+        pickFirst("**/libc++_shared.so")
+        pickFirst("**/libjsc.so")
+    }
+
+    // 添加资源配置
+    androidResources {
+        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
+        // 禁用资源验证以避免lStar属性错误
+        additionalParameters("--allow-reserved-package-id", "--no-version-vectors")
     }
 
     defaultConfig {
@@ -32,7 +45,17 @@ android {
         manifestPlaceholders["UMENG_CHANNEL"] = "Umeng"
         manifestPlaceholders["WECHAT_APPID"] = "wxca15128b8c388c13"
         manifestPlaceholders["qqappid"] = "102797447"
+        
+        // OpenInstall配置
+        manifestPlaceholders["OPENINSTALL_APPKEY"] = "eb24o3"
+
+        // 只包含arm64-v8a架构以减少APK大小
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
+
+
 
     signingConfigs {
         create("release") {
@@ -50,7 +73,8 @@ android {
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
+            isMinifyEnabled = false  // 暂时禁用混淆以避免资源问题
+            isShrinkResources = false  // 禁用资源收缩
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
                 "proguard-rules.pro"
@@ -90,12 +114,26 @@ dependencies {
     
     // QQ分享
     implementation(files("../libs/Android/share/share_android_7.3.7/platforms/qq/libs/umeng-share-QQ-full-7.3.7.jar"))
-    implementation(files("../libs/Android/share/share_android_7.3.7/platforms/qq/libs/open_sdk_3.5.16.4_r8c01346_lite.jar"))
+    // 使用与原生项目相同的腾讯SDK版本（已复制）
+    implementation(files("../libs/Android/share/share_android_7.3.7/platforms/qq/libs/open_sdk_3.5.17.3_r75955a58_lite.jar"))
     
-    // Android 基础依赖
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
+    // Android 基础依赖 - 更新到支持新SDK的版本
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    
+    // 添加Material Design组件支持新的lStar属性
+    implementation("com.google.android.material:material:1.12.0")
     
     // Core library desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // 支付宝支付SDK
+    implementation("com.alipay.sdk:alipaysdk-android:15.8.11")
+    
+    // 微信支付SDK
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
+    
+    // 高德地图和定位SDK
+    implementation("com.amap.api:location:5.6.0")
+    implementation("com.amap.api:3dmap:8.1.0")
 }

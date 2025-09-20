@@ -23,12 +23,25 @@ import com.umeng.socialize.bean.SHARE_MEDIA
 import com.umeng.socialize.media.UMImage
 import com.umeng.socialize.media.UMWeb
 // import com.amap.api.location.AMapLocationClient
+import com.alipay.sdk.app.PayTask
+import com.tencent.mm.opensdk.modelpay.PayReq
+import com.tencent.mm.opensdk.openapi.WXAPIFactory
+import com.tencent.mm.opensdk.openapi.IWXAPI
+import com.tencent.mm.opensdk.openapi.IWXAPIEventHandler
+import com.tencent.mm.opensdk.modelbase.BaseResp
+import com.tencent.mm.opensdk.modelpay.PayResp
+import com.tencent.mm.opensdk.constants.ConstantsAPI
+import kotlinx.coroutines.*
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val CHANNEL = "app.location/settings"
     private val WECHAT_CHANNEL = "app.wechat/launch"
     private val SHARE_CHANNEL = "app.share/invoke"
     private val UMSHARE_CHANNEL = "umshare"
+    private val PAYMENT_CHANNEL = "kissu_payment"
+    
+    // 微信支付API
+    private var wxApi: IWXAPI? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +51,16 @@ class MainActivity : FlutterActivity() {
         
         // 打印SHA1值用于调试高德地图配置
         printSHA1()
+        
+        // 设置QQ权限 - 关键配置！
+        try {
+            val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+            val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+            setIsPermissionGrantedMethod.invoke(null, true)
+            Log.d("MainActivity", "QQ权限设置成功")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "设置QQ权限失败", e)
+        }
     }
     
     /**
@@ -68,6 +91,7 @@ class MainActivity : FlutterActivity() {
         } catch (_: Throwable) {
             // Safe no-op
         }
+
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -176,6 +200,40 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // 支付通道
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PAYMENT_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "initWechat" -> {
+                    val appId = call.argument<String>("appId") ?: ""
+                    initWechatPay(appId)
+                    result.success(null)
+                }
+                "isWechatInstalled" -> {
+                    val isInstalled = isWechatAppInstalled()
+                    result.success(isInstalled)
+                }
+                "payWithWechat" -> {
+                    val appId = call.argument<String>("appId") ?: ""
+                    val partnerId = call.argument<String>("partnerId") ?: ""
+                    val prepayId = call.argument<String>("prepayId") ?: ""
+                    val packageValue = call.argument<String>("packageValue") ?: ""
+                    val nonceStr = call.argument<String>("nonceStr") ?: ""
+                    val timeStamp = call.argument<String>("timeStamp") ?: ""
+                    val sign = call.argument<String>("sign") ?: ""
+                    payWithWechat(appId, partnerId, prepayId, packageValue, nonceStr, timeStamp, sign, result)
+                }
+                "isAlipayInstalled" -> {
+                    val isInstalled = isAlipayAppInstalled()
+                    result.success(isInstalled)
+                }
+                "payWithAlipay" -> {
+                    val orderInfo = call.argument<String>("orderInfo") ?: ""
+                    payWithAlipay(orderInfo, result)
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     private fun shareTextToWeChat(text: String): Boolean {
@@ -262,7 +320,7 @@ class MainActivity : FlutterActivity() {
                 deviceSignature.contains("hw") ||
                 deviceSignature.contains("magic")
 
-        // 对 Honor/Huawei 设备，强制直达“应用信息”页，避免任何权限页被重定向到“定位服务”
+        // 对 Honor/Huawei 设备，强制直达"应用信息"页，避免任何权限页被重定向到"定位服务"
         if (isHuaweiHonor) {
             // 1) 尝试显式跳转到 AOSP 的已安装应用详情页
             try {
@@ -301,7 +359,7 @@ class MainActivity : FlutterActivity() {
             } catch (_: Exception) { }
         }
 
-        // 其它设备：直接进入应用详情页（用户可手动进入“权限”->“位置信息”）
+        // 其它设备：直接进入应用详情页（用户可手动进入"权限"->"位置信息"）
         try {
             val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", packageName, null)
@@ -327,7 +385,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun openBatteryOptimizationSettings() {
-        // 厂商适配：优先打开“自启动/后台运行”设置
+        // 厂商适配：优先打开"自启动/后台运行"设置
         try {
             val miui = Intent().apply {
                 setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
@@ -481,6 +539,16 @@ class MainActivity : FlutterActivity() {
             // 正式初始化
             UMConfigure.init(this, appKey, channel, UMConfigure.DEVICE_TYPE_PHONE, null)
             UMConfigure.setLogEnabled(logEnabled)
+            
+            // 预授权QQ权限 - 在友盟初始化后立即设置
+            try {
+                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                setIsPermissionGrantedMethod.invoke(null, true)
+                Log.d("MainActivity", "友盟初始化后QQ权限预授权成功")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "友盟初始化后QQ权限预授权失败: ${e.message}")
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -496,12 +564,41 @@ class MainActivity : FlutterActivity() {
 
     private fun configPlatforms(qqAppKey: String, qqAppSecret: String, weChatAppId: String, weChatFileProvider: String) {
         try {
-            // 配置QQ平台（同时配置QQ好友和QQ空间）
+            // 配置QQ平台（QQ空间配置同时支持QQ好友分享）
+            // 注意：友盟的setQQZone方法参数顺序是(appKey, appSecret)
+            // 其中appKey是QQ应用的ID，appSecret是QQ应用的密钥
             if (qqAppKey.isNotEmpty() && qqAppSecret.isNotEmpty()) {
+                // 1. 首先配置QQ平台
                 PlatformConfig.setQQZone(qqAppKey, qqAppSecret)
-                // QQ好友分享也需要相同的配置
-                // PlatformConfig.setQQ(qqAppKey, qqAppSecret)
-                Log.d("MainActivity", "QQ平台配置成功: appKey=$qqAppKey")
+                Log.d("MainActivity", "QQ平台配置成功: appKey=$qqAppKey, appSecret=$qqAppSecret")
+                
+                // 1.5. 配置后立即修复QQ权限
+                fixQQPermissions()
+                
+                // 2. 设置QQ权限 - 多种方法尝试解决2003错误
+                try {
+                    // 方法1：使用Tencent类的静态方法设置权限
+                    val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                    val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                    setIsPermissionGrantedMethod.invoke(null, true)
+                    Log.d("MainActivity", "QQ权限设置成功 (静态方法)")
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "QQ静态权限设置失败: ${e.message}")
+                    
+                    // 方法2：尝试通过实例设置权限
+                    try {
+                        val tencent = com.tencent.tauth.Tencent.createInstance(qqAppKey, this, "com.yuluo.kissu.fileprovider")
+                        if (tencent != null) {
+                            val setPermissionMethod = tencent.javaClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                            setPermissionMethod.invoke(tencent, true)
+                            Log.d("MainActivity", "QQ权限设置成功 (实例方法)")
+                        }
+                    } catch (e2: Exception) {
+                        Log.e("MainActivity", "QQ实例权限设置也失败: ${e2.message}")
+                    }
+                }
+                
+                Log.d("MainActivity", "QQ空间配置已启用，同时支持QQ好友分享")
             } else {
                 Log.w("MainActivity", "QQ平台配置失败: appKey或appSecret为空")
             }
@@ -551,6 +648,11 @@ class MainActivity : FlutterActivity() {
             Log.d("MainActivity", "开始分享到平台: $shareMedia (code: $sharemedia)")
             Log.d("MainActivity", "分享参数: title=$title, text=$text, weburl=$weburl, img=$img")
             
+            // 如果是QQ分享，先进行配置诊断
+            if (sharemedia == 2 || sharemedia == 3) {
+                diagnoseQQConfig()
+            }
+            
             // 检查平台是否安装
             val isInstalled = UMShareAPI.get(this).isInstall(this, shareMedia)
             Log.d("MainActivity", "平台是否安装: $isInstalled")
@@ -586,6 +688,18 @@ class MainActivity : FlutterActivity() {
             shareAction.setCallback(object : UMShareListener {
                 override fun onStart(platform: SHARE_MEDIA?) {
                     Log.d("MainActivity", "分享开始: platform=$platform")
+                    
+                    // 如果是QQ分享，在开始前再次确认权限设置
+                    if (platform == SHARE_MEDIA.QQ || platform == SHARE_MEDIA.QZONE) {
+                        try {
+                            val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                            val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                            setIsPermissionGrantedMethod.invoke(null, true)
+                            Log.d("MainActivity", "QQ分享前权限确认成功")
+                        } catch (e: Exception) {
+                            Log.w("MainActivity", "QQ分享前权限确认失败: ${e.message}")
+                        }
+                    }
                 }
 
                 override fun onResult(platform: SHARE_MEDIA?) {
@@ -610,39 +724,265 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * QQ配置诊断方法
+     * 用于检查QQ开放平台配置是否正确
+     */
+    private fun diagnoseQQConfig() {
+        try {
+            Log.d("MainActivity", "=== QQ配置诊断开始 ===")
+            
+            // 1. 检查应用包名
+            val packageName = packageName
+            Log.d("MainActivity", "应用包名: $packageName")
+            
+            // 2. 检查应用签名
+            val packageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+            val signatures = packageInfo.signatures
+            if (signatures != null && signatures.isNotEmpty()) {
+                val signature = signatures[0]
+                val md = MessageDigest.getInstance("MD5")
+                md.update(signature.toByteArray())
+                val signatureHash = md.digest().joinToString("") { "%02x".format(it) }
+                Log.d("MainActivity", "应用签名MD5: $signatureHash")
+                Log.d("MainActivity", "请将此签名配置到QQ开放平台: $signatureHash")
+                
+                // 同时生成SHA1签名（某些平台可能需要）
+                try {
+                    val sha1 = MessageDigest.getInstance("SHA1")
+                    sha1.update(signature.toByteArray())
+                    val sha1Hash = sha1.digest().joinToString(":") { "%02x".format(it) }.uppercase()
+                    Log.d("MainActivity", "应用签名SHA1: $sha1Hash")
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "生成SHA1签名失败: ${e.message}")
+                }
+            }
+            
+            // 3. 检查QQ配置
+            val qqAppId = "102797447"
+            val qqAppKey = "c5KJ2VipiMRMCpJf"
+            Log.d("MainActivity", "QQ AppID: $qqAppId")
+            Log.d("MainActivity", "QQ AppKey: $qqAppKey")
+            Log.d("MainActivity", "期望的AndroidManifest scheme: tencent$qqAppId")
+            
+            // 4. 检查QQ是否安装
+            val qqInstalled = UMShareAPI.get(this).isInstall(this, SHARE_MEDIA.QQ)
+            Log.d("MainActivity", "QQ是否安装: $qqInstalled")
+            
+            // 5. 检查QQ版本
+            try {
+                val qqPackageInfo = packageManager.getPackageInfo("com.tencent.mobileqq", 0)
+                Log.d("MainActivity", "QQ版本: ${qqPackageInfo.versionName}")
+            } catch (e: Exception) {
+                Log.d("MainActivity", "无法获取QQ版本信息: ${e.message}")
+            }
+            
+            Log.d("MainActivity", "如果仍然出现2003错误，请检查：")
+            Log.d("MainActivity", "1. QQ开放平台应用是否已通过审核")
+            Log.d("MainActivity", "2. 应用包名是否与QQ开放平台配置一致")
+            Log.d("MainActivity", "3. 应用签名是否与QQ开放平台配置一致")
+            Log.d("MainActivity", "4. QQ开放平台应用状态是否为'已上线'")
+            Log.d("MainActivity", "5. AndroidManifest.xml中的scheme是否为 tencent$qqAppId 格式")
+            
+            Log.d("MainActivity", "=== QQ配置诊断完成 ===")
+            
+        } catch (e: Exception) {
+            Log.e("MainActivity", "QQ配置诊断失败", e)
+        }
+    }
+
+    /**
+     * 修复QQ权限问题的综合方法
+     * 针对2003错误进行多层修复
+     */
+    private fun fixQQPermissions() {
+        try {
+            Log.d("MainActivity", "开始修复QQ权限问题...")
+            
+            // 1. 强制设置QQ权限为已授权
+            try {
+                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                setIsPermissionGrantedMethod.invoke(null, true)
+                Log.d("MainActivity", "✓ QQ静态权限设置成功")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "✗ QQ静态权限设置失败: ${e.message}")
+            }
+            
+            // 2. 创建Tencent实例并设置权限
+            try {
+                val qqAppId = "102797447"
+                val tencent = com.tencent.tauth.Tencent.createInstance(qqAppId, this, "com.yuluo.kissu.fileprovider")
+                if (tencent != null) {
+                    // 尝试通过实例方法设置权限
+                    try {
+                        val setPermissionMethod = tencent.javaClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                        setPermissionMethod.invoke(tencent, true)
+                        Log.d("MainActivity", "✓ QQ实例权限设置成功")
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "✗ QQ实例权限方法调用失败: ${e.message}")
+                    }
+                    
+                    // 设置其他可能的权限标志
+                    try {
+                        val fields = tencent.javaClass.declaredFields
+                        for (field in fields) {
+                            if (field.name.contains("permission", ignoreCase = true) || 
+                                field.name.contains("grant", ignoreCase = true)) {
+                                field.isAccessible = true
+                                if (field.type == Boolean::class.java || field.type == java.lang.Boolean::class.java) {
+                                    field.set(tencent, true)
+                                    Log.d("MainActivity", "✓ 设置权限字段 ${field.name} = true")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "设置权限字段失败: ${e.message}")
+                    }
+                } else {
+                    Log.w("MainActivity", "✗ 无法创建Tencent实例")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "✗ 创建Tencent实例失败: ${e.message}")
+            }
+            
+            Log.d("MainActivity", "QQ权限修复完成")
+            
+        } catch (e: Exception) {
+            Log.e("MainActivity", "QQ权限修复过程出错", e)
+        }
+    }
+
+    // ===== 支付相关方法 =====
+    private fun initWechatPay(appId: String) {
+        try {
+            wxApi = WXAPIFactory.createWXAPI(this, appId, true)
+            wxApi?.registerApp(appId)
+            Log.d("MainActivity", "微信支付初始化成功: $appId")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "微信支付初始化失败", e)
+        }
+    }
+
+    private fun isWechatAppInstalled(): Boolean {
+        return try {
+            wxApi?.isWXAppInstalled ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun payWithWechat(
+        appId: String,
+        partnerId: String,
+        prepayId: String,
+        packageValue: String,
+        nonceStr: String,
+        timeStamp: String,
+        sign: String,
+        result: MethodChannel.Result
+    ) {
+        try {
+            val req = PayReq().apply {
+                this.appId = appId
+                this.partnerId = partnerId
+                this.prepayId = prepayId
+                this.packageValue = packageValue
+                this.nonceStr = nonceStr
+                this.timeStamp = timeStamp
+                this.sign = sign
+            }
+            
+            wxApi?.sendReq(req)
+            // 注意：实际支付结果在onResp中处理
+            result.success(mapOf("success" to true, "message" to "支付请求已发送"))
+        } catch (e: Exception) {
+            Log.e("MainActivity", "微信支付失败", e)
+            result.success(mapOf("success" to false, "message" to "支付失败: ${e.message}"))
+        }
+    }
+
+    private fun isAlipayAppInstalled(): Boolean {
+        return isAppInstalled("com.eg.android.AlipayGphone")
+    }
+
+    private fun payWithAlipay(orderInfo: String, result: MethodChannel.Result) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val payTask = PayTask(this@MainActivity)
+                val payResult = payTask.payV2(orderInfo, true)
+                
+                withContext(Dispatchers.Main) {
+                    result.success(mapOf(
+                        "success" to true,
+                        "result" to payResult.toString()
+                    ))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e("MainActivity", "支付宝支付失败", e)
+                    result.success(mapOf(
+                        "success" to false,
+                        "message" to "支付失败: ${e.message}"
+                    ))
+                }
+            }
+        }
+    }
+
+    // 微信支付回调
+    override fun onReq(req: com.tencent.mm.opensdk.modelbase.BaseReq?) {
+        // 通常不需要处理
+    }
+
+    override fun onResp(resp: BaseResp?) {
+        when (resp?.type) {
+            ConstantsAPI.COMMAND_PAY_BY_WX -> {
+                val payResp = resp as PayResp
+                when (payResp.errCode) {
+                    BaseResp.ErrCode.ERR_OK -> {
+                        Log.d("MainActivity", "微信支付成功")
+                        // 通知Flutter支付成功
+                    }
+                    BaseResp.ErrCode.ERR_USER_CANCEL -> {
+                        Log.d("MainActivity", "微信支付取消")
+                        // 通知Flutter支付取消
+                    }
+                    BaseResp.ErrCode.ERR_COMM -> {
+                        Log.e("MainActivity", "微信支付失败")
+                        // 通知Flutter支付失败
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 打印应用签名SHA1值，用于高德地图等服务配置
+     */
+    private fun printSHA1() {
+        try {
+            val packageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+            for (signature in packageInfo.signatures ?: emptyArray()) {
+                val md = MessageDigest.getInstance("SHA1")
+                md.update(signature.toByteArray())
+                val sha1 = md.digest().joinToString(":") { "%02X".format(it) }
+                Log.d("MainActivity", "应用SHA1签名: $sha1")
+            }
+        } catch (e: NoSuchAlgorithmException) {
+            Log.e("MainActivity", "无法获取SHA1", e)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "获取签名失败", e)
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         UMShareAPI.get(this).onActivityResult(requestCode, resultCode, data)
-    }
-
-    private fun printSHA1() {
-        try {
-            val info = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
-            val signatures = info.signatures
-            if (signatures != null) {
-                for (signature in signatures) {
-                    val md = MessageDigest.getInstance("SHA1")
-                    md.update(signature.toByteArray())
-                    val digest = md.digest()
-                    val toRet = StringBuilder()
-                    for (i in digest.indices) {
-                        if (i != 0) toRet.append(":")
-                        val b = digest[i].toInt() and 0xff
-                        val hex = Integer.toHexString(b)
-                        if (hex.length == 1) toRet.append("0")
-                        toRet.append(hex)
-                    }
-                    val sha1 = toRet.toString().uppercase()
-                    Log.d("MainActivity", "=== 高德地图调试信息 ===")
-                    Log.d("MainActivity", "Package Name: $packageName")
-                    Log.d("MainActivity", "SHA1: $sha1")
-                    Log.d("MainActivity", "========================")
-                }
-            }
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log.e("MainActivity", "Package name not found", e)
-        } catch (e: NoSuchAlgorithmException) {
-            Log.e("MainActivity", "SHA1 algorithm not found", e)
+        
+        // 处理微信支付回调
+        if (wxApi != null) {
+            wxApi!!.handleIntent(data, this)
         }
     }
 }

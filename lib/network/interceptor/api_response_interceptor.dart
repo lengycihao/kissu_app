@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart' as gg;
 import 'package:kissu_app/network/http_resultN.dart';
@@ -273,6 +272,20 @@ class ApiResponseInterceptor extends Interceptor {
   HttpResultN _processApiResponse(Response response) {
     // 检查HTTP状态码
     if (!_isHttpStatusValid(response.statusCode)) {
+      // 对于500错误，检查是否返回了HTML错误页面
+      if (response.statusCode == 500) {
+        String errorMsg = '服务器内部错误';
+        if (response.data is String && response.data.toString().contains('<!DOCTYPE html>')) {
+          errorMsg = '服务器发生错误，请稍后重试';
+          print('🚨 服务器返回HTML错误页面，状态码: ${response.statusCode}');
+        }
+        return HttpResultN(
+          isSuccess: false,
+          code: response.statusCode ?? -1,
+          msg: errorMsg,
+        );
+      }
+      
       return HttpResultN(
         isSuccess: false,
         code: response.statusCode ?? -1,
@@ -285,6 +298,15 @@ class ApiResponseInterceptor extends Interceptor {
     try {
       jsonMap = _parseResponseData(response.data);
     } catch (e) {
+      // 检查是否是HTML错误页面（通常是服务器500错误）
+      if (response.data is String && response.data.toString().contains('<!DOCTYPE html>')) {
+        return HttpResultN(
+          isSuccess: false,
+          code: response.statusCode ?? 500,
+          msg: '服务器发生错误~',
+        );
+      }
+      
       return HttpResultN(
         isSuccess: false,
         code: -1,

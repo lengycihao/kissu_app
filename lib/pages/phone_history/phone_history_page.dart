@@ -74,9 +74,12 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
           _buildSwipeHint(),
           // 页面内容
           Expanded(
-            child: Obx(() => controller.isBinding.value
-                ? _buildUsageList()
-                : _buildEmptyStateWithBackground()),
+            child: Obx(() {
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _buildContentByState(),
+              );
+            }),
           ),
         ],
       );
@@ -250,9 +253,40 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
     );
   }
 
+  // 根据状态构建内容
+  Widget _buildContentByState() {
+    // 如果绑定状态未知，显示加载状态
+    if (controller.isBinding.value == null) {
+      return _buildInitialLoadingState();
+    }
+    // 根据绑定状态显示对应内容
+    return controller.isBinding.value!
+        ? _buildUsageList()
+        : _buildEmptyStateWithBackground();
+  }
+
+  // 构建初始加载状态
+  Widget _buildInitialLoadingState() {
+    return Stack(
+      key: const ValueKey('loading'),
+      children: [
+        // 使用与未绑定状态相同的背景
+        _buildUnbindBackground(),
+        // 加载指示器覆盖在背景上
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xffFF88AA)),
+            strokeWidth: 2.0,
+          ),
+        ),
+      ],
+    );
+  }
+
   // 构建未绑定状态（带背景图片和下拉刷新）
   Widget _buildEmptyStateWithBackground() {
     return Stack(
+      key: const ValueKey('unbind'),
       children: [
         // 背景图片 - 仅在未绑定时显示
         _buildUnbindBackground(),
@@ -262,58 +296,11 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
     );
   }
 
-  // 构建空状态（带下拉刷新） - 背景延伸到底部
-  Widget _buildEmptyState() {
-    return RefreshIndicator(
-      onRefresh: controller.onRefresh,
-      color: const Color(0xFFFF6B9D),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          // 计算高度，延伸到底部小文字上方，留间距
-          height: MediaQuery.of(Get.context!).size.height - 200, // 预留底部空间
-          margin: const EdgeInsets.only(top: 20, left: 18, right: 18),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              image: const DecorationImage(
-                image: AssetImage('assets/phone_history/kissu_phone_placeholder.webp'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                Positioned(
-                  bottom: 44,
-                  child: GestureDetector(
-                    onTap: () => controller.showBindingDialog(),
-                    child: Container(
-                      width: 110,
-                      height: 35,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        color: const Color(0xffFF88AA),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        "立即绑定",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   // 构建使用记录列表
   Widget _buildUsageList() {
     return Container(
+      key: const ValueKey('bind'),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       child: Stack(
         children: [

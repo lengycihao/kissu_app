@@ -76,3 +76,15 @@
 -keep class android.util.Log {
     public static *** e(...);
 }
+
+# 高德地图SDK相关规则 - 解决SecurityException问题
+-keep class com.amap.api.location.**{*;}
+-keep class com.amap.api.fence.**{*;}
+-keep class com.loc.**{*;}
+-dontwarn com.amap.api.location.**
+-dontwarn com.loc.**
+
+# 忽略高德地图SDK中的电话状态监听相关警告
+-dontwarn com.loc.es.**
+-dontwarn com.loc.ei.**
+-dontwarn com.loc.e.**

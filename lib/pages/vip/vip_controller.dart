@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:logger/logger.dart';
 import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
 import 'package:kissu_app/services/vip_service.dart';
 import 'package:kissu_app/services/payment_service.dart';
-import 'package:chewie/chewie.dart';
-import 'package:video_player/video_player.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
 
 class VipController extends GetxController {
   // Logger实例
@@ -41,11 +42,6 @@ class VipController extends GetxController {
   // 当前评价轮播图索引
   var commentCurrentIndex = 0.obs;
   
-  // Chewie 视频播放器控制器列表
-  var chewieControllers = <ChewieController?>[].obs;
-  
-  // VideoPlayerController 列表（底层控制器）
-  var videoPlayerControllers = <VideoPlayerController?>[].obs;
   
   // 选中的价格索引
   var selectedPriceIndex = 0.obs; // 默认选中第一个套餐
@@ -67,6 +63,8 @@ class VipController extends GetxController {
   
   // 用于防止重复dispose的标志
   var _isDisposed = false;
+  
+  // 使用Flutter视频播放器（已移除原生播放器支持）
   
   // 自动轮播定时器
   Timer? _topCarouselTimer;
@@ -92,6 +90,12 @@ class VipController extends GetxController {
     if (_isInitialized || _isDisposed) {
       return;
     }
+    
+    // 只在首次初始化时重置状态
+    if (!_isInitialized) {
+      _resetControllerState();
+    }
+    
     _isInitialized = true;
     
     // 标记页面为可见状态
@@ -106,6 +110,28 @@ class VipController extends GetxController {
         _loadVipPackages();
       }
     });
+  }
+
+  /// 重置控制器状态
+  void _resetControllerState() {
+    _logger.i('重置控制器状态');
+    
+    // 重置状态标记
+    _isInitialized = false;
+    _isDisposed = false;
+    
+    // 清理可能存在的定时器
+    _stopAutoCarousel();
+    
+    
+    // 重置其他状态
+    currentIndex.value = 0;
+    commentCurrentIndex.value = 0;
+    selectedPriceIndex.value = 0;
+    selectedPaymentMethod.value = 0;
+    agreementChecked.value = false;
+    isPurchasing.value = false;
+    isLoadingPackages.value = false;
   }
 
 
@@ -123,8 +149,6 @@ class VipController extends GetxController {
     // 停止所有自动轮播
     _stopAutoCarousel();
     
-    // 销毁 Chewie 控制器
-    _disposeChewieControllers();
     
     // 销毁页面控制器
     try {
@@ -148,38 +172,6 @@ class VipController extends GetxController {
     super.onClose();
   }
   
-  /// 释放所有 Chewie 控制器
-  void _disposeChewieControllers() {
-    // 先释放 Chewie 控制器
-    for (int i = 0; i < chewieControllers.length; i++) {
-      final chewieController = chewieControllers[i];
-      if (chewieController != null) {
-        try {
-          chewieController.dispose();
-        } catch (e) {
-          // 静默处理释放错误（可能已经被dispose了）
-          print('释放ChewieController失败: $e');
-        }
-      }
-    }
-    chewieControllers.clear();
-    
-    // 再释放底层 VideoPlayerController
-    for (int i = 0; i < videoPlayerControllers.length; i++) {
-      final videoController = videoPlayerControllers[i];
-      if (videoController != null) {
-        try {
-          // 通过检查value来判断是否已被dispose
-          videoController.value;
-          videoController.dispose();
-        } catch (e) {
-          // 静默处理释放错误（可能已经被dispose了）
-          print('释放VideoPlayerController失败: $e');
-        }
-      }
-    }
-    videoPlayerControllers.clear();
-  }
 
   /// 加载VIP横幅数据
   void _loadVipBannerData() async {
@@ -187,7 +179,7 @@ class VipController extends GetxController {
       // 模拟接口调用，实际应该调用 /pay/iconBanner 接口
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // 使用测试数据
+      // 使用测试数据 - PAG动画暂时移除
       final testData = {
         "comment_list": [
           {
@@ -208,34 +200,39 @@ class VipController extends GetxController {
         ],
         "vip_icon_banner": [
           {
-            "vip_icon_video": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/32ae25afac4432c94afc4f1adc18a393.mp4",
+            "vip_icon_video": "",
             "vip_icon_banner": "",
             "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/092f1c38cdad6b28a1feba13d3f8c4d5.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/7d71d319498be3d2966b922e2ac7c00d.png"
+            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/7d71d319498be3d2966b922e2ac7c00d.png",
+            "vip_pag_asset": "pag/kissu_vip_top1.pag"
           },
           {
-            "vip_icon_video": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/7857e206f8ccde38200e0790393f06e5.mp4",
+            "vip_icon_video": "",
             "vip_icon_banner": "",
             "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/0a7781998dd34375e9e337543904bf12.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/ee2e55f486245a32f1dd356fb409e863.png"
+            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/ee2e55f486245a32f1dd356fb409e863.png",
+            "vip_pag_asset": "pag/kissu_vip_top2.pag"
           },
           {
-            "vip_icon_video": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/434a2bcd998b4f5c17576fc0c72a2540.mp4",
+            "vip_icon_video": "",
             "vip_icon_banner": "",
             "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/47ec5e48be2e22f5d8886b8243518eb2.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/57b7079d5f3a1c3d13670b313311fa87.png"
+            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/57b7079d5f3a1c3d13670b313311fa87.png",
+            "vip_pag_asset": "pag/kissu_vip_top3.pag"
           },
           {
-            "vip_icon_video": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/564f9a9b142b39a98a63f711a3bf275e.mp4",
+            "vip_icon_video": "",
             "vip_icon_banner": "",
             "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/f7fe0d2416bf219d16e05ddcf752ee5d.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/07c2af127a33d18ddc72e0908bf6fbbb.png"
+            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/07c2af127a33d18ddc72e0908bf6fbbb.png",
+            "vip_pag_asset": "pag/kissu_vip_top4.pag"
           }
         ]
       };
       
       bannerData.value = VipBannerModel.fromJson(testData);
-      _initializeChewieControllers();
+      print('VIP页面数据加载完成，轮播图数量: ${bannerData.value?.vipIconBanner.length}');
+      print('PAG动画暂时移除，使用图片轮播');
       
       // 启动自动轮播
       _startAutoCarousel();
@@ -244,324 +241,24 @@ class VipController extends GetxController {
     }
   }
   
-  /// 初始化 Chewie 视频播放器控制器
-  void _initializeChewieControllers() {
-    // 检查页面状态
-    if (_isDisposed || !isPageVisible.value) {
-      return;
-    }
-    
-    // 如果已经有控制器且数量匹配，不需要重新初始化
-    final banners = bannerData.value?.vipIconBanner ?? [];
-    if (chewieControllers.length == banners.length && 
-        chewieControllers.isNotEmpty) {
-      return;
-    }
-    
-    // 安全地清理现有控制器
-    try {
-      _disposeChewieControllers();
-    } catch (e) {
-      print('清理现有控制器失败: $e');
-    }
-    
-    // 先初始化 VideoPlayerController 列表
-    try {
-      videoPlayerControllers.value = List.generate(banners.length, (index) {
-        // 再次检查页面状态
-        if (_isDisposed || !isPageVisible.value) {
-          return null;
-        }
-        
-        final banner = banners[index];
-        if (banner.hasVideo) {
-          try {
-            final videoController = VideoPlayerController.networkUrl(
-              Uri.parse(banner.vipIconVideo),
-              videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: false, // 避免与其他音频混合
-                allowBackgroundPlayback: false,
-              ),
-              httpHeaders: {
-                'User-Agent': 'KissuApp/1.0',
-              },
-            );
-            
-            // 设置循环播放
-            videoController.setLooping(true);
-            
-            // 异步初始化，增强错误处理
-            _initializeVideoController(videoController);
-            
-            return videoController;
-          } catch (e) {
-            print('创建VideoPlayerController失败 $index: $e');
-            return null;
-          }
-        } else {
-          return null;
-        }
-      });
-    } catch (e) {
-      print('创建VideoPlayerController列表失败: $e');
-      videoPlayerControllers.value = [];
-    }
-    
-    // 再初始化 ChewieController 列表
-    try {
-      chewieControllers.value = List.generate(banners.length, (index) {
-        // 再次检查页面状态
-        if (_isDisposed || !isPageVisible.value) {
-          return null;
-        }
-        
-        final videoController = videoPlayerControllers[index];
-        if (videoController != null) {
-          try {
-            final chewieController = ChewieController(
-              videoPlayerController: videoController,
-              autoPlay: true, // 启用自动播放
-              looping: true, // 循环播放
-              showControls: false, // 隐藏控制条
-              autoInitialize: true, // 自动初始化
-              placeholder: Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-              errorBuilder: (context, errorMessage) {
-                print('Chewie播放器错误: $errorMessage');
-                return Container(
-                  color: Colors.grey[100],
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: Colors.grey[600],
-                          size: 48,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '视频暂时无法播放',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-            
-            return chewieController;
-          } catch (e) {
-            print('创建ChewieController失败 $index: $e');
-            return null;
-          }
-        }
-        return null;
-      });
-    } catch (e) {
-      print('创建ChewieController列表失败: $e');
-      chewieControllers.value = [];
-    }
-    
-    update(); // 更新UI
-  }
-  
-  /// 异步初始化视频控制器，增强错误处理
-  Future<void> _initializeVideoController(VideoPlayerController controller) async {
-    try {
-      // 检查页面是否还存在
-      if (_isDisposed || !isPageVisible.value) {
-        return;
-      }
-      
-      // 检查控制器是否已经初始化或已被dispose
-      try {
-        // 通过访问value来检查控制器是否可用
-        final value = controller.value;
-        if (value.isInitialized) {
-          return;
-        }
-      } catch (e) {
-        // 控制器可能已经被dispose，直接返回
-        print('控制器已被dispose，跳过初始化: $e');
-        return;
-      }
-      
-      // 初始化视频播放器，增加超时处理
-      await controller.initialize().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('视频初始化超时');
-        },
-      );
-      
-      // 再次检查页面状态
-      if (_isDisposed || !isPageVisible.value) {
-        return;
-      }
-      
-      // 初始化完成后立即设置静音
-      await controller.setVolume(0.0);
-      
-      // 添加错误监听器（避免重复添加）
-      controller.addListener(() {
-        if (!_isDisposed && controller.value.hasError) {
-          print('VideoPlayer错误: ${controller.value.errorDescription}');
-          // 尝试重新初始化或静默处理错误
-          _handleVideoError(controller);
-        }
-      });
-      
-    } catch (e) {
-      print('视频初始化失败: $e');
-      // 静默处理初始化错误
-    }
-  }
-  
-  /// 处理视频播放错误
-  void _handleVideoError(VideoPlayerController controller) {
-    try {
-      // 静默处理错误，避免影响用户体验
-      controller.pause();
-    } catch (e) {
-      print('处理视频错误时发生异常: $e');
-    }
-  }
   
   /// 轮播图页面改变
   void onPageChanged(int index) {
-    // 停止当前播放的视频
-    _pauseCurrentVideo();
     currentIndex.value = index;
-    // 如果新页面是视频，静音自动播放
-    playCurrentVideo();
     
     // 重置顶部轮播图自动轮播定时器
     _resetTopCarouselTimer();
   }
   
-  /// 确保第一个视频静音自动播放
-  void ensureFirstVideoPlay() {
-    if (chewieControllers.isNotEmpty && chewieControllers[0] != null) {
-      final firstController = chewieControllers[0]!.videoPlayerController;
-      
-      if (firstController.value.isInitialized && !firstController.value.hasError) {
-        if (!firstController.value.isPlaying) {
-          // 设置静音和循环播放
-          firstController.setVolume(0.0);
-          firstController.setLooping(true);
-          firstController.play();
-          update();
-        }
-      } else {
-        // 如果还没初始化，等待一下再试
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (firstController.value.isInitialized && 
-              !firstController.value.isPlaying && 
-              !firstController.value.hasError) {
-            // 设置静音和循环播放
-            firstController.setVolume(0.0);
-            firstController.setLooping(true);
-            firstController.play();
-            update();
-          }
-        });
-      }
-    }
-  }
-  
-  /// 暂停当前视频
-  void _pauseCurrentVideo() {
-    try {
-      if (chewieControllers.isNotEmpty && 
-          currentIndex.value < chewieControllers.length &&
-          chewieControllers[currentIndex.value] != null) {
-        chewieControllers[currentIndex.value]?.videoPlayerController.pause();
-      }
-    } catch (e) {
-      // 静默处理暂停错误
-    }
-  }
-
-  /// 暂停所有视频
-  void pauseAllVideos() {
-    try {
-      for (int i = 0; i < chewieControllers.length; i++) {
-        final chewieController = chewieControllers[i];
-        if (chewieController != null) {
-          final controller = chewieController.videoPlayerController;
-          if (controller.value.isPlaying) {
-            controller.pause();
-          }
-        }
-      }
-    } catch (e) {
-      // 静默处理暂停所有视频错误
-    }
-  }
-  
-  /// 播放当前视频
-  void playCurrentVideo() {
-    // 只有在页面可见时才播放视频
-    if (!isPageVisible.value) {
-      return;
-    }
-    
-    try {
-      if (chewieControllers.isNotEmpty && 
-          currentIndex.value < chewieControllers.length &&
-          chewieControllers[currentIndex.value] != null) {
-        final controller = chewieControllers[currentIndex.value]!.videoPlayerController;
-        
-        // 检查是否有错误
-        if (controller.value.hasError) {
-          print('视频播放器存在错误，跳过播放: ${controller.value.errorDescription}');
-          return;
-        }
-        
-        if (controller.value.isInitialized == true) {
-          controller.setVolume(0.0); // 静音播放
-          controller.setLooping(true); // 循环播放
-          controller.play();
-          update(); // 立即更新UI
-        } else {
-          // 如果还没初始化完成，等待一下再试
-          Future.delayed(const Duration(milliseconds: 200), () {
-            if (controller.value.isInitialized == true && 
-                isPageVisible.value && 
-                !controller.value.hasError) {
-              controller.setVolume(0.0); // 静音播放
-              controller.setLooping(true);
-              controller.play();
-              update();
-            }
-          });
-        }
-      }
-    } catch (e) {
-      print('播放视频时发生错误: $e');
-      // 静默处理播放错误
-    }
-  }
   
   /// 选择标签（图片按钮）
   void selectTab(int index) {
-    _pauseCurrentVideo();
     currentIndex.value = index;
     pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
-    playCurrentVideo();
   }
 
   /// 评价轮播图滚动监听
@@ -577,21 +274,6 @@ class VipController extends GetxController {
     }
   }
   
-  /// 获取指定索引的 Chewie 控制器
-  ChewieController? getChewieController(int index) {
-    if (index < chewieControllers.length) {
-      return chewieControllers[index];
-    }
-    return null;
-  }
-  
-  /// 获取指定索引的视频控制器
-  VideoPlayerController? getVideoController(int index) {
-    if (index < chewieControllers.length && chewieControllers[index] != null) {
-      return chewieControllers[index]!.videoPlayerController;
-    }
-    return null;
-  }
   
   /// 选择价格
   void selectPrice(int index) {
@@ -670,6 +352,15 @@ class VipController extends GetxController {
     debugPrint('💫 协议勾选状态已切换为: ${agreementChecked.value}');
   }
   
+  /// 显示协议警告提示
+  void showAgreementWarning() {
+    debugPrint('💫 协议未勾选，显示提示');
+    CustomToast.show(
+      Get.context!,
+      '请先同意《会员服务协议》',
+    );
+  }
+  
   /// 加载VIP套餐数据
   Future<void> _loadVipPackages() async {
     try {
@@ -716,12 +407,11 @@ class VipController extends GetxController {
       return;
     }
     
+    // 协议检查已在UI层面处理，这里可以省略
+    // 但为了安全起见，仍然保留检查
     if (!agreementChecked.value) {
       debugPrint('💫 协议未勾选，显示提示');
-      CustomToast.show(
-        Get.context!,
-        '请先同意会员服务协议',
-      );
+      showAgreementWarning();
       return;
     }
 
@@ -741,25 +431,18 @@ class VipController extends GetxController {
       // 获取选中的支付方式
       final paymentMethod = _getSelectedPaymentMethod();
       
-      // 显示购买确认对话框
-      final confirmed = await _showPurchaseConfirmDialog(package, paymentMethod);
-      if (!confirmed) {
-        return;
-      }
+      // 直接进入支付流程，不再显示确认对话框
+      debugPrint('💫 开始处理支付，支付方式: $paymentMethod');
       
       // 处理购买过程
       await _processPurchase(package);
       
-      // 购买成功提示
-      CustomToast.show(
-        Get.context!,
-        '恭喜您成功开通${package.title}！',
-      );
+       
       
-      // 延迟后返回上一页
-      Future.delayed(const Duration(seconds: 1), () {
-        Get.back();
-      });
+      // // 延迟后刷新我的页面并返回上一页
+      // Future.delayed(const Duration(seconds: 1), () {
+      //   _refreshMinePageAndReturn();
+      // });
       
     } catch (e) {
       // 购买失败提示
@@ -785,37 +468,6 @@ class VipController extends GetxController {
     }
   }
 
-  /// 显示购买确认对话框
-  Future<bool> _showPurchaseConfirmDialog(
-    VipPackageModel package, 
-    String paymentMethod
-  ) async {
-    return await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('确认购买'),
-        content: Text(
-          '确定要购买${package.title}吗？\n'
-          '价格：${package.priceText}\n'
-          '支付方式：$paymentMethod'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF0A6C),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('确认'),
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    ) ?? false;
-  }
 
   /// 处理购买流程
   Future<void> _processPurchase(VipPackageModel package) async {
@@ -856,11 +508,17 @@ class VipController extends GetxController {
       if (result) {
         // 购买成功后更新本地状态
         _updateVipStatus(package);
+        
+        // 支付成功后的UI处理
+        _handlePaymentSuccess(package);
       } else {
+        // throw Exception('支付失败');
+        OKToastUtil.show("支付失败");
         throw Exception('支付失败');
       }
     } catch (e) {
-      _logger.e('支付处理失败: $e');
+      // _logger.e('支付处理失败: $e');
+      OKToastUtil.show("支付失败");
       rethrow; // 重新抛出异常，让上层处理
     }
   }
@@ -870,6 +528,57 @@ class VipController extends GetxController {
     // 这里应该更新用户的VIP状态
     // 例如保存到本地存储或更新用户管理器中的状态
     debugPrint('VIP购买成功: ${package.title}');
+  }
+  
+  /// 支付成功后的处理
+  Future<void> _handlePaymentSuccess(VipPackageModel package) async {
+    try {
+      _logger.i('支付成功，开始处理后续操作...');
+      
+      // 显示支付成功提示
+      OKToastUtil.show('支付成功');
+
+      // 等待用户信息刷新完成（支付服务中已经处理）
+      // 这里稍等片刻，让支付服务的刷新操作完成
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // 刷新页面数据并返回上一页
+      await _refreshMinePageAndReturn();
+      
+    } catch (e) {
+      _logger.e('支付成功后处理异常: $e');
+      // 即使出现异常，也要尝试返回上一页
+      Get.back();
+    }
+  }
+  
+  /// 刷新我的页面并返回上一页
+  Future<void> _refreshMinePageAndReturn() async {
+    try {
+      _logger.i('开始刷新页面数据...');
+      
+      // 刷新我的页面数据
+      if (Get.isRegistered<MineController>()) {
+        final mineController = Get.find<MineController>();
+        await mineController.refreshUserInfo();
+        _logger.i('我的页面数据已刷新');
+      }
+      
+      // 刷新首页数据（如果首页控制器存在）
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        homeController.loadUserInfo();
+        _logger.i('首页数据已刷新');
+      }
+      
+      // 返回上一页
+      Get.back();
+      _logger.i('已返回上一页');
+    } catch (e) {
+      _logger.e('刷新页面数据失败: $e');
+      // 即使刷新失败也要返回上一页
+      Get.back();
+    }
   }
 
   /// 启动自动轮播

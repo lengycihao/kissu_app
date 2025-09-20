@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'mine_controller.dart';
@@ -134,129 +132,154 @@ class MinePage extends GetView<MineController> {
 
   // 头像区域（支持双头像显示）
   Widget _buildAvatarSection() {
-    return Obx(
-      () => Column(
-        children: [
-          // 头像显示区域
-          SizedBox(
-            width: 100,
-            height: 60,
+    return Column(
+      children: [
+        Obx(
+          () => GestureDetector(
+            onTap: controller.onPartnerAvatarTap,
             child: Stack(
               children: [
-                // 用户头像
+                _buildAvatar(),
+                // 另一半头像或添加按钮
+                _buildPartnerAvatar(),
                 Positioned(
-                  left: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        image: controller.userAvatar.value.startsWith('assets/')
-                            ? AssetImage(controller.userAvatar.value)
-                            : NetworkImage(controller.userAvatar.value)
-                                  as ImageProvider,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-                // 另一半头像（右上角，小一点，底部对齐重合）
-                Positioned(
-                  right: 0,
-                  bottom: 0, // 稍微向上偏移，让底部对齐重合
-                  child: GestureDetector(
-                    onTap: controller.onPartnerAvatarTap,
-                    child: _buildPartnerAvatar(),
+                  right: 30,
+                  top: 40,
+                  child: Image(
+                    image: AssetImage("assets/kissu_heart.webp"),
+                    width: 29,
+                    height: 20,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: controller.onLabelTap,
-            child: Row(
-              children: [
-                Image.asset(
-                  "assets/kissu_mine_label_laxx.webp",
-                  width: 56,
-                  height: 16,
-                ),
-                const SizedBox(width: 4),
-                Image.asset(
-                  "assets/kissu_mine_arrow.webp",
-                  width: 14,
-                  height: 14,
-                ),
-              ],
-            ),
+        ),
+        GestureDetector(
+          onTap: controller.onLabelTap,
+          child: Row(
+            children: [
+              Text("恋爱信息",style: TextStyle(
+                fontSize: 14,
+                color: Color(0xff333333),
+                fontFamily: "LiuHuanKaTongShouShu"
+              ),),Image(image:AssetImage("assets/kissu_mine_arrow.webp"),width: 14,)
+            ],
           ),
-        ],
+        )
+      ],
+    );
+  }
+
+  Widget _buildAvatar() {
+    return GestureDetector(
+      onTap: controller.onAvatarTap,
+      child: Container(
+        width: 80,
+        height: 80,
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+            fit: BoxFit.fill,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(left: 6, top: 6, right: 0, bottom: 3),
+          child: ClipOval(
+            child: Image.network(
+                    controller.userAvatar.value,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  )
+          ),
+        ),
       ),
     );
   }
 
+  // 另一半头像显示逻辑
   Widget _buildPartnerAvatar() {
     return Container(
       width: 50,
       height: 50,
-      margin: EdgeInsets.only(left: 50),
-      padding: const EdgeInsets.all(2),
+      margin: EdgeInsets.only(left: 60, top: 20),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFF6D383E), width: 2),
         shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFFFB6C1), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-      child: ClipOval(
-        child: controller.isBound.value
-            ? Image.network(
+      child: controller.isBound.value 
+          ? ClipOval(
+              child: Image.network(
                 controller.partnerAvatar.value,
-                width: 50,
-                height: 50,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(40),
+                      borderRadius: BorderRadius.circular(25),
                       color: const Color(0xFFE8B4CB),
                     ),
                     child: const Icon(
                       Icons.person,
-                      size: 40,
+                      size: 25,
                       color: Colors.white,
                     ),
                   );
                 },
-              )
-            : Image(image: AssetImage('assets/kissu_home_add_avair.webp')),
-      ),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(25),
+                      color: const Color(0xFFE8B4CB),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 25,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              ),
+            )
+          : const Icon(Icons.add, size: 30, color: Color(0xFFFF69B4)),
     );
   }
 
-  // Widget _buildAddButton(BuildContext context) {
-  //     return GestureDetector(
-  //       onTap: () => controller.showAddPartnerDialog(context),
-  //       child: Container(
-  //         width: 50,
-  //         height: 50,
-  //         margin: EdgeInsets.only(left: 50),
-  //         decoration: BoxDecoration(
-  //           shape: BoxShape.circle,
-  //           color: Colors.white,
-  //           border: Border.all(color: const Color(0xFFFFB6C1), width: 2),
-  //           boxShadow: [
-  //             BoxShadow(
-  //               color: Colors.black.withOpacity(0.1),
-  //               blurRadius: 10,
-  //               offset: const Offset(0, 5),
-  //             ),
-  //           ],
-  //         ),
-  //         child: const Icon(Icons.add, size: 30, color: Color(0xFFFF69B4)),
-  //       ),
-  //     );
-  //   }
   // 会员模块
   Widget _buildVipCard() {
     return Obx(
@@ -278,8 +301,10 @@ class MinePage extends GetView<MineController> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  controller.isForeverVip.value ? "KissU终身会员" : "KissU会员",
-                  style: const TextStyle(fontSize: 18, color: Colors.black),
+                  controller.isVip.value
+                      ? (controller.isForeverVip.value ? "KissU终身会员" : "KissU会员")
+                      : "KissU会员",
+                  style: const TextStyle(fontSize: 18, color: Colors.black,fontFamily: "LiuHuanKaTongShouShu"),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -369,16 +394,7 @@ class MinePage extends GetView<MineController> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: controller.settingItems.length,
-            separatorBuilder: (_, __) => Container(
-              height: 0.6,
-              color: const Color(0xFFE6E2E3),
-              margin: const EdgeInsets.only(
-                top: 8,
-                bottom: 14,
-                left: 25,
-                right: 25,
-              ),
-            ),
+            separatorBuilder: (_, __) => _buildDashedDivider(),
             itemBuilder: (_, index) {
               final item = controller.settingItems[index];
               return GestureDetector(
@@ -414,6 +430,32 @@ class MinePage extends GetView<MineController> {
             },
           ),
         ],
+      ),
+    );
+  }
+    Widget _buildDashedDivider() {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boxWidth = constraints.constrainWidth();
+          const dashWidth = 2.0;
+          const dashSpace = 1.0;
+          final dashCount = (boxWidth / (dashWidth + dashSpace)).floor();
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(dashCount, (_) {
+              return SizedBox(
+                width: dashWidth,
+                height: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Color(0xffE6E2E3)),
+                ),
+              );
+            }),
+          );
+        },
       ),
     );
   }

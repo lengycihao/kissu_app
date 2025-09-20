@@ -53,7 +53,10 @@ class DateSelector extends StatelessWidget {
             () => GestureDetector(
               onTap: () {
                 selectedIndex.value = index;
-                if (onSelect != null) onSelect!(date);
+                print('📅 选择日期: ${date.toString().split(' ')[0]}');
+                if (onSelect != null) {
+                  onSelect!(date);
+                }
               },
               child: Container(
                 width: itemWidth,

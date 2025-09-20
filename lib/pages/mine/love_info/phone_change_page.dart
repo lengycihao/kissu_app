@@ -7,6 +7,7 @@ import 'dart:async';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
 import '../../../widgets/custom_toast_widget.dart';
+import '../../../widgets/loading_dots_widget.dart';
 
 class PhoneChangeController extends GetxController {
   final phoneNumber = ''.obs;
@@ -131,10 +132,11 @@ class PhoneChangeController extends GetxController {
       final result = await authApi.changePhone(phone: phone, captcha: code);
 
       if (result.isSuccess) {
-        loadingText.value = '更换成功';
+        // 显示成功提示
+        CustomToast.show(Get.context!, '手机号更换成功');
 
         // 延迟执行退出操作
-        Timer(Duration(milliseconds: 1000), () async {
+        Timer(const Duration(milliseconds: 800), () async {
           isLoading.value = false;
           await _logoutAndNavigateToLogin();
         });
@@ -171,127 +173,135 @@ class PhoneChangePage extends StatelessWidget {
     final controller = Get.put(PhoneChangeController());
 
     return Scaffold(
-      body: Obx(
-        () => Stack(
-            fit: StackFit.expand,
-            children: [
-              // 背景图片
-              Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 背景图片
+          Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
 
-              SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    bottom: 34,
-                    top: MediaQuery.of(context).padding.top + 20,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                bottom: 34,
+                top: MediaQuery.of(context).padding.top + 20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 页面顶部的标题和返回按钮
+                  Row(
                     children: [
-                      // 页面顶部的标题和返回按钮
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => Get.back(),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.centerLeft,
-                              child: Image.asset(
-                                'assets/kissu_mine_back.webp',
-                                width: 24,
-                                height: 24,
-                              ),
-                            ),
+                      GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.centerLeft,
+                          child: Image.asset(
+                            'assets/kissu_mine_back.webp',
+                            width: 24,
+                            height: 24,
                           ),
-                          Expanded(
-                            child: Text(
-                              '更换手机号绑定',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Color(0xFF333333),
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 40), // 平衡布局
-                        ],
-                      ),
-                      const SizedBox(height: 40),
-
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 20,
-                          right: 20,
-                          top: 40,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Image.asset(
-                              'assets/kissu_change_phone_title.png',
-                              width: 96,
-                              height: 21,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildInputField(
-                              '请输入手机号',
-                              false,
-                              controller.phoneNumber,
-                              context,
-                              focusNode: controller.phoneFocusNode,
-                              controller: controller.phoneController,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildInputField(
-                              '请输入验证码',
-                              true,
-                              controller.verificationCode,
-                              context,
-                              focusNode: controller.codeFocusNode,
-                              controller: controller.codeController,
-                            ),
-                            const SizedBox(height: 40),
-
-                            // 确认更换按钮
-                            GestureDetector(
-                              onTap: () async {
-                                // 释放所有焦点并收起键盘
-                                controller.phoneFocusNode.unfocus();
-                                controller.codeFocusNode.unfocus();
-                                FocusScope.of(context).unfocus();
-                                await controller.changePhone();
-                              },
-                              child: Container(
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE8B4CB),
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '完成',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
+                      Expanded(
+                        child: Text(
+                          '更换手机号绑定',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF333333),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 40), // 平衡布局
                     ],
                   ),
-                ),
+                  const SizedBox(height: 40),
+
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 40,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Image.asset(
+                          'assets/kissu_change_phone_title.png',
+                          width: 96,
+                          height: 21,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildInputField(
+                          '请输入手机号',
+                          false,
+                          controller.phoneNumber,
+                          context,
+                          focusNode: controller.phoneFocusNode,
+                          controller: controller.phoneController,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildInputField(
+                          '请输入验证码',
+                          true,
+                          controller.verificationCode,
+                          context,
+                          focusNode: controller.codeFocusNode,
+                          controller: controller.codeController,
+                        ),
+                        const SizedBox(height: 40),
+
+                        // 确认更换按钮
+                        GestureDetector(
+                          onTap: () async {
+                            // 如果正在加载，防止重复点击
+                            if (controller.isLoading.value) return;
+                            
+                            // 释放所有焦点并收起键盘
+                            controller.phoneFocusNode.unfocus();
+                            controller.codeFocusNode.unfocus();
+                            FocusScope.of(context).unfocus();
+                            await controller.changePhone();
+                          },
+                          child: Container(
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8B4CB),
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: Obx(
+                              () => Center(
+                                child: controller.isLoading.value
+                                    ? const LoadingDotsWidget(
+                                        color: Colors.white,
+                                        size: 4.0,
+                                      )
+                                    : Text(
+                                        '完成',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
+      ),
     );
   }
 

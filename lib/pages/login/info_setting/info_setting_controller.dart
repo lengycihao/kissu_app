@@ -12,7 +12,6 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/utils/simple_toast_util.dart';
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -288,8 +287,8 @@ class InfoSettingController extends GetxController {
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.date,
                     initialDateTime: initialDate,
-                    minimumDate: DateTime(1900),
-                    maximumDate: DateTime(2101),
+                    minimumDate: DateTime(1950, 1, 1), // 设置更合理的起始日期
+                    maximumDate: DateTime.now().subtract(const Duration(days: 1)), // 最大日期为昨天
                     onDateTimeChanged: (DateTime newDate) {
                       tempPicked = newDate;
                     },

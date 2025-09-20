@@ -186,16 +186,51 @@ class StayCollect {
   }
 }
 
+// 用户信息模型 - 匹配API响应中的user字段
+class UserInfo {
+  final String? headPortrait;
+  final int? isVip;
+  final int? isBind;
+  final int? halfIsOpenLocation;
+  final String? halfHeadPortrait;
+
+  UserInfo({
+    this.headPortrait,
+    this.isVip,
+    this.isBind,
+    this.halfIsOpenLocation,
+    this.halfHeadPortrait,
+  });
+
+  factory UserInfo.fromJson(Map<String, dynamic> json) {
+    return UserInfo(
+      headPortrait: json['head_portrait'],
+      isVip: json['is_vip'],
+      isBind: json['is_bind'],
+      halfIsOpenLocation: json['half_is_open_location'],
+      halfHeadPortrait: json['half_head_portrait'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'head_portrait': headPortrait,
+      'is_vip': isVip,
+      'is_bind': isBind,
+      'half_is_open_location': halfIsOpenLocation,
+      'half_head_portrait': halfHeadPortrait,
+    };
+  }
+}
+
 // TrackApi 使用的响应模型
 class LocationResponse {
-  final UserLocationMobileDevice? userLocationMobileDevice;
-  final UserLocationMobileDevice? halfLocationMobileDevice;
+  final UserInfo? user;  // 用户信息
   final List<TrackLocation>? locations;  // 轨迹点列表
   final TraceData? trace;  // 轨迹数据
 
   LocationResponse({
-    this.userLocationMobileDevice,
-    this.halfLocationMobileDevice,
+    this.user,
     this.locations,
     this.trace,
   });
@@ -204,17 +239,7 @@ class LocationResponse {
     print('🔍 LocationResponse 解析JSON: ${json.keys.toList()}');
     
     return LocationResponse(
-      // 优先检查标准字段名，如果不存在则尝试其他可能的字段名
-      userLocationMobileDevice: json['user_location_mobile_device'] != null
-          ? UserLocationMobileDevice.fromJson(json['user_location_mobile_device'])
-          : json['user'] != null
-              ? _createUserLocationFromUserData(json['user'], 1) // isOneself = 1
-              : null,
-      halfLocationMobileDevice: json['half_location_mobile_device'] != null
-          ? UserLocationMobileDevice.fromJson(json['half_location_mobile_device'])
-          : json['user'] != null
-              ? _createUserLocationFromUserData(json['user'], 0) // isOneself = 0
-              : null,
+      user: json['user'] != null ? UserInfo.fromJson(json['user']) : null,
       locations: json['locations'] != null
           ? (json['locations'] as List)
               .map((i) => TrackLocation.fromJson(i))
@@ -224,44 +249,9 @@ class LocationResponse {
     );
   }
 
-  /// 从user数据和trace数据创建UserLocationMobileDevice
-  static UserLocationMobileDevice? _createUserLocationFromUserData(
-    Map<String, dynamic> userData, 
-    int isOneself
-  ) {
-    try {
-      print('🔄 从user数据创建UserLocationMobileDevice, isOneself=$isOneself');
-      
-      return UserLocationMobileDevice(
-        isOneself: isOneself,
-        headPortrait: isOneself == 1 
-            ? userData['head_portrait'] 
-            : userData['half_head_portrait'],
-        // 其他字段暂时为空，主要数据从trace中获取
-        power: null,
-        networkName: null,
-        mobileModel: null,
-        isWifi: null,
-        longitude: null,
-        latitude: null,
-        location: null,
-        locationTime: null,
-        speed: null,
-        calculateLocationTime: null,
-        distance: null,
-        stops: null, // stops数据从trace中获取
-        stayCollect: null, // stayCollect数据从trace中获取
-      );
-    } catch (e) {
-      print('❌ 创建UserLocationMobileDevice失败: $e');
-      return null;
-    }
-  }
-
   Map<String, dynamic> toJson() {
     return {
-      'user_location_mobile_device': userLocationMobileDevice?.toJson(),
-      'half_location_mobile_device': halfLocationMobileDevice?.toJson(),
+      'user': user?.toJson(),
       'locations': locations?.map((e) => e.toJson()).toList(),
       'trace': trace?.toJson(),
     };

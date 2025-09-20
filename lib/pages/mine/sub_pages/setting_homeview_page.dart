@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/services/view_mode_service.dart';
 
 class SettingHomeController extends GetxController {
+  late ViewModeService viewModeService;
+
+  @override
+  void onInit() {
+    super.onInit();
+    viewModeService = Get.find<ViewModeService>();
+  }
+
   // 当前选择的模式 0 = pst, 1 = dst
-  var selectedIndex = 0.obs;
+  int get selectedIndex => viewModeService.currentViewMode;
 
   void select(int index) {
-    selectedIndex.value = index;
+    viewModeService.setViewMode(index);
   }
 
   String get centerImage {
-    if (selectedIndex.value == 0) {
+    if (selectedIndex == 0) {
       return "assets/kissu_setting_home_center_dst.webp";
     } else {
       return "assets/kissu_setting_home_center_pst.webp";
@@ -18,13 +27,13 @@ class SettingHomeController extends GetxController {
   }
 
   String get leftButtonImage {
-    return selectedIndex.value == 0
+    return selectedIndex == 0
         ? "assets/kissu_setting_home_pst.webp"
         : "assets/kissu_setting_home_pstu.webp";
   }
 
   String get rightButtonImage {
-    return selectedIndex.value == 1
+    return selectedIndex == 1
         ? "assets/kissu_setting_home_dst.webp"
         : "assets/kissu_setting_home_dstu.webp";
   }
@@ -84,50 +93,56 @@ class SettingHomePage extends StatelessWidget {
                 ),
               ),
 
-              // 中间图片
-              Expanded(
-                child: Center(
-                  child: Obx(
-                    () => Image.asset(
-                      controller.centerImage,
-                      width: 180,
-                      height: 364,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
+               // 中间图片
+               Expanded(
+                 child: Center(
+                   child: Obx(
+                     () => Image.asset(
+                       controller.viewModeService.selectedViewMode.value == 1
+                           ? "assets/kissu_setting_home_center_dst.webp"
+                           : "assets/kissu_setting_home_center_pst.webp",
+                       width: 180,
+                       height: 364,
+                       fit: BoxFit.contain,
+                     ),
+                   ),
+                 ),
+               ),
 
-              // 底部两个按钮
-              Padding(
-                padding: const EdgeInsets.only(bottom: 65),
-                child: Obx(
-                  () => Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () => controller.select(0),
-                        child: Image.asset(
-                          controller.leftButtonImage,
-                          width: 124,
-                          height: 184,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      const SizedBox(width: 36),
-                      GestureDetector(
-                        onTap: () => controller.select(1),
-                        child: Image.asset(
-                          controller.rightButtonImage,
-                          width: 124,
-                          height: 184,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+               // 底部两个按钮
+               Padding(
+                 padding: const EdgeInsets.only(bottom: 65),
+                 child: Obx(
+                   () => Row(
+                     mainAxisAlignment: MainAxisAlignment.center,
+                     children: [
+                       GestureDetector(
+                         onTap: () => controller.select(0),
+                         child: Image.asset(
+                           controller.viewModeService.selectedViewMode.value == 0
+                               ? "assets/kissu_setting_home_pst.webp"
+                               : "assets/kissu_setting_home_pstu.webp",
+                           width: 124,
+                           height: 184,
+                           fit: BoxFit.contain,
+                         ),
+                       ),
+                       const SizedBox(width: 36),
+                       GestureDetector(
+                         onTap: () => controller.select(1),
+                         child: Image.asset(
+                           controller.viewModeService.selectedViewMode.value == 1
+                               ? "assets/kissu_setting_home_dst.webp"
+                               : "assets/kissu_setting_home_dstu.webp",
+                           width: 124,
+                           height: 184,
+                           fit: BoxFit.contain,
+                         ),
+                       ),
+                     ],
+                   ),
+                 ),
+               ),
             ],
           ),
         ],

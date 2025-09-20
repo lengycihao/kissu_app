@@ -12,7 +12,8 @@ class HttpManagerExample {
 
     // 初始化 HTTP 管理器，启用业务请求头
     HttpManagerN.instance.init(
-      'http://dev-love-api.ikissu.cn', // 替换为实际的 API 基础 URL
+      // 'http://dev-love-api.ikissu.cn', // 开发URL
+      'https://service-api.ikissu.cn', // 生产URL
       authService: authService, // 传入 AuthService 实例
       enableBusinessHeaders: true, // 启用业务请求头
       enableCache: true,

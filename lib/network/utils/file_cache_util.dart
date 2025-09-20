@@ -51,6 +51,9 @@ class FileCacheUtil {
 
   // 初始化 - 获取到缓存路径
   Future _init() async {
+    // 确保 DirUtil 已经初始化
+    await DirUtil.getInstance();
+    
     cachePath = DirUtil.getTempPath(category: _fileCategory);
     if (cachePath != null) {
       //尝试异步创建自定义的文件夹

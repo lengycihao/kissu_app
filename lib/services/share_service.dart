@@ -212,4 +212,58 @@ class ShareService extends GetxService {
       return false;
     }
   }
+  
+  /// 测试QQ分享功能
+  Future<Map<String, dynamic>> testQQShare() async {
+    try {
+      print('🧪 开始测试QQ分享功能...');
+      
+      // 1. 检查QQ是否安装
+      final isInstalled = await isQQInstalled();
+      print('📱 QQ安装状态: $isInstalled');
+      
+      if (!isInstalled) {
+        return {
+          'success': false,
+          'message': 'QQ未安装，请先安装QQ应用',
+          'details': {
+            'qqInstalled': false,
+            'testStep': '安装检查'
+          }
+        };
+      }
+      
+      // 2. 测试分享到QQ好友
+      print('📤 测试分享到QQ好友...');
+      final shareResult = await shareToQQ(
+        title: "KISSU测试分享",
+        description: "这是一个测试分享，用于验证QQ分享功能是否正常工作。",
+        webpageUrl: "https://www.ikissu.cn",
+        imageUrl: "https://www.ikissu.cn/logo.png",
+      );
+      
+      print('📊 QQ分享测试结果: $shareResult');
+      
+      return {
+        'success': shareResult['success'] ?? false,
+        'message': shareResult['message'] ?? '测试完成',
+        'details': {
+          'qqInstalled': true,
+          'shareResult': shareResult,
+          'testStep': '分享测试'
+        }
+      };
+      
+    } catch (e) {
+      print('❌ QQ分享测试异常: $e');
+      return {
+        'success': false,
+        'message': '测试异常: $e',
+        'details': {
+          'error': e.toString(),
+          'testStep': '异常处理'
+        }
+      };
+    }
+  }
 }

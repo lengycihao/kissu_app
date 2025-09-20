@@ -18,11 +18,20 @@ class PhoneVerificationController extends GetxController {
   final canResend = true.obs;
   final isLoading = false.obs;
 
+  // TextField控制器
+  late TextEditingController verificationCodeController;
+
   Timer? _countdownTimer;
 
   @override
   void onInit() {
     super.onInit();
+    // 初始化TextEditingController
+    verificationCodeController = TextEditingController();
+    // 监听输入变化，同步到响应式变量
+    verificationCodeController.addListener(() {
+      verificationCode.value = verificationCodeController.text;
+    });
     // 初始化时自动填充用户手机号
     loadUserPhone();
   }
@@ -30,6 +39,7 @@ class PhoneVerificationController extends GetxController {
   @override
   void onClose() {
     _countdownTimer?.cancel();
+    verificationCodeController.dispose();
     super.onClose();
   }
 

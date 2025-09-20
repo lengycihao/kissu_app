@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:amap_map/amap_map.dart';
-import 'package:x_amap_base/x_amap_base.dart';
+import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:amap_flutter_base/amap_flutter_base.dart';
 
 /// 安全的高德地图包装器，解决mapId不匹配导致的空值错误
 class SafeAMapWidget extends StatefulWidget {
@@ -177,6 +177,12 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
       onCameraMove: widget.onCameraMove,
       onCameraMoveEnd: widget.onCameraMoveEnd,
       onPoiTouched: widget.onPoiTouched,
+      // 必须正确设置的合规隐私声明，否则SDK不会工作，会造成地图白屏等问题
+      privacyStatement: const AMapPrivacyStatement(
+        hasContains: true, 
+        hasShow: true, 
+        hasAgree: true
+      ),
     );
   }
 }

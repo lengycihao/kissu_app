@@ -55,12 +55,15 @@ dependencies:
   json_annotation: ^4.9.0
   crypto: ^3.0.3
   get_it: ^8.0.2
-  video_player: ^2.9.1
-  chewie: ^1.8.3
   fluwx: ^5.7.2  # 微信支付
   tobias: ^3.1.0  # 支付宝支付
-  amap_map: ^1.0.15  # 高德地图Flutter插件
-  amap_flutter_location: ^3.0.0  # 高德定位SDK
+  # 高德地图和定位 - 使用本地插件版本
+  amap_flutter_map:
+    path: plugins/amap_flutter_map-3.0.0
+  amap_flutter_location:
+    path: plugins/amap_flutter_location-3.0.0
+  amap_flutter_base:
+    path: plugins/amap_flutter_base-3.0.0
   jpush_flutter: 3.3.6
   oktoast: ^3.3.1  # Toast插件
   webview_flutter: ^4.4.2  # WebView插件
@@ -71,6 +74,8 @@ dependencies:
   battery_plus: ^7.0.0  # 电池状态监听
   network_info_plus: ^6.1.0  # 网络信息获取（包括WiFi SSID）
   card_swiper: ^3.0.1
+  openinstall_flutter_plugin: ^2.5.4  # OpenInstall 渠道统计和携带参数安装
+  pag: ^1.0.0  # PAG动画
 
 dev_dependencies:
   flutter_test:
@@ -109,5 +114,10 @@ flutter:
   assets:
     - assets/
     - assets/phone_history/
-
- 
+    - assets/mipmap-xxhdpi/
+    - assets/kissu_heart.webp
+    - assets/kissu_location_circle.webp
+    - assets/kissu_icon.webp
+    - assets/kissu_track_location.webp
+    - assets/kissu_home_notiicon.png
+    - assets/pag/

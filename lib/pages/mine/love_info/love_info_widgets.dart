@@ -113,39 +113,40 @@ class TogetherCard extends StatelessWidget {
             fit: BoxFit.fill,
           ),
         ),
+        //相爱信息ROW
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
               'assets/kissu_loveinfo_day_left.png',
-              width: 32,
-              height: 36,
+              width: 28,
+              height: 32,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             const Text(
               '在一起',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 12,
                 color: Color(0xFF333333),
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             _buildDaysDisplay(),
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             const Text(
               '天',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 12,
                 color: Color(0xFF333333),
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Image.asset(
               'assets/kissu_loveinfo_day_right.png',
-              width: 32,
-              height: 36,
+              width: 28,
+              height: 32,
             ),
           ],
         ),
@@ -158,30 +159,62 @@ class TogetherCard extends StatelessWidget {
         ? controller.loveDays.value.toString()
         : '-';
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: daysStr.split("").map((d) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 32,
-          height: 32,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/kissu_loveinfo_num_bg.webp'),
-              fit: BoxFit.cover,
+    // 计算数字位数，根据位数调整字体大小和容器大小
+    final digitCount = daysStr.length;
+    double fontSize = 20.0;  // 基础字体大小（1-3位数字）
+    double containerSize = 30.0;  // 基础容器大小
+    double horizontalMargin = 2.0;  // 基础间距
+
+    // 根据数字位数逐步缩小
+    if (digitCount >= 6) {
+      // 6位数字及以上，最小
+      fontSize = 12.0;
+      containerSize = 20.0;
+      horizontalMargin = 0.8;
+    } else if (digitCount >= 5) {
+      // 5位数字，较小
+      fontSize = 14.0;
+      containerSize = 22.0;
+      horizontalMargin = 1.0;
+    } else if (digitCount >= 4) {
+      // 4位数字，稍微缩小
+      fontSize = 16.0;
+      containerSize = 24.0;
+      horizontalMargin = 1.2;
+    } else if (digitCount >= 3) {
+      // 3位数字，基础大小
+      fontSize = 18.0;
+      containerSize = 26.0;
+      horizontalMargin = 1.5;
+    }
+
+    return Flexible(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: daysStr.split("").map((d) {
+          return Container(
+            margin: EdgeInsets.symmetric(horizontal: horizontalMargin),
+            width: containerSize,
+            height: containerSize,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/kissu_loveinfo_num_bg.webp'),
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            d,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFFF69B4),
+            alignment: Alignment.center,
+            child: Text(
+              d,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFFFF69B4),
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -195,38 +228,53 @@ class LoveTimeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xffFFD4D1)),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '相恋时间',
-              style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
-            ),
-            controller.isBindPartner.value
-                ? Text(
-                    controller.loveTime.value,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF666666),
+      () => GestureDetector(
+        onTap: controller.isBindPartner.value 
+            ? () => controller.onLoveTimeTap(context)
+            : null,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: const Color(0xffFFD4D1)),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '相恋时间',
+                style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
+              ),
+              controller.isBindPartner.value
+                  ? Row(
+                      children: [
+                        Text(
+                          controller.loveTime.value,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF666666),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Color(0xFF999999),
+                        ),
+                      ],
+                    )
+                  : Container(
+                      height: 4,
+                      width: 30,
+                      decoration: BoxDecoration(
+                        color: Color(0xffFFD4D1),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
                     ),
-                  )
-                : Container(
-                    height: 4,
-                    width: 30,
-                    decoration: BoxDecoration(
-                      color: Color(0xffFFD4D1),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -259,6 +307,7 @@ class MyInfoSection extends StatelessWidget {
               title: '我的头像',
               value: '',
               hasImage: true,
+              showArrow: true,
               imageUrl: controller.myAvatar.value,
               onTap: () => controller.onAvatarTap(context),
             ),
@@ -379,152 +428,153 @@ class PartnerInfoSection extends StatelessWidget {
       ),
     );
   }
+  
 }
 
-// 头像组件 - 性能优化版本
-class AvatarSection extends StatelessWidget {
-  final LoveInfoController controller;
+// // 头像组件 - 性能优化版本
+// class AvatarSection extends StatelessWidget {
+//   final LoveInfoController controller;
 
-  const AvatarSection({Key? key, required this.controller}) : super(key: key);
+//   const AvatarSection({Key? key, required this.controller}) : super(key: key);
 
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      if (controller.isBindPartner.value) {
-        // 已绑定 - 显示两个头像
-        return Stack(
-          alignment: AlignmentGeometry.bottomCenter,
-          children: [_buildMyAvatar(), _buildPartnerAvatar()],
-        );
-      } else {
-        // 未绑定 - 显示头像和加号
-        return Stack(
-          alignment: AlignmentGeometry.bottomCenter,
-          children: [
-            _buildMyAvatar(),
-            // const SizedBox(width: 40),
-            _buildAddButton(context),
-          ],
-        );
-      }
-    });
-  }
+//   @override
+//   Widget build(BuildContext context) {
+//     return Obx(() {
+//       if (controller.isBindPartner.value) {
+//         // 已绑定 - 显示两个头像
+//         return Stack(
+//           alignment: AlignmentGeometry.bottomCenter,
+//           children: [_buildMyAvatar(), _buildPartnerAvatar()],
+//         );
+//       } else {
+//         // 未绑定 - 显示头像和加号
+//         return Stack(
+//           alignment: AlignmentGeometry.bottomCenter,
+//           children: [
+//             _buildMyAvatar(),
+//             // const SizedBox(width: 40),
+//             _buildAddButton(context),
+//           ],
+//         );
+//       }
+//     });
+//   }
 
-  Widget _buildMyAvatar() {
-    return Container(
-      width: 80,
-      height: 80,
-      padding: const EdgeInsets.all(2),
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
-          fit: BoxFit.fill,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: ClipOval(
-          child: controller.myAvatar.value.isNotEmpty
-              ? Image.network(
-                  controller.myAvatar.value,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40),
-                        color: const Color(0xFFE8B4CB),
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
-                )
-              : Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(40),
-                    color: const Color(0xFFE8B4CB),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
+//   Widget _buildMyAvatar() {
+//     return Container(
+//       width: 80,
+//       height: 80,
+//       padding: const EdgeInsets.all(2),
+//       decoration: const BoxDecoration(
+//         image: DecorationImage(
+//           image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+//           fit: BoxFit.fill,
+//         ),
+//       ),
+//       child: Padding(
+//         padding: const EdgeInsets.all(3),
+//         child: ClipOval(
+//           child: controller.myAvatar.value.isNotEmpty
+//               ? Image.network(
+//                   controller.myAvatar.value,
+//                   width: 80,
+//                   height: 80,
+//                   fit: BoxFit.cover,
+//                   errorBuilder: (context, error, stackTrace) {
+//                     return Container(
+//                       decoration: BoxDecoration(
+//                         borderRadius: BorderRadius.circular(40),
+//                         color: const Color(0xFFE8B4CB),
+//                       ),
+//                       child: const Icon(
+//                         Icons.person,
+//                         size: 40,
+//                         color: Colors.white,
+//                       ),
+//                     );
+//                   },
+//                 )
+//               : Container(
+//                   decoration: BoxDecoration(
+//                     borderRadius: BorderRadius.circular(40),
+//                     color: const Color(0xFFE8B4CB),
+//                   ),
+//                   child: const Icon(
+//                     Icons.person,
+//                     size: 40,
+//                     color: Colors.white,
+//                   ),
+//                 ),
+//         ),
+//       ),
+//     );
+//   }
 
-  Widget _buildPartnerAvatar() {
-    return Container(
-      width: 50,
-      height: 50,
-      margin: EdgeInsets.only(left: 50),
-      padding: const EdgeInsets.all(2),
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
-          fit: BoxFit.fill,
-        ),
-      ),
-      child: ClipOval(
-        child: controller.partnerAvatar.value.isNotEmpty
-            ? Image.network(
-                controller.partnerAvatar.value,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(40),
-                      color: const Color(0xFFE8B4CB),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              )
-            : Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(40),
-                  color: const Color(0xFFE8B4CB),
-                ),
-                child: const Icon(Icons.person, size: 40, color: Colors.white),
-              ),
-      ),
-    );
-  }
+//   Widget _buildPartnerAvatar() {
+//     return Container(
+//       width: 50,
+//       height: 50,
+//       margin: EdgeInsets.only(left: 50),
+//       padding: const EdgeInsets.all(2),
+//       decoration: const BoxDecoration(
+//         image: DecorationImage(
+//           image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+//           fit: BoxFit.fill,
+//         ),
+//       ),
+//       child: ClipOval(
+//         child: controller.partnerAvatar.value.isNotEmpty
+//             ? Image.network(
+//                 controller.partnerAvatar.value,
+//                 width: 50,
+//                 height: 50,
+//                 fit: BoxFit.cover,
+//                 errorBuilder: (context, error, stackTrace) {
+//                   return Container(
+//                     decoration: BoxDecoration(
+//                       borderRadius: BorderRadius.circular(40),
+//                       color: const Color(0xFFE8B4CB),
+//                     ),
+//                     child: const Icon(
+//                       Icons.person,
+//                       size: 40,
+//                       color: Colors.white,
+//                     ),
+//                   );
+//                 },
+//               )
+//             : Container(
+//                 decoration: BoxDecoration(
+//                   borderRadius: BorderRadius.circular(40),
+//                   color: const Color(0xFFE8B4CB),
+//                 ),
+//                 child: const Icon(Icons.person, size: 40, color: Colors.white),
+//               ),
+//       ),
+//     );
+//   }
 
-  Widget _buildAddButton(BuildContext context) {
-    return GestureDetector(
-      onTap: () => controller.showAddPartnerDialog(context),
-      child: Container(
-        width: 50,
-        height: 50,
-        margin: EdgeInsets.only(left: 50),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFFFB6C1), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.add, size: 30, color: Color(0xFFFF69B4)),
-      ),
-    );
-  }
-}
+//   Widget _buildAddButton(BuildContext context) {
+//     return GestureDetector(
+//       onTap: () => controller.showAddPartnerDialog(context),
+//       child: Container(
+//         width: 50,
+//         height: 50,
+//         margin: EdgeInsets.only(left: 50),
+//         decoration: BoxDecoration(
+//           shape: BoxShape.circle,
+//           color: Colors.white,
+//           border: Border.all(color: const Color(0xFFFFB6C1), width: 2),
+//           boxShadow: [
+//             BoxShadow(
+//               color: Colors.black.withOpacity(0.1),
+//               blurRadius: 10,
+//               offset: const Offset(0, 5),
+//             ),
+//           ],
+//         ),
+//         child: const Icon(Icons.add, size: 30, color: Color(0xFFFF69B4)),
+//       ),
+//     );
+//   }
+// }

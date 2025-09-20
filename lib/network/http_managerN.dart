@@ -77,7 +77,7 @@ class HttpManagerN {
     // Add logging interceptor (logging is controlled by the logging system itself)
     enhancedInterceptors.add(
       LoggingInterceptor.create(
-        logHeaders: false, // Simplified logging
+        logHeaders: true, // 启用 header 日志来查看 sign 字段
         logRequestBody: true,
         logResponseBody: true,
         maxBodyLength: 500,

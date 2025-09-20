@@ -77,5 +77,26 @@
 	<!-- 高德地图API Key -->
 	<key>MAMapKitApiKey</key>
 	<string>38edb925a25f22e3aae2f86ce7f2ff3b</string>
+	
+	<!-- OpenInstall配置 -->
+	<key>com.openinstall.APP_KEY</key>
+	<string>eb24o3</string>
+	
+	<!-- URL Types配置 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>openinstall</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>eb24o3</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- 广告追踪权限描述（可选） -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>为了您可以精准获取到优质推荐内容，需要您允许使用该权限</string>
 </dict>
 </plist>

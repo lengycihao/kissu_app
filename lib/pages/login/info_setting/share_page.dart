@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/home_scroll_service.dart';
 import 'share_controller.dart';
 
 class SharePage extends StatelessWidget {
@@ -45,7 +46,17 @@ class SharePage extends StatelessWidget {
                       child: Row(
                         children: [
                           GestureDetector(
-                            onTap: () =>  Get.offAllNamed(KissuRoutePath.home),
+                            onTap: () {
+                              // 返回首页前先预设背景滚动位置
+                              try {
+                                final homeScrollService = Get.find<HomeScrollService>();
+                                homeScrollService.calculateAndSetPresetPosition();
+                                print('✅ 分享页返回前已预设首页背景滚动位置');
+                              } catch (e) {
+                                print('❌ 分享页预设首页滚动位置失败: $e');
+                              }
+                              Get.offAllNamed(KissuRoutePath.home);
+                            },
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               child: Image.asset(
@@ -184,14 +195,12 @@ class SharePage extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(3),
+        padding: EdgeInsets.only(left: 6, top: 6,right: 0,bottom: 3),
         child: ClipOval(
           child: Get.find<ShareController>().userAvatar.value.isNotEmpty
               ? Image.network(
                   Get.find<ShareController>().userAvatar.value,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
+                    fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       decoration: BoxDecoration(

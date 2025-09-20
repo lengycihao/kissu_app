@@ -7,7 +7,9 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
+import 'package:kissu_app/model/login_model/lover_info.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
@@ -48,7 +50,7 @@ class LoveInfoController extends GetxController {
     if (user != null) {
       print('Loading user info: ${user.nickname}');
 
-      // 绑定状态处理 (1未绑定，2绑定)
+      // 绑定状态处理 (1绑定，2未绑定，0初始未绑定)
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
       // isBindPartner.value  = false;
@@ -83,7 +85,7 @@ class LoveInfoController extends GetxController {
       );
       loveTime.value = _formatDate(bindTime);
 
-      // 计算在一起天数
+      // 计算在一起天数（作为备用值）
       final now = DateTime.now();
       final difference = now.difference(bindTime).inDays;
       togetherDays.value = difference;
@@ -116,16 +118,27 @@ class LoveInfoController extends GetxController {
         bindDate.value = lover.bindDate!;
         print('Bind date from loverInfo: ${bindDate.value}');
       }
+      if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
+        loveTime.value = lover.loveTime!;
+        print('Love time from loverInfo: ${loveTime.value}');
+      } else {
+        // 如果服务器没有提供 loveTime，保持之前设置的值（从 latelyBindTime 计算）
+        print('Using calculated love time: ${loveTime.value}');
+      }
       if (lover.loveDays != null) {
         loveDays.value = lover.loveDays!;
         print('Love days from loverInfo: ${loveDays.value}');
+      } else {
+        // 如果服务器没有提供 loveDays，使用计算的 togetherDays
+        loveDays.value = togetherDays.value;
+        print('Using calculated together days as love days: ${loveDays.value}');
       }
     }
   }
 
-  /// 格式化日期为 YYYY.MM.DD 格式
+  /// 格式化日期为 YYYY-MM-DD 格式
   String _formatDate(DateTime dateTime) {
-    return "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}";
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
   }
 
   /// 格式化手机号（脱敏显示）
@@ -329,15 +342,39 @@ class LoveInfoController extends GetxController {
             nickname: currentUser.nickname,
             headPortrait: avatarUrl,
             gender: currentUser.gender,
+            loverId: currentUser.loverId,
             birthday: currentUser.birthday,
-            token: currentUser.token,
-            isVip: currentUser.isVip,
-            isForEverVip: currentUser.isForEverVip,
-            vipEndDate: currentUser.vipEndDate,
-            bindStatus: currentUser.bindStatus,
+            halfUid: currentUser.halfUid,
+            status: currentUser.status,
+            inviterId: currentUser.inviterId,
             friendCode: currentUser.friendCode,
+            friendQrCode: currentUser.friendQrCode,
+            isForEverVip: currentUser.isForEverVip,
+            vipEndTime: currentUser.vipEndTime,
+            channel: currentUser.channel,
+            mobileModel: currentUser.mobileModel,
+            deviceId: currentUser.deviceId,
+            uniqueId: currentUser.uniqueId,
             provinceName: currentUser.provinceName,
             cityName: currentUser.cityName,
+            bindStatus: currentUser.bindStatus,
+            latelyBindTime: currentUser.latelyBindTime,
+            latelyUnbindTime: currentUser.latelyUnbindTime,
+            latelyLoginTime: currentUser.latelyLoginTime,
+            latelyPayTime: currentUser.latelyPayTime,
+            loginNums: currentUser.loginNums,
+            openAppNums: currentUser.openAppNums,
+            latelyOpenAppTime: currentUser.latelyOpenAppTime,
+            isTest: currentUser.isTest,
+            isOrderVip: currentUser.isOrderVip,
+            loginTime: currentUser.loginTime,
+            vipEndDate: currentUser.vipEndDate,
+            isVip: currentUser.isVip,
+            token: currentUser.token,
+            imSign: currentUser.imSign,
+            isPerfectInformation: currentUser.isPerfectInformation,
+            halfUserInfo: currentUser.halfUserInfo, // 保留伴侣信息
+            loverInfo: currentUser.loverInfo, // 保留恋爱信息
           );
           await UserManager.updateUserInfo(updatedUser);
         }
@@ -427,6 +464,11 @@ class LoveInfoController extends GetxController {
     });
   }
 
+  /// 处理相恋时间点击
+  void onLoveTimeTap(BuildContext context) {
+    _showLoveTimePicker(context);
+  }
+
   /// 更新用户昵称
   Future<void> _updateUserNickname(String nickname) async {
     try {
@@ -446,15 +488,39 @@ class LoveInfoController extends GetxController {
             nickname: nickname,
             headPortrait: currentUser.headPortrait,
             gender: currentUser.gender,
+            loverId: currentUser.loverId,
             birthday: currentUser.birthday,
-            token: currentUser.token,
-            isVip: currentUser.isVip,
-            isForEverVip: currentUser.isForEverVip,
-            vipEndDate: currentUser.vipEndDate,
-            bindStatus: currentUser.bindStatus,
+            halfUid: currentUser.halfUid,
+            status: currentUser.status,
+            inviterId: currentUser.inviterId,
             friendCode: currentUser.friendCode,
+            friendQrCode: currentUser.friendQrCode,
+            isForEverVip: currentUser.isForEverVip,
+            vipEndTime: currentUser.vipEndTime,
+            channel: currentUser.channel,
+            mobileModel: currentUser.mobileModel,
+            deviceId: currentUser.deviceId,
+            uniqueId: currentUser.uniqueId,
             provinceName: currentUser.provinceName,
             cityName: currentUser.cityName,
+            bindStatus: currentUser.bindStatus,
+            latelyBindTime: currentUser.latelyBindTime,
+            latelyUnbindTime: currentUser.latelyUnbindTime,
+            latelyLoginTime: currentUser.latelyLoginTime,
+            latelyPayTime: currentUser.latelyPayTime,
+            loginNums: currentUser.loginNums,
+            openAppNums: currentUser.openAppNums,
+            latelyOpenAppTime: currentUser.latelyOpenAppTime,
+            isTest: currentUser.isTest,
+            isOrderVip: currentUser.isOrderVip,
+            loginTime: currentUser.loginTime,
+            vipEndDate: currentUser.vipEndDate,
+            isVip: currentUser.isVip,
+            token: currentUser.token,
+            imSign: currentUser.imSign,
+            isPerfectInformation: currentUser.isPerfectInformation,
+            halfUserInfo: currentUser.halfUserInfo, // 保留伴侣信息
+            loverInfo: currentUser.loverInfo, // 保留恋爱信息
           );
           await UserManager.updateUserInfo(updatedUser);
         }
@@ -503,15 +569,39 @@ class LoveInfoController extends GetxController {
             nickname: currentUser.nickname,
             headPortrait: currentUser.headPortrait,
             gender: genderValue,
+            loverId: currentUser.loverId,
             birthday: currentUser.birthday,
-            token: currentUser.token,
-            isVip: currentUser.isVip,
-            isForEverVip: currentUser.isForEverVip,
-            vipEndDate: currentUser.vipEndDate,
-            bindStatus: currentUser.bindStatus,
+            halfUid: currentUser.halfUid,
+            status: currentUser.status,
+            inviterId: currentUser.inviterId,
             friendCode: currentUser.friendCode,
+            friendQrCode: currentUser.friendQrCode,
+            isForEverVip: currentUser.isForEverVip,
+            vipEndTime: currentUser.vipEndTime,
+            channel: currentUser.channel,
+            mobileModel: currentUser.mobileModel,
+            deviceId: currentUser.deviceId,
+            uniqueId: currentUser.uniqueId,
             provinceName: currentUser.provinceName,
             cityName: currentUser.cityName,
+            bindStatus: currentUser.bindStatus,
+            latelyBindTime: currentUser.latelyBindTime,
+            latelyUnbindTime: currentUser.latelyUnbindTime,
+            latelyLoginTime: currentUser.latelyLoginTime,
+            latelyPayTime: currentUser.latelyPayTime,
+            loginNums: currentUser.loginNums,
+            openAppNums: currentUser.openAppNums,
+            latelyOpenAppTime: currentUser.latelyOpenAppTime,
+            isTest: currentUser.isTest,
+            isOrderVip: currentUser.isOrderVip,
+            loginTime: currentUser.loginTime,
+            vipEndDate: currentUser.vipEndDate,
+            isVip: currentUser.isVip,
+            token: currentUser.token,
+            imSign: currentUser.imSign,
+            isPerfectInformation: currentUser.isPerfectInformation,
+            halfUserInfo: currentUser.halfUserInfo, // 保留伴侣信息
+            loverInfo: currentUser.loverInfo, // 保留恋爱信息
           );
           await UserManager.updateUserInfo(updatedUser);
         }
@@ -578,8 +668,6 @@ class LoveInfoController extends GetxController {
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.date,
                     initialDateTime: initialDate,
-                    minimumDate: DateTime(1900),
-                    maximumDate: DateTime.now(),
                     onDateTimeChanged: (DateTime newDate) {
                       tempPicked = newDate;
                     },
@@ -613,15 +701,39 @@ class LoveInfoController extends GetxController {
             nickname: currentUser.nickname,
             headPortrait: currentUser.headPortrait,
             gender: currentUser.gender,
+            loverId: currentUser.loverId,
             birthday: birthdayStr,
-            token: currentUser.token,
-            isVip: currentUser.isVip,
-            isForEverVip: currentUser.isForEverVip,
-            vipEndDate: currentUser.vipEndDate,
-            bindStatus: currentUser.bindStatus,
+            halfUid: currentUser.halfUid,
+            status: currentUser.status,
+            inviterId: currentUser.inviterId,
             friendCode: currentUser.friendCode,
+            friendQrCode: currentUser.friendQrCode,
+            isForEverVip: currentUser.isForEverVip,
+            vipEndTime: currentUser.vipEndTime,
+            channel: currentUser.channel,
+            mobileModel: currentUser.mobileModel,
+            deviceId: currentUser.deviceId,
+            uniqueId: currentUser.uniqueId,
             provinceName: currentUser.provinceName,
             cityName: currentUser.cityName,
+            bindStatus: currentUser.bindStatus,
+            latelyBindTime: currentUser.latelyBindTime,
+            latelyUnbindTime: currentUser.latelyUnbindTime,
+            latelyLoginTime: currentUser.latelyLoginTime,
+            latelyPayTime: currentUser.latelyPayTime,
+            loginNums: currentUser.loginNums,
+            openAppNums: currentUser.openAppNums,
+            latelyOpenAppTime: currentUser.latelyOpenAppTime,
+            isTest: currentUser.isTest,
+            isOrderVip: currentUser.isOrderVip,
+            loginTime: currentUser.loginTime,
+            vipEndDate: currentUser.vipEndDate,
+            isVip: currentUser.isVip,
+            token: currentUser.token,
+            imSign: currentUser.imSign,
+            isPerfectInformation: currentUser.isPerfectInformation,
+            halfUserInfo: currentUser.halfUserInfo, // 保留伴侣信息
+            loverInfo: currentUser.loverInfo, // 保留恋爱信息
           );
           await UserManager.updateUserInfo(updatedUser);
         }
@@ -647,6 +759,10 @@ class LoveInfoController extends GetxController {
   /// 解析日期字符串
   DateTime? _parseDate(String dateStr) {
     try {
+      // 尝试解析 YYYY-MM-DD 格式
+      if (dateStr.contains('-')) {
+        return DateTime.parse(dateStr);
+      }
       // 尝试解析 YYYY.MM.DD 格式
       if (dateStr.contains('.')) {
         final parts = dateStr.split('.');
@@ -657,6 +773,202 @@ class LoveInfoController extends GetxController {
             int.parse(parts[2]),
           );
         }
+      }
+      // 尝试解析其他格式
+      return DateTime.parse(dateStr);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 显示相恋时间选择器
+  Future<void> _showLoveTimePicker(BuildContext context) async {
+    final initialDate = loveTime.value == '一一'
+        ? DateTime.now()
+        : _parseLoveTime(loveTime.value) ?? DateTime.now();
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        DateTime tempPicked = initialDate;
+
+        return Localizations.override(
+          context: context,
+          locale: const Locale('zh', 'CN'),
+          child: SizedBox(
+            height: 300,
+            child: Column(
+              children: [
+                // 顶部操作栏
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      child: const Text("取消"),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    TextButton(
+                      child: const Text("确定"),
+                      onPressed: () {
+                        _updateLoveTime(tempPicked);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                ),
+                // iOS 风格日期选择器
+                Expanded(
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: initialDate,
+                    onDateTimeChanged: (DateTime newDate) {
+                      tempPicked = newDate;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 更新相恋时间
+  Future<void> _updateLoveTime(DateTime loveTimeDate) async {
+    try {
+      final loveTimeStr = _formatLoveTime(loveTimeDate);
+      final authApi = AuthApi();
+      final result = await authApi.updateUserInfo(loveTime: loveTimeStr);
+
+      if (result.isSuccess) {
+        // 更新本地数据
+        loveTime.value = _formatDate(loveTimeDate);
+
+        // 重新计算在一起天数
+        final now = DateTime.now();
+        final difference = now.difference(loveTimeDate).inDays;
+        togetherDays.value = difference;
+        loveDays.value = difference;
+
+        // 更新用户缓存
+        final currentUser = UserManager.currentUser;
+        if (currentUser != null) {
+          // 更新loverInfo中的恋爱信息
+          LoverInfo? updatedLoverInfo = currentUser.loverInfo;
+          if (updatedLoverInfo != null) {
+            updatedLoverInfo = LoverInfo(
+              id: updatedLoverInfo.id,
+              phone: updatedLoverInfo.phone,
+              nickname: updatedLoverInfo.nickname,
+              headPortrait: updatedLoverInfo.headPortrait,
+              gender: updatedLoverInfo.gender,
+              birthday: updatedLoverInfo.birthday,
+              provinceName: updatedLoverInfo.provinceName,
+              cityName: updatedLoverInfo.cityName,
+              bindTime: updatedLoverInfo.bindTime,
+              bindDate: updatedLoverInfo.bindDate,
+              loveTime: _formatLoveTime(loveTimeDate), // 更新相恋时间
+              loveDays: difference, // 更新恋爱天数
+            );
+          }
+
+          final updatedUser = LoginModel(
+            id: currentUser.id,
+            phone: currentUser.phone,
+            nickname: currentUser.nickname,
+            headPortrait: currentUser.headPortrait,
+            gender: currentUser.gender,
+            loverId: currentUser.loverId,
+            birthday: currentUser.birthday,
+            halfUid: currentUser.halfUid,
+            status: currentUser.status,
+            inviterId: currentUser.inviterId,
+            friendCode: currentUser.friendCode,
+            friendQrCode: currentUser.friendQrCode,
+            isForEverVip: currentUser.isForEverVip,
+            vipEndTime: currentUser.vipEndTime,
+            channel: currentUser.channel,
+            mobileModel: currentUser.mobileModel,
+            deviceId: currentUser.deviceId,
+            uniqueId: currentUser.uniqueId,
+            provinceName: currentUser.provinceName,
+            cityName: currentUser.cityName,
+            bindStatus: currentUser.bindStatus,
+            latelyBindTime: currentUser.latelyBindTime,
+            latelyUnbindTime: currentUser.latelyUnbindTime,
+            latelyLoginTime: currentUser.latelyLoginTime,
+            latelyPayTime: currentUser.latelyPayTime,
+            loginNums: currentUser.loginNums,
+            openAppNums: currentUser.openAppNums,
+            latelyOpenAppTime: currentUser.latelyOpenAppTime,
+            isTest: currentUser.isTest,
+            isOrderVip: currentUser.isOrderVip,
+            loginTime: currentUser.loginTime,
+            vipEndDate: currentUser.vipEndDate,
+            isVip: currentUser.isVip,
+            token: currentUser.token,
+            imSign: currentUser.imSign,
+            isPerfectInformation: currentUser.isPerfectInformation,
+            halfUserInfo: currentUser.halfUserInfo, // 保留伴侣信息
+            loverInfo: updatedLoverInfo, // 更新恋爱信息
+          );
+          await UserManager.updateUserInfo(updatedUser);
+        }
+
+        // 通知我的页面刷新
+        try {
+          final mineController = Get.find<MineController>();
+          mineController.loadUserInfo();
+          print('Love time updated, mine page refreshed');
+        } catch (e) {
+          print('Mine page not found: $e');
+        }
+
+        // 通知首页刷新
+        try {
+          final homeController = Get.find<HomeController>();
+          homeController.loadUserInfo();
+          print('Love time updated, home page refreshed');
+        } catch (e) {
+          print('Home controller not found: $e');
+        }
+
+        CustomToast.show(Get.context!, '相恋时间更新成功');
+      } else {
+        CustomToast.show(Get.context!, result.msg ?? '相恋时间更新失败');
+      }
+    } catch (e) {
+      CustomToast.show(Get.context!, '相恋时间更新失败：$e');
+    }
+  }
+
+  /// 格式化相恋时间为 YYYY-MM-DD 格式（用于API）
+  String _formatLoveTime(DateTime dateTime) {
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
+  /// 解析相恋时间字符串
+  DateTime? _parseLoveTime(String dateStr) {
+    try {
+      // 尝试解析 YYYY.MM.DD 格式
+      if (dateStr.contains('.')) {
+        final parts = dateStr.split('.');
+        if (parts.length == 3) {
+          return DateTime(
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+            int.parse(parts[2]),
+          );
+        }
+      }
+      // 尝试解析 YYYY-MM-DD 格式
+      if (dateStr.contains('-')) {
+        return DateTime.parse(dateStr);
       }
       // 尝试解析其他格式
       return DateTime.parse(dateStr);

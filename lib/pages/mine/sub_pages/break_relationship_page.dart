@@ -6,6 +6,7 @@ import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
 import '../mine_controller.dart';
 import '../../phone_history/phone_history_controller.dart';
+import '../../home/home_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class BreakRelationshipPage extends StatefulWidget {
@@ -28,55 +29,52 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Scaffold(
-          body: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/phone_history/kissu_phone_bg.webp'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // 自定义AppBar
-                  _buildCustomAppBar(),
-                  // 页面内容
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(
-                        left: 18,
-                        right: 18,
-                        bottom: 20,
-                      ),
-                      child: Column(
-                        children: [
-                          // 复用恋爱信息的在一起天数卡片
-                          _buildTogetherCard(),
-                          const SizedBox(height: 20),
-
-                          // 提示文字
-                          _buildWarningText(),
-                          const SizedBox(height: 30),
-
-                          // 解除须知
-                          _buildNoticeSection(),
-                          const SizedBox(height: 40),
-
-                          // 解除关系按钮
-                          _buildBreakButton(context),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/phone_history/kissu_phone_bg.webp'),
+            fit: BoxFit.cover,
           ),
         ),
-      
+        child: SafeArea(
+          child: Column(
+            children: [
+              // 自定义AppBar
+              _buildCustomAppBar(),
+              // 页面内容
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(
+                    left: 18,
+                    right: 18,
+                    bottom: 20,
+                  ),
+                  child: Column(
+                    children: [
+                      // 复用恋爱信息的在一起天数卡片
+                      _buildTogetherCard(),
+                      const SizedBox(height: 20),
+
+                      // 提示文字
+                      _buildWarningText(),
+                      const SizedBox(height: 30),
+
+                      // 解除须知
+                      _buildNoticeSection(),
+                      const SizedBox(height: 40),
+
+                      // 解除关系按钮
+                      _buildBreakButton(context),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -255,26 +253,26 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
         // 延迟一下让用户看到成功提示
         await Future.delayed(const Duration(milliseconds: 800));
 
-        // 刷新用户信息
-        try {
-          await UserManager.refreshUserInfo();
-        } catch (e) {
-          print('刷新用户信息失败: $e');
-        }
-
-        // 返回到我的页面，并确保刷新我的页面数据
-        _returnToMinePageAndRefresh();
-        
-        // 刷新敏感记录页面数据
-        _refreshPhoneHistoryPage();
-
+        // 先显示成功提示（在页面关闭前）
         CustomToast.show(
           Get.context!,
           '关系已解除',
-          backgroundColor: const Color(0xFF4CAF50),
-          textColor: Colors.white,
-          duration: const Duration(seconds: 2),
         );
+
+        // 延迟一下让Toast显示
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // 先刷新用户信息，确保数据同步
+        final refreshSuccess = await UserManager.refreshUserInfo();
+        if (!refreshSuccess) {
+          CustomToast.show(
+            Get.context!,
+            '用户信息刷新失败，请重新进入页面',
+          );
+        }
+        
+        // 返回到我的页面，并确保刷新我的页面数据
+        await _returnToMinePageAndRefresh();
       } else {
         CustomToast.show(
           Get.context!,
@@ -292,37 +290,72 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   }
 
   /// 返回到我的页面并刷新数据
-  void _returnToMinePageAndRefresh() {
-    // 首先返回到上一级页面（隐私设置页面）
-    Get.back();
-
-    // 再返回到我的页面
-    Get.back();
-
-    // 刷新我的页面数据
+  Future<void> _returnToMinePageAndRefresh() async {
     try {
-      if (Get.isRegistered<MineController>()) {
-        final mineController = Get.find<MineController>();
-        // 调用我的页面的数据加载方法
-        mineController.refreshUserInfo();
-      }
+      // 先刷新所有相关控制器的数据（在页面跳转前）
+      await _refreshAllControllers();
+      
+      // 然后返回到我的页面
+      // 首先返回到上一级页面（隐私设置页面）
+      Get.back();
+
+      // 再返回到我的页面
+      Get.back();
+      
+      // 页面跳转后再次确保数据刷新
+      await Future.delayed(const Duration(milliseconds: 200));
+      await _refreshMineControllerAfterReturn();
+      
     } catch (e) {
-      print('刷新我的页面数据失败: $e');
+      print('返回页面并刷新数据失败: $e');
+      // 即使出错也要返回页面
+      Get.back();
+      Get.back();
     }
   }
-
-  /// 刷新敏感记录页面数据
-  void _refreshPhoneHistoryPage() {
+  
+  /// 刷新所有相关控制器
+  Future<void> _refreshAllControllers() async {
+    // 给一点时间让UserManager的数据完全同步
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // 刷新首页绑定状态
+    try {
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        homeController.loadUserInfo();
+        print('✅ 已刷新首页绑定状态');
+      }
+    } catch (e) {
+      print('❌ 刷新首页绑定状态失败: $e');
+    }
+    
+    // 刷新敏感记录页面（提前刷新）
     try {
       if (Get.isRegistered<PhoneHistoryController>()) {
         final phoneHistoryController = Get.find<PhoneHistoryController>();
         phoneHistoryController.loadData(isRefresh: true);
-        print('已刷新敏感记录页面数据');
+        print('✅ 已刷新敏感记录页面数据');
       }
     } catch (e) {
-      print('刷新敏感记录页面数据失败: $e');
+      print('❌ 刷新敏感记录页面数据失败: $e');
     }
   }
+  
+  /// 页面返回后刷新我的页面控制器
+  Future<void> _refreshMineControllerAfterReturn() async {
+    try {
+      if (Get.isRegistered<MineController>()) {
+        final mineController = Get.find<MineController>();
+        // 直接调用 loadUserInfo，避免重复的网络请求
+        mineController.loadUserInfo();
+        print('✅ 已刷新我的页面数据');
+      }
+    } catch (e) {
+      print('❌ 刷新我的页面数据失败: $e');
+    }
+  }
+
 }
 
 // 复用恋爱信息的头像组件，适配解除关系页面
@@ -522,30 +555,62 @@ class _BreakTogetherCard extends StatelessWidget {
         ? controller.loveDays.value.toString()
         : '-';
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: daysStr.split("").map((d) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 32,
-          height: 32,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/kissu_loveinfo_num_bg.webp'),
-              fit: BoxFit.cover,
+    // 计算数字位数，根据位数调整字体大小和容器大小
+    final digitCount = daysStr.length;
+    double fontSize = 20.0;  // 基础字体大小（1-3位数字）
+    double containerSize = 30.0;  // 基础容器大小
+    double horizontalMargin = 2.0;  // 基础间距
+
+    // 根据数字位数逐步缩小
+    if (digitCount >= 6) {
+      // 6位数字及以上，最小
+      fontSize = 12.0;
+      containerSize = 20.0;
+      horizontalMargin = 0.8;
+    } else if (digitCount >= 5) {
+      // 5位数字，较小
+      fontSize = 14.0;
+      containerSize = 22.0;
+      horizontalMargin = 1.0;
+    } else if (digitCount >= 4) {
+      // 4位数字，稍微缩小
+      fontSize = 16.0;
+      containerSize = 24.0;
+      horizontalMargin = 1.2;
+    } else if (digitCount >= 3) {
+      // 3位数字，基础大小
+      fontSize = 18.0;
+      containerSize = 26.0;
+      horizontalMargin = 1.5;
+    }
+
+    return Flexible(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: daysStr.split("").map((d) {
+          return Container(
+            margin: EdgeInsets.symmetric(horizontal: horizontalMargin),
+            width: containerSize,
+            height: containerSize,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/kissu_loveinfo_num_bg.webp'),
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            d,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFFF69B4),
+            alignment: Alignment.center,
+            child: Text(
+              d,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFFFF69B4),
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }

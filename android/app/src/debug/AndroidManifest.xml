@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Mock Location权限仅用于debug版本 -->
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" />
 </manifest>

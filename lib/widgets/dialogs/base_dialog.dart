@@ -122,7 +122,7 @@ class DialogButton extends StatelessWidget {
         width: width ?? 120,
         height: height ?? 44,
         padding:
-            padding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding ?? const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         decoration: BoxDecoration(
           // borderRadius: BorderRadius.circular(22),
           image: backgroundImage != null

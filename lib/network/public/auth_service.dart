@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
-import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/jpush_service.dart';
+import 'package:kissu_app/services/openinstall_service.dart';
+import 'package:get/get.dart';
 
 class AuthService {
   // ✅ 公开构造函数，GetIt 可以直接 new 出来
@@ -73,12 +74,47 @@ class AuthService {
   Future<HttpResultN<LoginModel>> loginWithCode({
     required String phoneNumber,
     required String code,
-    String friendCode = "545452",
+    String? friendCode,
   }) async {
+    // 如果没有提供friendCode，尝试从OpenInstall获取
+    String finalFriendCode = friendCode ?? "545452"; // 默认值
+    
+    if (friendCode == null) {
+      try {
+        final inviteCode = await OpenInstallService.getCachedInviteCode();
+        if (inviteCode != null && inviteCode.isNotEmpty) {
+          finalFriendCode = inviteCode;
+          logger.info(
+            '使用OpenInstall邀请码登录',
+            tag: 'AuthService',
+            extra: {'inviteCode': inviteCode, 'phone': phoneNumber},
+          );
+        } else {
+          logger.info(
+            '未找到OpenInstall邀请码，使用默认邀请码',
+            tag: 'AuthService',
+            extra: {'defaultFriendCode': finalFriendCode, 'phone': phoneNumber},
+          );
+        }
+      } catch (e) {
+        logger.warning(
+          '获取OpenInstall邀请码失败，使用默认邀请码',
+          tag: 'AuthService',
+          extra: {'error': e.toString(), 'defaultFriendCode': finalFriendCode, 'phone': phoneNumber},
+        );
+      }
+    } else {
+      logger.info(
+        '使用手动提供的邀请码登录',
+        tag: 'AuthService',
+        extra: {'friendCode': friendCode, 'phone': phoneNumber},
+      );
+    }
+
     final result = await _authApi.loginWithCode(
       phone: phoneNumber,
       captcha: code,
-      friendCode: friendCode,
+      friendCode: finalFriendCode,
     );
 
     if (result.isSuccess && result.data != null) {
@@ -98,58 +134,112 @@ class AuthService {
       extra: {'userId': user.id, 'nickname': user.nickname},
     );
 
-    // 登录成功后自动启动定位服务
-    _startLocationServiceAfterLogin();
+    // 设置极光推送别名
+    _setJPushAlias(user);
+
+
+    // 定位服务将在首页启动，这里不再自动启动
 
     // Get.offAll(() => ScreenNavPage());
   }
-
-  /// 登录后启动定位服务
-  void _startLocationServiceAfterLogin() {
+  
+  /// 设置极光推送别名
+  void _setJPushAlias(LoginModel user) {
     try {
-      // 延迟启动，确保登录流程完成
-      Future.delayed(const Duration(milliseconds: 1000), () async {
-        try {
-          // 检查是否已经注册了定位服务
-          if (Get.isRegistered<SimpleLocationService>()) {
-            final locationService = Get.find<SimpleLocationService>();
-            if (!locationService.isLocationEnabled.value) {
-              final success = await locationService.startLocation();
-              if (success) {
-                logger.info('登录后自动启动定位服务成功', tag: 'AuthService');
-              } else {
-                logger.warning('登录后自动启动定位服务失败', tag: 'AuthService');
-              }
-            } else {
-              logger.info('定位服务已在运行', tag: 'AuthService');
-            }
+      // 检查极光推送服务是否已注册
+      if (Get.isRegistered<JPushService>()) {
+        final jpushService = Get.find<JPushService>();
+        // 使用用户的unique_id作为别名
+        String alias = user.uniqueId ?? 'user_${user.id}';
+        
+        // 在后台设置别名，不阻塞登录流程
+        Future.microtask(() async {
+          bool success = await jpushService.setAlias(alias);
+          if (success) {
+            logger.info('极光推送别名设置成功: $alias');
           } else {
-            logger.warning('定位服务尚未注册，跳过自动启动', tag: 'AuthService');
+            logger.w('极光推送别名设置失败: $alias');
           }
-        } catch (e) {
-          logger.error('登录后启动定位服务异常: $e', tag: 'AuthService');
-        }
-      });
+        });
+        
+        logger.info('开始设置极光推送别名: $alias');
+      } else {
+        logger.w('极光推送服务未注册，跳过别名设置');
+      }
     } catch (e) {
-      logger.error('准备启动定位服务失败: $e', tag: 'AuthService');
+      logger.e('设置极光推送别名失败: $e');
     }
   }
 
+  /// 清除极光推送别名
+  void _clearJPushAlias() {
+    try {
+      // 检查极光推送服务是否已注册
+      if (Get.isRegistered<JPushService>()) {
+        final jpushService = Get.find<JPushService>();
+        
+        // 在后台清除别名，不阻塞退出流程
+        Future.microtask(() async {
+          bool success = await jpushService.deleteAlias();
+          if (success) {
+            logger.info('极光推送别名清除成功');
+          } else {
+            logger.w('极光推送别名清除失败');
+          }
+        });
+        
+        logger.info('开始清除极光推送别名');
+      } else {
+        logger.w('极光推送服务未注册，跳过别名清除');
+      }
+    } catch (e) {
+      logger.e('清除极光推送别名失败: $e');
+    }
+  }
+
+
+
   Future<void> _saveCurrentUser(LoginModel user) async {
-    await _storage.write(
-      key: _currentUserKey,
-      value: jsonEncode(user.toJson()),
-    );
+    try {
+      final jsonData = jsonEncode(user.toJson());
+      print('💾 开始保存用户数据，用户ID: ${user.id}, 数据长度: ${jsonData.length}');
+      
+      await _storage.write(
+        key: _currentUserKey,
+        value: jsonData,
+      );
+      
+      print('✅ 用户数据保存成功');
+      
+      // 验证保存是否成功
+      final savedData = await _storage.read(key: _currentUserKey);
+      if (savedData != null) {
+        print('✅ 验证保存成功，数据长度: ${savedData.length}');
+      } else {
+        print('❌ 验证保存失败，读取到null');
+      }
+    } catch (e) {
+      print('❌ 保存用户数据失败: $e');
+      throw e;
+    }
   }
 
   /// 读取缓存用户
   Future<LoginModel?> _loadCurrentUser() async {
     try {
+      print('🔍 开始读取用户缓存数据...');
       final userString = await _storage.read(key: _currentUserKey);
+      
       if (userString != null) {
-        return LoginModel.fromJson(jsonDecode(userString));
+        print('✅ 找到用户缓存数据，长度: ${userString.length}');
+        final user = LoginModel.fromJson(jsonDecode(userString));
+        print('✅ 用户数据解析成功，用户ID: ${user.id}, token存在: ${user.token != null}');
+        return user;
+      } else {
+        print('⚠️ 未找到用户缓存数据');
       }
     } catch (e) {
+      print('❌ 读取缓存用户失败: $e');
       debugPrint('读取缓存用户失败: $e');
     }
     return null;
@@ -212,6 +302,9 @@ class AuthService {
         tag: 'AuthService',
         extra: {'userId': _currentUser!.id},
       );
+
+      // 清除极光推送别名
+      _clearJPushAlias();
 
       // 调用退出登录API
       try {

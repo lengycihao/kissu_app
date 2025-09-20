@@ -1,19 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:amap_map/amap_map.dart';
+import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
+import 'package:kissu_app/pages/track/component/custom_stay_point_info_window.dart';
+import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
+import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'track_controller.dart';
 
 class TrackPage extends StatelessWidget {
-  TrackPage({super.key});
+  final double? initialLatitude;
+  final double? initialLongitude;
+  final String? initialLocationName;
+  final String? initialDuration;
+  final String? initialStartTime;
+  final String? initialEndTime;
 
-  final controller = Get.put(TrackController());
+  const TrackPage({
+    super.key,
+    this.initialLatitude,
+    this.initialLongitude,
+    this.initialLocationName,
+    this.initialDuration,
+    this.initialStartTime,
+    this.initialEndTime,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.put(TrackController());
+    
+    // 如果有初始坐标，设置到控制器中
+    if (initialLatitude != null && initialLongitude != null) {
+      controller.setInitialCoordinates(
+        latitude: initialLatitude!,
+        longitude: initialLongitude!,
+        locationName: initialLocationName,
+        duration: initialDuration,
+        startTime: initialStartTime,
+        endTime: initialEndTime,
+      );
+    }
+    
     return _TrackPageContent(controller: controller);
   }
 }
@@ -34,6 +65,7 @@ class _TrackPageContentState extends State<_TrackPageContent> {
   late final double minHeight;
   late final double maxHeight;
   late final double mapHeight;
+  late final DraggableScrollableController _draggableController;
 
   @override
   void didChangeDependencies() {
@@ -43,11 +75,45 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     initialHeight = screenHeight * 0.4;
     minHeight = screenHeight * 0.4;
     maxHeight = screenHeight - 150;
-    mapHeight = screenHeight - initialHeight + 30;
+    mapHeight = screenHeight - initialHeight + 90;
+    
+    // 初始化底部面板控制器
+    _draggableController = DraggableScrollableController();
+    widget.controller.setDraggableController(_draggableController);
+    
+    // 设置停留点点击回调
+    widget.controller.onStayPointTapped = _onStayPointTapped;
+  }
+  
+  /// 处理停留点点击事件
+  void _onStayPointTapped(TrackStopPoint stopPoint, LatLng position) {
+    // 隐藏之前的信息窗口
+    CustomStayPointInfoWindowManager.hideInfoWindow();
+    
+    // 检查地图控制器是否可用
+    if (widget.controller.mapController == null) {
+      print('❌ 地图控制器不可用，无法显示InfoWindow');
+      return;
+    }
+    
+    // 显示自定义信息窗口（使用经纬度坐标）
+    CustomStayPointInfoWindowManager.showInfoWindow(
+      context: context,
+      stopPointLocation: position, // 传递经纬度坐标
+      mapController: widget.controller.mapController!, // 传递地图控制器
+      locationName: stopPoint.locationName ?? '未知位置',
+      duration: stopPoint.duration ?? '',
+      startTime: stopPoint.startTime ?? '',
+      endTime: stopPoint.endTime ?? '',
+    );
   }
 
   @override
   void dispose() {
+    // 清理自定义信息窗口
+    CustomStayPointInfoWindowManager.hideInfoWindow();
+    // 清理回调
+    widget.controller.onStayPointTapped = null;
     // 确保控制器被正确清理
     print('🚪 轨迹页面即将销毁，触发控制器清理...');
     super.dispose();
@@ -85,11 +151,22 @@ class _TrackPageContentState extends State<_TrackPageContent> {
 
           // 下半屏 DraggableScrollableSheet，扩大可拖动区域
           NotificationListener<DraggableScrollableNotification>(
-            onNotification: (notification) {
-              widget.controller.sheetPercent.value = notification.extent;
-              return true;
-            },
+                      onNotification: (notification) {
+                        widget.controller.sheetPercent.value = notification.extent;
+                        
+                        // 只在底部面板真正持续滑动时隐藏InfoWindow
+                        // 使用延迟机制避免点击触发的瞬间滑动
+                        Future.delayed(Duration(milliseconds: 200), () {
+                          if (notification.extent != widget.controller.sheetPercent.value) {
+                            // 如果200ms后extent还在变化，说明是真正的滑动操作
+                            CustomStayPointInfoWindowManager.hideInfoWindow();
+                          }
+                        });
+                        
+                        return true;
+                      },
             child: DraggableScrollableSheet(
+              controller: _draggableController,
               initialChildSize: initialHeight / screenHeight,
               minChildSize: minHeight / screenHeight,
               maxChildSize: maxHeight / screenHeight,
@@ -127,7 +204,11 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                         ),
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (notification) {
-                            if (notification is ScrollStartNotification) {
+                            // 使用智能滚动检测，特别处理边界反弹
+                            if (notification is ScrollUpdateNotification) {
+                              if (notification.scrollDelta != null) {
+                                CustomStayPointInfoWindowManager.onScrollDetected(notification.scrollDelta!);
+                              }
                               return true;
                             }
                             return false;
@@ -168,32 +249,12 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                                           ),
                                         ),
                                         const SizedBox(height: 16),
-                                        // 虚拟数据提示
-                                        Obx(() {
-                                          if (widget
-                                              .controller
-                                              .isUsingMockData
-                                              .value) {
-                                            return Column(
-                                              children: [
-                                                Text(
-                                                  '以下为虚拟数据',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Color(0xFFFF88AA),
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                              ],
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        }),
+                                        // 未绑定状态提示文字
+                                        _buildUnboundHint(),
                                         _buildDateSelector(),
                                         const SizedBox(height: 16),
                                         _buildStatisticsRow(),
-                                        const SizedBox(height: 12),
+                                        // const SizedBox(height: 12),
                                       ],
                                     ),
                                   ],
@@ -300,30 +361,49 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     );
   }
 
+  // 未绑定状态提示文字
+  Widget _buildUnboundHint() {
+    return Obx(() {
+      // 只在未绑定状态时显示
+      if (widget.controller.isBindPartner.value) {
+        return const SizedBox.shrink();
+      }
+      
+      return Container(
+        margin: const EdgeInsets.only(top: 1, bottom: 2),
+        child: const Text(
+          "以下为虚拟数据",
+          style: TextStyle(
+            fontFamily: 'LiuhuanKatongShoushu',
+            fontSize: 14,
+            color: Color(0xFFFF88AA),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    });
+  }
+
   // 日期选择模块
   Widget _buildDateSelector() {
     return DateSelector(
+      externalSelectedIndex: widget.controller.selectedDateIndex,
       onSelect: (date) {
         widget.controller.selectDate(date);
       },
     );
   }
 
+
   // 统计栏组件
   Widget _buildStatisticsRow() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 1, vertical: 12),
       margin: EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
         color: Color(0xffFFFCE8),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
+        
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -336,11 +416,7 @@ class _TrackPageContentState extends State<_TrackPageContent> {
               color: Color(0xFFFF6B6B),
             ),
           ),
-          Container(
-            width: 1,
-            height: 30,
-            color: Colors.grey.withValues(alpha: 0.3),
-          ),
+           
           Obx(() => _buildStat(
             "停留时间", 
             widget.controller.stayDuration.value.isEmpty 
@@ -349,11 +425,7 @@ class _TrackPageContentState extends State<_TrackPageContent> {
             icon: Icons.access_time,
             color: Color(0xFF4ECDC4),
           )),
-          Container(
-            width: 1,
-            height: 30,
-            color: Colors.grey.withValues(alpha: 0.3),
-          ),
+          
           Obx(() => _buildStat(
             "移动距离", 
             widget.controller.moveDistance.value.isEmpty 
@@ -371,30 +443,22 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     return Expanded(
       child: Column(
         children: [
-          if (icon != null) ...[
-            Icon(
-              icon,
-              size: 16,
-              color: color ?? Color(0xFF666666),
-            ),
-            const SizedBox(height: 4),
-          ],
+           
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
-              color: Color(0xFF666666),
+              fontSize: 12,
+              color: Color(0xFF000000),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              fontSize: 13,
-              color: color ?? Color(0xFF333333),
-              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color:   Color(0xFF000000),
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -404,6 +468,7 @@ class _TrackPageContentState extends State<_TrackPageContent> {
       ),
     );
   }
+
 }
 
 // 优化的遮罩层Widget - 减少重建频率
@@ -462,6 +527,13 @@ class _CachedMapWidget extends StatelessWidget {
         print('❌ 添加停留点标记失败: $e');
       }
       
+      // 安全地添加轨迹起点和终点标记
+      try {
+        markers.addAll(controller.trackStartEndMarkers);
+      } catch (e) {
+        print('❌ 添加轨迹起终点标记失败: $e');
+      }
+      
       // 安全地添加当前回放位置标记s
       if (controller.currentPosition.value != null) {
         try {
@@ -469,6 +541,7 @@ class _CachedMapWidget extends StatelessWidget {
            markers.add(Marker(
             position: controller.currentPosition.value!,
             icon:  BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
             infoWindow: const InfoWindow(
               title: '当前位置',
               snippet: '轨迹回放中',
@@ -481,6 +554,7 @@ class _CachedMapWidget extends StatelessWidget {
           try {
             markers.add(Marker(
               position: controller.currentPosition.value!,
+              anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
             ));
           } catch (fallbackError) {
             print('❌ 简化标记也失败: $fallbackError');
@@ -490,24 +564,46 @@ class _CachedMapWidget extends StatelessWidget {
       
       // 创建轨迹线集合
       Set<Polyline> polylines = {};
-      if (controller.trackPoints.isNotEmpty && controller.trackPoints.length > 1) {
-        // 主轨迹线
-        polylines.add(Polyline(
-          points: controller.trackPoints,
-          color: controller.isOneself.value == 1
-              ? const Color(0xFF3B96FF)  // 男性 - 蓝色轨迹
-              : const Color(0xFFFF88AA), // 女性 - 粉色轨迹
-          width: 5,
-        ));
-        
-        // 添加轨迹阴影效果（可选）
-        polylines.add(Polyline(
-          points: controller.trackPoints,
-          color: (controller.isOneself.value == 1
-              ? const Color(0xFF3B96FF)
-              : const Color(0xFFFF88AA)).withValues(alpha: 0.3),
-          width: 8,
-        ));
+      
+      // 安全创建轨迹线，防止空点集合错误
+      try {
+        // 双重检查确保轨迹线创建的安全性
+        if (controller.hasValidTrackData.value && 
+            controller.trackPoints.isNotEmpty && 
+            controller.trackPoints.length >= 2) {
+          // 创建轨迹点的副本，避免响应式变量在创建过程中变化
+          final pointsCopy = List<LatLng>.from(controller.trackPoints);
+          
+          if (pointsCopy.isNotEmpty && pointsCopy.length >= 2) {
+            // 主轨迹线 - 统一使用蓝色
+            polylines.add(Polyline(
+              points: pointsCopy,
+              color: const Color(0xFF3B96FF),
+              width: 5,
+            ));
+            print('✅ 创建轨迹线，点数: ${pointsCopy.length}');
+          } else {
+            print('⚠️ 轨迹点副本检查失败，不创建轨迹线');
+          }
+        } else {
+          print('ℹ️ 无有效轨迹数据，不创建轨迹线。状态: ${controller.hasValidTrackData.value}, 点数: ${controller.trackPoints.length}');
+        }
+      } catch (e) {
+        print('❌ 创建轨迹线时发生错误: $e');
+        // 确保不创建有问题的轨迹线
+      }
+      
+      // 创建多边形覆盖物集合（用于高亮圆圈）
+      Set<Polygon> polygons = {};
+      
+      // 安全地添加高亮圆圈
+      try {
+        polygons.addAll(controller.highlightCircles);
+        if (controller.highlightCircles.isNotEmpty) {
+          print('✅ 添加高亮圆圈，数量: ${controller.highlightCircles.length}');
+        }
+      } catch (e) {
+        print('❌ 添加高亮圆圈失败: $e');
       }
       
       return SafeAMapWidget(
@@ -515,12 +611,28 @@ class _CachedMapWidget extends StatelessWidget {
         onMapCreated: controller.onMapCreated,
         markers: markers,
         polylines: polylines,
+        polygons: polygons,
         compassEnabled: true,
         scaleEnabled: true,
         zoomGesturesEnabled: true,
         scrollGesturesEnabled: true,
         rotateGesturesEnabled: true,
         tiltGesturesEnabled: true,
+        // 添加地图移动监听
+        onCameraMove: (CameraPosition position) {
+          // 地图移动时更新相机位置并重新计算InfoWindow位置
+          CustomStayPointInfoWindowManager.updateCameraPosition(position);
+        },
+        onCameraMoveEnd: (CameraPosition position) {
+          // 地图移动结束时进行最终精确更新
+          print('🏁 地图移动结束，进行最终位置更新');
+        },
+        // 添加地图点击监听，点击地图时清除高亮圆圈
+        onTap: (LatLng position) {
+          // 点击地图时清除高亮圆圈和InfoWindow
+          controller.clearAllHighlightCircles();
+          CustomStayPointInfoWindowManager.hideInfoWindow();
+        },
       );
     });
   }
@@ -540,207 +652,11 @@ class _PlayerControlWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final sheetPercent = controller.sheetPercent.value;
-      final initialPosition = initialHeight / screenHeight;
-      final shouldShow = (sheetPercent <= initialPosition + 0.15);
-
-      return Positioned(
-        bottom: screenHeight * 0.4 + 20,
-        left: 20,
-        right: 20,
-        child: Opacity(
-          opacity: shouldShow ? 1.0 : 0.0,
-          child: controller.showFullPlayer.value
-              ? _FullPlayerControls(controller: controller)
-              : _SimplePlayButton(controller: controller),
-        ),
-      );
-    });
+    // 隐藏播放按钮
+    return const SizedBox.shrink();
   }
 }
 
-// 简单播放按钮组件
-class _SimplePlayButton extends StatelessWidget {
-  final TrackController controller;
-
-  const _SimplePlayButton({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => controller.startReplay(),
-      child: Align(
-        alignment: AlignmentGeometry.centerLeft,
-        child: SizedBox(
-          width: 60,
-          height: 60,
-          child: Image.asset(
-            'assets/kissu_location_play.webp',
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// 完整播放控制器组件
-class _FullPlayerControls extends StatelessWidget {
-  final TrackController controller;
-
-  const _FullPlayerControls({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 距离和时间显示
-        Container(
-          margin: EdgeInsets.only(bottom: 20),
-          width: 170,
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Obx(
-                () => Text(
-                  controller.replayDistance.value,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Obx(
-                () => Text(
-                  controller.replayTime.value,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // 播放控制器
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Obx(() {
-            // 安全计算进度值
-            double progress = 0.0;
-            if (controller.trackPoints.isNotEmpty) {
-              final maxIndex = controller.trackPoints.length - 1;
-              if (maxIndex > 0) {
-                final currentIndex = controller.currentReplayIndex.value.clamp(
-                  0,
-                  maxIndex,
-                );
-                progress = currentIndex / maxIndex;
-              } else {
-                progress = 1.0;
-              }
-            }
-            progress = progress.clamp(0.0, 1.0);
-
-            return Row(
-              children: [
-                // 播放/暂停按钮
-                GestureDetector(
-                  onTap: controller.isReplaying.value
-                      ? controller.pauseReplay
-                      : controller.startReplay,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: controller.isReplaying.value
-                          ? Colors.orange
-                          : Colors.green,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      controller.isReplaying.value
-                          ? Icons.pause
-                          : Icons.play_arrow,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                // 进度条
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: Color(0xffFFDC73),
-                      inactiveTrackColor: Color(0x33FFDC73),
-                      thumbColor: Color(0xffFFDC73),
-                      overlayColor: Color(0x33FFDC73),
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
-                      ),
-                      trackHeight: 4,
-                    ),
-                    child: Slider(
-                      value: progress,
-                      onChanged: (value) {
-                        if (controller.trackPoints.isNotEmpty) {
-                          final maxIndex = controller.trackPoints.length - 1;
-                          if (maxIndex > 0) {
-                            final newIndex = (value * maxIndex).round().clamp(
-                              0,
-                              maxIndex,
-                            );
-                            controller.seekToIndex(newIndex);
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                // 关闭按钮
-                GestureDetector(
-                  onTap: controller.closePlayer,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(color: Colors.white),
-                    child: Image(
-                      image: AssetImage('assets/kissu_location_close.webp'),
-                      width: 15,
-                      height: 15,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }),
-        ),
-      ],
-    );
-  }
-}
 
 // 优化的头像行Widget
 class _CachedAvatarRow extends StatelessWidget {
@@ -750,9 +666,25 @@ class _CachedAvatarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final List<Widget> avatars = [
-        // 自己的头像
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 无论绑定状态如何，都显示另一半头像（左边，默认选中）
+        _AvatarButton(
+          controller: controller,
+          isMyself: false,
+          onTap: () {
+            if (controller.isOneself.value != 0) {
+              controller.isOneself.value = 0;
+              controller.refreshCurrentUserData();
+              // 添加触觉反馈
+              HapticFeedback.lightImpact();
+              print('🔄 切换到查看另一半的数据');
+            }
+          },
+        ),
+        const SizedBox(width: 8),
+        // 显示自己的头像（右边）
         _AvatarButton(
           controller: controller,
           isMyself: true,
@@ -766,39 +698,13 @@ class _CachedAvatarRow extends StatelessWidget {
             }
           },
         ),
-      ];
-
-      // 绑定状态时显示另一半头像
-      if (controller.isBindPartner.value &&
-          controller.partnerAvatar.value.isNotEmpty) {
-        avatars.add(const SizedBox(width: 8));
-        avatars.add(
-          _AvatarButton(
-            controller: controller,
-            isMyself: false,
-            onTap: () {
-              if (controller.isOneself.value != 0) {
-                controller.isOneself.value = 0;
-                controller.refreshCurrentUserData();
-                // 添加触觉反馈
-                HapticFeedback.lightImpact();
-                print('🔄 切换到查看另一半的数据');
-              }
-            },
-          ),
-        );
-      }
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: avatars,
-      );
-    });
+      ],
+    );
   }
 }
 
 // 优化的头像按钮Widget
-class _AvatarButton extends StatelessWidget {
+class _AvatarButton extends StatefulWidget {
   final TrackController controller;
   final bool isMyself;
   final VoidCallback onTap;
@@ -810,74 +716,97 @@ class _AvatarButton extends StatelessWidget {
   });
 
   @override
+  State<_AvatarButton> createState() => _AvatarButtonState();
+}
+
+class _AvatarButtonState extends State<_AvatarButton> {
+  bool _isAvatarLoaded = false;
+
+  @override
   Widget build(BuildContext context) {
     return Obx(() {
       final baseSize = 32.0;
       
       // 检查当前头像是否被选中
-      final isSelected = (isMyself && controller.isOneself.value == 1) || 
-                        (!isMyself && controller.isOneself.value == 0);
+      final isSelected = (widget.isMyself && widget.controller.isOneself.value == 1) || 
+                        (!widget.isMyself && widget.controller.isOneself.value == 0);
       
       // 根据选中状态调整缩放比例
       final scale = isSelected ? 1.2 : 0.9;
       final actualSize = baseSize * scale;
       
-      final avatarUrl = isMyself
-          ? controller.myAvatar.value
-          : controller.partnerAvatar.value;
-      final defaultAsset = isMyself
-          ? 'assets/kissu_track_header_boy.webp'
-          : 'assets/kissu_track_header_girl.webp';
+      final avatarUrl = widget.isMyself
+          ? widget.controller.myAvatar.value
+          : widget.controller.partnerAvatar.value;
 
       return GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          width: actualSize,
-          height: actualSize,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(actualSize / 2),
-            border: isSelected 
-                ? Border.all(
-                    color: const Color(0xFFFF88AA),
-                    width: 3,
-                  )
-                : null,
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFFF88AA).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+        onTap: widget.onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              width: actualSize,
+              height: actualSize,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: (isSelected && _isAvatarLoaded)
+                    ? Border.all(
+                        color: const Color(0xFFFF88AA),
+                        width: 1,
+                      )
+                    : null,
+                boxShadow: (isSelected && _isAvatarLoaded)
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFFF88AA).withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: SmoothAvatarWidget(
+                avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : null,
+                defaultAsset: '',
+                width: actualSize,
+                height: actualSize,
+                borderRadius: BorderRadius.circular(9),
+                fit: BoxFit.cover,
+                onImageLoaded: () {
+                  setState(() {
+                    _isAvatarLoaded = true;
+                  });
+                },
+              ),
+            ),
+            // 虚拟TA标签（只在未绑定且为另一半头像时显示）
+            if (!widget.isMyself && !widget.controller.isBindPartner.value)
+              Positioned(
+                top: -18,
+                left: actualSize / 2 - 23, // 居中显示
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: const Color(0xFFFF88AA),
+                      width: 1,
                     ),
-                  ]
-                : null,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(actualSize / 2),
-            child: avatarUrl.isNotEmpty
-                ? Image.network(
-                    avatarUrl,
-                    width: actualSize,
-                    height: actualSize,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        defaultAsset,
-                        width: actualSize,
-                        height: actualSize,
-                        fit: BoxFit.cover,
-                      );
-                    },
-                  )
-                : Image.asset(
-                    defaultAsset,
-                    width: actualSize,
-                    height: actualSize,
-                    fit: BoxFit.cover,
                   ),
-          ),
+                  child: const Text(
+                    "虚拟TA",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFFFF88AA),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       );
     });

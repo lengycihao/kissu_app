@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:amap_map/amap_map.dart';
+import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/widgets/device_info_item.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
+import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
+import 'package:kissu_app/pages/track/track_page.dart';
+import 'package:kissu_app/pages/track/track_binding.dart';
 import 'location_controller.dart';
 
 class LocationPage extends StatelessWidget {
@@ -41,7 +44,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
     initialHeight = screenHeight * 0.45;
     minHeight = screenHeight * 0.45;
     maxHeight = screenHeight - 150;
-    mapHeight = screenHeight - initialHeight + 30;
+    mapHeight = screenHeight - initialHeight + 90;
   }
 
   @override
@@ -159,21 +162,21 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                                           ),
                                         ),
                                         const SizedBox(height: 16),
-                                        // 虚拟数据提示
+                                        // 虚拟数据提示文字 - 设备信息模块上方居中显示
                                         Obx(() {
-                                          if (widget.controller.isUsingMockData.value) {
-                                            return Column(
-                                              children: [
-                                                Text(
-                                                  '以下为虚拟数据',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Color(0xFFFF88AA),
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
+                                          if (!widget.controller.isBindPartner.value) {
+                                            return Container(
+                                              margin: const EdgeInsets.only(bottom: 2),
+                                              alignment: Alignment.center,
+                                              child: const Text(
+                                                "以下为虚拟数据",
+                                                style: TextStyle(
+                                                  fontFamily: 'LiuhuanKatongShoushu',
+                                                  fontSize: 14,
+                                                  color: Color(0xFFFF88AA),
                                                 ),
-                                                const SizedBox(height: 16),
-                                              ],
+                                                textAlign: TextAlign.center,
+                                              ),
                                             );
                                           }
                                           return const SizedBox.shrink();
@@ -447,53 +450,47 @@ class _OptimizedOverlayWidget extends StatelessWidget {
 }
 
 // 缓存的地图Widget - 避免不必要的重建
-class _CachedMapWidget extends StatelessWidget {
+class _CachedMapWidget extends StatefulWidget {
   final LocationController controller;
 
   const _CachedMapWidget({required this.controller});
+  
+  @override
+  State<_CachedMapWidget> createState() => _CachedMapWidgetState();
+}
 
+class _CachedMapWidgetState extends State<_CachedMapWidget> {
+  Set<Marker>? _cachedMarkers;
+  Set<Polyline>? _cachedPolylines;
+  int _lastMarkersLength = -1;
+  int _lastPolylinesLength = -1;
+  
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // 创建标记集合
-      Set<Marker> markers = {};
+      // 使用公共getter获取集合长度，避免频繁重建
+      final markersLength = widget.controller.markersLength;
+      final polylinesLength = widget.controller.polylinesLength;
       
-      // 添加我的位置标记
-      if (controller.myLocation.value != null) {
-        markers.add(Marker(
-          position: controller.myLocation.value!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        ));
-      }
-      
-      // 添加另一半位置标记
-      if (controller.partnerLocation.value != null) {
-        markers.add(Marker(
-          position: controller.partnerLocation.value!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
-        ));
-      }
-      
-      // 创建连接线集合
-      Set<Polyline> polylines = {};
-      if (controller.myLocation.value != null &&
-          controller.partnerLocation.value != null) {
-        polylines.add(Polyline(
-          points: [
-            controller.myLocation.value!,
-            controller.partnerLocation.value!,
-          ],
-          color: const Color(0xFFFF6B9D),
-          width: 3,
-        ));
+      // 只有当标记或连接线数量发生变化时才重新构建
+      if (_lastMarkersLength != markersLength || _lastPolylinesLength != polylinesLength) {
+        _cachedMarkers = widget.controller.markers;
+        _cachedPolylines = widget.controller.polylines;
+        _lastMarkersLength = markersLength;
+        _lastPolylinesLength = polylinesLength;
+        
+        print('🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}');
+        if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
+          print('🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}');
+        }
       }
       
       return RepaintBoundary(
         child: SafeAMapWidget(
-          initialCameraPosition: controller.initialCameraPosition,
-          onMapCreated: controller.onMapCreated,
-          markers: markers,
-          polylines: polylines,
+          initialCameraPosition: widget.controller.initialCameraPosition,
+          onMapCreated: widget.controller.onMapCreated,
+          markers: _cachedMarkers ?? {},
+          polylines: _cachedPolylines ?? {},
           compassEnabled: true,
           scaleEnabled: true,
           zoomGesturesEnabled: true,
@@ -515,49 +512,44 @@ class _CachedAvatarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final List<Widget> avatars = [
-        // 自己的头像
-        _AvatarButton(
-          controller: controller,
-          isMyself: true,
-          onTap: () {
-            if (controller.isOneself.value != 1) {
-              controller.isOneself.value = 1;
-              controller.loadLocationData();
-            }
-          },
-        ),
-      ];
-
-      // 绑定状态时显示另一半头像
-      if (controller.isBindPartner.value &&
-          controller.partnerAvatar.value.isNotEmpty) {
-        avatars.add(const SizedBox(width: 8));
-        avatars.add(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+          // 另一半的头像（左边）
           _AvatarButton(
             controller: controller,
             isMyself: false,
             onTap: () {
               if (controller.isOneself.value != 0) {
                 controller.isOneself.value = 0;
-                controller.loadLocationData();
+                // controller.loadLocationData();
+                // 参考轨迹页面逻辑，头像点击后执行动态缩放
+                controller.onAvatarTapped(false);
               }
             },
           ),
-        );
-      }
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: avatars,
-      );
-    });
+          const SizedBox(width: 8.0),
+          // 自己的头像（右边）
+          _AvatarButton(
+            controller: controller,
+            isMyself: true,
+            onTap: () {
+              if (controller.isOneself.value != 1) {
+                controller.isOneself.value = 1;
+                // controller.loadLocationData();
+                // 参考轨迹页面逻辑，头像点击后执行动态缩放
+                controller.onAvatarTapped(true);
+              }
+            },
+          ),
+        ],
+    );
   }
 }
 
 // 优化的头像按钮Widget
-class _AvatarButton extends StatelessWidget {
+class _AvatarButton extends StatefulWidget {
   final LocationController controller;
   final bool isMyself;
   final VoidCallback onTap;
@@ -569,59 +561,112 @@ class _AvatarButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final size = isMyself ? 32.0 : 26.0;
-    final radius = size / 2;
-    final isSelected = isMyself
-        ? controller.isOneself.value == 1
-        : controller.isOneself.value == 0;
-    final avatarUrl = isMyself
-        ? controller.myAvatar.value
-        : controller.partnerAvatar.value;
-    final defaultAsset = isMyself
-        ? 'assets/kissu_track_header_boy.webp'
-        : 'assets/kissu_track_header_girl.webp';
+  State<_AvatarButton> createState() => _AvatarButtonState();
+}
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          image: isSelected
-              ? const DecorationImage(
-                  image: AssetImage('assets/kissu_track_header_bbg.webp'),
-                  fit: BoxFit.cover,
-                )
-              : null,
-          borderRadius: BorderRadius.circular(radius),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: avatarUrl.isNotEmpty
-              ? Image.network(
-                  avatarUrl,
-                  width: size,
-                  height: size,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      defaultAsset,
-                      width: size,
-                      height: size,
-                      fit: BoxFit.cover,
-                    );
-                  },
-                )
-              : Image.asset(
-                  defaultAsset,
-                  width: size,
-                  height: size,
-                  fit: BoxFit.cover,
+class _AvatarButtonState extends State<_AvatarButton> {
+  bool _isAvatarLoaded = false;
+  int? _lastIsOneselfValue; // 缓存上次的isOneself值
+  bool? _lastIsSelectedValue; // 缓存上次的选中状态
+
+  @override
+  Widget build(BuildContext context) {
+    final baseSize = 32.0;
+    
+    // 使用 Obx 只监听必要的响应式变量
+    return Obx(() {
+      final currentIsOneselfValue = widget.controller.isOneself.value;
+      
+      // 检查当前头像是否被选中
+      final isSelected = (widget.isMyself && currentIsOneselfValue == 1) || 
+                        (!widget.isMyself && currentIsOneselfValue == 0);
+      
+      // 只有当选中状态真正发生变化时才打印调试信息，减少日志噪音
+      if (_lastIsOneselfValue != currentIsOneselfValue || _lastIsSelectedValue != isSelected) {
+        print('🎯 头像选中状态变化 - isMyself: ${widget.isMyself}, isOneself: $currentIsOneselfValue, isSelected: $isSelected, isAvatarLoaded: $_isAvatarLoaded');
+        _lastIsOneselfValue = currentIsOneselfValue;
+        _lastIsSelectedValue = isSelected;
+      }
+      
+      // 根据选中状态调整缩放比例，但只有在头像加载成功后才应用选中效果
+      final scale = (isSelected && _isAvatarLoaded) ? 1.2 : 0.9;
+      final actualSize = baseSize * scale;
+      
+      final avatarUrl = widget.isMyself
+          ? widget.controller.myAvatar.value
+          : widget.controller.partnerAvatar.value;
+
+      return GestureDetector(
+        onTap: widget.onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              width: actualSize,
+              height: actualSize,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: (isSelected && _isAvatarLoaded)
+                    ? Border.all(
+                        color: const Color(0xFFFF88AA),
+                        width: 1,
+                      )
+                    : null,
+                boxShadow: (isSelected && _isAvatarLoaded)
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFFF88AA).withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: SmoothAvatarWidget(
+                avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : null,
+                defaultAsset: '',
+                width: actualSize,
+                height: actualSize,
+                borderRadius: BorderRadius.circular(9),
+                fit: BoxFit.cover,
+                onImageLoaded: () {
+                  setState(() {
+                    _isAvatarLoaded = true;
+                  });
+                },
+              ),
+            ),
+            // 虚拟TA标签（只在未绑定且为另一半头像时显示）
+            if (!widget.isMyself && !widget.controller.isBindPartner.value)
+              Positioned(
+                top: -18,
+                left: actualSize / 2 - 23, // 居中显示
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: const Color(0xFFFF88AA),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Text(
+                    "虚拟TA",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF000000),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
+              ),
+          ],
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -635,6 +680,11 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final records = controller.locationRecords;
+      
+      // 如果没有记录，返回空Container，使用原来的空状态显示
+      if (records.isEmpty) {
+        return Container();
+      }
 
       // 使用ListView.builder优化大列表性能
       if (records.length > 10) {
@@ -647,7 +697,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                 return Row(
                   children: [
                     Text(
-                      "今日TA停留${recordCount}个地方",
+                      "今日TA停留$recordCount个地方",
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF000000),
@@ -692,7 +742,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
               return Row(
                 children: [
                   Text(
-                    "今日TA停留${recordCount}个地方",
+                    "今日TA停留$recordCount个地方",
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF000000),
@@ -720,7 +770,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                   isLast: isLast,
                 ),
               );
-            }).toList(),
+            }),
           ],
         );
       }
@@ -761,73 +811,91 @@ class _LocationRecordItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 左侧时间
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Image(image: AssetImage('assets/kissu_location_circle.webp'),width: 8,height: 8,),
-          ),
-          const SizedBox(width: 8),  
-          // 右侧内容
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text(
-                  record.locationName ?? '',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF333333),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7F7F7),
-                    borderRadius: BorderRadius.circular(8),
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Color(0xFFFFEDF2), Color(0xFFFFF5F8)],
+    return GestureDetector(
+      onTap: () {
+        // 点击item时跳转到轨迹页面，传递坐标信息
+        if (record.latitude != null && record.longitude != null) {
+          Get.to(() => TrackPage(
+            initialLatitude: record.latitude!,
+            initialLongitude: record.longitude!,
+            initialLocationName: record.locationName,
+            initialDuration: record.duration,
+            initialStartTime: record.startTime,
+            initialEndTime: record.endTime,
+          ), binding: TrackBinding());
+        } else {
+          // 如果没有坐标信息，只跳转到轨迹页面
+          Get.to(() => TrackPage(), binding: TrackBinding());
+        }
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 左侧时间
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Image(image: AssetImage('assets/kissu_location_circle.webp'),width: 8,height: 8,),
+            ),
+            const SizedBox(width: 8),  
+            // 右侧内容
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text(
+                    record.locationName ?? '',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/kissu_track_location.webp',
-                        width: 24,
-                        height: 24,
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F7F7),
+                      borderRadius: BorderRadius.circular(8),
+                      gradient: const LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [Color(0xFFFFEDF2), Color(0xFFFFF5F8)],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "停留${record.duration ?? '未知'}",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFFF4177),
+                    ),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          'assets/kissu_track_location.webp',
+                          width: 24,
+                          height: 24,
                         ),
-                      ),
-                      Spacer(),
-                      Text(
-                        _formatTimeRange(record.startTime, record.endTime),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF666666),
+                        const SizedBox(width: 4),
+                        Text(
+                          "停留${record.duration ?? '未知'}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF4177),
+                          ),
                         ),
-                      ),
-                    ],
+                        Spacer(),
+                        Text(
+                          _formatTimeRange(record.startTime, record.endTime),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF666666),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

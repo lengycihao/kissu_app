@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -6,6 +8,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/services/share_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ShareController extends GetxController {
   // 用户信息
@@ -184,11 +187,12 @@ class ShareController extends GetxController {
       try {
         final shareService = Get.put(ShareService(), permanent: true);
         Map<String, dynamic>? shareResult;
-        
+        // String? imageUrl = await getLocalImageUrl('assets/kissu_icon.png');
         if (target == '微信') {
           await shareService.shareToWeChat(
             title: "绑定邀请",
             description: '快来和我绑定吧！',
+            // imageUrl: imageUrl,
             webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
           );
           // 微信分享暂时不返回结果，假设成功
@@ -196,6 +200,7 @@ class ShareController extends GetxController {
         } else if (target == 'QQ') {
           shareResult = await shareService.shareToQQ(
             title: "绑定邀请",
+            // imageUrl: imageUrl,
             description: '快来和我绑定吧！',
             webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
           );
@@ -242,4 +247,27 @@ class ShareController extends GetxController {
   void testToast() {
     _showToast('Toast测试消息 - 如果你看到这个，说明Toast工作正常！');
   }
+
+  Future<String?> getLocalImageUrl(String assetPath) async {
+  try {
+    // 获取应用文档目录
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/${assetPath.split('/').last}');
+    
+    // 如果文件不存在，则从assets复制
+    if (!await file.exists()) {
+      final byteData = await rootBundle.load(assetPath);
+      await file.writeAsBytes(byteData.buffer.asUint8List(
+        byteData.offsetInBytes,
+        byteData.lengthInBytes,
+      ));
+    }
+    
+    // 返回文件的URI作为imageUrl
+    return file.uri.toString();
+  } catch (e) {
+    print('获取本地图片URL失败: $e');
+    return null;
+  }
+}
 }

@@ -6,9 +6,9 @@ import 'package:kissu_app/model/phone_history_model/phone_history_model.dart';
 import 'package:kissu_app/model/phone_history_model/datum.dart';
 import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
-import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'phone_history_setting_dialog.dart';
 
 class PhoneHistoryController extends GetxController {
@@ -18,8 +18,8 @@ class PhoneHistoryController extends GetxController {
   late PageController pageController;
   final currentPageIndex = 6.obs; // 默认显示今天（最右边）
   
-  // 是否绑定情侣
-  final isBinding = true.obs;
+  // 是否绑定情侣 - 初始为null，表示未知状态
+  final isBinding = Rxn<bool>();
   
   // 数据相关
   final phoneHistoryModel = Rxn<PhoneHistoryModel>();
@@ -70,9 +70,19 @@ class PhoneHistoryController extends GetxController {
     super.onInit();
     // 初始化PageController，默认显示今天
     pageController = PageController(initialPage: 6);
+    // 初始化绑定状态（从本地用户信息获取，避免闪烁）
+    _initBindingStatus();
     // 初始加载数据
     loadData();
   }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // 页面准备就绪时，检查是否需要刷新绑定状态
+    _checkAndRefreshBindingStatus();
+  }
+
 
   @override
   void onClose() {
@@ -94,12 +104,59 @@ class PhoneHistoryController extends GetxController {
     final targetDate = recentDates[index];
     selectedDate.value = targetDate;
     
-    // 加载对应日期的数据
-    _currentPage = 1;
-    isDateLoading.value = true;
-    loadData(isRefresh: true).then((_) {
-      isDateLoading.value = false;
-    });
+    // 检查是否应该请求数据
+    if (_shouldLoadDataForDate(targetDate)) {
+      // 加载对应日期的数据
+      _currentPage = 1;
+      isDateLoading.value = true;
+      loadData(isRefresh: true).then((_) {
+        isDateLoading.value = false;
+      });
+    } else {
+      // 未绑定状态下选择今天之前的日期，清空数据但不请求
+      recordList.clear();
+      phoneHistoryModel.value = null;
+    }
+  }
+
+  /// 初始化绑定状态（从本地用户信息获取，避免页面闪烁）
+  void _initBindingStatus() {
+    final user = UserManager.currentUser;
+    if (user != null) {
+      // 安全处理bindStatus的dynamic类型
+      bool isBound = false;
+      if (user.bindStatus != null) {
+        if (user.bindStatus is int) {
+          isBound = user.bindStatus == 1;
+        } else if (user.bindStatus is String) {
+          isBound = user.bindStatus == "1";
+        }
+      }
+      isBinding.value = isBound;
+      print('📱 初始化绑定状态: $isBound (从本地用户信息获取)');
+    } else {
+      print('📱 用户信息为空，绑定状态保持为null');
+    }
+  }
+
+  /// 判断是否应该为指定日期请求数据
+  bool _shouldLoadDataForDate(DateTime targetDate) {
+    // 如果绑定状态未知，允许请求数据
+    if (isBinding.value == null) {
+      return true;
+    }
+    
+    // 如果已绑定，总是请求数据
+    if (isBinding.value == true) {
+      return true;
+    }
+    
+    // 如果未绑定，只请求今天的数据
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    
+    return targetDateOnly.isAtSameMomentAs(todayDate);
   }
 
   /// 加载数据
@@ -401,6 +458,46 @@ class PhoneHistoryController extends GetxController {
     Get.toNamed(KissuRoutePath.share);
   }
 
+  /// 检查并刷新绑定状态
+  Future<void> _checkAndRefreshBindingStatus() async {
+    try {
+      // 从本地用户信息获取绑定状态
+      final localUser = UserManager.currentUser;
+      bool localIsBound = false;
+      if (localUser?.bindStatus != null) {
+        if (localUser!.bindStatus is int) {
+          localIsBound = localUser.bindStatus == 1;
+        } else if (localUser.bindStatus is String) {
+          localIsBound = localUser.bindStatus == "1";
+        }
+      }
+      
+      print('📱 检查绑定状态 - 本地状态: $localIsBound, 页面状态: ${isBinding.value}');
+      
+      // 如果本地状态与页面状态不一致，则刷新数据
+      if (localIsBound != isBinding.value) {
+        print('📱 绑定状态不一致，刷新数据');
+        await loadData(isRefresh: true);
+        print('📱 绑定状态已刷新: ${isBinding.value}');
+      } else {
+        print('📱 绑定状态一致，无需刷新');
+      }
+    } catch (e) {
+      print('📱 刷新绑定状态失败: $e');
+    }
+  }
+
+  /// 外部调用的刷新方法（用于其他页面通知更新）
+  Future<void> refreshBindingStatus() async {
+    try {
+      print('📱 收到绑定状态刷新通知');
+      await loadData(isRefresh: true);
+      print('📱 绑定状态已更新: ${isBinding.value}');
+    } catch (e) {
+      print('📱 刷新绑定状态失败: $e');
+    }
+  }
+
   /// 左滑切换到后一天
   void swipeToNextDay() {
     final nextDate = selectedDate.value.add(const Duration(days: 1));
@@ -434,7 +531,7 @@ class PhoneHistoryController extends GetxController {
 
   // 获取用机记录数据
   List<PhoneUsageRecord> getUsageRecords() {
-    if (!isBinding.value || recordList.isEmpty) return [];
+    if (isBinding.value != true || recordList.isEmpty) return [];
 
     return recordList.map((datum) => PhoneUsageRecord(
       time: datum.createTime ?? '',

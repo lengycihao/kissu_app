@@ -341,7 +341,7 @@ class _CancellationConfirmDialogContent extends BaseDialog {
                 text: '确认',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                    'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景（红色）
                 onTap: () {
                   Navigator.of(context).pop(true); // 返回 true 表示确认注销
                 },
@@ -351,7 +351,7 @@ class _CancellationConfirmDialogContent extends BaseDialog {
                 text: '我再想想',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                    'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景（绿色）
                 onTap: () {
                   Navigator.of(context).pop(false); // 返回 false 表示取消
                 },

@@ -1,9 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
-import 'package:chewie/chewie.dart';
-import 'package:video_player/video_player.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/widgets/delayed_pag_widget.dart';
 
 class VipPage extends GetView<VipController> {
   const VipPage({super.key});
@@ -18,91 +19,91 @@ class VipPage extends GetView<VipController> {
       backgroundColor: const Color(0xFFFFFDF4),
       body: Stack(
         children: [
-          // 主要内容区域
+          // 主要内容区域 - 添加底部padding为支付组件留出空间
           SingleChildScrollView(
-            child: Column(
-              children: [
-                // 顶部轮播图 - 紧贴屏幕顶部，全宽度
-                _buildTopCarousel(),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 120), // 为底部固定支付组件留出空间
+              child: Column(
+                children: [
+                  // 顶部轮播图 - 紧贴屏幕顶部，全宽度
+                  _buildTopCarousel(),
 
-                // 顶部轮播图指示条 - 位置在图片按钮组件顶部外15px处
-                Transform.translate(
-                  offset: const Offset(0, -35), // 向上移动35px，在图片按钮组件顶部外15px处
-                  child: _buildTopCarouselIndicators(),
-                ),
-
-                // 图片按钮组件 - 与轮播图底部重合，高度102px
-                Transform.translate(
-                  offset: const Offset(0, -20), // 向上移动20px实现重合
-                  child: _buildIconButtons(),
-                ),
-
-                // 其他内容使用padding
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      // 开通提示图片
-                      Image.asset(
-                        "assets/kissu_vip_top_tip.webp",
-                        height: 20,
-                        fit: BoxFit.fitHeight,
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      // 价格组件
-                      _buildPriceComponents(),
-
-                      const SizedBox(height: 15),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '会员到期自动续费，可以随时取消',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFABABAB),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-
-                      // 第二个开通提示图片
-                      _buildOpenTipImage(),
-
-                      const SizedBox(height: 15),
-
-                      // 信息背景图片
-                      _buildInfoBackground(),
-
-                      const SizedBox(height: 20),
-
-                      // 提示文字
-                      _buildHintText(),
-
-                      const SizedBox(height: 20),
-
-                      // 用户评价标题
-                      _buildUserCommonTitle(),
-
-                      const SizedBox(height: 15),
-
-                      // 用户评价轮播图
-                      _buildCommentCarousel(),
-
-                      const SizedBox(height: 15),
-
-                      // 评价轮播图指示条
-                      _buildCommentCarouselIndicators(),
-
-                      const SizedBox(height: 15),
-                    ],
+                  // 顶部轮播图指示条 - 位置在图片按钮组件顶部外15px处
+                  Transform.translate(
+                    offset: const Offset(0, -35), // 向上移动35px，在图片按钮组件顶部外15px处
+                    child: _buildTopCarouselIndicators(),
                   ),
-                ),
 
-                // 支付组件 - 全宽度，无左右间隔
-                _buildPaymentComponent(),
-              ],
+                  // 图片按钮组件 - 与轮播图底部重合，高度102px
+                  Transform.translate(
+                    offset: const Offset(0, -20), // 向上移动20px实现重合
+                    child: _buildIconButtons(),
+                  ),
+
+                  // 其他内容使用padding
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        // 开通提示图片
+                        Image.asset(
+                          "assets/kissu_vip_top_tip.webp",
+                          height: 20,
+                          fit: BoxFit.fitHeight,
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        // 价格组件
+                        _buildPriceComponents(),
+
+                        // const SizedBox(height: 15),
+                        // const Align(
+                        //   alignment: Alignment.centerLeft,
+                        //   child: Text(
+                        //     '会员到期自动续费，可以随时取消',
+                        //     style: TextStyle(
+                        //       fontSize: 12,
+                        //       color: Color(0xFFABABAB),
+                        //     ),
+                        //   ),
+                        // ),
+                        const SizedBox(height: 15),
+
+                        // 第二个开通提示图片
+                        _buildOpenTipImage(),
+
+                        const SizedBox(height: 15),
+
+                        // 信息背景图片
+                        _buildInfoBackground(),
+
+                        const SizedBox(height: 20),
+
+                        // 提示文字
+                        _buildHintText(),
+
+                        const SizedBox(height: 20),
+
+                        // 用户评价标题
+                        _buildUserCommonTitle(),
+
+                        const SizedBox(height: 15),
+
+                        // 用户评价轮播图
+                        _buildCommentCarousel(),
+
+                        const SizedBox(height: 15),
+
+                        // 评价轮播图指示条
+                        _buildCommentCarouselIndicators(),
+
+                        const SizedBox(height: 15),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -127,6 +128,14 @@ class VipPage extends GetView<VipController> {
               ),
             ),
           ),
+
+          // 固定在底部的支付组件
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildPaymentComponent(),
+          ),
         ],
       ),
     );
@@ -136,8 +145,21 @@ class VipPage extends GetView<VipController> {
   // 顶部轮播图
   Widget _buildTopCarousel() {
     return Obx(() {
+      // 如果没有网络数据，显示本地PAG动画轮播
       final bannerList = controller.bannerData.value?.vipIconBanner ?? [];
-      if (bannerList.isEmpty) {
+      
+      // 本地PAG动画文件列表
+      final localPagAssets = [
+        'assets/pag/kissu_vip_top1.pag',
+        'assets/pag/kissu_vip_top2.pag',
+        'assets/pag/kissu_vip_top3.pag',
+        'assets/pag/kissu_vip_top4.pag',
+      ];
+
+      // 如果有网络数据则使用网络数据，否则使用本地PAG动画
+      final itemCount = bannerList.isNotEmpty ? bannerList.length : localPagAssets.length;
+      
+      if (itemCount == 0) {
         return Container(
           height: 337,
           decoration: BoxDecoration(
@@ -152,245 +174,51 @@ class VipPage extends GetView<VipController> {
         child: PageView.builder(
           controller: controller.pageController,
           onPageChanged: controller.onPageChanged,
-          itemCount: bannerList.length,
+          itemCount: itemCount,
           itemBuilder: (context, index) {
-            final item = bannerList[index];
-
-            if (item.hasVideo) {
-              final chewieController = controller.getChewieController(index);
-              // 如果 Chewie 控制器初始化失败，显示图片占位符
-              if (chewieController == null) {
-                return _buildVideoPlaceholder(item.vipIconVideo);
+            // 如果有网络数据，优先使用网络数据
+            if (bannerList.isNotEmpty) {
+              final item = bannerList[index];
+              if (item.vipIconBanner.isNotEmpty) {
+                return _buildImageItem(item.vipIconBanner);
               }
-              return _buildChewieVideoItem(chewieController, index);
-            } else if (item.vipIconBanner.isNotEmpty) {
-              return _buildImageItem(item.vipIconBanner);
-            } else {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(child: Text('暂无内容')),
-              );
             }
+            
+            // 使用本地PAG动画
+            if (index < localPagAssets.length) {
+              return _buildPagAnimationItem(localPagAssets[index], index);
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(child: Text('暂无内容')),
+            );
           },
         ),
       );
     });
   }
 
-  // Chewie 视频播放器组件
-  Widget _buildChewieVideoItem(ChewieController chewieController, int index) {
-    return SizedBox(
-      width: double.infinity, // 确保全宽度
-      height: 235, // 固定高度 235px
+  // PAG动画项
+  Widget _buildPagAnimationItem(String pagAssetPath, int index) {
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: ValueListenableBuilder(
-          valueListenable: chewieController.videoPlayerController,
-          builder: (context, VideoPlayerValue value, child) {
-            // 检查是否有错误
-            if (value.hasError) {
-              return _buildVideoErrorFallback(index);
-            }
-            
-            // 确保视频已初始化且有尺寸信息
-            if (!value.isInitialized || value.size == Size.zero) {
-              return Container(
-                color: Colors.white,
-                child: const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.grey,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                ),
-              );
-            }
-            
-            return FittedBox(
-              fit: BoxFit.cover, // 确保视频内容填充整个容器而不失真
-              child: SizedBox(
-                width: value.size.width,
-                height: value.size.height,
-                child: Chewie(controller: chewieController),
-              ),
-            );
-          },
+        child: DelayedPagWidget(
+          assetPath: pagAssetPath,
+          width: double.infinity,
+          height: 337,
+          delay: Duration(milliseconds: 500 * index), // 每个动画延迟500ms
+          autoPlay: true,
+          repeat: true,
         ),
       ),
     );
   }
-
-  // 视频错误时的备用显示
-  Widget _buildVideoErrorFallback(int index) {
-    // 获取对应的banner数据，显示静态图片作为备用
-    final banners = controller.bannerData.value?.vipIconBanner ?? [];
-    if (index < banners.length) {
-      final banner = banners[index];
-      return Container(
-        width: double.infinity,
-        height: 235,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.grey[100],
-        ),
-        child: Stack(
-          children: [
-            // 显示静态图片作为备用
-            if (banner.vipIconBanner.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  banner.vipIconBanner,
-                  width: double.infinity,
-                  height: 235,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image_not_supported_outlined,
-                              color: Colors.grey[600],
-                              size: 48,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '图片加载失败',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            
-            // 显示错误提示
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      '视频加载失败',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    // 如果没有banner数据，显示默认错误界面
-    return Container(
-      width: double.infinity,
-      height: 235,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey[100],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.video_library_outlined,
-              color: Colors.grey[600],
-              size: 48,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '视频暂时无法播放',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 视频占位符（当视频加载失败时）
-  Widget _buildVideoPlaceholder(String videoUrl) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.black87,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.black54, Colors.black87],
-                ),
-              ),
-            ),
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.video_library_outlined,
-                    size: 60,
-                    color: Colors.white70,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '视频加载失败',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
 
   // 图片项
   Widget _buildImageItem(String imageUrl) {
@@ -416,6 +244,8 @@ class VipPage extends GetView<VipController> {
   Widget _buildIconButtons() {
     return Obx(() {
       final bannerList = controller.bannerData.value?.vipIconBanner ?? [];
+      
+      // 只有当有网络数据时才显示图标按钮
       if (bannerList.isEmpty) {
         return const SizedBox();
       }
@@ -437,7 +267,6 @@ class VipPage extends GetView<VipController> {
               onTap: () => controller.selectTab(index),
               child: SizedBox(
                 width: 70,
-                // height: 78,
                 child: Image.network(
                   controller.currentIndex.value == index
                       ? bannerList[index].vipIconSelect
@@ -457,6 +286,7 @@ class VipPage extends GetView<VipController> {
       );
     });
   }
+
 
   // 开通提示图片
   Widget _buildOpenTipImage() {
@@ -620,6 +450,7 @@ class VipPage extends GetView<VipController> {
       height: size.height + (showBottomLabel ? 10 : 0), // 为底部标签增加额外空间
       child: Stack(
         clipBehavior: Clip.none, // 允许子组件超出边界
+        alignment: Alignment.bottomRight,
         children: [
           // 主价格卡片
           GestureDetector(
@@ -675,9 +506,8 @@ class VipPage extends GetView<VipController> {
           ),
           // 底部标签 - 确保在最上层显示
           if (showBottomLabel)
-            Positioned(
-              right: -8, // 调整右侧位置，让标签部分突出
-              bottom: 20, // 位于价格卡片底部边缘下方
+            Transform.translate(
+              offset: const Offset(5, 10), // 向下移动20px
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                 decoration: const BoxDecoration(
@@ -844,12 +674,18 @@ class VipPage extends GetView<VipController> {
 
           const SizedBox(height: 20),
 
-          // 立即开通按钮
+          // 立即开通/继续续费按钮
           Obx(
             () => GestureDetector(
-              onTap: controller.agreementChecked.value
-                  ? controller.purchaseVip
-                  : null,
+              onTap: () {
+                if (!controller.agreementChecked.value) {
+                  // 如果未勾选协议，显示提示并返回
+                  controller.showAgreementWarning();
+                  return;
+                }
+                // 已勾选协议，执行购买
+                controller.purchaseVip();
+              },
               child: Container(
                 width: double.infinity,
                 height: 50,
@@ -862,7 +698,7 @@ class VipPage extends GetView<VipController> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  '立即开通 ${controller.getCurrentPrice()}',
+                  '${UserManager.isVip ? "继续续费" : "立即开通"} ${controller.getCurrentPrice()}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -885,7 +721,7 @@ class VipPage extends GetView<VipController> {
                   child: Image.asset(
                     controller.agreementChecked.value
                         ? "assets/kissu_vip_agree.webp"
-                        : "assets/kissu_vip_unagree.webp",
+                        : "assets/kissu_select_circle.webp",
                     width: 16,
                     height: 16,
                   ),
@@ -893,14 +729,31 @@ class VipPage extends GetView<VipController> {
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () => AgreementUtils.toVipAgreement(),
-                  child: const Text(
-                    '会员服务协议',
-                    style: TextStyle(
-                      fontSize: 14, 
-                      color: Color(0xFFFF839E),
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
+                  child:  RichText(
+  text: TextSpan(
+    children: [
+      TextSpan(
+        text: '阅读并同意',
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFF666666),
+        ),
+      ),
+      TextSpan(
+        text: '《会员服务协议》',
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFFFF839E), // 高亮蓝色
+         ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () {
+            AgreementUtils.toVipAgreement();
+          },
+      ),
+    ],
+  ),
+)
+
                 ),
               ],
             ),
@@ -930,7 +783,7 @@ class VipPage extends GetView<VipController> {
               width: 20,
               height: 20,
               child: Image.asset(
-                isSelected ? 'assets/kissu_vip_agree.webp' : 'assets/kissu_vip_unagree.webp',
+                isSelected ? 'assets/kissu_vip_agree.webp' : 'assets/kissu_select_circle.webp',
                 width: 20,
                 height: 20,
                 fit: BoxFit.contain,
@@ -1020,6 +873,7 @@ class VipPage extends GetView<VipController> {
   void _setupPageVisibilityListener() {
     WidgetsBinding.instance.addObserver(_PageVisibilityObserver(controller));
   }
+
 }
 
 /// 页面可见性观察者
@@ -1035,19 +889,15 @@ class _PageVisibilityObserver extends WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
-        controller.pauseAllVideos();
         controller.pauseAutoCarousel(); // 暂停自动轮播
         break;
       case AppLifecycleState.resumed:
-        controller.playCurrentVideo();
         controller.resumeAutoCarousel(); // 恢复自动轮播
         break;
       case AppLifecycleState.detached:
-        controller.pauseAllVideos();
         controller.pauseAutoCarousel(); // 暂停自动轮播
         break;
       case AppLifecycleState.hidden:
-        controller.pauseAllVideos();
         controller.pauseAutoCarousel(); // 暂停自动轮播
         break;
     }

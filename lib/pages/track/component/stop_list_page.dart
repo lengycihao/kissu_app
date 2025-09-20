@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
+import 'package:kissu_app/model/location_model/location_model.dart';
 
 class StopListItem extends StatelessWidget {
   final StopRecord record;
@@ -22,7 +23,24 @@ class StopListItem extends StatelessWidget {
       onTap: () {
         try {
           final controller = Get.find<TrackController>();
-          controller.moveToStopPoint(record.latitude, record.longitude);
+          
+          // 创建对应的TrackStopPoint对象用于InfoWindow显示
+          final stopPoint = TrackStopPoint(
+            lat: record.latitude,
+            lng: record.longitude,
+            locationName: record.locationName,
+            duration: record.stayDuration,
+            startTime: record.time.split('~').isNotEmpty ? record.time.split('~')[0] : '',
+            endTime: record.time.split('~').length > 1 ? record.time.split('~')[1] : '',
+            serialNumber: record.serialNumber,
+          );
+          
+          // 使用增强版方法：移动地图、绘制高亮圆圈、显示InfoWindow
+          controller.moveToStopPointWithHighlight(
+            record.latitude, 
+            record.longitude, 
+            stopPoint: stopPoint,
+          );
         } catch (e) {
           print('无法找到轨迹控制器: $e');
         }

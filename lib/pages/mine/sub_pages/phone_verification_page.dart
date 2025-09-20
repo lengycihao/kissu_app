@@ -107,12 +107,7 @@ class PhoneVerificationPage extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: TextEditingController()
-                      ..addListener(() {
-                        // 监听输入变化
-                      }),
-                    onChanged: (value) =>
-                        controller.verificationCode.value = value,
+                    controller: controller.verificationCodeController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,

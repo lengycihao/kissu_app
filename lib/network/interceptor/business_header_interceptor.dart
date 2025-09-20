@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:battery_plus/battery_plus.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/utils/signature_utils.dart';
@@ -20,6 +23,10 @@ class BusinessHeaderInterceptor extends Interceptor {
   static String? _cachedVersion;
   static String? _cachedChannel;
   static String? _cachedPkg;
+  
+  // 缓存网络和电池信息
+  static String? _cachedNetworkName;
+  static String? _cachedPower;
 
   BusinessHeaderInterceptor(this._authService);
 
@@ -42,7 +49,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       await _addDeviceHeaders(options);
 
       // 添加网络信息
-      _addNetworkHeaders(options);
+      await _addNetworkHeaders(options);
 
       // 添加签名（如果需要）
       _addSignHeader(options);
@@ -112,7 +119,7 @@ class BusinessHeaderInterceptor extends Interceptor {
               _cachedBrand == null) {
             final iosInfo = await _deviceInfo!.iosInfo;
             _cachedDeviceId = iosInfo.identifierForVendor ?? 'unknown';
-            _cachedMobileModel = '${iosInfo.name} ${iosInfo.model}';
+            _cachedMobileModel = iosInfo.model;
             _cachedBrand = 'Apple';
           }
         }
@@ -133,18 +140,83 @@ class BusinessHeaderInterceptor extends Interceptor {
   }
 
   /// 添加网络相关请求头
-  void _addNetworkHeaders(RequestOptions options) {
+  Future<void> _addNetworkHeaders(RequestOptions options) async {
     // 设置默认渠道（可以根据实际需求修改）
     if (_cachedChannel == null) {
       _cachedChannel = Platform.isAndroid ? 'android' : 'ios';
     }
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
-    // 网络名称（这里可以根据实际需求获取网络状态）
-    options.headers[HttpHeaderKey.networkName] = 'wifi'; // 或者通过网络状态插件获取
+    // 获取真实的网络状态
+    await _getNetworkInfo(options);
+    
+    // 获取真实的电池电量
+    await _getBatteryInfo(options);
+  }
 
-    // 电量信息（这里设置默认值，可以通过电量插件获取实际值）
-    options.headers[HttpHeaderKey.power] = '100'; // 可以通过 battery_plus 插件获取
+  /// 获取网络信息
+  Future<void> _getNetworkInfo(RequestOptions options) async {
+    try {
+      if (_cachedNetworkName == null) {
+        final connectivity = Connectivity();
+        final connectivityResults = await connectivity.checkConnectivity();
+        
+        String networkType = 'unknown';
+        
+        // 处理多个连接结果，优先选择主要连接类型
+        if (connectivityResults.contains(ConnectivityResult.wifi)) {
+          networkType = 'wifi';
+          // 尝试获取WiFi SSID
+          try {
+            final networkInfo = NetworkInfo();
+            final wifiName = await networkInfo.getWifiName();
+            if (wifiName != null && wifiName.isNotEmpty) {
+              networkType = 'wifi_${wifiName.replaceAll('"', '')}';
+            }
+          } catch (e) {
+            // 如果获取WiFi名称失败，使用默认的wifi
+            networkType = 'wifi';
+          }
+        } else if (connectivityResults.contains(ConnectivityResult.mobile)) {
+          networkType = 'mobile';
+        } else if (connectivityResults.contains(ConnectivityResult.ethernet)) {
+          networkType = 'ethernet';
+        } else if (connectivityResults.contains(ConnectivityResult.bluetooth)) {
+          networkType = 'bluetooth';
+        } else if (connectivityResults.contains(ConnectivityResult.vpn)) {
+          networkType = 'vpn';
+        } else if (connectivityResults.contains(ConnectivityResult.other)) {
+          networkType = 'other';
+        } else if (connectivityResults.contains(ConnectivityResult.none)) {
+          networkType = 'none';
+        }
+        
+        _cachedNetworkName = networkType;
+      }
+      
+      options.headers[HttpHeaderKey.networkName] = _cachedNetworkName;
+    } catch (e) {
+      print('获取网络信息失败: $e');
+      // 使用默认值
+      options.headers[HttpHeaderKey.networkName] = 'unknown';
+    }
+  }
+
+  /// 获取电池信息
+  Future<void> _getBatteryInfo(RequestOptions options) async {
+    try {
+      if (_cachedPower == null) {
+        final battery = Battery();
+        final batteryLevel = await battery.batteryLevel;
+        _cachedPower = batteryLevel.toString();
+      }
+      
+      options.headers[HttpHeaderKey.power] = _cachedPower;
+    } catch (e) {
+      print('获取电池信息失败: $e');
+      // 使用默认值
+      options.headers[HttpHeaderKey.power] = '100';
+    }
   }
 
   /// 添加签名请求头
@@ -165,6 +237,8 @@ class BusinessHeaderInterceptor extends Interceptor {
     _cachedVersion = null;
     _cachedChannel = null;
     _cachedPkg = null;
+    _cachedNetworkName = null;
+    _cachedPower = null;
     _packageInfo = null;
   }
 }

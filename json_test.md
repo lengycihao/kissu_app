@@ -1,355 +1,153 @@
-em.out( 1074): [OkHttp] sendRequest>>
-I/System.out( 1074): [OkHttp] sendRequest<<
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.286948618143917, 120.22275763716473]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28708758497462, 120.22279787029927]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28720802273532, 120.22293734516566]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287225393553992, 120.22303792800199]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287242764369587, 120.22339734400383]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287260135182088, 120.22401693427568]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287242764369587, 120.22435757481476]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287174439143836, 120.22477734051839]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287174439143836, 120.22507774792292]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287174439143836, 120.22517833075926]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287191809968455, 120.2254787381638]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28734698919855, 120.22565844616472]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287571651231076, 120.2257992621356]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287658504971716, 120.22589984497192]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28788316629081, 120.22609966954012]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288003603074774, 120.22627937754105]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288228263603536, 120.22655832727382]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28841934045247, 120.22681716043932]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288593046355803, 120.2270371015748]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28874938140582, 120.22723692614298]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/System.out( 1074): [okhttp]:check permission begin!
-I/System.out( 1074): [okhttp]:not MMS!
-I/System.out( 1074): [okhttp]:not Email!
-D/TrafficStats( 1074): tagSocket(206) with statsTag=0xffffffff, statsUid=-1
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288870975161345, 120.22741663414389]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288992568766147, 120.2275561090103]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/System.out( 1074): [okhttp]:check permission begin!
-I/System.out( 1074): [okhttp]:not MMS!
-I/System.out( 1074): [okhttp]:not Email!
-D/TrafficStats( 1074): tagSocket(399) with statsTag=0xffffffff, statsUid=-1
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/System.out( 1074): [OkHttp] sendRequest>>
-I/System.out( 1074): [OkHttp] sendRequest<<
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288992568766147, 120.22771570044394]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288975198260403, 120.22837552385032]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.22859546498579]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.22875639752391]}}
-I/System.out( 1074): [OkHttp] sendRequest>>
-I/System.out( 1074): [OkHttp] sendRequest<<
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.22879528955399]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.22881540612123]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.22883552268851]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.22893610552484]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.2289562220921]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChangeFinish===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.288957827751577, 120.2289562220921]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/flutter ( 1074): 🎨 开始创建自定义标记...
-I/flutter ( 1074): ✅ 自定义标记创建成功: 5个
-I/flutter ( 1074): 📍 标记位置: 基础位置(30.279799999999998, 120.2263)
-I/AMapFlutter_AMapPlatformView( 1074): onMethodCall==>markers#update, arguments==> {markerIdsToRemove=[1757945283790_[#ad10c], 1757945283791_[#1fd94], 1757945283791_[#7d47e], 1757945283791_[#ec01d]], markersToChange=[], markersToAdd=[{infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, assets/markers/start_point.png, 1.0], id=1757945287548_[#6a866], position=[30.279799999999998, 120.22629999999998], infoWindow={snippet=使用start_point.png资源 - 1757945287548, title=起点标记 7}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, assets/markers/end_point.png, 1.0], id=1757945287548_[#e9c03], position=[30.2808, 120.22730000000001], infoWindow={snippet=使用end_point.png资源 - 1757945287548, title=终点标记 7}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, assets/markers/stay_point.png, 1.0], id=1757945287548_[#73ab5], position=[30.281799999999997, 120.22829999999999], infoWindow={snippet=使用stay_point.png资源 - 1757945287548, title=停留点标记 7}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, assets/markers/current_location.png, 1.0], id=1757945287548_[#4f757], position=[30.282799999999998, 120.22929999999997], infoWindow={snippet=使用current_location.png资源 - 1757945287548, title=当前位置标记 7}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, packages/amap_map/res/BLUE.png, 2.0], id=1757945287548_[#1e66d], position=[30.2838, 120.2303], infoWindow={snippet=使用彩色默认标记 - 1757945287548, title=备用标记 7}, zIndex=0.0}]}
-I/AMapFlutter_MarkersController( 1074): doMethodCall===>markers#update
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-I/AMapFlutter_AMapPlatformView( 1074): onMethodCall==>polylines#update, arguments==> {polylinesToAdd=[], polylinesToChange=[], polylineIdsToRemove=[]}
-I/AMapFlutter_PolylinesController( 1074): doMethodCall===>polylines#update
-I/AMapFlutter_AMapPlatformView( 1074): onMethodCall==>polygons#update, arguments==> {polygonsToChange=[], polygonIdsToRemove=[], polygonsToAdd=[]}
-I/AMapFlutter_PolygonsController( 1074): doMethodCall===>polygons#update
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/flutter ( 1074): 🧪 开始创建测试标记...
-I/flutter ( 1074): ✅ 测试标记创建成功: 5个
-I/flutter ( 1074): 📍 标记位置: 基础位置(30.279, 120.2255)
-I/AMapFlutter_AMapPlatformView( 1074): onMethodCall==>markers#update, arguments==> {markerIdsToRemove=[1757945287548_[#6a866], 1757945287548_[#e9c03], 1757945287548_[#73ab5], 1757945287548_[#4f757], 1757945287548_[#1e66d]], markersToChange=[], markersToAdd=[{infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, packages/amap_map/res/RED.png, 2.0], id=1757945288439_[#fb2cb], position=[30.279, 120.22550000000001], infoWindow={snippet=测试红色默认标记 - 1757945288439, title=红色标记 8}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, packages/amap_map/res/GREEN.png, 2.0], id=1757945288439_[#7709b], position=[30.28, 120.22649999999999], infoWindow={snippet=测试绿色默认标记 - 1757945288439, title=绿色标记 8}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, packages/amap_map/res/BLUE.png, 2.0], id=1757945288439_[#a5add], position=[30.281, 120.22749999999996], infoWindow={snippet=测试蓝色默认标记 - 1757945288439, title=蓝色标记 8}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, packages/amap_map/res/ORANGE.png, 2.0], id=1757945288439_[#6fd9c], position=[30.282, 120.2285], infoWindow={snippet=测试橙色默认标记 - 1757945288439, title=橙色标记 8}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, packages/amap_map/res/VIOLET.png, 2.0], id=1757945288439_[#b34ec], position=[30.283, 120.22950000000003], infoWindow={snippet=测试紫色默认标记 - 1757945288439, title=紫色标记 8}, zIndex=0.0}]}    
-I/AMapFlutter_MarkersController( 1074): doMethodCall===>markers#update
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-W/AMapFlutter_ConvertUtil( 1074): FlutterLoader is null, falling back to default marker for fromAssetImage
-I/AMapFlutter_AMapPlatformView( 1074): onMethodCall==>polylines#update, arguments==> {polylinesToAdd=[], polylinesToChange=[], polylineIdsToRemove=[]}
-I/AMapFlutter_PolylinesController( 1074): doMethodCall===>polylines#update
-I/AMapFlutter_AMapPlatformView( 1074): onMethodCall==>polygons#update, arguments==> {polygonsToChange=[], polygonIdsToRemove=[], polygonsToAdd=[]}
-I/AMapFlutter_PolygonsController( 1074): doMethodCall===>polygons#update
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/flutter ( 1074): 📍 全局监听器收到定位数据: {callbackTime: 2025-09-15 22:08:08, locationTime: 2025-09-15 22:08:08, locationType: 2, latitude: 30.275685, longitude: 120.220258, accuracy: 45.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 上城区, street: 运河东路, streetNumber: 149-151号, cityCode: 0571, adCode: 330102, address: 浙江省杭州市上城区运河东路149-151号 靠近中豪·湘和国际, description: 在中豪·湘和国际附近}
-I/flutter ( 1074): 📍 _onLocationUpdate 被调用，收到数据: {callbackTime: 2025-09-15 22:08:08, locationTime: 2025-09-15 22:08:08, locationType: 2, latitude: 30.275685, longitude: 120.220258, accuracy: 45.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 上城区, street: 运河东路, streetNumber: 149-151号, cityCode: 0571, adCode: 330102, address: 浙江省杭州市上城区运河东路149-151号靠近中豪·湘和国际, description: 在中豪·湘和国际附近}       
-I/flutter ( 1074): ✅ 高德定位成功: 纬度=30.275685, 经度=120.220258,  精度=45.0 米
-I/flutter ( 1074): 📍 位置点被过滤 (距离不足50.0米)
-I/flutter ( 1074): 🎯 高德实时定位: 30.275685, 120.220258, 精度: 45.00米, 速度: 0.00m/s
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28835333212856, 120.22897633865938]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.287851899024645, 120.22905680492845]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.286971779296028, 120.2293558712285]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.286695003170426, 120.22947657063212]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28624567457564, 120.22971662833484]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.286055751561126, 120.22983598663394]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28567590442907, 120.23007738544115]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.285452396130534, 120.23023697687482]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.285279842743467, 120.23033755971115]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.285210358072362, 120.23037779284569]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.285123502164282, 120.23039790941294]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.285089917859192, 120.23041802598023]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28502043305359, 120.23045825911476]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.284968319417068, 120.2304984922493]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.284952106280066, 120.2304984922493]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChangeFinish===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.284952106280066, 120.2304984922493]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/flutter ( 1074): ❌ Image.asset加载失败: assets/markers/start_point.png - Exception: Invalid image data
-I/flutter ( 1074): ❌ Image.asset加载失败: assets/markers/end_point.png - Exception: Invalid image data
-I/flutter ( 1074): ❌ Image.asset加载失败: assets/markers/stay_point.png - Exception: Invalid image data
-I/flutter ( 1074): ❌ Image.asset加载失败: assets/markers/current_location.png - Exception: Invalid image data
-I/flutter ( 1074): ✅ Image.asset加载成功: assets/kissu_icon.webp
-I/flutter ( 1074): ✅ Image.asset加载成功: assets/kissu_home_tab_map.webp
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/flutter ( 1074): 📍 全局监听器收到定位数据: {callbackTime: 2025-09-15 22:08:12, locationTime: 2025-09-15 22:08:12, locationType: 2, latitude: 30.275685, longitude: 120.220258, accuracy: 45.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 上城区, street: 运河东路, streetNumber: 149-151号, cityCode: 0571, adCode: 330102, address: 浙江省杭州市上城区运河东路149-151号 靠近中豪·湘和国际, description: 在中豪·湘和国际附近}
-I/flutter ( 1074): 📍 _onLocationUpdate 被调用，收到数据: {callbackTime: 2025-09-15 22:08:12, locationTime: 2025-09-15 22:08:12, locationType: 2, latitude: 30.275685, longitude: 120.220258, accuracy: 45.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 上城区, street: 运河东路, streetNumber: 149-151号, cityCode: 0571, adCode: 330102, address: 浙江省杭州市上城区运河东路149-151号靠近中豪·湘和国际, description: 在中豪·湘和国际附近}       
-I/flutter ( 1074): ✅ 高德定位成功: 纬度=30.275685, 经度=120.220258,  精度=45.0 米
-I/flutter ( 1074): 📍 位置点被过滤 (距离不足50.0米)
-I/flutter ( 1074): 🎯 高德实时定位: 30.275685, 120.220258, 精度: 45.00米, 速度: 0.00m/s
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.284382328620907, 120.23047837568201]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.2837256905072, 120.2304984922493]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/System.out( 1074): [okhttp]:check permission begin!
-I/System.out( 1074): [okhttp]:not MMS!
-I/System.out( 1074): [okhttp]:not Email!
-D/TrafficStats( 1074): tagSocket(192) with statsTag=0xffffffff, statsUid=-1
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.283501019667355, 120.23051860881655]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.283206862223018, 120.23057761741387]}}
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.283155905725703, 120.23057761741387]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28310379109883, 120.23057761741387]}}
-I/System.out( 1074): [OkHttp] sendRequest>>
-I/System.out( 1074): [OkHttp] sendRequest<<
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.283051676444266, 120.23057761741387]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.283034304886584, 120.23057761741387]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.283000719866365, 120.23057761741387]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChange===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28298334829967, 120.23057761741387]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/AMapFlutter_AMapPlatformView( 1074): getView==>
-I/AMapFlutter_MapController( 1074): onCameraChangeFinish===>{position={bearing=0.0, zoom=15.0, tilt=0.0, target=[30.28298334829967, 120.23057761741387]}}
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-E/FrameEvents( 1074): updateAcquireFence: Did not find frame.
-I/flutter ( 1074): 📍 全局监听器收到定位数据: {callbackTime: 2025-09-15 22:08:15, locationTime: 2025-09-15 22:08:15, locationType: 2, latitude: 30.275685, longitude: 120.220258, accuracy: 45.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 上城区, street: 运河东路, streetNumber: 149-151号, cityCode: 0571, adCode: 330102, address: 浙江省杭州市上城区运河东路149-151号 靠近中豪·湘和国际, description: 在中豪·湘和国际附近}
-I/flutter ( 1074): 📍 _onLocationUpdate 被调用，收到数据: {callbackTime: 2025-09-15 22:08:15, locationTime: 2025-09-15 22:08:15, locationType: 2, latitude: 30.275685, longitude: 120.220258, accuracy: 45.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province
+I/flutter (31418): 📍 相机位置更新: 30.280722702178263, 120.21649467922214, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=16.0, tilt=0.0, target=[30.280627735371358, 120.21630156017635]}}
+I/flutter (31418): 📍 相机位置更新: 30.280627735371358, 120.21630156017636, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=16.0, tilt=0.0, target=[30.280532768472547, 120.21610978223505]}}
+I/flutter (31418): 📍 相机位置更新: 30.280532768472547, 120.21610978223504, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=16.0, tilt=0.0, target=[30.280437801481824, 120.21591666318928]}}
+I/flutter (31418): 📍 相机位置更新: 30.280437801481824, 120.21591666318926, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/flutter (31418): 🔄 地图强制更新完成
+I/flutter (31418): 🔄 已立即清空旧数据，显示加载状态
+I/flutter (31418): 🌐 智能请求数据: 2025-09-19, isOneself=true
+I/flutter (31418): 📅 缓存检查: 2025-09-19 不应缓存
+I/flutter (31418): 🚫 2025-09-19 是今天或未来日期，不使用缓存
+I/flutter (31418): 🔄 TrackApi: 缓存未命中，请求API数据: 2025-09-19, isOneself=1
+I/flutter (31418): [LogManager] Not initialized. Message: GET https://service-api.ikissu.cn/get/trace?date=2025-09-19&is_oneself=1
+I/flutter (31418): ℹ️ 无有效轨迹数据，不创建轨迹线。状态: false, 点数: 0
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>markers#update, arguments==> {markerIdsToRemove=[], markersToChange=[], markersToAdd=[]}
+I/AMapFlutter_MarkersController(31418): doMethodCall===>markers#update
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>polylines#update, arguments==> {polylinesToAdd=[], polylinesToChange=[], polylineIdsToRemove=[]}
+I/AMapFlutter_PolylinesController(31418): doMethodCall===>polylines#update
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>polygons#update, arguments==> {polygonsToChange=[], polygonIdsToRemove=[], polygonsToAdd=[]}
+I/AMapFlutter_PolygonsController(31418): doMethodCall===>polygons#update
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=16.0, tilt=0.0, target=[30.28034630880628, 120.21573024966595]}}
+I/flutter (31418): 📍 相机位置更新: 30.28034630880628, 120.21573024966597, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=16.0, tilt=0.0, target=[30.280306932185482, 120.21564978339687]}}
+I/flutter (31418): 📍 相机位置更新: 30.280306932185482, 120.21564978339688, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChangeFinish===>{position={bearing=0.0, zoom=16.0, tilt=0.0, target=[30.280306932185482, 120.21564978339687]}}
+I/flutter (31418): 🏁 地图移动结束，进行最终位置更新
+I/flutter (31418): 📍 相机位置更新: 30.280306932185482, 120.21564978339688, zoom: 16.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/flutter (31418): [LogManager] Not initialized. Message: 200 GET https://service-api.ikissu.cn/get/trace?date=2025-09-19&is_oneself=1 (155ms)
+I/flutter (31418): [LogManager] Not initialized. Message: Response: {
+I/flutter (31418):   "isSuccess": true,
+I/flutter (31418):   "code": 0,
+I/flutter (31418):   "msg": "",
+I/flutter (31418):   "data": null,
+I/flutter (31418):   "dataList": null,
+I/flutter (31418):   "dataJson": {
+I/flutter (31418):     "locations": [
+I/flutter (31418):       {
+I/flutter (31418):         "longitude": "120.220243",
+I/flutter (31418):         "latitude": "30.275689"
+I/flutter (31418):       },
+I/flutter (31418):       {
+I/flutter (31418):         "longitude": "120.22029",
+I/flutter (31418):         "latitude": "30.27567"
+I/flutter (31418):       },
+I/flutter (31418):       {
+I/flutter (31418):         "longitude": "119.984365",
+I/flutter (31418):         "latitude": "30.283985"
+I/flutter (31418):       }
+I/flutter (31418):     ],
+I/flutter (31418):     "trace": {
+I/flutter (31418):       "start_point": {
+I/flutter (31418):         "longitude": "120.220243",
+I/flutter (31418):         "latitude": "30.275689",
+I/flutter (31418):         "location_... (truncated)
+I/flutter (31418): ✅ Request GET /get/trace - 160ms - Status: 200
+I/flutter (31418): 🔍 Track API 返回数据结构: [locations, trace, user]
+I/flutter (31418): 🔍 LocationResponse 解析JSON: [locations, trace, user]
+I/flutter (31418): 📅 缓存检查: 2025-09-19 不应缓存
+I/flutter (31418): 🚫 2025-09-19 是今天或未来日期，不进行缓存
+I/flutter (31418): ✅ TrackApi: 获取到最新数据，已缓存历史数据
+I/flutter (31418): 🎭 从API数据更新头像信息
+I/flutter (31418): 🎭 更新我的头像: https://kissustatic.yuluojishu.com/uploads/2025/09/11/e00b3be4bb4801e07a62ff4080fb6d13.png
+I/flutter (31418): 🎭 更新伴侣头像: https://kissustatic.yuluojishu.com/uploads/2025/09/11/e00b3be4bb4801e07a62ff4080fb6d13.png
+I/flutter (31418): 🎭 更新绑定状态: false
+I/flutter (31418): 🎭 头像更新完成 - 我的头像: https://kissustatic.yuluojishu.com/uploads/2025/09/11/e00b3be4bb4801e07a62ff4080fb6d13.png, 伴侣头像: https://kissustatic.yuluojishu.com/uploads/2025/09/11/e00b3be4bb4801e07a62ff4080fb6d13.png
+I/flutter (31418): ✅ 获取到最新数据
+I/flutter (31418): 🔍 开始更新停留记录列表
+I/flutter (31418): 📊 trace.stops数量: 3
+I/flutter (31418): 🔄 更新轨迹数据: 日期=2025-09-19, isOneself=1, 位置点=3个
+I/flutter (31418): 📍 全局监听器收到定位数据: {callbackTime: 2025-09-19 16:10:12, locationTime: 2025-09-19 16:09:44, locationType: 2, latitude: 30.283854, longitude: 119.98432, accuracy: 50.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 余杭区, street: 余杭塘河滨水公园绿道, streetNumber: 19号, cityCode: 0571, adCode: 330110, address: 浙江省杭州市余杭区余杭塘河滨水公园绿道19号靠近云城·金龙中心, description: 在云城·金龙中心附近}
+I/flutter (31418): 📍 _onLocationUpdate 被调用，收到数据: {callbackTime: 2025-09-19 16:10:12, locationTime: 2025-09-19 16:09:44, locationType: 2, latitude: 30.283854, longitude: 119.98432, accuracy: 50.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 余杭区, street: 余杭塘河滨水公园绿道, streetNumber: 19号, cityCode: 0571, adCode: 330110, address: 浙江省杭州市余杭区余杭塘河滨水公园绿道19号靠近云城·金龙中心, description: 在云城·金龙中心附近}
+I/flutter (31418): ✅ 停留记录更新完成，总数量: 3
+I/flutter (31418): 📍 轨迹点数量: 3 (使用原始精度)
+I/flutter (31418): ✅ 轨迹点已更新，确保地图同步
+I/flutter (31418): 🔄 地图强制更新完成
+I/flutter (31418): 📍 原始停留点数量: 3
+I/flutter (31418): 📍 调整后停留点数量: 3
+I/flutter (31418): 🔄 更新停留点 markers...
+I/flutter (31418): 📍 创建停留点标记: 3个点
+I/flutter (31418): 🔄 更新轨迹起点和终点标记...
+I/flutter (31418): ✅ 轨迹起点标记创建成功
+I/flutter (31418): ✅ 轨迹终点标记创建成功
+I/flutter (31418): ✅ 轨迹起终点标记更新成功: 2个
+I/flutter (31418): 🔄 地图强制更新完成
+I/flutter (31418): 🔍 开始更新统计数据
+I/flutter (31418): ✅ 使用trace.stay_collect的统计数据 (主要数据源)
+I/flutter (31418): 📊 统计数据: 停留次数=2, 停留时间=6小时44分钟, 移动距离=0米
+I/flutter (31418): ✅ 创建轨迹线，点数: 3
+I/flutter (31418): 🗺️ 开始自动调整地图视图，轨迹点数量: 3
+I/flutter (31418): 🗺️ 轨迹范围计算: latDiff=0.009978000000000264, lngDiff=0.2831099999999367, maxDiff=0.2831099999999367, zoom=11.0
+I/flutter (31418): 🗺️ 轨迹中心点: (30.279827500000003, 120.1023275)
+I/flutter (31418): ✅ 停留点 2 自定义图标创建成功
+I/flutter (31418): ✅ 停留点 2 (停留点 2) 标记创建成功
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>camera#move, arguments==> {duration=250, cameraUpdate=[newCameraPosition, {bearing=0.0, zoom=11.0, tilt=0.0, target=[30.279827500000003, 120.1023275]}], animated=true}
+I/AMapFlutter_MapController(31418): doMethodCall===>camera#move
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>markers#update, arguments==> {markerIdsToRemove=[], markersToChange=[], markersToAdd=[{infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, assets/kissu_location_start.webp, 1.0], id=742034271, position=[30.275689, 120.22024299999998], infoWindow={snippet=轨迹开始位置, title=起点}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromAssetImage, assets/kissu_location_end.webp, 1.0], id=353926403, position=[30.283985, 119.98436500000003], infoWindow={snippet=轨迹结束位置, title=终点}, zIndex=0.0}]}
+I/AMapFlutter_MarkersController(31418): doMethodCall===>markers#update
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>polylines#update, arguments==> {polylinesToAdd=[{geodesic=false, visible=true, color=4282095359, alpha=1.0, joinType=0, width=5.0, id=945005220, dashLineType=0, capType=0, points=[[30.275689, 120.22024299999998], [30.27567, 120.22028999999998], [30.283985, 119.98436500000003]]}], polylinesToChange=[], polylineIdsToRemove=[]}
+I/AMapFlutter_PolylinesController(31418): doMethodCall===>polylines#update
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>polygons#update, arguments==> {polygonsToChange=[], polygonIdsToRemove=[], polygonsToAdd=[]}
+I/AMapFlutter_PolygonsController(31418): doMethodCall===>polygons#update
+I/flutter (31418): ✅ 停留点 1 自定义图标创建成功
+I/flutter (31418): ✅ 停留点 1 (停留点 1) 标记创建成功
+I/flutter (31418): ✅ 更新停留点标记成功: 2个
+I/flutter (31418): 🔄 地图强制更新完成
+I/flutter (31418): ✅ 创建轨迹线，点数: 3
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>markers#update, arguments==> {markerIdsToRemove=[], markersToChange=[], markersToAdd=[{infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromBytes, [B@77e3499], id=634963557, position=[30.283985, 119.98436500000003], infoWindow={}, zIndex=0.0}, {infoWindowEnable=true, visible=true, draggable=false, alpha=1.0, anchor=[0.5, 1.0], clickable=true, rotation=0.0, icon=[fromBytes, [B@c19335e], id=535817675, position=[30.275689, 120.22024299999998], infoWindow={}, zIndex=0.0}]}
+I/AMapFlutter_MarkersController(31418): doMethodCall===>markers#update
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>polylines#update, arguments==> {polylinesToAdd=[{geodesic=false, visible=true, color=4282095359, alpha=1.0, joinType=0, width=5.0, id=306522578, dashLineType=0, capType=0, points=[[30.275689, 120.22024299999998], [30.27567, 120.22028999999998], [30.283985, 119.98436500000003]]}], polylinesToChange=[], polylineIdsToRemove=[945005220]}
+I/AMapFlutter_PolylinesController(31418): doMethodCall===>polylines#update
+I/AMapFlutter_AMapPlatformView(31418): onMethodCall==>polygons#update, arguments==> {polygonsToChange=[], polygonIdsToRemove=[], polygonsToAdd=[]}
+I/AMapFlutter_PolygonsController(31418): doMethodCall===>polygons#update
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=15.5, tilt=0.0, target=[30.28025944859233, 120.20431745050283]}}
+I/flutter (31418): 📍 相机位置更新: 30.28025944859233, 120.2043174505028, zoom: 15.5
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=15.3, tilt=0.0, target=[30.280240918403397, 120.1997845173452]}}
+I/flutter (31418): 📍 相机位置更新: 30.280240918403397, 120.19978451734517, zoom: 15.300000190734863
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=14.62, tilt=0.0, target=[30.28017606271459, 120.18437254460927]}}
+I/flutter (31418): 📍 相机位置更新: 30.28017606271459, 120.18437254460929, zoom: 14.619999885559082
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=13.940001, tilt=0.0, target=[30.28011004884448, 120.16896057187337]}}
+I/flutter (31418): 📍 相机位置更新: 30.28011004884448, 120.16896057187336, zoom: 13.940000534057617
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=13.26, tilt=0.0, target=[30.280045193069178, 120.15354859913744]}}
+I/flutter (31418): 📍 相机位置更新: 30.280045193069178, 120.15354859913742, zoom: 13.260000228881836
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=12.58, tilt=0.0, target=[30.279980337251015, 120.13813662640153]}}
+I/flutter (31418): 📍 相机位置更新: 30.279980337251015, 120.13813662640155, zoom: 12.579999923706055
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=11.88, tilt=0.0, target=[30.279913165108443, 120.12227136034986]}}
+I/flutter (31418): 📍 相机位置更新: 30.279913165108443, 120.12227136034983, zoom: 11.880000114440918
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=11.22, tilt=0.0, target=[30.2798506254861, 120.1073126809297]}}
+I/flutter (31418): 📍 相机位置更新: 30.2798506254861, 120.10731268092968, zoom: 11.220000267028809
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChange===>{position={bearing=0.0, zoom=11.0, tilt=0.0, target=[30.27982862079468, 120.10232645445633]}}
+I/flutter (31418): 📍 相机位置更新: 30.27982862079468, 120.10232645445632, zoom: 11.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/AMapFlutter_MapController(31418): onCameraChangeFinish===>{position={bearing=0.0, zoom=11.0, tilt=0.0, target=[30.27982862079468, 120.10232645445633]}}
+I/flutter (31418): 🏁 地图移动结束，进行最终位置更新
+I/flutter (31418): 📍 相机位置更新: 30.27982862079468, 120.10232645445632, zoom: 11.0
+I/flutter (31418): !  没有当前停留点，跳过InfoWindow更新
+I/flutter (31418): 📍 全局监听器收到定位数据: {callbackTime: 2025-09-19 16:10:15, locationTime: 2025-09-19 16:09:44, locationType: 2, latitude: 30.283854, longitude: 119.98432, accuracy: 50.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 余杭区, street: 余杭塘河滨水公园绿道, streetNumber: 19号, cityCode: 0571, adCode: 330110, address: 浙江省杭州市余杭区余杭塘河滨水公园绿道19号靠近云城·金龙中心, description: 在云城·金龙中心附近}
+I/flutter (31418): 📍 _onLocationUpdate 被调用，收到数据: {callbackTime: 2025-09-19 16:10:15, locationTime: 2025-09-19 16:09:44, locationType: 2, latitude: 30.283854, longitude: 119.98432, accuracy: 50.0, altitude: 0.0, bearing: 0.0, speed: 0.0, country: 中国, province: 浙江省, city: 杭州市, district: 余杭区, street: 余杭塘河滨水公园绿道, streetNumber: 19号, cityCode: 0571, adCode: 330110, address: 浙江省杭州市余杭区余杭塘河滨水公园绿道19号靠近云城·金龙中心, description: 在云城·金龙中心附近}

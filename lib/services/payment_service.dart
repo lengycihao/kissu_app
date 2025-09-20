@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:oktoast/oktoast.dart';
 
 /// 支付服务类 - 使用 MethodChannel 直接与 Android 原生通信
 class PaymentService extends GetxService {
@@ -126,29 +128,29 @@ class PaymentService extends GetxService {
         _paymentInProgress.value = false;
         
         if (result != null && result['success'] == true) {
-          _logger.i('微信支付成功');
-          _showSuccess('微信支付成功');
+          // _logger.i('微信支付成功');
+          // _showSuccess('微信支付成功');
           return true;
         } else {
-          String errorMsg = result?['message'] ?? '微信支付失败';
-          _logger.e('微信支付失败: $errorMsg');
-          _showError(errorMsg);
+          // String errorMsg = result?['message'] ?? '微信支付失败';
+          // _logger.e('微信支付失败: $errorMsg');
+          // _showError(errorMsg);
           return false;
         }
         
       } catch (e) {
         _hideProgress();
         _paymentInProgress.value = false;
-        _logger.e('微信支付调用异常: $e');
-        _showError('微信支付调用失败，请重试');
+        // _logger.e('微信支付调用异常: $e');
+        // _showError('微信支付调用失败，请重试');
         return false;
       }
       
     } catch (e) {
       _hideProgress();
       _paymentInProgress.value = false;
-      _logger.e('微信支付异常: $e');
-      _showError('微信支付异常，请重试');
+      // _logger.e('微信支付异常: $e');
+      // _showError('微信支付异常，请重试');
       return false;
     }
   }
@@ -158,6 +160,7 @@ class PaymentService extends GetxService {
     required String orderInfo,
   }) async {
     try {
+      
       // 检查平台和初始化状态
       if (!Platform.isAndroid) {
         _showError('当前平台不支持支付宝支付');
@@ -174,11 +177,10 @@ class PaymentService extends GetxService {
         return false;
       }
       
-      _logger.i('发起支付宝支付请求');
-      _logger.i('OrderInfo: $orderInfo');
       
       // 检查支付宝是否已安装
       bool alipayInstalled = await isAlipayInstalled();
+      
       if (!alipayInstalled) {
         _showError('请先安装支付宝客户端');
         return false;
@@ -194,33 +196,33 @@ class PaymentService extends GetxService {
           'orderInfo': orderInfo,
         });
         
+        _logger.i('支付宝支付调用完成，返回结果: $result');
+        
         _hideProgress();
         _paymentInProgress.value = false;
         
         if (result != null && result['success'] == true) {
-          _logger.i('支付宝支付成功');
-          _showSuccess('支付宝支付成功');
+          // _showSuccess('支付宝支付成功');
           return true;
         } else {
           String errorMsg = result?['message'] ?? '支付宝支付失败';
-          _logger.e('支付宝支付失败: $errorMsg');
-          _showError(errorMsg);
+          // _showError(errorMsg);
           return false;
         }
         
-      } catch (e) {
+      } catch (e, stackTrace) {
         _hideProgress();
         _paymentInProgress.value = false;
-        _logger.e('支付宝支付调用异常: $e');
-        _showError('支付宝支付调用失败，请重试');
+        // _showError('支付宝支付调用失败，请重试');
         return false;
       }
       
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // _logger.e('支付宝支付异常: $e');
+      // _logger.e('异常堆栈: $stackTrace');
       _hideProgress();
       _paymentInProgress.value = false;
-      _logger.e('支付宝支付异常: $e');
-      _showError('支付宝支付异常，请重试');
+      // _showError('支付宝支付异常，请重试');
       return false;
     }
   }
@@ -281,18 +283,54 @@ class PaymentService extends GetxService {
   
   /// 显示成功消息
   void _showSuccess(String message) {
-    CustomToast.show(
-      Get.context!,
-      message,
-    );
+    try {
+      if (Get.context != null) {
+        // CustomToast.show(
+        //   Get.context!,
+        //   message,
+        // );
+        OKToastUtil.show(message);
+      } else {
+        _logger.w('无法显示Toast: context为null');
+        // 使用Get.snackbar作为fallback
+        Get.snackbar(
+          '支付成功',
+          message,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: const Color(0xff4CAF50),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      _logger.e('显示成功消息失败: $e');
+    }
   }
   
   /// 显示错误消息
   void _showError(String message) {
-    CustomToast.show(
-      Get.context!,
-      message,
-    );
+    try {
+      if (Get.context != null) {
+        // CustomToast.show(
+        //   Get.context!,
+        //   message,
+        // );
+        OKToastUtil.show(message);
+      } else {
+        _logger.w('无法显示Toast: context为null');
+        // 使用Get.snackbar作为fallback
+        Get.snackbar(
+          '支付失败',
+          message,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: const Color(0xffF44336),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      _logger.e('显示错误消息失败: $e');
+    }
   }
   
   /// 记录支付参数（调试用）

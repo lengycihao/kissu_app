@@ -60,7 +60,7 @@ class AliPayModel {
 
   factory AliPayModel.fromJson(Map<String, dynamic> json) {
     return AliPayModel(
-      orderString: json['order_string'],
+      orderString: json['ali_pay_str'] ?? json['order_string'],
     );
   }
 

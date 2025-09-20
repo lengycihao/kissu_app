@@ -229,19 +229,18 @@ class FeedbackPage extends StatelessWidget {
     final controller = Get.put(FeedbackController());
 
     return Scaffold(
-      body: Obx(
-        () => Stack(
-            children: [
-              // 背景
-              Positioned.fill(
-                child: Image.asset(
-                  "assets/kissu_mine_bg.webp",
-                  fit: BoxFit.cover,
-                ),
-              ),
+      body: Stack(
+        children: [
+          // 背景
+          Positioned.fill(
+            child: Image.asset(
+              "assets/kissu_mine_bg.webp",
+              fit: BoxFit.cover,
+            ),
+          ),
 
-              // 内容
-              SafeArea(
+          // 内容
+          SafeArea(
                 child: Column(
                   children: [
                     // 导航栏
@@ -500,9 +499,34 @@ class FeedbackPage extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-        
+          
+          // Loading 覆盖层
+          Obx(() => controller.isSubmitting.value
+              ? Positioned.fill(
+                  child: Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFEA39C)),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            controller.loadingText.value,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink()),
+        ],
       ),
     );
   }
