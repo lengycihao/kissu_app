@@ -2039,11 +2039,20 @@ class TrackController extends GetxController {
     // 重置地图就绪状态
     isMapReady.value = false;
     
-    // 清理所有定时器和资源
-    _replayTimer?.cancel();
-    _replayTimer = null;
-    _debounceTimer?.cancel();
-    _debounceTimer = null;
+    // 安全地清理所有定时器和资源
+    try {
+      _replayTimer?.cancel();
+      _replayTimer = null;
+    } catch (e) {
+      debugPrint('清理replayTimer时出错: $e');
+    }
+    
+    try {
+      _debounceTimer?.cancel();
+      _debounceTimer = null;
+    } catch (e) {
+      debugPrint('清理debounceTimer时出错: $e');
+    }
     
     // 清理地图控制器
     // AMapController 无需手动dispose

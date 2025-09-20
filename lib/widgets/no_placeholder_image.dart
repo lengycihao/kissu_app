@@ -27,6 +27,9 @@ class NoPlaceholderImage extends StatelessWidget {
       width: width,
       height: height,
       fit: fit,
+      // 优化缓存策略，减少内存占用
+      cacheWidth: (width * MediaQuery.of(context).devicePixelRatio).round(),
+      cacheHeight: (height * MediaQuery.of(context).devicePixelRatio).round(),
       errorBuilder: (context, error, stackTrace) {
         return Image.asset(
           defaultAssetPath,

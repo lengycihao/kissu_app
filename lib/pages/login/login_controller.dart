@@ -121,7 +121,7 @@ class LoginController extends GetxController {
           child: Container(
             padding: EdgeInsets.only(top: 20, left: 10, right: 10),
             width: 290.0,
-            height: 350.0,
+            height: 370.0,
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/kissu_privacy_bg.webp'),
@@ -141,7 +141,7 @@ class LoginController extends GetxController {
                     top: 20
                   ),
                   child: AgreementRichText(
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                   ),
                 ),
                 Row(

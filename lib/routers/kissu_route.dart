@@ -8,8 +8,7 @@ import 'package:kissu_app/pages/login/info_setting/info_setting_page.dart';
 import 'package:kissu_app/pages/login/info_setting/share_page.dart';
 import 'package:kissu_app/pages/qr/qr_scan_page.dart';
 import 'package:kissu_app/pages/login/login_page.dart';
-import 'package:kissu_app/pages/test/sensitive_data_test_page.dart';
-import 'package:kissu_app/pages/vip/vip_binding.dart';
+ import 'package:kissu_app/pages/vip/vip_binding.dart';
 import 'package:kissu_app/pages/vip/vip_page.dart';
 import 'package:kissu_app/pages/vip/forever_vip_page.dart';
 import 'package:kissu_app/pages/vip/forever_vip_controller.dart';
@@ -17,9 +16,7 @@ import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_binding.dart';
 import 'package:kissu_app/pages/permission_setting_page.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
-import 'package:kissu_app/pages/test/first_agreement_test_page.dart';
-import 'package:kissu_app/pages/openinstall_test_page.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
+ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
 class KissuRoute {
@@ -101,11 +98,7 @@ class KissuRoute {
     //   page: () => const LocationExamplePage(),
     //   transition: Transition.rightToLeft,
     // ),
-    GetPage(
-      name: KissuRoutePath.sensitiveDataTest,
-      page: () => const SensitiveDataTestPage(),
-      transition: Transition.rightToLeft,
-    ),
+     
     // GetPage(
     //   name: KissuRoutePath.testLocationNow,
     //   page: () => TestLocationNowPage(),
@@ -116,16 +109,7 @@ class KissuRoute {
     //   page: () => QuickLocationTest(),
     //   transition: Transition.rightToLeft,
     // ),
-    GetPage(
-      name: KissuRoutePath.firstAgreementTest,
-      page: () => const FirstAgreementTestPage(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: KissuRoutePath.openinstallTest,
-      page: () => const OpenInstallTestPage(),
-      transition: Transition.rightToLeft,
-    ),
+     
     // GetPage(
     //   name: KissuRoutePath.simpleMarkerTest,
     //   page: () => const SimpleMarkerTestPage(),

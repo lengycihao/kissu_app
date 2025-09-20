@@ -51,15 +51,23 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   /// 应用恢复前台
   void _onAppResumed() {
-    debugPrint('🔄 应用恢复前台');
+    debugPrint('🔄 应用恢复前台，优化前台策略');
     
-    // 不再自动启动定位服务，改为手动控制
-    debugPrint('ℹ️ 定位服务需要手动启动，不再自动启动');
+    try {
+      final simpleLocationService = SimpleLocationService.instance;
+      if (simpleLocationService.isLocationEnabled.value) {
+        // 应用回到前台，优化前台策略
+        _optimizeForegroundStrategy();
+        debugPrint('✅ 前台策略已优化');
+      }
+    } catch (e) {
+      debugPrint('❌ 前台策略优化失败: $e');
+    }
   }
   
   /// 应用进入后台
   void _onAppPaused() {
-    debugPrint('📱 应用进入后台');
+    debugPrint('📱 应用进入后台，启动增强后台策略');
     
     // 继续使用SimpleLocationService进行后台定位
     try {
@@ -70,6 +78,9 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       } else {
         debugPrint('ℹ️ 后台定位服务已在运行，继续定位');
       }
+      
+      // 确保后台增强策略已启动
+      _ensureBackgroundStrategyActive();
     } catch (e) {
       debugPrint('❌ 后台定位服务失败: $e');
     }
@@ -165,6 +176,28 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('❌ 获取定位服务状态失败: $e');
       return {};
+    }
+  }
+  
+  /// 确保后台策略激活
+  void _ensureBackgroundStrategyActive() {
+    try {
+      final simpleLocationService = SimpleLocationService.instance;
+      simpleLocationService.ensureBackgroundStrategyActive();
+      debugPrint('✅ 后台增强策略已确保激活');
+    } catch (e) {
+      debugPrint('❌ 激活后台策略失败: $e');
+    }
+  }
+  
+  /// 优化前台策略
+  void _optimizeForegroundStrategy() {
+    try {
+      final simpleLocationService = SimpleLocationService.instance;
+      simpleLocationService.optimizeForegroundStrategy();
+      debugPrint('✅ 前台策略已优化');
+    } catch (e) {
+      debugPrint('❌ 优化前台策略失败: $e');
     }
   }
   

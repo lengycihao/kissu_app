@@ -163,7 +163,7 @@ class ShareBottomSheet extends StatelessWidget {
       await shareService.shareToWeChat(
         title: "绑定邀请",
         description: '快来和我绑定吧！',
-        webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=$matchCode',
+        webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=$matchCode',
       );
       // 微信分享暂时不返回结果，假设成功
       // OKToastUtil.show('已调起微信分享');
@@ -188,7 +188,7 @@ class ShareBottomSheet extends StatelessWidget {
       final shareResult = await shareService.shareToQQ(
         title: "绑定邀请",
         description: '快来和我绑定吧！',
-        webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=$matchCode',
+        webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=$matchCode',
       );
       
       if (shareResult['success'] == true) {

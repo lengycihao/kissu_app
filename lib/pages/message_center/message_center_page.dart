@@ -99,50 +99,62 @@ class MessageCenterPage extends GetView<MessageCenterController> {
               height: 1.4,
             ),
           ),
+          // 状态文本（如果有）
+          if (message.statusText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              message.statusText,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xff999999),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
           // 如果有操作按钮
-          // if (message.isOperate == 1) ...[
-          //   const SizedBox(height: 12),
-          //   Row(
-          //     mainAxisAlignment: MainAxisAlignment.end,
-          //     children: [
-          //       GestureDetector(
-          //         onTap: () => controller.handleMessageAction(message, 'reject'),
-          //         child: Container(
-          //           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          //           decoration: BoxDecoration(
-          //             color: const Color(0xffFFD4D1),
-          //             borderRadius: BorderRadius.circular(16),
-          //           ),
-          //           child: const Text(
-          //             '拒绝绑定',
-          //             style: TextStyle(
-          //               fontSize: 12,
-          //               color: Color(0xff593A37),
-          //             ),
-          //           ),
-          //         ),
-          //       ),
-          //       const SizedBox(width: 12),
-          //       GestureDetector(
-          //         onTap: () => controller.handleMessageAction(message, 'accept'),
-          //         child: Container(
-          //           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          //           decoration: BoxDecoration(
-          //             color: const Color(0xffFF6B6B),
-          //             borderRadius: BorderRadius.circular(16),
-          //           ),
-          //           child: const Text(
-          //             '同意绑定',
-          //             style: TextStyle(
-          //               fontSize: 12,
-          //               color: Colors.white,
-          //             ),
-          //           ),
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ],
+          if (message.isOperate == 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: () => controller.handleMessageAction(message, 'reject'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffFFD4D1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      '拒绝绑定',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xff593A37),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => controller.handleMessageAction(message, 'accept'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffFF6B6B),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      '同意绑定',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
        
         ],
       ),

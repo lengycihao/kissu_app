@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-class AboutUsPage extends StatelessWidget {
+class AboutUsPage extends StatefulWidget {
   const AboutUsPage({super.key});
+
+  @override
+  State<AboutUsPage> createState() => _AboutUsPageState();
+}
+
+class _AboutUsPageState extends State<AboutUsPage> {
+  String _version = '加载中...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersionInfo();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _version = packageInfo.version;
+      });
+    } catch (e) {
+      setState(() {
+        _version = '1.0.1'; // 默认版本号
+      });
+    }
+  }
 
   Widget _buildDashedDivider() {
     return Container(
@@ -100,9 +127,9 @@ class AboutUsPage extends StatelessWidget {
               const SizedBox(height: 20),
 
               // 版本号
-              const Text(
-                "当前版本:1.2.0",
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+              Text(
+                "当前版本:$_version",
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
 
               const SizedBox(height: 27),
@@ -122,10 +149,6 @@ class AboutUsPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildItem("去评分", () {
-                        // TODO: 打开应用商店评分
-                      }),
-                      _buildDashedDivider(),
                       _buildItem("隐私协议", () {
                         AgreementUtils.toPrivacyAgreement();
                       }),

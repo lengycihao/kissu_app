@@ -5,6 +5,7 @@ import 'package:kissu_app/pages/vip/vip_controller.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/delayed_pag_widget.dart';
+import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 class VipPage extends GetView<VipController> {
   const VipPage({super.key});
@@ -22,7 +23,7 @@ class VipPage extends GetView<VipController> {
           // 主要内容区域 - 添加底部padding为支付组件留出空间
           SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 120), // 为底部固定支付组件留出空间
+              padding: const EdgeInsets.only(bottom: 150), // 为底部固定支付组件留出空间
               child: Column(
                 children: [
                   // 顶部轮播图 - 紧贴屏幕顶部，全宽度
@@ -540,13 +541,44 @@ class VipPage extends GetView<VipController> {
 
   // 提示文字
   Widget _buildHintText() {
+    // 检查当前渠道是否需要显示定位功能提示
+    final currentChannel = BusinessHeaderInterceptor.getCurrentChannel();
+    final shouldShowLocationHint = _shouldShowLocationHint(currentChannel);
+    
+    if (!shouldShowLocationHint) {
+      // 如果不需要显示定位提示，返回空的容器
+      return const SizedBox.shrink();
+    }
+    
     return const Align(
       alignment: Alignment.centerLeft,
       child: Text(
-        'App内部分功能需双方付费场景下使用',
+        '定位功能为会员功能，需双方下载安装并授权后使用',
         style: TextStyle(fontSize: 12, color: Color(0xFFABABAB)),
       ),
     );
+  }
+
+  /// 判断是否需要显示定位功能提示
+  /// 根据渠道判断，某些渠道（如华为、小米等）可能不显示定位相关功能
+  bool _shouldShowLocationHint(String? channel) {
+    if (channel == null) return true; // 默认显示
+    
+    // 根据渠道判断是否显示定位提示
+    // 这里可以根据具体需求调整哪些渠道不显示定位功能
+    switch (channel.toLowerCase()) {
+      case 'huawei':    // 华为渠道
+      case '3':         // 华为渠道代码
+      case 'xiaomi':    // 小米渠道  
+      case '2':         // 小米渠道代码
+      case 'vivo':      // VIVO渠道
+      case '4':         // VIVO渠道代码
+      case 'oppo':      // OPPO渠道
+      case '5':         // OPPO渠道代码
+        return false;   // 这些渠道不显示定位功能提示
+      default:
+        return true;    // 其他渠道显示定位功能提示
+    }
   }
 
   // 用户评价标题
@@ -648,7 +680,7 @@ class VipPage extends GetView<VipController> {
           topRight: Radius.circular(12),
         ),
       ),
-      padding: const EdgeInsets.all(15),
+      padding:   EdgeInsets.only(left: 20, right: 20, bottom: 25),
       child: Column(
         children: [
           // 支付方式选择
@@ -672,7 +704,7 @@ class VipPage extends GetView<VipController> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // 立即开通/继续续费按钮
           Obx(

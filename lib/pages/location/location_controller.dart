@@ -19,7 +19,7 @@ import 'package:http/http.dart' as http;
 
 class LocationController extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
-  final isOneself = 0.obs;
+  final isOneself = 0.obs; // 🎯 默认显示另一半
   
   /// 用户信息
   final myAvatar = "".obs;
@@ -77,12 +77,26 @@ class LocationController extends GetxController {
   void onInit() {
     super.onInit();
     print('🔧 LocationController onInit 开始');
-    // 加载用户信息
-    _loadUserInfo();
-    // 初始化定位服务（不自动启动）
-    _initLocationService();
-    // 只加载历史位置数据，不自动启动定位
-    loadLocationData();
+    try {
+      // 加载用户信息
+      print('🔧 开始加载用户信息...');
+      _loadUserInfo();
+      print('🔧 用户信息加载完成');
+      
+      // 初始化定位服务（不自动启动）
+      print('🔧 开始初始化定位服务...');
+      _initLocationService();
+      print('🔧 定位服务初始化完成');
+      
+      // 只加载历史位置数据，不自动启动定位
+      print('🔧 开始调用loadLocationData...');
+      loadLocationData();
+      print('🔧 loadLocationData调用完成');
+    } catch (e) {
+      print('❌ onInit执行异常: $e');
+      print('❌ 异常类型: ${e.runtimeType}');
+      print('❌ 异常堆栈: ${StackTrace.current}');
+    }
     print('🔧 LocationController onInit 完成');
   }
 
@@ -848,14 +862,14 @@ class LocationController extends GetxController {
       _initTrackStartEndMarkers();
     }
     
-    // 地图创建完成后，自动切换到左边头像（另一半）
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (isOneself.value == 1) {
-        print('🔄 地图初始化完成，自动切换到另一半头像');
-        isOneself.value = 0;
-        loadLocationData();
-      }
-    });
+    // 地图创建完成后，不再自动切换头像（已默认显示另一半）
+    // Future.delayed(const Duration(milliseconds: 500), () {
+    //   if (isOneself.value == 1) {
+    //     print('🔄 地图初始化完成，自动切换到另一半头像');
+    //     isOneself.value = 0;
+    //     loadLocationData();
+    //   }
+    // });
     
     // 地图创建完成后，延迟1000ms再调整视图，确保加载动画完全消失
     // 先显示超缩小视角，然后延迟执行放大动画
@@ -932,20 +946,40 @@ class LocationController extends GetxController {
     LatLng? targetLocation;
     String userName;
     
-    // 确定目标位置
-    if (isMyself) {
-      targetLocation = myLocation.value;
-      userName = "我的位置";
+    // 🔧 修复：根据当前查看的用户类型和点击的头像来确定目标位置
+    // 当 isOneself.value == 0 时，查看的是伴侣数据，myLocation 存储的是伴侣位置
+    // 当 isOneself.value == 1 时，查看的是自己数据，myLocation 存储的是自己位置
+    
+    if (isOneself.value == 0) {
+      // 当前查看伴侣数据
+      if (isMyself) {
+        // 点击自己头像，目标是自己位置（存储在partnerLocation中）
+        targetLocation = partnerLocation.value;
+        userName = "我的位置";
+      } else {
+        // 点击伴侣头像，目标是伴侣位置（存储在myLocation中）
+        targetLocation = myLocation.value;
+        userName = "伴侣位置";
+      }
     } else {
-      targetLocation = partnerLocation.value;
-      userName = "伴侣位置";
+      // 当前查看自己数据
+      if (isMyself) {
+        // 点击自己头像，目标是自己位置（存储在myLocation中）
+        targetLocation = myLocation.value;
+        userName = "我的位置";
+      } else {
+        // 点击伴侣头像，目标是伴侣位置（存储在partnerLocation中）
+        targetLocation = partnerLocation.value;
+        userName = "伴侣位置";
+      }
     }
     
     print('📍 目标位置信息：$userName = $targetLocation');
+    print('🔍 当前状态 - isOneself: ${isOneself.value}, 点击的是: ${isMyself ? "自己" : "伴侣"}');
     
     if (targetLocation == null) {
       print('❌ 无法移动到$userName：位置信息不存在');
-      print('🔍 当前位置状态 - 我的位置: ${myLocation.value}, 伴侣位置: ${partnerLocation.value}');
+      print('🔍 当前位置状态 - myLocation: ${myLocation.value}, partnerLocation: ${partnerLocation.value}');
       return;
     }
     
@@ -977,16 +1011,52 @@ class LocationController extends GetxController {
 
   /// 加载位置数据
   Future<void> loadLocationData() async {
-    if (isLoading.value) return;
+    print('🔍 loadLocationData 被调用，当前isLoading状态: ${isLoading.value}');
+    if (isLoading.value) {
+      print('⏸️ 跳过API调用，因为正在加载中');
+      return;
+    }
     
+    print('🔄 设置isLoading为true');
     isLoading.value = true;
     
     try {
+      print('🚀 开始调用LocationApi.getLocation()...');
       // 调用真实API获取定位数据
       final result = await LocationApi().getLocation();
+      print('📡 API调用完成，结果: ${result.isSuccess ? "成功" : "失败"}');
       
       if (result.isSuccess && result.data != null) {
         final locationData = result.data!;
+        print('✅ 成功获取locationData对象');
+        
+        print('🔍 API返回数据结构:');
+        print('  userLocationMobileDevice: ${locationData.userLocationMobileDevice != null ? "存在" : "为空"}');
+        print('  halfLocationMobileDevice: ${locationData.halfLocationMobileDevice != null ? "存在" : "为空"}');
+        
+        // 添加详细的stops调试信息
+        if (locationData.userLocationMobileDevice?.stops != null) {
+          print('🔍 userLocationMobileDevice stops数量: ${locationData.userLocationMobileDevice!.stops!.length}');
+          for (int i = 0; i < locationData.userLocationMobileDevice!.stops!.length; i++) {
+            final stop = locationData.userLocationMobileDevice!.stops![i];
+            print('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
+          }
+        } else {
+          print('🔍 userLocationMobileDevice stops为空');
+        }
+        
+        if (locationData.halfLocationMobileDevice?.stops != null) {
+          print('🔍 halfLocationMobileDevice stops数量: ${locationData.halfLocationMobileDevice!.stops!.length}');
+          for (int i = 0; i < locationData.halfLocationMobileDevice!.stops!.length; i++) {
+            final stop = locationData.halfLocationMobileDevice!.stops![i];
+            print('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
+          }
+        } else {
+          print('🔍 halfLocationMobileDevice stops为空');
+        }
+        
+        // 🎯 不再智能选择，默认显示另一半
+        // _smartSelectUserWithStops(locationData);
         
         // 根据当前查看的用户类型显示对应数据
         UserLocationMobileDevice? currentUser;
@@ -996,10 +1066,17 @@ class LocationController extends GetxController {
           // 查看自己的数据
           currentUser = locationData.userLocationMobileDevice;
           partnerUser = locationData.halfLocationMobileDevice;
+          print('🔍 查看自己的数据 - isOneself=1');
         } else {
           // 查看另一半的数据
           currentUser = locationData.halfLocationMobileDevice;
           partnerUser = locationData.userLocationMobileDevice;
+          print('🔍 查看另一半的数据 - isOneself=0');
+        }
+        
+        print('🔍 当前用户数据: ${currentUser != null ? "存在" : "为空"}');
+        if (currentUser != null) {
+          print('🔍 当前用户停留点数量: ${currentUser.stops?.length ?? 0}');
         }
         
         // 更新当前用户位置和设备信息
@@ -1026,8 +1103,12 @@ class LocationController extends GetxController {
       }
       
     } catch (e) {
+      print('❌ loadLocationData API调用异常: $e');
+      print('❌ 异常类型: ${e.runtimeType}');
+      print('❌ 异常堆栈: ${StackTrace.current}');
       CustomToast.show(Get.context!, '加载位置数据失败: $e');
     } finally {
+      print('🔄 设置isLoading为false');
       isLoading.value = false;
     }
   }
@@ -1105,9 +1186,20 @@ class LocationController extends GetxController {
     }
   }
   
+
   /// 更新位置记录
   void _updateLocationRecords(UserLocationMobileDevice? userData) {
     print('🔄 开始更新位置记录...');
+    print('🔍 调试信息 - userData: ${userData != null ? "存在" : "为空"}');
+    if (userData != null) {
+      print('🔍 userData详细信息:');
+      print('  latitude: ${userData.latitude}');
+      print('  longitude: ${userData.longitude}');
+      print('  location: ${userData.location}');
+      print('  stops: ${userData.stops}');
+      print('  stops?.length: ${userData.stops?.length}');
+      print('  stops?.isNotEmpty: ${userData.stops?.isNotEmpty}');
+    }
     
     // 清空现有记录
     locationRecords.clear();
@@ -1115,6 +1207,11 @@ class LocationController extends GetxController {
     // 从API数据中提取停留点信息
     if (userData?.stops != null && userData!.stops!.isNotEmpty) {
       print('📍 发现 ${userData.stops!.length} 个停留点');
+      print('🔍 停留点详情:');
+      for (int i = 0; i < userData.stops!.length; i++) {
+        final stop = userData.stops![i];
+        print('  停留点$i: ${stop.locationName} - ${stop.startTime}~${stop.endTime} - 时长:${stop.duration}');
+      }
       
       for (int i = 0; i < userData.stops!.length; i++) {
         final stop = userData.stops![i];
@@ -1127,36 +1224,30 @@ class LocationController extends GetxController {
           duration: stop.duration ?? '未知',
           startTime: stop.startTime,
           endTime: stop.endTime,
+          status: stop.status,
           latitude: stop.latitude != null ? double.tryParse(stop.latitude!) : null,
           longitude: stop.longitude != null ? double.tryParse(stop.longitude!) : null,
         );
         
         locationRecords.add(record);
-        print('✅ 添加位置记录: ${record.locationName} - ${record.time}');
+        print('✅ 添加位置记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
       }
     } else {
       print('⚠️ 没有找到停留点数据');
-      // 如果没有停留点数据，可以添加一个当前位置的记录
-      if (userData != null) {
-        final currentRecord = LocationRecord(
-          time: _formatCurrentTime(),
-          locationName: userData.location ?? '当前位置',
-          distance: '0km',
-          duration: '当前',
-          startTime: userData.locationTime,
-          endTime: null,
-          latitude: userData.latitude != null ? double.tryParse(userData.latitude!) : null,
-          longitude: userData.longitude != null ? double.tryParse(userData.longitude!) : null,
-        );
-        locationRecords.add(currentRecord);
-        print('✅ 添加当前位置记录: ${currentRecord.locationName}');
-      } else {
-        // 如果连用户数据都没有，显示空状态
-        print('⚠️ 用户数据也为空，显示空状态');
-      }
+      print('🔍 调试信息 - userData?.stops: ${userData?.stops}');
+      print('🔍 调试信息 - userData?.stops?.length: ${userData?.stops?.length}');
+      print('🔍 调试信息 - userData?.stops?.isNotEmpty: ${userData?.stops?.isNotEmpty}');
+      
+      // 没有停留点数据时，不添加任何记录，让列表保持为空以显示空状态图
+      print('⚠️ 没有停留点数据，保持列表为空以显示空状态');
     }
     
     print('📊 位置记录更新完成，共 ${locationRecords.length} 条记录');
+    print('🔍 最终记录列表:');
+    for (int i = 0; i < locationRecords.length; i++) {
+      final record = locationRecords[i];
+      print('  记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
+    }
     
     // 更新轨迹线
     _updatePolylines();
@@ -1181,11 +1272,6 @@ class LocationController extends GetxController {
     }
   }
   
-  /// 格式化当前时间
-  String _formatCurrentTime() {
-    final now = DateTime.now();
-    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-  }
   
   
   
@@ -1370,8 +1456,14 @@ class LocationController extends GetxController {
 
   @override
   void onClose() {
+    // 确保清理所有资源
+    try {
+      hideTooltip(); // 清理overlay
+    } catch (e) {
+      debugPrint('清理tooltip时出错: $e');
+    }
+    
     // AMapController 无需手动dispose
-    hideTooltip(); // 清理overlay
     super.onClose();
   }
 }
@@ -1384,6 +1476,7 @@ class LocationRecord {
   final String? duration;    // 停留时长
   final String? startTime;   // 开始时间
   final String? endTime;     // 结束时间
+  final String? status;      // 状态: "staying", "ended"
   final double? latitude;    // 纬度
   final double? longitude;   // 经度
 
@@ -1394,6 +1487,7 @@ class LocationRecord {
     this.duration,
     this.startTime,
     this.endTime,
+    this.status,
     this.latitude,
     this.longitude,
   });

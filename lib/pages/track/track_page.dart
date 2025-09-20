@@ -9,6 +9,8 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'track_controller.dart';
 
 class TrackPage extends StatelessWidget {
@@ -202,20 +204,22 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                             ),
                           ],
                         ),
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: (notification) {
-                            // 使用智能滚动检测，特别处理边界反弹
-                            if (notification is ScrollUpdateNotification) {
-                              if (notification.scrollDelta != null) {
-                                CustomStayPointInfoWindowManager.onScrollDetected(notification.scrollDelta!);
-                              }
-                              return true;
-                            }
-                            return false;
-                          },
-                          child: CustomScrollView(
-                            controller: scrollController,
-                            slivers: [
+                        child: Stack(
+                          children: [
+                            NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                // 使用智能滚动检测，特别处理边界反弹
+                                if (notification is ScrollUpdateNotification) {
+                                  if (notification.scrollDelta != null) {
+                                    CustomStayPointInfoWindowManager.onScrollDetected(notification.scrollDelta!);
+                                  }
+                                  return true;
+                                }
+                                return false;
+                              },
+                              child: CustomScrollView(
+                                controller: scrollController,
+                                slivers: [
                               // 顶部固定区域
                               SliverToBoxAdapter(
                                 child: Stack(
@@ -314,6 +318,60 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                               ),
                             ],
                           ),
+                        ),
+                            // VIP遮罩层 - 覆盖整个滚动区域
+                            if (!UserManager.isVip)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    image: DecorationImage(
+                                      image: AssetImage('assets/kissu_vip_unbind.webp'),
+                                      fit: BoxFit.fill,
+                                    ),
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      // 点击遮罩层时跳转到VIP页面
+                                      Get.toNamed(KissuRoutePath.vip);
+                                    },
+                                    child: Container(
+                                      color: Colors.transparent, // 确保整个区域可点击
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            // 图片
+                                            GestureDetector(
+                                              onTap: () {
+                                                // 点击图片时跳转到VIP页面
+                                                Get.toNamed(KissuRoutePath.vip);
+                                              },
+                                              child: Image.asset(
+                                                'assets/kissu_go_bind.webp',
+                                                width: 111,
+                                                height: 34,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            // 文字
+                                            const Text(
+                                              '实时查看"另一半"的位置和行程轨迹',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF333333),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),

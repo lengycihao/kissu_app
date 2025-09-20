@@ -280,7 +280,7 @@ class ToastDialog {
     String title,
     dynamic content, // 可以是String或Widget（如RichText）
     VoidCallback onConfirm, {
-    double height = 320.0,
+    double height = 340.0,
     Function(String)? onLinkTap, // 链接点击回调
   }) {
     return showGeneralDialog(
@@ -391,14 +391,14 @@ class ToastDialog {
         // 普通文本
         return Text(
           content,
-          textAlign: TextAlign.start,
+          textAlign: TextAlign.left,
           style: TextStyle(color: Color(0xff333333), fontSize: 14, height: 1.5),
         );
       }
     } else {
       return Text(
         content.toString(),
-        textAlign: TextAlign.start,
+        textAlign: TextAlign.left,
         style: TextStyle(color: Color(0xff333333), fontSize: 14, height: 1.5),
       );
     }
@@ -470,7 +470,7 @@ class ToastDialog {
     }
 
     return RichText(
-      textAlign: TextAlign.start,
+      textAlign: TextAlign.left,
       text: TextSpan(children: spans),
     );
   }

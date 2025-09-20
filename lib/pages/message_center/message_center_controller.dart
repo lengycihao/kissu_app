@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class MessageCenterController extends GetxController {
   // 消息列表数据
@@ -53,13 +56,98 @@ class MessageCenterController extends GetxController {
 
   /// 返回上一页
   void onBackTap() {
+    // 返回时刷新首页红点信息
+    _refreshHomeRedDot();
     Get.back();
   }
 
   /// 处理消息操作（同意/拒绝绑定等）
-  void handleMessageAction(MessageItem message, String action) {
-    // TODO: 实现具体的操作逻辑
-    debugPrint('处理消息操作: ${message.id}, 操作: $action');
+  Future<void> handleMessageAction(MessageItem message, String action) async {
+    if (action == 'accept') {
+      await _affirmBind(message);
+    } else if (action == 'reject') {
+      await _refuseBind();
+    }
+  }
+
+  /// 同意绑定
+  Future<void> _affirmBind(MessageItem message) async {
+    try {
+      debugPrint('开始同意绑定，消息ID: ${message.id}');
+      
+      final result = await HttpManagerN.instance.executePost(
+        ApiRequest.affirmBind,
+        jsonParam: {'system_notice_id': message.id},
+        paramEncrypt: false,
+      );
+      
+      if (result.isSuccess) {
+        CustomToast.show(Get.context!, '绑定成功');
+        
+        // 刷新用户信息并更新缓存
+        await _refreshUserInfoAfterBind();
+        
+        // 重新加载消息列表
+        await loadMessages();
+      } else {
+        CustomToast.show(Get.context!, result.msg ?? '绑定失败');
+      }
+    } catch (e) {
+      debugPrint('同意绑定失败: $e');
+      CustomToast.show(Get.context!, '绑定失败: $e');
+    }
+  }
+
+  /// 拒绝绑定
+  Future<void> _refuseBind() async {
+    try {
+      debugPrint('开始拒绝绑定');
+      
+      final result = await HttpManagerN.instance.executePost(
+        ApiRequest.refuseBind,
+        paramEncrypt: false,
+      );
+      
+      if (result.isSuccess) {
+        CustomToast.show(Get.context!, '已拒绝绑定');
+        
+        // 重新加载消息列表
+        await loadMessages();
+      } else {
+        CustomToast.show(Get.context!, result.msg ?? '操作失败');
+      }
+    } catch (e) {
+      debugPrint('拒绝绑定失败: $e');
+      CustomToast.show(Get.context!, '操作失败: $e');
+    }
+  }
+
+  /// 绑定成功后刷新用户信息
+  Future<void> _refreshUserInfoAfterBind() async {
+    try {
+      // 获取用户最新信息并更新缓存
+      await UserManager.refreshUserInfo();
+      
+      // 如果首页控制器存在，通知其刷新状态
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        await homeController.refreshUserInfoAndState();
+      }
+    } catch (e) {
+      debugPrint('刷新用户信息失败: $e');
+    }
+  }
+
+  /// 刷新首页红点信息
+  Future<void> _refreshHomeRedDot() async {
+    try {
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        await homeController.loadRedDotInfo();
+      }
+    } catch (e) {
+      debugPrint('刷新红点信息失败: $e');
+    }
   }
 }
 

@@ -29,4 +29,8 @@ class ApiRequest {
   
   // 系统通知 API
   static const systemNotice = '/system/notice';
+  
+  // 消息中心绑定相关 API
+  static const affirmBind = '/affirm/bind';
+  static const refuseBind = '/refuse/bind';
 }

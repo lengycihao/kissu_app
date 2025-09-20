@@ -73,10 +73,10 @@ android {
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false  // 暂时禁用混淆以避免资源问题
-            isShrinkResources = false  // 禁用资源收缩
+            isMinifyEnabled = false  // 关闭代码混淆
+            isShrinkResources = false  // 关闭资源收缩
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }

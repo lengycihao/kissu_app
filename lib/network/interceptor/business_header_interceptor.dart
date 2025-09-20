@@ -19,7 +19,7 @@ class BusinessHeaderInterceptor extends Interceptor {
   static PackageInfo? _packageInfo;
   static String? _cachedDeviceId;
   static String? _cachedMobileModel;
-  static String? _cachedBrand;
+  static String? _cachedBrand;  
   static String? _cachedVersion;
   static String? _cachedChannel;
   static String? _cachedPkg;
@@ -29,6 +29,18 @@ class BusinessHeaderInterceptor extends Interceptor {
   static String? _cachedPower;
 
   BusinessHeaderInterceptor(this._authService);
+
+  /// 获取当前设置的渠道
+  /// 返回当前渠道标识，用于判断是否需要显示特定功能
+  static String? getCurrentChannel() {
+    return _cachedChannel;
+  }
+
+  /// 手动设置渠道（用于打包时配置）
+  /// [channel] 渠道标识
+  static void setChannel(String channel) {
+    _cachedChannel = channel;
+  }
 
   @override
   void onRequest(
@@ -131,7 +143,7 @@ class BusinessHeaderInterceptor extends Interceptor {
           options.headers[HttpHeaderKey.mobileModel] = _cachedMobileModel;
         }
         if (_cachedBrand != null) {
-          options.headers[HttpHeaderKey.brand] = _cachedBrand;
+          options.headers[HttpHeaderKey.brand] = _cachedBrand;  //具体渠道
         }
       } catch (e) {
         print('获取设备信息失败: $e');
@@ -142,8 +154,10 @@ class BusinessHeaderInterceptor extends Interceptor {
   /// 添加网络相关请求头
   Future<void> _addNetworkHeaders(RequestOptions options) async {
     // 设置默认渠道（可以根据实际需求修改）
+    // 打包时请修改这里的渠道值：
+    // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  
     if (_cachedChannel == null) {
-      _cachedChannel = Platform.isAndroid ? 'android' : 'ios';
+      _cachedChannel = Platform.isAndroid ? 'kissu_oppo' : 'Android';  // 荣耀渠道
     }
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 

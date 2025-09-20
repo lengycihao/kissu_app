@@ -60,7 +60,7 @@ class NetworkDiagnostic {
     
     // 测试HTTP连接
     final testUrls = [
-      'http://devweb.ikissu.cn/agreement/privacy.html',
+      'https://www.ikissu.cn/agreement/privacy.html',
       'https://www.baidu.com',
       'https://httpbin.org/get',
     ];

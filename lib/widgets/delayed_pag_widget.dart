@@ -31,7 +31,7 @@ class _DelayedPagWidgetState extends State<DelayedPagWidget> with AutomaticKeepA
   bool _wasEverLoaded = false; // 记录是否曾经加载过
 
   @override
-  bool get wantKeepAlive => true; // 保持状态活跃
+  bool get wantKeepAlive => false; // 禁用状态保持，减少内存占用
 
   @override
   void initState() {

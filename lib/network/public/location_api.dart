@@ -13,7 +13,33 @@ class LocationApi {
     );
 
     if (result.isSuccess) {
-      return result.convert(data: LocationResponseModel.fromJson(result.getDataJson()));
+      // 添加原始JSON调试信息
+      final rawJson = result.getDataJson();
+      print('🔍 API原始JSON数据:');
+      print('  JSON keys: ${rawJson.keys.toList()}');
+      
+      // 检查stops字段
+      if (rawJson['user_location_mobile_device'] != null) {
+        final userData = rawJson['user_location_mobile_device'];
+        print('  user_location_mobile_device keys: ${userData.keys.toList()}');
+        if (userData['stops'] != null) {
+          print('  user_location_mobile_device stops: ${userData['stops']}');
+        } else {
+          print('  user_location_mobile_device stops: null');
+        }
+      }
+      
+      if (rawJson['half_location_mobile_device'] != null) {
+        final halfData = rawJson['half_location_mobile_device'];
+        print('  half_location_mobile_device keys: ${halfData.keys.toList()}');
+        if (halfData['stops'] != null) {
+          print('  half_location_mobile_device stops: ${halfData['stops']}');
+        } else {
+          print('  half_location_mobile_device stops: null');
+        }
+      }
+      
+      return result.convert(data: LocationResponseModel.fromJson(rawJson));
     } else {
       return result.convert();
     }

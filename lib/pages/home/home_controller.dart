@@ -14,6 +14,7 @@ import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/message_center/message_center_binding.dart';
 import 'package:kissu_app/pages/message_center/message_center_page.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
@@ -22,6 +23,7 @@ import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/utils/memory_manager.dart';
 import 'dart:math';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 
@@ -145,24 +147,29 @@ class HomeController extends GetxController {
   
   /// 设置默认的居中偏移
   void _setDefaultCenterOffset() {
-    // 背景图片宽度是1500px，屏幕宽度通过Get.width获取
-    final screenWidth = Get.width;
-    final backgroundWidth = 1500.0;
-    
-    // 计算需要滚动的距离，让图片中心对准屏幕中心，然后再向左偏移190px
-    final centerOffset = (backgroundWidth - screenWidth) / 2;
-    final scrollOffset = centerOffset - 190; // 向左偏移190px
-    
-    // 确保滚动距离不会小于0
-    final defaultOffset = scrollOffset.clamp(0.0, double.infinity);
+    // 使用屏幕适配工具计算滚动偏移
+    final defaultOffset = ScreenAdaptation.getPresetScrollOffset();
     
     scrollController = ScrollController(initialScrollOffset: defaultOffset);
-    debugPrint('🎯 使用默认居中偏移创建ScrollController: 屏幕宽度=${screenWidth}, 背景宽度=${backgroundWidth}, 默认偏移=${defaultOffset}');
+    debugPrint('🎯 使用自适应居中偏移创建ScrollController: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 默认偏移=${defaultOffset}');
   }
   
   @override
   void onClose() {
-    scrollController.dispose();
+    // 安全地清理ScrollController
+    try {
+      scrollController.dispose();
+    } catch (e) {
+      debugPrint('清理ScrollController时出错: $e');
+    }
+    
+    // 清理PAG动画缓存资源
+    try {
+      MemoryManager.clearAllCaches();
+      debugPrint('🧹 首页Controller销毁，清理资源');
+    } catch (e) {
+      debugPrint('清理资源时出错: $e');
+    }
     super.onClose();
   }
   
@@ -615,6 +622,23 @@ class HomeController extends GetxController {
   /// 手动启动定位服务
   Future<void> startLocationService() async {
     await _requestLocationPermissionAndStartService();
+  }
+
+  /// 手动请求后台定位权限
+  Future<void> requestBackgroundLocationPermission() async {
+    try {
+      debugPrint('🏠 首页手动请求后台定位权限');
+      bool success = await _locationService.requestBackgroundLocationPermission();
+      
+      if (success) {
+        CustomToast.show(
+          Get.context!,
+          '后台定位权限已获取，可以后台记录足迹',
+        );
+      }
+    } catch (e) {
+      debugPrint('🏠 首页请求后台定位权限失败: $e');
+    }
   }
   
   /// 停止定位服务

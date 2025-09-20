@@ -1,7 +1,7 @@
 /// 协议链接常量
 class AgreementConstants {
   // 协议基础URL
-  static const String _baseUrl = 'http://devweb.ikissu.cn/agreement';
+  static const String _baseUrl = 'https://www.ikissu.cn/agreement';
 
   // 各种协议链接
   static const String privacyAgreement = '$_baseUrl/privacy.html';

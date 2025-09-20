@@ -22,6 +22,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/utils/log_util.dart';
+import 'package:kissu_app/utils/memory_manager.dart';
 import 'package:oktoast/oktoast.dart';
 
 void main() async {
@@ -32,6 +33,9 @@ void main() async {
   
   // 初始化日志工具
   await LogUtil.instance.init();
+  
+  // 初始化内存管理器
+  MemoryManager.initialize();
   
   // 设置高德地图隐私合规（必须在任何定位操作之前）
   try {
@@ -166,7 +170,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     
     return GetMaterialApp(
-      title: 'Kissu App',
+      title: 'Kissu',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),

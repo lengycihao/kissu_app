@@ -23,6 +23,12 @@ class PagAnimationWidget extends StatefulWidget {
 
   @override
   State<PagAnimationWidget> createState() => _PagAnimationWidgetState();
+
+  /// 清理所有缓存资源（在应用退出时调用）
+  static void clearAllAssets() {
+    _PagAnimationWidgetState._loadedAssets.clear();
+    debugPrint('🧹 清理所有PAG缓存资源');
+  }
 }
 
 class _PagAnimationWidgetState extends State<PagAnimationWidget> with AutomaticKeepAliveClientMixin {
@@ -30,9 +36,10 @@ class _PagAnimationWidgetState extends State<PagAnimationWidget> with AutomaticK
   bool _isLoaded = false;
   bool _isPaused = false;
   static final Map<String, bool> _loadedAssets = {}; // 静态缓存已加载的资源
+  static const int _maxCachedAssets = 10; // 限制缓存数量
 
   @override
-  bool get wantKeepAlive => true;
+  bool get wantKeepAlive => false; // 禁用状态保持，减少内存占用
 
   @override
   void initState() {
@@ -49,6 +56,7 @@ class _PagAnimationWidgetState extends State<PagAnimationWidget> with AutomaticK
           setState(() {
             _isLoaded = true;
             _loadedAssets[widget.assetPath] = true; // 标记为已加载
+            _cleanupOldAssets(); // 清理旧的缓存资源
           });
         }
       });
@@ -121,4 +129,17 @@ class _PagAnimationWidgetState extends State<PagAnimationWidget> with AutomaticK
       });
     }
   }
+
+  /// 清理旧的缓存资源，防止内存泄漏
+  static void _cleanupOldAssets() {
+    if (_loadedAssets.length > _maxCachedAssets) {
+      // 移除最旧的缓存项（简单实现：移除第一个）
+      final keys = _loadedAssets.keys.toList();
+      if (keys.isNotEmpty) {
+        _loadedAssets.remove(keys.first);
+        debugPrint('🧹 清理PAG缓存资源: ${keys.first}');
+      }
+    }
+  }
+
 }

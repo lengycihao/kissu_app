@@ -6,6 +6,8 @@ import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'location_controller.dart';
 
 class LocationPage extends StatelessWidget {
@@ -72,6 +74,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             screenHeight: screenHeight,
           ),
 
+
           // 未绑定提示 - 放置在下半屏上方
           // Positioned(
           //   bottom: screenHeight * 0.3 + 20,
@@ -90,11 +93,15 @@ class _LocationPageContentState extends State<_LocationPageContent> {
               widget.controller.sheetPercent.value = notification.extent;
               return true;
             },
-            child: DraggableScrollableSheet(
-              initialChildSize: initialHeight / screenHeight,
-              minChildSize: minHeight / screenHeight,
-              maxChildSize: maxHeight / screenHeight,
-              builder: (context, scrollController) {
+            child: Builder(
+              builder: (context) {
+                // 非会员时禁用拖动
+                final isVip = UserManager.isVip;
+                return DraggableScrollableSheet(
+                initialChildSize: initialHeight / screenHeight,
+                minChildSize: isVip ? minHeight / screenHeight : initialHeight / screenHeight,
+                maxChildSize: isVip ? maxHeight / screenHeight : initialHeight / screenHeight,
+                builder: (context, scrollController) {
                 return Column(
                   children: [ // 未绑定提示 - 放置在播放按钮和下半屏之间
                     Padding(
@@ -124,16 +131,18 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                             ),
                           ],
                         ),
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: (notification) {
-                            if (notification is ScrollStartNotification) {
-                              return true;
-                            }
-                            return false;
-                          },
-                          child: CustomScrollView(
-                            controller: scrollController,
-                            slivers: [
+                        child: Stack(
+                          children: [
+                            NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                if (notification is ScrollStartNotification) {
+                                  return true;
+                                }
+                                return false;
+                              },
+                              child: CustomScrollView(
+                                controller: scrollController,
+                                slivers: [
                               // 顶部固定区域
                               SliverToBoxAdapter(
                                 child: Stack(
@@ -190,59 +199,120 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                               ),
                               // 列表 + 背景色
                               SliverToBoxAdapter(
-                                child: Container(
-                                  margin: EdgeInsets.only(
-                                    left: 15,
-                                    right: 15,
-                                    top: 20,
-                                    bottom: 15,
-                                  ),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 15,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Color(0xffFF88AA)),
-                                  ),
-                                  child: Obx(() {
-                                    if (widget.controller.locationRecords.isEmpty) {
-                                      return Container(
-                                        padding: EdgeInsets.symmetric(vertical: 40),
-                                        child: Column(
-                                          children: [
-                                            Image.asset(
-                                              'assets/kissu_location_empty.webp',
-                                              width: 128,
-                                              height: 128,
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      margin: EdgeInsets.only(
+                                        left: 15,
+                                        right: 15,
+                                        top: 20,
+                                        bottom: 15,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 15,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Color(0xffFF88AA)),
+                                      ),
+                                      child: Obx(() {
+                                        if (widget.controller.locationRecords.isEmpty) {
+                                          return Container(
+                                            width: double.infinity,
+                                            padding: EdgeInsets.symmetric(vertical: 40),
+                                            child: Column(
+                                              children: [
+                                                Image.asset(
+                                                  'assets/kissu_location_empty.webp',
+                                                  width: 128,
+                                                  height: 128,
+                                                ),
+                                                SizedBox(height: 16),
+                                                Text(
+                                                  '对方目前还没有停留点哦～',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Color(0xff666666),
+                                                   ),
+                                                ),
+                                              ],
                                             ),
-                                            SizedBox(height: 16),
-                                            Text(
-                                              '对方目前还没有停留点哦～',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xff666666),
-                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-                      
-                                    return _OptimizedLocationRecordsList(
-                                      controller: widget.controller,
-                                    );
-                                  }),
+                                          );
+                                        }
+                          
+                                        return _OptimizedLocationRecordsList(
+                                          controller: widget.controller,
+                                        );
+                                      }),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
+                            ),
+                            // 统一的会员限制遮罩层 - 覆盖整个滚动区域
+                            if (!UserManager.isVip)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    image: DecorationImage(
+                                      image: AssetImage('assets/kissu_vip_unbind.webp'),
+                                      fit: BoxFit.fill,
+                                    ),
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      // 点击遮罩层时跳转到VIP页面
+                                      Get.toNamed(KissuRoutePath.vip);
+                                    },
+                                    child: Container(
+                                      color: Colors.transparent, // 确保整个区域可点击
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            // 图片
+                                            GestureDetector(
+                                              onTap: () {
+                                                // 点击图片时跳转到VIP页面
+                                                Get.toNamed(KissuRoutePath.vip);
+                                              },
+                                              child: Image.asset(
+                                                'assets/kissu_go_bind.webp',
+                                                width: 111,
+                                                height: 34,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            // 文字
+                                            const Text(
+                                              '实时查看"另一半"的位置和行程轨迹',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF333333),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 );
+              },
+            );
               },
             ),
           ),
@@ -523,7 +593,7 @@ class _CachedAvatarRow extends StatelessWidget {
             onTap: () {
               if (controller.isOneself.value != 0) {
                 controller.isOneself.value = 0;
-                // controller.loadLocationData();
+                controller.loadLocationData(); // 🔄 恢复数据刷新
                 // 参考轨迹页面逻辑，头像点击后执行动态缩放
                 controller.onAvatarTapped(false);
               }
@@ -537,7 +607,7 @@ class _CachedAvatarRow extends StatelessWidget {
             onTap: () {
               if (controller.isOneself.value != 1) {
                 controller.isOneself.value = 1;
-                // controller.loadLocationData();
+                controller.loadLocationData(); // 🔄 恢复数据刷新
                 // 参考轨迹页面逻辑，头像点击后执行动态缩放
                 controller.onAvatarTapped(true);
               }
@@ -809,6 +879,30 @@ class _LocationRecordItem extends StatelessWidget {
     return '$startTime~$endTime';
   }
 
+  // 获取左侧文本
+  String _getLeftText(LocationRecord record) {
+    if (record.status == 'staying') {
+      return '停留中';
+    } else if (record.status == 'ended') {
+      return '停留${record.duration ?? '未知'}';
+    } else {
+      // 默认情况，保持原有逻辑
+      return '停留${record.duration ?? '未知'}';
+    }
+  }
+
+  // 获取右侧文本
+  String _getRightText(LocationRecord record) {
+    if (record.status == 'staying') {
+      return record.duration ?? '未知';
+    } else if (record.status == 'ended') {
+      return _formatTimeRange(record.startTime, record.endTime);
+    } else {
+      // 默认情况，保持原有逻辑
+      return _formatTimeRange(record.startTime, record.endTime);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -874,7 +968,7 @@ class _LocationRecordItem extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          "停留${record.duration ?? '未知'}",
+                          _getLeftText(record),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFFFF4177),
@@ -882,7 +976,7 @@ class _LocationRecordItem extends StatelessWidget {
                         ),
                         Spacer(),
                         Text(
-                          _formatTimeRange(record.startTime, record.endTime),
+                          _getRightText(record),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF666666),
@@ -976,3 +1070,4 @@ class _FloatingUnbindNotification extends StatelessWidget {
     });
   }
 }
+

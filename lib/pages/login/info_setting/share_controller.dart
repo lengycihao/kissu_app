@@ -193,7 +193,7 @@ class ShareController extends GetxController {
             title: "绑定邀请",
             description: '快来和我绑定吧！',
             // imageUrl: imageUrl,
-            webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
+            webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
           );
           // 微信分享暂时不返回结果，假设成功
           OKToastUtil.show('已调起微信分享');
@@ -202,7 +202,7 @@ class ShareController extends GetxController {
             title: "绑定邀请",
             // imageUrl: imageUrl,
             description: '快来和我绑定吧！',
-            webpageUrl: 'http://devweb.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
+            webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=${matchCode.value}',
           );
           
           print('QQ分享结果: $shareResult');
