@@ -548,11 +548,12 @@ class HomeController extends GetxController {
 
   void onButtonTap(int index) {
     selectedIndex.value = index;
-    debugPrint("按钮 $index 被点击");
+    debugPrint("🔍 底部导航按钮 $index 被点击");
 
     switch (index) {
       case 0:
         // 定位
+        debugPrint("🔍 准备跳转到定位页面");
         Get.to(() => LocationPage(), binding: LocationBinding());
         break;
       case 1:

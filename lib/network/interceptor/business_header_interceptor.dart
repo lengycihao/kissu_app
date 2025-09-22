@@ -8,6 +8,10 @@ import 'package:network_info_plus/network_info_plus.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/utils/signature_utils.dart';
+import 'package:kissu_app/network/utils/device_util.dart';
+import 'package:get/get.dart';
+import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 
 /// 业务请求头拦截器
 /// 自动添加 token、sign、version、channel 等业务相关的请求头
@@ -17,7 +21,6 @@ class BusinessHeaderInterceptor extends Interceptor {
   // 缓存设备信息，避免重复获取
   static DeviceInfoPlugin? _deviceInfo;
   static PackageInfo? _packageInfo;
-  static String? _cachedDeviceId;
   static String? _cachedMobileModel;
   static String? _cachedBrand;  
   static String? _cachedVersion;
@@ -67,7 +70,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       _addSignHeader(options);
     } catch (e) {
       // 如果获取信息失败，不影响请求继续
-      print('BusinessHeaderInterceptor error: $e');
+      DebugUtil.error('BusinessHeaderInterceptor error: $e');
     }
 
     handler.next(options);
@@ -112,42 +115,50 @@ class BusinessHeaderInterceptor extends Interceptor {
     }
   }
 
-  /// 添加设备相关请求头
+  /// 添加设备相关请求头（隐私合规版本）
   Future<void> _addDeviceHeaders(RequestOptions options) async {
-    if (_deviceInfo != null) {
-      try {
-        if (Platform.isAndroid) {
-          if (_cachedDeviceId == null ||
-              _cachedMobileModel == null ||
-              _cachedBrand == null) {
-            final androidInfo = await _deviceInfo!.androidInfo;
-            _cachedDeviceId = androidInfo.id;
-            _cachedMobileModel = '${androidInfo.brand} ${androidInfo.model}';
-            _cachedBrand = androidInfo.brand;
+    try {
+      // 使用隐私合规的DeviceUtil获取设备信息
+      final deviceUtil = DeviceUtil.instance;
+      
+      // DeviceUtil内部已经处理了隐私合规检查
+      options.headers[HttpHeaderKey.deviceId] = deviceUtil.deviceId;
+      
+      // 设备型号和品牌信息相对不那么敏感，但也要检查隐私状态
+      if (_canCollectSensitiveData()) {
+        if (_deviceInfo != null) {
+          if (Platform.isAndroid) {
+            if (_cachedMobileModel == null || _cachedBrand == null) {
+              final androidInfo = await _deviceInfo!.androidInfo;
+              _cachedMobileModel = '${androidInfo.brand} ${androidInfo.model}';
+              _cachedBrand = androidInfo.brand;
+            }
+          } else if (Platform.isIOS) {
+            if (_cachedMobileModel == null || _cachedBrand == null) {
+              final iosInfo = await _deviceInfo!.iosInfo;
+              _cachedMobileModel = iosInfo.model;
+              _cachedBrand = 'Apple';
+            }
           }
-        } else if (Platform.isIOS) {
-          if (_cachedDeviceId == null ||
-              _cachedMobileModel == null ||
-              _cachedBrand == null) {
-            final iosInfo = await _deviceInfo!.iosInfo;
-            _cachedDeviceId = iosInfo.identifierForVendor ?? 'unknown';
-            _cachedMobileModel = iosInfo.model;
-            _cachedBrand = 'Apple';
-          }
         }
-
-        if (_cachedDeviceId != null) {
-          options.headers[HttpHeaderKey.deviceId] = _cachedDeviceId;
-        }
-        if (_cachedMobileModel != null) {
-          options.headers[HttpHeaderKey.mobileModel] = _cachedMobileModel;
-        }
-        if (_cachedBrand != null) {
-          options.headers[HttpHeaderKey.brand] = _cachedBrand;  //具体渠道
-        }
-      } catch (e) {
-        print('获取设备信息失败: $e');
+      } else {
+        // 隐私政策未同意时使用通用信息
+        _cachedMobileModel = Platform.operatingSystem;
+        _cachedBrand = Platform.operatingSystem;
       }
+
+      if (_cachedMobileModel != null) {
+        options.headers[HttpHeaderKey.mobileModel] = _cachedMobileModel;
+      }
+      if (_cachedBrand != null) {
+        options.headers[HttpHeaderKey.brand] = _cachedBrand;
+      }
+    } catch (e) {
+      DebugUtil.error('获取设备信息失败: $e');
+      // 使用默认值
+      options.headers[HttpHeaderKey.deviceId] = 'unknown';
+      options.headers[HttpHeaderKey.mobileModel] = Platform.operatingSystem;
+      options.headers[HttpHeaderKey.brand] = Platform.operatingSystem;
     }
   }
 
@@ -156,9 +167,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     // 设置默认渠道（可以根据实际需求修改）
     // 打包时请修改这里的渠道值：
     // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  
-    if (_cachedChannel == null) {
-      _cachedChannel = Platform.isAndroid ? 'kissu_oppo' : 'Android';  // 荣耀渠道
-    }
+    _cachedChannel ??= Platform.isAndroid ? 'kissu_oppo' : 'Android';
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
     // 获取真实的网络状态
@@ -168,9 +177,15 @@ class BusinessHeaderInterceptor extends Interceptor {
     await _getBatteryInfo(options);
   }
 
-  /// 获取网络信息
+  /// 获取网络信息（隐私合规版本）
   Future<void> _getNetworkInfo(RequestOptions options) async {
     try {
+      // 🔒 隐私合规检查：如果用户未同意隐私政策，直接使用默认值
+      if (!_canCollectSensitiveData()) {
+        options.headers[HttpHeaderKey.networkName] = 'unknown';
+        return;
+      }
+      
       if (_cachedNetworkName == null) {
         final connectivity = Connectivity();
         final connectivityResults = await connectivity.checkConnectivity();
@@ -180,7 +195,8 @@ class BusinessHeaderInterceptor extends Interceptor {
         // 处理多个连接结果，优先选择主要连接类型
         if (connectivityResults.contains(ConnectivityResult.wifi)) {
           networkType = 'wifi';
-          // 尝试获取WiFi SSID
+          
+          // 🔒 WiFi SSID是敏感信息，只在隐私合规后才获取
           try {
             final networkInfo = NetworkInfo();
             final wifiName = await networkInfo.getWifiName();
@@ -210,27 +226,46 @@ class BusinessHeaderInterceptor extends Interceptor {
       
       options.headers[HttpHeaderKey.networkName] = _cachedNetworkName;
     } catch (e) {
-      print('获取网络信息失败: $e');
+      DebugUtil.error('获取网络信息失败: $e');
       // 使用默认值
       options.headers[HttpHeaderKey.networkName] = 'unknown';
     }
   }
 
-  /// 获取电池信息
+  /// 获取电池信息（隐私合规版本）
   Future<void> _getBatteryInfo(RequestOptions options) async {
     try {
-      if (_cachedPower == null) {
-        final battery = Battery();
-        final batteryLevel = await battery.batteryLevel;
-        _cachedPower = batteryLevel.toString();
+      // 🔒 电池电量是敏感信息，需要隐私合规检查
+      if (_canCollectSensitiveData()) {
+        if (_cachedPower == null) {
+          final battery = Battery();
+          final batteryLevel = await battery.batteryLevel;
+          _cachedPower = batteryLevel.toString();
+        }
+        options.headers[HttpHeaderKey.power] = _cachedPower;
+      } else {
+        // 隐私政策未同意时使用默认值
+        options.headers[HttpHeaderKey.power] = '100';
       }
-      
-      options.headers[HttpHeaderKey.power] = _cachedPower;
     } catch (e) {
-      print('获取电池信息失败: $e');
+      DebugUtil.error('获取电池信息失败: $e');
       // 使用默认值
       options.headers[HttpHeaderKey.power] = '100';
     }
+  }
+  
+  /// 检查是否可以收集敏感数据
+  bool _canCollectSensitiveData() {
+    try {
+      if (Get.isRegistered<PrivacyComplianceManager>()) {
+        final privacyManager = Get.find<PrivacyComplianceManager>();
+        return privacyManager.canCollectSensitiveData;
+      }
+    } catch (e) {
+      DebugUtil.error('检查隐私合规状态失败: $e');
+    }
+    // 如果无法检查隐私状态，默认不允许收集
+    return false;
   }
 
   /// 添加签名请求头
@@ -245,7 +280,6 @@ class BusinessHeaderInterceptor extends Interceptor {
 
   /// 清除缓存的设备信息（在需要时调用）
   static void clearCache() {
-    _cachedDeviceId = null;
     _cachedMobileModel = null;
     _cachedBrand = null;
     _cachedVersion = null;

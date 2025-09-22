@@ -4,7 +4,6 @@ import 'package:kissu_app/network/interceptor/http_header_key.dart';
 import 'package:kissu_app/network/enum/cache_control.dart';
 import 'package:kissu_app/network/utils/file_cache_util.dart';
 
-import 'mixin_debug.dart';
 
 class CacheControlInterceptor extends Interceptor {
   // Memory cache for frequently accessed data

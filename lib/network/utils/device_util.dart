@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:get/get.dart';
+import 'package:kissu_app/services/privacy_compliance_manager.dart';
 
 class DeviceUtil {
   static DeviceUtil? _instance;
@@ -93,8 +95,17 @@ class DeviceUtil {
     return '$platform-$timestamp';
   }
 
-  /// Get device ID
+  /// Get device ID (with privacy compliance check)
   String get deviceId {
+    // 检查隐私合规状态
+    if (_shouldReturnFallbackForPrivacy()) {
+      logger.info(
+        'Privacy policy not agreed, using fallback deviceId',
+        tag: 'DeviceUtil',
+      );
+      return _generateFallbackDeviceId();
+    }
+    
     if (!_isInitialized) {
       logger.warning(
         'DeviceUtil not initialized, using fallback deviceId',
@@ -103,6 +114,24 @@ class DeviceUtil {
       return _generateFallbackDeviceId();
     }
     return _deviceId ?? _generateFallbackDeviceId();
+  }
+  
+  /// 检查是否应该因为隐私政策返回降级数据
+  bool _shouldReturnFallbackForPrivacy() {
+    try {
+      if (Get.isRegistered<PrivacyComplianceManager>()) {
+        final privacyManager = Get.find<PrivacyComplianceManager>();
+        return !privacyManager.canCollectSensitiveData;
+      }
+    } catch (e) {
+      logger.warning(
+        'Failed to check privacy compliance status',
+        tag: 'DeviceUtil',
+        error: e,
+      );
+    }
+    // 如果无法检查隐私状态，默认返回降级数据
+    return true;
   }
 
   /// Get app version

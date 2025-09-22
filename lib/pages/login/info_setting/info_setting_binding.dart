@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_controller.dart';
 

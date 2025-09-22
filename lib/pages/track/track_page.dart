@@ -11,6 +11,7 @@ import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'track_controller.dart';
 
 class TrackPage extends StatelessWidget {
@@ -94,7 +95,7 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     
     // 检查地图控制器是否可用
     if (widget.controller.mapController == null) {
-      print('❌ 地图控制器不可用，无法显示InfoWindow');
+      DebugUtil.error('地图控制器不可用，无法显示InfoWindow');
       return;
     }
     
@@ -117,7 +118,7 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     // 清理回调
     widget.controller.onStayPointTapped = null;
     // 确保控制器被正确清理
-    print('🚪 轨迹页面即将销毁，触发控制器清理...');
+    DebugUtil.info('轨迹页面即将销毁，触发控制器清理...');
     super.dispose();
   }
 
@@ -582,14 +583,14 @@ class _CachedMapWidget extends StatelessWidget {
       try {
         markers.addAll(controller.stayMarkers);
       } catch (e) {
-        print('❌ 添加停留点标记失败: $e');
+        DebugUtil.error('添加停留点标记失败: $e');
       }
       
       // 安全地添加轨迹起点和终点标记
       try {
         markers.addAll(controller.trackStartEndMarkers);
       } catch (e) {
-        print('❌ 添加轨迹起终点标记失败: $e');
+        DebugUtil.error('添加轨迹起终点标记失败: $e');
       }
       
       // 安全地添加当前回放位置标记s
@@ -605,9 +606,9 @@ class _CachedMapWidget extends StatelessWidget {
               snippet: '轨迹回放中',
             ),
           ));
-          print('✅ 当前位置标记创建成功');
+          DebugUtil.success('当前位置标记创建成功');
         } catch (e) {
-          print('❌ 添加当前位置标记失败: $e，使用简化标记');
+          DebugUtil.error('添加当前位置标记失败: $e，使用简化标记');
           // 降级方案：使用最简单的标记
           try {
             markers.add(Marker(
@@ -615,7 +616,7 @@ class _CachedMapWidget extends StatelessWidget {
               anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
             ));
           } catch (fallbackError) {
-            print('❌ 简化标记也失败: $fallbackError');
+            DebugUtil.error('简化标记也失败: $fallbackError');
           }
         }
       }
@@ -639,15 +640,15 @@ class _CachedMapWidget extends StatelessWidget {
               color: const Color(0xFF3B96FF),
               width: 5,
             ));
-            print('✅ 创建轨迹线，点数: ${pointsCopy.length}');
+            DebugUtil.success('创建轨迹线，点数: ${pointsCopy.length}');
           } else {
-            print('⚠️ 轨迹点副本检查失败，不创建轨迹线');
+            DebugUtil.warning('轨迹点副本检查失败，不创建轨迹线');
           }
         } else {
-          print('ℹ️ 无有效轨迹数据，不创建轨迹线。状态: ${controller.hasValidTrackData.value}, 点数: ${controller.trackPoints.length}');
+          DebugUtil.info('无有效轨迹数据，不创建轨迹线。状态: ${controller.hasValidTrackData.value}, 点数: ${controller.trackPoints.length}');
         }
       } catch (e) {
-        print('❌ 创建轨迹线时发生错误: $e');
+        DebugUtil.error('创建轨迹线时发生错误: $e');
         // 确保不创建有问题的轨迹线
       }
       
@@ -658,10 +659,10 @@ class _CachedMapWidget extends StatelessWidget {
       try {
         polygons.addAll(controller.highlightCircles);
         if (controller.highlightCircles.isNotEmpty) {
-          print('✅ 添加高亮圆圈，数量: ${controller.highlightCircles.length}');
+          DebugUtil.success('添加高亮圆圈，数量: ${controller.highlightCircles.length}');
         }
       } catch (e) {
-        print('❌ 添加高亮圆圈失败: $e');
+        DebugUtil.error('添加高亮圆圈失败: $e');
       }
       
       return SafeAMapWidget(

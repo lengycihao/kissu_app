@@ -3,10 +3,10 @@ import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
-import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
-import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 
 /// 全局用户数据管理工具类
 /// 提供便捷的用户数据访问方法
@@ -124,6 +124,17 @@ class UserManager {
     
     // 清除协议同意状态（注销时需要重新同意协议）
     await LoginController.clearAgreementStatus();
+    
+    // 🔑 清除隐私合规状态
+    try {
+      if (Get.isRegistered<PrivacyComplianceManager>()) {
+        final privacyManager = Get.find<PrivacyComplianceManager>();
+        await privacyManager.clearPrivacyStatus();
+        DebugUtil.success('隐私合规状态已清除');
+      }
+    } catch (e) {
+      DebugUtil.error('清除隐私合规状态失败: $e');
+    }
 
     // 清除用户数据
     await _authService.clearLocalUserData();
@@ -159,10 +170,10 @@ class UserManager {
       final locationService = Get.find<SimpleLocationService>();
       if (locationService.isLocationEnabled.value) {
         locationService.stopLocation();
-        print('🔧 UserManager: 定位服务已停止');
+        DebugUtil.info('UserManager: 定位服务已停止');
       }
     } catch (e) {
-      print('❌ UserManager: 停止定位服务失败: $e');
+      DebugUtil.error('UserManager: 停止定位服务失败: $e');
     }
   }
 

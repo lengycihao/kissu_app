@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
 import 'package:kissu_app/network/tools/cons/network_constants.dart';
 
-import 'mixin_debug.dart';
 
 class NetworkDebounceInterceptor extends Interceptor {
   static final Map<String, CancelToken> _cancelTokenMap = {};

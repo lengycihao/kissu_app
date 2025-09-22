@@ -5,6 +5,8 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 
 /// 敏感数据上报服务
 /// 负责监听各种系统事件并上报敏感数据
@@ -34,7 +36,9 @@ class SensitiveDataService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    _initializeService();
+    // 🔒 隐私合规：不在服务初始化时自动启动监听
+    // 等待隐私政策同意后再启动监听
+    // _initializeService(); // 移除自动初始化
   }
   
   @override
@@ -43,7 +47,20 @@ class SensitiveDataService extends GetxService {
     super.onClose();
   }
   
-  /// 初始化服务
+  /// 初始化服务（隐私合规版本）
+  /// 只有在用户同意隐私政策后才调用此方法
+  void startMonitoring() {
+    if (!_shouldReport()) {
+      DebugUtil.warning('隐私政策未同意，无法启动敏感数据监听');
+      return;
+    }
+    
+    _startNetworkMonitoring();
+    _startBatteryMonitoring();
+    DebugUtil.success('敏感数据监听已启动（用户已同意隐私政策）');
+  }
+  
+  /// 初始化服务（内部使用）
   void _initializeService() {
     _startNetworkMonitoring();
     _startBatteryMonitoring();
@@ -81,7 +98,7 @@ class SensitiveDataService extends GetxService {
           final wifiName = await _networkInfo.getWifiName();
           networkName = wifiName ?? 'wifi_unknown';
         } catch (e) {
-          print('获取WiFi SSID失败: $e');
+          DebugUtil.error('获取WiFi SSID失败: $e');
           networkName = '未知wifi';
         }
         break;
@@ -138,12 +155,12 @@ class SensitiveDataService extends GetxService {
     try {
       final result = await _api.reportAppOpen();
       if (result.isSuccess) {
-        print('✅ 敏感数据上报成功: APP打开');
+        DebugUtil.success('敏感数据上报成功: APP打开');
       } else {
-        print('❌ 敏感数据上报失败: APP打开 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: APP打开 - ${result.msg}');
       }
     } catch (e) {
-      print('❌ 敏感数据上报异常: APP打开 - $e');
+      DebugUtil.error('敏感数据上报异常: APP打开 - $e');
     }
   }
   
@@ -154,12 +171,12 @@ class SensitiveDataService extends GetxService {
     try {
       final result = await _api.reportLocationOpen();
       if (result.isSuccess) {
-        print('✅ 敏感数据上报成功: 定位打开');
+        DebugUtil.success('敏感数据上报成功: 定位打开');
       } else {
-        print('❌ 敏感数据上报失败: 定位打开 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: 定位打开 - ${result.msg}');
       }
     } catch (e) {
-      print('❌ 敏感数据上报异常: 定位打开 - $e');
+      DebugUtil.error('敏感数据上报异常: 定位打开 - $e');
     }
   }
   
@@ -170,12 +187,12 @@ class SensitiveDataService extends GetxService {
     try {
       final result = await _api.reportLocationClose();
       if (result.isSuccess) {
-        print('✅ 敏感数据上报成功: 定位关闭');
+        DebugUtil.success('敏感数据上报成功: 定位关闭');
       } else {
-        print('❌ 敏感数据上报失败: 定位关闭 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: 定位关闭 - ${result.msg}');
       }
     } catch (e) {
-      print('❌ 敏感数据上报异常: 定位关闭 - $e');
+      DebugUtil.error('敏感数据上报异常: 定位关闭 - $e');
     }
   }
   
@@ -186,12 +203,12 @@ class SensitiveDataService extends GetxService {
     try {
       final result = await _api.reportNetworkChange(networkName: networkName);
       if (result.isSuccess) {
-        print('✅ 敏感数据上报成功: 网络更换 - $networkName');
+        DebugUtil.success('敏感数据上报成功: 网络更换 - $networkName');
       } else {
-        print('❌ 敏感数据上报失败: 网络更换 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: 网络更换 - ${result.msg}');
       }
     } catch (e) {
-      print('❌ 敏感数据上报异常: 网络更换 - $e');
+      DebugUtil.error('敏感数据上报异常: 网络更换 - $e');
     }
   }
   
@@ -202,12 +219,12 @@ class SensitiveDataService extends GetxService {
     try {
       final result = await _api.reportChargingStart(power: power);
       if (result.isSuccess) {
-        print('✅ 敏感数据上报成功: 开始充电 - 电量$power%');
+        DebugUtil.success('敏感数据上报成功: 开始充电 - 电量$power%');
       } else {
-        print('❌ 敏感数据上报失败: 开始充电 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: 开始充电 - ${result.msg}');
       }
     } catch (e) {
-      print('❌ 敏感数据上报异常: 开始充电 - $e');
+      DebugUtil.error('敏感数据上报异常: 开始充电 - $e');
     }
   }
   
@@ -218,18 +235,38 @@ class SensitiveDataService extends GetxService {
     try {
       final result = await _api.reportChargingEnd(power: power);
       if (result.isSuccess) {
-        print('✅ 敏感数据上报成功: 结束充电 - 电量$power%');
+        DebugUtil.success('敏感数据上报成功: 结束充电 - 电量$power%');
       } else {
-        print('❌ 敏感数据上报失败: 结束充电 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: 结束充电 - ${result.msg}');
       }
     } catch (e) {
-      print('❌ 敏感数据上报异常: 结束充电 - $e');
+      DebugUtil.error('敏感数据上报异常: 结束充电 - $e');
     }
   }
   
-  /// 检查是否应该上报（有token且已登录）
+  /// 检查是否应该上报（隐私合规 + 有token且已登录）
   bool _shouldReport() {
+    // 首先检查隐私合规状态
+    if (!_canCollectSensitiveData()) {
+      return false;
+    }
+    
+    // 然后检查用户登录状态
     return UserManager.isLoggedIn && UserManager.userToken != null;
+  }
+  
+  /// 检查是否可以收集敏感数据
+  bool _canCollectSensitiveData() {
+    try {
+      if (Get.isRegistered<PrivacyComplianceManager>()) {
+        final privacyManager = Get.find<PrivacyComplianceManager>();
+        return privacyManager.canCollectSensitiveData;
+      }
+    } catch (e) {
+      DebugUtil.error('检查隐私合规状态失败: $e');
+    }
+    // 如果无法检查隐私状态，默认不允许收集
+    return false;
   }
   
   /// 手动上报网络更换事件（用于测试）
@@ -240,7 +277,7 @@ class SensitiveDataService extends GetxService {
         final wifiName = await _networkInfo.getWifiName();
         networkName = wifiName ?? 'wifi_unknown';
       } catch (e) {
-        print('获取WiFi SSID失败: $e');
+        DebugUtil.error('获取WiFi SSID失败: $e');
         networkName = 'wifi_unknown';
       }
     }

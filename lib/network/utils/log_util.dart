@@ -1,6 +1,5 @@
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sprintf/sprintf.dart';
 import 'dart:convert';
 import 'dart:io';
 

@@ -271,6 +271,13 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
         
+        <!-- 前台定位服务 -->
+        <service
+            android:name="com.yuluo.kissu.ForegroundLocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        
         <!-- 极光推送Activity -->
         <activity
             android:name="cn.jpush.android.ui.PushActivity"
@@ -293,12 +300,14 @@
             android:authorities="com.yuluo.kissu.DataProvider"
             android:exported="false" />
             
-        <!-- 极光推送初始化Provider - 这是关键的配置 -->
+        <!-- 极光推送初始化Provider - 隐私合规：禁用自动初始化 -->
+        <!-- 
         <provider
             android:name="cn.jpush.android.service.InitProvider"
             android:authorities="${applicationId}.jpush.initprovider"
             android:exported="false"
             tools:replace="android:authorities" />
+        -->
             
         <!-- 微信分享FileProvider配置 -->
         <provider
@@ -312,52 +321,59 @@
         </provider>
     </application>
 
-    <!-- Permissions for image_picker plugin -->
+    <!-- 相机权限：用于拍照上传头像、图片等功能 -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- 存储权限：用于读取和保存图片、文件等，以及推送消息的缓存和日志 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     
-    <!-- Network permission for map tiles -->
+    <!-- 网络状态权限：用于检测网络连接状态，确保地图加载和数据同步 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- Android支付相关权限 -->
+    <!-- WiFi状态权限：用于支付功能、网络优化和推送服务网络状态监听 -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <!-- 电话状态权限 - 高德地图SDK需要，但在Android 10+需要特殊处理 -->
+    <!-- 电话状态权限：高德地图SDK需要，用于设备标识，仅限Android 9及以下 -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" 
         android:maxSdkVersion="28" />
-    <!-- Android 10+ 使用更安全的权限 -->
+    <!-- 电话号码权限：Android 10+使用，用于设备标识 -->
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <!-- 唤醒锁权限：保持CPU运行，用于后台定位和推送服务 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 震动权限：用于通知提醒和交互反馈 -->
     <uses-permission android:name="android.permission.VIBRATE" />
     
-    <!-- 高德定位SDK需要的权限 -->
+    <!-- 粗略定位权限：用于获取大致位置信息，提供基于位置的服务 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- 精确定位权限：用于获取精确位置信息，实现定位打卡等功能 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 定位扩展命令权限：用于高级定位功能 -->
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
+    <!-- 定位更新控制权限：用于控制定位服务的更新频率 -->
     <uses-permission android:name="android.permission.CONTROL_LOCATION_UPDATES" />
-    <!-- Android 10+ 后台定位权限 -->
+    <!-- 后台定位权限：用于在应用后台时继续获取位置信息，实现智能提醒功能 -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <!-- 网络和WiFi权限（避免重复声明） -->
+    <!-- 网络访问权限：用于数据传输、API调用、地图服务等 -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- 支付宝SDK需要的权限（已包含在上面的定位权限中） -->
-    
-    <!-- 微信SDK需要的权限 - 已移除麦克风权限，仅保留支付功能所需权限 -->
-    
-    <!-- 极光推送权限 -->
+    <!-- 极光推送相关权限 -->
+    <!-- 通知权限：用于显示推送通知（Android 13+必需） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 开机自启权限：用于在设备重启后自动启动推送服务 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <!-- 极光推送的电话状态权限也需要兼容处理 -->
-    <!-- <uses-permission android:name="android.permission.READ_PHONE_STATE" /> -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- 网络状态变更权限：用于推送服务网络状态监听（已在WiFi权限部分声明） -->
+    <!-- 外部存储写入权限：用于推送消息的缓存和日志（已在存储权限部分声明） -->
+    <!-- 获取任务列表权限：用于检测应用运行状态（已弃用，保留兼容性） -->
     <uses-permission android:name="android.permission.GET_TASKS" />
+    <!-- 系统窗口权限：用于显示悬浮窗通知（需用户手动授权） -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 忽略电池优化权限：确保后台服务不被系统杀死 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    
+    <!-- 前台服务权限：用于运行长期后台任务 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- 前台定位服务权限：用于前台定位服务（Android 10+必需） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -374,5 +390,7 @@
         <package android:name="com.tencent.mobileqq" />
         <package android:name="com.tencent.tim" />
         <package android:name="com.tencent.qqlite" />
+        <!-- 查询支付宝应用是否存在，用于支付功能 -->
+        <package android:name="com.eg.android.AlipayGphone" />
     </queries>
 </manifest>

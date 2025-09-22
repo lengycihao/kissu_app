@@ -71,7 +71,7 @@ class _PagAnimationWidgetState extends State<PagAnimationWidget> with AutomaticK
       child: Container(
         width: widget.width,
         height: widget.height,
-        child: _isVisible && _isLoaded && !_isPaused ? PAGView.asset(
+        child: _isVisible && _isLoaded && !_isPaused && mounted ? PAGView.asset(
           widget.assetPath,
           width: widget.width,
           height: widget.height,
@@ -111,6 +111,15 @@ class _PagAnimationWidgetState extends State<PagAnimationWidget> with AutomaticK
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    // 确保在组件销毁前清理动画状态
+    _isPaused = true;
+    _isVisible = false;
+    debugPrint('PAG组件销毁: ${widget.assetPath}');
+    super.dispose();
   }
 
   // 添加暂停/恢复方法

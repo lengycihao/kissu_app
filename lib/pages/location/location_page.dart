@@ -592,9 +592,7 @@ class _CachedAvatarRow extends StatelessWidget {
             isMyself: false,
             onTap: () {
               if (controller.isOneself.value != 0) {
-                controller.isOneself.value = 0;
-                controller.loadLocationData(); // 🔄 恢复数据刷新
-                // 参考轨迹页面逻辑，头像点击后执行动态缩放
+                // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
                 controller.onAvatarTapped(false);
               }
             },
@@ -606,9 +604,7 @@ class _CachedAvatarRow extends StatelessWidget {
             isMyself: true,
             onTap: () {
               if (controller.isOneself.value != 1) {
-                controller.isOneself.value = 1;
-                controller.loadLocationData(); // 🔄 恢复数据刷新
-                // 参考轨迹页面逻辑，头像点击后执行动态缩放
+                // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
                 controller.onAvatarTapped(true);
               }
             },

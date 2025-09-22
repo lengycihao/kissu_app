@@ -434,6 +434,9 @@ class VipController extends GetxController {
       // 直接进入支付流程，不再显示确认对话框
       debugPrint('💫 开始处理支付，支付方式: $paymentMethod');
       
+      // 确保支付状态清理
+      _logger.i('💫 开始新的支付流程，清理之前的状态');
+      
       // 处理购买过程
       await _processPurchase(package);
       
@@ -505,6 +508,8 @@ class VipController extends GetxController {
         }
       }
       
+      _logger.i('💫 支付结果: $result');
+      
       if (result) {
         // 购买成功后更新本地状态
         _updateVipStatus(package);
@@ -512,7 +517,7 @@ class VipController extends GetxController {
         // 支付成功后的UI处理
         _handlePaymentSuccess(package);
       } else {
-        // throw Exception('支付失败');
+        _logger.e('💫 支付失败，result: $result');
         OKToastUtil.show("支付失败");
         throw Exception('支付失败');
       }
@@ -536,7 +541,7 @@ class VipController extends GetxController {
       _logger.i('支付成功，开始处理后续操作...');
       
       // 显示支付成功提示
-      OKToastUtil.show('支付成功');
+      // OKToastUtil.show('支付成功');
 
       // 等待用户信息刷新完成（支付服务中已经处理）
       // 这里稍等片刻，让支付服务的刷新操作完成

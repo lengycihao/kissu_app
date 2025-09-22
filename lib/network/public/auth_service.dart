@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'package:get/get.dart';
 
 class AuthService {
@@ -202,24 +203,24 @@ class AuthService {
   Future<void> _saveCurrentUser(LoginModel user) async {
     try {
       final jsonData = jsonEncode(user.toJson());
-      print('💾 开始保存用户数据，用户ID: ${user.id}, 数据长度: ${jsonData.length}');
+      DebugUtil.info(' 开始保存用户数据，用户ID: ${user.id}, 数据长度: ${jsonData.length}');
       
       await _storage.write(
         key: _currentUserKey,
         value: jsonData,
       );
       
-      print('✅ 用户数据保存成功');
+      DebugUtil.success(' 用户数据保存成功');
       
       // 验证保存是否成功
       final savedData = await _storage.read(key: _currentUserKey);
       if (savedData != null) {
-        print('✅ 验证保存成功，数据长度: ${savedData.length}');
+        DebugUtil.success(' 验证保存成功，数据长度: ${savedData.length}');
       } else {
-        print('❌ 验证保存失败，读取到null');
+        DebugUtil.error(' 验证保存失败，读取到null');
       }
     } catch (e) {
-      print('❌ 保存用户数据失败: $e');
+      DebugUtil.error(' 保存用户数据失败: $e');
       throw e;
     }
   }
@@ -227,19 +228,19 @@ class AuthService {
   /// 读取缓存用户
   Future<LoginModel?> _loadCurrentUser() async {
     try {
-      print('🔍 开始读取用户缓存数据...');
+      DebugUtil.check(' 开始读取用户缓存数据...');
       final userString = await _storage.read(key: _currentUserKey);
       
       if (userString != null) {
-        print('✅ 找到用户缓存数据，长度: ${userString.length}');
+        DebugUtil.success(' 找到用户缓存数据，长度: ${userString.length}');
         final user = LoginModel.fromJson(jsonDecode(userString));
-        print('✅ 用户数据解析成功，用户ID: ${user.id}, token存在: ${user.token != null}');
+        DebugUtil.success(' 用户数据解析成功，用户ID: ${user.id}, token存在: ${user.token != null}');
         return user;
       } else {
-        print('⚠️ 未找到用户缓存数据');
+        DebugUtil.warning(' 未找到用户缓存数据');
       }
     } catch (e) {
-      print('❌ 读取缓存用户失败: $e');
+      DebugUtil.error(' 读取缓存用户失败: $e');
       debugPrint('读取缓存用户失败: $e');
     }
     return null;

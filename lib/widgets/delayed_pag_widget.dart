@@ -110,6 +110,16 @@ class _DelayedPagWidgetState extends State<DelayedPagWidget> with AutomaticKeepA
   }
 
   @override
+  void dispose() {
+    // 清理状态，防止内存泄漏
+    _shouldLoad = false;
+    _isVisible = false;
+    _hasStartedLoading = false;
+    debugPrint('延迟PAG组件销毁: ${widget.assetPath}');
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以支持AutomaticKeepAliveClientMixin
     

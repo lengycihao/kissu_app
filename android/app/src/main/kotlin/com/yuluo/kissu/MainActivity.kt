@@ -32,16 +32,38 @@ import com.tencent.mm.opensdk.modelbase.BaseResp
 import com.tencent.mm.opensdk.modelpay.PayResp
 import com.tencent.mm.opensdk.constants.ConstantsAPI
 import kotlinx.coroutines.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 
 class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val CHANNEL = "app.location/settings"
     private val WECHAT_CHANNEL = "app.wechat/launch"
+    private val FOREGROUND_SERVICE_CHANNEL = "kissu_app/foreground_service"
     private val SHARE_CHANNEL = "app.share/invoke"
     private val UMSHARE_CHANNEL = "umshare"
     private val PAYMENT_CHANNEL = "kissu_payment"
     
     // 微信支付API
     private var wxApi: IWXAPI? = null
+    
+    // 支付结果等待器
+    private var paymentResultCompleter: ((Boolean, String) -> Unit)? = null
+    
+    // 支付结果广播接收器
+    private val paymentResultReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "kissu.payment.result") {
+                val success = intent.getBooleanExtra("success", false)
+                val message = intent.getStringExtra("message") ?: ""
+                Log.d("MainActivity", "收到支付结果广播: success=$success, message=$message")
+                
+                // 通知等待的支付方法
+                paymentResultCompleter?.invoke(success, message)
+                paymentResultCompleter = null
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +82,21 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             Log.d("MainActivity", "QQ权限设置成功")
         } catch (e: Exception) {
             Log.e("MainActivity", "设置QQ权限失败", e)
+        }
+        
+        // 注册支付结果广播接收器
+        val filter = IntentFilter("kissu.payment.result")
+        registerReceiver(paymentResultReceiver, filter)
+        Log.d("MainActivity", "支付结果广播接收器已注册")
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(paymentResultReceiver)
+            Log.d("MainActivity", "支付结果广播接收器已注销")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "注销广播接收器失败", e)
         }
     }
     
@@ -221,6 +258,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     val nonceStr = call.argument<String>("nonceStr") ?: ""
                     val timeStamp = call.argument<String>("timeStamp") ?: ""
                     val sign = call.argument<String>("sign") ?: ""
+                    Log.d("MainActivity", "收到微信支付请求，参数: appId=$appId, partnerId=$partnerId, prepayId=$prepayId")
                     payWithWechat(appId, partnerId, prepayId, packageValue, nonceStr, timeStamp, sign, result)
                 }
                 "isAlipayInstalled" -> {
@@ -229,7 +267,45 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 }
                 "payWithAlipay" -> {
                     val orderInfo = call.argument<String>("orderInfo") ?: ""
+                    Log.d("MainActivity", "收到支付宝支付请求，orderInfo长度: ${orderInfo.length}")
                     payWithAlipay(orderInfo, result)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // 前台服务通道
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FOREGROUND_SERVICE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "startForegroundService" -> {
+                    val config = call.arguments as? Map<String, Any> ?: mapOf()
+                    val success = ForegroundLocationService.startService(this, config)
+                    result.success(success)
+                }
+                "stopForegroundService" -> {
+                    val success = ForegroundLocationService.stopService(this)
+                    result.success(success)
+                }
+                "isServiceRunning" -> {
+                    val isRunning = ForegroundLocationService.isRunning()
+                    result.success(isRunning)
+                }
+                "updateNotification" -> {
+                    val config = call.arguments as? Map<String, Any> ?: mapOf()
+                    // 发送更新通知的Intent
+                    val intent = android.content.Intent(this, ForegroundLocationService::class.java).apply {
+                        action = ForegroundLocationService.ACTION_UPDATE_NOTIFICATION
+                        config.forEach { (key, value) ->
+                            when (value) {
+                                is String -> putExtra(key, value)
+                                is Int -> putExtra(key, value)
+                                is Long -> putExtra(key, value)
+                                is Boolean -> putExtra(key, value)
+                            }
+                        }
+                    }
+                    startService(intent)
+                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
@@ -534,8 +610,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         try {
             // 友盟合规要求：预初始化，设置隐私政策
             UMConfigure.preInit(this, appKey, channel)
-            // 设置隐私授权状态（这里假设用户已同意隐私政策）
-            UMConfigure.submitPolicyGrantResult(this, true)
+            // 🔒 隐私合规：不在用户同意前设置隐私授权
+            // UMConfigure.submitPolicyGrantResult(this, true) // 移到用户同意后执行
             // 正式初始化
             UMConfigure.init(this, appKey, channel, UMConfigure.DEVICE_TYPE_PHONE, null)
             UMConfigure.setLogEnabled(logEnabled)
@@ -882,7 +958,44 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         sign: String,
         result: MethodChannel.Result
     ) {
+        Log.d("MainActivity", "开始微信支付流程")
+        Log.d("MainActivity", "wxApi是否为null: ${wxApi == null}")
+        Log.d("MainActivity", "微信是否安装: ${wxApi?.isWXAppInstalled}")
+        
         try {
+            // 检查基本条件
+            if (wxApi == null) {
+                Log.e("MainActivity", "微信API未初始化")
+                result.success(mapOf("success" to false, "message" to "微信API未初始化"))
+                return
+            }
+            
+            if (wxApi?.isWXAppInstalled != true) {
+                Log.e("MainActivity", "微信未安装")
+                result.success(mapOf("success" to false, "message" to "请先安装微信"))
+                return
+            }
+            
+            // 验证必要参数
+            if (appId.isEmpty() || partnerId.isEmpty() || prepayId.isEmpty()) {
+                Log.e("MainActivity", "微信支付参数不完整: appId=$appId, partnerId=$partnerId, prepayId=$prepayId")
+                result.success(mapOf("success" to false, "message" to "微信支付参数不完整"))
+                return
+            }
+            
+            // 清理之前的回调状态（重要：防止状态污染）
+            if (paymentResultCompleter != null) {
+                Log.w("MainActivity", "检测到未清理的支付回调，先清理")
+                paymentResultCompleter = null
+            }
+            
+            // 设置支付结果回调
+            paymentResultCompleter = { success: Boolean, message: String ->
+                Log.d("MainActivity", "微信支付完成: success=$success, message=$message")
+                result.success(mapOf("success" to success, "message" to message))
+            }
+            
+            Log.d("MainActivity", "创建微信支付请求")
             val req = PayReq().apply {
                 this.appId = appId
                 this.partnerId = partnerId
@@ -893,12 +1006,33 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 this.sign = sign
             }
             
-            wxApi?.sendReq(req)
-            // 注意：实际支付结果在onResp中处理
-            result.success(mapOf("success" to true, "message" to "支付请求已发送"))
+            Log.d("MainActivity", "发送微信支付请求...")
+            val sendResult = wxApi?.sendReq(req)
+            Log.d("MainActivity", "微信支付请求发送结果: $sendResult")
+            
+            if (sendResult == true) {
+                Log.d("MainActivity", "微信支付请求已发送，等待用户操作...")
+                Log.d("MainActivity", "注意：此时不会立即返回支付结果，需要等待微信回调")
+                // 不立即返回，等待WXPayEntryActivity的回调
+                
+                // 设置30秒超时
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(30000) // 30秒超时
+                    if (paymentResultCompleter != null) {
+                        Log.w("MainActivity", "微信支付超时")
+                        paymentResultCompleter?.invoke(false, "支付超时")
+                        paymentResultCompleter = null
+                    }
+                }
+            } else {
+                Log.e("MainActivity", "微信支付请求发送失败，sendResult: $sendResult")
+                paymentResultCompleter = null
+                result.success(mapOf("success" to false, "message" to "微信支付请求发送失败"))
+            }
         } catch (e: Exception) {
-            Log.e("MainActivity", "微信支付失败", e)
-            result.success(mapOf("success" to false, "message" to "支付失败: ${e.message}"))
+            Log.e("MainActivity", "微信支付异常", e)
+            paymentResultCompleter = null
+            result.success(mapOf("success" to false, "message" to "微信支付失败: ${e.message}"))
         }
     }
 
@@ -907,25 +1041,84 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     }
 
     private fun payWithAlipay(orderInfo: String, result: MethodChannel.Result) {
+        Log.d("MainActivity", "开始支付宝支付，orderInfo: ${orderInfo.take(100)}...")
+        
+        if (orderInfo.isEmpty()) {
+            Log.e("MainActivity", "支付宝订单信息为空")
+            result.success(mapOf(
+                "success" to false,
+                "message" to "支付宝订单信息为空"
+            ))
+            return
+        }
+        
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                Log.d("MainActivity", "创建PayTask并调用支付")
                 val payTask = PayTask(this@MainActivity)
                 val payResult = payTask.payV2(orderInfo, true)
                 
+                Log.d("MainActivity", "支付宝支付完成，返回结果: $payResult")
+                
                 withContext(Dispatchers.Main) {
+                    // 解析支付结果
+                    val resultStatus = parseAlipayResult(payResult)
                     result.success(mapOf(
-                        "success" to true,
+                        "success" to resultStatus.success,
+                        "message" to resultStatus.message,
                         "result" to payResult.toString()
                     ))
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Log.e("MainActivity", "支付宝支付失败", e)
+                    Log.e("MainActivity", "支付宝支付异常", e)
                     result.success(mapOf(
                         "success" to false,
                         "message" to "支付失败: ${e.message}"
                     ))
                 }
+            }
+        }
+    }
+    
+    private data class AlipayResult(val success: Boolean, val message: String)
+    
+    private fun parseAlipayResult(payResult: Map<String, String>): AlipayResult {
+        val resultStatus = payResult["resultStatus"]
+        Log.d("MainActivity", "解析支付宝支付结果: resultStatus=$resultStatus, 完整结果=$payResult")
+        
+        return when (resultStatus) {
+            "9000" -> {
+                Log.d("MainActivity", "支付宝支付成功")
+                AlipayResult(true, "支付成功")
+            }
+            "8000" -> {
+                Log.d("MainActivity", "支付宝支付结果确认中")
+                AlipayResult(false, "支付结果确认中")
+            }
+            "4000" -> {
+                Log.d("MainActivity", "支付宝订单支付失败")
+                AlipayResult(false, "订单支付失败")
+            }
+            "5000" -> {
+                Log.d("MainActivity", "支付宝重复请求")
+                AlipayResult(false, "重复请求")
+            }
+            "6001" -> {
+                Log.d("MainActivity", "支付宝用户取消支付")
+                AlipayResult(false, "用户中途取消")
+            }
+            "6002" -> {
+                Log.d("MainActivity", "支付宝网络连接出错")
+                AlipayResult(false, "网络连接出错")
+            }
+            "6004" -> {
+                Log.d("MainActivity", "支付宝支付结果未知")
+                AlipayResult(false, "支付结果未知，其它支付结果")
+            }
+            else -> {
+                Log.e("MainActivity", "支付宝未知支付状态: $resultStatus")
+                AlipayResult(false, "未知支付状态: $resultStatus")
             }
         }
     }
@@ -943,14 +1136,26 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     BaseResp.ErrCode.ERR_OK -> {
                         Log.d("MainActivity", "微信支付成功")
                         // 通知Flutter支付成功
+                        paymentResultCompleter?.invoke(true, "支付成功")
+                        paymentResultCompleter = null
                     }
                     BaseResp.ErrCode.ERR_USER_CANCEL -> {
                         Log.d("MainActivity", "微信支付取消")
                         // 通知Flutter支付取消
+                        paymentResultCompleter?.invoke(false, "用户取消支付")
+                        paymentResultCompleter = null
                     }
                     BaseResp.ErrCode.ERR_COMM -> {
                         Log.e("MainActivity", "微信支付失败")
                         // 通知Flutter支付失败
+                        paymentResultCompleter?.invoke(false, "支付失败")
+                        paymentResultCompleter = null
+                    }
+                    else -> {
+                        Log.e("MainActivity", "微信支付未知错误: ${payResp.errCode}")
+                        // 通知Flutter支付失败
+                        paymentResultCompleter?.invoke(false, "支付失败，错误码: ${payResp.errCode}")
+                        paymentResultCompleter = null
                     }
                 }
             }

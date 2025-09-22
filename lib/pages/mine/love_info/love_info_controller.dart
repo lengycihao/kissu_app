@@ -13,6 +13,7 @@ import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class LoveInfoController extends GetxController {
@@ -48,13 +49,13 @@ class LoveInfoController extends GetxController {
   void _loadUserInfo() {
     final user = UserManager.currentUser;
     if (user != null) {
-      print('Loading user info: ${user.nickname}');
+      DebugUtil.info('Loading user info: ${user.nickname}');
 
       // 绑定状态处理 (1绑定，2未绑定，0初始未绑定)
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
       // isBindPartner.value  = false;
-      print('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
+      DebugUtil.info('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
 
       // 我的信息
       myAvatar.value = user.headPortrait ?? "";
@@ -68,7 +69,7 @@ class LoveInfoController extends GetxController {
       myPhone.value = user.phone ?? "";
 
       if (isBindPartner.value) {
-        print('Processing bound state...');
+        DebugUtil.info('Processing bound state...');
         // 已绑定状态 - 处理伴侣信息和恋爱信息
         _handleBoundState(user);
       }
@@ -76,7 +77,7 @@ class LoveInfoController extends GetxController {
   }
 
   void _handleBoundState(user) {
-    print('Handling bound state...');
+    DebugUtil.info('Handling bound state...');
 
     // 处理绑定时间和在一起天数
     if (user.latelyBindTime != null) {
@@ -89,10 +90,10 @@ class LoveInfoController extends GetxController {
       final now = DateTime.now();
       final difference = now.difference(bindTime).inDays;
       togetherDays.value = difference;
-      print('Calculated together days: ${togetherDays.value}');
+      DebugUtil.info('Calculated together days: ${togetherDays.value}');
     }
     if (user.halfUserInfo != null) {
-      print('Using halfUserInfo for partner data');
+      DebugUtil.info('Using halfUserInfo for partner data');
       final half = user.halfUserInfo!;
       partnerAvatar.value = half.headPortrait ?? "";
       partnerNickname.value = half.nickname ?? "";
@@ -104,34 +105,34 @@ class LoveInfoController extends GetxController {
       partnerBirthday.value = half.birthday ?? "未选择";
       partnerPhone.value = half.phone ?? "";
 
-      print(
+      DebugUtil.info(
         'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
       );
     }
     // 处理伴侣信息 - 优先使用loverInfo，其次halfUserInfo
     if (user.loverInfo != null) {
-      print('Using loverInfo for partner data');
+      DebugUtil.info('Using loverInfo for partner data');
       final lover = user.loverInfo!;
 
       // 从LoverInfo获取恋爱信息
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
-        print('Bind date from loverInfo: ${bindDate.value}');
+        DebugUtil.info('Bind date from loverInfo: ${bindDate.value}');
       }
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
-        print('Love time from loverInfo: ${loveTime.value}');
+        DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
       } else {
         // 如果服务器没有提供 loveTime，保持之前设置的值（从 latelyBindTime 计算）
-        print('Using calculated love time: ${loveTime.value}');
+        DebugUtil.info('Using calculated love time: ${loveTime.value}');
       }
       if (lover.loveDays != null) {
         loveDays.value = lover.loveDays!;
-        print('Love days from loverInfo: ${loveDays.value}');
+        DebugUtil.info('Love days from loverInfo: ${loveDays.value}');
       } else {
         // 如果服务器没有提供 loveDays，使用计算的 togetherDays
         loveDays.value = togetherDays.value;
-        print('Using calculated together days as love days: ${loveDays.value}');
+        DebugUtil.info('Using calculated together days as love days: ${loveDays.value}');
       }
     }
   }
@@ -383,9 +384,9 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          print('Avatar updated, mine page refreshed');
+          DebugUtil.success('Avatar updated, mine page refreshed');
         } catch (e) {
-          print('Mine page not found: $e');
+          DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '头像更新成功');
@@ -454,9 +455,9 @@ class LoveInfoController extends GetxController {
             try {
               final mineController = Get.find<MineController>();
               mineController.loadUserInfo();
-              print('Phone changed, mine page refreshed');
+              DebugUtil.success('Phone changed, mine page refreshed');
             } catch (e) {
-              print('Mine page not found: $e');
+              DebugUtil.error('Mine page not found: $e');
             }
           }
         });
@@ -529,9 +530,9 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          print('Nickname updated, mine page refreshed');
+          DebugUtil.success('Nickname updated, mine page refreshed');
         } catch (e) {
-          print('Mine page not found: $e');
+          DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '昵称更新成功');
@@ -610,9 +611,9 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          print('Gender updated, mine page refreshed');
+          DebugUtil.success('Gender updated, mine page refreshed');
         } catch (e) {
-          print('Mine page not found: $e');
+          DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '性别更新成功');
@@ -742,9 +743,9 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          print('Birthday updated, mine page refreshed');
+          DebugUtil.success('Birthday updated, mine page refreshed');
         } catch (e) {
-          print('Mine page not found: $e');
+          DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '生日更新成功');
@@ -924,18 +925,18 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          print('Love time updated, mine page refreshed');
+          DebugUtil.success('Love time updated, mine page refreshed');
         } catch (e) {
-          print('Mine page not found: $e');
+          DebugUtil.error('Mine page not found: $e');
         }
 
         // 通知首页刷新
         try {
           final homeController = Get.find<HomeController>();
           homeController.loadUserInfo();
-          print('Love time updated, home page refreshed');
+          DebugUtil.success('Love time updated, home page refreshed');
         } catch (e) {
-          print('Home controller not found: $e');
+          DebugUtil.error('Home controller not found: $e');
         }
 
         CustomToast.show(Get.context!, '相恋时间更新成功');

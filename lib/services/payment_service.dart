@@ -4,8 +4,6 @@ import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
-import 'package:oktoast/oktoast.dart';
 
 /// 支付服务类 - 使用 MethodChannel 直接与 Android 原生通信
 class PaymentService extends GetxService {
@@ -26,7 +24,10 @@ class PaymentService extends GetxService {
   @override
   Future<void> onInit() async {
     super.onInit();
-    await _initializePayment();
+    // 🔒 隐私合规：不在服务初始化时自动启动支付SDK
+    // 等待实际使用时再初始化
+    // await _initializePayment(); // 移除自动初始化
+    debugPrint('支付服务已注册（按需初始化）');
   }
   
   /// 初始化支付服务
@@ -81,9 +82,14 @@ class PaymentService extends GetxService {
         return false;
       }
       
+      // 按需初始化支付服务
       if (!_isInitialized.value) {
-        _showError('支付服务未初始化，请重试');
-        return false;
+        _logger.i('支付服务未初始化，开始初始化...');
+        await _initializePayment();
+        if (!_isInitialized.value) {
+          _showError('支付服务初始化失败，请重试');
+          return false;
+        }
       }
       
       if (_paymentInProgress.value) {
@@ -114,6 +120,7 @@ class PaymentService extends GetxService {
       
       try {
         // 调用原生微信支付
+        _logger.i('正在调用原生微信支付...');
         final result = await _channel.invokeMethod('payWithWechat', {
           'appId': appId,
           'partnerId': partnerId,
@@ -127,30 +134,28 @@ class PaymentService extends GetxService {
         _hideProgress();
         _paymentInProgress.value = false;
         
+        _logger.i('微信支付原生调用完成，结果: $result');
+        
         if (result != null && result['success'] == true) {
-          // _logger.i('微信支付成功');
-          // _showSuccess('微信支付成功');
+          _logger.i('微信支付成功');
           return true;
         } else {
-          // String errorMsg = result?['message'] ?? '微信支付失败';
-          // _logger.e('微信支付失败: $errorMsg');
-          // _showError(errorMsg);
+          String errorMsg = result?['message'] ?? '微信支付失败';
+          _logger.e('微信支付失败: $errorMsg');
           return false;
         }
         
       } catch (e) {
         _hideProgress();
         _paymentInProgress.value = false;
-        // _logger.e('微信支付调用异常: $e');
-        // _showError('微信支付调用失败，请重试');
+        _logger.e('微信支付调用异常: $e');
         return false;
       }
       
     } catch (e) {
       _hideProgress();
       _paymentInProgress.value = false;
-      // _logger.e('微信支付异常: $e');
-      // _showError('微信支付异常，请重试');
+      _logger.e('微信支付异常: $e');
       return false;
     }
   }
@@ -167,9 +172,14 @@ class PaymentService extends GetxService {
         return false;
       }
       
+      // 按需初始化支付服务
       if (!_isInitialized.value) {
-        _showError('支付服务未初始化，请重试');
-        return false;
+        _logger.i('支付服务未初始化，开始初始化...');
+        await _initializePayment();
+        if (!_isInitialized.value) {
+          _showError('支付服务初始化失败，请重试');
+          return false;
+        }
       }
       
       if (_paymentInProgress.value) {
@@ -192,6 +202,7 @@ class PaymentService extends GetxService {
       
       try {
         // 调用原生支付宝支付
+        _logger.i('正在调用原生支付宝支付...');
         final result = await _channel.invokeMethod('payWithAlipay', {
           'orderInfo': orderInfo,
         });
@@ -202,27 +213,25 @@ class PaymentService extends GetxService {
         _paymentInProgress.value = false;
         
         if (result != null && result['success'] == true) {
-          // _showSuccess('支付宝支付成功');
+          _logger.i('支付宝支付成功');
           return true;
         } else {
           String errorMsg = result?['message'] ?? '支付宝支付失败';
-          // _showError(errorMsg);
+          _logger.e('支付宝支付失败: $errorMsg, success: ${result?['success']}');
           return false;
         }
         
-      } catch (e, stackTrace) {
+      } catch (e) {
         _hideProgress();
         _paymentInProgress.value = false;
-        // _showError('支付宝支付调用失败，请重试');
+        _logger.e('支付宝支付调用失败: $e');
         return false;
       }
       
-    } catch (e, stackTrace) {
-      // _logger.e('支付宝支付异常: $e');
-      // _logger.e('异常堆栈: $stackTrace');
+    } catch (e) {
+      _logger.e('支付宝支付异常: $e');
       _hideProgress();
       _paymentInProgress.value = false;
-      // _showError('支付宝支付异常，请重试');
       return false;
     }
   }
@@ -233,8 +242,14 @@ class PaymentService extends GetxService {
       return false;
     }
     
+    // 确保支付服务已初始化
+    if (!_isInitialized.value) {
+      await _initializePayment();
+    }
+    
     try {
       final result = await _channel.invokeMethod('isWechatInstalled');
+      _logger.d('微信安装检测结果: $result');
       return result == true;
     } catch (e) {
       _logger.e('检查微信安装状态失败: $e');
@@ -248,8 +263,14 @@ class PaymentService extends GetxService {
       return false;
     }
     
+    // 确保支付服务已初始化
+    if (!_isInitialized.value) {
+      await _initializePayment();
+    }
+    
     try {
       final result = await _channel.invokeMethod('isAlipayInstalled');
+      _logger.d('支付宝安装检测结果: $result');
       return result == true;
     } catch (e) {
       _logger.e('检查支付宝安装状态失败: $e');
@@ -281,31 +302,6 @@ class PaymentService extends GetxService {
     }
   }
   
-  /// 显示成功消息
-  void _showSuccess(String message) {
-    try {
-      if (Get.context != null) {
-        // CustomToast.show(
-        //   Get.context!,
-        //   message,
-        // );
-        OKToastUtil.show(message);
-      } else {
-        _logger.w('无法显示Toast: context为null');
-        // 使用Get.snackbar作为fallback
-        Get.snackbar(
-          '支付成功',
-          message,
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: const Color(0xff4CAF50),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
-      }
-    } catch (e) {
-      _logger.e('显示成功消息失败: $e');
-    }
-  }
   
   /// 显示错误消息
   void _showError(String message) {

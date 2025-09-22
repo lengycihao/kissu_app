@@ -15,6 +15,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/map_zoom_calculator.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'package:http/http.dart' as http;
 
 class LocationController extends GetxController {
@@ -27,8 +28,15 @@ class LocationController extends GetxController {
   final isBindPartner = false.obs;
   
   /// 位置信息
+  /// 🔧 修复：明确位置数据的含义
+  /// myLocation 始终存储当前查看的用户位置（根据isOneself动态变化）
+  /// partnerLocation 始终存储另一个用户的位置
+  /// actualMyLocation 始终存储自己的实际位置
+  /// actualPartnerLocation 始终存储另一半的实际位置
   final myLocation = Rx<LatLng?>(null);
   final partnerLocation = Rx<LatLng?>(null);
+  final actualMyLocation = Rx<LatLng?>(null);
+  final actualPartnerLocation = Rx<LatLng?>(null);
   
   /// 距离信息
   final distance = "0.00km".obs;
@@ -50,6 +58,10 @@ class LocationController extends GetxController {
   
   /// 位置记录列表
   final RxList<LocationRecord> locationRecords = <LocationRecord>[].obs;
+  
+  /// 🔧 新增：缓存API返回的数据，用于切换用户时更新列表
+  UserLocationMobileDevice? _cachedUserLocationMobileDevice;
+  UserLocationMobileDevice? _cachedHalfLocationMobileDevice;
   
   
   /// DraggableScrollableSheet 状态
@@ -76,28 +88,28 @@ class LocationController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    print('🔧 LocationController onInit 开始');
+    DebugUtil.info(' LocationController onInit 开始');
     try {
       // 加载用户信息
-      print('🔧 开始加载用户信息...');
+      DebugUtil.info(' 开始加载用户信息...');
       _loadUserInfo();
-      print('🔧 用户信息加载完成');
+      DebugUtil.info(' 用户信息加载完成');
       
       // 初始化定位服务（不自动启动）
-      print('🔧 开始初始化定位服务...');
+      DebugUtil.info(' 开始初始化定位服务...');
       _initLocationService();
-      print('🔧 定位服务初始化完成');
+      DebugUtil.info(' 定位服务初始化完成');
       
       // 只加载历史位置数据，不自动启动定位
-      print('🔧 开始调用loadLocationData...');
+      DebugUtil.info(' 开始调用loadLocationData...');
       loadLocationData();
-      print('🔧 loadLocationData调用完成');
+      DebugUtil.info(' loadLocationData调用完成');
     } catch (e) {
-      print('❌ onInit执行异常: $e');
-      print('❌ 异常类型: ${e.runtimeType}');
-      print('❌ 异常堆栈: ${StackTrace.current}');
+      DebugUtil.error(' onInit执行异常: $e');
+      DebugUtil.error(' 异常类型: ${e.runtimeType}');
+      DebugUtil.error(' 异常堆栈: ${StackTrace.current}');
     }
-    print('🔧 LocationController onInit 完成');
+    DebugUtil.info(' LocationController onInit 完成');
   }
 
   @override
@@ -110,37 +122,37 @@ class LocationController extends GetxController {
   /// 初始化定位服务
   void _initLocationService() {
     try {
-      print('🔧 开始初始化定位服务');
+      DebugUtil.info(' 开始初始化定位服务');
       _locationService = SimpleLocationService.instance;
-      print('🔧 定位服务实例获取成功');
+      DebugUtil.info(' 定位服务实例获取成功');
       
       // 不再监听实时定位数据变化，改为单次定位模式
-      print('✅ 定位服务初始化完成（单次定位模式）');
+      DebugUtil.success(' 定位服务初始化完成（单次定位模式）');
     } catch (e) {
-      print('❌ 定位服务初始化失败: $e');
+      DebugUtil.error(' 定位服务初始化失败: $e');
     }
   }
   
   /// 定位页面进入时检查权限并执行单次定位
   Future<void> _checkLocationPermissionOnPageEnter() async {
     try {
-      print('📍 定位页面检查权限状态...');
+      DebugUtil.info(' 定位页面检查权限状态...');
 
       // 检查定位权限
       var locationStatus = await Permission.location.status;
-      print('📍 定位权限状态: $locationStatus');
+      DebugUtil.info(' 定位权限状态: $locationStatus');
 
       if (locationStatus.isDenied || locationStatus.isPermanentlyDenied) {
         // 权限未授予，请求权限
-        print('📍 定位页面权限未授予，开始请求权限');
+        DebugUtil.info(' 定位页面权限未授予，开始请求权限');
         await _requestLocationPermissionAndStartService();
       } else if (locationStatus.isGranted) {
         // 权限已授予，启动定位服务
-        print('📍 定位页面权限已授予，启动定位服务');
+        DebugUtil.info(' 定位页面权限已授予，启动定位服务');
         await _locationService.startLocation();
       }
     } catch (e) {
-      print('❌ 定位页面检查权限失败: $e');
+      DebugUtil.error(' 定位页面检查权限失败: $e');
     }
   }
 
@@ -233,30 +245,30 @@ class LocationController extends GetxController {
 
       // 检查用户是否已登录
       if (!UserManager.isLoggedIn) {
-        print('ℹ️ 用户未登录，跳过自动启动定位服务');
+        DebugUtil.info(' 用户未登录，跳过自动启动定位服务');
         return;
       }
 
       // 检查定位服务状态
       final status = _locationService.currentServiceStatus;
-      print('🔍 定位服务状态: $status');
+      DebugUtil.check(' 定位服务状态: $status');
 
       if (!_locationService.isLocationEnabled.value) {
-        print('🚀 用户已登录，定位服务未启动，尝试启动...');
+        DebugUtil.launch(' 用户已登录，定位服务未启动，尝试启动...');
 
         // 启动定位服务
         bool success = await _locationService.startLocation();
 
         if (success) {
-          print('✅ 定位服务启动成功');
+          DebugUtil.success(' 定位服务启动成功');
         } else {
-          print('❌ 定位服务启动失败');
+          DebugUtil.error(' 定位服务启动失败');
         }
       } else {
-        print('ℹ️ 定位服务已在运行');
+        DebugUtil.info(' 定位服务已在运行');
       }
     } catch (e) {
-      print('❌ 检查并启动定位服务失败: $e');
+      DebugUtil.error(' 检查并启动定位服务失败: $e');
     }
   }
   
@@ -277,7 +289,7 @@ class LocationController extends GetxController {
         myAvatar.value = user.headPortrait ?? '';
         if (myAvatar.value.isNotEmpty) {
           avatarUpdated = true;
-          print('🔄 设置我的初始头像: ${myAvatar.value}');
+          DebugUtil.info(' 设置我的初始头像: ${myAvatar.value}');
         }
       }
       
@@ -286,20 +298,20 @@ class LocationController extends GetxController {
         if (user.loverInfo?.headPortrait?.isNotEmpty == true) {
           partnerAvatar.value = user.loverInfo!.headPortrait!;
           avatarUpdated = true;
-          print('🔄 设置伴侣初始头像: ${partnerAvatar.value}');
+          DebugUtil.info(' 设置伴侣初始头像: ${partnerAvatar.value}');
         } else if (user.halfUserInfo?.headPortrait?.isNotEmpty == true) {
           partnerAvatar.value = user.halfUserInfo!.headPortrait!;
           avatarUpdated = true;
-          print('🔄 设置伴侣初始头像: ${partnerAvatar.value}');
+          DebugUtil.info(' 设置伴侣初始头像: ${partnerAvatar.value}');
         }
       }
       
       // 如果头像有更新，标记需要重建，但等待 API 数据一起处理
       if (avatarUpdated) {
-        print('📋 用户头像信息已更新，等待 API 数据后统一创建标记');
+        DebugUtil.info(' 用户头像信息已更新，等待 API 数据后统一创建标记');
       }
       
-      print('📋 用户信息加载完成');
+      DebugUtil.info(' 用户信息加载完成');
     }
   }
   
@@ -374,7 +386,7 @@ class LocationController extends GetxController {
             avatarImage = await _loadImageFromAsset(avatarUrl);
           }
         } catch (e) {
-          print('❌ 加载头像失败: $e');
+          DebugUtil.error(' 加载头像失败: $e');
         }
       }
       
@@ -480,7 +492,7 @@ class LocationController extends GetxController {
       
       return BitmapDescriptor.fromBytes(bytes);
     } catch (e) {
-      print('❌ 创建虚拟TA头像标记失败: $e');
+      DebugUtil.error(' 创建虚拟TA头像标记失败: $e');
       // 返回默认标记
       return await BitmapDescriptor.fromAssetImage(
         const ImageConfiguration(size: Size(44, 46)),
@@ -560,7 +572,7 @@ class LocationController extends GetxController {
             avatarImage = await _loadImageFromAsset(avatarUrl);
           }
         } catch (e) {
-          print('❌ 加载头像失败: $e');
+          DebugUtil.error(' 加载头像失败: $e');
         }
       }
       
@@ -622,7 +634,7 @@ class LocationController extends GetxController {
       
       return BitmapDescriptor.fromBytes(bytes);
     } catch (e) {
-      print('❌ 创建头像标记失败: $e');
+      DebugUtil.error(' 创建头像标记失败: $e');
       // 返回默认标记
       return await BitmapDescriptor.fromAssetImage(
         const ImageConfiguration(size: Size(44, 46)),
@@ -640,19 +652,19 @@ class LocationController extends GetxController {
       final ui.FrameInfo frame = await codec.getNextFrame();
       return frame.image;
     } catch (e) {
-      print('❌ 加载资源图片失败: $assetPath, $e');
+      DebugUtil.error(' 加载资源图片失败: $assetPath, $e');
       return null;
     }
   }
 
   /// 初始化用户位置标记
   Future<void> _initTrackStartEndMarkers() async {
-    print('🔄 初始化用户位置标记...');
-    print('📍 我的位置: ${myLocation.value}');
-    print('📍 伴侣位置: ${partnerLocation.value}');
-    print('👤 我的头像: ${myAvatar.value}');
-    print('👤 伴侣头像: ${partnerAvatar.value}');
-    print('🗺️ 地图控制器状态: ${mapController != null ? "已初始化" : "未初始化"}');
+    DebugUtil.info(' 初始化用户位置标记...');
+    DebugUtil.info(' 我的位置: ${myLocation.value}');
+    DebugUtil.info(' 伴侣位置: ${partnerLocation.value}');
+    DebugUtil.info(' 我的头像: ${myAvatar.value}');
+    DebugUtil.info(' 伴侣头像: ${partnerAvatar.value}');
+    DebugUtil.info(' 地图控制器状态: ${mapController != null ? "已初始化" : "未初始化"}');
     
     // 清空现有标记
     _trackStartEndMarkers.clear();
@@ -663,9 +675,19 @@ class LocationController extends GetxController {
       // 创建我的位置标记（带头像）
       if (myLocation.value != null) {
         try {
+          // 🔧 根据isOneself动态选择正确的头像，确保头像与位置匹配
+          String correctMyAvatar;
+          if (isOneself.value == 1) {
+            // 查看自己时，我的位置对应userLocationMobileDevice，使用myAvatar
+            correctMyAvatar = myAvatar.value;
+          } else {
+            // 查看另一半时，我的位置对应halfLocationMobileDevice，使用partnerAvatar
+            correctMyAvatar = partnerAvatar.value;
+          }
+          
           // 使用带头像的标记
           final myIcon = await _createAvatarMarker(
-            myAvatar.value,
+            correctMyAvatar,
             defaultAsset: 'assets/kissu_track_header_boy.webp',
           );
           
@@ -674,15 +696,15 @@ class LocationController extends GetxController {
             icon: myIcon,
             anchor: const Offset(0.5, 0.913), // 锚点Y坐标调整到105像素位置
             onTap: (String markerId) {
-              print('点击了我的位置');
+              DebugUtil.info('点击了我的位置');
               _moveMapToLocation(myLocation.value!);
             },
           );
           
           tempMarkers.add(myMarker);
-          print('✅ 我的位置标记创建成功: ${myLocation.value}');
+          DebugUtil.success(' 我的位置标记创建成功: ${myLocation.value}');
         } catch (e) {
-          print('❌ 创建我的位置标记失败: $e，使用默认标记');
+          DebugUtil.error(' 创建我的位置标记失败: $e，使用默认标记');
           // 降级方案：使用蓝色默认标记
           try {
             final fallbackMyMarker = Marker(
@@ -690,14 +712,14 @@ class LocationController extends GetxController {
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
               anchor: const Offset(0.5, 1.0),
               onTap: (String markerId) {
-                print('点击了我的位置');
+                DebugUtil.info('点击了我的位置');
                 _moveMapToLocation(myLocation.value!);
               },
             );
             tempMarkers.add(fallbackMyMarker);
-            print('✅ 我的位置降级标记创建成功');
+            DebugUtil.success(' 我的位置降级标记创建成功');
           } catch (fallbackError) {
-            print('❌ 我的位置降级标记也失败: $fallbackError');
+            DebugUtil.error(' 我的位置降级标记也失败: $fallbackError');
           }
         }
       }
@@ -705,14 +727,24 @@ class LocationController extends GetxController {
       // 创建伴侣位置标记（带头像）
       if (partnerLocation.value != null) {
         try {
+          // 🔧 根据isOneself动态选择正确的头像，确保头像与位置匹配
+          String correctPartnerAvatar;
+          if (isOneself.value == 1) {
+            // 查看自己时，伴侣位置对应halfLocationMobileDevice，使用partnerAvatar
+            correctPartnerAvatar = partnerAvatar.value;
+          } else {
+            // 查看另一半时，伴侣位置对应userLocationMobileDevice，使用myAvatar
+            correctPartnerAvatar = myAvatar.value;
+          }
+          
           // 根据绑定状态选择标记类型
           final partnerIcon = isBindPartner.value 
               ? await _createAvatarMarker(
-                  partnerAvatar.value,
+                  correctPartnerAvatar,
                   defaultAsset: 'assets/kissu_track_header_girl.webp',
                 )
               : await _createAvatarMarkerWithVirtualLabel(
-                  partnerAvatar.value,
+                  correctPartnerAvatar,
                   defaultAsset: 'assets/kissu_track_header_girl.webp',
                 );
           
@@ -723,15 +755,15 @@ class LocationController extends GetxController {
                 ? const Offset(0.5, 0.913) // 锚点Y坐标调整到105像素位置 
                 : const Offset(0.5, 0.925), // 带虚拟TA标签的标记锚点调整
             onTap: (String markerId) {
-              print('点击了伴侣位置');
+              DebugUtil.info('点击了伴侣位置');
               _moveMapToLocation(partnerLocation.value!);
             },
           );
           
           tempMarkers.add(partnerMarker);
-          print('✅ 伴侣位置标记创建成功: ${partnerLocation.value}');
+          DebugUtil.success(' 伴侣位置标记创建成功: ${partnerLocation.value}');
         } catch (e) {
-          print('❌ 创建伴侣位置标记失败: $e，使用默认标记');
+          DebugUtil.error(' 创建伴侣位置标记失败: $e，使用默认标记');
           // 降级方案：使用红色默认标记
           try {
             final fallbackPartnerMarker = Marker(
@@ -739,14 +771,14 @@ class LocationController extends GetxController {
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
               anchor: const Offset(0.5, 1.0),
               onTap: (String markerId) {
-                print('点击了伴侣位置');
+                DebugUtil.info('点击了伴侣位置');
                 _moveMapToLocation(partnerLocation.value!);
               },
             );
             tempMarkers.add(fallbackPartnerMarker);
-            print('✅ 伴侣位置降级标记创建成功');
+            DebugUtil.success(' 伴侣位置降级标记创建成功');
           } catch (fallbackError) {
-            print('❌ 伴侣位置降级标记也失败: $fallbackError');
+            DebugUtil.error(' 伴侣位置降级标记也失败: $fallbackError');
           }
         }
       }
@@ -754,14 +786,14 @@ class LocationController extends GetxController {
       // 更新标记列表 - 使用重新赋值确保响应式更新
       if (tempMarkers.isNotEmpty) {
         _trackStartEndMarkers.value = tempMarkers;
-        print('✅ 用户位置标记更新成功: ${_trackStartEndMarkers.length}个');
-        print('📍 标记详情: ${tempMarkers.map((m) => '标记: ${m.position}').join(', ')}');
+        DebugUtil.success(' 用户位置标记更新成功: ${_trackStartEndMarkers.length}个');
+        DebugUtil.info(' 标记详情: ${tempMarkers.map((m) => '标记: ${m.position}').join(', ')}');
       } else {
-        print('❌ 没有成功创建任何用户位置标记');
+        DebugUtil.error(' 没有成功创建任何用户位置标记');
         _trackStartEndMarkers.clear();
       }
     } catch (e) {
-      print('❌ 用户位置标记更新过程失败: $e');
+      DebugUtil.error(' 用户位置标记更新过程失败: $e');
     }
   }
   
@@ -793,7 +825,7 @@ class LocationController extends GetxController {
         alpha: 0.8,
       ));
       
-      print('✅ 用户连接线创建成功，连接两个位置点');
+      DebugUtil.success(' 用户连接线创建成功，连接两个位置点');
     }
   }
   
@@ -825,7 +857,7 @@ class LocationController extends GetxController {
         zoom: 6.0, // 超小缩放级别
       );
       
-      print('🌍 定位页面初始超缩小视角 - 两个用户位置看起来快重合: 缩放级别=6.0');
+      DebugUtil.info(' 定位页面初始超缩小视角 - 两个用户位置看起来快重合: 缩放级别=6.0');
       return superFarPosition;
     }
     // 如果只有我的位置
@@ -854,18 +886,18 @@ class LocationController extends GetxController {
   /// 地图创建完成回调
   void onMapCreated(AMapController controller) {
     mapController = controller;
-    print('🗺️ 高德地图创建成功');
+    DebugUtil.info(' 高德地图创建成功');
     
     // 地图创建完成后，强制刷新标记（如果已有位置数据）
     if (myLocation.value != null || partnerLocation.value != null) {
-      print('🔄 地图创建完成，强制刷新已有标记');
+      DebugUtil.info(' 地图创建完成，强制刷新已有标记');
       _initTrackStartEndMarkers();
     }
     
     // 地图创建完成后，不再自动切换头像（已默认显示另一半）
     // Future.delayed(const Duration(milliseconds: 500), () {
     //   if (isOneself.value == 1) {
-    //     print('🔄 地图初始化完成，自动切换到另一半头像');
+    //     DebugUtil.info(' 地图初始化完成，自动切换到另一半头像');
     //     isOneself.value = 0;
     //     loadLocationData();
     //   }
@@ -899,20 +931,37 @@ class LocationController extends GetxController {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
       
-      // 使用MapZoomCalculator计算最佳缩放级别，然后再放大一级
+      // 使用MapZoomCalculator计算最佳缩放级别
       final optimalPosition = MapZoomCalculator.calculateOptimalCameraPosition(
         point1: myPos,
         point2: partnerPos,
         defaultZoom: 16.0,
       );
       
-      // 在最佳级别基础上再放大1.5级（稍微大一点）
+      // 根据距离动态调整额外缩放量
+      final latDiff = (myPos.latitude - partnerPos.latitude).abs();
+      final lngDiff = (myPos.longitude - partnerPos.longitude).abs();
+      final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+      
+      // 动态调整额外缩放：距离越远，额外缩放越小
+      double extraZoom;
+      if (maxDiff < 0.05) {
+        extraZoom = 1.5; // 近距离(<5km)：放大1.5级
+      } else if (maxDiff < 0.1) {
+        extraZoom = 1.0; // 中距离(<10km)：放大1级
+      } else if (maxDiff < 0.2) {
+        extraZoom = 0.5; // 中远距离(<20km)：放大0.5级
+      } else {
+        extraZoom = 0.0; // 远距离(>20km)：不额外放大
+      }
+      
       final enhancedPosition = CameraPosition(
         target: optimalPosition.target,
-        zoom: optimalPosition.zoom + 1.5, // 比最佳级别大1.5级，更加放大
+        zoom: optimalPosition.zoom + extraZoom, // 动态调整缩放级别
       );
       
-      print('🗺️ 开始地图放大动画: 从超缩小级别(6.0) → 增强观看级别=${enhancedPosition.zoom}');
+      DebugUtil.info(' 距离分析: maxDiff=$maxDiff, 最佳缩放=${optimalPosition.zoom}, 额外缩放=$extraZoom');
+      DebugUtil.info(' 开始地图放大动画: 从超缩小级别(6.0) → 增强观看级别=${enhancedPosition.zoom}');
       
       // 从当前超缩小级别动画放大到增强观看级别
       mapController?.moveCamera(
@@ -920,7 +969,7 @@ class LocationController extends GetxController {
         animated: true,
         duration: 500, // 500ms动画时间
       );
-      print('✅ 定位页面地图放大动画开始 - 目标缩放级别: ${enhancedPosition.zoom}');
+      DebugUtil.success(' 定位页面地图放大动画开始 - 目标缩放级别: ${enhancedPosition.zoom}');
     } else if (myLocation.value != null) {
       // 如果只有当前用户有位置，则动画移动到当前用户位置
       _animateMapToLocation(myLocation.value!);
@@ -936,50 +985,43 @@ class LocationController extends GetxController {
   
   /// 头像点击时移动地图到对应用户位置并放大到最大等级
   void onAvatarTapped(bool isMyself) {
-    print('🎯 头像点击开始 - isMyself: $isMyself');
+    DebugUtil.info(' 头像点击开始 - isMyself: $isMyself');
     
     if (mapController == null) {
-      print('❌ 地图控制器不存在，无法移动地图');
+      DebugUtil.error(' 地图控制器不存在，无法移动地图');
       return;
     }
     
     LatLng? targetLocation;
     String userName;
     
-    // 🔧 修复：根据当前查看的用户类型和点击的头像来确定目标位置
-    // 当 isOneself.value == 0 时，查看的是伴侣数据，myLocation 存储的是伴侣位置
-    // 当 isOneself.value == 1 时，查看的是自己数据，myLocation 存储的是自己位置
+    // 🔧 简化逻辑：直接使用实际位置数据
+    // actualMyLocation 始终存储自己的实际位置
+    // actualPartnerLocation 始终存储另一半的实际位置
     
-    if (isOneself.value == 0) {
-      // 当前查看伴侣数据
-      if (isMyself) {
-        // 点击自己头像，目标是自己位置（存储在partnerLocation中）
-        targetLocation = partnerLocation.value;
-        userName = "我的位置";
-      } else {
-        // 点击伴侣头像，目标是伴侣位置（存储在myLocation中）
-        targetLocation = myLocation.value;
-        userName = "伴侣位置";
-      }
+    if (isMyself) {
+      // 点击自己头像，切换到自己的位置
+      targetLocation = actualMyLocation.value;
+      userName = "我的位置";
+      // 更新状态为查看自己
+      isOneself.value = 1;
     } else {
-      // 当前查看自己数据
-      if (isMyself) {
-        // 点击自己头像，目标是自己位置（存储在myLocation中）
-        targetLocation = myLocation.value;
-        userName = "我的位置";
-      } else {
-        // 点击伴侣头像，目标是伴侣位置（存储在partnerLocation中）
-        targetLocation = partnerLocation.value;
-        userName = "伴侣位置";
-      }
+      // 点击另一半头像，切换到另一半的位置
+      targetLocation = actualPartnerLocation.value;
+      userName = "另一半的位置";
+      // 更新状态为查看另一半
+      isOneself.value = 0;
     }
     
-    print('📍 目标位置信息：$userName = $targetLocation');
-    print('🔍 当前状态 - isOneself: ${isOneself.value}, 点击的是: ${isMyself ? "自己" : "伴侣"}');
+    // 🔧 修复：切换用户时重新更新位置记录列表
+    _updateLocationRecordsForCurrentUser();
+    
+    DebugUtil.info(' 目标位置信息：$userName = $targetLocation');
+    DebugUtil.check(' 当前状态 - isOneself: ${isOneself.value}, 点击的是: ${isMyself ? "自己" : "另一半"}');
     
     if (targetLocation == null) {
-      print('❌ 无法移动到$userName：位置信息不存在');
-      print('🔍 当前位置状态 - myLocation: ${myLocation.value}, partnerLocation: ${partnerLocation.value}');
+      DebugUtil.error(' 无法移动到$userName：位置信息不存在');
+      DebugUtil.check(' 当前位置状态 - actualMyLocation: ${actualMyLocation.value}, actualPartnerLocation: ${actualPartnerLocation.value}');
       return;
     }
     
@@ -989,7 +1031,7 @@ class LocationController extends GetxController {
       zoom: 20.0, // 最大缩放级别
     );
     
-    print('🎯 头像点击：移动地图到$userName并放大到最大级别(20.0)');
+    DebugUtil.info(' 头像点击：移动地图到$userName并放大到最大级别(20.0)');
     
     try {
       mapController?.moveCamera(
@@ -997,66 +1039,83 @@ class LocationController extends GetxController {
         animated: true,
         duration: 800, // 800ms平滑动画
       );
-      print('✅ 地图移动命令已发送');
+      DebugUtil.success(' 地图移动命令已发送');
     } catch (e) {
-      print('❌ 地图移动失败: $e');
+      DebugUtil.error(' 地图移动失败: $e');
     }
   }
 
   /// 手动刷新地图标记（调试用）
   Future<void> forceRefreshMarkers() async {
-    print('🔄 手动强制刷新地图标记');
+    DebugUtil.info(' 手动强制刷新地图标记');
     await _initTrackStartEndMarkers();
   }
 
   /// 加载位置数据
   Future<void> loadLocationData() async {
-    print('🔍 loadLocationData 被调用，当前isLoading状态: ${isLoading.value}');
+    DebugUtil.check(' loadLocationData 被调用，当前isLoading状态: ${isLoading.value}');
     if (isLoading.value) {
-      print('⏸️ 跳过API调用，因为正在加载中');
+      DebugUtil.warning(' 跳过API调用，因为正在加载中');
       return;
     }
     
-    print('🔄 设置isLoading为true');
+    DebugUtil.info('设置isLoading为true');
     isLoading.value = true;
     
     try {
-      print('🚀 开始调用LocationApi.getLocation()...');
+      DebugUtil.launch('开始调用LocationApi.getLocation()...');
       // 调用真实API获取定位数据
       final result = await LocationApi().getLocation();
-      print('📡 API调用完成，结果: ${result.isSuccess ? "成功" : "失败"}');
+      DebugUtil.info('API调用完成，结果: ${result.isSuccess ? "成功" : "失败"}');
       
       if (result.isSuccess && result.data != null) {
         final locationData = result.data!;
-        print('✅ 成功获取locationData对象');
+        DebugUtil.success('成功获取locationData对象');
         
-        print('🔍 API返回数据结构:');
-        print('  userLocationMobileDevice: ${locationData.userLocationMobileDevice != null ? "存在" : "为空"}');
-        print('  halfLocationMobileDevice: ${locationData.halfLocationMobileDevice != null ? "存在" : "为空"}');
+        DebugUtil.check('API返回数据结构:');
+        DebugUtil.check('  userLocationMobileDevice: ${locationData.userLocationMobileDevice != null ? "存在" : "为空"}');
+        DebugUtil.check('  halfLocationMobileDevice: ${locationData.halfLocationMobileDevice != null ? "存在" : "为空"}');
         
         // 添加详细的stops调试信息
         if (locationData.userLocationMobileDevice?.stops != null) {
-          print('🔍 userLocationMobileDevice stops数量: ${locationData.userLocationMobileDevice!.stops!.length}');
+          DebugUtil.check('userLocationMobileDevice stops数量: ${locationData.userLocationMobileDevice!.stops!.length}');
           for (int i = 0; i < locationData.userLocationMobileDevice!.stops!.length; i++) {
             final stop = locationData.userLocationMobileDevice!.stops![i];
-            print('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
+            DebugUtil.check('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
           }
         } else {
-          print('🔍 userLocationMobileDevice stops为空');
+          DebugUtil.check('userLocationMobileDevice stops为空');
         }
         
         if (locationData.halfLocationMobileDevice?.stops != null) {
-          print('🔍 halfLocationMobileDevice stops数量: ${locationData.halfLocationMobileDevice!.stops!.length}');
+          DebugUtil.check('halfLocationMobileDevice stops数量: ${locationData.halfLocationMobileDevice!.stops!.length}');
           for (int i = 0; i < locationData.halfLocationMobileDevice!.stops!.length; i++) {
             final stop = locationData.halfLocationMobileDevice!.stops![i];
-            print('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
+            DebugUtil.check('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
           }
         } else {
-          print('🔍 halfLocationMobileDevice stops为空');
+          DebugUtil.check('halfLocationMobileDevice stops为空');
         }
         
         // 🎯 不再智能选择，默认显示另一半
         // _smartSelectUserWithStops(locationData);
+        
+        // 🔧 缓存API数据，用于切换用户时更新列表
+        _cachedUserLocationMobileDevice = locationData.userLocationMobileDevice;
+        _cachedHalfLocationMobileDevice = locationData.halfLocationMobileDevice;
+        DebugUtil.info(' 已缓存API数据用于切换用户');
+        
+        // 🔧 修复头像显示错乱：直接按照用户身份更新头像，不根据isOneself动态切换
+        // myAvatar 始终存储自己的头像，partnerAvatar 始终存储另一半的头像
+        if (locationData.userLocationMobileDevice != null) {
+          _updateMyAvatarData(locationData.userLocationMobileDevice!);
+          _updateActualMyLocationData(locationData.userLocationMobileDevice!);
+        }
+        
+        if (locationData.halfLocationMobileDevice != null) {
+          _updatePartnerAvatarData(locationData.halfLocationMobileDevice!);
+          _updateActualPartnerLocationData(locationData.halfLocationMobileDevice!);
+        }
         
         // 根据当前查看的用户类型显示对应数据
         UserLocationMobileDevice? currentUser;
@@ -1066,25 +1125,25 @@ class LocationController extends GetxController {
           // 查看自己的数据
           currentUser = locationData.userLocationMobileDevice;
           partnerUser = locationData.halfLocationMobileDevice;
-          print('🔍 查看自己的数据 - isOneself=1');
+          DebugUtil.check(' 查看自己的数据 - isOneself=1');
         } else {
           // 查看另一半的数据
           currentUser = locationData.halfLocationMobileDevice;
           partnerUser = locationData.userLocationMobileDevice;
-          print('🔍 查看另一半的数据 - isOneself=0');
+          DebugUtil.check(' 查看另一半的数据 - isOneself=0');
         }
         
-        print('🔍 当前用户数据: ${currentUser != null ? "存在" : "为空"}');
+        DebugUtil.check(' 当前用户数据: ${currentUser != null ? "存在" : "为空"}');
         if (currentUser != null) {
-          print('🔍 当前用户停留点数量: ${currentUser.stops?.length ?? 0}');
+          DebugUtil.check(' 当前用户停留点数量: ${currentUser.stops?.length ?? 0}');
         }
         
-        // 更新当前用户位置和设备信息
+        // 更新当前用户位置和设备信息（不包含头像，头像已单独处理）
         if (currentUser != null) {
           _updateCurrentUserData(currentUser);
         }
         
-        // 更新另一半位置信息
+        // 更新另一半位置信息（不包含头像，头像已单独处理）
         if (partnerUser != null) {
           _updatePartnerData(partnerUser);
         }
@@ -1093,7 +1152,7 @@ class LocationController extends GetxController {
         _updateLocationRecords(currentUser);
         
         // API数据更新完成后，创建轨迹起终点标记
-        print('🔄 API数据更新完成，开始创建轨迹起终点标记');
+        DebugUtil.info(' API数据更新完成，开始创建轨迹起终点标记');
         await _initTrackStartEndMarkers();
         
         // 不再自动移动地图，让用户自由控制地图视角
@@ -1103,20 +1162,80 @@ class LocationController extends GetxController {
       }
       
     } catch (e) {
-      print('❌ loadLocationData API调用异常: $e');
-      print('❌ 异常类型: ${e.runtimeType}');
-      print('❌ 异常堆栈: ${StackTrace.current}');
+      DebugUtil.error(' loadLocationData API调用异常: $e');
+      DebugUtil.error(' 异常类型: ${e.runtimeType}');
+      DebugUtil.error(' 异常堆栈: ${StackTrace.current}');
       CustomToast.show(Get.context!, '加载位置数据失败: $e');
     } finally {
-      print('🔄 设置isLoading为false');
+      DebugUtil.info(' 设置isLoading为false');
       isLoading.value = false;
     }
   }
   
+  /// 🔧 新增：专门更新自己的头像数据
+  void _updateMyAvatarData(UserLocationMobileDevice userData) {
+    DebugUtil.info(' 开始更新我的头像数据...');
+    
+    // 从定位接口更新我的头像数据
+    if (userData.headPortrait != null && userData.headPortrait!.isNotEmpty) {
+      myAvatar.value = userData.headPortrait!;
+      DebugUtil.info(' 更新我的头像: ${userData.headPortrait!}');
+    }
+  }
+  
+  /// 🔧 新增：专门更新另一半的头像数据
+  void _updatePartnerAvatarData(UserLocationMobileDevice userData) {
+    DebugUtil.info(' 开始更新伴侣头像数据...');
+    
+    // 从定位接口更新伴侣头像数据
+    if (userData.headPortrait != null && userData.headPortrait!.isNotEmpty) {
+      partnerAvatar.value = userData.headPortrait!;
+      DebugUtil.info(' 更新伴侣头像: ${userData.headPortrait!}');
+    }
+  }
+  
+  /// 🔧 新增：专门更新自己的实际位置数据
+  void _updateActualMyLocationData(UserLocationMobileDevice userData) {
+    DebugUtil.info(' 开始更新我的实际位置数据...');
+    
+    // 更新自己的实际位置
+    if (userData.latitude != null && userData.longitude != null) {
+      final lat = double.tryParse(userData.latitude!);
+      final lng = double.tryParse(userData.longitude!);
+      if (lat != null && lng != null) {
+        actualMyLocation.value = LatLng(lat, lng);
+        DebugUtil.info(' 更新我的实际位置: ${actualMyLocation.value}');
+      } else {
+        DebugUtil.error(' 我的位置数据解析失败 - lat: $lat, lng: $lng');
+      }
+    } else {
+      DebugUtil.error(' 我的位置数据为空 - latitude: ${userData.latitude}, longitude: ${userData.longitude}');
+    }
+  }
+  
+  /// 🔧 新增：专门更新另一半的实际位置数据
+  void _updateActualPartnerLocationData(UserLocationMobileDevice userData) {
+    DebugUtil.info(' 开始更新伴侣的实际位置数据...');
+    
+    // 更新另一半的实际位置
+    if (userData.latitude != null && userData.longitude != null) {
+      final lat = double.tryParse(userData.latitude!);
+      final lng = double.tryParse(userData.longitude!);
+      if (lat != null && lng != null) {
+        actualPartnerLocation.value = LatLng(lat, lng);
+        DebugUtil.info(' 更新伴侣的实际位置: ${actualPartnerLocation.value}');
+      } else {
+        DebugUtil.error(' 伴侣位置数据解析失败 - lat: $lat, lng: $lng');
+      }
+    } else {
+      DebugUtil.error(' 伴侣位置数据为空 - latitude: ${userData.latitude}, longitude: ${userData.longitude}');
+    }
+  }
+
   /// 更新当前用户数据
   void _updateCurrentUserData(UserLocationMobileDevice userData) {
-    print('🔄 开始更新当前用户数据...');
-    print('📊 原始数据 - 纬度: ${userData.latitude}, 经度: ${userData.longitude}');
+    DebugUtil.info(' 开始更新当前用户数据...');
+    DebugUtil.info(' 原始数据 - 纬度: ${userData.latitude}, 经度: ${userData.longitude}');
     
     // 更新位置
     if (userData.latitude != null && userData.longitude != null) {
@@ -1125,12 +1244,12 @@ class LocationController extends GetxController {
       if (lat != null && lng != null) {
         myLocation.value = LatLng(lat, lng);
         // 注意：不在这里立即更新标记，等待所有数据准备完成后统一更新
-        print('📍 更新我的位置: ${myLocation.value}');
+        DebugUtil.info(' 更新我的位置: ${myLocation.value}');
       } else {
-        print('❌ 位置数据解析失败 - lat: $lat, lng: $lng');
+        DebugUtil.error(' 位置数据解析失败 - lat: $lat, lng: $lng');
       }
     } else {
-      print('❌ 位置数据为空 - latitude: ${userData.latitude}, longitude: ${userData.longitude}');
+      DebugUtil.error(' 位置数据为空 - latitude: ${userData.latitude}, longitude: ${userData.longitude}');
     }
     
     // 更新设备信息
@@ -1150,18 +1269,13 @@ class LocationController extends GetxController {
     // 更新当前位置文本
     currentLocationText.value = userData.location ?? "位置信息不可用";
     
-    // 从定位接口更新头像数据
-    if (userData.headPortrait != null && userData.headPortrait!.isNotEmpty) {
-      myAvatar.value = userData.headPortrait!;
-      print('🔄 更新我的头像: ${userData.headPortrait!}');
-      // 注意：不在这里创建标记，统一在loadLocationData完成后创建
-    }
+    // 🔧 头像更新已移至专门的方法中处理，这里不再处理头像
   }
   
   /// 更新另一半数据
   void _updatePartnerData(UserLocationMobileDevice partnerData) {
-    print('🔄 开始更新伴侣数据...');
-    print('📊 伴侣原始数据 - 纬度: ${partnerData.latitude}, 经度: ${partnerData.longitude}');
+    DebugUtil.info(' 开始更新伴侣数据...');
+    DebugUtil.info(' 伴侣原始数据 - 纬度: ${partnerData.latitude}, 经度: ${partnerData.longitude}');
     
     // 更新另一半位置
     if (partnerData.latitude != null && partnerData.longitude != null) {
@@ -1170,35 +1284,61 @@ class LocationController extends GetxController {
       if (lat != null && lng != null) {
         partnerLocation.value = LatLng(lat, lng);
         // 注意：不在这里立即更新标记，等待所有数据准备完成后统一更新
-        print('📍 更新伴侣位置: ${partnerLocation.value}');
+        DebugUtil.info(' 更新伴侣位置: ${partnerLocation.value}');
       } else {
-        print('❌ 伴侣位置数据解析失败 - lat: $lat, lng: $lng');
+        DebugUtil.error(' 伴侣位置数据解析失败 - lat: $lat, lng: $lng');
       }
     } else {
-      print('❌ 伴侣位置数据为空 - latitude: ${partnerData.latitude}, longitude: ${partnerData.longitude}');
+      DebugUtil.error(' 伴侣位置数据为空 - latitude: ${partnerData.latitude}, longitude: ${partnerData.longitude}');
     }
     
-    // 从定位接口更新伴侣头像数据
-    if (partnerData.headPortrait != null && partnerData.headPortrait!.isNotEmpty) {
-      partnerAvatar.value = partnerData.headPortrait!;
-      print('🔄 更新伴侣头像: ${partnerData.headPortrait!}');
-      // 注意：不在这里创建标记，统一在loadLocationData完成后创建
-    }
+    // 🔧 头像更新已移至专门的方法中处理，这里不再处理头像
   }
   
 
+  /// 🔧 新增：根据当前isOneself状态更新位置记录
+  void _updateLocationRecordsForCurrentUser() {
+    DebugUtil.info(' 根据当前isOneself状态更新位置记录...');
+    DebugUtil.check(' 当前isOneself值: ${isOneself.value}');
+    
+    UserLocationMobileDevice? currentUser;
+    if (isOneself.value == 1) {
+      // 查看自己的数据，使用userLocationMobileDevice
+      currentUser = _getUserLocationMobileDevice();
+      DebugUtil.check(' 查看自己的数据，使用userLocationMobileDevice');
+    } else {
+      // 查看另一半的数据，使用halfLocationMobileDevice  
+      currentUser = _getHalfLocationMobileDevice();
+      DebugUtil.check(' 查看另一半的数据，使用halfLocationMobileDevice');
+    }
+    
+    _updateLocationRecords(currentUser);
+  }
+  
+  /// 🔧 新增：获取userLocationMobileDevice数据（从缓存中获取）
+  UserLocationMobileDevice? _getUserLocationMobileDevice() {
+    DebugUtil.info(' 从缓存获取userLocationMobileDevice数据');
+    return _cachedUserLocationMobileDevice;
+  }
+  
+  /// 🔧 新增：获取halfLocationMobileDevice数据（从缓存中获取）
+  UserLocationMobileDevice? _getHalfLocationMobileDevice() {
+    DebugUtil.info(' 从缓存获取halfLocationMobileDevice数据');
+    return _cachedHalfLocationMobileDevice;
+  }
+
   /// 更新位置记录
   void _updateLocationRecords(UserLocationMobileDevice? userData) {
-    print('🔄 开始更新位置记录...');
-    print('🔍 调试信息 - userData: ${userData != null ? "存在" : "为空"}');
+    DebugUtil.info('开始更新位置记录...');
+    DebugUtil.check('调试信息 - userData: ${userData != null ? "存在" : "为空"}');
     if (userData != null) {
-      print('🔍 userData详细信息:');
-      print('  latitude: ${userData.latitude}');
-      print('  longitude: ${userData.longitude}');
-      print('  location: ${userData.location}');
-      print('  stops: ${userData.stops}');
-      print('  stops?.length: ${userData.stops?.length}');
-      print('  stops?.isNotEmpty: ${userData.stops?.isNotEmpty}');
+      DebugUtil.check('userData详细信息:');
+      DebugUtil.check('  latitude: ${userData.latitude}');
+      DebugUtil.check('  longitude: ${userData.longitude}');
+      DebugUtil.check('  location: ${userData.location}');
+      DebugUtil.check('  stops: ${userData.stops}');
+      DebugUtil.check('  stops?.length: ${userData.stops?.length}');
+      DebugUtil.check('  stops?.isNotEmpty: ${userData.stops?.isNotEmpty}');
     }
     
     // 清空现有记录
@@ -1206,11 +1346,11 @@ class LocationController extends GetxController {
     
     // 从API数据中提取停留点信息
     if (userData?.stops != null && userData!.stops!.isNotEmpty) {
-      print('📍 发现 ${userData.stops!.length} 个停留点');
-      print('🔍 停留点详情:');
+      DebugUtil.info('发现 ${userData.stops!.length} 个停留点');
+      DebugUtil.check('停留点详情:');
       for (int i = 0; i < userData.stops!.length; i++) {
         final stop = userData.stops![i];
-        print('  停留点$i: ${stop.locationName} - ${stop.startTime}~${stop.endTime} - 时长:${stop.duration}');
+        DebugUtil.check('  停留点$i: ${stop.locationName} - ${stop.startTime}~${stop.endTime} - 时长:${stop.duration}');
       }
       
       for (int i = 0; i < userData.stops!.length; i++) {
@@ -1230,23 +1370,23 @@ class LocationController extends GetxController {
         );
         
         locationRecords.add(record);
-        print('✅ 添加位置记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
+        DebugUtil.success('添加位置记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
       }
     } else {
-      print('⚠️ 没有找到停留点数据');
-      print('🔍 调试信息 - userData?.stops: ${userData?.stops}');
-      print('🔍 调试信息 - userData?.stops?.length: ${userData?.stops?.length}');
-      print('🔍 调试信息 - userData?.stops?.isNotEmpty: ${userData?.stops?.isNotEmpty}');
+      DebugUtil.warning('没有找到停留点数据');
+      DebugUtil.check('调试信息 - userData?.stops: ${userData?.stops}');
+      DebugUtil.check('调试信息 - userData?.stops?.length: ${userData?.stops?.length}');
+      DebugUtil.check(' 调试信息 - userData?.stops?.isNotEmpty: ${userData?.stops?.isNotEmpty}');
       
       // 没有停留点数据时，不添加任何记录，让列表保持为空以显示空状态图
-      print('⚠️ 没有停留点数据，保持列表为空以显示空状态');
+      DebugUtil.warning(' 没有停留点数据，保持列表为空以显示空状态');
     }
     
-    print('📊 位置记录更新完成，共 ${locationRecords.length} 条记录');
-    print('🔍 最终记录列表:');
+    DebugUtil.info(' 位置记录更新完成，共 ${locationRecords.length} 条记录');
+    DebugUtil.check(' 最终记录列表:');
     for (int i = 0; i < locationRecords.length; i++) {
       final record = locationRecords[i];
-      print('  记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
+      DebugUtil.check('  记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
     }
     
     // 更新轨迹线
@@ -1441,13 +1581,13 @@ class LocationController extends GetxController {
   //         '精度: ${accuracy?.toStringAsFixed(2)}米'
   //       );
         
-  //       print('✅ 单次定位成功: $latitude, $longitude, 精度: $accuracy米');
+  //       DebugUtil.success(' 单次定位成功: $latitude, $longitude, 精度: $accuracy米');
   //     } else {
   //       CustomToast.show(pageContext, '❌ 单次定位失败，请检查权限和网络');
-  //       print('❌ 单次定位失败');
+  //       DebugUtil.error(' 单次定位失败');
   //     }
   //   } catch (e) {
-  //     print('❌ 测试定位失败: $e');
+  //     DebugUtil.error(' 测试定位失败: $e');
   //     CustomToast.show(pageContext, '测试定位失败: $e');
   //   }
   // }

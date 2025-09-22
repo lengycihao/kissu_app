@@ -8,7 +8,17 @@ class ShareService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    _initUMengShare();
+    // 🔒 隐私合规：不在服务初始化时自动启动友盟SDK
+    // 等待隐私政策同意后再启动
+    // _initUMengShare(); // 移除自动初始化
+    print('友盟分享服务已注册（等待隐私政策同意后初始化）');
+  }
+
+  /// 隐私合规启动方法 - 只有在用户同意隐私政策后才调用
+  Future<void> startPrivacyCompliantService() async {
+    print('🔒 启动隐私合规友盟分享服务');
+    await _initUMengShare();
+    print('✅ 隐私合规友盟分享服务启动完成');
   }
 
   /// 初始化友盟分享SDK

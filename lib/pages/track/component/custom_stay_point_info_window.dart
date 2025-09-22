@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'dart:math' as math;
+import 'package:kissu_app/utils/debug_util.dart';
 
 /// 自定义停留点信息窗口
 class CustomStayPointInfoWindow extends StatelessWidget {
@@ -168,15 +169,15 @@ class CustomStayPointInfoWindowManager {
   
   /// 更新相机位置（由地图移动事件调用）
   static void updateCameraPosition(CameraPosition position) {
-    print('📍 相机位置更新: ${position.target.latitude}, ${position.target.longitude}, zoom: ${position.zoom}');
+    DebugUtil.info('相机位置更新: ${position.target.latitude}, ${position.target.longitude}, zoom: ${position.zoom}');
     _lastCameraPosition = position;
     
     // 如果当前有InfoWindow显示，则使用防抖机制更新其位置
     if (_currentStopPointLocation != null) {
-      print('🔄 准备更新InfoWindow位置（防抖中）...');
+      DebugUtil.info('准备更新InfoWindow位置（防抖中）...');
       _debounceUpdateInfoWindow();
     } else {
-      print('⚠️  没有当前停留点，跳过InfoWindow更新');
+      DebugUtil.warning('没有当前停留点，跳过InfoWindow更新');
     }
   }
   
@@ -187,22 +188,22 @@ class CustomStayPointInfoWindowManager {
     
     // 设置新的定时器
     _updateTimer = Timer(Duration(milliseconds: _updateDelay), () {
-      print('🔄 防抖结束，开始更新InfoWindow位置...');
+      DebugUtil.info('防抖结束，开始更新InfoWindow位置...');
       _updateInfoWindowPosition();
     });
   }
   
   /// 更新InfoWindow位置（地图移动时调用）
   static void _updateInfoWindowPosition() {
-    print('🎯 _updateInfoWindowPosition 被调用');
+    DebugUtil.info('_updateInfoWindowPosition 被调用');
     if (_currentStopPointLocation == null || 
         _mapController == null || 
         _context == null) {
-      print('❌ 缺少必要参数: stopPoint=${_currentStopPointLocation}, controller=${_mapController}, context=${_context}');
+      DebugUtil.error('缺少必要参数: stopPoint=${_currentStopPointLocation}, controller=${_mapController}, context=${_context}');
       return;
     }
     
-    print('📍 当前停留点位置: ${_currentStopPointLocation!.latitude}, ${_currentStopPointLocation!.longitude}');
+    DebugUtil.info('当前停留点位置: ${_currentStopPointLocation!.latitude}, ${_currentStopPointLocation!.longitude}');
     
     // 移除旧的overlay
     _currentOverlay?.remove();
@@ -210,7 +211,7 @@ class CustomStayPointInfoWindowManager {
     // 使用高精度坐标转换算法
     final screenPosition = _highPrecisionLatLngToScreenPoint(_currentStopPointLocation!, _context!);
     
-    print('🖥️ 屏幕坐标转换结果: ${screenPosition.dx}, ${screenPosition.dy}');
+    DebugUtil.info('屏幕坐标转换结果: ${screenPosition.dx}, ${screenPosition.dy}');
     
     // 不在这里调整位置，直接使用计算出的屏幕坐标
     // 位置调整在_PositionedInfoWindow中统一处理
@@ -219,7 +220,7 @@ class CustomStayPointInfoWindowManager {
       screenPosition.dy, // 使用原始屏幕坐标
     );
     
-    print('✅ 计算出的屏幕坐标: ${adjustedPosition.dx}, ${adjustedPosition.dy}');
+    DebugUtil.success('计算出的屏幕坐标: ${adjustedPosition.dx}, ${adjustedPosition.dy}');
     
     _currentOverlay = OverlayEntry(
       builder: (context) => _PositionedInfoWindow(
@@ -234,9 +235,9 @@ class CustomStayPointInfoWindowManager {
     
     try {
       Overlay.of(_context!).insert(_currentOverlay!);
-      print('✅ InfoWindow 成功插入到 Overlay');
+      DebugUtil.success('InfoWindow 成功插入到 Overlay');
     } catch (e) {
-      print('❌ InfoWindow插入失败: $e');
+      DebugUtil.error('InfoWindow插入失败: $e');
     }
   }
   
@@ -248,11 +249,11 @@ class CustomStayPointInfoWindowManager {
     final screenSize = MediaQuery.of(context).size;
     final mapHeight = screenSize.height * 0.6; // 地图区域高度
     
-    print('📱 屏幕尺寸: ${screenSize.width} x ${screenSize.height}, 地图高度: $mapHeight');
+    DebugUtil.info('屏幕尺寸: ${screenSize.width} x ${screenSize.height}, 地图高度: $mapHeight');
     
     // 如果没有相机位置信息，使用屏幕中心
     if (_lastCameraPosition == null) {
-      print('⚠️  没有相机位置信息，使用屏幕中心');
+      DebugUtil.warning('没有相机位置信息，使用屏幕中心');
       return Offset(screenSize.width / 2, mapHeight / 2);
     }
     
@@ -260,7 +261,7 @@ class CustomStayPointInfoWindowManager {
     final cameraTarget = camera.target;
     final zoom = camera.zoom;
     
-    print('📷 相机信息: 中心(${cameraTarget.latitude}, ${cameraTarget.longitude}), 缩放: $zoom');
+    DebugUtil.info('相机信息: 中心(${cameraTarget.latitude}, ${cameraTarget.longitude}), 缩放: $zoom');
     
     // 使用更高精度的计算
     // 基于Web墨卡托投影，但针对小范围区域优化
@@ -285,9 +286,9 @@ class CustomStayPointInfoWindowManager {
     double screenX = (screenSize.width / 2) + screenDeltaX;
     double screenY = (mapHeight / 2) + screenDeltaY;
     
-    print('🌐 坐标差异: deltaLng=$deltaLng, deltaLat=$deltaLat');
-    print('📏 屏幕偏移: deltaX=$screenDeltaX, deltaY=$screenDeltaY');
-    print('🎯 最终屏幕坐标: ($screenX, $screenY)');
+    DebugUtil.info('🌐 坐标差异: deltaLng=$deltaLng, deltaLat=$deltaLat');
+    DebugUtil.info('📏 屏幕偏移: deltaX=$screenDeltaX, deltaY=$screenDeltaY');
+    DebugUtil.info('🎯 最终屏幕坐标: ($screenX, $screenY)');
     
     return Offset(screenX, screenY);
   }
@@ -319,7 +320,7 @@ class CustomStayPointInfoWindowManager {
         : Duration.zero;
       if (_isMapMoving || timeSinceMove < _mapMoveProtectionDuration) {
         // 地图正在移动或在移动保护期内，不隐藏InfoWindow
-        print('🛡️ 地图移动保护期内，不隐藏InfoWindow');
+        DebugUtil.info('🛡️ 地图移动保护期内，不隐藏InfoWindow');
         return;
       }
     }
@@ -421,7 +422,7 @@ class CustomStayPointInfoWindowManager {
   static void startMapMoving() {
     _isMapMoving = true;
     _mapMoveStartTime = DateTime.now();
-    print('🗺️ 地图开始移动，启动保护机制');
+    DebugUtil.info('🗺️ 地图开始移动，启动保护机制');
   }
   
   /// 标记地图移动结束
@@ -430,7 +431,7 @@ class CustomStayPointInfoWindowManager {
     Future.delayed(Duration(milliseconds: 800), () {
       _isMapMoving = false;
       _mapMoveStartTime = null;
-      print('🗺️ 地图移动结束，关闭保护机制');
+      DebugUtil.info('🗺️ 地图移动结束，关闭保护机制');
     });
   }
 }
@@ -467,10 +468,10 @@ class _PositionedInfoWindow extends StatelessWidget {
     final double finalLeft = position.dx - (infoWindowWidth / 2);
     final double finalTop = position.dy - infoWindowHeight - 20;
     
-    print('📋 InfoWindow最终位置计算:');
-    print('   原始坐标: (${position.dx}, ${position.dy})');
-    print('   InfoWindow尺寸: ${infoWindowWidth}x$infoWindowHeight');
-    print('   最终位置: left=$finalLeft, top=$finalTop');
+    DebugUtil.info('📋 InfoWindow最终位置计算:');
+    DebugUtil.info('   原始坐标: (${position.dx}, ${position.dy})');
+    DebugUtil.info('   InfoWindow尺寸: ${infoWindowWidth}x$infoWindowHeight');
+    DebugUtil.info('   最终位置: left=$finalLeft, top=$finalTop');
     
     return Positioned(
       left: finalLeft, // 水平居中

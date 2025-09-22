@@ -9,6 +9,7 @@ import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'phone_history_setting_dialog.dart';
 
 class PhoneHistoryController extends GetxController {
@@ -133,9 +134,9 @@ class PhoneHistoryController extends GetxController {
         }
       }
       isBinding.value = isBound;
-      print('📱 初始化绑定状态: $isBound (从本地用户信息获取)');
+      DebugUtil.info('📱 初始化绑定状态: $isBound (从本地用户信息获取)');
     } else {
-      print('📱 用户信息为空，绑定状态保持为null');
+      DebugUtil.info('📱 用户信息为空，绑定状态保持为null');
     }
   }
 
@@ -198,10 +199,10 @@ class PhoneHistoryController extends GetxController {
           recordList.clear();
         }
         // 可以在这里显示错误信息
-        print('加载失败: ${result.msg}');
+        DebugUtil.error('加载失败: ${result.msg}');
       }
     } catch (e) {
-      print('加载数据异常: $e');
+      DebugUtil.error('加载数据异常: $e');
       if (_currentPage == 1) {
         recordList.clear();
       }
@@ -239,11 +240,11 @@ class PhoneHistoryController extends GetxController {
         }
       } else {
         _currentPage--; // 回滚页码
-        print('加载更多失败: ${result.msg}');
+        DebugUtil.error('加载更多失败: ${result.msg}');
       }
     } catch (e) {
       _currentPage--; // 回滚页码
-      print('加载更多异常: $e');
+      DebugUtil.error('加载更多异常: $e');
     } finally {
       isLoadingMore.value = false;
     }

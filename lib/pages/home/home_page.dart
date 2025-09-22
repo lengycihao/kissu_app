@@ -689,7 +689,9 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         )
                       : GestureDetector(
                           onTap: () {
-                            Get.toNamed(KissuRoutePath.location);
+                            // 修复：使用与其他定位按钮一致的导航方式
+                            debugPrint("🔍 屏视图定位按钮被点击");
+                            Get.to(() => LocationPage(), binding: LocationBinding());
                           },
                           child: Stack(
                             children: [
@@ -890,6 +892,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
               GestureDetector(
                 onTap: () {
                   // 点击定位，跳转到定位页面
+                  debugPrint("🔍 岛视图定位按钮被点击");
                   Get.to(() => LocationPage(), binding: LocationBinding());
                 },
                 child: Container(

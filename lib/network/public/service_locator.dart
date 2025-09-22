@@ -14,9 +14,9 @@ Future<void> setupServiceLocator() async {
   // 初始化 AuthService
   await authService.init();
 
-  // ✅ 注册 SensitiveDataService 单例
-  final sensitiveDataService = SensitiveDataService();
-  getIt.registerSingleton<SensitiveDataService>(sensitiveDataService);
+  // 🔒 隐私合规：SensitiveDataService 移到 main.dart 统一管理，避免重复初始化
+  // final sensitiveDataService = SensitiveDataService();
+  // getIt.registerSingleton<SensitiveDataService>(sensitiveDataService);
 
   // ✅ 注册 HomeScrollService 单例
   final homeScrollService = HomeScrollService();
@@ -39,6 +39,7 @@ Future<void> cleanupServiceLocator() async {
 extension ServiceLocatorExtensions on GetIt {
   // Business services
   AuthService get authService => get<AuthService>();
-  SensitiveDataService get sensitiveDataService => get<SensitiveDataService>();
+  // SensitiveDataService 已移到 GetX 管理，不再通过 service locator 访问
+  // SensitiveDataService get sensitiveDataService => get<SensitiveDataService>();
   HomeScrollService get homeScrollService => get<HomeScrollService>();
 }

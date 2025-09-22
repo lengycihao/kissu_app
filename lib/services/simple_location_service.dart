@@ -9,6 +9,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/model/location_model/location_report_model.dart';
 import 'package:kissu_app/network/public/location_report_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/services/foreground_location_service.dart';
+import 'package:kissu_app/utils/permission_helper.dart';
+import 'package:flutter/material.dart';
 
 /// 基于高德定位的简化版定位服务类
 class SimpleLocationService extends GetxService with WidgetsBindingObserver {
@@ -103,15 +106,13 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
-    // 服务初始化时立即设置API Key和隐私合规
-    init();
-    // 设置全局唯一的监听器
-    _setupGlobalLocationListener();
-    // 设置应用生命周期监听（参考iOS应用状态监听）
-    _setupAppLifecycleListener();
-    // 初始化权限状态
-    _initializePermissionStatus();
-    debugPrint('✅ SimpleLocationService 初始化完成（已增强后台处理能力）');
+    // 🔒 隐私合规：不在服务初始化时自动启动任何定位相关功能
+    // 等待隐私政策同意后再启动
+    // init(); // 移除自动初始化
+    // _setupGlobalLocationListener(); // 移除自动监听器设置
+    // _setupAppLifecycleListener(); // 移除自动生命周期监听
+    // _initializePermissionStatus(); // 移除自动权限检查
+    debugPrint('✅ SimpleLocationService 已注册（等待隐私政策同意后启动）');
   }
 
   @override
@@ -127,18 +128,35 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     super.onClose();
   }
   
+  /// 隐私合规启动方法 - 只有在用户同意隐私政策后才调用
+  void startPrivacyCompliantService() {
+    debugPrint('🔒 启动隐私合规定位服务');
+    
+    // 初始化API Key和隐私合规
+    init();
+    // 设置全局唯一的监听器
+    _setupGlobalLocationListener();
+    // 设置应用生命周期监听
+    _setupAppLifecycleListener();
+    // 初始化权限状态
+    _initializePermissionStatus();
+    
+    debugPrint('✅ 隐私合规定位服务启动完成');
+  }
+
   /// 设置高德地图隐私合规和API Key
-  /// 初始化定位服务（参考用户示例风格）
+  /// 初始化定位服务（隐私合规版本）
   void init() {
     try {
-      // 确保在应用启动时就设置隐私合规
+      // 🔒 隐私合规：设置隐私政策显示，并明确拒绝数据收集
       AMapFlutterLocation.updatePrivacyShow(true, true);
-      AMapFlutterLocation.updatePrivacyAgree(true);
+      // 🚫 明确拒绝隐私授权，直到用户同意隐私政策
+      AMapFlutterLocation.updatePrivacyAgree(false);
 
       // 设置API Key - 确保在任何定位操作前执行
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
 
-      debugPrint('✅ 高德定位服务初始化完成');
+      debugPrint('✅ 高德定位服务初始化完成（隐私授权已拒绝，等待用户同意）');
     } catch (e) {
       debugPrint('❌ 初始化高德定位服务失败: $e');
     }
@@ -148,6 +166,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     try {
       // 重新设置隐私合规（确保在定位前生效）
       AMapFlutterLocation.updatePrivacyShow(true, true);
+      // 🔒 隐私合规：只有在用户同意后才调用此方法，所以这里可以设置授权
       AMapFlutterLocation.updatePrivacyAgree(true);
 
       // 重新设置API Key（确保在定位前生效）
@@ -247,6 +266,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         } else if (backgroundLocationStatus.isDenied) {
           debugPrint('ℹ️ 后台定位权限未开启，前台定位仍可使用');
           // 不主动请求后台权限，避免重复弹窗
+          // 智能提醒服务会在适当时机提醒用户
         }
       }
 
@@ -263,6 +283,26 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     try {
       debugPrint('🔐 开始申请后台定位权限...');
 
+      // 1. 首先确保有前台定位权限
+      var locationStatus = await Permission.location.status;
+      debugPrint('🔐 前台定位权限状态: $locationStatus');
+
+      if (!locationStatus.isGranted) {
+        debugPrint('🔐 先申请前台定位权限...');
+        locationStatus = await Permission.location.request();
+        debugPrint('🔐 申请前台定位权限结果: $locationStatus');
+
+        if (!locationStatus.isGranted) {
+          debugPrint('❌ 前台定位权限被拒绝，无法申请后台权限');
+          CustomToast.show(
+            Get.context!,
+            '请先开启定位权限，然后再申请后台定位权限',
+          );
+          return false;
+        }
+      }
+
+      // 2. 检查后台定位权限状态
       var backgroundLocationStatus = await Permission.locationAlways.status;
       debugPrint('🔐 后台定位权限状态: $backgroundLocationStatus');
 
@@ -275,29 +315,20 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
           debugPrint('✅ 后台定位权限获取成功');
           return true;
         } else if (backgroundLocationStatus.isPermanentlyDenied) {
-          debugPrint('❌ 后台定位权限被永久拒绝');
-          CustomToast.show(
-            Get.context!,
-            '后台定位权限被永久拒绝，请在设置中开启',
-          );
+          debugPrint('❌ 后台定位权限被永久拒绝，直接跳转到设置');
+          await _openLocationSettingsDirectly();
           return false;
         } else {
-          debugPrint('⚠️ 后台定位权限被拒绝');
-          CustomToast.show(
-            Get.context!,
-            '后台定位权限被拒绝，前台定位仍可使用',
-          );
+          debugPrint('⚠️ 后台定位权限被拒绝，直接跳转到设置');
+          await _openLocationSettingsDirectly();
           return false;
         }
       } else if (backgroundLocationStatus.isGranted) {
         debugPrint('✅ 后台定位权限已授予');
         return true;
       } else if (backgroundLocationStatus.isPermanentlyDenied) {
-        debugPrint('❌ 后台定位权限被永久拒绝');
-        CustomToast.show(
-          Get.context!,
-          '后台定位权限被永久拒绝，请在设置中开启',
-        );
+        debugPrint('❌ 后台定位权限被永久拒绝，直接跳转到设置');
+        await _openLocationSettingsDirectly();
         return false;
       }
 
@@ -1637,6 +1668,8 @@ extension AppLifecycleExtension on SimpleLocationService {
   
   /// 启动增强的后台策略
   void _startEnhancedBackgroundStrategy() {
+    // 启用前台服务模式（Android）
+    _enableForegroundServiceIfNeeded();
     // 1. 启动后台保活
     _startBackgroundKeepAlive();
     
@@ -1652,6 +1685,8 @@ extension AppLifecycleExtension on SimpleLocationService {
   
   /// 停止增强的后台策略
   void _stopEnhancedBackgroundStrategy() {
+    // 禁用前台服务模式（Android）
+    _disableForegroundServiceIfNeeded();
     // 1. 停止后台保活
     _stopBackgroundKeepAlive();
     
@@ -1758,6 +1793,43 @@ extension AppLifecycleExtension on SimpleLocationService {
       debugPrint('❌ 更新后台通知失败: $e');
     }
   }
+  
+  /// 启用前台服务（如果需要）
+  Future<void> _enableForegroundServiceIfNeeded() async {
+    try {
+      final foregroundService = ForegroundLocationService.instance;
+      final success = await foregroundService.startForegroundService();
+      
+      if (success) {
+        debugPrint('✅ 前台服务启动成功');
+        // 更新前台服务通知状态
+        await foregroundService.updateForegroundServiceNotification(
+          content: '正在后台为您提供位置定位服务',
+        );
+      } else {
+        debugPrint('❌ 前台服务启动失败');
+      }
+    } catch (e) {
+      debugPrint('❌ 启用前台服务失败: $e');
+    }
+  }
+  
+  /// 禁用前台服务（如果需要）
+  Future<void> _disableForegroundServiceIfNeeded() async {
+    try {
+      final foregroundService = ForegroundLocationService.instance;
+      final success = await foregroundService.stopForegroundService();
+      
+      if (success) {
+        debugPrint('✅ 前台服务停止成功');
+      } else {
+        debugPrint('❌ 前台服务停止失败');
+      }
+    } catch (e) {
+      debugPrint('❌ 禁用前台服务失败: $e');
+    }
+  }
+  
 }
 
 // MARK: - 增强后台任务管理扩展
@@ -2473,6 +2545,23 @@ extension PermissionManagementExtension on SimpleLocationService {
       debugPrint('❌ 上报原因: $reason');
     } finally {
       isReporting.value = false;
+    }
+  }
+
+  /// 直接打开定位设置页面
+  Future<void> _openLocationSettingsDirectly() async {
+    try {
+      await PermissionHelper.openLocationSettings();
+      CustomToast.show(
+        Get.context!,
+        '请在设置中将定位权限改为"始终允许"',
+      );
+    } catch (e) {
+      debugPrint('❌ 打开定位设置页面失败: $e');
+      CustomToast.show(
+        Get.context!,
+        '无法打开设置页面，请手动前往设置中开启定位权限',
+      );
     }
   }
 }

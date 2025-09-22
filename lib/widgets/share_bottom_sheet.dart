@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -171,8 +172,8 @@ class ShareBottomSheet extends StatelessWidget {
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
       
-      // 异常时使用系统分享作为备用
-      _shareApp();
+      // // 异常时使用系统分享作为备用
+      // _shareApp();
     }
   }
 
@@ -197,15 +198,15 @@ class ShareBottomSheet extends StatelessWidget {
         final errorMsg = shareResult['message'] ?? '分享失败';
         OKToastUtil.show('QQ分享失败: $errorMsg');
         
-        // 如果友盟QQ分享失败，尝试系统分享
-        _shareApp();
+        // // 如果友盟QQ分享失败，尝试系统分享
+        // _shareApp();
       }
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
       
-      // 异常时使用系统分享作为备用
-      _shareApp();
+      // // 异常时使用系统分享作为备用
+      // _shareApp();
     }
   }
 
@@ -223,26 +224,26 @@ class ShareBottomSheet extends StatelessWidget {
   }
 
   /// 使用系统分享功能分享应用
-  void _shareApp() {
-    const String shareText = '''
-🌟 KissU - 情侣必备的专属App！
+//   void _shareApp() {
+//     const String shareText = '''
+// 🌟 KissU - 情侣必备的专属App！
 
-💕 实时定位，随时知道TA在哪里
-📱 足迹记录，记录你们的美好时光
-💌 专属空间，只属于你们两个人的世界
+// 💕 实时定位，随时知道TA在哪里
+// 📱 足迹记录，记录你们的美好时光
+// 💌 专属空间，只属于你们两个人的世界
 
-快来下载，和TA一起体验甜蜜吧！
-下载链接：https://www.kissu.app/download
-''';
+// 快来下载，和TA一起体验甜蜜吧！
+// 下载链接：https://www.kissu.app/download
+// ''';
 
-    Share.share(
-      shareText,
-      subject: 'KissU - 情侣专属App',
-    ).catchError((error) {
-      OKToastUtil.show('分享失败: $error');
-      return ShareResult.unavailable;
-    });
-  }
+//     Share.share(
+//       shareText,
+//       subject: 'Kissu - 情侣专属App',
+//     ).catchError((error) {
+//       OKToastUtil.show('分享失败: $error');
+//       return ShareResult.unavailable;
+//     });
+//   }
 
   /// 分享APP到微信
   void _shareAppToWeChat(BuildContext context) async {
@@ -254,16 +255,16 @@ class ShareBottomSheet extends StatelessWidget {
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);
       await shareService.shareToWeChat(
-        title: "KissU - 情侣专属App",
+        title: "Kissu - 情侣专属App",
         description: '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！',
-        webpageUrl: 'https://www.kissu.app/download',
+        webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=${UserManager.currentUser?.friendCode ?? '1000000'}',
       );
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
       
-      // 异常时使用系统分享作为备用
-      _shareApp();
+      // // 异常时使用系统分享作为备用
+      // _shareApp();
     }
   }
 
@@ -277,9 +278,9 @@ class ShareBottomSheet extends StatelessWidget {
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);
       final shareResult = await shareService.shareToQQ(
-        title: "KissU - 情侣专属App",
+        title: "Kissu - 情侣专属App",
         description: '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！',
-        webpageUrl: 'https://www.kissu.app/download',
+        webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=${UserManager.currentUser?.friendCode ?? '1000000'}',
       );
       
       if (shareResult['success'] == true) {
@@ -288,15 +289,15 @@ class ShareBottomSheet extends StatelessWidget {
         final errorMsg = shareResult['message'] ?? '分享失败';
         OKToastUtil.show('QQ分享失败: $errorMsg');
         
-        // 如果友盟QQ分享失败，尝试系统分享
-        _shareApp();
+        // // 如果友盟QQ分享失败，尝试系统分享
+        // _shareApp();
       }
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
       
-      // 异常时使用系统分享作为备用
-      _shareApp();
+      // // 异常时使用系统分享作为备用
+      // _shareApp();
     }
   }
 
@@ -304,10 +305,10 @@ class ShareBottomSheet extends StatelessWidget {
   void _copyAppLink(BuildContext context) {
     Navigator.of(context).pop();
     
-    const appLink = 'https://www.kissu.app/download';
+     final appLink = 'https://www.ikissu.cn/share/matchingcode.html?bindCode=${UserManager.currentUser?.friendCode ?? '1000000'}';
     
-    Clipboard.setData(const ClipboardData(text: appLink)).then((_) {
-      OKToastUtil.show('下载链接已复制到剪贴板');
+    Clipboard.setData(  ClipboardData(text: appLink)).then((_) {
+      OKToastUtil.show('链接已复制到剪贴板');
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');
     });

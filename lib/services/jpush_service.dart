@@ -24,7 +24,8 @@ class JPushService extends GetxService {
   @override
   Future<void> onInit() async {
     super.onInit();
-    await initJPush();
+    // 🔒 隐私合规：不立即初始化，等待用户同意隐私政策
+    debugPrint('极光推送服务已注册，等待隐私授权后初始化');
   }
   
   /// 初始化极光推送
