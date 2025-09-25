@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/utils/pag_preloader.dart';
+// import 'package:kissu_app/utils/pag_preloader.dart'; // 注释掉PAG预加载器导入
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/pages/location/location_binding.dart';
@@ -23,7 +23,7 @@ import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
-import 'package:kissu_app/utils/memory_manager.dart';
+// import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 
@@ -83,8 +83,8 @@ class HomeController extends GetxController {
     // 初始化认证服务
     _authService = getIt<AuthService>();
     
-    // 预加载首页PAG资源
-    _preloadPagAssets();
+    // 预加载首页PAG资源 (已注释)
+    // _preloadPagAssets();
     
     _initializeLocationService();
     loadUserInfo();
@@ -106,18 +106,18 @@ class HomeController extends GetxController {
   }
   
   
-  /// 预加载首页PAG资源
-  void _preloadPagAssets() {
-    // 异步预加载，不阻塞页面初始化
-    Future.microtask(() async {
-      try {
-        await PagPreloader.preloadHomePagAssets();
-        debugPrint('🎬 首页PAG资源预加载完成');
-      } catch (e) {
-        debugPrint('🎬 首页PAG资源预加载失败: $e');
-      }
-    });
-  }
+  /// 预加载首页PAG资源 (已注释)
+  // void _preloadPagAssets() {
+  //   // 异步预加载，不阻塞页面初始化
+  //   Future.microtask(() async {
+  //     try {
+  //       await PagPreloader.preloadHomePagAssets();
+  //       debugPrint('🎬 首页PAG资源预加载完成');
+  //     } catch (e) {
+  //       debugPrint('🎬 首页PAG资源预加载失败: $e');
+  //     }
+  //   });
+  // }
 
   /// 初始化滚动控制器，如果有预设位置则使用预设位置
   void _initializeScrollController() {
@@ -163,13 +163,13 @@ class HomeController extends GetxController {
       debugPrint('清理ScrollController时出错: $e');
     }
     
-    // 清理PAG动画缓存资源
-    try {
-      MemoryManager.clearAllCaches();
-      debugPrint('🧹 首页Controller销毁，清理资源');
-    } catch (e) {
-      debugPrint('清理资源时出错: $e');
-    }
+    // 清理PAG动画缓存资源 (已注释)
+    // try {
+    //   MemoryManager.clearAllCaches();
+    //   debugPrint('🧹 首页Controller销毁，清理资源');
+    // } catch (e) {
+    //   debugPrint('清理资源时出错: $e');
+    // }
     super.onClose();
   }
   

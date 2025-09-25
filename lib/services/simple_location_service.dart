@@ -10,6 +10,8 @@ import 'package:kissu_app/model/location_model/location_report_model.dart';
 import 'package:kissu_app/network/public/location_report_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
+import 'package:kissu_app/services/app_lifecycle_service.dart';
+import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:flutter/material.dart';
 
@@ -66,9 +68,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   Timer? _backgroundKeepAliveTimer;
   
   // 多重保障定时器（增强后台稳定性）
-  Timer? _quickCheckTimer;     // 快速检查定时器（15秒）
-  Timer? _mediumCheckTimer;    // 中等检查定位器（45秒）
-  Timer? _deepCheckTimer;      // 深度检查定时器（90秒）
+  Timer? _quickCheckTimer;     // 快速检查定时器（20秒）
+  Timer? _mediumCheckTimer;    // 中等检查定位器（60秒）
+  Timer? _deepCheckTimer;      // 深度检查定时器（120秒）
   Timer? _batteryOptimizedTimer; // 电池优化定时器（动态间隔）
   
   // 智能定时器控制
@@ -224,35 +226,14 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     try {
       debugPrint('🔐 开始申请定位权限...');
 
-      // 1. 首先申请前台定位权限
-      var locationStatus = await Permission.location.status;
-      debugPrint('🔐 前台定位权限状态: $locationStatus');
+      // 使用统一的权限申请管理器
+      final permissionManager = LocationPermissionManager.instance;
+      bool hasPermission = await permissionManager.requestLocationPermission();
 
-      if (locationStatus.isDenied) {
-        locationStatus = await Permission.location.request();
-        debugPrint('🔐 申请前台定位权限结果: $locationStatus');
+      if (hasPermission) {
+        debugPrint('✅ 定位权限申请成功，检查后台定位权限状态...');
 
-        if (locationStatus.isDenied) {
-          CustomToast.show(
-            Get.context!,
-            '定位权限被拒绝，无法使用定位功能',
-          );
-          return false;
-        }
-      }
-
-      if (locationStatus.isPermanentlyDenied) {
-        CustomToast.show(
-          Get.context!,
-          '定位权限被永久拒绝，请在设置中开启定位权限',
-        );
-        return false;
-      }
-
-      // 2. 检查后台定位权限状态，但不主动请求（避免重复弹窗）
-      if (locationStatus.isGranted) {
-        debugPrint('🔐 前台定位权限已获得，检查后台定位权限状态...');
-
+        // 检查后台定位权限状态，但不主动请求（避免重复弹窗）
         var backgroundLocationStatus = await Permission.locationAlways.status;
         debugPrint('🔐 后台定位权限状态: $backgroundLocationStatus');
 
@@ -271,7 +252,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       }
 
       debugPrint('✅ 定位权限申请完成');
-      return locationStatus.isGranted;
+      return hasPermission;
     } catch (e) {
       debugPrint('❌ 请求定位权限失败: $e');
       return false;
@@ -497,6 +478,10 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       
       isLocationEnabled.value = true;
       hasInitialReport.value = false; // 重置初始上报状态
+      
+      // 🔥 重要优化：根据应用状态智能决定是否启动后台定时器
+      _smartStartLocationStrategy();
+      
       debugPrint('✅ 高德定位服务已启动完成');
       return true;
     } catch (e) {
@@ -864,12 +849,32 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     }
   }
   
-  /// 启动定时单次定位（备用方案）
+  /// 启动定时单次定位（备用方案）- 智能调度
   void _startPeriodicSingleLocation() {
     debugPrint('🔄 启动定时单次定位作为备用方案...');
     
     // 每30秒进行一次单次定位，确保有数据回调
     _periodicLocationTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
+      // 🔥 检查应用状态，前台时降低频率
+      try {
+        final appLifecycle = AppLifecycleService.instance;
+        if (appLifecycle.isInForeground) {
+          // 前台时，如果持续定位正常工作，则跳过更多次数
+          if (currentLocation.value != null) {
+            final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
+            if (lastUpdateTime != null) {
+              final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+              if (now - lastUpdateTime < 60) { // 前台时放宽到60秒
+                debugPrint('🔄 前台持续定位正常，跳过定时单次定位');
+                return;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ 定时单次定位状态检查失败: $e');
+      }
+      
       // 如果正常的持续定位工作正常（最近30秒内有数据），则跳过单次定位
       if (currentLocation.value != null) {
         final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
@@ -1567,6 +1572,32 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     _stopEnhancedBackgroundStrategy();
   }
   
+  /// 智能启动策略：根据应用状态决定是否启动后台定时器
+  void _smartStartLocationStrategy() {
+    try {
+      // 获取应用生命周期状态
+      final appLifecycle = AppLifecycleService.instance;
+      final isInBackground = appLifecycle.isInBackground;
+      
+      debugPrint('🧠 智能启动策略检查：应用${isInBackground ? "在后台" : "在前台"}');
+      
+      if (isInBackground) {
+        // 应用在后台，启动增强后台策略
+        debugPrint('🌃 应用在后台，启动增强后台策略（包含多重定时器）');
+        _startEnhancedBackgroundStrategy();
+      } else {
+        // 应用在前台，只启动基础定位，不启动后台定时器
+        debugPrint('🌅 应用在前台，仅启动基础定位（不启动后台定时器）');
+        // 确保后台定时器已停止
+        _stopEnhancedBackgroundStrategy();
+      }
+    } catch (e) {
+      debugPrint('❌ 智能启动策略检查失败: $e');
+      // 出错时默认不启动后台定时器（安全策略）
+      _stopEnhancedBackgroundStrategy();
+    }
+  }
+  
   /// 获取服务状态
   Map<String, dynamic> get currentServiceStatus {
     return {
@@ -1835,14 +1866,37 @@ extension AppLifecycleExtension on SimpleLocationService {
 // MARK: - 增强后台任务管理扩展
 extension BackgroundTaskExtension on SimpleLocationService {
   
-  /// 开始后台保活任务（增强版本）
+  /// 开始后台保活任务（增强版本）- 仅在后台运行
   void _startBackgroundKeepAlive() {
+    // 🔥 重要检查：只在后台时启动保活定时器
+    try {
+      final appLifecycle = AppLifecycleService.instance;
+      if (!appLifecycle.isInBackground) {
+        debugPrint('⚠️ 应用在前台，跳过启动后台保活定时器');
+        return;
+      }
+    } catch (e) {
+      debugPrint('❌ 无法获取应用状态，为安全起见跳过后台保活定时器: $e');
+      return;
+    }
+    
     _backgroundTaskId = DateTime.now().millisecondsSinceEpoch;
-    debugPrint('🔧 开始增强后台保活任务 ID: $_backgroundTaskId');
+    debugPrint('🔧 应用在后台，开始增强后台保活任务 ID: $_backgroundTaskId');
     
     // 启动主保活定时器（30秒间隔）
     _backgroundKeepAliveTimer?.cancel();
     _backgroundKeepAliveTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      // 每次执行前检查应用状态
+      try {
+        final appLifecycle = AppLifecycleService.instance;
+        if (!appLifecycle.isInBackground) {
+          debugPrint('⚠️ 应用已回到前台，停止后台保活定时器');
+          timer.cancel();
+          return;
+        }
+      } catch (e) {
+        debugPrint('❌ 后台保活定时器状态检查失败: $e');
+      }
       _maintainBackgroundLocation();
     });
   }
@@ -1859,30 +1913,77 @@ extension BackgroundTaskExtension on SimpleLocationService {
     _stopMultipleBackgroundTimers();
   }
   
-  /// 启动多重保障定时器（增强后台稳定性）
+  /// 启动多重保障定时器（增强后台稳定性）- 仅在后台运行
   void _startMultipleBackgroundTimers() {
+    // 🔥 重要检查：只在后台时启动这些定时器
+    try {
+      final appLifecycle = AppLifecycleService.instance;
+      if (!appLifecycle.isInBackground) {
+        debugPrint('⚠️ 应用在前台，跳过启动后台定时器');
+        return;
+      }
+    } catch (e) {
+      debugPrint('❌ 无法获取应用状态，为安全起见跳过后台定时器: $e');
+      return;
+    }
+    
     // 停止现有定时器
     _stopMultipleBackgroundTimers();
     
-    // 定时器1：快速检查（15秒）- 检查定位服务状态
-    _quickCheckTimer = Timer.periodic(Duration(seconds: 15), (timer) {
+    debugPrint('🌃 应用在后台，启动多重保障定时器');
+    
+    // 定时器1：快速检查（20秒）- 检查定位服务状态
+    _quickCheckTimer = Timer.periodic(Duration(seconds: 20), (timer) {
+      // 每次执行前再次检查应用状态
+      try {
+        final appLifecycle = AppLifecycleService.instance;
+        if (!appLifecycle.isInBackground) {
+          debugPrint('⚠️ 应用已回到前台，停止快速检查定时器');
+          timer.cancel();
+          return;
+        }
+      } catch (e) {
+        debugPrint('❌ 快速检查定时器状态检查失败: $e');
+      }
       _quickLocationServiceCheck();
     });
     
-    // 定时器2：中等检查（45秒）- 检查位置更新
-    _mediumCheckTimer = Timer.periodic(Duration(seconds: 45), (timer) {
+    // 定时器2：中等检查（60秒）- 检查位置更新
+    _mediumCheckTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+      // 每次执行前再次检查应用状态
+      try {
+        final appLifecycle = AppLifecycleService.instance;
+        if (!appLifecycle.isInBackground) {
+          debugPrint('⚠️ 应用已回到前台，停止中等检查定时器');
+          timer.cancel();
+          return;
+        }
+      } catch (e) {
+        debugPrint('❌ 中等检查定时器状态检查失败: $e');
+      }
       _mediumLocationUpdateCheck();
     });
     
-    // 定时器3：深度检查（90秒）- 完整性检查和恢复
-    _deepCheckTimer = Timer.periodic(Duration(seconds: 90), (timer) {
+    // 定时器3：深度检查（120秒）- 完整性检查和恢复
+    _deepCheckTimer = Timer.periodic(Duration(seconds: 120), (timer) {
+      // 每次执行前再次检查应用状态
+      try {
+        final appLifecycle = AppLifecycleService.instance;
+        if (!appLifecycle.isInBackground) {
+          debugPrint('⚠️ 应用已回到前台，停止深度检查定时器');
+          timer.cancel();
+          return;
+        }
+      } catch (e) {
+        debugPrint('❌ 深度检查定时器状态检查失败: $e');
+      }
       _deepLocationIntegrityCheck();
     });
     
     // 定时器4：智能电池优化定时器（动态间隔）
     _startBatteryOptimizedTimer();
     
-    debugPrint('🔧 启动多重保障定时器：15s/45s/90s + 智能优化');
+    debugPrint('🔧 后台多重保障定时器已启动：20s/60s/120s + 智能优化');
   }
   
   /// 停止多重保障定时器
@@ -1993,8 +2094,20 @@ extension BackgroundTaskExtension on SimpleLocationService {
     }
   }
   
-  /// 启动智能电池优化定时器
+  /// 启动智能电池优化定时器 - 仅在后台运行
   void _startBatteryOptimizedTimer() {
+    // 🔥 重要检查：只在后台时启动电池优化定时器
+    try {
+      final appLifecycle = AppLifecycleService.instance;
+      if (!appLifecycle.isInBackground) {
+        debugPrint('⚠️ 应用在前台，跳过启动电池优化定时器');
+        return;
+      }
+    } catch (e) {
+      debugPrint('❌ 无法获取应用状态，为安全起见跳过电池优化定时器: $e');
+      return;
+    }
+    
     _batteryOptimizedTimer?.cancel();
     
     Duration interval = _isInLowPowerMode 
@@ -2002,10 +2115,21 @@ extension BackgroundTaskExtension on SimpleLocationService {
         : Duration(seconds: 60);
     
     _batteryOptimizedTimer = Timer.periodic(interval, (timer) {
+      // 每次执行前检查应用状态
+      try {
+        final appLifecycle = AppLifecycleService.instance;
+        if (!appLifecycle.isInBackground) {
+          debugPrint('⚠️ 应用已回到前台，停止电池优化定时器');
+          timer.cancel();
+          return;
+        }
+      } catch (e) {
+        debugPrint('❌ 电池优化定时器状态检查失败: $e');
+      }
       _performBatteryOptimizedCheck();
     });
     
-    debugPrint('🔋 启动电池优化定时器，间隔: ${interval.inSeconds}秒');
+    debugPrint('🔋 后台电池优化定时器已启动，间隔: ${interval.inSeconds}秒');
   }
   
   /// 执行电池优化检查

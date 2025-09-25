@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
-import 'package:kissu_app/widgets/delayed_pag_widget.dart';
+// import 'package:kissu_app/widgets/delayed_pag_widget.dart'; // 注释掉PAG动画相关导入
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
@@ -76,74 +76,74 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   // 背景图片
                   Positioned.fill(
                     child: Image.asset(
-                      "assets/kissu_home_bg.png",
-                      width: ScreenAdaptation.getDynamicBackgroundSize().width, // 使用动态宽度
+                      "assets/kissu_home_bg.webp",
+                      width: 1500, // 固定宽度1500px
                       height: ScreenAdaptation.getDynamicBackgroundSize().height, // 使用动态高度
                       fit: BoxFit.cover, // 改回cover以保持原有显示效果
                     ),
                   ),
                   
-                  // PAG动画层 - home_bg_person.pag (优化延迟时间)
-                  Positioned(
-                    left: ScreenAdaptation.scaleXByDynamicWidth(395), // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(293), // Y坐标基于高度缩放
-                    child: DelayedPagWidget(
-                      assetPath: 'assets/pag/home_bg_person.pag',
-                      width: ScreenAdaptation.scaleSizeByHeight(350), // 基于高度比例缩放大小
-                      height: ScreenAdaptation.scaleSizeByHeight(380), // 基于高度比例缩放大小
-                      delay: Duration(milliseconds: 200), // 减少延迟时间
-                      autoPlay: true,
-                      repeat: true,
-                    ),
-                  ),
+                  // PAG动画层 - home_bg_person.pag (已注释)
+                  // Positioned(
+                  //   left: ScreenAdaptation.scaleXByDynamicWidth(395), // 基于动态背景宽度缩放X坐标
+                  //   top: ScreenAdaptation.scaleY(293), // Y坐标基于高度缩放
+                  //   child: DelayedPagWidget(
+                  //     assetPath: 'assets/pag/home_bg_person.pag',
+                  //     width: ScreenAdaptation.scaleSizeByHeight(350), // 基于高度比例缩放大小
+                  //     height: ScreenAdaptation.scaleSizeByHeight(380), // 基于高度比例缩放大小
+                  //     delay: Duration(milliseconds: 200), // 减少延迟时间
+                  //     autoPlay: true,
+                  //     repeat: true,
+                  //   ),
+                  // ),
                   
-                  // PAG动画层 - home_bg_fridge.pag (优化延迟时间)
-                  Positioned(
-                    left: ScreenAdaptation.scaleXByDynamicWidth(22), // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(139), // Y坐标基于高度缩放
-                    child: DelayedPagWidget(
-                      assetPath: 'assets/pag/home_bg_fridge.pag',
-                      width: ScreenAdaptation.scaleSizeByHeight(174), // 基于高度比例缩放大小
-                      height: ScreenAdaptation.scaleSizeByHeight(364), // 基于高度比例缩放大小
-                      delay: Duration(milliseconds: 400), // 减少延迟时间
-                    ),
-                  ),
+                  // PAG动画层 - home_bg_fridge.pag (已注释)
+                  // Positioned(
+                  //   left: ScreenAdaptation.scaleXByDynamicWidth(22), // 基于动态背景宽度缩放X坐标
+                  //   top: ScreenAdaptation.scaleY(139), // Y坐标基于高度缩放
+                  //   child: DelayedPagWidget(
+                  //     assetPath: 'assets/pag/home_bg_fridge.pag',
+                  //     width: ScreenAdaptation.scaleSizeByHeight(174), // 基于高度比例缩放大小
+                  //     height: ScreenAdaptation.scaleSizeByHeight(364), // 基于高度比例缩放大小
+                  //     delay: Duration(milliseconds: 400), // 减少延迟时间
+                  //   ),
+                  // ),
                   
-                  // PAG动画层 - home_bg_clothes.pag (优化延迟时间)
-                  Positioned(
-                    left: ScreenAdaptation.scaleXByDynamicWidth(1228), // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(68), // Y坐标基于高度缩放
-                    child: DelayedPagWidget(
-                      assetPath: 'assets/pag/home_bg_clothes.pag',
-                      width: ScreenAdaptation.scaleSizeByHeight(272), // 基于高度比例缩放大小
-                      height: ScreenAdaptation.scaleSizeByHeight(174), // 基于高度比例缩放大小
-                      delay: Duration(milliseconds: 600), // 减少延迟时间
-                    ),
-                  ),
+                  // PAG动画层 - home_bg_clothes.pag (已注释)
+                  // Positioned(
+                  //   left: ScreenAdaptation.scaleXByDynamicWidth(1228), // 基于动态背景宽度缩放X坐标
+                  //   top: ScreenAdaptation.scaleY(68), // Y坐标基于高度缩放
+                  //   child: DelayedPagWidget(
+                  //     assetPath: 'assets/pag/home_bg_clothes.pag',
+                  //     width: ScreenAdaptation.scaleSizeByHeight(272), // 基于高度比例缩放大小
+                  //     height: ScreenAdaptation.scaleSizeByHeight(174), // 基于高度比例缩放大小
+                  //     delay: Duration(milliseconds: 600), // 减少延迟时间
+                  //   ),
+                  // ),
                   
-                  // PAG动画层 - home_bg_flowers.pag (优化延迟时间)
-                  Positioned(
-                    left: ScreenAdaptation.scaleXByDynamicWidth(675), // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(268), // Y坐标基于高度缩放
-                    child: DelayedPagWidget(
-                      assetPath: 'assets/pag/home_bg_flowers.pag',
-                      width: ScreenAdaptation.scaleSizeByHeight(232), // 基于高度比例缩放大小
-                      height: ScreenAdaptation.scaleSizeByHeight(119), // 基于高度比例缩放大小
-                      delay: Duration(milliseconds: 800), // 减少延迟时间
-                    ),
-                  ),
+                  // PAG动画层 - home_bg_flowers.pag (已注释)
+                  // Positioned(
+                  //   left: ScreenAdaptation.scaleXByDynamicWidth(675), // 基于动态背景宽度缩放X坐标
+                  //   top: ScreenAdaptation.scaleY(268), // Y坐标基于高度缩放
+                  //   child: DelayedPagWidget(
+                  //     assetPath: 'assets/pag/home_bg_flowers.pag',
+                  //     width: ScreenAdaptation.scaleSizeByHeight(232), // 基于高度比例缩放大小
+                  //     height: ScreenAdaptation.scaleSizeByHeight(119), // 基于高度比例缩放大小
+                  //     delay: Duration(milliseconds: 800), // 减少延迟时间
+                  //   ),
+                  // ),
                   
-                  // PAG动画层 - home_bg_music.pag (优化延迟时间)
-                  Positioned(
-                    left: ScreenAdaptation.scaleXByDynamicWidth(352), // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(260), // Y坐标基于高度缩放
-                    child: DelayedPagWidget(
-                      assetPath: 'assets/pag/home_bg_music.pag',
-                      width: ScreenAdaptation.scaleSizeByHeight(130), // 基于高度比例缩放大小
-                      height: ScreenAdaptation.scaleSizeByHeight(108), // 基于高度比例缩放大小
-                      delay: Duration(milliseconds: 1000), // 减少延迟时间
-                    ),
-                  ),
+                  // PAG动画层 - home_bg_music.pag (已注释)
+                  // Positioned(
+                  //   left: ScreenAdaptation.scaleXByDynamicWidth(352), // 基于动态背景宽度缩放X坐标
+                  //   top: ScreenAdaptation.scaleY(260), // Y坐标基于高度缩放
+                  //   child: DelayedPagWidget(
+                  //     assetPath: 'assets/pag/home_bg_music.pag',
+                  //     width: ScreenAdaptation.scaleSizeByHeight(130), // 基于高度比例缩放大小
+                  //     height: ScreenAdaptation.scaleSizeByHeight(108), // 基于高度比例缩放大小
+                  //     delay: Duration(milliseconds: 1000), // 减少延迟时间
+                  //   ),
+                  // ),
                   
                 ],
               ),
@@ -725,16 +725,10 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                 child: Container(
                                   width: 31,
                                   height: 38,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage(
-                                        "assets/kissu_home_header_bg.webp",
-                                      ),
-                                    ),
-                                  ),
+                                  // 移除背景图decoration，保持容器尺寸和位置
                                   alignment: Alignment.center,
                                   child: Transform.translate(
-                                    offset: Offset(0, -2),
+                                    offset: Offset(0.5, -3),
                                     child: ClipRRect(
                                       borderRadius: BorderRadiusGeometry.circular(
                                         15,

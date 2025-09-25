@@ -12,11 +12,14 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
   final FileUploadApi _fileUploadApi = FileUploadApi();
   final AuthService _authService = getIt<AuthService>();
+  final PermissionService _permissionService = PermissionService();
 
   // 初始化变量
   var avatarUrl = RxString(''); // 头像URL
@@ -95,9 +98,63 @@ class InfoSettingController extends GetxController {
   /// 选择头像
   Future<void> pickImage() async {
     try {
-      // 显示选择来源的对话框
-      final source = await _showImageSourceDialog();
-      if (source == null) return;
+      // 检查是否已有相册和相机权限
+      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
+      final hasCameraPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      
+      // 如果两个权限都有，直接显示选择来源对话框
+      if (hasPhotoPermission && hasCameraPermission) {
+        final source = await _showImageSourceDialog();
+        if (source == null) return;
+        await _pickImageFromSource(source);
+        return;
+      }
+      
+      // 如果没有权限，先显示权限说明弹窗
+      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
+      if (shouldContinue != true) return;
+      
+      // 申请权限
+      bool photoPermissionGranted = hasPhotoPermission;
+      bool cameraPermissionGranted = hasCameraPermission;
+      
+      if (!hasPhotoPermission) {
+        photoPermissionGranted = await _permissionService.requestPhotosPermission();
+      }
+      
+      if (!hasCameraPermission) {
+        cameraPermissionGranted = await _permissionService.requestCameraPermission();
+      }
+      
+      // 如果至少有一个权限被授予，显示选择来源对话框
+      if (photoPermissionGranted || cameraPermissionGranted) {
+        final source = await _showImageSourceDialog();
+        if (source == null) return;
+        await _pickImageFromSource(source);
+      } else {
+        OKToastUtil.show('权限未授予，无法选择图片');
+      }
+    } catch (e) {
+      print('选择头像失败: $e');
+      OKToastUtil.show('选择头像失败');
+    }
+  }
+
+  /// 从指定来源选择图片
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    try {
+      // 再次检查权限状态（防止用户在选择来源时权限被撤销）
+      bool hasPermission = false;
+      if (source == ImageSource.camera) {
+        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      } else {
+        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
+      }
+
+      if (!hasPermission) {
+        OKToastUtil.show('权限未授予，无法选择图片');
+        return;
+      }
 
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(

@@ -135,6 +135,12 @@ class SystemPermissionController extends GetxController with WidgetsBindingObser
         return isBatteryOptimized.value;
       case PermissionType.usage:
         return isUsageAccessGranted.value;
+      case PermissionType.photos:
+        // 相册权限状态需要通过 PermissionService 检查
+        return true; // 默认返回 true，实际状态由 PermissionService 管理
+      case PermissionType.camera:
+        // 相机权限状态需要通过 PermissionService 检查
+        return true; // 默认返回 true，实际状态由 PermissionService 管理
     }
   }
 

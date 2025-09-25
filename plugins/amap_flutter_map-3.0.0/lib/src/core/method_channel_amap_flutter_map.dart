@@ -19,7 +19,11 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
   final Map<int, MethodChannel> _channels = {};
 
   MethodChannel channel(int mapId) {
-    return _channels[mapId]!;
+    final channel = _channels[mapId];
+    if (channel == null) {
+      throw StateError('地图Channel未初始化，mapId: $mapId');
+    }
+    return channel;
   }
 
   @override
@@ -228,12 +232,18 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     required int mapId,
     bool animated = true,
     int duration = 0,
-  }) {
-    return channel(mapId).invokeMethod<void>('camera#move', <String, dynamic>{
-      'cameraUpdate': cameraUpdate.toJson(),
-      'animated': animated,
-      'duration': duration
-    });
+  }) async {
+    try {
+      final mapChannel = channel(mapId);
+      await mapChannel.invokeMethod<void>('camera#move', <String, dynamic>{
+        'cameraUpdate': cameraUpdate.toJson(),
+        'animated': animated,
+        'duration': duration
+      });
+    } catch (e) {
+      print('🚨 移动相机失败: $e, mapId: $mapId');
+      rethrow;
+    }
   }
 
   ///设置地图每秒渲染的帧数

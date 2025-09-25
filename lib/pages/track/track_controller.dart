@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -144,18 +145,8 @@ class TrackController extends GetxController {
         loadLocationData();
       } else {
         DebugUtil.error('轨迹页面权限未授予，请求权限');
-        // 请求定位权限
-        final result = await Permission.location.request();
-        if (result.isGranted) {
-          DebugUtil.success('轨迹页面权限获取成功，加载数据');
-          loadLocationData();
-        } else {
-          DebugUtil.error('轨迹页面权限被拒绝');
-          CustomToast.show(
-            Get.context!,
-            '需要定位权限来显示轨迹信息',
-          );
-        }
+        // 显示自定义权限申请弹窗
+        await _showLocationPermissionDialog();
       }
     } catch (e) {
       DebugUtil.error('轨迹页面权限请求失败: $e');
@@ -164,6 +155,33 @@ class TrackController extends GetxController {
         '定位权限请求失败',
       );
     }
+  }
+
+  /// 显示定位权限申请弹窗
+  Future<void> _showLocationPermissionDialog() async {
+    await Get.dialog<bool>(
+      PermissionRequestDialog(
+        title: '定位权限申请',
+        content: '需要获取您的位置信息来显示轨迹数据，这将帮助我们为您提供更准确的轨迹分析。',
+        onContinue: () async {
+          Get.back(result: true);
+          // 请求系统定位权限
+          final result = await Permission.location.request();
+          if (result.isGranted) {
+            DebugUtil.success('轨迹页面权限获取成功，加载数据');
+            loadLocationData();
+          } else {
+            DebugUtil.error('轨迹页面权限被拒绝');
+            // 权限被拒绝时，静默处理，不显示额外提示
+          }
+        },
+        onCancel: () {
+          Get.back(result: false);
+          DebugUtil.error('用户拒绝了轨迹页面定位权限');
+        },
+      ),
+      barrierDismissible: false,
+    );
   }
 
   /// 加载用户信息（初始化头像为用户信息中的头像）

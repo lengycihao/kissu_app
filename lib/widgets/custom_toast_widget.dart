@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class CustomToastWidget extends StatefulWidget {
   final String message;
@@ -172,16 +173,42 @@ class CustomToast {
         }
       }
       
+      // 方式4: 使用GetX的overlay
+      if (overlay == null) {
+        try {
+          overlay = Get.overlayContext?.findAncestorStateOfType<OverlayState>();
+        } catch (e) {
+          print('CustomToast: Failed to get GetX overlay: $e');
+        }
+      }
+      
       if (overlay == null) {
         print('CustomToast: No overlay available, using fallback SnackBar');
         // 使用SnackBar作为fallback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            duration: duration,
-            backgroundColor: backgroundColor,
-          ),
-        );
+        try {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              duration: duration,
+              backgroundColor: backgroundColor,
+            ),
+          );
+        } catch (e) {
+          print('CustomToast: SnackBar also failed: $e');
+          // 最后的fallback：使用Get.snackbar
+          try {
+            Get.snackbar(
+              '提示',
+              message,
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: backgroundColor,
+              colorText: textColor,
+              duration: duration,
+            );
+          } catch (e2) {
+            print('CustomToast: All fallback methods failed: $e2');
+          }
+        }
         return;
       }
       
@@ -219,6 +246,19 @@ class CustomToast {
         );
       } catch (e2) {
         print('CustomToast: Even SnackBar failed: $e2');
+        // 使用Get.snackbar作为最终fallback
+        try {
+          Get.snackbar(
+            '提示',
+            message,
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: backgroundColor,
+            colorText: textColor,
+            duration: duration,
+          );
+        } catch (e3) {
+          print('CustomToast: All fallback methods failed: $e3');
+        }
       }
     }
   }

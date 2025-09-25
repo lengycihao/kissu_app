@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:dio/dio.dart';
+import 'package:kissu_app/services/permission_service.dart';
 
 class ImageHandler {
   final ImagePicker _imagePicker = ImagePicker();
+  final PermissionService _permissionService = PermissionService();
 
   // 显示选择来源弹窗
   void showImageSourceDialog(
@@ -123,9 +124,13 @@ class ImageHandler {
   // 从相机获取图片
   Future<File?> _getImageFromCamera(BuildContext context) async {
     try {
-      // 检查相机权限
-      if (!await _checkPermission(Permission.camera, "相机", context)) {
-        return null;
+      // 使用统一权限服务检查相机权限
+      if (!await _permissionService.checkPermissionStatus(PermissionType.camera)) {
+        final granted = await _permissionService.requestCameraPermission();
+        if (!granted) {
+          _showEnhancedPermissionDeniedDialog(context, "相机", PermissionType.camera);
+          return null;
+        }
       }
 
       // 调用相机
@@ -149,9 +154,13 @@ class ImageHandler {
     int maxSelectable,
   ) async {
     try {
-      // 检查相册权限
-      if (!await _checkPermission(_getGalleryPermission(), "相册", context)) {
-        return [];
+      // 使用统一权限服务检查相册权限
+      if (!await _permissionService.checkPermissionStatus(PermissionType.photos)) {
+        final granted = await _permissionService.requestPhotosPermission();
+        if (!granted) {
+          _showEnhancedPermissionDeniedDialog(context, "相册", PermissionType.photos);
+          return [];
+        }
       }
       Navigator.pop(context);
       // 调用相册选择多张图片
@@ -182,59 +191,52 @@ class ImageHandler {
     }
   }
 
-  // 根据平台获取相册权限
-  Permission _getGalleryPermission() {
-    if (Platform.isAndroid) {
-      return Permission.photos;
-    } else if (Platform.isIOS) {
-      return Permission.photos;
-    }
-    return Permission.storage;
-  }
+  // 注意：旧的权限检查方法已移除，现在使用统一的 PermissionService
+  // 如果其他地方还在使用 _checkPermission，请更新为使用 PermissionService
 
-  // 检查并请求权限
-  Future<bool> _checkPermission(
-    Permission permission,
-    String permissionName,
-    BuildContext context,
-  ) async {
-    // 检查权限状态
-    final status = await permission.status;
-
-    if (status.isGranted) {
-      return true;
-    }
-
-    // 请求权限
-    final result = await permission.request();
-
-    if (result.isGranted) {
-      return true;
-    } else {
-      _showPermissionDeniedDialog(context, permissionName);
-      return false;
-    }
-  }
-
-  // 显示权限被拒绝对话框
-  void _showPermissionDeniedDialog(
+  // 显示增强的权限被拒绝对话框（支持跳转设置）
+  void _showEnhancedPermissionDeniedDialog(
     BuildContext context,
     String permissionName,
+    PermissionType permissionType,
   ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("权限不足"),
-        content: Text("需要$permissionName权限才能继续，请在设置中开启。"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("需要$permissionName权限才能继续使用此功能。"),
+            const SizedBox(height: 8),
+            Text(
+              _permissionService.getPermissionDescription(permissionType),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("确定"),
+            child: const Text("取消"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _permissionService.openPermissionSettings(permissionType);
+            },
+            child: const Text("去设置"),
           ),
         ],
       ),
     );
   }
+
+  // 旧的权限对话框方法已移除，现在统一使用 _showEnhancedPermissionDeniedDialog
 
   // 显示提示消息
   void _showMessage(BuildContext context, String message) {

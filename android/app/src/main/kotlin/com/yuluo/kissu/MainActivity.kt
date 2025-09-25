@@ -58,9 +58,14 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 val message = intent.getStringExtra("message") ?: ""
                 Log.d("MainActivity", "收到支付结果广播: success=$success, message=$message")
                 
-                // 通知等待的支付方法
-                paymentResultCompleter?.invoke(success, message)
-                paymentResultCompleter = null
+                // 立即处理支付结果，确保用户取消支付时能立即得到反馈
+                if (paymentResultCompleter != null) {
+                    Log.d("MainActivity", "立即通知支付结果: success=$success, message=$message")
+                    paymentResultCompleter?.invoke(success, message)
+                    paymentResultCompleter = null
+                } else {
+                    Log.w("MainActivity", "收到支付结果但无等待的回调: success=$success, message=$message")
+                }
             }
         }
     }
@@ -86,7 +91,12 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         
         // 注册支付结果广播接收器
         val filter = IntentFilter("kissu.payment.result")
-        registerReceiver(paymentResultReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ 需要明确指定RECEIVER_NOT_EXPORTED
+            registerReceiver(paymentResultReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(paymentResultReceiver, filter)
+        }
         Log.d("MainActivity", "支付结果广播接收器已注册")
     }
     
@@ -119,15 +129,16 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        // Flutter 3.16+ uses automatic plugin registration. The explicit call below can cause
-        // duplicate registration on some devices, but is required if using v1 plugins.
-        // Keep it to ensure mobile_scanner MethodChannel is available after hot restart.
-        // If you hit duplicate registration logs, this can be removed.
+        // Flutter 3.16+ 使用自动插件注册，手动注册可能导致重复注册
+        // 如果遇到插件重复注册警告，可以移除此代码块
+        // 保留注释以说明历史原因
+        /*
         try {
             GeneratedPluginRegistrant.registerWith(flutterEngine)
         } catch (_: Throwable) {
             // Safe no-op
         }
+        */
 
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
@@ -390,14 +401,16 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         val model = (Build.MODEL ?: "").lowercase(java.util.Locale.ROOT)
         val product = (Build.PRODUCT ?: "").lowercase(java.util.Locale.ROOT)
         val deviceSignature = "$brand|$manufacturer|$model|$product"
-        val isHuaweiHonor = deviceSignature.contains("huawei") ||
-                deviceSignature.contains("honor") ||
-                deviceSignature.contains("hny") ||
-                deviceSignature.contains("hw") ||
-                deviceSignature.contains("magic")
+        // 仅检测华为设备（排除荣耀设备，因为荣耀设备定位功能正常）
+        val isHuawei = (deviceSignature.contains("huawei") ||
+                       deviceSignature.contains("hw")) &&
+                       // 明确排除荣耀设备
+                       !deviceSignature.contains("honor") &&
+                       !deviceSignature.contains("hny") &&
+                       !deviceSignature.contains("magic")
 
-        // 对 Honor/Huawei 设备，强制直达"应用信息"页，避免任何权限页被重定向到"定位服务"
-        if (isHuaweiHonor) {
+        // 对华为设备（非荣耀），强制直达"应用信息"页，避免任何权限页被重定向到"定位服务"
+        if (isHuawei) {
             // 1) 尝试显式跳转到 AOSP 的已安装应用详情页
             try {
                 val explicit = Intent().apply {
@@ -989,10 +1002,14 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 paymentResultCompleter = null
             }
             
-            // 设置支付结果回调
+            // 设置支付结果回调，确保立即处理结果
             paymentResultCompleter = { success: Boolean, message: String ->
                 Log.d("MainActivity", "微信支付完成: success=$success, message=$message")
-                result.success(mapOf("success" to success, "message" to message))
+                try {
+                    result.success(mapOf("success" to success, "message" to message))
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "返回支付结果失败", e)
+                }
             }
             
             Log.d("MainActivity", "创建微信支付请求")
@@ -1015,9 +1032,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 Log.d("MainActivity", "注意：此时不会立即返回支付结果，需要等待微信回调")
                 // 不立即返回，等待WXPayEntryActivity的回调
                 
-                // 设置30秒超时
+                // 设置15秒超时，提高响应速度
                 CoroutineScope(Dispatchers.Main).launch {
-                    delay(30000) // 30秒超时
+                    delay(15000) // 15秒超时
                     if (paymentResultCompleter != null) {
                         Log.w("MainActivity", "微信支付超时")
                         paymentResultCompleter?.invoke(false, "支付超时")
@@ -1041,7 +1058,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     }
 
     private fun payWithAlipay(orderInfo: String, result: MethodChannel.Result) {
-        Log.d("MainActivity", "开始支付宝支付，orderInfo: ${orderInfo.take(100)}...")
+        Log.d("MainActivity", "开始支付宝支付，orderInfo长度: ${orderInfo.length}")
+        Log.d("MainActivity", "orderInfo前100字符: ${orderInfo.take(100)}...")
         
         if (orderInfo.isEmpty()) {
             Log.e("MainActivity", "支付宝订单信息为空")
@@ -1056,13 +1074,17 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             try {
                 Log.d("MainActivity", "创建PayTask并调用支付")
                 val payTask = PayTask(this@MainActivity)
-                val payResult = payTask.payV2(orderInfo, true)
+                Log.d("MainActivity", "PayTask创建成功，开始调用payV2")
                 
-                Log.d("MainActivity", "支付宝支付完成，返回结果: $payResult")
+                val payResult = payTask.payV2(orderInfo, true)
+                Log.d("MainActivity", "支付宝支付完成，返回结果类型: ${payResult.javaClass.simpleName}")
+                Log.d("MainActivity", "支付宝支付返回结果: $payResult")
                 
                 withContext(Dispatchers.Main) {
                     // 解析支付结果
                     val resultStatus = parseAlipayResult(payResult)
+                    Log.d("MainActivity", "解析后的支付结果: success=${resultStatus.success}, message=${resultStatus.message}")
+                    
                     result.success(mapOf(
                         "success" to resultStatus.success,
                         "message" to resultStatus.message,
@@ -1072,9 +1094,14 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Log.e("MainActivity", "支付宝支付异常", e)
+                    Log.e("MainActivity", "异常类型: ${e.javaClass.simpleName}")
+                    Log.e("MainActivity", "异常消息: ${e.message}")
+                    Log.e("MainActivity", "异常堆栈: ${e.stackTraceToString()}")
+                    
                     result.success(mapOf(
                         "success" to false,
-                        "message" to "支付失败: ${e.message}"
+                        "message" to "支付失败: ${e.message}",
+                        "error" to e.javaClass.simpleName
                     ))
                 }
             }

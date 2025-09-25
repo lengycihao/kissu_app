@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.yuluo.kissu"
-    compileSdk = 36 
+    compileSdk = 36  // Android 16 (API 36)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -35,8 +35,8 @@ android {
 
     defaultConfig {
         applicationId = "com.yuluo.kissu"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 24  // 符合Flutter最新要求的最小SDK版本
+        targetSdk = 36  // Android 16 (API 36)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 

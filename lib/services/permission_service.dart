@@ -1,5 +1,6 @@
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
+import 'package:kissu_app/services/location_permission_manager.dart';
 import 'dart:io';
 
 /// 权限类型枚举
@@ -9,6 +10,8 @@ enum PermissionType {
   notification,       // 通知权限
   battery,            // 电池优化（后台运行）
   usage,              // 使用情况访问权限
+  photos,             // 相册权限
+  camera,             // 相机权限
 }
 
 /// 权限服务类
@@ -62,6 +65,29 @@ class PermissionService {
     return true; // iOS不需要此权限
   }
 
+  /// 检查相册权限状态
+  Future<bool> isPhotosPermissionGranted() async {
+    final permission = _getPhotosPermission();
+    final status = await permission.status;
+    return status.isGranted;
+  }
+
+  /// 检查相机权限状态
+  Future<bool> isCameraPermissionGranted() async {
+    final status = await Permission.camera.status;
+    return status.isGranted;
+  }
+
+  /// 根据平台获取相册权限
+  Permission _getPhotosPermission() {
+    if (Platform.isAndroid) {
+      return Permission.photos;
+    } else if (Platform.isIOS) {
+      return Permission.photos;
+    }
+    return Permission.storage;
+  }
+
   /// 根据权限类型检查权限状态
   Future<bool> checkPermissionStatus(PermissionType type) async {
     switch (type) {
@@ -75,21 +101,18 @@ class PermissionService {
         return await isBatteryOptimizationDisabled();
       case PermissionType.usage:
         return await isUsageAccessGranted();
+      case PermissionType.photos:
+        return await isPhotosPermissionGranted();
+      case PermissionType.camera:
+        return await isCameraPermissionGranted();
     }
   }
 
   /// 请求位置权限
   Future<bool> requestLocationPermission() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      print("定位权限已获取");
-      return true;
-    } else if (status.isPermanentlyDenied) {
-      // 权限被永久拒绝，需要跳转到设置页面
-      await openAppSettings();
-      return false;
-    }
-    return false;
+    // 使用统一的权限申请管理器
+    final permissionManager = LocationPermissionManager.instance;
+    return await permissionManager.requestLocationPermission();
   }
 
   /// 请求后台位置权限
@@ -147,6 +170,35 @@ class PermissionService {
       return true; // 暂时返回true，避免错误
     }
     return true;
+  }
+
+  /// 请求相册权限
+  Future<bool> requestPhotosPermission() async {
+    final permission = _getPhotosPermission();
+    final status = await permission.request();
+    if (status.isGranted) {
+      print("相册权限已获取");
+      return true;
+    } else if (status.isPermanentlyDenied) {
+      // 权限被永久拒绝，需要跳转到设置页面
+      await openAppSettings();
+      return false;
+    }
+    return false;
+  }
+
+  /// 请求相机权限
+  Future<bool> requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (status.isGranted) {
+      print("相机权限已获取");
+      return true;
+    } else if (status.isPermanentlyDenied) {
+      // 权限被永久拒绝，需要跳转到设置页面
+      await openAppSettings();
+      return false;
+    }
+    return false;
   }
 
   /// 跳转到应用设置页面
@@ -216,6 +268,10 @@ class PermissionService {
         case PermissionType.usage:
           await openUsageAccessSettings();
           break;
+        case PermissionType.photos:
+        case PermissionType.camera:
+          await openAppSettings(); // 相册和相机权限跳转到应用设置
+          break;
       }
     } catch (e) {
       print('跳转权限设置失败: $e');
@@ -236,6 +292,10 @@ class PermissionService {
         return isGranted ? "已开启" : "未开启";
       case PermissionType.usage:
         return isGranted ? "已授权" : "未授权";
+      case PermissionType.photos:
+        return isGranted ? "已授权" : "未授权";
+      case PermissionType.camera:
+        return isGranted ? "已授权" : "未授权";
     }
   }
 
@@ -252,6 +312,10 @@ class PermissionService {
         return "应用后台常驻，确保数据同步";
       case PermissionType.usage:
         return "和ta分享手机使用报告";
+      case PermissionType.photos:
+        return "访问相册选择和上传头像";
+      case PermissionType.camera:
+        return "使用相机拍照上传头像";
     }
   }
 
@@ -263,6 +327,8 @@ class PermissionService {
       PermissionType.notification: await isNotificationPermissionGranted(),
       PermissionType.battery: await isBatteryOptimizationDisabled(),
       PermissionType.usage: await isUsageAccessGranted(),
+      PermissionType.photos: await isPhotosPermissionGranted(),
+      PermissionType.camera: await isCameraPermissionGranted(),
     };
   }
 
@@ -312,6 +378,12 @@ class PermissionService {
         // TODO: 使用正确的权限类型
         // permission = Permission.packageUsageStats;
         permission = Permission.location; // 暂时使用location权限避免错误
+        break;
+      case PermissionType.photos:
+        permission = _getPhotosPermission();
+        break;
+      case PermissionType.camera:
+        permission = Permission.camera;
         break;
     }
     

@@ -49,6 +49,12 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
       case PermissionType.usage:
         result = await _permissionService.requestUsageAccessPermission();
         break;
+      case PermissionType.photos:
+        result = await _permissionService.requestPhotosPermission();
+        break;
+      case PermissionType.camera:
+        result = await _permissionService.requestCameraPermission();
+        break;
     }
 
     if (result) {
@@ -195,6 +201,10 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
         return Icons.battery_charging_full;
       case PermissionType.usage:
         return Icons.analytics;
+      case PermissionType.photos:
+        return Icons.photo_library;
+      case PermissionType.camera:
+        return Icons.camera_alt;
     }
   }
 
@@ -211,6 +221,10 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
         return "电池优化";
       case PermissionType.usage:
         return "使用情况访问";
+      case PermissionType.photos:
+        return "相册权限";
+      case PermissionType.camera:
+        return "相机权限";
     }
   }
 }

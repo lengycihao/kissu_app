@@ -122,7 +122,10 @@ class _AboutUsPageState extends State<AboutUsPage> {
               const SizedBox(height: 40),
 
               // App 图标
-              Image.asset("assets/kissu_icon.webp", width: 80, height: 80),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset("assets/kissu_icon.webp", width: 80, height: 80),
+              ),
 
               const SizedBox(height: 20),
 

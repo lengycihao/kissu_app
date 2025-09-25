@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// 定位权限管理服务
@@ -47,13 +48,9 @@ class LocationPermissionService extends GetxService {
       
       debugPrint('首次登录，请求定位权限');
       
-      // 使用permission_handler请求权限
-      var status = await Permission.location.status;
-      if (status.isDenied) {
-        status = await Permission.location.request();
-      }
-      
-      bool hasPermission = status.isGranted;
+      // 使用统一的权限申请管理器
+      final permissionManager = LocationPermissionManager.instance;
+      bool hasPermission = await permissionManager.requestLocationPermission();
       
       if (hasPermission) {
         debugPrint('定位权限已获取，启动定位服务');

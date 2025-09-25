@@ -13,6 +13,7 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/map_zoom_calculator.dart';
 import 'package:kissu_app/utils/debug_util.dart';
@@ -159,82 +160,24 @@ class LocationController extends GetxController {
   /// 请求定位权限并启动服务
   Future<void> _requestLocationPermissionAndStartService() async {
     try {
-      // 检查定位权限状态
-      final permission = await Permission.location.status;
+      // 使用统一的权限申请管理器
+      final permissionManager = LocationPermissionManager.instance;
+      bool hasPermission = await permissionManager.requestLocationPermission();
       
-      if (permission.isGranted) {
-        debugPrint('✅ 定位权限已授予');
-        // 权限已授予，启动定位服务
+      if (hasPermission) {
+        debugPrint('✅ 定位权限获取成功');
         await _checkAndStartLocationService();
-      } else if (permission.isDenied) {
-        debugPrint('❌ 定位权限被拒绝，请求权限');
-        // 权限被拒绝，请求权限
-        final result = await Permission.location.request();
-        if (result.isGranted) {
-          debugPrint('✅ 定位权限获取成功');
-          await _checkAndStartLocationService();
-        } else {
-          debugPrint('❌ 定位权限被拒绝');
-          _showPermissionDeniedDialog();
-        }
-      } else if (permission.isPermanentlyDenied) {
-        debugPrint('❌ 定位权限被永久拒绝');
-        // 权限被永久拒绝，显示打开设置提示
-        _showOpenSettingsDialog();
       } else {
-        debugPrint('❓ 定位权限状态未知: $permission');
+        debugPrint('❌ 定位权限被拒绝');
+        // 权限被拒绝时，不再显示额外的弹窗
+        // 因为自定义权限申请弹窗已经处理了用户的选择
       }
     } catch (e) {
       debugPrint('请求定位权限并启动服务失败: $e');
     }
   }
 
-  /// 显示权限被拒绝的提示弹窗
-  void _showPermissionDeniedDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: Text('权限被拒绝'),
-        content: Text('需要定位权限才能正常使用定位功能，请允许定位权限。'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('取消'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Get.back();
-              // 重新请求权限
-              await _requestLocationPermissionAndStartService();
-            },
-            child: Text('重新授权'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  /// 显示打开系统设置的提示弹窗
-  void _showOpenSettingsDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: Text('权限被拒绝'),
-        content: Text('定位权限已被永久拒绝，请前往系统设置手动开启定位权限。'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('取消'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Get.back();
-              await openAppSettings();
-            },
-            child: Text('打开设置'),
-          ),
-        ],
-      ),
-    );
-  }
 
 
 
@@ -903,11 +846,16 @@ class LocationController extends GetxController {
     //   }
     // });
     
-    // 地图创建完成后，延迟1000ms再调整视图，确保加载动画完全消失
-    // 先显示超缩小视角，然后延迟执行放大动画
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      _animateMapToShowBothUsers();
-      
+    // 地图创建完成后，延迟执行地图动画，避免主线程阻塞
+    // 使用异步方式执行，减少对主线程的影响
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        if (mapController != null) {
+          await _animateMapToShowBothUsersAsync();
+        } else {
+          DebugUtil.warning('⚠️ 延迟执行时地图控制器为空');
+        }
+      });
     });
   }
   
@@ -915,16 +863,34 @@ class LocationController extends GetxController {
 
   /// 使用动画移动地图到指定位置
   void _animateMapToLocation(LatLng location) {
-    mapController?.moveCamera(
-      CameraUpdate.newLatLngZoom(location, 16.0),
-      animated: true,
-      duration: 1500,
-    );
+    if (mapController == null) {
+      DebugUtil.warning('⚠️ 地图控制器为空，跳过地图动画到指定位置');
+      return;
+    }
+    try {
+      // 异步执行地图动画，避免阻塞主线程
+      unawaited(mapController!.moveCamera(
+        CameraUpdate.newLatLngZoom(location, 16.0),
+        animated: true,
+        duration: 1500,
+      ));
+    } catch (e) {
+      DebugUtil.error('🚨 地图移动到指定位置失败: $e');
+    }
   }
   
-  /// 使用动画移动地图以显示两个用户的位置（从超缩小级别放大到合适观看级别）
-  void _animateMapToShowBothUsers() {
-    if (mapController == null) return;
+
+  /// 异步版本的地图动画，减少主线程阻塞
+  Future<void> _animateMapToShowBothUsersAsync() async {
+    if (mapController == null) {
+      DebugUtil.warning('⚠️ 地图控制器为空，跳过地图动画');
+      return;
+    }
+    await _animateMapToShowBothUsersSync();
+  }
+
+  /// 同步执行地图动画的核心逻辑
+  Future<void> _animateMapToShowBothUsersSync() async {
     
     // 如果两个用户都有位置，则从超缩小级别动画放大到合适观看级别
     if (myLocation.value != null && partnerLocation.value != null) {
@@ -964,11 +930,15 @@ class LocationController extends GetxController {
       DebugUtil.info(' 开始地图放大动画: 从超缩小级别(6.0) → 增强观看级别=${enhancedPosition.zoom}');
       
       // 从当前超缩小级别动画放大到增强观看级别
-      mapController?.moveCamera(
-        CameraUpdate.newCameraPosition(enhancedPosition),
-        animated: true,
-        duration: 500, // 500ms动画时间
-      );
+      try {
+        await mapController!.moveCamera(
+          CameraUpdate.newCameraPosition(enhancedPosition),
+          animated: true,
+          duration: 500, // 500ms动画时间
+        );
+      } catch (e) {
+        DebugUtil.error('🚨 地图动画执行失败: $e');
+      }
       DebugUtil.success(' 定位页面地图放大动画开始 - 目标缩放级别: ${enhancedPosition.zoom}');
     } else if (myLocation.value != null) {
       // 如果只有当前用户有位置，则动画移动到当前用户位置
@@ -1034,11 +1004,16 @@ class LocationController extends GetxController {
     DebugUtil.info(' 头像点击：移动地图到$userName并放大到最大级别(20.0)');
     
     try {
-      mapController?.moveCamera(
+      if (mapController == null) {
+        DebugUtil.warning('⚠️ 地图控制器为空，跳过头像点击地图动画');
+        return;
+      }
+      // 异步执行地图动画，避免阻塞主线程
+      unawaited(mapController!.moveCamera(
         CameraUpdate.newCameraPosition(maxZoomPosition),
         animated: true,
         duration: 800, // 800ms平滑动画
-      );
+      ));
       DebugUtil.success(' 地图移动命令已发送');
     } catch (e) {
       DebugUtil.error(' 地图移动失败: $e');

@@ -101,6 +101,20 @@ class VipController extends GetxController {
     // 标记页面为可见状态
     isPageVisible.value = true;
     
+    // 添加支付状态监听（通过定时器检查状态变化）
+    Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (_isDisposed) {
+        timer.cancel();
+        return;
+      }
+      
+      // 检查支付状态，如果支付完成则重置UI状态
+      if (!_paymentService.paymentInProgress && isPurchasing.value) {
+        _logger.i('检测到支付状态重置，同步UI状态');
+        isPurchasing.value = false;
+      }
+    });
+    
     // 添加延迟确保页面完全渲染
     Future.delayed(const Duration(milliseconds: 100), () {
       if (!_isDisposed && isPageVisible.value) {
@@ -428,6 +442,9 @@ class VipController extends GetxController {
     try {
       isPurchasing.value = true;
       
+      // 彻底检查并重置异常支付状态
+      _paymentService.thoroughCheckAndResetPaymentState();
+      
       // 获取选中的支付方式
       final paymentMethod = _getSelectedPaymentMethod();
       
@@ -449,10 +466,10 @@ class VipController extends GetxController {
       
     } catch (e) {
       // 购买失败提示
-      CustomToast.show(
-        Get.context!,
-        '购买过程中出现错误，请重试',
-      );
+      // CustomToast.show(
+      //   Get.context!,
+      //   '购买过程中出现错误，请重试',
+      // );
     } finally {
       isPurchasing.value = false;
     }
@@ -475,25 +492,40 @@ class VipController extends GetxController {
   /// 处理购买流程
   Future<void> _processPurchase(VipPackageModel package) async {
     try {
+      _logger.i('💫 开始处理购买流程，套餐: ${package.title}, 支付方式: ${selectedPaymentMethod.value}');
       bool result = false;
       
       if (selectedPaymentMethod.value == 0) {
         // 支付宝支付
+        _logger.i('💫 开始创建支付宝支付订单');
         final aliPayResult = await _vipService.aliPay(vipPackageId: package.id);
+        _logger.i('💫 支付宝订单创建结果: isSuccess=${aliPayResult.isSuccess}, msg=${aliPayResult.msg}');
+        
         if (aliPayResult.isSuccess && aliPayResult.data != null) {
+          _logger.i('💫 支付宝订单创建成功，orderString长度: ${aliPayResult.data!.orderString?.length ?? 0}');
+          _logger.i('💫 支付宝订单字符串前100字符: ${aliPayResult.data!.orderString?.substring(0, (aliPayResult.data!.orderString?.length ?? 0) > 100 ? 100 : (aliPayResult.data!.orderString?.length ?? 0))}...');
+          
           // 调用支付宝支付
+          _logger.i('💫 开始调用支付宝支付SDK');
           result = await _paymentService.payWithAlipay(
             orderInfo: aliPayResult.data!.orderString ?? '',
           );
+          _logger.i('💫 支付宝支付SDK调用完成，结果: $result');
         } else {
+          _logger.e('💫 支付宝订单创建失败: ${aliPayResult.msg}');
           throw Exception(aliPayResult.msg ?? '支付宝支付订单创建失败');
         }
       } else {
         // 微信支付
+        _logger.i('💫 开始创建微信支付订单');
         final wxPayResult = await _vipService.wxPay(vipPackageId: package.id);
+        _logger.i('💫 微信支付订单创建结果: isSuccess=${wxPayResult.isSuccess}, msg=${wxPayResult.msg}');
+        
         if (wxPayResult.isSuccess && wxPayResult.data != null) {
           // 解析微信支付参数
           final payData = wxPayResult.data!;
+          _logger.i('💫 微信支付参数: appId=${payData.appId}, partnerId=${payData.partnerId}, prepayId=${payData.prepayId}');
+          
           result = await _paymentService.payWithWechat(
             appId: payData.appId ?? '',
             partnerId: payData.partnerId ?? '',
@@ -503,7 +535,9 @@ class VipController extends GetxController {
             timeStamp: payData.timestamp ?? '',
             sign: payData.sign ?? '',
           );
+          _logger.i('💫 微信支付SDK调用完成，结果: $result');
         } else {
+          _logger.e('💫 微信支付订单创建失败: ${wxPayResult.msg}');
           throw Exception(wxPayResult.msg ?? '微信支付订单创建失败');
         }
       }
@@ -511,6 +545,7 @@ class VipController extends GetxController {
       _logger.i('💫 支付结果: $result');
       
       if (result) {
+        _logger.i('💫 支付成功，开始处理后续操作');
         // 购买成功后更新本地状态
         _updateVipStatus(package);
         
@@ -518,11 +553,14 @@ class VipController extends GetxController {
         _handlePaymentSuccess(package);
       } else {
         _logger.e('💫 支付失败，result: $result');
-        OKToastUtil.show("支付失败");
+        // 支付失败时显示具体错误信息（支付服务中已经显示了）
+        // 这里不再重复显示，避免重复提示
         throw Exception('支付失败');
       }
     } catch (e) {
-      // _logger.e('支付处理失败: $e');
+      _logger.e('💫 支付处理失败: $e');
+      _logger.e('💫 异常类型: ${e.runtimeType}');
+      _logger.e('💫 异常堆栈: ${e.toString()}');
       OKToastUtil.show("支付失败");
       rethrow; // 重新抛出异常，让上层处理
     }

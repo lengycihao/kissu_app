@@ -7,7 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/network/public/setting_api.dart';
 import '../../../network/public/file_upload_api.dart';
 import '../../../utils/user_manager.dart';
- import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 控制器
 class FeedbackController extends GetxController {
@@ -23,6 +26,7 @@ class FeedbackController extends GetxController {
   final picker = ImagePicker();
   final fileUploadApi = FileUploadApi();
   final settingApi = SettingApi();
+  final PermissionService _permissionService = PermissionService();
 
   @override
   void onClose() {
@@ -75,9 +79,37 @@ class FeedbackController extends GetxController {
 
   /// 选择图片
   Future<void> pickImage() async {
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      selectedImage.value = File(picked.path);
+    try {
+      // 检查是否已有相册权限
+      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
+      
+      // 如果已有权限，直接选择图片
+      if (hasPhotoPermission) {
+        final picked = await picker.pickImage(source: ImageSource.gallery);
+        if (picked != null) {
+          selectedImage.value = File(picked.path);
+        }
+        return;
+      }
+      
+      // 如果没有权限，先显示权限说明弹窗
+      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
+      if (shouldContinue != true) return;
+      
+      // 申请权限
+      final permissionGranted = await _permissionService.requestPhotosPermission();
+      
+      if (permissionGranted) {
+        final picked = await picker.pickImage(source: ImageSource.gallery);
+        if (picked != null) {
+          selectedImage.value = File(picked.path);
+        }
+      } else {
+        OKToastUtil.show('权限未授予，无法选择图片');
+      }
+    } catch (e) {
+      print('选择图片失败: $e');
+      OKToastUtil.showError('选择图片失败');
     }
   }
 
