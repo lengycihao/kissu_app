@@ -49,7 +49,7 @@ class MapZoomCalculator {
     final lngDiff = maxLng - minLng;
     final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
     
-    // 根据距离计算缩放级别 - 与轨迹页面保持一致
+    // 根据距离计算缩放级别 - 支持超远距离
     double zoom;
     if (maxDiff < 0.001) {
       zoom = 18.0; // 非常小的区域 (< 100米)
@@ -67,8 +67,14 @@ class MapZoomCalculator {
       zoom = 10.0; // 很大区域 (< 100公里)
     } else if (maxDiff < 2.0) {
       zoom = 9.0; // 超大区域 (< 200公里)
+    } else if (maxDiff < 5.0) {
+      zoom = 7.0; // 极大区域 (< 500公里)
+    } else if (maxDiff < 10.0) {
+      zoom = 5.0; // 超极大区域 (< 1000公里)
+    } else if (maxDiff < 20.0) {
+      zoom = 4.0; // 洲际区域 (< 2000公里)
     } else {
-      zoom = 8.0; // 极大区域 (> 200公里)
+      zoom = 3.0; // 全球区域 (> 2000公里)
     }
     
     print('🗺️ MapZoomCalculator - 计算结果: latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom');
@@ -137,7 +143,7 @@ class MapZoomCalculator {
     final lngDiff = maxLng - minLng;
     final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
     
-    // 根据距离计算缩放级别 - 与轨迹页面保持一致
+    // 根据距离计算缩放级别 - 支持超远距离
     double zoom;
     if (maxDiff < 0.001) {
       zoom = 18.0; // 非常小的区域 (< 100米)
@@ -155,8 +161,14 @@ class MapZoomCalculator {
       zoom = 10.0; // 很大区域 (< 100公里)
     } else if (maxDiff < 2.0) {
       zoom = 9.0; // 超大区域 (< 200公里)
+    } else if (maxDiff < 5.0) {
+      zoom = 7.0; // 极大区域 (< 500公里)
+    } else if (maxDiff < 10.0) {
+      zoom = 5.0; // 超极大区域 (< 1000公里)
+    } else if (maxDiff < 20.0) {
+      zoom = 4.0; // 洲际区域 (< 2000公里)
     } else {
-      zoom = 8.0; // 极大区域 (> 200公里)
+      zoom = 3.0; // 全球区域 (> 2000公里)
     }
     
     print('🗺️ MapZoomCalculator - 多点计算结果: 点数=${points.length}, latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom');

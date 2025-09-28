@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'share_controller.dart';
 
-class SharePage extends StatelessWidget {
+class SharePage extends GetView<ShareController> {
   const SharePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    Get.put(ShareController());
+    // 控制器现在通过 ShareBinding 管理，无需手动初始化
 
     return Obx(
       () => Stack(
@@ -49,13 +48,16 @@ class SharePage extends StatelessWidget {
                             onTap: () {
                               // 返回首页前先预设背景滚动位置
                               try {
-                                final homeScrollService = Get.find<HomeScrollService>();
-                                homeScrollService.calculateAndSetPresetPosition();
+                                final homeScrollService =
+                                    Get.find<HomeScrollService>();
+                                homeScrollService
+                                    .calculateAndSetPresetPosition();
                                 print('✅ 分享页返回前已预设首页背景滚动位置');
                               } catch (e) {
                                 print('❌ 分享页预设首页滚动位置失败: $e');
                               }
-                              Get.offAllNamed(KissuRoutePath.home);
+                              // 使用控制器的返回逻辑
+                              controller.handleBackButton();
                             },
                             child: Container(
                               padding: const EdgeInsets.all(8),
@@ -195,12 +197,12 @@ class SharePage extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.only(left: 6, top: 6,right: 0,bottom: 3),
+        padding: EdgeInsets.only(left: 6, top: 6, right: 0, bottom: 3),
         child: ClipOval(
-          child: Get.find<ShareController>().userAvatar.value.isNotEmpty
+          child: controller.userAvatar.value.isNotEmpty
               ? Image.network(
-                  Get.find<ShareController>().userAvatar.value,
-                    fit: BoxFit.cover,
+                  controller.userAvatar.value,
+                  fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       decoration: BoxDecoration(
@@ -274,7 +276,7 @@ class SharePage extends StatelessWidget {
               border: Border.all(color: const Color(0xFFE0E0E0)),
             ),
             child: TextField(
-              controller: Get.find<ShareController>().matchCodeController,
+              controller: controller.matchCodeController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
 
@@ -298,7 +300,7 @@ class SharePage extends StatelessWidget {
         ),
         const SizedBox(width: 18),
         GestureDetector(
-          onTap: () => Get.find<ShareController>().bindPartner(),
+          onTap: () => controller.bindPartner(),
           child: Container(
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -332,11 +334,11 @@ class SharePage extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
-      child: Get.find<ShareController>().qrCodeUrl.value.isNotEmpty
+      child: controller.qrCodeUrl.value.isNotEmpty
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                Get.find<ShareController>().qrCodeUrl.value,
+                controller.qrCodeUrl.value,
                 width: 120,
                 height: 120,
                 fit: BoxFit.cover,
@@ -389,12 +391,12 @@ class SharePage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                Get.find<ShareController>().matchCode.value,
+                controller.matchCode.value,
                 style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => Get.find<ShareController>().copyMatchCode(),
+                onTap: () => controller.copyMatchCode(),
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   child: const Icon(
@@ -419,17 +421,17 @@ class SharePage extends StatelessWidget {
         _buildShareButton(
           icon: 'assets/kissu_qq.webp',
           text: 'QQ邀请',
-          onTap: () => Get.find<ShareController>().shareToQQ(),
+          onTap: () => controller.shareToQQ(),
         ),
         _buildShareButton(
           icon: 'assets/kissu_wechat.webp',
           text: '微信邀请',
-          onTap: () => Get.find<ShareController>().shareToWechat(),
+          onTap: () => controller.shareToWechat(),
         ),
         _buildShareButton(
           icon: 'assets/kissu_qrcode.webp',
           text: '扫码绑定',
-          onTap: () => Get.find<ShareController>().shareQRCode(),
+          onTap: () => controller.shareQRCode(),
         ),
       ],
     );
@@ -437,7 +439,8 @@ class SharePage extends StatelessWidget {
 
   /// 构建单个分享按钮
   Widget _buildShareButton({
-    required String icon,required String text,
+    required String icon,
+    required String text,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -445,7 +448,7 @@ class SharePage extends StatelessWidget {
       child: Column(
         children: [
           Center(child: Image.asset(icon, width: 40, height: 40)),
-          Text(text,style: TextStyle(fontSize: 12,color: Color(0xffAA7268)),)
+          Text(text, style: TextStyle(fontSize: 12, color: Color(0xffAA7268))),
         ],
       ),
     );

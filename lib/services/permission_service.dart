@@ -67,9 +67,31 @@ class PermissionService {
 
   /// 检查相册权限状态
   Future<bool> isPhotosPermissionGranted() async {
-    final permission = _getPhotosPermission();
-    final status = await permission.status;
-    return status.isGranted;
+    try {
+      final permission = _getPhotosPermission();
+      final status = await permission.status;
+      
+      // 对于Android，额外检查存储权限（向后兼容）
+      if (Platform.isAndroid && !status.isGranted) {
+        final storageStatus = await Permission.storage.status;
+        print("相册权限检查 - photos: $status, storage: $storageStatus");
+        return storageStatus.isGranted;
+      }
+      
+      return status.isGranted;
+    } catch (e) {
+      print("检查相册权限时发生错误: $e");
+      // 如果检查失败，尝试检查存储权限作为备用
+      if (Platform.isAndroid) {
+        try {
+          final storageStatus = await Permission.storage.status;
+          return storageStatus.isGranted;
+        } catch (e2) {
+          print("检查存储权限也失败: $e2");
+        }
+      }
+      return false;
+    }
   }
 
   /// 检查相机权限状态
@@ -81,6 +103,7 @@ class PermissionService {
   /// 根据平台获取相册权限
   Permission _getPhotosPermission() {
     if (Platform.isAndroid) {
+      // Android 13+ (API 33+) 使用细分的媒体权限
       return Permission.photos;
     } else if (Platform.isIOS) {
       return Permission.photos;
@@ -174,17 +197,167 @@ class PermissionService {
 
   /// 请求相册权限
   Future<bool> requestPhotosPermission() async {
-    final permission = _getPhotosPermission();
-    final status = await permission.request();
-    if (status.isGranted) {
-      print("相册权限已获取");
-      return true;
-    } else if (status.isPermanentlyDenied) {
-      // 权限被永久拒绝，需要跳转到设置页面
-      await openAppSettings();
+    try {
+      final permission = _getPhotosPermission();
+      print("开始申请相册权限，权限类型: $permission");
+      
+      // 先检查当前状态
+      final currentStatus = await permission.status;
+      print("相册权限当前状态: $currentStatus");
+      
+      if (currentStatus.isGranted) {
+        print("相册权限已经获得");
+        return true;
+      }
+      
+      // 对于Android，如果photos权限已经被永久拒绝，尝试申请存储权限
+      if (Platform.isAndroid && currentStatus.isPermanentlyDenied) {
+        print("photos权限被永久拒绝，尝试申请存储权限作为备用");
+        final storageStatus = await Permission.storage.status;
+        if (storageStatus.isGranted) {
+          print("存储权限已经获得");
+          return true;
+        } else if (!storageStatus.isPermanentlyDenied) {
+          final storageResult = await Permission.storage.request();
+          if (storageResult.isGranted) {
+            print("存储权限申请成功");
+            return true;
+          }
+        }
+        print("所有相册相关权限被永久拒绝，需要跳转到设置页面");
+        await openAppSettings();
+        return false;
+      }
+      
+      if (currentStatus.isPermanentlyDenied) {
+        print("相册权限被永久拒绝，需要跳转到设置页面");
+        await openAppSettings();
+        return false;
+      }
+      
+      // 申请权限
+      print("正在弹出系统权限申请对话框...");
+      final status = await permission.request();
+      print("权限申请结果: $status");
+      
+      // 对于某些Android设备，权限授予可能有延迟，需要重新检查
+      if (status.isGranted) {
+        print("相册权限已获取");
+        return true;
+      } else if (status.isDenied) {
+        // 权限被拒绝时，等待一小段时间后重新检查状态
+        // 某些设备可能在用户点击"允许"后，返回状态仍为denied
+        await Future.delayed(const Duration(milliseconds: 500));
+        final recheckStatus = await permission.status;
+        print("延迟重新检查权限状态: $recheckStatus");
+        
+        if (recheckStatus.isGranted) {
+          print("延迟检查发现权限已获取");
+          return true;
+        } else if (recheckStatus.isPermanentlyDenied) {
+          print("延迟检查发现权限被永久拒绝");
+          // 对于Android，尝试申请存储权限作为备用
+          if (Platform.isAndroid) {
+            print("尝试申请存储权限作为备用");
+            final storageStatus = await Permission.storage.status;
+            if (!storageStatus.isPermanentlyDenied) {
+              final storageResult = await Permission.storage.request();
+              if (storageResult.isGranted) {
+                print("存储权限申请成功");
+                return true;
+              }
+            }
+          }
+          await openAppSettings();
+          return false;
+        } else {
+          // 如果仍然被拒绝，对于Android尝试申请存储权限
+          if (Platform.isAndroid) {
+            print("photos权限被拒绝，尝试申请存储权限作为备用");
+            final storageStatus = await Permission.storage.status;
+            if (storageStatus.isGranted) {
+              print("存储权限已经获得");
+              return true;
+            } else if (!storageStatus.isPermanentlyDenied) {
+              final storageResult = await Permission.storage.request();
+              if (storageResult.isGranted) {
+                print("存储权限申请成功");
+                return true;
+              }
+            }
+          }
+          print("权限被拒绝");
+          return false;
+        }
+      } else if (status.isPermanentlyDenied) {
+        print("权限被永久拒绝");
+        // 对于Android，尝试申请存储权限作为备用
+        if (Platform.isAndroid) {
+          print("尝试申请存储权限作为备用");
+          final storageStatus = await Permission.storage.status;
+          if (!storageStatus.isPermanentlyDenied) {
+            final storageResult = await Permission.storage.request();
+            if (storageResult.isGranted) {
+              print("存储权限申请成功");
+              return true;
+            }
+          }
+        }
+        await openAppSettings();
+        return false;
+      } else {
+        print("权限申请状态未知: $status，尝试延迟检查");
+        // 对于未知状态，也尝试延迟检查
+        await Future.delayed(const Duration(milliseconds: 500));
+        final recheckStatus = await permission.status;
+        print("未知状态延迟重新检查权限状态: $recheckStatus");
+        
+        if (recheckStatus.isGranted) {
+          print("延迟检查发现权限已获取");
+          return true;
+        } else {
+          // 对于Android，尝试申请存储权限作为备用
+          if (Platform.isAndroid) {
+            print("未知状态，尝试申请存储权限作为备用");
+            final storageStatus = await Permission.storage.status;
+            if (storageStatus.isGranted) {
+              print("存储权限已经获得");
+              return true;
+            } else if (!storageStatus.isPermanentlyDenied) {
+              final storageResult = await Permission.storage.request();
+              if (storageResult.isGranted) {
+                print("存储权限申请成功");
+                return true;
+              }
+            }
+          }
+          print("权限申请失败，状态: $recheckStatus");
+          return false;
+        }
+      }
+    } catch (e) {
+      print("申请相册权限时发生错误: $e");
+      // 如果主要权限申请失败，对于Android尝试申请存储权限作为备用
+      if (Platform.isAndroid) {
+        try {
+          print("主要权限申请异常，尝试申请存储权限作为备用");
+          final storageStatus = await Permission.storage.status;
+          if (storageStatus.isGranted) {
+            print("存储权限已经获得");
+            return true;
+          } else if (!storageStatus.isPermanentlyDenied) {
+            final storageResult = await Permission.storage.request();
+            if (storageResult.isGranted) {
+              print("存储权限申请成功");
+              return true;
+            }
+          }
+        } catch (e2) {
+          print("备用存储权限申请也失败: $e2");
+        }
+      }
       return false;
     }
-    return false;
   }
 
   /// 请求相机权限

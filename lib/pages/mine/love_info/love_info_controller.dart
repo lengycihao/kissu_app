@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
@@ -15,15 +14,16 @@ import 'phone_change_page.dart';
 import 'dart:io';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
-import 'package:kissu_app/utils/oktoast_util.dart';
 
 class LoveInfoController extends GetxController {
-  final PermissionService _permissionService = PermissionService();
-  
   // 绑定状态
   var isBindPartner = false.obs;
+  
+  // 权限服务
+  final PermissionService _permissionService = PermissionService();
 
   // 用户信息
   var myAvatar = "".obs;
@@ -94,7 +94,7 @@ class LoveInfoController extends GetxController {
       // 计算在一起天数（作为备用值）
       final now = DateTime.now();
       final difference = now.difference(bindTime).inDays;
-      togetherDays.value = difference;
+      togetherDays.value = difference + 1;
       DebugUtil.info('Calculated together days: ${togetherDays.value}');
     }
     if (user.halfUserInfo != null) {
@@ -127,17 +127,49 @@ class LoveInfoController extends GetxController {
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
         DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
+        
+        // 重新计算恋爱天数以保持一致性
+        _recalculateLoveDays();
       } else {
         // 如果服务器没有提供 loveTime，保持之前设置的值（从 latelyBindTime 计算）
         DebugUtil.info('Using calculated love time: ${loveTime.value}');
       }
       if (lover.loveDays != null) {
-        loveDays.value = lover.loveDays!;
-        DebugUtil.info('Love days from loverInfo: ${loveDays.value}');
+        // 优先使用服务器返回的天数，但如果存在不一致，则以本地计算为准
+        final serverLoveDays = lover.loveDays!;
+        _recalculateLoveDays();
+        final calculatedLoveDays = loveDays.value;
+        
+        // 如果服务器天数与本地计算相差超过1天，以本地计算为准
+        if ((serverLoveDays - calculatedLoveDays).abs() > 1) {
+          DebugUtil.warning('服务器恋爱天数($serverLoveDays)与本地计算($calculatedLoveDays)相差过大，使用本地计算结果');
+        } else {
+          loveDays.value = serverLoveDays; // 直接使用服务器数据
+        }
+        DebugUtil.info('Final love days: ${loveDays.value}');
       } else {
-        // 如果服务器没有提供 loveDays，使用计算的 togetherDays
-        loveDays.value = togetherDays.value;
-        DebugUtil.info('Using calculated together days as love days: ${loveDays.value}');
+        // 如果服务器没有提供 loveDays，重新计算
+        _recalculateLoveDays();
+        DebugUtil.info('Using calculated love days: ${loveDays.value}');
+      }
+    }
+  }
+  
+  /// 重新计算恋爱天数
+  void _recalculateLoveDays() {
+    if (loveTime.value != "一一") {
+      try {
+        final loveDate = _parseDate(loveTime.value);
+        if (loveDate != null) {
+          final now = DateTime.now();
+          final difference = now.difference(loveDate).inDays;
+          // 直接使用计算结果，不加1
+          loveDays.value = difference;
+          togetherDays.value = difference;
+          DebugUtil.info('Recalculated love days: ${loveDays.value}');
+        }
+      } catch (e) {
+        DebugUtil.error('Failed to recalculate love days: $e');
       }
     }
   }
@@ -147,11 +179,8 @@ class LoveInfoController extends GetxController {
     return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
   }
 
-  /// 格式化手机号（脱敏显示）
+  /// 格式化手机号（显示完整手机号）
   String formatPhone(String phone) {
-    if (phone.length >= 11) {
-      return '${phone.substring(0, 3)}****${phone.substring(7)}';
-    }
     return phone.isEmpty ? "未绑定" : phone;
   }
 
@@ -163,159 +192,52 @@ class LoveInfoController extends GetxController {
 
   /// 处理头像点击
   Future<void> onAvatarTap(BuildContext context) async {
-    // 检查是否已有相册和相机权限
-    final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-    final hasCameraPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
-    
-    // 如果两个权限都有，直接显示选择来源对话框
-    if (hasPhotoPermission && hasCameraPermission) {
-      _showImageSourceDialog(context);
-      return;
-    }
-    
-    // 如果没有权限，先显示权限说明弹窗
-    final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(context);
-    if (shouldContinue != true) return;
-    
-    // 申请权限
-    bool photoPermissionGranted = hasPhotoPermission;
-    bool cameraPermissionGranted = hasCameraPermission;
-    
-    if (!hasPhotoPermission) {
-      photoPermissionGranted = await _permissionService.requestPhotosPermission();
-    }
-    
-    if (!hasCameraPermission) {
-      cameraPermissionGranted = await _permissionService.requestCameraPermission();
-    }
-    
-    // 如果至少有一个权限被授予，显示选择来源对话框
-    if (photoPermissionGranted || cameraPermissionGranted) {
-      _showImageSourceDialog(context);
-    } else {
-      OKToastUtil.show('权限未授予，无法选择图片');
-    }
+    await pickImage();
   }
 
-  /// 显示图片来源选择对话框
-  Future<void> _showImageSourceDialog(BuildContext context) async {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 顶部拖拽指示器
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // 标题
-                const Text(
-                  '选择图片来源',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // 选项列表
-                _buildImageSourceOption(
-                  icon: Icons.photo_library_outlined,
-                  title: '从相册选择',
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    await _pickImageFromSource(ImageSource.gallery);
-                  },
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-                _buildImageSourceOption(
-                  icon: Icons.camera_alt_outlined,
-                  title: '拍照',
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    await _pickImageFromSource(ImageSource.camera);
-                  },
-                ),
-
-                const SizedBox(height: 10),
-
-                // 取消按钮
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      backgroundColor: Colors.grey[100],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      '取消',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildImageSourceOption({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      leading: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFEA39C).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: const Color(0xFFFEA39C), size: 24),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: Color(0xFF333333),
-        ),
-      ),
-      trailing: Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey[400],
-      ),
-      onTap: onTap,
-    );
+  /// 选择头像
+  Future<void> pickImage() async {
+    try {
+      // 检查是否已有相册和相机权限
+      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
+      final hasCameraPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      
+      // 如果两个权限都有，直接显示选择来源对话框
+      if (hasPhotoPermission && hasCameraPermission) {
+        final source = await _showImageSourceDialog();
+        if (source == null) return;
+        await _pickImageFromSource(source);
+        return;
+      }
+      
+      // 如果没有权限，先显示权限说明弹窗
+      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
+      if (shouldContinue != true) return;
+      
+      // 申请权限
+      bool photoPermissionGranted = hasPhotoPermission;
+      bool cameraPermissionGranted = hasCameraPermission;
+      
+      if (!hasPhotoPermission) {
+        photoPermissionGranted = await _permissionService.requestPhotosPermission();
+      }
+      
+      if (!hasCameraPermission) {
+        cameraPermissionGranted = await _permissionService.requestCameraPermission();
+      }
+      
+      // 如果至少有一个权限被授予，显示选择来源对话框
+      if (photoPermissionGranted || cameraPermissionGranted) {
+        final source = await _showImageSourceDialog();
+        if (source == null) return;
+        await _pickImageFromSource(source);
+      } else {
+        CustomToast.show(Get.context!, '权限未授予，无法选择图片');
+      }
+    } catch (e) {
+      print('选择头像失败: $e');
+      CustomToast.show(Get.context!, '选择头像失败');
+    }
   }
 
   /// 从指定来源选择图片
@@ -330,7 +252,7 @@ class LoveInfoController extends GetxController {
       }
 
       if (!hasPermission) {
-        OKToastUtil.show('权限未授予，无法选择图片');
+        CustomToast.show(Get.context!, '权限未授予，无法选择图片');
         return;
       }
 
@@ -343,35 +265,165 @@ class LoveInfoController extends GetxController {
       );
 
       if (pickedFile != null) {
-        // 显示加载指示器
-        Get.dialog(
-          const Center(child: CircularProgressIndicator()),
-          barrierDismissible: false,
-        );
-
         // 上传图片
         final file = File(pickedFile.path);
-        final fileUploadApi = FileUploadApi();
-        final result = await fileUploadApi.uploadFile(file);
+        await _uploadAvatar(file);
+      }
+    } catch (e) {
+      CustomToast.show(Get.context!, '选择图片失败: $e');
+    }
+  }
 
-        // 关闭加载指示器
-        Get.back();
+  /// 显示图片来源选择对话框
+  Future<ImageSource?> _showImageSourceDialog() async {
+    return await showModalBottomSheet<ImageSource>(
+      context: Get.context!,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 顶部拖拽指示器
+                Container(
+                  margin: EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                SizedBox(height: 20),
 
-        if (result.isSuccess && result.data != null) {
-          // 更新头像
-          await _updateUserAvatar(result.data!);
-        } else {
-          CustomToast.show(Get.context!, result.msg ?? '头像上传失败');
-        }
+                // 标题
+                Text(
+                  '选择图片来源',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                SizedBox(height: 20),
+
+                // 选项列表
+                _buildImageSourceOption(
+                  icon: Icons.photo_library_outlined,
+                  title: '从相册选择',
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+                Divider(height: 1, color: Colors.grey[200]),
+                _buildImageSourceOption(
+                  icon: Icons.camera_alt_outlined,
+                  title: '拍照',
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+
+                SizedBox(height: 10),
+
+                // 取消按钮
+                Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.symmetric(horizontal: 20),
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      backgroundColor: Colors.grey[100],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      '取消',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 构建图片来源选项
+  Widget _buildImageSourceOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Color(0xFFFEA39C).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: Color(0xFFFEA39C), size: 24),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: Color(0xFF333333),
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: Colors.grey[400],
+      ),
+      onTap: onTap,
+    );
+  }
+
+  /// 上传头像
+  Future<void> _uploadAvatar(File imageFile) async {
+    try {
+      // 显示加载指示器
+      Get.dialog(
+        const Center(child: CircularProgressIndicator()),
+        barrierDismissible: false,
+      );
+
+      // 上传图片
+      final fileUploadApi = FileUploadApi();
+      final result = await fileUploadApi.uploadFile(imageFile);
+
+      // 关闭加载指示器
+      Get.back();
+
+      if (result.isSuccess && result.data != null) {
+        // 直接更新头像URL
+        myAvatar.value = result.data!;
+        // 更新用户信息
+        await _updateUserAvatar(result.data!);
+        CustomToast.show(Get.context!, '头像更新成功');
+      } else {
+        CustomToast.show(Get.context!, result.msg ?? '头像上传失败');
       }
     } catch (e) {
       // 关闭加载指示器（如果还在显示）
       if (Get.isDialogOpen == true) {
         Get.back();
       }
-      CustomToast.show(Get.context!, '选择图片失败：$e');
+      CustomToast.show(Get.context!, '上传头像失败：$e');
     }
   }
+
 
   /// 更新用户头像
   Future<void> _updateUserAvatar(String avatarUrl) async {
@@ -689,43 +741,124 @@ class LoveInfoController extends GetxController {
       builder: (BuildContext context) {
         DateTime tempPicked = initialDate;
 
-        return Localizations.override(
-          context: context,
-          locale: const Locale('zh', 'CN'),
-          child: SizedBox(
-            height: 300,
-            child: Column(
-              children: [
-                // 顶部操作栏
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      child: const Text("取消"),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: const Text("确定"),
-                      onPressed: () {
-                        _updateUserBirthday(tempPicked);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                ),
-                // iOS 风格日期选择器
-                Expanded(
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.date,
-                    initialDateTime: initialDate,
-                    onDateTimeChanged: (DateTime newDate) {
-                      tempPicked = newDate;
-                    },
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // 计算当前月份的天数
+            int daysInMonth(int year, int month) {
+              return DateTime(year, month + 1, 0).day;
+            }
+
+            // 确保日期有效
+            void validateAndUpdateDate() {
+              final maxDay = daysInMonth(tempPicked.year, tempPicked.month);
+              if (tempPicked.day > maxDay) {
+                tempPicked = DateTime(tempPicked.year, tempPicked.month, maxDay);
+              }
+            }
+
+            return SizedBox(
+              height: 300,
+              child: Column(
+                children: [
+                  // 顶部操作栏
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        child: const Text("取消"),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      TextButton(
+                        child: const Text("确定"),
+                        onPressed: () {
+                          _updateUserBirthday(tempPicked);
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
+                  // 自定义日期选择器
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // 年份选择器
+                        Expanded(
+                          child: CupertinoPicker.builder(
+                            itemExtent: 32,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: tempPicked.year - 1950,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                tempPicked = DateTime(1950 + index, tempPicked.month, tempPicked.day);
+                                validateAndUpdateDate();
+                              });
+                            },
+                            childCount: DateTime.now().year - 1950 + 1,
+                            itemBuilder: (context, index) {
+                              return Center(
+                                child: Text(
+                                  '${1950 + index}年',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        // 月份选择器
+                        Expanded(
+                          child: CupertinoPicker.builder(
+                            itemExtent: 32,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: tempPicked.month - 1,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                tempPicked = DateTime(tempPicked.year, index + 1, tempPicked.day);
+                                validateAndUpdateDate();
+                              });
+                            },
+                            childCount: 12,
+                            itemBuilder: (context, index) {
+                              return Center(
+                                child: Text(
+                                  '${index + 1}月',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        // 日期选择器
+                        Expanded(
+                          child: CupertinoPicker.builder(
+                            itemExtent: 32,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: tempPicked.day - 1,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                tempPicked = DateTime(tempPicked.year, tempPicked.month, index + 1);
+                              });
+                            },
+                            childCount: daysInMonth(tempPicked.year, tempPicked.month),
+                            itemBuilder: (context, index) {
+                              return Center(
+                                child: Text(
+                                  '${index + 1}日',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -846,42 +979,40 @@ class LoveInfoController extends GetxController {
       builder: (BuildContext context) {
         DateTime tempPicked = initialDate;
 
-        return Localizations.override(
-          context: context,
-          locale: const Locale('zh', 'CN'),
-          child: SizedBox(
-            height: 300,
-            child: Column(
-              children: [
-                // 顶部操作栏
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      child: const Text("取消"),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: const Text("确定"),
-                      onPressed: () {
-                        _updateLoveTime(tempPicked);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                ),
-                // iOS 风格日期选择器
-                Expanded(
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.date,
-                    initialDateTime: initialDate,
-                    onDateTimeChanged: (DateTime newDate) {
-                      tempPicked = newDate;
+        return SizedBox(
+          height: 300,
+          child: Column(
+            children: [
+              // 顶部操作栏
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    child: const Text("取消"),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  TextButton(
+                    child: const Text("确定"),
+                    onPressed: () {
+                      _updateLoveTime(tempPicked);
+                      Navigator.of(context).pop();
                     },
                   ),
+                ],
+              ),
+              // 自定义日期选择器（显示阿拉伯数字月份）
+              Expanded(
+                child: StatefulBuilder(
+                  builder: (context, setState) {
+                    return _buildCustomDatePicker(tempPicked, (newDate) {
+                      setState(() {
+                        tempPicked = newDate;
+                      });
+                    });
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -902,8 +1033,8 @@ class LoveInfoController extends GetxController {
         // 重新计算在一起天数
         final now = DateTime.now();
         final difference = now.difference(loveTimeDate).inDays;
-        togetherDays.value = difference;
-        loveDays.value = difference;
+        togetherDays.value = difference + 1;
+        loveDays.value = difference + 1;
 
         // 更新用户缓存
         final currentUser = UserManager.currentUser;
@@ -923,7 +1054,7 @@ class LoveInfoController extends GetxController {
               bindTime: updatedLoverInfo.bindTime,
               bindDate: updatedLoverInfo.bindDate,
               loveTime: _formatLoveTime(loveTimeDate), // 更新相恋时间
-              loveDays: difference, // 更新恋爱天数
+              loveDays: difference + 1, // 更新恋爱天数
             );
           }
 
@@ -1000,6 +1131,86 @@ class LoveInfoController extends GetxController {
   /// 格式化相恋时间为 YYYY-MM-DD 格式（用于API）
   String _formatLoveTime(DateTime dateTime) {
     return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
+  /// 构建自定义日期选择器（显示阿拉伯数字月份）
+  Widget _buildCustomDatePicker(DateTime selectedDate, Function(DateTime) onDateChanged) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 年份选择器
+        Expanded(
+          child: CupertinoPicker.builder(
+            itemExtent: 32.0,
+            scrollController: FixedExtentScrollController(
+              initialItem: selectedDate.year - 1900,
+            ),
+            onSelectedItemChanged: (int index) {
+              final newYear = 1900 + index;
+              onDateChanged(DateTime(newYear, selectedDate.month, selectedDate.day));
+            },
+            childCount: 200, // 1900-2099
+            itemBuilder: (context, index) {
+              final year = 1900 + index;
+              return Center(
+                child: Text(
+                  '${year}年',
+                  style: const TextStyle(fontSize: 18),
+                ),
+              );
+            },
+          ),
+        ),
+        // 月份选择器
+        Expanded(
+          child: CupertinoPicker.builder(
+            itemExtent: 32.0,
+            scrollController: FixedExtentScrollController(
+              initialItem: selectedDate.month - 1,
+            ),
+            onSelectedItemChanged: (int index) {
+              final newMonth = index + 1;
+              final daysInMonth = DateTime(selectedDate.year, newMonth + 1, 0).day;
+              final newDay = selectedDate.day > daysInMonth ? daysInMonth : selectedDate.day;
+              onDateChanged(DateTime(selectedDate.year, newMonth, newDay));
+            },
+            childCount: 12,
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              return Center(
+                child: Text(
+                  '${month}月',
+                  style: const TextStyle(fontSize: 18),
+                ),
+              );
+            },
+          ),
+        ),
+        // 日期选择器
+        Expanded(
+          child: CupertinoPicker.builder(
+            itemExtent: 32.0,
+            scrollController: FixedExtentScrollController(
+              initialItem: selectedDate.day - 1,
+            ),
+            onSelectedItemChanged: (int index) {
+              final newDay = index + 1;
+              onDateChanged(DateTime(selectedDate.year, selectedDate.month, newDay));
+            },
+            childCount: DateTime(selectedDate.year, selectedDate.month + 1, 0).day,
+            itemBuilder: (context, index) {
+              final day = index + 1;
+              return Center(
+                child: Text(
+                  '${day}日',
+                  style: const TextStyle(fontSize: 18),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   /// 解析相恋时间字符串

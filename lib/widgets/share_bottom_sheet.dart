@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/services/share_service.dart';
@@ -123,31 +122,36 @@ class ShareBottomSheet extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-         Center(
-              child: isIcon
-                  ? Icon(
-                      icon as IconData,
-                      size: 40,
-                      color: const Color(0xFF666666),
-                    )
-                  : Image.asset(
-                      icon as String,
-                      width: 40,
-                      height: 40,
-                    ),
+      child: Container(
+        width: 80, // 设置固定宽度，扩大点击区域
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4), // 增加内边距扩大点击区域
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+           Center(
+                child: isIcon
+                    ? Icon(
+                        icon as IconData,
+                        size: 40,
+                        color: const Color(0xFF666666),
+                      )
+                    : Image.asset(
+                        icon as String,
+                        width: 40,
+                        height: 40,
+                      ),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF333333),
+              ),
+              textAlign: TextAlign.center, // 文字居中对齐
             ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF333333),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -157,7 +161,7 @@ class ShareBottomSheet extends StatelessWidget {
     Navigator.of(context).pop();
     
     try {
-      OKToastUtil.show('正在启动微信分享...');
+      // OKToastUtil.show('正在启动微信分享...');
       
       // 使用友盟分享，和分享页面保持一致
       final shareService = Get.put(ShareService(), permanent: true);
@@ -182,7 +186,7 @@ class ShareBottomSheet extends StatelessWidget {
     Navigator.of(context).pop();
     
     try {
-      OKToastUtil.show('正在启动QQ分享...');
+      // OKToastUtil.show('正在启动QQ分享...');
       
       // 使用友盟分享，和分享页面保持一致
       final shareService = Get.put(ShareService(), permanent: true);
@@ -217,7 +221,7 @@ class ShareBottomSheet extends StatelessWidget {
     const appLink = 'https://www.kissu.app/download'; // 替换为实际的下载链接
     
     Clipboard.setData(const ClipboardData(text: appLink)).then((_) {
-      OKToastUtil.show('链接已复制到剪贴板');
+      // OKToastUtil.show('链接已复制到剪贴板');
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');
     });
@@ -250,7 +254,7 @@ class ShareBottomSheet extends StatelessWidget {
     Navigator.of(context).pop();
     
     try {
-      OKToastUtil.show('正在启动微信分享...');
+      // OKToastUtil.show('正在启动微信分享...');
       
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);
@@ -273,7 +277,7 @@ class ShareBottomSheet extends StatelessWidget {
     Navigator.of(context).pop();
     
     try {
-      OKToastUtil.show('正在启动QQ分享...');
+      // OKToastUtil.show('正在启动QQ分享...');
       
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);
@@ -308,7 +312,7 @@ class ShareBottomSheet extends StatelessWidget {
      final appLink = 'https://www.ikissu.cn/share/matchingcode.html?bindCode=${UserManager.currentUser?.friendCode ?? '1000000'}';
     
     Clipboard.setData(  ClipboardData(text: appLink)).then((_) {
-      OKToastUtil.show('链接已复制到剪贴板');
+      // OKToastUtil.show('链接已复制到剪贴板');
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');
     });

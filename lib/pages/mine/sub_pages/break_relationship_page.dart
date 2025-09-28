@@ -573,10 +573,10 @@ class _BreakTogetherCard extends StatelessWidget {
       containerSize = 22.0;
       horizontalMargin = 1.0;
     } else if (digitCount >= 4) {
-      // 4位数字，稍微缩小
-      fontSize = 16.0;
-      containerSize = 24.0;
-      horizontalMargin = 1.2;
+      // 4位数字，进一步缩小以防溢出
+      fontSize = 15.0;
+      containerSize = 22.0;
+      horizontalMargin = 1.0;
     } else if (digitCount >= 3) {
       // 3位数字，基础大小
       fontSize = 18.0;

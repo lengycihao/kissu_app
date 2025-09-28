@@ -317,43 +317,124 @@ class InfoSettingController extends GetxController {
       builder: (BuildContext context) {
         DateTime tempPicked = initialDate;
 
-        return Localizations.override(
-          context: context,
-          locale: const Locale('zh', 'CN'),
-          child: SizedBox(
-            height: 300,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      child: const Text("取消"),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: const Text("确定"),
-                      onPressed: () {
-                        selectedDate.value = tempPicked;
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.date,
-                    initialDateTime: initialDate,
-                    minimumDate: DateTime(1950, 1, 1), // 设置更合理的起始日期
-                    maximumDate: DateTime.now().subtract(const Duration(days: 1)), // 最大日期为昨天
-                    onDateTimeChanged: (DateTime newDate) {
-                      tempPicked = newDate;
-                    },
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // 计算当前月份的天数
+            int daysInMonth(int year, int month) {
+              return DateTime(year, month + 1, 0).day;
+            }
+
+            // 确保日期有效
+            void validateAndUpdateDate() {
+              final maxDay = daysInMonth(tempPicked.year, tempPicked.month);
+              if (tempPicked.day > maxDay) {
+                tempPicked = DateTime(tempPicked.year, tempPicked.month, maxDay);
+              }
+            }
+
+            return SizedBox(
+              height: 300,
+              child: Column(
+                children: [
+                  // 顶部操作栏
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        child: const Text("取消"),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      TextButton(
+                        child: const Text("确定"),
+                        onPressed: () {
+                          selectedDate.value = tempPicked;
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
+                  // 自定义日期选择器
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // 年份选择器
+                        Expanded(
+                          child: CupertinoPicker.builder(
+                            itemExtent: 32,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: tempPicked.year - 1950,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                tempPicked = DateTime(1950 + index, tempPicked.month, tempPicked.day);
+                                validateAndUpdateDate();
+                              });
+                            },
+                            childCount: DateTime.now().year - 1950 + 1,
+                            itemBuilder: (context, index) {
+                              return Center(
+                                child: Text(
+                                  '${1950 + index}年',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        // 月份选择器
+                        Expanded(
+                          child: CupertinoPicker.builder(
+                            itemExtent: 32,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: tempPicked.month - 1,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                tempPicked = DateTime(tempPicked.year, index + 1, tempPicked.day);
+                                validateAndUpdateDate();
+                              });
+                            },
+                            childCount: 12,
+                            itemBuilder: (context, index) {
+                              return Center(
+                                child: Text(
+                                  '${index + 1}月',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        // 日期选择器
+                        Expanded(
+                          child: CupertinoPicker.builder(
+                            itemExtent: 32,
+                            scrollController: FixedExtentScrollController(
+                              initialItem: tempPicked.day - 1,
+                            ),
+                            onSelectedItemChanged: (int index) {
+                              setState(() {
+                                tempPicked = DateTime(tempPicked.year, tempPicked.month, index + 1);
+                              });
+                            },
+                            childCount: daysInMonth(tempPicked.year, tempPicked.month),
+                            itemBuilder: (context, index) {
+                              return Center(
+                                child: Text(
+                                  '${index + 1}日',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -415,8 +496,8 @@ class InfoSettingController extends GetxController {
         // 根据is_perfect_information字段决定跳转
         final currentUser = UserManager.currentUser;
         if (currentUser?.isPerfectInformation == 0) {
-          // 跳转到分享页面
-          Get.offAllNamed(KissuRoutePath.share);
+          // 跳转到分享页面，传递来源页面参数
+          Get.offAllNamed(KissuRoutePath.share, arguments: {'fromPage': 'register'});
         } else {
           // 跳转到首页
           Get.offAllNamed(KissuRoutePath.home);

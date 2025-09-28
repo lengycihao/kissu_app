@@ -190,68 +190,50 @@ class VipController extends GetxController {
   /// 加载VIP横幅数据
   void _loadVipBannerData() async {
     try {
-      // 模拟接口调用，实际应该调用 /pay/iconBanner 接口
-      await Future.delayed(const Duration(milliseconds: 500));
+      _logger.i('开始加载VIP横幅和评价数据...');
       
-      // 使用测试数据 - PAG动画暂时移除
+      // 调用真实的 /pay/iconBanner 接口
+      final result = await _vipService.getVipIconBanner();
+      
+      if (result.isSuccess && result.data != null) {
+        bannerData.value = result.data!;
+        _logger.i('VIP页面数据加载完成，轮播图数量: ${bannerData.value?.vipIconBanner.length}, 评价数量: ${bannerData.value?.commentList.length}');
+        
+        // 启动自动轮播
+        _startAutoCarousel();
+      } else {
+        _logger.e('VIP横幅数据加载失败: ${result.msg}');
+        // 加载失败时使用默认的测试数据作为备用
+        _loadFallbackData();
+      }
+    } catch (e) {
+      _logger.e('VIP横幅数据加载异常: $e');
+      // 出现异常时使用默认的测试数据作为备用
+      _loadFallbackData();
+    }
+  }
+
+  /// 加载备用数据（当API调用失败时使用）
+  void _loadFallbackData() {
+    try {
+      _logger.i('使用备用数据...');
       final testData = {
         "comment_list": [
-          {
-            "date": "09月11日",
-            "nickname": "甜蜜小窝",
-            "content": "异地恋三年，靠这个APP随时查看对方位置，安全感爆棚！再也不担心突然失联了，还能悄悄准备惊喜，超贴心～"
-          },
-          {
-            "date": "09月11日",
-            "nickname": "心动信号",
-            "content": "跨国产粮必备！时差党靠它同步生活节奏，看到对方定位就感觉彼此还在同一个时空，距离不再是问题"
-          },
-          {
-            "date": "09月11日",
-            "nickname": "猫系女友",
-            "content": "加班党福音！女朋友再也不用问我'到公司了吗'，直接看定位就行。矛盾少了，默契多了，这钱花得值！"
-          }
+           
+           
         ],
         "vip_icon_banner": [
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner": "",
-            "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/092f1c38cdad6b28a1feba13d3f8c4d5.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/7d71d319498be3d2966b922e2ac7c00d.png",
-            "vip_pag_asset": "pag/kissu_vip_top1.pag"
-          },
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner": "",
-            "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/0a7781998dd34375e9e337543904bf12.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/31/ee2e55f486245a32f1dd356fb409e863.png",
-            "vip_pag_asset": "pag/kissu_vip_top2.pag"
-          },
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner": "",
-            "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/47ec5e48be2e22f5d8886b8243518eb2.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/57b7079d5f3a1c3d13670b313311fa87.png",
-            "vip_pag_asset": "pag/kissu_vip_top3.pag"
-          },
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner": "",
-            "vip_icon": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/f7fe0d2416bf219d16e05ddcf752ee5d.png",
-            "vip_icon_select": "https://kissustatic.yuluojishu.com/uploads/2025/08/22/07c2af127a33d18ddc72e0908bf6fbbb.png",
-            "vip_pag_asset": "pag/kissu_vip_top4.pag"
-          }
+           
         ]
       };
       
       bannerData.value = VipBannerModel.fromJson(testData);
-      print('VIP页面数据加载完成，轮播图数量: ${bannerData.value?.vipIconBanner.length}');
-      print('PAG动画暂时移除，使用图片轮播');
+      _logger.i('备用数据加载完成');
       
       // 启动自动轮播
       _startAutoCarousel();
     } catch (e) {
-      // 静默处理加载错误
+      _logger.e('备用数据加载也失败: $e');
     }
   }
   

@@ -23,6 +23,7 @@ class ApiRequest {
   static const vipPackageList = '/get/vipPackageList?os=1';
   static const wxPay = '/pay/wxPay';
   static const aliPay = '/pay/aliPay';
+  static const vipIconBanner = '/pay/iconBanner';
   
   // 敏感数据上报 API
   static const sensitiveDataReport = '/reporting/sensitive/record';

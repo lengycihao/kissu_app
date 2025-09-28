@@ -54,7 +54,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
     widget.controller.pageContext = context; // 保存 Scaffold 的 context
     return Scaffold(
       backgroundColor: Colors.white,
-       
+
       body: Stack(
         children: [
           // 固定的地图模块 - 使用缓存优化
@@ -74,7 +74,6 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             screenHeight: screenHeight,
           ),
 
-
           // 未绑定提示 - 放置在下半屏上方
           // Positioned(
           //   bottom: screenHeight * 0.3 + 20,
@@ -86,7 +85,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
           //     initialHeight: initialHeight,
           //   ),
           // ),
-          
+
           // 下半屏 DraggableScrollableSheet，扩大可拖动区域
           NotificationListener<DraggableScrollableNotification>(
             onNotification: (notification) {
@@ -95,224 +94,276 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             },
             child: Builder(
               builder: (context) {
-                // 非会员时禁用拖动
-                final isVip = UserManager.isVip;
-                return DraggableScrollableSheet(
-                initialChildSize: initialHeight / screenHeight,
-                minChildSize: isVip ? minHeight / screenHeight : initialHeight / screenHeight,
-                maxChildSize: isVip ? maxHeight / screenHeight : initialHeight / screenHeight,
-                builder: (context, scrollController) {
-                return Column(
-                  children: [ // 未绑定提示 - 放置在播放按钮和下半屏之间
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 20,
-                        right: 20,
-                        bottom: 15,
-                      ),
-                      child: _FloatingUnbindNotification(
-                        controller: widget.controller,
-                        screenHeight: screenHeight,
-                        initialHeight: initialHeight,
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20),
+                // 🔧 修改：只有查看另一半头像时且非会员时才禁用拖动
+                return Obx(() {
+                  final isVip = UserManager.isVip;
+                  final isViewingPartner = widget.controller.isOneself.value == 0;
+                  final shouldLimitDrag = !isVip && isViewingPartner;
+                  
+                  return DraggableScrollableSheet(
+                    initialChildSize: initialHeight / screenHeight,
+                    minChildSize: shouldLimitDrag
+                        ? initialHeight / screenHeight
+                        : minHeight / screenHeight,
+                    maxChildSize: shouldLimitDrag
+                        ? initialHeight / screenHeight
+                        : maxHeight / screenHeight,
+                  builder: (context, scrollController) {
+                    return Column(
+                      children: [
+                        // 未绑定提示 - 放置在播放按钮和下半屏之间
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 20,
+                            right: 20,
+                            bottom: 15,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              offset: Offset(0, -2),
-                            ),
-                          ],
+                          child: _FloatingUnbindNotification(
+                            controller: widget.controller,
+                            screenHeight: screenHeight,
+                            initialHeight: initialHeight,
+                          ),
                         ),
-                        child: Stack(
-                          children: [
-                            NotificationListener<ScrollNotification>(
-                              onNotification: (notification) {
-                                if (notification is ScrollStartNotification) {
-                                  return true;
-                                }
-                                return false;
-                              },
-                              child: CustomScrollView(
-                                controller: scrollController,
-                                slivers: [
-                              // 顶部固定区域
-                              SliverToBoxAdapter(
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      width: double.infinity,
-                                      height: 30,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [Color(0xffFFF7D0), Colors.white],
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    Column(
-                                      children: [
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          width: 40,
-                                          height: 4,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[300],
-                                            borderRadius: BorderRadius.circular(2),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        // 虚拟数据提示文字 - 设备信息模块上方居中显示
-                                        Obx(() {
-                                          if (!widget.controller.isBindPartner.value) {
-                                            return Container(
-                                              margin: const EdgeInsets.only(bottom: 2),
-                                              alignment: Alignment.center,
-                                              child: const Text(
-                                                "以下为虚拟数据",
-                                                style: TextStyle(
-                                                  fontFamily: 'LiuhuanKatongShoushu',
-                                                  fontSize: 14,
-                                                  color: Color(0xFFFF88AA),
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        }),
-                                        _buildDeviceInfoSection(),
-                                        const SizedBox(height: 12),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                        Expanded(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
                               ),
-                              // 列表 + 背景色
-                              SliverToBoxAdapter(
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      margin: EdgeInsets.only(
-                                        left: 15,
-                                        right: 15,
-                                        top: 20,
-                                        bottom: 15,
-                                      ),
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 15,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Color(0xffFF88AA)),
-                                      ),
-                                      child: Obx(() {
-                                        if (widget.controller.locationRecords.isEmpty) {
-                                          return Container(
-                                            width: double.infinity,
-                                            padding: EdgeInsets.symmetric(vertical: 40),
-                                            child: Column(
-                                              children: [
-                                                Image.asset(
-                                                  'assets/kissu_location_empty.webp',
-                                                  width: 128,
-                                                  height: 128,
-                                                ),
-                                                SizedBox(height: 16),
-                                                Text(
-                                                  '对方目前还没有停留点哦～',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Color(0xff666666),
-                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        }
-                          
-                                        return _OptimizedLocationRecordsList(
-                                          controller: widget.controller,
-                                        );
-                                      }),
-                                    ),
-                                  ],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 10,
+                                  offset: Offset(0, -2),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
                             ),
-                            // 统一的会员限制遮罩层 - 覆盖整个滚动区域
-                            if (!UserManager.isVip)
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage('assets/kissu_vip_unbind.webp'),
-                                      fit: BoxFit.fill,
-                                    ),
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(20),
-                                    ),
-                                  ),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      // 点击遮罩层时跳转到VIP页面
-                                      Get.toNamed(KissuRoutePath.vip);
-                                    },
-                                    child: Container(
-                                      color: Colors.transparent, // 确保整个区域可点击
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                            child: Stack(
+                              children: [
+                                NotificationListener<ScrollNotification>(
+                                  onNotification: (notification) {
+                                    if (notification
+                                        is ScrollStartNotification) {
+                                      return true;
+                                    }
+                                    return false;
+                                  },
+                                  child: CustomScrollView(
+                                    controller: scrollController,
+                                    slivers: [
+                                      // 顶部固定区域
+                                      SliverToBoxAdapter(
+                                        child: Stack(
                                           children: [
-                                            // 图片
-                                            GestureDetector(
-                                              onTap: () {
-                                                // 点击图片时跳转到VIP页面
-                                                Get.toNamed(KissuRoutePath.vip);
-                                              },
-                                              child: Image.asset(
-                                                'assets/kissu_go_bind.webp',
-                                                width: 111,
-                                                height: 34,
+                                            Container(
+                                              width: double.infinity,
+                                              height: 30,
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Color(0xffFFF7D0),
+                                                    Colors.white,
+                                                  ],
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                               ),
                                             ),
-                                            const SizedBox(height: 12),
-                                            // 文字
-                                            const Text(
-                                              '实时查看"另一半"的位置和行程轨迹',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xFF333333),
-                                              ),
+                                            Column(
+                                              children: [
+                                                const SizedBox(height: 12),
+                                                Container(
+                                                  width: 40,
+                                                  height: 4,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[300],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          2,
+                                                        ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                // 虚拟数据提示文字 - 设备信息模块上方居中显示
+                                                Obx(() {
+                                                  if (!widget
+                                                      .controller
+                                                      .isBindPartner
+                                                      .value) {
+                                                    return Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            bottom: 2,
+                                                          ),
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: const Text(
+                                                        "以下为虚拟数据",
+                                                        style: TextStyle(
+                                                          fontFamily:
+                                                              'LiuhuanKatongShoushu',
+                                                          fontSize: 14,
+                                                          color: Color(
+                                                            0xFFFF88AA,
+                                                          ),
+                                                        ),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    );
+                                                  }
+                                                  return const SizedBox.shrink();
+                                                }),
+                                                _buildDeviceInfoSection(),
+                                                const SizedBox(height: 12),
+                                              ],
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ),
+                                      // 列表 + 背景色
+                                      SliverToBoxAdapter(
+                                        child: Stack(
+                                          children: [
+                                            Container(
+                                              margin: EdgeInsets.only(
+                                                left: 15,
+                                                right: 15,
+                                                top: 20,
+                                                bottom: 15,
+                                              ),
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 15,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: Color(0xffFF88AA),
+                                                ),
+                                              ),
+                                              child: Obx(() {
+                                                if (widget
+                                                    .controller
+                                                    .locationRecords
+                                                    .isEmpty) {
+                                                  return Container(
+                                                    width: double.infinity,
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 40,
+                                                        ),
+                                                    child: Column(
+                                                      children: [
+                                                        Image.asset(
+                                                          'assets/kissu_location_empty.webp',
+                                                          width: 128,
+                                                          height: 128,
+                                                        ),
+                                                        SizedBox(height: 16),
+                                                        Text(
+                                                          '对方目前还没有停留点哦～',
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            color: Color(
+                                                              0xff666666,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                }
+
+                                                return _OptimizedLocationRecordsList(
+                                                  controller: widget.controller,
+                                                );
+                                              }),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                          ],
+                                // 统一的会员限制遮罩层 - 覆盖整个滚动区域
+                                // 🔧 修改：只有查看另一半头像时且非会员时才显示蒙版
+                                Obx(() {
+                                  if (!UserManager.isVip && widget.controller.isOneself.value == 0) {
+                                    return Positioned.fill(
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          image: DecorationImage(
+                                            image: AssetImage(
+                                              'assets/kissu_vip_unbind.webp',
+                                            ),
+                                            fit: BoxFit.fill,
+                                          ),
+                                          borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(20),
+                                          ),
+                                        ),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            // 点击遮罩层时跳转到VIP页面
+                                            Get.toNamed(KissuRoutePath.vip);
+                                          },
+                                          child: Container(
+                                            color:
+                                                Colors.transparent, // 确保整个区域可点击
+                                            child: Center(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  // 图片
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      // 点击图片时跳转到VIP页面
+                                                      Get.toNamed(
+                                                        KissuRoutePath.vip,
+                                                      );
+                                                    },
+                                                    child: Image.asset(
+                                                      'assets/kissu_go_bind.webp',
+                                                      width: 111,
+                                                      height: 34,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  // 文字
+                                                  const Text(
+                                                    '实时查看"另一半"的位置和行程轨迹',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Color(0xFF333333),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    return const SizedBox.shrink();
+                                  }
+                                }),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 );
-              },
-            );
+                });
               },
             ),
           ),
@@ -378,12 +429,29 @@ class _LocationPageContentState extends State<_LocationPageContent> {
               ),
               const SizedBox(width: 8),
               Obx(
-                () => Text(
-                  widget.controller.distance.value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF000000),
+                () => IntrinsicWidth(
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        bottom: 3,right: 0,
+                        left: 0,
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            color: Color(0xffFFE0E9),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        widget.controller.distance.value,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF000000),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -396,7 +464,10 @@ class _LocationPageContentState extends State<_LocationPageContent> {
               Obx(
                 () => Text(
                   widget.controller.speed.value,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF333333)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF333333),
+                  ),
                 ),
               ),
             ],
@@ -407,14 +478,18 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 1),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFCE8A4),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   "位置",
-                  style: TextStyle(fontSize: 14, color: Color(0xFF000000)),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF000000),
+                    fontFamily: 'LiuhuanKatongShoushu',
+                  ),
                 ),
               ),
               SizedBox(width: 15),
@@ -524,7 +599,7 @@ class _CachedMapWidget extends StatefulWidget {
   final LocationController controller;
 
   const _CachedMapWidget({required this.controller});
-  
+
   @override
   State<_CachedMapWidget> createState() => _CachedMapWidgetState();
 }
@@ -534,27 +609,32 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
   Set<Polyline>? _cachedPolylines;
   int _lastMarkersLength = -1;
   int _lastPolylinesLength = -1;
-  
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       // 使用公共getter获取集合长度，避免频繁重建
       final markersLength = widget.controller.markersLength;
       final polylinesLength = widget.controller.polylinesLength;
-      
+
       // 只有当标记或连接线数量发生变化时才重新构建
-      if (_lastMarkersLength != markersLength || _lastPolylinesLength != polylinesLength) {
+      if (_lastMarkersLength != markersLength ||
+          _lastPolylinesLength != polylinesLength) {
         _cachedMarkers = widget.controller.markers;
         _cachedPolylines = widget.controller.polylines;
         _lastMarkersLength = markersLength;
         _lastPolylinesLength = polylinesLength;
-        
-        print('🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}');
+
+        print(
+          '🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}',
+        );
         if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
-          print('🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}');
+          print(
+            '🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}',
+          );
         }
       }
-      
+
       return RepaintBoundary(
         child: SafeAMapWidget(
           initialCameraPosition: widget.controller.initialCameraPosition,
@@ -573,7 +653,6 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
   }
 }
 
-
 // 优化的头像行Widget
 class _CachedAvatarRow extends StatelessWidget {
   final LocationController controller;
@@ -586,30 +665,30 @@ class _CachedAvatarRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-          // 另一半的头像（左边）
-          _AvatarButton(
-            controller: controller,
-            isMyself: false,
-            onTap: () {
-              if (controller.isOneself.value != 0) {
-                // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
-                controller.onAvatarTapped(false);
-              }
-            },
-          ),
-          const SizedBox(width: 8.0),
-          // 自己的头像（右边）
-          _AvatarButton(
-            controller: controller,
-            isMyself: true,
-            onTap: () {
-              if (controller.isOneself.value != 1) {
-                // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
-                controller.onAvatarTapped(true);
-              }
-            },
-          ),
-        ],
+        // 另一半的头像（左边）
+        _AvatarButton(
+          controller: controller,
+          isMyself: false,
+          onTap: () {
+            if (controller.isOneself.value != 0) {
+              // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
+              controller.onAvatarTapped(false);
+            }
+          },
+        ),
+        const SizedBox(width: 8.0),
+        // 自己的头像（右边）
+        _AvatarButton(
+          controller: controller,
+          isMyself: true,
+          onTap: () {
+            if (controller.isOneself.value != 1) {
+              // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
+              controller.onAvatarTapped(true);
+            }
+          },
+        ),
+      ],
     );
   }
 }
@@ -638,26 +717,30 @@ class _AvatarButtonState extends State<_AvatarButton> {
   @override
   Widget build(BuildContext context) {
     final baseSize = 32.0;
-    
+
     // 使用 Obx 只监听必要的响应式变量
     return Obx(() {
       final currentIsOneselfValue = widget.controller.isOneself.value;
-      
+
       // 检查当前头像是否被选中
-      final isSelected = (widget.isMyself && currentIsOneselfValue == 1) || 
-                        (!widget.isMyself && currentIsOneselfValue == 0);
-      
+      final isSelected =
+          (widget.isMyself && currentIsOneselfValue == 1) ||
+          (!widget.isMyself && currentIsOneselfValue == 0);
+
       // 只有当选中状态真正发生变化时才打印调试信息，减少日志噪音
-      if (_lastIsOneselfValue != currentIsOneselfValue || _lastIsSelectedValue != isSelected) {
-        print('🎯 头像选中状态变化 - isMyself: ${widget.isMyself}, isOneself: $currentIsOneselfValue, isSelected: $isSelected, isAvatarLoaded: $_isAvatarLoaded');
+      if (_lastIsOneselfValue != currentIsOneselfValue ||
+          _lastIsSelectedValue != isSelected) {
+        print(
+          '🎯 头像选中状态变化 - isMyself: ${widget.isMyself}, isOneself: $currentIsOneselfValue, isSelected: $isSelected, isAvatarLoaded: $_isAvatarLoaded',
+        );
         _lastIsOneselfValue = currentIsOneselfValue;
         _lastIsSelectedValue = isSelected;
       }
-      
+
       // 根据选中状态调整缩放比例，但只有在头像加载成功后才应用选中效果
       final scale = (isSelected && _isAvatarLoaded) ? 1.2 : 0.9;
       final actualSize = baseSize * scale;
-      
+
       final avatarUrl = widget.isMyself
           ? widget.controller.myAvatar.value
           : widget.controller.partnerAvatar.value;
@@ -675,10 +758,7 @@ class _AvatarButtonState extends State<_AvatarButton> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 border: (isSelected && _isAvatarLoaded)
-                    ? Border.all(
-                        color: const Color(0xFFFF88AA),
-                        width: 1,
-                      )
+                    ? Border.all(color: const Color(0xFFFF88AA), width: 1)
                     : null,
                 boxShadow: (isSelected && _isAvatarLoaded)
                     ? [
@@ -710,7 +790,10 @@ class _AvatarButtonState extends State<_AvatarButton> {
                 top: -18,
                 left: actualSize / 2 - 23, // 居中显示
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(3),
@@ -746,7 +829,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final records = controller.locationRecords;
-      
+
       // 如果没有记录，返回空Container，使用原来的空状态显示
       if (records.isEmpty) {
         return Container();
@@ -763,7 +846,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                 return Row(
                   children: [
                     Text(
-                      "今日TA停留$recordCount个地方",
+                      "今日停留$recordCount个地方",
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF000000),
@@ -779,7 +862,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                   ],
                 );
               }),
-              SizedBox(height: 16,),
+              SizedBox(height: 16),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -808,7 +891,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
               return Row(
                 children: [
                   Text(
-                    "今日TA停留$recordCount个地方",
+                    "今日停留$recordCount个地方",
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF000000),
@@ -824,7 +907,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                 ],
               );
             }),
-              SizedBox(height: 16,),
+            SizedBox(height: 16),
             ...records.asMap().entries.map((entry) {
               final index = entry.key;
               final record = entry.value;
@@ -861,17 +944,17 @@ class _LocationRecordItem extends StatelessWidget {
     if (startTime == null || startTime.isEmpty) {
       return '未知时间';
     }
-    
+
     // 如果startTime是"当前"，则显示特殊格式
     if (startTime == '当前') {
       return '当前停留';
     }
-    
+
     // 如果endTime为空或为"当前"，则只显示开始时间
     if (endTime == null || endTime.isEmpty || endTime == '当前') {
       return '$startTime~当前';
     }
-    
+
     return '$startTime~$endTime';
   }
 
@@ -905,14 +988,17 @@ class _LocationRecordItem extends StatelessWidget {
       onTap: () {
         // 点击item时跳转到轨迹页面，传递坐标信息
         if (record.latitude != null && record.longitude != null) {
-          Get.to(() => TrackPage(
-            initialLatitude: record.latitude!,
-            initialLongitude: record.longitude!,
-            initialLocationName: record.locationName,
-            initialDuration: record.duration,
-            initialStartTime: record.startTime,
-            initialEndTime: record.endTime,
-          ), binding: TrackBinding());
+          Get.to(
+            () => TrackPage(
+              initialLatitude: record.latitude!,
+              initialLongitude: record.longitude!,
+              initialLocationName: record.locationName,
+              initialDuration: record.duration,
+              initialStartTime: record.startTime,
+              initialEndTime: record.endTime,
+            ),
+            binding: TrackBinding(),
+          );
         } else {
           // 如果没有坐标信息，只跳转到轨迹页面
           Get.to(() => TrackPage(), binding: TrackBinding());
@@ -926,9 +1012,13 @@ class _LocationRecordItem extends StatelessWidget {
             // 左侧时间
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Image(image: AssetImage('assets/kissu_location_circle.webp'),width: 8,height: 8,),
+              child: Image(
+                image: AssetImage('assets/kissu_location_circle.webp'),
+                width: 8,
+                height: 8,
+              ),
             ),
-            const SizedBox(width: 8),  
+            const SizedBox(width: 8),
             // 右侧内容
             Expanded(
               child: Column(
@@ -1066,4 +1156,3 @@ class _FloatingUnbindNotification extends StatelessWidget {
     });
   }
 }
-

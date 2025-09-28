@@ -182,6 +182,7 @@ class NicknameInputDialog {
       initialValue: currentNickname,
       confirmText: '确定',
       maxLength: 8,
+      keyboardType: TextInputType.text,
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/services/share_service.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ShareController extends GetxController {
@@ -21,11 +22,20 @@ class ShareController extends GetxController {
 
   // 加载状态
   var isLoading = false.obs;
+  
+  // 来源页面标识
+  String? fromPage;
 
   @override
   void onInit() {
     super.onInit();
     matchCodeController = TextEditingController();
+    
+    // 获取来源页面参数
+    if (Get.arguments is Map) {
+      fromPage = Get.arguments['fromPage'];
+    }
+    
     _loadUserInfo();
   }
 
@@ -96,8 +106,8 @@ class ShareController extends GetxController {
         // 刷新用户信息
         await _refreshUserInfo();
 
-        // 跳转到首页
-        Get.offAllNamed(KissuRoutePath.home);
+        // 根据来源页面决定返回方式
+        _handleBindingSuccess();
       } else {
         OKToastUtil.show(result.msg ?? '绑定失败');
       }
@@ -119,6 +129,72 @@ class ShareController extends GetxController {
       }
     } catch (e) {
       print('刷新用户信息失败: $e');
+    }
+  }
+  
+  /// 处理绑定成功后的返回逻辑
+  void _handleBindingSuccess() {
+    // 绑定成功后统一跳转到首页
+    Get.offAllNamed(KissuRoutePath.home);
+    print('绑定成功，跳转到首页');
+    
+    // 延迟刷新确保首页完全加载后再刷新数据
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      _delayedRefreshHomeData();
+    });
+  }
+  
+  /// 处理返回按钮点击
+  void handleBackButton() {
+    if (fromPage == 'register') {
+      // 从注册页面进入，点击返回时跳转到首页
+      Get.offAllNamed(KissuRoutePath.home);
+      print('从注册页面点击返回，跳转到首页');
+    } else {
+      // 从其他页面进入，正常返回
+      Get.back();
+      print('从其他页面点击返回，正常返回');
+    }
+  }
+  
+
+  /// 延迟刷新首页数据（用于从注册页面绑定成功的情况）
+  Future<void> _delayedRefreshHomeData() async {
+    try {
+      print('开始延迟刷新首页数据...');
+      
+      // 多次尝试获取首页控制器，确保首页已完全初始化
+      HomeController? homeController;
+      int attempts = 0;
+      const maxAttempts = 5;
+      
+      while (homeController == null && attempts < maxAttempts) {
+        attempts++;
+        if (Get.isRegistered<HomeController>()) {
+          try {
+            homeController = Get.find<HomeController>();
+            print('第${attempts}次尝试获取首页控制器成功');
+            break;
+          } catch (e) {
+            print('第${attempts}次尝试获取首页控制器失败: $e');
+          }
+        } else {
+          print('第${attempts}次尝试：首页控制器未注册');
+        }
+        
+        // 等待一段时间后重试
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+      
+      if (homeController != null) {
+        print('延迟刷新首页用户数据');
+        await homeController.refreshUserInfoFromServer();
+        print('延迟刷新首页用户数据完成');
+      } else {
+        print('延迟刷新失败：无法获取首页控制器');
+      }
+    } catch (e) {
+      print('延迟刷新首页数据失败: $e');
     }
   }
 
@@ -237,7 +313,7 @@ class ShareController extends GetxController {
     try {
       // 使用Flutter的share插件作为备用
       await Clipboard.setData(ClipboardData(text: text));
-      OKToastUtil.show('分享文本已复制到剪贴板');
+      // OKToastUtil.show('分享文本已复制到剪贴板');
     } catch (e) {
       OKToastUtil.show('复制失败: $e');
     }

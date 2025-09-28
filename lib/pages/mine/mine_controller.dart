@@ -97,7 +97,7 @@ class MineController extends GetxController {
         bindDate.value = user.loverInfo!.bindDate!;
       }
 
-      // 如果有恋爱天数，直接使用
+      // 如果有恋爱天数，直接使用服务器数据
       if (user.loverInfo!.loveDays != null && user.loverInfo!.loveDays! > 0) {
         days.value = "${user.loverInfo!.loveDays}天";
         return; // 使用了LoverInfo的数据，就不需要再计算了

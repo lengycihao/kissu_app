@@ -125,7 +125,14 @@ class AuthApi {
     );
 
     if (result.isSuccess) {
-      return result.convert(data: LoginModel.fromJson(result.getDataJson()));
+      final dataJson = result.getDataJson();
+      // 检查数据是否有效（不为空且包含必要字段）
+      if (dataJson.isNotEmpty && dataJson.containsKey('id') && dataJson['id'] != null) {
+        return result.convert(data: LoginModel.fromJson(dataJson));
+      } else {
+        // 数据无效，返回失败结果
+        return HttpResultN.failure(-1, '用户数据无效或为空');
+      }
     } else {
       return result.convert();
     }

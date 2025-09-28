@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 
 class ImageHandler {
   final ImagePicker _imagePicker = ImagePicker();
@@ -54,35 +55,20 @@ class ImageHandler {
               _buildOptionItem(
                 icon: Icons.camera_alt,
                 label: "相机",
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _getImageFromCamera(context);
-                  if (image != null) {
-                    onSelected([image]);
-                  }
-                },
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _handleCameraSelection(context, onSelected);
+                  },
               ),
 
               // 相册选项
               _buildOptionItem(
                 icon: Icons.photo_library,
                 label: "相册",
-                onTap: () async {
-                  // Navigator.pop(context);
-                  final remaining = maxImages - currentImages.length;
-                  // if (remaining <= 0) {
-                  //   _showMessage(context, "最多只能选择$maxImages张图片");
-                  //   return;
-                  // }
-
-                  final images = await _getImagesFromGallery(
-                    context,
-                    remaining,
-                  );
-                  if (images.isNotEmpty) {
-                    onSelected(images);
-                  }
-                },
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _handleGallerySelection(context, onSelected, maxImages, currentImages);
+                  },
               ),
             ],
           ),
@@ -121,18 +107,121 @@ class ImageHandler {
     );
   }
 
-  // 从相机获取图片
-  Future<File?> _getImageFromCamera(BuildContext context) async {
+  /// 处理相机选择 - 使用自定义弹窗提示权限申请
+  Future<void> _handleCameraSelection(BuildContext context, Function(List<File>) onSelected) async {
     try {
-      // 使用统一权限服务检查相机权限
-      if (!await _permissionService.checkPermissionStatus(PermissionType.camera)) {
+      // 检查是否已有相机权限
+      final hasPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      
+      if (!hasPermission) {
+        // 显示自定义权限提示弹窗
+        if (!context.mounted) return;
+        final shouldContinue = await PermissionRequestDialog.showCameraPermissionDialog(context);
+        if (shouldContinue != true) return;
+        
+        // 申请相机权限
         final granted = await _permissionService.requestCameraPermission();
         if (!granted) {
+          if (!context.mounted) return;
           _showEnhancedPermissionDeniedDialog(context, "相机", PermissionType.camera);
-          return null;
+          return;
         }
       }
+      
+      // 权限已获得，进行图片拍摄
+      if (!context.mounted) return;
+      final image = await _getImageFromCamera(context);
+      if (image != null) {
+        onSelected([image]);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showMessage(context, '相机功能异常: $e');
+      }
+    }
+  }
 
+  /// 处理相册选择 - 使用自定义弹窗提示权限申请
+  Future<void> _handleGallerySelection(
+    BuildContext context, 
+    Function(List<File>) onSelected, 
+    int maxImages, 
+    List<File> currentImages
+  ) async {
+    try {
+      // 检查是否已有相册权限
+      final hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
+      print("相册权限检查结果: $hasPermission");
+      
+      // 检查权限是否被永久拒绝
+      final isPermanentlyDenied = await _permissionService.isPermissionPermanentlyDenied(PermissionType.photos);
+      print("相册权限是否被永久拒绝: $isPermanentlyDenied");
+      
+      if (!hasPermission) {
+        // 如果权限被永久拒绝，直接提示跳转设置
+        if (isPermanentlyDenied) {
+          if (!context.mounted) return;
+          print("权限被永久拒绝，显示设置提示");
+          _showEnhancedPermissionDeniedDialog(context, "相册", PermissionType.photos);
+          return;
+        }
+        // 显示自定义权限提示弹窗
+        if (!context.mounted) {
+          print("Context 不可用，无法显示权限弹窗");
+          return;
+        }
+        print("显示相册权限说明弹窗");
+        final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(context);
+        print("用户选择继续: $shouldContinue");
+        if (shouldContinue != true) {
+          print("用户取消了权限申请");
+          return;
+        }
+        
+        // 申请相册权限
+        print("开始申请相册权限");
+        try {
+          final granted = await _permissionService.requestPhotosPermission();
+          print("相册权限申请结果: $granted");
+          if (!granted) {
+            if (!context.mounted) return;
+            print("权限被拒绝，显示权限被拒绝弹窗");
+            _showEnhancedPermissionDeniedDialog(context, "相册", PermissionType.photos);
+            return;
+          }
+          print("相册权限申请成功，继续选择图片");
+        } catch (e) {
+          print("申请相册权限时发生异常: $e");
+          if (context.mounted) {
+            _showMessage(context, '权限申请失败: $e');
+          }
+          return;
+        }
+      }
+      
+      // 权限已获得，进行图片选择
+      final remaining = maxImages - currentImages.length;
+      if (remaining <= 0) {
+        if (!context.mounted) return;
+        _showMessage(context, "最多只能选择$maxImages张图片");
+        return;
+      }
+      
+      if (!context.mounted) return;
+      final images = await _getImagesFromGallery(context, remaining);
+      if (images.isNotEmpty) {
+        onSelected(images);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showMessage(context, '相册功能异常: $e');
+      }
+    }
+  }
+
+  // 从相机获取图片（内部方法，权限已检查）
+  Future<File?> _getImageFromCamera(BuildContext context) async {
+    try {
       // 调用相机
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.camera,
@@ -143,7 +232,9 @@ class ImageHandler {
         return File(image.path);
       }
     } catch (e) {
-      _showMessage(context, "相机调用失败: ${e.toString()}");
+      if (context.mounted) {
+        _showMessage(context, "相机调用失败: ${e.toString()}");
+      }
     }
     return null;
   }
@@ -154,15 +245,6 @@ class ImageHandler {
     int maxSelectable,
   ) async {
     try {
-      // 使用统一权限服务检查相册权限
-      if (!await _permissionService.checkPermissionStatus(PermissionType.photos)) {
-        final granted = await _permissionService.requestPhotosPermission();
-        if (!granted) {
-          _showEnhancedPermissionDeniedDialog(context, "相册", PermissionType.photos);
-          return [];
-        }
-      }
-      Navigator.pop(context);
       // 调用相册选择多张图片
       final List<XFile> images = await _imagePicker.pickMultiImage(
         imageQuality: 80,

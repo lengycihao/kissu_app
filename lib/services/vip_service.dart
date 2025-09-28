@@ -1,5 +1,6 @@
 import 'package:kissu_app/models/vip_package_model.dart';
 import 'package:kissu_app/models/payment_model.dart';
+import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
@@ -85,6 +86,20 @@ class VipService {
 
     if (result.isSuccess) {
       return result.convert(data: AliPayModel.fromJson(result.getDataJson()));
+    } else {
+      return result.convert();
+    }
+  }
+
+  /// 获取VIP图标横幅和用户评价数据
+  Future<HttpResultN<VipBannerModel>> getVipIconBanner() async {
+    final result = await HttpManagerN.instance.executeGet(
+      ApiRequest.vipIconBanner,
+      paramEncrypt: false,
+    );
+
+    if (result.isSuccess) {
+      return result.convert(data: VipBannerModel.fromJson(result.getDataJson()));
     } else {
       return result.convert();
     }

@@ -204,26 +204,37 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 第一个加号按钮
+                      // 第一个头像按钮
                       Transform.translate(
                         offset: const Offset(45, 0),
                         child: Transform.rotate(
                           angle: 30 * 3.1415926535 / 180, // 逆时针30度
-                          child: controller.userAvatar.value.startsWith('http')
-                              ? NoPlaceholderImage(
-                                    imageUrl: controller.userAvatar.value,
-                                    defaultAssetPath: "assets/kissu_icon.webp",
+                          child: GestureDetector(
+                            onTap: () {
+                              if (controller.isBound.value) {
+                                // 已绑定状态下点击头像跳转到恋爱信息页
+                                Get.to(() => const LoveInfoPage());
+                              } else {
+                                // 未绑定状态下跳转分享页
+                                Get.toNamed(KissuRoutePath.share);
+                              }
+                            },
+                            child: controller.userAvatar.value.startsWith('http')
+                                ? NoPlaceholderImage(
+                                      imageUrl: controller.userAvatar.value,
+                                      defaultAssetPath: "assets/kissu_icon.webp",
+                                      width: 38,
+                                      height: 38,
+                                      fit: BoxFit.cover,
+                                      borderRadius: BorderRadius.circular(5),
+                                    )
+                                : Image.asset(
+                                    controller.userAvatar.value,
                                     width: 38,
                                     height: 38,
                                     fit: BoxFit.cover,
-                                    borderRadius: BorderRadius.circular(5),
-                                  )
-                              : Image.asset(
-                                  controller.userAvatar.value,
-                                  width: 38,
-                                  height: 38,
-                                  fit: BoxFit.cover,
-                                ),
+                                  ),
+                          ),
                         ),
                       ),
                       // 减少重叠的间距，例如 -6
@@ -578,7 +589,11 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
           child: Swiper(
             itemBuilder: (BuildContext context, int index) {
               return Center(
-                child: Container(
+                child: GestureDetector(
+                  onTap: (){
+                    index == 0 ? Get.toNamed(KissuRoutePath.location) : Get.to(() => TrackPage(), binding: TrackBinding());
+                  },
+                  child: Container(
                   width: 303,
                   height: 81,
                   decoration: BoxDecoration(
@@ -592,164 +607,153 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                     ),
                   ),
                   child: index == 0
-                      ? GestureDetector(
-                          onTap: () {
-                            Get.toNamed(KissuRoutePath.location);
-                          },
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: Container(
-                                  width: 55,
-                                  height: 18,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(9),
-                                    border: Border.all(
-                                      color: Color(0xffFF88AA),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Obx(
-                                    () => Text(
-                                      controller.distance.value,
-                                      style: TextStyle(
-                                        color: Color(0xff000000),
-                                        fontSize: 12,
-                                      ),
-                                    ),
+                      ? Stack(
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 55,
+                              height: 18,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(
+                                  color: Color(0xffFF88AA),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Obx(
+                                () => Text(
+                                  controller.distance.value,
+                                  style: TextStyle(
+                                    color: Color(0xff000000),
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
-                              Positioned(
-                                right: 26,
-                                bottom: 8,
-                                child: Container(
-                                  width: 31,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage(
-                                        "assets/kissu_home_header_bg.webp",
-                                      ),
-                                    ),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Transform.translate(
-                                    offset: Offset(0, -2),
-                                    child: ClipRRect(
-                                      borderRadius:
-                                          BorderRadiusGeometry.circular(15),
-                                      child: NoPlaceholderImage(
-                                        imageUrl: controller.partnerAvatar.value,
-                                        defaultAssetPath: "assets/kissu_icon.webp",
-                                        width: 28,
-                                        height: 28,
-                                        fit: BoxFit.cover,
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: 16,
-                                bottom: 8,
-                                child: Container(
-                                  width: 31,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage(
-                                        "assets/kissu_home_header_bg.webp",
-                                      ),
-                                    ),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Transform.translate(
-                                    offset: Offset(0, -2),
-                                    child: ClipRRect(
-                                      borderRadius:
-                                          BorderRadiusGeometry.circular(15),
-                                      child: NoPlaceholderImage(
-                                        imageUrl: controller.userAvatar.value,
-                                        defaultAssetPath: "assets/kissu_icon.webp",
-                                        width: 28,
-                                        height: 28,
-                                        fit: BoxFit.cover,
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        )
-                      : GestureDetector(
-                          onTap: () {
-                            // 修复：使用与其他定位按钮一致的导航方式
-                            debugPrint("🔍 屏视图定位按钮被点击");
-                            Get.to(() => LocationPage(), binding: LocationBinding());
-                          },
-                          child: Stack(
-                            children: [
-                              // Center(
-                              //   child: Container(
-                              //     width: 55,
-                              //     height: 18,
-                              //     alignment: Alignment.center,
-                              //     decoration: BoxDecoration(
-                              //       color: Colors.white,
-                              //       borderRadius: BorderRadius.circular(9),
-                              //       border: Border.all(
-                              //         color: Color(0xffFF88AA),
-                              //         width: 1,
-                              //       ),
-                              //     ),
-                              //     child: Obx(
-                              //       () => Text(
-                              //         controller.distance.value,
-                              //         style: TextStyle(
-                              //           color: Color(0xff000000),
-                              //           fontSize: 12,
-                              //         ),
-                              //       ),
-                              //     ),
-                              //   ),
-                              // ),
-                              Positioned(
-                                left: 16,
-                                bottom: 8,
-                                child: Container(
-                                  width: 31,
-                                  height: 38,
-                                  // 移除背景图decoration，保持容器尺寸和位置
-                                  alignment: Alignment.center,
-                                  child: Transform.translate(
-                                    offset: Offset(0.5, -3),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadiusGeometry.circular(
-                                        15,
-                                      ),
-                                      child: NoPlaceholderImage(
-                                        imageUrl: controller.userAvatar.value,
-                                        defaultAssetPath: "assets/kissu_icon.webp",
-                                        width: 28,
-                                        height: 28,
-                                        fit: BoxFit.cover,
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                    ),
+                          Positioned(
+                            right: 26,
+                            bottom: 8,
+                            child: Container(
+                              width: 31,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(
+                                    "assets/kissu_home_header_bg.webp",
                                   ),
                                 ),
                               ),
-                            ],
+                              alignment: Alignment.center,
+                              child: Transform.translate(
+                                offset: Offset(0, -2),
+                                child: ClipRRect(
+                                  borderRadius:
+                                      BorderRadiusGeometry.circular(15),
+                                  child: NoPlaceholderImage(
+                                    imageUrl: controller.partnerAvatar.value,
+                                    defaultAssetPath: "assets/kissu_icon.webp",
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          Positioned(
+                            left: 16,
+                            bottom: 8,
+                            child: Container(
+                              width: 31,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(
+                                    "assets/kissu_home_header_bg.webp",
+                                  ),
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Transform.translate(
+                                offset: Offset(0, -2),
+                                child: ClipRRect(
+                                  borderRadius:
+                                      BorderRadiusGeometry.circular(15),
+                                  child: NoPlaceholderImage(
+                                    imageUrl: controller.userAvatar.value,
+                                    defaultAssetPath: "assets/kissu_icon.webp",
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                      : Stack(
+                        children: [
+                          // Center(
+                          //   child: Container(
+                          //     width: 55,
+                          //     height: 18,
+                          //     alignment: Alignment.center,
+                          //     decoration: BoxDecoration(
+                          //       color: Colors.white,
+                          //       borderRadius: BorderRadius.circular(9),
+                          //       border: Border.all(
+                          //         color: Color(0xffFF88AA),
+                          //         width: 1,
+                          //       ),
+                          //     ),
+                          //     child: Obx(
+                          //       () => Text(
+                          //         controller.distance.value,
+                          //         style: TextStyle(
+                          //           color: Color(0xff000000),
+                          //           fontSize: 12,
+                          //         ),
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ),
+                          Positioned(
+                            left: 16,
+                            bottom: 8,
+                            child: Container(
+                              width: 31,
+                              height: 38,
+                              // 移除背景图decoration，保持容器尺寸和位置
+                              alignment: Alignment.center,
+                              child: Transform.translate(
+                                offset: Offset(0.5, -3),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadiusGeometry.circular(
+                                    15,
+                                  ),
+                                  child: NoPlaceholderImage(
+                                    imageUrl: controller.userAvatar.value,
+                                    defaultAssetPath: "assets/kissu_icon.webp",
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                 ),
-              );
+              
+                ));
             },
             autoplay: true,
             loop: true,

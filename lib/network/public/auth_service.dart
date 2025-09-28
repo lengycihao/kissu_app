@@ -388,16 +388,26 @@ class AuthService {
       );
 
       if (result.isSuccess && result.data != null) {
-        // 直接使用服务器返回的用户对象更新缓存
-        await updateCurrentUser(result.data!);
+        // 检查用户数据是否有效（至少要有ID）
+        if (result.data!.id != null && result.data!.id! > 0) {
+          // 直接使用服务器返回的用户对象更新缓存
+          await updateCurrentUser(result.data!);
 
-        logger.info(
-          '用户信息已从服务器刷新',
-          tag: 'AuthService',
-          extra: {'userId': result.data!.id, 'nickname': result.data!.nickname},
-        );
+          logger.info(
+            '用户信息已从服务器刷新',
+            tag: 'AuthService',
+            extra: {'userId': result.data!.id, 'nickname': result.data!.nickname},
+          );
 
-        return true;
+          return true;
+        } else {
+          logger.warning(
+            '服务器返回的用户数据无效（ID为空或为0），保留本地缓存',
+            tag: 'AuthService',
+            extra: {'data': result.data?.toJson()},
+          );
+          return false;
+        }
       } else {
         logger.error(
           '从服务器刷新用户信息失败',

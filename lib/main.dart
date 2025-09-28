@@ -17,6 +17,7 @@ import 'package:kissu_app/services/smart_background_location_reminder.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
+import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
@@ -127,6 +128,10 @@ void main() async {
     // 步骤13: 初始化视图模式服务
     Get.put(ViewModeService(), permanent: true);
     DebugUtil.success('视图模式服务初始化完成');
+    
+    // 步骤13.1: 初始化首页滚动服务
+    Get.put(HomeScrollService(), permanent: true);
+    DebugUtil.success('首页滚动服务初始化完成');
     
     // 步骤14: 初始化首次启动服务
     Get.put(FirstLaunchService(), permanent: true);

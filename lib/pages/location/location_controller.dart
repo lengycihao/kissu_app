@@ -60,9 +60,6 @@ class LocationController extends GetxController {
   /// 位置记录列表
   final RxList<LocationRecord> locationRecords = <LocationRecord>[].obs;
   
-  /// 🔧 新增：缓存API返回的数据，用于切换用户时更新列表
-  UserLocationMobileDevice? _cachedUserLocationMobileDevice;
-  UserLocationMobileDevice? _cachedHalfLocationMobileDevice;
   
   
   /// DraggableScrollableSheet 状态
@@ -628,16 +625,39 @@ class LocationController extends GetxController {
             correctMyAvatar = partnerAvatar.value;
           }
           
-          // 使用带头像的标记
-          final myIcon = await _createAvatarMarker(
-            correctMyAvatar,
-            defaultAsset: 'assets/kissu_track_header_boy.webp',
-          );
+          // 根据绑定状态和查看的用户选择标记类型
+          late final myIcon;
+          if (isBindPartner.value) {
+            // 已绑定状态：使用真实头像
+            myIcon = await _createAvatarMarker(
+              correctMyAvatar,
+              defaultAsset: 'assets/kissu_track_header_boy.webp',
+            );
+          } else {
+            // 未绑定状态：判断当前位置是否代表另一半
+            if (isOneself.value == 0) {
+              // 查看另一半时，myLocation代表另一半位置，应显示虚拟TA标签
+              DebugUtil.info(' 💫 未绑定状态 - myLocation代表另一半，显示虚拟TA标签，使用头像: $correctMyAvatar');
+              myIcon = await _createAvatarMarkerWithVirtualLabel(
+                correctMyAvatar, // 使用接口返回的真实头像
+                defaultAsset: 'assets/kissu_track_header_boy.webp',
+              );
+            } else {
+              // 查看自己时，myLocation代表自己位置，使用正常头像
+              DebugUtil.info(' 💫 未绑定状态 - myLocation代表自己，使用正常头像');
+              myIcon = await _createAvatarMarker(
+                correctMyAvatar,
+                defaultAsset: 'assets/kissu_track_header_boy.webp',
+              );
+            }
+          }
           
           final myMarker = Marker(
             position: myLocation.value!,
             icon: myIcon,
-            anchor: const Offset(0.5, 0.913), // 锚点Y坐标调整到105像素位置
+            anchor: (!isBindPartner.value && isOneself.value == 0) 
+                ? const Offset(0.5, 0.925) // 带虚拟TA标签的标记锚点调整
+                : const Offset(0.5, 0.913), // 锚点Y坐标调整到105像素位置
             onTap: (String markerId) {
               DebugUtil.info('点击了我的位置');
               _moveMapToLocation(myLocation.value!);
@@ -681,22 +701,39 @@ class LocationController extends GetxController {
           }
           
           // 根据绑定状态选择标记类型
-          final partnerIcon = isBindPartner.value 
-              ? await _createAvatarMarker(
-                  correctPartnerAvatar,
-                  defaultAsset: 'assets/kissu_track_header_girl.webp',
-                )
-              : await _createAvatarMarkerWithVirtualLabel(
-                  correctPartnerAvatar,
-                  defaultAsset: 'assets/kissu_track_header_girl.webp',
-                );
+          late final partnerIcon;
+          if (isBindPartner.value) {
+            // 已绑定状态：使用真实的伴侣头像
+            DebugUtil.info(' 🔗 已绑定状态 - 使用伴侣头像: $correctPartnerAvatar');
+            partnerIcon = await _createAvatarMarker(
+              correctPartnerAvatar,
+              defaultAsset: 'assets/kissu_track_header_girl.webp',
+            );
+          } else {
+            // 未绑定状态：判断当前位置是否代表另一半
+            if (isOneself.value == 1) {
+              // 查看自己时，partnerLocation代表另一半位置，应显示虚拟TA标签
+              DebugUtil.info(' 💫 未绑定状态 - partnerLocation代表另一半，显示虚拟TA标签，使用头像: $correctPartnerAvatar');
+              partnerIcon = await _createAvatarMarkerWithVirtualLabel(
+                correctPartnerAvatar, // 使用接口返回的真实头像
+                defaultAsset: 'assets/kissu_track_header_girl.webp',
+              );
+            } else {
+              // 查看另一半时，partnerLocation代表自己位置，使用正常头像
+              DebugUtil.info(' 💫 未绑定状态 - partnerLocation代表自己，使用正常头像');
+              partnerIcon = await _createAvatarMarker(
+                correctPartnerAvatar,
+                defaultAsset: 'assets/kissu_track_header_girl.webp',
+              );
+            }
+          }
           
           final partnerMarker = Marker(
             position: partnerLocation.value!,
             icon: partnerIcon,
-            anchor: isBindPartner.value 
-                ? const Offset(0.5, 0.913) // 锚点Y坐标调整到105像素位置 
-                : const Offset(0.5, 0.925), // 带虚拟TA标签的标记锚点调整
+            anchor: (!isBindPartner.value && isOneself.value == 1) 
+                ? const Offset(0.5, 0.925) // 带虚拟TA标签的标记锚点调整
+                : const Offset(0.5, 0.913), // 锚点Y坐标调整到105像素位置
             onTap: (String markerId) {
               DebugUtil.info('点击了伴侣位置');
               _moveMapToLocation(partnerLocation.value!);
@@ -789,18 +826,38 @@ class LocationController extends GetxController {
   CameraPosition get initialCameraPosition {
     // 如果两个用户都有位置，计算最佳视图
     if (myLocation.value != null && partnerLocation.value != null) {
-      // 使用超缩小视角作为初始状态（两人位置看起来快重合）
-      final centerLat = (myLocation.value!.latitude + partnerLocation.value!.latitude) / 2;
-      final centerLng = (myLocation.value!.longitude + partnerLocation.value!.longitude) / 2;
+      final myPos = myLocation.value!;
+      final partnerPos = partnerLocation.value!;
+      
+      // 计算两人距离，动态调整初始缩放级别
+      final latDiff = (myPos.latitude - partnerPos.latitude).abs();
+      final lngDiff = (myPos.longitude - partnerPos.longitude).abs();
+      final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+      
+      // 根据距离动态设置初始缩放级别，确保两人都能看到
+      double initialZoom;
+      if (maxDiff > 10.0) {
+        initialZoom = 2.0; // 超远距离（>1000km）：全球视角
+      } else if (maxDiff > 5.0) {
+        initialZoom = 3.0; // 很远距离（>500km）：洲际视角
+      } else if (maxDiff > 2.0) {
+        initialZoom = 4.0; // 远距离（>200km）：国家视角
+      } else if (maxDiff > 1.0) {
+        initialZoom = 5.0; // 中远距离（>100km）：省份视角
+      } else {
+        initialZoom = 6.0; // 中等距离（<100km）：城市视角
+      }
+      
+      final centerLat = (myPos.latitude + partnerPos.latitude) / 2;
+      final centerLng = (myPos.longitude + partnerPos.longitude) / 2;
       final center = LatLng(centerLat, centerLng);
       
-      // 使用很小的缩放级别，让两人位置看起来快要重合
       final superFarPosition = CameraPosition(
         target: center,
-        zoom: 6.0, // 超小缩放级别
+        zoom: initialZoom,
       );
       
-      DebugUtil.info(' 定位页面初始超缩小视角 - 两个用户位置看起来快重合: 缩放级别=6.0');
+      DebugUtil.info(' 定位页面初始视角 - 距离差值=$maxDiff, 初始缩放级别=$initialZoom');
       return superFarPosition;
     }
     // 如果只有我的位置
@@ -909,7 +966,7 @@ class LocationController extends GetxController {
       final lngDiff = (myPos.longitude - partnerPos.longitude).abs();
       final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
       
-      // 动态调整额外缩放：距离越远，额外缩放越小
+      // 动态调整额外缩放：距离越远，额外缩放越小，超远距离不额外缩放
       double extraZoom;
       if (maxDiff < 0.05) {
         extraZoom = 1.5; // 近距离(<5km)：放大1.5级
@@ -917,8 +974,12 @@ class LocationController extends GetxController {
         extraZoom = 1.0; // 中距离(<10km)：放大1级
       } else if (maxDiff < 0.2) {
         extraZoom = 0.5; // 中远距离(<20km)：放大0.5级
+      } else if (maxDiff < 1.0) {
+        extraZoom = 0.0; // 远距离(<100km)：不额外放大
+      } else if (maxDiff < 5.0) {
+        extraZoom = -0.5; // 极远距离(<500km)：缩小0.5级
       } else {
-        extraZoom = 0.0; // 远距离(>20km)：不额外放大
+        extraZoom = -1.0; // 超远距离(>500km)：缩小1级，确保都能看到
       }
       
       final enhancedPosition = CameraPosition(
@@ -953,10 +1014,31 @@ class LocationController extends GetxController {
 
   
   
-  /// 头像点击时移动地图到对应用户位置并放大到最大等级
+  /// 头像点击时切换用户视角并重新获取最新定位数据
   void onAvatarTapped(bool isMyself) {
     DebugUtil.info(' 头像点击开始 - isMyself: $isMyself');
     
+    // 更新状态
+    if (isMyself) {
+      // 点击自己头像，切换到自己的视角
+      isOneself.value = 1;
+      DebugUtil.info(' 切换到自己的视角');
+    } else {
+      // 点击另一半头像，切换到另一半的视角
+      isOneself.value = 0;
+      DebugUtil.info(' 切换到另一半的视角');
+    }
+    
+    // 重新调用定位API获取最新数据
+    DebugUtil.info(' 头像切换：重新获取最新定位数据...');
+    loadLocationData().then((_) {
+      // API数据更新完成后，移动地图到对应用户位置
+      _moveToTargetUserLocation(isMyself);
+    });
+  }
+  
+  /// 移动地图到目标用户位置
+  void _moveToTargetUserLocation(bool isMyself) {
     if (mapController == null) {
       DebugUtil.error(' 地图控制器不存在，无法移动地图');
       return;
@@ -965,33 +1047,20 @@ class LocationController extends GetxController {
     LatLng? targetLocation;
     String userName;
     
-    // 🔧 简化逻辑：直接使用实际位置数据
-    // actualMyLocation 始终存储自己的实际位置
-    // actualPartnerLocation 始终存储另一半的实际位置
-    
     if (isMyself) {
-      // 点击自己头像，切换到自己的位置
+      // 移动到自己的位置
       targetLocation = actualMyLocation.value;
       userName = "我的位置";
-      // 更新状态为查看自己
-      isOneself.value = 1;
     } else {
-      // 点击另一半头像，切换到另一半的位置
+      // 移动到另一半的位置
       targetLocation = actualPartnerLocation.value;
       userName = "另一半的位置";
-      // 更新状态为查看另一半
-      isOneself.value = 0;
     }
     
-    // 🔧 修复：切换用户时重新更新位置记录列表
-    _updateLocationRecordsForCurrentUser();
-    
     DebugUtil.info(' 目标位置信息：$userName = $targetLocation');
-    DebugUtil.check(' 当前状态 - isOneself: ${isOneself.value}, 点击的是: ${isMyself ? "自己" : "另一半"}');
     
     if (targetLocation == null) {
       DebugUtil.error(' 无法移动到$userName：位置信息不存在');
-      DebugUtil.check(' 当前位置状态 - actualMyLocation: ${actualMyLocation.value}, actualPartnerLocation: ${actualPartnerLocation.value}');
       return;
     }
     
@@ -1004,10 +1073,6 @@ class LocationController extends GetxController {
     DebugUtil.info(' 头像点击：移动地图到$userName并放大到最大级别(20.0)');
     
     try {
-      if (mapController == null) {
-        DebugUtil.warning('⚠️ 地图控制器为空，跳过头像点击地图动画');
-        return;
-      }
       // 异步执行地图动画，避免阻塞主线程
       unawaited(mapController!.moveCamera(
         CameraUpdate.newCameraPosition(maxZoomPosition),
@@ -1075,10 +1140,7 @@ class LocationController extends GetxController {
         // 🎯 不再智能选择，默认显示另一半
         // _smartSelectUserWithStops(locationData);
         
-        // 🔧 缓存API数据，用于切换用户时更新列表
-        _cachedUserLocationMobileDevice = locationData.userLocationMobileDevice;
-        _cachedHalfLocationMobileDevice = locationData.halfLocationMobileDevice;
-        DebugUtil.info(' 已缓存API数据用于切换用户');
+        DebugUtil.info(' API数据获取成功，开始处理数据');
         
         // 🔧 修复头像显示错乱：直接按照用户身份更新头像，不根据isOneself动态切换
         // myAvatar 始终存储自己的头像，partnerAvatar 始终存储另一半的头像
@@ -1111,6 +1173,16 @@ class LocationController extends GetxController {
         DebugUtil.check(' 当前用户数据: ${currentUser != null ? "存在" : "为空"}');
         if (currentUser != null) {
           DebugUtil.check(' 当前用户停留点数量: ${currentUser.stops?.length ?? 0}');
+          DebugUtil.check(' 当前用户详细信息:');
+          DebugUtil.check('   latitude: ${currentUser.latitude}');
+          DebugUtil.check('   longitude: ${currentUser.longitude}');
+          DebugUtil.check('   location: ${currentUser.location}');
+          DebugUtil.check('   mobileModel: ${currentUser.mobileModel}');
+          DebugUtil.check('   power: ${currentUser.power}');
+          DebugUtil.check('   networkName: ${currentUser.networkName}');
+          DebugUtil.check('   speed: ${currentUser.speed}');
+          DebugUtil.check('   distance: ${currentUser.distance}');
+          DebugUtil.check('   calculateLocationTime: ${currentUser.calculateLocationTime}');
         }
         
         // 更新当前用户位置和设备信息（不包含头像，头像已单独处理）
@@ -1242,7 +1314,9 @@ class LocationController extends GetxController {
     updateTime.value = userData.calculateLocationTime ?? "未知";
     
     // 更新当前位置文本
+    DebugUtil.info(' 更新位置文本: ${userData.location ?? "位置信息不可用"}');
     currentLocationText.value = userData.location ?? "位置信息不可用";
+    DebugUtil.info(' 位置文本已更新为: ${currentLocationText.value}');
     
     // 🔧 头像更新已移至专门的方法中处理，这里不再处理头像
   }
@@ -1271,36 +1345,7 @@ class LocationController extends GetxController {
   }
   
 
-  /// 🔧 新增：根据当前isOneself状态更新位置记录
-  void _updateLocationRecordsForCurrentUser() {
-    DebugUtil.info(' 根据当前isOneself状态更新位置记录...');
-    DebugUtil.check(' 当前isOneself值: ${isOneself.value}');
-    
-    UserLocationMobileDevice? currentUser;
-    if (isOneself.value == 1) {
-      // 查看自己的数据，使用userLocationMobileDevice
-      currentUser = _getUserLocationMobileDevice();
-      DebugUtil.check(' 查看自己的数据，使用userLocationMobileDevice');
-    } else {
-      // 查看另一半的数据，使用halfLocationMobileDevice  
-      currentUser = _getHalfLocationMobileDevice();
-      DebugUtil.check(' 查看另一半的数据，使用halfLocationMobileDevice');
-    }
-    
-    _updateLocationRecords(currentUser);
-  }
   
-  /// 🔧 新增：获取userLocationMobileDevice数据（从缓存中获取）
-  UserLocationMobileDevice? _getUserLocationMobileDevice() {
-    DebugUtil.info(' 从缓存获取userLocationMobileDevice数据');
-    return _cachedUserLocationMobileDevice;
-  }
-  
-  /// 🔧 新增：获取halfLocationMobileDevice数据（从缓存中获取）
-  UserLocationMobileDevice? _getHalfLocationMobileDevice() {
-    DebugUtil.info(' 从缓存获取halfLocationMobileDevice数据');
-    return _cachedHalfLocationMobileDevice;
-  }
 
   /// 更新位置记录
   void _updateLocationRecords(UserLocationMobileDevice? userData) {

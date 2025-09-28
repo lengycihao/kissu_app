@@ -321,8 +321,9 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                           ),
                         ),
                             // VIP遮罩层 - 覆盖整个滚动区域
-                            if (!UserManager.isVip)
-                              Positioned.fill(
+                            // 非会员时，只有在查看另一半时才显示会员蒙版，查看自己时不显示
+                            Obx(() => (!UserManager.isVip && widget.controller.isOneself.value != 1)
+                              ? Positioned.fill(
                                 child: Container(
                                   decoration: const BoxDecoration(
                                     image: DecorationImage(
@@ -371,7 +372,9 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                                     ),
                                   ),
                                 ),
-                              ),
+                              )
+                              : const SizedBox.shrink(),
+                            ),
                           ],
                         ),
                       ),

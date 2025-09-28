@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 // import 'package:kissu_app/utils/pag_preloader.dart'; // 注释掉PAG预加载器导入
 import 'package:kissu_app/services/home_scroll_service.dart';
-import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
@@ -23,6 +22,7 @@ import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/network/public/service_locator.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
@@ -105,6 +105,12 @@ class HomeController extends GetxController {
     refreshUserInfoFromServer();
   }
   
+  /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  void onPageResumed() {
+    debugPrint('🏠 首页重新获得焦点，刷新用户数据...');
+    refreshUserInfoFromServer();
+  }
+  
   
   /// 预加载首页PAG资源 (已注释)
   // void _preloadPagAssets() {
@@ -122,7 +128,7 @@ class HomeController extends GetxController {
   /// 初始化滚动控制器，如果有预设位置则使用预设位置
   void _initializeScrollController() {
     try {
-      final homeScrollService = getIt<HomeScrollService>();
+      final homeScrollService = Get.find<HomeScrollService>();
       
       if (homeScrollService.hasPresetPosition) {
         // 使用预设的滚动位置创建ScrollController
@@ -423,7 +429,7 @@ class HomeController extends GetxController {
   /// 加载恋爱天数
   void _loadLoveDays(user) {
     if (user.loverInfo?.loveDays != null && user.loverInfo!.loveDays! > 0) {
-      loveDays.value = user.loverInfo!.loveDays!;
+      loveDays.value = user.loverInfo!.loveDays!;  // 直接使用服务器数据
       debugPrint('🏠 加载恋爱天数: ${loveDays.value}天');
     } else {
       loveDays.value = 0;
@@ -565,8 +571,8 @@ class HomeController extends GetxController {
         Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
         break;
       case 3:
-        // 我的
-        Get.to(() => MinePage(), binding: MineBinding());
+        // 我的 - 每次点击时刷新数据
+        _navigateToMinePage();
         break;
       default:
         // 其他功能待实现
@@ -788,6 +794,24 @@ class HomeController extends GetxController {
       debugPrint('跳转到H5页面: $url');
     } else {
       debugPrint('H5链接为空，无法跳转');
+    }
+  }
+  
+  /// 跳转到我的页面，先刷新数据
+  Future<void> _navigateToMinePage() async {
+    try {
+      debugPrint('🔄 准备跳转到我的页面，先刷新用户数据...');
+      
+      // 先刷新用户信息
+      await refreshUserInfoFromServer();
+      
+      // 然后跳转到我的页面
+      Get.to(() => MinePage(), binding: MineBinding());
+      debugPrint('✅ 用户数据刷新完成，已跳转到我的页面');
+    } catch (e) {
+      debugPrint('❌ 跳转到我的页面时刷新数据失败: $e');
+      // 即使刷新失败也要跳转，不影响用户体验
+      Get.to(() => MinePage(), binding: MineBinding());
     }
   }
   

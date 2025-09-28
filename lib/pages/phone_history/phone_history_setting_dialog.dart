@@ -71,7 +71,7 @@ class _PhoneHistorySettingBottomSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 350,
+      height: 370, // 增加高度以避免溢出
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage("assets/phone_history/kissu_show_bottom_bg.webp"),
@@ -84,6 +84,7 @@ class _PhoneHistorySettingBottomSheetState
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // 让Column适应内容大小
         children: [
           // 标题
           Padding(
@@ -146,7 +147,7 @@ class _PhoneHistorySettingBottomSheetState
           ),
           // 底部确定按钮
           Container(
-            padding: const EdgeInsets.all(35),
+            padding: const EdgeInsets.fromLTRB(35, 20, 35, 25), // 减少上下padding
             child: GestureDetector(
               onTap: _handleConfirm,
               child: Container(
@@ -168,7 +169,7 @@ class _PhoneHistorySettingBottomSheetState
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5), // 减少底部间距
         ],
       ),
     );

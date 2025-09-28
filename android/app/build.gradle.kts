@@ -49,7 +49,7 @@ android {
         // OpenInstall配置
         manifestPlaceholders["OPENINSTALL_APPKEY"] = "eb24o3"
 
-        // 只包含arm64-v8a架构以减少APK大小
+        // 只支持arm64-v8a架构
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
