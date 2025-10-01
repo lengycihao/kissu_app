@@ -15,6 +15,7 @@ import 'package:kissu_app/pages/message_center/message_center_page.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -103,6 +104,9 @@ class HomeController extends GetxController {
     
     // 每次打开首页时刷新用户信息
     refreshUserInfoFromServer();
+    
+    // 检查是否需要显示VIP推广弹窗
+    _checkAndShowVipPromo();
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
@@ -812,6 +816,41 @@ class HomeController extends GetxController {
       debugPrint('❌ 跳转到我的页面时刷新数据失败: $e');
       // 即使刷新失败也要跳转，不影响用户体验
       Get.to(() => MinePage(), binding: MineBinding());
+    }
+  }
+
+  /// 检查并显示VIP推广弹窗
+  Future<void> _checkAndShowVipPromo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final shouldShow = prefs.getBool('should_show_vip_promo') ?? false;
+      
+      debugPrint('🔍 检查VIP推广标识: $shouldShow');
+      
+      if (shouldShow) {
+        debugPrint('🎁 检测到需要显示VIP推广弹窗');
+        
+        // 立即清除标识，防止重复显示（在延迟显示之前就清除）
+        await prefs.remove('should_show_vip_promo');
+        debugPrint('🧹 VIP推广标识已清除（在显示弹窗前）');
+        
+        // 延迟2秒后显示弹窗，确保首页已完全加载
+        Future.delayed(const Duration(milliseconds: 500), () {
+          try {
+            final currentContext = Get.context;
+            if (currentContext != null) {
+              DialogManager.showHuaweiVipPromo(currentContext);
+              debugPrint('✅ VIP推广弹窗已显示');
+            }
+          } catch (e) {
+            debugPrint('❌ 显示VIP推广弹窗失败: $e');
+          }
+        });
+      } else {
+        debugPrint('ℹ️ 无需显示VIP推广弹窗');
+      }
+    } catch (e) {
+      debugPrint('❌ 检查VIP推广标识失败: $e');
     }
   }
   

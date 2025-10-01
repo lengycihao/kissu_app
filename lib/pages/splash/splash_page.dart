@@ -254,11 +254,10 @@ class _SplashPageState extends State<SplashPage> {
     final scale = scaleX < scaleY ? scaleX : scaleY;
     
     // 计算图片尺寸（保持原始比例）
-    final titleWidth = 107.0 * scale;
-    final titleHeight = 221.0 * scale;
-    final bpWidth = 316.0 * scale;
-    final bpHeight = 265.0 * scale;
-    
+    final titleWidth = 127.0 * scale;
+    final titleHeight = 258.0 * scale;
+    final iconWidth = 80.0 * scale;
+    final iconHeight = 80.0 * scale;
     // 计算间距
     final spacing = 110.0 * scale;
     
@@ -268,31 +267,35 @@ class _SplashPageState extends State<SplashPage> {
         height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/mipmap-xxhdpi/flash.png'),
+            image: AssetImage('assets/mipmap-xxhdpi/flash.webp'),
             fit: BoxFit.cover,
           ),
         ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // flash_title 图片
-              Image.asset(
-                'assets/flash_title.png',
-                width: titleWidth,
-                height: titleHeight,
-                fit: BoxFit.contain,
-              ),
-              SizedBox(height: spacing),
-              // flash_bp 图片
-              Image.asset(
-                'assets/flash_bp.png',
-                width: bpWidth,
-                height: bpHeight,
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
+        child: Stack(
+          children: [
+            Transform.translate(
+              offset: Offset(0, -100 ),
+              child: Center(
+              child:Image.asset(
+                    'assets/mipmap-xxhdpi/flash_title.webp',
+                    width: titleWidth,
+                    height: titleHeight,
+                    fit: BoxFit.contain,
+                  ),
+            ),
+            ),
+            Positioned(
+              bottom: 60*scale,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                      'assets/mipmap-xxhdpi/flash_icon.webp',
+                      width: iconWidth,
+                      height: iconHeight,
+                      fit: BoxFit.contain,
+                    ),
+            ),
+          ],
         ),
       ),
     );

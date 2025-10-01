@@ -294,7 +294,10 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                                 // 统一的会员限制遮罩层 - 覆盖整个滚动区域
                                 // 🔧 修改：只有查看另一半头像时且非会员时才显示蒙版
                                 Obx(() {
-                                  if (!UserManager.isVip && widget.controller.isOneself.value == 0) {
+                                  // 先读取响应式值，避免被非响应式条件短路，导致未注册依赖
+                                  final isSelfFlag = widget.controller.isOneself.value;
+                                  final shouldShowVipMask = !UserManager.isVip && isSelfFlag == 0;
+                                  if (shouldShowVipMask) {
                                     return Positioned.fill(
                                       child: Container(
                                         decoration: const BoxDecoration(
@@ -314,20 +317,16 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                                             Get.toNamed(KissuRoutePath.vip);
                                           },
                                           child: Container(
-                                            color:
-                                                Colors.transparent, // 确保整个区域可点击
+                                            color: Colors.transparent, // 确保整个区域可点击
                                             child: Center(
                                               child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
+                                                mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
                                                   // 图片
                                                   GestureDetector(
                                                     onTap: () {
                                                       // 点击图片时跳转到VIP页面
-                                                      Get.toNamed(
-                                                        KissuRoutePath.vip,
-                                                      );
+                                                      Get.toNamed(KissuRoutePath.vip);
                                                     },
                                                     child: Image.asset(
                                                       'assets/kissu_go_bind.webp',

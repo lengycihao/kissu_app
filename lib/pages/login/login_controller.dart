@@ -257,8 +257,17 @@ class LoginController extends GetxController {
 
         OKToastUtil.show(  '登录成功');
         // 延迟一下让用户看到成功提示，然后跳转
-        await Future.delayed(const Duration(milliseconds: 800));
+        await Future.delayed(const Duration(milliseconds: 200));
 
+        // 检查是否需要显示VIP推广弹窗，并保存标识到SharedPreferences
+        debugPrint('登录返回数据: result.data = ${result.data}');
+        debugPrint('is_alert_give_vip 字段: ${result.data?.isGiveVip}');
+        final shouldShowVipPromo = result.data?.isGiveVip == 1;
+        debugPrint('是否显示VIP推广弹窗: $shouldShowVipPromo');
+        
+        // 保存VIP推广标识到SharedPreferences（无论是true还是false都要保存，覆盖旧值）
+        await _saveVipPromoFlag(shouldShowVipPromo);
+        
         // 首次登录请求定位权限
         //判断是否需要完善信息
         if (UserManager.needsPerfectInfo) {
@@ -299,6 +308,17 @@ class LoginController extends GetxController {
       default:
         print('未知链接: $linkName');
         break;
+    }
+  }
+
+  /// 保存VIP推广标识
+  Future<void> _saveVipPromoFlag(bool shouldShow) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('should_show_vip_promo', shouldShow);
+      debugPrint('VIP推广标识已保存: $shouldShow');
+    } catch (e) {
+      debugPrint('保存VIP推广标识失败: $e');
     }
   }
 }

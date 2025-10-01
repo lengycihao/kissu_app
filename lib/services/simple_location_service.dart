@@ -13,6 +13,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:flutter/material.dart';
 
@@ -226,31 +227,53 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 初始化定位服务（隐私合规版本）
   void init() {
     try {
-      // 🔒 隐私合规：设置隐私政策显示，并明确拒绝数据收集
+      // 🔒 隐私合规：设置隐私政策显示状态
       AMapFlutterLocation.updatePrivacyShow(true, true);
-      // 🚫 明确拒绝隐私授权，直到用户同意隐私政策
-      AMapFlutterLocation.updatePrivacyAgree(false);
+
+      // 🔑 关键修复：不在这里设置隐私授权状态，让隐私合规管理器统一管理
+      // 隐私授权状态将由 PrivacyComplianceManager 根据用户同意情况决定
 
       // 设置API Key - 确保在任何定位操作前执行
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
 
-      debugPrint('✅ 高德定位服务初始化完成（隐私授权已拒绝，等待用户同意）');
+      debugPrint('✅ 高德定位服务初始化完成（隐私授权由PrivacyComplianceManager管理）');
     } catch (e) {
       debugPrint('❌ 初始化高德定位服务失败: $e');
     }
   }
   
-  void _setupPrivacyCompliance() {
+  Future<void> _setupPrivacyCompliance() async {
     try {
+      // 🔑 关键修复：从隐私合规管理器获取当前隐私同意状态
+      final privacyManager = Get.find<PrivacyComplianceManager>();
+      final isPrivacyAgreed = privacyManager.isPrivacyAgreed;
+
       // 重新设置隐私合规（确保在定位前生效）
       AMapFlutterLocation.updatePrivacyShow(true, true);
-      // 🔒 隐私合规：只有在用户同意后才调用此方法，所以这里可以设置授权
-      AMapFlutterLocation.updatePrivacyAgree(true);
+
+      // 🔒 隐私合规：根据用户同意状态设置隐私授权
+      AMapFlutterLocation.updatePrivacyAgree(isPrivacyAgreed);
 
       // 重新设置API Key（确保在定位前生效）
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
 
-      debugPrint('🔧 高德定位隐私合规和API Key设置完成');
+      // 🔐 关键修复：在Android上请求电话状态权限（高德地图SDK需要）
+      if (Platform.isAndroid && isPrivacyAgreed) {
+        final phoneStatus = await Permission.phone.status;
+        if (!phoneStatus.isGranted) {
+          debugPrint('🔐 高德地图SDK需要电话状态权限，正在申请...');
+          final result = await Permission.phone.request();
+          if (result.isGranted) {
+            debugPrint('✅ 电话状态权限已获取');
+          } else {
+            debugPrint('⚠️ 电话状态权限被拒绝，高德地图SDK可能功能受限');
+          }
+        } else {
+          debugPrint('✅ 电话状态权限已授权');
+        }
+      }
+
+      debugPrint('🔧 高德定位隐私合规和API Key设置完成（隐私授权: ${isPrivacyAgreed ? "已同意" : "已拒绝"}）');
     } catch (e) {
       debugPrint('❌ 设置高德定位隐私合规失败: $e');
     }
@@ -401,12 +424,19 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     try {
       debugPrint('🚀 SimpleLocationService.startLocation() 开始执行');
 
+      // 🔑 关键修复：检查隐私政策同意状态
+      final privacyManager = Get.find<PrivacyComplianceManager>();
+      if (!privacyManager.isPrivacyAgreed) {
+        debugPrint('❌ 用户尚未同意隐私政策，无法启动定位服务');
+        return false;
+      }
+
       // 确保先初始化（这很关键！）
       init();
       await Future.delayed(Duration(milliseconds: 100)); // 给初始化一点时间
 
       // 设置高德地图隐私合规（必须在任何定位操作之前）
-      _setupPrivacyCompliance();
+      await _setupPrivacyCompliance();
       debugPrint('🔧 隐私合规设置完成');
       
       // 检查权限状态，但不重复请求
@@ -903,7 +933,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       await Future.delayed(Duration(milliseconds: 300));
 
       // 重新设置隐私合规和API Key
-      _setupPrivacyCompliance();
+      await _setupPrivacyCompliance();
 
       await Future.delayed(Duration(milliseconds: 200));
       debugPrint('✅ 插件轻量级重新初始化完成');
@@ -1327,7 +1357,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       debugPrint('🧪 开始测试单次定位...');
       
       // 设置隐私合规和API Key
-      _setupPrivacyCompliance();
+      await _setupPrivacyCompliance();
       
       // 检查权限
       bool hasPermission = await requestLocationPermission();
@@ -1446,7 +1476,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         await Future.delayed(Duration(milliseconds: 500));
         
         // 重新设置API Key和隐私合规
-        _setupPrivacyCompliance();
+        await _setupPrivacyCompliance();
         debugPrint('✅ 插件重新初始化完成');
         
       } catch (e) {

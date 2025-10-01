@@ -322,59 +322,63 @@ class _TrackPageContentState extends State<_TrackPageContent> {
                         ),
                             // VIP遮罩层 - 覆盖整个滚动区域
                             // 非会员时，只有在查看另一半时才显示会员蒙版，查看自己时不显示
-                            Obx(() => (!UserManager.isVip && widget.controller.isOneself.value != 1)
-                              ? Positioned.fill(
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage('assets/kissu_vip_unbind.webp'),
-                                      fit: BoxFit.fill,
-                                    ),
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(20),
-                                    ),
-                                  ),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      // 点击遮罩层时跳转到VIP页面
-                                      Get.toNamed(KissuRoutePath.vip);
-                                    },
-                                    child: Container(
-                                      color: Colors.transparent, // 确保整个区域可点击
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            // 图片
-                                            GestureDetector(
-                                              onTap: () {
-                                                // 点击图片时跳转到VIP页面
-                                                Get.toNamed(KissuRoutePath.vip);
-                                              },
-                                              child: Image.asset(
-                                                'assets/kissu_go_bind.webp',
-                                                width: 111,
-                                                height: 34,
+                            Obx(() {
+                              // 确保始终读取响应式变量，避免短路导致未注册依赖
+                              final isSelf = widget.controller.isOneself.value;
+                              final showMask = !UserManager.isVip && isSelf != 1;
+                              return showMask
+                                  ? Positioned.fill(
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          image: DecorationImage(
+                                            image: AssetImage('assets/kissu_vip_unbind.webp'),
+                                            fit: BoxFit.fill,
+                                          ),
+                                          borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(20),
+                                          ),
+                                        ),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            // 点击遮罩层时跳转到VIP页面
+                                            Get.toNamed(KissuRoutePath.vip);
+                                          },
+                                          child: Container(
+                                            color: Colors.transparent, // 确保整个区域可点击
+                                            child: Center(
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  // 图片
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      // 点击图片时跳转到VIP页面
+                                                      Get.toNamed(KissuRoutePath.vip);
+                                                    },
+                                                    child: Image.asset(
+                                                      'assets/kissu_go_bind.webp',
+                                                      width: 111,
+                                                      height: 34,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  // 文字
+                                                  const Text(
+                                                    '实时查看"另一半"的位置和行程轨迹',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Color(0xFF333333),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            const SizedBox(height: 12),
-                                            // 文字
-                                            const Text(
-                                              '实时查看"另一半"的位置和行程轨迹',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xFF333333),
-                                              ),
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                              : const SizedBox.shrink(),
-                            ),
+                                    )
+                                  : const SizedBox.shrink();
+                            }),
                           ],
                         ),
                       ),

@@ -17,6 +17,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:kissu_app/utils/image_source_dialog.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -204,7 +205,7 @@ class LoveInfoController extends GetxController {
       
       // 如果两个权限都有，直接显示选择来源对话框
       if (hasPhotoPermission && hasCameraPermission) {
-        final source = await _showImageSourceDialog();
+        final source = await ImageSourceDialog.show(Get.context!);
         if (source == null) return;
         await _pickImageFromSource(source);
         return;
@@ -228,7 +229,7 @@ class LoveInfoController extends GetxController {
       
       // 如果至少有一个权限被授予，显示选择来源对话框
       if (photoPermissionGranted || cameraPermissionGranted) {
-        final source = await _showImageSourceDialog();
+        final source = await ImageSourceDialog.show(Get.context!);
         if (source == null) return;
         await _pickImageFromSource(source);
       } else {
@@ -272,122 +273,6 @@ class LoveInfoController extends GetxController {
     } catch (e) {
       CustomToast.show(Get.context!, '选择图片失败: $e');
     }
-  }
-
-  /// 显示图片来源选择对话框
-  Future<ImageSource?> _showImageSourceDialog() async {
-    return await showModalBottomSheet<ImageSource>(
-      context: Get.context!,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 顶部拖拽指示器
-                Container(
-                  margin: EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                SizedBox(height: 20),
-
-                // 标题
-                Text(
-                  '选择图片来源',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-                SizedBox(height: 20),
-
-                // 选项列表
-                _buildImageSourceOption(
-                  icon: Icons.photo_library_outlined,
-                  title: '从相册选择',
-                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-                _buildImageSourceOption(
-                  icon: Icons.camera_alt_outlined,
-                  title: '拍照',
-                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
-                ),
-
-                SizedBox(height: 10),
-
-                // 取消按钮
-                Container(
-                  width: double.infinity,
-                  margin: EdgeInsets.symmetric(horizontal: 20),
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      backgroundColor: Colors.grey[100],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      '取消',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// 构建图片来源选项
-  Widget _buildImageSourceOption({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      leading: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Color(0xFFFEA39C).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: Color(0xFFFEA39C), size: 24),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: Color(0xFF333333),
-        ),
-      ),
-      trailing: Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey[400],
-      ),
-      onTap: onTap,
-    );
   }
 
   /// 上传头像

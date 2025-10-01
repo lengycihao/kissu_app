@@ -53,6 +53,7 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
   isPerfectInformation: const StringToIntConverter().fromJson(
     json['is_perfect_information'],
   ),
+  isGiveVip: const StringToIntConverter().fromJson(json['is_alert_give_vip']),
   halfUserInfo: json['half_user_info'] == null
       ? null
       : HalfUserInfo.fromJson(json['half_user_info'] as Map<String, dynamic>),
@@ -112,6 +113,7 @@ Map<String, dynamic> _$LoginModelToJson(
   'is_perfect_information': const StringToIntConverter().toJson(
     instance.isPerfectInformation,
   ),
+  'is_alert_give_vip': const StringToIntConverter().toJson(instance.isGiveVip),
   'half_user_info': instance.halfUserInfo,
   'lover_info': instance.loverInfo,
 };

@@ -141,6 +141,9 @@ class SystemPermissionController extends GetxController with WidgetsBindingObser
       case PermissionType.camera:
         // 相机权限状态需要通过 PermissionService 检查
         return true; // 默认返回 true，实际状态由 PermissionService 管理
+      case PermissionType.phone:
+        // 电话状态权限状态需要通过 PermissionService 检查
+        return true; // 默认返回 true，实际状态由 PermissionService 管理
     }
   }
 

@@ -22,6 +22,27 @@ class StringToIntConverter implements JsonConverter<int?, dynamic> {
   dynamic toJson(int? value) => value;
 }
 
+class IntToBoolConverter implements JsonConverter<bool?, dynamic> {
+  const IntToBoolConverter();
+
+  @override
+  bool? fromJson(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) {
+      if (value.toLowerCase() == 'true') return true;
+      if (value.toLowerCase() == 'false') return false;
+      final intValue = int.tryParse(value);
+      if (intValue != null) return intValue == 1;
+    }
+    return null;
+  }
+
+  @override
+  dynamic toJson(bool? value) => value;
+}
+
 @JsonSerializable()
 class LoginModel {
   @StringToIntConverter()
@@ -108,6 +129,9 @@ class LoginModel {
   @JsonKey(name: 'is_perfect_information')
   @StringToIntConverter()
   int? isPerfectInformation;
+  @JsonKey(name: 'is_alert_give_vip')
+  @StringToIntConverter()
+  int? isGiveVip;
   @JsonKey(name: 'half_user_info')
   HalfUserInfo? halfUserInfo;
   @JsonKey(name: 'lover_info')
@@ -150,6 +174,7 @@ class LoginModel {
     this.token,
     this.imSign,
     this.isPerfectInformation,
+    this.isGiveVip,
     this.halfUserInfo,
     this.loverInfo,
   });

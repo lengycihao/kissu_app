@@ -12,6 +12,7 @@ enum PermissionType {
   usage,              // 使用情况访问权限
   photos,             // 相册权限
   camera,             // 相机权限
+  phone,              // 电话状态权限（高德地图SDK需要）
 }
 
 /// 权限服务类
@@ -100,6 +101,15 @@ class PermissionService {
     return status.isGranted;
   }
 
+  /// 检查电话状态权限（高德地图SDK需要）
+  Future<bool> isPhonePermissionGranted() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.phone.status;
+      return status.isGranted;
+    }
+    return true; // iOS不需要此权限
+  }
+
   /// 根据平台获取相册权限
   Permission _getPhotosPermission() {
     if (Platform.isAndroid) {
@@ -128,6 +138,8 @@ class PermissionService {
         return await isPhotosPermissionGranted();
       case PermissionType.camera:
         return await isCameraPermissionGranted();
+      case PermissionType.phone:
+        return await isPhonePermissionGranted();
     }
   }
 
@@ -374,6 +386,24 @@ class PermissionService {
     return false;
   }
 
+  /// 请求电话状态权限（高德地图SDK需要）
+  Future<bool> requestPhonePermission() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.phone.request();
+      if (status.isGranted) {
+        print("电话状态权限已获取");
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        print("电话状态权限被永久拒绝");
+        await openAppSettings();
+        return false;
+      }
+      print("电话状态权限被拒绝");
+      return false;
+    }
+    return true; // iOS不需要此权限
+  }
+
   /// 跳转到应用设置页面
   Future<void> openAppSettingsPage() async {
     try {
@@ -443,7 +473,8 @@ class PermissionService {
           break;
         case PermissionType.photos:
         case PermissionType.camera:
-          await openAppSettings(); // 相册和相机权限跳转到应用设置
+        case PermissionType.phone:
+          await openAppSettings(); // 相册、相机和电话状态权限跳转到应用设置
           break;
       }
     } catch (e) {
@@ -469,6 +500,8 @@ class PermissionService {
         return isGranted ? "已授权" : "未授权";
       case PermissionType.camera:
         return isGranted ? "已授权" : "未授权";
+      case PermissionType.phone:
+        return isGranted ? "已授权" : "未授权";
     }
   }
 
@@ -489,6 +522,8 @@ class PermissionService {
         return "访问相册选择和上传头像";
       case PermissionType.camera:
         return "使用相机拍照上传头像";
+      case PermissionType.phone:
+        return "获取设备标识用于地图服务";
     }
   }
 
@@ -502,6 +537,7 @@ class PermissionService {
       PermissionType.usage: await isUsageAccessGranted(),
       PermissionType.photos: await isPhotosPermissionGranted(),
       PermissionType.camera: await isCameraPermissionGranted(),
+      PermissionType.phone: await isPhonePermissionGranted(),
     };
   }
 
@@ -509,7 +545,10 @@ class PermissionService {
   Future<Map<PermissionType, bool>> requestPermissionsIntelligently() async {
     Map<PermissionType, bool> results = {};
 
-    // 1. 先请求基础位置权限
+    // 0. 先请求电话状态权限（Android，高德地图SDK需要）
+    results[PermissionType.phone] = await requestPhonePermission();
+
+    // 1. 请求基础位置权限
     results[PermissionType.location] = await requestLocationPermission();
     
     // 2. 如果基础位置权限获取成功，再请求后台位置权限
@@ -557,6 +596,9 @@ class PermissionService {
         break;
       case PermissionType.camera:
         permission = Permission.camera;
+        break;
+      case PermissionType.phone:
+        permission = Permission.phone;
         break;
     }
     
