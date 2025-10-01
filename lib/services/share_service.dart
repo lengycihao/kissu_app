@@ -74,10 +74,33 @@ class ShareService extends GetxService {
   // 检查QQ是否安装
   Future<bool> isQQInstalled() async {
     try {
-      final result = await _channel.invokeMethod('umCheckInstall', 1); // 1 = QQ
-      if (result is Map) {
-        return result['isInstalled'] ?? false;
+      print('开始检查QQ安装状态...');
+      
+      // 首先尝试友盟检测
+      final umResult = await _channel.invokeMethod('umCheckInstall', 1); // 1 = QQ
+      print('友盟QQ检测结果: $umResult');
+      
+      if (umResult is Map) {
+        final umInstalled = umResult['isInstalled'] ?? false;
+        print('友盟检测QQ安装状态: $umInstalled');
+        
+        // 如果友盟检测到已安装，直接返回
+        if (umInstalled) {
+          return true;
+        }
       }
+      
+      // 友盟检测失败或未安装，尝试备用检测方法
+      print('友盟检测失败，尝试备用检测方法...');
+      final backupResult = await _channel.invokeMethod('checkQQInstallBackup');
+      print('备用QQ检测结果: $backupResult');
+      
+      if (backupResult is Map) {
+        final backupInstalled = backupResult['isInstalled'] ?? false;
+        print('备用检测QQ安装状态: $backupInstalled');
+        return backupInstalled;
+      }
+      
       return false;
     } catch (e) {
       print('检查QQ安装状态失败: $e');
@@ -126,6 +149,13 @@ class ShareService extends GetxService {
   }) async {
     try {
       print('开始分享到QQ好友: title=$title, description=$description, webpageUrl=$webpageUrl');
+      
+      // 先检查QQ是否安装
+      final isInstalled = await isQQInstalled();
+      if (!isInstalled) {
+        print('QQ未安装，无法分享');
+        return {'success': false, 'message': 'QQ未安装'};
+      }
       
       final result = await _channel.invokeMethod('umShare', {
         'title': title,

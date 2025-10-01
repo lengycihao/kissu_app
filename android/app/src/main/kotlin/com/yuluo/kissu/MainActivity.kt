@@ -237,6 +237,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     val isInstalled = checkPlatformInstall(platform)
                     result.success(mapOf("isInstalled" to isInstalled))
                 }
+                "checkQQInstallBackup" -> {
+                    val isInstalled = checkQQInstallBackup()
+                    result.success(mapOf("isInstalled" to isInstalled))
+                }
                 "umShare" -> {
                     val title = call.argument<String>("title") ?: ""
                     val text = call.argument<String>("text") ?: ""
@@ -718,8 +722,50 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 3 -> SHARE_MEDIA.WEIXIN_CIRCLE // 微信朋友圈
                 else -> SHARE_MEDIA.WEIXIN
             }
-            UMShareAPI.get(this).isInstall(this, shareMedia)
+            val result = UMShareAPI.get(this).isInstall(this, shareMedia)
+            Log.d("MainActivity", "友盟检测平台安装状态: platform=$platform, result=$result")
+            result
         } catch (e: Exception) {
+            Log.e("MainActivity", "友盟检测平台安装状态失败", e)
+            false
+        }
+    }
+    
+    /**
+     * 备用QQ检测方法 - 直接检查QQ应用是否安装
+     */
+    private fun checkQQInstallBackup(): Boolean {
+        return try {
+            Log.d("MainActivity", "开始备用QQ检测...")
+            
+            // 方法1：检查QQ应用包名
+            val qqPackages = listOf(
+                "com.tencent.mobileqq", // QQ主应用
+                "com.tencent.mobileqqi", // QQ国际版
+                "com.tencent.tim" // TIM
+            )
+            
+            for (packageName in qqPackages) {
+                try {
+                    packageManager.getPackageInfo(packageName, 0)
+                    Log.d("MainActivity", "找到QQ应用: $packageName")
+                    return true
+                } catch (e: Exception) {
+                    Log.d("MainActivity", "未找到QQ应用: $packageName")
+                }
+            }
+            
+            // 方法2：检查QQ应用Intent
+            val intent = packageManager.getLaunchIntentForPackage("com.tencent.mobileqq")
+            if (intent != null) {
+                Log.d("MainActivity", "通过Intent检测到QQ应用")
+                return true
+            }
+            
+            Log.d("MainActivity", "备用QQ检测结果: 未安装")
+            false
+        } catch (e: Exception) {
+            Log.e("MainActivity", "备用QQ检测失败", e)
             false
         }
     }

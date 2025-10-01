@@ -419,6 +419,13 @@
         <package android:name="com.tencent.mobileqq" />
         <package android:name="com.tencent.tim" />
         <package android:name="com.tencent.qqlite" />
+        <!-- QQ SSO/分享使用的自定义协议，Android 11+ 需显式声明 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mqqapi" />
+        </intent>
+        <!-- 覆盖国际版QQ包名 -->
+        <package android:name="com.tencent.mobileqqi" />
         <!-- 查询支付宝应用是否存在，用于支付功能 -->
         <package android:name="com.eg.android.AlipayGphone" />
     </queries>
