@@ -74,6 +74,12 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>后台持续定位，确保位置同步</string>
 	
+	<!-- 相机和相册权限描述 -->
+	<key>NSCameraUsageDescription</key>
+	<string>需要访问相机以拍摄照片</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要访问相册以选择照片</string>
+	
 	<!-- 高德地图API Key -->
 	<key>MAMapKitApiKey</key>
 	<string>38edb925a25f22e3aae2f86ce7f2ff3b</string>

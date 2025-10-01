@@ -399,25 +399,45 @@ class _BreakAvatarSection extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         child: ClipOval(
           child: controller.myAvatar.value.isNotEmpty
-              ? Image.network(
-                  controller.myAvatar.value,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40),
-                        color: const Color(0xFFE8B4CB),
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
-                )
+              ? controller.myAvatar.value.startsWith('assets/')
+                  ? Image.asset(
+                      controller.myAvatar.value,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
+                  : Image.network(
+                      controller.myAvatar.value,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
               : Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(40),
@@ -448,25 +468,45 @@ class _BreakAvatarSection extends StatelessWidget {
       ),
       child: ClipOval(
         child: controller.partnerAvatar.value.isNotEmpty
-            ? Image.network(
-                controller.partnerAvatar.value,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(40),
-                      color: const Color(0xFFE8B4CB),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              )
+            ? controller.partnerAvatar.value.startsWith('assets/')
+                ? Image.asset(
+                    controller.partnerAvatar.value,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  )
+                : Image.network(
+                    controller.partnerAvatar.value,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  )
             : Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(40),

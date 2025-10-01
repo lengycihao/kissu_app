@@ -99,7 +99,7 @@ class MineController extends GetxController {
 
       // 如果有恋爱天数，直接使用服务器数据
       if (user.loverInfo!.loveDays != null && user.loverInfo!.loveDays! > 0) {
-        days.value = "${user.loverInfo!.loveDays}天";
+        days.value = "${user.loverInfo!.loveDays}";
         return; // 使用了LoverInfo的数据，就不需要再计算了
       }
 
@@ -119,7 +119,7 @@ class MineController extends GetxController {
           // 计算在一起天数
           final now = DateTime.now();
           final difference = now.difference(bindTime).inDays;
-          days.value = "${difference}天";
+          days.value = "$difference";
           return;
         } catch (e) {
           print('解析LoverInfo bindTime失败: $e');
@@ -137,7 +137,7 @@ class MineController extends GetxController {
       // 计算在一起天数
       final now = DateTime.now();
       final difference = now.difference(bindTime).inDays;
-      days.value = "${difference}天";
+      days.value = "$difference";
     }
   }
 
@@ -190,6 +190,11 @@ class MineController extends GetxController {
 
   void _initSettingItems() {
     settingItems = [
+      SettingItem(
+        icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
+        title: "防偷拍检测",
+        onTap: () => _onShareAppTap(),
+      ),
       SettingItem(
         icon: "assets/kissu_share_item.webp",
         title: "分享APP",

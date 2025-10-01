@@ -68,56 +68,56 @@ class InfoSettingPage extends StatelessWidget {
 
                   // 头像部分
                   Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // 头像背景
-                        Image.asset(
-                          'assets/kissu_info_setting_headerbg.webp',
-                          width: 90,
-                          height: 90,
-                        ),
-                        // 用户头像
-                        Obx(() {
-                          return ClipOval(
-                            child:
-                                controller.avatarUrl.value.startsWith('assets/')
-                                ? Image.asset(
-                                    controller.avatarUrl.value,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Image.network(
-                                    controller.avatarUrl.value,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Image.asset(
-                                        'assets/kissu_info_setting_headerbg.webp',
-                                        width: 80,
-                                        height: 80,
-                                        fit: BoxFit.cover,
-                                      );
-                                    },
-                                  ),
-                          );
-                        }),
-                        // 相机图标 - 放在右下角
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: GestureDetector(
-                            onTap: controller.pickImage,
+                    child: GestureDetector(
+                      onTap: controller.pickImage,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // 头像背景
+                          Image.asset(
+                            'assets/kissu_info_setting_headerbg.webp',
+                            width: 90,
+                            height: 90,
+                          ),
+                          // 用户头像
+                          Obx(() {
+                            return ClipOval(
+                              child:
+                                  controller.avatarUrl.value.startsWith('assets/')
+                                  ? Image.asset(
+                                      controller.avatarUrl.value,
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      controller.avatarUrl.value,
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Image.asset(
+                                          'assets/kissu_info_setting_headerbg.webp',
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        );
+                                      },
+                                    ),
+                            );
+                          }),
+                          // 相机图标 - 放在右下角
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
                             child: Image.asset(
                               'assets/kissu_info_setting_camera.webp',
                               width: 30,
                               height: 30,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   SizedBox(height: 24),
@@ -130,7 +130,7 @@ class InfoSettingPage extends StatelessWidget {
                       style: TextStyle(color: Color(0xFF333333), fontSize: 11),
                     ),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 8),
                   Obx(
                     () => TextField(
                       controller: controller.nicknameController,
@@ -143,10 +143,11 @@ class InfoSettingPage extends StatelessWidget {
                         color: Color(0xFF333333),
                         height: 1.0, // 设置行高为1.0确保垂直居中
                       ),
+                      
                       decoration: InputDecoration(
-                        hintText: controller.nickname.value.isNotEmpty
-                            ? null
-                            : '请输入昵称',
+                        fillColor: Colors.white,
+                        filled: true,
+                        hintText: controller.nickname.value,
                         hintStyle: TextStyle(
                           color: Color(0xFF999999),
                           fontSize: 16,
@@ -165,19 +166,19 @@ class InfoSettingPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(25),
                           borderSide: BorderSide(color: Color(0xFF6D383E)),
                         ),
-                        suffixIcon: controller.nicknameController.text.isNotEmpty
-                            ? GestureDetector(
-                                onTap: () {
-                                  controller.nicknameController.clear();
-                                  controller.updateNickname('');
-                                },
-                                child: Icon(
-                                  Icons.clear,
-                                  color: Color(0xFF999999),
-                                  size: 20,
-                                ),
-                              )
-                            : null,
+                        // suffixIcon: controller.nicknameController.text.isNotEmpty
+                        //     ? GestureDetector(
+                        //         onTap: () {
+                        //           controller.nicknameController.clear();
+                        //           controller.updateNickname('');
+                        //         },
+                        //         child: Icon(
+                        //           Icons.clear,
+                        //           color: Color(0xFF999999),
+                        //           size: 20,
+                        //         ),
+                        //       )
+                        //     : null,
                       ),
                     ),
                   ),
@@ -260,6 +261,7 @@ class InfoSettingPage extends StatelessWidget {
                         height: 50,
                         padding: EdgeInsets.symmetric(horizontal: 20),
                         decoration: BoxDecoration(
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(25),
                           border: Border.all(color: Color(0xFF6D383E)),
                         ),
@@ -299,8 +301,8 @@ class InfoSettingPage extends StatelessWidget {
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: controller.isLoading.value
-                              ? Color(0xFFFEA39C).withOpacity(0.6)
-                              : Color(0xFFFEA39C),
+                              ? Color(0xFFFF7C98).withOpacity(0.6)
+                              : Color(0xFFFF7C98),
                           borderRadius: BorderRadius.circular(25),
                         ),
                         child: Center(

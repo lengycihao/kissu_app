@@ -21,4 +21,5 @@ class KissuRoutePath {
   static const simpleMarkerTest = '/kisssu_app/simple_marker_test';
   static const firstAgreementTest = '/kisssu_app/first_agreement_test';
   static const openinstallTest = '/kisssu_app/openinstall_test';
+  static const avatarPreview = '/kisssu_app/avatar_preview';
 }

@@ -75,6 +75,7 @@ dependencies:
   network_info_plus: ^6.1.0  # 网络信息获取（包括WiFi SSID）
   card_swiper: ^3.0.1
   openinstall_flutter_plugin: ^2.5.4  # OpenInstall 渠道统计和携带参数安装
+  crop_your_image: ^2.0.0  # 图片裁剪（纯Flutter实现，可自定义UI）
   # PAG动画 - 使用本地插件版本
   pag:
     path: plugins/pag
@@ -117,6 +118,7 @@ flutter:
     - assets/
     - assets/phone_history/
     - assets/mipmap-xxhdpi/
+    - assets/3.0/
     - assets/kissu_heart.webp
     - assets/kissu_location_circle.webp
     - assets/kissu_icon.webp

@@ -15,6 +15,9 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/utils/image_source_dialog.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/pages/common/image_crop_page.dart';
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -65,7 +68,7 @@ class InfoSettingController extends GetxController {
       // 设置昵称
       if (user.nickname?.isNotEmpty == true) {
         nickname.value = user.nickname!;
-        nicknameController.text = user.nickname!;
+        // nicknameController.text = user.nickname!;
       }
 
       // 设置性别 (1男2女)
@@ -105,9 +108,21 @@ class InfoSettingController extends GetxController {
       
       // 如果两个权限都有，直接显示选择来源对话框
       if (hasPhotoPermission && hasCameraPermission) {
-        final source = await ImageSourceDialog.show(Get.context!);
-        if (source == null) return;
-        await _pickImageFromSource(source);
+        final result = await ImageSourceDialog.show(Get.context!);
+        if (result == null) return;
+        
+        // 处理选择结果
+        if (result.systemAvatarPath != null) {
+          // 选择了系统头像，直接使用
+          print('🎨 选择了系统头像: ${result.systemAvatarPath}');
+          avatarUrl.value = result.systemAvatarPath!;
+          uploadedHeadPortrait.value = result.systemAvatarPath!;
+          print('   avatarUrl: ${avatarUrl.value}');
+          print('   uploadedHeadPortrait: ${uploadedHeadPortrait.value}');
+        } else if (result.imageSource != null) {
+          // 选择了相册或相机
+          await _pickImageFromSource(result.imageSource!);
+        }
         return;
       }
       
@@ -129,9 +144,21 @@ class InfoSettingController extends GetxController {
       
       // 如果至少有一个权限被授予，显示选择来源对话框
       if (photoPermissionGranted || cameraPermissionGranted) {
-        final source = await ImageSourceDialog.show(Get.context!);
-        if (source == null) return;
-        await _pickImageFromSource(source);
+        final result = await ImageSourceDialog.show(Get.context!);
+        if (result == null) return;
+        
+        // 处理选择结果
+        if (result.systemAvatarPath != null) {
+          // 选择了系统头像，直接使用
+          print('🎨 选择了系统头像: ${result.systemAvatarPath}');
+          avatarUrl.value = result.systemAvatarPath!;
+          uploadedHeadPortrait.value = result.systemAvatarPath!;
+          print('   avatarUrl: ${avatarUrl.value}');
+          print('   uploadedHeadPortrait: ${uploadedHeadPortrait.value}');
+        } else if (result.imageSource != null) {
+          // 选择了相册或相机
+          await _pickImageFromSource(result.imageSource!);
+        }
       } else {
         OKToastUtil.show('权限未授予，无法选择图片');
       }
@@ -166,22 +193,52 @@ class InfoSettingController extends GetxController {
       );
 
       if (pickedFile != null) {
-        isLoading.value = true;
-
-        // 上传图片
-        final file = File(pickedFile.path);
-        final result = await _fileUploadApi.uploadFile(file);
-
-        if (result.isSuccess && result.data != null) {
-          avatarUrl.value = result.data!;
-          uploadedHeadPortrait.value = result.data!;
-          OKToastUtil.show('头像上传成功');
-        } else {
-           OKToastUtil.show(result.msg ?? '头像上传失败');
-        }
+        // 进入图片裁剪页面
+        await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
       OKToastUtil.show('选择图片失败: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 导航到图片裁剪页面
+  Future<void> _navigateToCropPage(String imagePath) async {
+    try {
+      await Get.to(
+        () => ImageCropPage(
+          imagePath: imagePath,
+          onCropComplete: _onCropComplete,
+          customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp', // 自定义裁剪框
+        ),
+        fullscreenDialog: true,
+      );
+    } catch (e) {
+      print('导航到裁剪页面失败: $e');
+      OKToastUtil.show('打开裁剪页面失败');
+    }
+  }
+
+  /// 裁剪完成回调
+  Future<void> _onCropComplete(String croppedImagePath) async {
+    try {
+      isLoading.value = true;
+
+      // 上传裁剪后的图片
+      final file = File(croppedImagePath);
+      final result = await _fileUploadApi.uploadFile(file);
+
+      if (result.isSuccess && result.data != null) {
+        avatarUrl.value = result.data!;
+        uploadedHeadPortrait.value = result.data!;
+        OKToastUtil.show('头像上传成功');
+      } else {
+        OKToastUtil.show(result.msg ?? '头像上传失败');
+      }
+    } catch (e) {
+      print('上传裁剪后的图片失败: $e');
+      OKToastUtil.show('头像上传失败');
     } finally {
       isLoading.value = false;
     }
@@ -328,12 +385,11 @@ class InfoSettingController extends GetxController {
   /// 提交表单
   Future<void> onSubmit() async {
     // 从TextEditingController获取最新的昵称值
-    final currentNickname = nicknameController.text.trim();
+    var currentNickname = nicknameController.text.trim();
 
     if (currentNickname.isEmpty) {
-       OKToastUtil.show('请输入昵称');
-      return;
-    }
+      currentNickname = nickname.value;
+     }
 
     try {
       isLoading.value = true;
@@ -344,6 +400,8 @@ class InfoSettingController extends GetxController {
 
       // 转换性别为数字 (1男2女)
       final gender = selectedGender.value == '男' ? 1 : 2;
+
+  
 
       // 更新用户信息，使用TextEditingController中的值
       final result = await _authApi.updateUserInfo(
@@ -356,6 +414,11 @@ class InfoSettingController extends GetxController {
         loveTime: loveTime,
       );
 
+      print('📥 服务器响应: ${result.isSuccess ? "成功" : "失败"}');
+      if (result.msg != null) {
+        print('   消息: ${result.msg}');
+      }
+
       if (result.isSuccess) {
 
         // 先本地更新用户数据
@@ -366,15 +429,18 @@ class InfoSettingController extends GetxController {
           final refreshSuccess = await _authService.refreshUserInfoFromServer();
 
           if (refreshSuccess) {
-            print('用户信息刷新成功');
+            print('✅ 用户信息刷新成功');
+            // 检查刷新后的头像
+            final refreshedUser = UserManager.currentUser;
+            print('   刷新后的头像: ${refreshedUser?.headPortrait}');
             // 通知其他Controller刷新数据（使用最新的缓存数据）
             _notifyControllersToRefresh();
           } else {
-            print('用户信息刷新失败，但本地数据已更新');
+            print('❌ 用户信息刷新失败，但本地数据已更新');
             // 即使服务器刷新失败，我们仍然有本地更新的数据
           }
         } catch (e) {
-          print('刷新用户信息时发生异常: $e');
+          print('⚠️ 刷新用户信息时发生异常: $e');
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
 
@@ -409,8 +475,24 @@ class InfoSettingController extends GetxController {
 
   /// 通知其他Controller刷新数据
   void _notifyControllersToRefresh() {
-    // 由于我们已经更新了缓存的用户数据，其他Controller会自动使用最新数据
-    // 这里可以添加特定的Controller刷新逻辑，如果需要的话
+    // 通知首页刷新
+    try {
+      final homeController = Get.find<HomeController>();
+      homeController.loadUserInfo();
+      print('✅ 首页Controller已刷新');
+    } catch (e) {
+      print('❌ 首页Controller未找到: $e');
+    }
+    
+    // 通知我的页面刷新
+    try {
+      final mineController = Get.find<MineController>();
+      mineController.loadUserInfo();
+      print('✅ 我的页面Controller已刷新');
+    } catch (e) {
+      print('❌ 我的页面Controller未找到: $e');
+    }
+    
     print('通知其他Controller使用最新的用户数据');
   }
 

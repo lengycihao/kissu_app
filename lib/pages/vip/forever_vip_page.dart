@@ -196,23 +196,41 @@ class ForeverVipPage extends GetView<ForeverVipController> {
         padding: EdgeInsets.only(left: 6, top: 6, right: 0, bottom: 3),
         child: ClipOval(
           child: controller.userAvatar.value.isNotEmpty
-              ? Image.network(
-                  controller.userAvatar.value,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40),
-                        color: const Color(0xFFE8B4CB),
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
-                )
+              ? controller.userAvatar.value.startsWith('assets/')
+                  ? Image.asset(
+                      controller.userAvatar.value,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
+                  : Image.network(
+                      controller.userAvatar.value,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
               : Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(40),

@@ -22,14 +22,26 @@ class NoPlaceholderImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 计算缓存尺寸，避免Infinity导致的错误
+    int? cacheWidth;
+    int? cacheHeight;
+    
+    if (width != double.infinity && width.isFinite) {
+      cacheWidth = (width * MediaQuery.of(context).devicePixelRatio).round();
+    }
+    
+    if (height != double.infinity && height.isFinite) {
+      cacheHeight = (height * MediaQuery.of(context).devicePixelRatio).round();
+    }
+    
     Widget imageWidget = Image.network(
       imageUrl,
       width: width,
       height: height,
       fit: fit,
       // 优化缓存策略，减少内存占用
-      cacheWidth: (width * MediaQuery.of(context).devicePixelRatio).round(),
-      cacheHeight: (height * MediaQuery.of(context).devicePixelRatio).round(),
+      cacheWidth: cacheWidth,
+      cacheHeight: cacheHeight,
       errorBuilder: (context, error, stackTrace) {
         return Image.asset(
           defaultAssetPath,

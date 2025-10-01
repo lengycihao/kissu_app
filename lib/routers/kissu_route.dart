@@ -17,6 +17,7 @@ import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_binding.dart';
 import 'package:kissu_app/pages/permission_setting_page.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
+import 'package:kissu_app/pages/mine/love_info/avatar_preview_page.dart';
  import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -94,6 +95,11 @@ class KissuRoute {
         url: '',
       ),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.avatarPreview,
+      page: () => const AvatarPreviewPage(),
+      transition: Transition.fadeIn,
     ),
     // GetPage(
     //   name: KissuRoutePath.locationExample,

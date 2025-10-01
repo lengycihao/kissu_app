@@ -77,17 +77,29 @@ class InfoItem extends StatelessWidget {
       ),
       child: ClipOval(
         child: imageUrl?.isNotEmpty == true
-            ? Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.person,
-                    size: 20,
-                    color: Colors.white,
-                  );
-                },
-              )
+            ? imageUrl!.startsWith('assets/')
+                ? Image.asset(
+                    imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        size: 20,
+                        color: Colors.white,
+                      );
+                    },
+                  )
+                : Image.network(
+                    imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        size: 20,
+                        color: Colors.white,
+                      );
+                    },
+                  )
             : const Icon(Icons.person, size: 20, color: Colors.white),
       ),
     );

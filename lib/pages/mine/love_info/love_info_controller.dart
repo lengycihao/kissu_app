@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -18,6 +19,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/utils/image_source_dialog.dart';
+import 'package:kissu_app/pages/common/image_crop_page.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -196,6 +198,28 @@ class LoveInfoController extends GetxController {
     await pickImage();
   }
 
+  /// 处理我的头像预览
+  Future<void> onMyAvatarPreview(BuildContext context) async {
+    if (myAvatar.value.isNotEmpty) {
+      // 跳转到头像预览页面
+      Get.toNamed(KissuRoutePath.avatarPreview, arguments: {
+        'avatarUrl': myAvatar.value,
+        'isMyAvatar': true,
+      });
+    }
+  }
+
+  /// 处理另一半头像预览
+  Future<void> onPartnerAvatarPreview(BuildContext context) async {
+    if (isBindPartner.value && partnerAvatar.value.isNotEmpty) {
+      // 跳转到头像预览页面
+      Get.toNamed(KissuRoutePath.avatarPreview, arguments: {
+        'avatarUrl': partnerAvatar.value,
+        'isMyAvatar': false,
+      });
+    }
+  }
+
   /// 选择头像
   Future<void> pickImage() async {
     try {
@@ -205,9 +229,17 @@ class LoveInfoController extends GetxController {
       
       // 如果两个权限都有，直接显示选择来源对话框
       if (hasPhotoPermission && hasCameraPermission) {
-        final source = await ImageSourceDialog.show(Get.context!);
-        if (source == null) return;
-        await _pickImageFromSource(source);
+        final result = await ImageSourceDialog.show(Get.context!);
+        if (result == null) return;
+        
+        // 处理选择结果
+        if (result.systemAvatarPath != null) {
+          // 选择了系统头像，直接使用
+          await _updateAvatarWithPath(result.systemAvatarPath!);
+        } else if (result.imageSource != null) {
+          // 选择了相册或相机
+          await _pickImageFromSource(result.imageSource!);
+        }
         return;
       }
       
@@ -229,15 +261,146 @@ class LoveInfoController extends GetxController {
       
       // 如果至少有一个权限被授予，显示选择来源对话框
       if (photoPermissionGranted || cameraPermissionGranted) {
-        final source = await ImageSourceDialog.show(Get.context!);
-        if (source == null) return;
-        await _pickImageFromSource(source);
+        final result = await ImageSourceDialog.show(Get.context!);
+        if (result == null) return;
+        
+        // 处理选择结果
+        if (result.systemAvatarPath != null) {
+          // 选择了系统头像，直接使用
+          await _updateAvatarWithPath(result.systemAvatarPath!);
+        } else if (result.imageSource != null) {
+          // 选择了相册或相机
+          await _pickImageFromSource(result.imageSource!);
+        }
       } else {
         CustomToast.show(Get.context!, '权限未授予，无法选择图片');
       }
     } catch (e) {
       print('选择头像失败: $e');
       CustomToast.show(Get.context!, '选择头像失败');
+    }
+  }
+  
+  /// 使用系统头像路径更新头像
+  Future<void> _updateAvatarWithPath(String avatarPath) async {
+    try {
+      // 显示加载指示器
+      Get.dialog(
+        const Center(child: CircularProgressIndicator()),
+        barrierDismissible: false,
+      );
+
+      // 系统头像是本地assets路径，需要先上传到服务器获取网络URL
+      String networkAvatarUrl = avatarPath;
+      
+      // 检查是否是本地assets路径
+      if (avatarPath.startsWith('assets/')) {
+        // 读取本地资源文件并上传到服务器
+        final bytes = await rootBundle.load(avatarPath);
+        final tempFile = File('${Directory.systemTemp.path}/temp_avatar_${DateTime.now().millisecondsSinceEpoch}.webp');
+        await tempFile.writeAsBytes(bytes.buffer.asUint8List());
+        
+        // 上传到服务器
+        final fileUploadApi = FileUploadApi();
+        final uploadResult = await fileUploadApi.uploadFile(tempFile);
+        
+        // 删除临时文件
+        await tempFile.delete();
+        
+        if (uploadResult.isSuccess && uploadResult.data != null) {
+          networkAvatarUrl = uploadResult.data!;
+        } else {
+          // 关闭加载指示器
+          Get.back();
+          CustomToast.show(Get.context!, '系统头像上传失败');
+          return;
+        }
+      }
+      
+      // 使用网络URL更新用户信息
+      final authApi = AuthApi();
+      final result = await authApi.updateUserInfo(headPortrait: networkAvatarUrl);
+      
+      // 关闭加载指示器
+      Get.back();
+      
+      if (result.isSuccess) {
+        myAvatar.value = networkAvatarUrl;
+
+        // 更新本地用户信息
+        final currentUser = UserManager.currentUser;
+        if (currentUser != null) {
+          final updatedUser = LoginModel(
+            id: currentUser.id,
+            phone: currentUser.phone,
+            nickname: currentUser.nickname,
+            headPortrait: networkAvatarUrl,
+            gender: currentUser.gender,
+            birthday: currentUser.birthday,
+            provinceName: currentUser.provinceName,
+            cityName: currentUser.cityName,
+            friendCode: currentUser.friendCode,
+            loginTime: currentUser.loginTime,
+            latelyBindTime: currentUser.latelyBindTime,
+            bindStatus: currentUser.bindStatus,
+            loverInfo: currentUser.loverInfo,
+            loverId: currentUser.loverId,
+            halfUid: currentUser.halfUid,
+            status: currentUser.status,
+            inviterId: currentUser.inviterId,
+            friendQrCode: currentUser.friendQrCode,
+            vipEndDate: currentUser.vipEndDate,
+            isForEverVip: currentUser.isForEverVip,
+            vipEndTime: currentUser.vipEndTime,
+            channel: currentUser.channel,
+            mobileModel: currentUser.mobileModel,
+            deviceId: currentUser.deviceId,
+            uniqueId: currentUser.uniqueId,
+            latelyUnbindTime: currentUser.latelyUnbindTime,
+            latelyLoginTime: currentUser.latelyLoginTime,
+            latelyPayTime: currentUser.latelyPayTime,
+            loginNums: currentUser.loginNums,
+            openAppNums: currentUser.openAppNums,
+            latelyOpenAppTime: currentUser.latelyOpenAppTime,
+            isTest: currentUser.isTest,
+            isOrderVip: currentUser.isOrderVip,
+            isVip: currentUser.isVip,
+            token: currentUser.token,
+            imSign: currentUser.imSign,
+            isPerfectInformation: currentUser.isPerfectInformation,
+            halfUserInfo: currentUser.halfUserInfo,
+          );
+          await UserManager.updateUserInfo(updatedUser);
+        }
+
+        // 通知我的页面刷新
+        try {
+          final mineController = Get.find<MineController>();
+          mineController.loadUserInfo();
+          DebugUtil.success('System avatar updated, mine page refreshed');
+        } catch (e) {
+          DebugUtil.error('Mine page not found: $e');
+        }
+
+        // 通知首页刷新
+        try {
+          final homeController = Get.find<HomeController>();
+          homeController.loadUserInfo();
+          DebugUtil.success('System avatar updated, home page refreshed');
+        } catch (e) {
+          DebugUtil.error('Home controller not found: $e');
+        }
+
+        CustomToast.show(Get.context!, '头像更新成功');
+      } else {
+        CustomToast.show(Get.context!, result.msg ?? '头像更新失败');
+      }
+    } catch (e) {
+      // 关闭加载指示器（如果还在显示）
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+      CustomToast.show(Get.context!, '头像更新失败：$e');
     }
   }
 
@@ -266,12 +429,40 @@ class LoveInfoController extends GetxController {
       );
 
       if (pickedFile != null) {
-        // 上传图片
-        final file = File(pickedFile.path);
-        await _uploadAvatar(file);
+        // 进入图片裁剪页面
+        await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
       CustomToast.show(Get.context!, '选择图片失败: $e');
+    }
+  }
+
+  /// 导航到图片裁剪页面
+  Future<void> _navigateToCropPage(String imagePath) async {
+    try {
+      await Get.to(
+        () => ImageCropPage(
+          imagePath: imagePath,
+          onCropComplete: _onCropComplete,
+          customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp', // 自定义裁剪框
+        ),
+        fullscreenDialog: true,
+      );
+    } catch (e) {
+      print('导航到裁剪页面失败: $e');
+      CustomToast.show(Get.context!, '打开裁剪页面失败');
+    }
+  }
+
+  /// 裁剪完成回调
+  Future<void> _onCropComplete(String croppedImagePath) async {
+    try {
+      // 上传裁剪后的图片
+      final file = File(croppedImagePath);
+      await _uploadAvatar(file);
+    } catch (e) {
+      print('上传裁剪后的图片失败: $e');
+      CustomToast.show(Get.context!, '头像上传失败');
     }
   }
 
@@ -373,6 +564,15 @@ class LoveInfoController extends GetxController {
           DebugUtil.success('Avatar updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
+        }
+
+        // 通知首页刷新
+        try {
+          final homeController = Get.find<HomeController>();
+          homeController.loadUserInfo();
+          DebugUtil.success('Avatar updated, home page refreshed');
+        } catch (e) {
+          DebugUtil.error('Home controller not found: $e');
         }
 
         CustomToast.show(Get.context!, '头像更新成功');

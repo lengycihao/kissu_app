@@ -68,20 +68,30 @@ class _SmoothAvatarWidgetState extends State<SmoothAvatarWidget> {
     // 取消之前的计时器
     _delayTimer?.cancel();
 
-    // 检查是否有有效的网络URL
+    // 检查是否有有效的头像URL
     final avatarUrl = widget.avatarUrl;
-    if (avatarUrl == null || avatarUrl.isEmpty || !avatarUrl.startsWith('http')) {
+    if (avatarUrl == null || avatarUrl.isEmpty) {
       return;
     }
 
-    // 设置500ms延迟后开始尝试显示伴侣头像
-    _delayTimer = Timer(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _shouldShowPartnerAvatar = true;
-        });
-      }
-    });
+    // 对于本地资源文件，立即显示，不需要延迟
+    if (avatarUrl.startsWith('assets/')) {
+      setState(() {
+        _shouldShowPartnerAvatar = true;
+      });
+      return;
+    }
+
+    // 对于网络图片，设置500ms延迟后开始尝试显示伴侣头像
+    if (avatarUrl.startsWith('http')) {
+      _delayTimer = Timer(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _shouldShowPartnerAvatar = true;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -105,10 +115,8 @@ class _SmoothAvatarWidgetState extends State<SmoothAvatarWidget> {
   }
 
   Widget _buildImage() {
-    // 如果没有有效的网络URL，显示透明占位
-    if (widget.avatarUrl == null || 
-        widget.avatarUrl!.isEmpty || 
-        !widget.avatarUrl!.startsWith('http')) {
+    // 如果没有有效的头像URL，显示透明占位
+    if (widget.avatarUrl == null || widget.avatarUrl!.isEmpty) {
       return Container(
         width: widget.width,
         height: widget.height,
@@ -116,46 +124,73 @@ class _SmoothAvatarWidgetState extends State<SmoothAvatarWidget> {
       );
     }
     
-    // 如果延迟时间未到，显示透明占位
-    if (!_shouldShowPartnerAvatar) {
-      return Container(
+    // 处理本地资源文件
+    if (widget.avatarUrl!.startsWith('assets/')) {
+      return Image.asset(
+        widget.avatarUrl!,
         width: widget.width,
         height: widget.height,
-        color: Colors.transparent,
+        fit: widget.fit,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.transparent,
+          );
+        },
       );
     }
     
-    // 延迟时间到了，显示网络头像
-    return Image.network(
-      widget.avatarUrl!,
+    // 处理网络图片
+    if (widget.avatarUrl!.startsWith('http')) {
+      // 如果延迟时间未到，显示透明占位
+      if (!_shouldShowPartnerAvatar) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          color: Colors.transparent,
+        );
+      }
+      
+      // 延迟时间到了，显示网络头像
+      return Image.network(
+        widget.avatarUrl!,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        // 如果网络图片加载失败，显示透明占位
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.transparent,
+          );
+        },
+        // 加载过程中显示透明占位
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            // 图片加载完成，显示图片
+            // 调用回调通知图片已加载
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              widget.onImageLoaded?.call();
+            });
+            return child;
+          }
+          // 加载中显示透明占位
+          return Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.transparent,
+          );
+        },
+      );
+    }
+    
+    // 其他情况显示透明占位
+    return Container(
       width: widget.width,
       height: widget.height,
-      fit: widget.fit,
-      // 如果网络图片加载失败，显示透明占位
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.transparent,
-        );
-      },
-      // 加载过程中显示透明占位
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) {
-          // 图片加载完成，显示图片
-          // 调用回调通知图片已加载
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            widget.onImageLoaded?.call();
-          });
-          return child;
-        }
-        // 加载中显示透明占位
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.transparent,
-        );
-      },
+      color: Colors.transparent,
     );
   }
 
