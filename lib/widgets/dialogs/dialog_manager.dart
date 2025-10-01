@@ -6,6 +6,7 @@ import 'bind_confirm_dialog.dart';
 import 'binding_input_dialog.dart';
 import 'vip_dialog.dart';
 import 'huawei_vip_promo_dialog.dart';
+import 'vip_purchase_dialog.dart';
 
 /// 导出所有弹窗组件
 export 'base_dialog.dart';
@@ -16,6 +17,7 @@ export 'bind_confirm_dialog.dart';
 export 'binding_input_dialog.dart';
 export 'vip_dialog.dart';
 export 'huawei_vip_promo_dialog.dart';
+export 'vip_purchase_dialog.dart';
 
 /// 弹窗管理器
 class DialogManager {
@@ -207,5 +209,18 @@ class DialogManager {
   /// 显示华为渠道VIP推广弹窗（首次注册登录时）
   static Future<void> showHuaweiVipPromo(BuildContext context) {
     return HuaweiVipPromoDialog.show(context);
+  }
+
+  /// 显示VIP开通弹窗（0.9元/天）
+  static Future<void> showVipPurchase({
+    required BuildContext context,
+    VoidCallback? onConfirm,
+    bool barrierDismissible = true,
+  }) {
+    return VipPurchaseDialog.show(
+      context: context,
+      onConfirm: onConfirm,
+      barrierDismissible: barrierDismissible,
+    );
   }
 }

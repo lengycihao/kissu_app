@@ -10,7 +10,6 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
@@ -18,6 +17,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/map_zoom_calculator.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:http/http.dart' as http;
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 class LocationController extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
@@ -1435,10 +1435,12 @@ class LocationController extends GetxController {
   
   
   
-  /// 执行绑定操作
+  /// 执行绑定操作 - 显示绑定弹窗
   void performBindAction() {
-    // 直接跳转到分享页面，不再显示弹窗
-    Get.toNamed(KissuRoutePath.share);
+    // 显示绑定弹窗
+    if (Get.context != null) {
+      CustomBottomDialog.show(context: Get.context!);
+    }
   }
 
   /// 根据设备组件类型生成详细信息

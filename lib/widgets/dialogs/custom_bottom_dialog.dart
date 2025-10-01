@@ -400,6 +400,14 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     // 初始化新的控制器
     Get.put(CustomBottomDialogController());
 
+    // 使用默认轮播图图片（如果未提供）
+    final defaultBannerImages = [
+      'assets/3.0/kissu3_banner_1.webp',
+      'assets/3.0/kissu3_banner_2.webp',
+      'assets/3.0/kissu3_banner_3.webp',
+      'assets/3.0/kissu3_banner_4.webp',
+    ];
+
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
@@ -409,7 +417,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       builder: (context) => CustomBottomDialog(
         onClose: onClose,
         customContent: customContent,
-        bannerImages: bannerImages,
+        bannerImages: bannerImages ?? defaultBannerImages,
         bannerHeight: bannerHeight,
         showBanner: showBanner,
       ),

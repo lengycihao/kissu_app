@@ -11,12 +11,12 @@ import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/pages/track/component/custom_stay_point_info_window.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -1036,9 +1036,11 @@ class TrackController extends GetxController {
   
   // 移除所有缓存相关方法
 
-  /// 执行绑定操作 - 显示绑定输入弹窗
+  /// 执行绑定操作 - 显示绑定弹窗
   void performBindAction() {
-    Get.toNamed(KissuRoutePath.share);
+    if (Get.context != null) {
+      CustomBottomDialog.show(context: Get.context!);
+    }
     // DialogManager.showBindingInput(
     //   title: "",
     //   context: Get.context!,

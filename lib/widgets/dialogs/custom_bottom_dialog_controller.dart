@@ -7,6 +7,10 @@ import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/pages/track/track_controller.dart';
+import 'package:kissu_app/pages/location/location_controller.dart';
+import 'package:kissu_app/pages/phone_history/phone_history_controller.dart';
 
 /// 自定义底部弹窗控制器
 class CustomBottomDialogController extends GetxController {
@@ -96,10 +100,11 @@ class CustomBottomDialogController extends GetxController {
 
         // 关闭弹窗
         Get.back();
+        print('绑定成功，关闭弹窗');
 
-        // 延迟刷新首页数据
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          _delayedRefreshHomeData();
+        // 延迟刷新当前页面数据
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _refreshCurrentPageData();
         });
       } else {
         OKToastUtil.show(result.msg ?? '绑定失败');
@@ -125,36 +130,70 @@ class CustomBottomDialogController extends GetxController {
     }
   }
 
-  /// 延迟刷新首页数据
-  Future<void> _delayedRefreshHomeData() async {
+  /// 刷新当前页面数据
+  Future<void> _refreshCurrentPageData() async {
     try {
-      print('开始延迟刷新首页数据...');
+      print('开始刷新当前页面数据...');
 
-      // 多次尝试获取首页控制器
-      int attempts = 0;
-      const maxAttempts = 5;
-
-      while (attempts < maxAttempts) {
-        attempts++;
-        if (Get.isRegistered<HomeController>()) {
-          try {
-            final homeController = Get.find<HomeController>();
-            print('第${attempts}次尝试获取首页控制器成功');
-            await homeController.refreshUserInfoFromServer();
-            print('延迟刷新首页用户数据完成');
-            break;
-          } catch (e) {
-            print('第${attempts}次尝试获取首页控制器失败: $e');
-          }
-        } else {
-          print('第${attempts}次尝试：首页控制器未注册');
+      // 尝试刷新各个可能已注册的控制器
+      // 1. 尝试刷新首页控制器
+      if (Get.isRegistered<HomeController>()) {
+        try {
+          final homeController = Get.find<HomeController>();
+          await homeController.refreshUserInfoFromServer();
+          print('首页数据刷新完成');
+        } catch (e) {
+          print('刷新首页控制器失败: $e');
         }
-
-        // 等待一段时间后重试
-        await Future.delayed(const Duration(milliseconds: 200));
       }
+
+      // 2. 尝试刷新Mine页控制器
+      if (Get.isRegistered<MineController>()) {
+        try {
+          final mineController = Get.find<MineController>();
+          mineController.loadUserInfo();
+          print('Mine页数据刷新完成');
+        } catch (e) {
+          print('刷新Mine页控制器失败: $e');
+        }
+      }
+
+      // 3. 刷新定位页控制器
+      if (Get.isRegistered<LocationController>()) {
+        try {
+          final locationController = Get.find<LocationController>();
+          locationController.refreshUserInfo();
+          print('定位页数据刷新完成');
+        } catch (e) {
+          print('刷新定位页控制器失败: $e');
+        }
+      }
+
+      // 4. 刷新足迹页控制器
+      if (Get.isRegistered<TrackController>()) {
+        try {
+          final trackController = Get.find<TrackController>();
+          trackController.refreshCurrentUserData();
+          print('足迹页数据刷新完成');
+        } catch (e) {
+          print('刷新足迹页控制器失败: $e');
+        }
+      }
+
+      // 5. 刷新敏感记录页控制器
+      if (Get.isRegistered<PhoneHistoryController>()) {
+        try {
+          final phoneHistoryController = Get.find<PhoneHistoryController>();
+          await phoneHistoryController.refreshBindingStatus();
+          print('敏感记录页数据刷新完成');
+        } catch (e) {
+          print('刷新敏感记录页控制器失败: $e');
+        }
+      }
+
+      print('当前页面数据刷新完成');
     } catch (e) {
-      print('延迟刷新首页数据失败: $e');
+      print('刷新当前页面数据失败: $e');
     }
   }
 
@@ -283,14 +322,25 @@ class CustomBottomDialogController extends GetxController {
       final shareService = Get.put(ShareService(), permanent: true);
       Map<String, dynamic>? shareResult;
 
+      // 获取分享配置
+      final user = UserManager.currentUser;
+      final shareConfig = user?.shareConfig;
+      
+      // 使用登录接口返回的分享配置，如果没有则使用默认值
+      final shareTitle = shareConfig?.shareTitle ?? "绑定邀请";
+      final shareDescription = shareConfig?.shareIntroduction ?? '快来和我绑定吧！';
+      final shareCover = shareConfig?.shareCover;
+      final sharePage = shareConfig?.sharePage ?? 
+          'https://www.ikissu.cn/share/matchingcode.html?bindCode=${userMatchCode.value}';
+
       if (target == '微信') {
         // 微信分享
         try {
           await shareService.shareToWeChat(
-            title: "绑定邀请",
-            description: '快来和我绑定吧！',
-            webpageUrl:
-                'https://www.ikissu.cn/share/matchingcode.html?bindCode=${userMatchCode.value}',
+            title: shareTitle,
+            description: shareDescription,
+            imageUrl: shareCover,
+            webpageUrl: sharePage,
           );
           OKToastUtil.show('已调起微信分享');
         } catch (e) {
@@ -312,10 +362,10 @@ class CustomBottomDialogController extends GetxController {
 
           // QQ已安装，尝试分享
           shareResult = await shareService.shareToQQ(
-            title: "绑定邀请",
-            description: '快来和我绑定吧！',
-            webpageUrl:
-                'https://www.ikissu.cn/share/matchingcode.html?bindCode=${userMatchCode.value}',
+            title: shareTitle,
+            description: shareDescription,
+            imageUrl: shareCover,
+            webpageUrl: sharePage,
           );
 
           print('QQ分享结果: $shareResult');

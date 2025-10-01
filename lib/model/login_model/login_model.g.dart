@@ -60,6 +60,9 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
   loverInfo: json['lover_info'] == null
       ? null
       : LoverInfo.fromJson(json['lover_info'] as Map<String, dynamic>),
+  shareConfig: json['share_config'] == null
+      ? null
+      : ShareConfig.fromJson(json['share_config'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LoginModelToJson(
@@ -116,4 +119,5 @@ Map<String, dynamic> _$LoginModelToJson(
   'is_alert_give_vip': const StringToIntConverter().toJson(instance.isGiveVip),
   'half_user_info': instance.halfUserInfo,
   'lover_info': instance.loverInfo,
+  'share_config': instance.shareConfig,
 };

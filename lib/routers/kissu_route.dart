@@ -5,8 +5,6 @@ import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_binding.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_page.dart';
-import 'package:kissu_app/pages/login/info_setting/share_page.dart';
-import 'package:kissu_app/pages/login/info_setting/share_binding.dart';
 import 'package:kissu_app/pages/qr/qr_scan_page.dart';
 import 'package:kissu_app/pages/login/login_page.dart';
  import 'package:kissu_app/pages/vip/vip_binding.dart';
@@ -64,12 +62,6 @@ class KissuRoute {
       binding: BindingsBuilder(() {
         Get.lazyPut<ForeverVipController>(() => ForeverVipController());
       }),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: KissuRoutePath.share,
-      page: () => const SharePage(),
-      binding: ShareBinding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

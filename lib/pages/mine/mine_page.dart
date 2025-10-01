@@ -49,54 +49,67 @@ class MinePage extends GetView<MineController> {
   
   //新个人信息模块
   Widget _buildNewUserInfo() {
-    return Container(
-      padding: EdgeInsets.only(left: 18, right: 36),
-      child: Row(
-        children: [
-          _buildNewAvatarSection(),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                controller.nickname.value,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Color(0xff333333),
-                  fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: controller.onLabelTap, // 点击进入恋爱信息页面
+      child: Container(
+        color: Colors.transparent, // 添加透明背景色确保空白区域也能点击
+        padding: EdgeInsets.only(left: 18, right: 36),
+        child: Row(
+          children: [
+            _buildNewAvatarSection(),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  controller.nickname.value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Color(0xff333333),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Row(
-                children: [
-                  Text(
-                    "在一起",
-                    style: TextStyle(fontSize: 10, color: Color(0xff333333)),
-                  ),
-                  SizedBox(width: 6),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Color(0xffFFE8D3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      controller.days.value,
-                      style: TextStyle(fontSize: 14, color: Color(0xff333333)),
-                    ),
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    "天",
-                    style: TextStyle(fontSize: 10, color: Color(0xff333333)),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                Obx(() {
+                  if (controller.isBound.value) {
+                    return Row(
+                      children: [
+                        Text(
+                          "在一起",
+                          style: TextStyle(fontSize: 10, color: Color(0xff333333)),
+                        ),
+                        SizedBox(width: 6),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Color(0xffFFE8D3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            controller.days.value,
+                            style: TextStyle(fontSize: 14, color: Color(0xff333333)),
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "天",
+                          style: TextStyle(fontSize: 10, color: Color(0xff333333)),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Text(
+                      "未绑定另一半",
+                      style: TextStyle(fontSize: 12, color: Color(0xff999999)),
+                    );
+                  }
+                }),
+              ],
+            ),
 
-          Spacer(),
-          Image(image: AssetImage("assets/kissu_mine_arrow.webp"), width: 14),
-        ],
+            Spacer(),
+            Image(image: AssetImage("assets/kissu_mine_arrow.webp"), width: 14),
+          ],
+        ),
       ),
     );
   }
@@ -107,24 +120,33 @@ class MinePage extends GetView<MineController> {
     return Row(
       children: [
         Obx(
-          () => GestureDetector(
-            onTap: controller.onPartnerAvatarTap,
-            child: Stack(
-              children: [
-                _buildAvatar(),
-                // 另一半头像或添加按钮
-                Positioned(right: 0, bottom: 0, child: _buildPartnerAvatar()),
-                Positioned(
-                  right: 30,
-                  top: 40,
-                  child: Image(
-                    image: AssetImage("assets/kissu_heart.webp"),
-                    width: 29,
-                    height: 20,
-                  ),
+          () => Stack(
+            children: [
+              // 用户头像 - 只有这个有点击事件
+              GestureDetector(
+                onTap: controller.onAvatarTap,
+                child: _buildAvatar(),
+              ),
+              // 另一半头像或添加按钮 - 独立的点击事件
+              Positioned(
+                right: 0, 
+                bottom: 0, 
+                child: GestureDetector(
+                  onTap: controller.onPartnerAvatarTap,
+                  child: _buildPartnerAvatar(),
                 ),
-              ],
-            ),
+              ),
+              // 心形图标
+              Positioned(
+                right: 30,
+                top: 40,
+                child: Image(
+                  image: AssetImage("assets/kissu_heart.webp"),
+                  width: 29,
+                  height: 20,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -132,16 +154,14 @@ class MinePage extends GetView<MineController> {
   }
 
   Widget _buildAvatar() {
-    return GestureDetector(
-      onTap: controller.onAvatarTap,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          border: Border.all(color: Color(0xffFFE0E0), width: 2),
-          borderRadius: BorderRadius.circular(80),
-        ),
-        child: ClipOval(
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        border: Border.all(color: Color(0xffFFE0E0), width: 2),
+        borderRadius: BorderRadius.circular(80),
+      ),
+      child: ClipOval(
           child: controller.userAvatar.value.startsWith('assets/')
               ? Image.asset(
                   controller.userAvatar.value,
@@ -191,13 +211,17 @@ class MinePage extends GetView<MineController> {
                     );
                   },
                 ),
-        ),
       ),
     );
   }
 
   // 另一半头像显示逻辑
   Widget _buildPartnerAvatar() {
+    // 未绑定时不显示第二个头像
+    if (!controller.isBound.value) {
+      return const SizedBox.shrink();
+    }
+    
     return Container(
       width: 24,
       height: 24,
@@ -206,59 +230,57 @@ class MinePage extends GetView<MineController> {
         color: Colors.white,
         border: Border.all(color: const Color(0xFFFFB6C1), width: 1),
       ),
-      child: controller.isBound.value
-          ? ClipOval(
-              child: controller.partnerAvatar.value.startsWith('assets/')
-                  ? Image.asset(
-                      controller.partnerAvatar.value,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(25),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                    )
-                  : Image.network(
-                      controller.partnerAvatar.value,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(25),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(25),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
+      child: ClipOval(
+        child: controller.partnerAvatar.value.startsWith('assets/')
+            ? Image.asset(
+                controller.partnerAvatar.value,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(25),
+                      color: const Color(0xFFE8B4CB),
                     ),
-            )
-          : Container(),
+                    child: const Icon(
+                      Icons.person,
+                      size: 24,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              )
+            : Image.network(
+                controller.partnerAvatar.value,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(25),
+                      color: const Color(0xFFE8B4CB),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 24,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(25),
+                      color: const Color(0xFFE8B4CB),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 24,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              ),
+      ),
     );
   }
 

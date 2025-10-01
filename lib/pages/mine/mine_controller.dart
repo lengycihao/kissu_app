@@ -18,6 +18,7 @@ import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -290,9 +291,11 @@ class MineController extends GetxController {
 
   // 点击另一半头像
   void onPartnerAvatarTap() {
-    // 如果未绑定，直接跳转到分享页面
+    // 如果未绑定，显示绑定弹窗
     if (!isBound.value) {
-      Get.toNamed(KissuRoutePath.share);
+      if (Get.context != null) {
+        CustomBottomDialog.show(context: Get.context!);
+      }
     } else {
       // 如果已绑定，跳转到恋爱信息页面
       Get.to(LoveInfoPage());

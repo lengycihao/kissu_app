@@ -2,6 +2,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 import 'half_user_info.dart';
 import 'lover_info.dart';
+import 'share_config.dart';
 
 part 'login_model.g.dart';
 
@@ -136,6 +137,8 @@ class LoginModel {
   HalfUserInfo? halfUserInfo;
   @JsonKey(name: 'lover_info')
   LoverInfo? loverInfo;
+  @JsonKey(name: 'share_config')
+  ShareConfig? shareConfig;
 
   LoginModel({
     this.id,
@@ -177,6 +180,7 @@ class LoginModel {
     this.isGiveVip,
     this.halfUserInfo,
     this.loverInfo,
+    this.shareConfig,
   });
 
   factory LoginModel.fromJson(Map<String, dynamic> json) {

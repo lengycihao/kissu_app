@@ -444,15 +444,8 @@ class InfoSettingController extends GetxController {
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
 
-        // 根据is_perfect_information字段决定跳转
-        final currentUser = UserManager.currentUser;
-        if (currentUser?.isPerfectInformation == 0) {
-          // 跳转到分享页面，传递来源页面参数
-          Get.offAllNamed(KissuRoutePath.share, arguments: {'fromPage': 'register'});
-        } else {
-          // 跳转到首页
-          Get.offAllNamed(KissuRoutePath.home);
-        }
+        // 注册完成后直接跳转到首页
+        Get.offAllNamed(KissuRoutePath.home);
       } else {
          OKToastUtil.show(result.msg ?? '更新失败');
       }
