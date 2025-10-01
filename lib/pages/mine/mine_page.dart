@@ -17,52 +17,11 @@ class MinePage extends GetView<MineController> {
     {"icon": "assets/kissu_mine_item_ysaq.webp", "title": "账号及隐私安全"},
   ];
 
-  // // 通用虚线分隔
-  // Widget _buildDashLine({
-  //   EdgeInsets margin = const EdgeInsets.symmetric(vertical: 8),
-  // }) {
-  //   return Container(
-  //     height: 0.6,
-  //     color: const Color(0xFFE6E2E3),
-  //     margin: margin,
-  //   );
-  // }
-
-  // // 通用信息行
-  // Widget _buildInfoRow(String title, RxString value) {
-  //   return Obx(
-  //     () => Row(
-  //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //       children: [
-  //         Text(
-  //           title,
-  //           style: const TextStyle(fontSize: 12, color: Color(0xff69686F)),
-  //         ),
-  //         value.value.isEmpty
-  //             ? Container(
-  //                 height: 4,
-  //                 width: 30,
-  //                 decoration: BoxDecoration(
-  //                   color: Color(0xffFFD4D1),
-  //                   borderRadius: BorderRadius.circular(5),
-  //                 ),
-  //               )
-  //             : Text(
-  //                 value.value,
-  //                 style: const TextStyle(
-  //                   fontSize: 12,
-  //                   color: Color(0xff593A37),
-  //                 ),
-  //               ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
+  
   // 顶部导航
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16).copyWith(bottom: 30),
       child: Row(
         children: [
           GestureDetector(
@@ -87,50 +46,7 @@ class MinePage extends GetView<MineController> {
     );
   }
 
-  // 个人信息模块
-  // Widget _buildUserInfo() {
-  //   return Container(
-  //     margin: const EdgeInsets.symmetric(horizontal: 18),
-  //     padding: const EdgeInsets.all(16),
-  //     decoration: BoxDecoration(
-  //       image: const DecorationImage(
-  //         image: AssetImage("assets/kissu_mine_info_bg.webp"),
-  //         fit: BoxFit.fill,
-  //       ),
-  //       borderRadius: BorderRadius.circular(12),
-  //     ),
-  //     child: Row(
-  //       crossAxisAlignment: CrossAxisAlignment.center,
-  //       children: [
-  //         // 头像区域
-  //         _buildAvatarSection(),
-  //         const SizedBox(width: 50),
-  //         Expanded(
-  //           child: Container(
-  //             // color: Colors.red,
-  //             margin: EdgeInsets.only(top: 15, bottom: 15),
-  //             child: Column(
-  //               mainAxisAlignment: MainAxisAlignment.center,
-  //               children: [
-  //                 const SizedBox(height: 20),
-  //                 _buildInfoRow("昵称", controller.nickname),
-  //                 _buildDashLine(),
-  //                 _buildInfoRow("匹配码", controller.matchCode),
-  //                 _buildDashLine(),
-  //                 _buildInfoRow("绑定时间", controller.bindDate),
-  //                 _buildDashLine(),
-  //                 _buildInfoRow("在一起", controller.days),
-  //                 const SizedBox(height: 20),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //         const SizedBox(width: 10),
-  //       ],
-  //     ),
-  //   );
-  // }
-
+  
   //新个人信息模块
   Widget _buildNewUserInfo() {
     return Container(
@@ -185,54 +101,7 @@ class MinePage extends GetView<MineController> {
     );
   }
 
-  // 头像区域（支持双头像显示）
-  // Widget _buildAvatarSection() {
-  //   return Column(
-  //     children: [
-  //       Obx(
-  //         () => GestureDetector(
-  //           onTap: controller.onPartnerAvatarTap,
-  //           child: Stack(
-  //             children: [
-  //               _buildAvatar(),
-  //               // 另一半头像或添加按钮
-  //               _buildPartnerAvatar(),
-  //               Positioned(
-  //                 right: 30,
-  //                 top: 40,
-  //                 child: Image(
-  //                   image: AssetImage("assets/kissu_heart.webp"),
-  //                   width: 29,
-  //                   height: 20,
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //       ),
-  //       GestureDetector(
-  //         onTap: controller.onLabelTap,
-  //         child: Row(
-  //           children: [
-  //             Text(
-  //               "恋爱信息",
-  //               style: TextStyle(
-  //                 fontSize: 14,
-  //                 color: Color(0xff333333),
-  //                 fontFamily: "LiuHuanKaTongShouShu",
-  //               ),
-  //             ),
-  //             Image(
-  //               image: AssetImage("assets/kissu_mine_arrow.webp"),
-  //               width: 14,
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
-
+  
   //新头像区域
   Widget _buildNewAvatarSection() {
     return Row(
@@ -444,7 +313,40 @@ class MinePage extends GetView<MineController> {
                 ),
               ],
             ),
-
+            Positioned(
+              left: 6,
+              bottom: 9,
+              child: Row(
+                children: [
+                 GestureDetector(
+                  onTap: controller.onLocationTap,
+                  child:  Container(
+                    width: 35,
+                    height: 35,
+                     color: Colors.transparent,
+                  ),
+                 ),
+                  SizedBox(width: 18),
+                  GestureDetector(
+                    onTap: controller.onTrackTap,
+                    child:  Container(
+                      width: 35,
+                      height: 35,
+                      color: Colors.transparent,
+                    ),
+                  ),
+                  SizedBox(width: 18),
+                  GestureDetector(
+                    onTap: controller.onHisstoryTap,
+                    child:  Container(
+                    width: 35,
+                    height: 35, 
+                    color: Colors.transparent,
+                  ),
+                  ),
+                ],
+              ),
+            ),
             // 会员按钮
             Positioned(
               right: 0,

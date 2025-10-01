@@ -14,6 +14,10 @@ import 'package:flutter/material.dart';
 import '../phone_history/phone_history_controller.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/widgets/share_bottom_sheet.dart';
+import 'package:kissu_app/pages/track/track_page.dart';
+import 'package:kissu_app/pages/track/track_binding.dart';
+import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
+import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -35,6 +39,17 @@ class MineController extends GetxController {
   var vipEndDate = "".obs;
   var vipButtonText = "立即开通".obs;
   var vipDateText = "了解更多权益".obs;
+
+  // 点击事件
+  void onLocationTap() {
+    Get.toNamed(KissuRoutePath.location);
+  }
+  void onTrackTap() {
+    Get.to(() => TrackPage(), binding: TrackBinding());
+  }
+  void onHisstoryTap() {
+    Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
+  }
 
   // 设置项
   late final List<SettingItem> settingItems;

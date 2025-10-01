@@ -17,6 +17,8 @@ import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/guide_overlay_widget.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/http_managerN.dart';
@@ -70,6 +72,12 @@ class HomeController extends GetxController {
   // 恋爱天数
   var loveDays = 0.obs;
   
+  // 引导层显示状态
+  var showGuideOverlay = false.obs;
+  
+  // 当前引导图类型
+  var currentGuideType = GuideType.swipe.obs;
+  
   // PAG动画相关 - 暂时移除
   // var pagAnimations = <Map<String, dynamic>>[].obs;
   
@@ -97,16 +105,11 @@ class HomeController extends GetxController {
   void onReady() {
     super.onReady();
     
-    // 首页准备完成后，延迟请求定位权限并启动服务
-    Future.delayed(Duration(seconds: 1), () {
-      _requestLocationPermissionOnHomePage();
-    });
-    
     // 每次打开首页时刷新用户信息
     refreshUserInfoFromServer();
     
-    // 检查是否需要显示VIP推广弹窗
-    _checkAndShowVipPromo();
+    // 首先检查是否需要显示引导图1（新用户引导）
+    _checkAndShowGuide1();
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
@@ -851,6 +854,146 @@ class HomeController extends GetxController {
       }
     } catch (e) {
       debugPrint('❌ 检查VIP推广标识失败: $e');
+    }
+  }
+
+  /// 显示引导层
+  void displayGuideOverlay() {
+    currentGuideType.value = GuideType.datingTime;
+    showGuideOverlay.value = true;
+    debugPrint('📱 显示引导层');
+  }
+
+  /// 隐藏引导层
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
+    debugPrint('📱 隐藏引导层');
+  }
+
+  /// 检查并显示引导图1（新用户引导）
+  Future<void> _checkAndShowGuide1() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide1 = prefs.getBool('has_shown_guide1') ?? false;
+      
+      debugPrint('🔍 检查引导图1显示状态: $hasShownGuide1 (已绑定: ${isBound.value})');
+      
+      if (!hasShownGuide1) {
+        debugPrint('📱 首次登录，显示引导图1');
+        
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_guide1', true);
+        
+        // 延迟显示引导图1，确保首页完全加载
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _showGuide1();
+        });
+      } else {
+        debugPrint('ℹ️ 引导图1已显示过，执行其他逻辑');
+        _executeOtherLogic();
+      }
+    } catch (e) {
+      debugPrint('❌ 检查引导图1状态失败: $e');
+      // 出错时执行其他逻辑
+      _executeOtherLogic();
+    }
+  }
+
+  /// 显示引导图1
+  void _showGuide1() {
+    currentGuideType.value = GuideType.swipe;
+    showGuideOverlay.value = true;
+    debugPrint('📱 显示引导图1');
+  }
+
+  /// 引导图1关闭后的回调
+  void onGuide1Dismissed() {
+    hideGuideOverlay();
+    debugPrint('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
+    
+    // 如果已绑定，检查是否需要显示引导图2
+    if (isBound.value) {
+      _checkAndShowGuide2();
+    } else {
+      // 未绑定状态，执行其他逻辑
+      _executeOtherLogic();
+    }
+  }
+
+  /// 执行其他逻辑（引导图1关闭后）
+  void _executeOtherLogic() {
+    // 延迟请求定位权限并启动服务
+    Future.delayed(Duration(seconds: 1), () {
+      _requestLocationPermissionOnHomePage();
+    });
+    
+    // 检查是否需要显示VIP推广弹窗
+    _checkAndShowVipPromo();
+  }
+
+  /// 显示自定义底部弹窗（调试用）
+  void showCustomBottomDialog() {
+    final bannerImages = [
+      'assets/3.0/kissu3_banner_1.webp',
+      'assets/3.0/kissu3_banner_2.webp',
+      'assets/3.0/kissu3_banner_3.webp',
+      'assets/3.0/kissu3_banner_4.webp',
+    ];
+
+    CustomBottomDialog.show(
+      context: Get.context!,
+      bannerImages: bannerImages,
+      bannerHeight: 200,
+      showBanner: true,
+      onClose: () {
+        debugPrint('📱 自定义底部弹窗已关闭');
+      },
+    );
+  }
+
+  /// 检查并显示引导图2（相恋时间设置引导）
+  /// 在引导图1关闭后，已绑定状态下检查是否第一次显示
+  Future<void> _checkAndShowGuide2() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide2 = prefs.getBool('has_shown_guide2') ?? false;
+      
+      debugPrint('🔍 检查引导图2显示状态: $hasShownGuide2');
+      
+      if (!hasShownGuide2) {
+        debugPrint('📱 显示引导图2（已绑定且第一次进入首页）');
+        
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_guide2', true);
+        
+        // 延迟显示引导图2
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          displayGuideOverlay();
+        });
+      } else {
+        debugPrint('ℹ️ 引导图2已显示过，执行其他逻辑');
+        // 引导图2已显示过，执行其他逻辑
+        _executeOtherLogic();
+      }
+    } catch (e) {
+      debugPrint('❌ 检查引导图2状态失败: $e');
+      // 出错时执行其他逻辑
+      _executeOtherLogic();
+    }
+  }
+
+  /// 检查并显示引导层（调试模式：一直显示）
+  Future<void> checkAndShowGuide() async {
+    try {
+      debugPrint('🔍 调试模式：强制显示引导层');
+      
+      // 延迟显示引导层，确保首页完全加载
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        displayGuideOverlay();
+        debugPrint('✅ 引导层已显示（调试模式）');
+      });
+    } catch (e) {
+      debugPrint('❌ 显示引导层失败: $e');
     }
   }
   
