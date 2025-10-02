@@ -14,18 +14,22 @@ import 'package:kissu_app/pages/message_center/message_center_binding.dart';
 import 'package:kissu_app/pages/message_center/message_center_page.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
-import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/guide_overlay_widget.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
+import 'dart:async';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 
 
@@ -70,13 +74,32 @@ class HomeController extends GetxController {
   // 恋爱天数
   var loveDays = 0.obs;
   
+  // 引导层显示状态
+  var showGuideOverlay = false.obs;
+  
+  // 当前引导图类型
+  var currentGuideType = GuideType.swipe.obs;
+  
+  // 绑定弹窗控制标志位（每次app启动时重置为false）
+  var hasShownBindingDialogThisSession = false;
+  
   // PAG动画相关 - 暂时移除
   // var pagAnimations = <Map<String, dynamic>>[].obs;
   
+  // 红点轮询定时器
+  Timer? _redDotPollingTimer;
+  
+  // 应用生命周期服务
+  late AppLifecycleService _appLifecycleService;
+  
+  // 应用生命周期监听
+  StreamSubscription<AppLifecycleState>? _appLifecycleSubscription;
 
   @override
   void onInit() {
     super.onInit();
+    
+    debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位已重置为: $hasShownBindingDialogThisSession');
     
     // 初始化滚动控制器，如果有预设位置则使用预设位置
     _initializeScrollController();
@@ -91,22 +114,21 @@ class HomeController extends GetxController {
     loadUserInfo();
     _loadViewMode(); // 加载视图模式
     loadRedDotInfo(); // 加载红点信息
+    _startRedDotPolling(); // 启动红点轮询
+    _setupAppLifecycleListener(); // 设置应用生命周期监听
   }
 
   @override
   void onReady() {
     super.onReady();
     
-    // 首页准备完成后，延迟请求定位权限并启动服务
-    Future.delayed(Duration(seconds: 1), () {
-      _requestLocationPermissionOnHomePage();
-    });
-    
     // 每次打开首页时刷新用户信息
     refreshUserInfoFromServer();
     
-    // 检查是否需要显示VIP推广弹窗
-    _checkAndShowVipPromo();
+    // 首先检查是否需要显示引导图1（新用户引导）
+    _checkAndShowGuide1();
+    
+    // 注意：绑定弹窗将在所有其他弹窗之后显示，在_executeOtherLogic()中调用
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
@@ -166,6 +188,8 @@ class HomeController extends GetxController {
   
   @override
   void onClose() {
+    debugPrint('🧹 HomeController 销毁 - 绑定弹窗标志位状态: $hasShownBindingDialogThisSession（即将被清除）');
+    
     // 安全地清理ScrollController
     try {
       scrollController.dispose();
@@ -180,6 +204,13 @@ class HomeController extends GetxController {
     // } catch (e) {
     //   debugPrint('清理资源时出错: $e');
     // }
+    
+    // 停止红点轮询
+    _stopRedDotPolling();
+    
+    // 取消应用生命周期监听
+    _appLifecycleSubscription?.cancel();
+    
     super.onClose();
   }
   
@@ -207,7 +238,7 @@ class HomeController extends GetxController {
       
       if (hasRequested) {
         debugPrint('🏠 已请求过定位权限，直接检查服务状态');
-        _checkLocationServiceStatus();
+        await _checkLocationServiceStatus();
         return;
       }
 
@@ -226,6 +257,8 @@ class HomeController extends GetxController {
 
       // 标记已请求过权限
       await prefs.setBool('location_permission_requested', true);
+      
+      debugPrint('🏠 定位权限申请流程完成');
     } catch (e) {
       debugPrint('🏠 首页请求定位权限失败: $e');
     }
@@ -512,22 +545,6 @@ class HomeController extends GetxController {
     return degrees * (3.14159265359 / 180);
   }
   
-  /// 点击未绑定提示组件
-  void onUnbindTipTap() {
-    // 弹出绑定输入弹窗
-    BindingInputDialog.show(
-      context: Get.context!,
-      title: '',
-      hintText: '输入对方匹配码',
-      confirmText: '确认绑定',
-      onConfirm: (String code) {
-        // 延迟执行刷新，确保弹窗完全关闭后再执行
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _refreshAfterBinding();
-        });
-      },
-    );
-  }
   
   /// 绑定成功后刷新数据
   Future<void> _refreshAfterBinding() async {
@@ -586,6 +603,10 @@ class HomeController extends GetxController {
 
   // 点击通知按钮
   void onNotificationTap() {
+    // 清除红点（点击时立即清除）
+    debugPrint('📭 点击消息中心按钮，清除红点');
+    redDotCount.value = 0;
+    
     // 跳转到消息中心页面
     Get.to(() => const MessageCenterPage(), binding: MessageCenterBinding());
   }
@@ -738,6 +759,77 @@ class HomeController extends GetxController {
     }
   }
   
+  /// 启动红点轮询（每10秒刷新一次）
+  void _startRedDotPolling() {
+    // 先停止现有的定时器（如果有）
+    _stopRedDotPolling();
+    
+    // 创建新的定时器，每10秒执行一次
+    _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      debugPrint('🔔 定时刷新红点信息...');
+      loadRedDotInfo();
+    });
+    
+    debugPrint('✅ 红点轮询已启动（每10秒刷新）');
+  }
+  
+  /// 停止红点轮询
+  void _stopRedDotPolling() {
+    if (_redDotPollingTimer != null) {
+      _redDotPollingTimer?.cancel();
+      _redDotPollingTimer = null;
+      debugPrint('⏹️ 红点轮询已停止');
+    }
+  }
+  
+  /// 设置应用生命周期监听
+  void _setupAppLifecycleListener() {
+    try {
+      _appLifecycleService = AppLifecycleService.instance;
+      
+      // 监听应用状态变化
+      _appLifecycleSubscription = _appLifecycleService.appState.listen((state) {
+        _handleAppLifecycleChange(state);
+      });
+      
+      debugPrint('📱 首页应用生命周期监听已设置');
+    } catch (e) {
+      debugPrint('❌ 设置首页应用生命周期监听失败: $e');
+    }
+  }
+  
+  /// 处理应用生命周期变化
+  void _handleAppLifecycleChange(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        _onAppEnteredBackground();
+        break;
+      case AppLifecycleState.resumed:
+        _onAppReturnedToForeground();
+        break;
+      default:
+        break;
+    }
+  }
+  
+  /// 应用进入后台
+  void _onAppEnteredBackground() {
+    debugPrint('📱 首页：应用进入后台，停止红点轮询');
+    _stopRedDotPolling();
+  }
+  
+  /// 应用返回前台
+  void _onAppReturnedToForeground() {
+    debugPrint('📱 首页：应用返回前台，先获取红点数据再启动轮询');
+    
+    // 先立即获取一次红点数据
+    loadRedDotInfo().then((_) {
+      // 获取完成后再启动轮询
+      _startRedDotPolling();
+    });
+  }
+  
   /// 初始化PAG动画 - 暂时移除
   // void _initPAGAnimations() {
   //   try {
@@ -834,23 +926,308 @@ class HomeController extends GetxController {
         await prefs.remove('should_show_vip_promo');
         debugPrint('🧹 VIP推广标识已清除（在显示弹窗前）');
         
-        // 延迟2秒后显示弹窗，确保首页已完全加载
-        Future.delayed(const Duration(milliseconds: 500), () {
-          try {
-            final currentContext = Get.context;
-            if (currentContext != null) {
-              DialogManager.showHuaweiVipPromo(currentContext);
-              debugPrint('✅ VIP推广弹窗已显示');
-            }
-          } catch (e) {
-            debugPrint('❌ 显示VIP推广弹窗失败: $e');
+        // 延迟后显示弹窗，确保首页已完全加载
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        try {
+          final currentContext = Get.context;
+          if (currentContext != null) {
+            await DialogManager.showHuaweiVipPromo(currentContext);
+            debugPrint('✅ VIP推广弹窗已显示并关闭');
           }
-        });
+        } catch (e) {
+          debugPrint('❌ 显示VIP推广弹窗失败: $e');
+        }
       } else {
         debugPrint('ℹ️ 无需显示VIP推广弹窗');
       }
     } catch (e) {
       debugPrint('❌ 检查VIP推广标识失败: $e');
+    }
+  }
+
+  /// 显示引导层
+  void displayGuideOverlay() {
+    currentGuideType.value = GuideType.datingTime;
+    showGuideOverlay.value = true;
+    debugPrint('📱 显示引导层');
+  }
+
+  /// 隐藏引导层
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
+    debugPrint('📱 隐藏引导层');
+  }
+
+  /// 检查并显示引导图1（新用户引导）
+  Future<void> _checkAndShowGuide1() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide1 = prefs.getBool('has_shown_guide1') ?? false;
+      
+      debugPrint('🔍 检查引导图1显示状态: $hasShownGuide1 (已绑定: ${isBound.value})');
+      
+      if (!hasShownGuide1) {
+        debugPrint('📱 首次登录，显示引导图1');
+        
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_guide1', true);
+        
+        // 延迟显示引导图1，确保首页完全加载
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _showGuide1();
+        });
+      } else {
+        debugPrint('ℹ️ 引导图1已显示过，执行其他逻辑');
+        _executeOtherLogic();
+      }
+    } catch (e) {
+      debugPrint('❌ 检查引导图1状态失败: $e');
+      // 出错时执行其他逻辑
+      _executeOtherLogic();
+    }
+  }
+
+  /// 检查并显示绑定弹窗
+  Future<void> _checkAndShowBindingDialog() async {
+    try {
+      // 检查是否已绑定
+      if (isBound.value) {
+        debugPrint('🔗 用户已绑定，不显示绑定弹窗');
+        return;
+      }
+
+      // 检查本次会话是否已显示过绑定弹窗
+      if (hasShownBindingDialogThisSession) {
+        debugPrint('📱 本次会话已显示过绑定弹窗，不再显示');
+        return;
+      }
+
+      debugPrint('💕 用户未绑定且本次会话未显示过绑定弹窗，准备显示绑定弹窗');
+
+      // 延迟显示绑定弹窗，确保首页完全加载
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _showBindingDialog();
+      });
+      
+    } catch (e) {
+      debugPrint('❌ 检查绑定弹窗时发生错误: $e');
+    }
+  }
+
+  /// 显示引导图1
+  void _showGuide1() {
+    currentGuideType.value = GuideType.swipe;
+    showGuideOverlay.value = true;
+    debugPrint('📱 显示引导图1');
+  }
+
+  /// 引导图1关闭后的回调
+  void onGuide1Dismissed() {
+    hideGuideOverlay();
+    debugPrint('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
+    
+    // 如果已绑定，检查是否需要显示引导图2
+    if (isBound.value) {
+      _checkAndShowGuide2();
+    } else {
+      // 未绑定状态，执行其他逻辑
+      _executeOtherLogic();
+    }
+  }
+
+  /// 引导图2关闭后的回调
+  void onGuide2Dismissed() {
+    hideGuideOverlay();
+    debugPrint('📱 引导图2已关闭，执行后续逻辑 (已绑定: ${isBound.value})');
+    
+    // 引导图2关闭后执行其他逻辑（定位权限 -> VIP购买弹窗）
+    _executeOtherLogicAfterGuide2();
+  }
+
+  /// 执行其他逻辑（引导图1关闭后，未绑定状态）
+  void _executeOtherLogic() {
+    // 按顺序执行：定位权限 -> VIP推广 -> 绑定弹窗
+    
+    // 1. 延迟请求定位权限并启动服务
+    Future.delayed(Duration(seconds: 1), () async {
+      await _requestLocationPermissionOnHomePage();
+      
+      // 2. 定位权限处理完成后，延迟检查VIP推广弹窗
+      Future.delayed(Duration(milliseconds: 500), () async {
+        await _checkAndShowVipPromo();
+        
+        // 3. VIP推广弹窗处理完成后，最后检查绑定弹窗
+        Future.delayed(Duration(milliseconds: 500), () {
+          _checkAndShowBindingDialog();
+        });
+      });
+    });
+  }
+
+  /// 执行其他逻辑（引导图2关闭后，已绑定状态）
+  void _executeOtherLogicAfterGuide2() {
+    // 按顺序执行：定位权限 -> VIP购买弹窗
+    
+    // 1. 延迟请求定位权限并启动服务
+    Future.delayed(Duration(seconds: 1), () async {
+      await _requestLocationPermissionOnHomePage();
+      
+      // 2. 定位权限处理完成后，延迟检查VIP购买弹窗
+      Future.delayed(Duration(milliseconds: 500), () async {
+        await _checkAndShowVipPurchaseDialog();
+      });
+    });
+  }
+
+  /// 检查并显示VIP购买弹窗
+  Future<void> _checkAndShowVipPurchaseDialog() async {
+    try {
+      // 1. 检查是否已绑定
+      if (!isBound.value) {
+        debugPrint('💎 用户未绑定，不显示VIP购买弹窗');
+        return;
+      }
+
+      // 2. 检查是否为会员
+      if (UserManager.isVip) {
+        debugPrint('💎 用户已是VIP会员，不显示VIP购买弹窗');
+        return;
+      }
+
+      // 3. 检查本次会话是否已显示过VIP购买弹窗
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownThisSession = prefs.getBool('vip_purchase_shown_this_session') ?? false;
+      
+      if (hasShownThisSession) {
+        debugPrint('💎 本次会话已显示过VIP购买弹窗，不再显示');
+        return;
+      }
+
+      debugPrint('💎 用户已绑定且非会员，准备显示VIP购买弹窗');
+
+      // 标记本次会话已显示
+      await prefs.setBool('vip_purchase_shown_this_session', true);
+
+      // 延迟显示VIP购买弹窗，确保首页完全加载
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _showVipPurchaseDialog();
+      });
+      
+    } catch (e) {
+      debugPrint('❌ 检查VIP购买弹窗时发生错误: $e');
+    }
+  }
+
+  /// 显示VIP购买弹窗
+  void _showVipPurchaseDialog() {
+    try {
+      final currentContext = Get.context;
+      if (currentContext == null) {
+        debugPrint('❌ 无法获取Context，跳过显示VIP购买弹窗');
+        return;
+      }
+
+      debugPrint('💎 显示VIP购买弹窗');
+      
+      DialogManager.showVipPurchase(
+        context: currentContext,
+        onConfirm: () {
+          debugPrint('💎 点击了立即查看按钮，跳转到VIP页面');
+          // 弹窗会自动关闭，然后跳转到VIP页面
+          Get.toNamed(KissuRoutePath.vip);
+        },
+        barrierDismissible: true,
+      );
+      
+    } catch (e) {
+      debugPrint('❌ 显示VIP购买弹窗时发生错误: $e');
+    }
+  }
+
+  /// 显示VIP开通弹窗（调试用）
+  void showVipPurchaseDialog() {
+    _showVipPurchaseDialog();
+  }
+
+  /// 检查并显示引导图2（相恋时间设置引导）
+  /// 在引导图1关闭后，已绑定状态下检查是否第一次显示
+  Future<void> _checkAndShowGuide2() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide2 = prefs.getBool('has_shown_guide2') ?? false;
+      
+      debugPrint('🔍 检查引导图2显示状态: $hasShownGuide2');
+      
+      if (!hasShownGuide2) {
+        debugPrint('📱 显示引导图2（已绑定且第一次进入首页）');
+        
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_guide2', true);
+        
+        // 延迟显示引导图2
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          displayGuideOverlay();
+        });
+      } else {
+        debugPrint('ℹ️ 引导图2已显示过，执行其他逻辑');
+        // 引导图2已显示过，执行其他逻辑
+        _executeOtherLogic();
+      }
+    } catch (e) {
+      debugPrint('❌ 检查引导图2状态失败: $e');
+      // 出错时执行其他逻辑
+      _executeOtherLogic();
+    }
+  }
+
+  /// 检查并显示引导层（调试模式：一直显示）
+  Future<void> checkAndShowGuide() async {
+    try {
+      debugPrint('🔍 调试模式：强制显示引导层');
+      
+      // 延迟显示引导层，确保首页完全加载
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        displayGuideOverlay();
+        debugPrint('✅ 引导层已显示（调试模式）');
+      });
+    } catch (e) {
+      debugPrint('❌ 显示引导层失败: $e');
+    }
+  }
+
+
+  /// 显示绑定弹窗
+  void _showBindingDialog() {
+    try {
+      final currentContext = Get.context;
+      if (currentContext == null) {
+        debugPrint('❌ 无法获取Context，跳过显示绑定弹窗');
+        return;
+      }
+
+      debugPrint('💑 显示绑定弹窗');
+      
+      // 标记本次会话已显示
+      hasShownBindingDialogThisSession = true;
+      
+      // 使用CustomBottomDialog显示绑定弹窗
+      CustomBottomDialog.show(
+        context: currentContext,
+        onClose: () {
+          debugPrint('💑 绑定弹窗已关闭');
+        },
+      ).then((result) {
+        // 无论用户是确认绑定还是关闭弹窗，都已经标记为已显示
+        debugPrint('💑 绑定弹窗已关闭，结果: $result');
+        // 延迟执行刷新，确保弹窗完全关闭后再执行
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _refreshAfterBinding();
+        });
+      });
+      
+    } catch (e) {
+      debugPrint('❌ 显示绑定弹窗时发生错误: $e');
     }
   }
   

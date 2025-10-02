@@ -8,7 +8,6 @@ class KissuRoutePath {
   static const location = '/kisssu_app/location';
   static const vip = '/kisssu_app/vip';
   static const foreverVip = '/kisssu_app/forever_vip';
-  static const share = '/share';
   static const systemPermission = '/kisssu_app/system_permission';
   static const permissionSetting = '/kisssu_app/permission_setting';
   static const agreementWebView = '/kisssu_app/agreement_webview';

@@ -79,21 +79,6 @@ class DialogExamplePage extends StatelessWidget {
               }
             }),
           ]),
-          _buildSection('绑定确认弹窗', [
-            _buildButton(
-              '情侣绑定确认',
-              () => DialogManager.showCoupleBindConfirm(context),
-            ),
-            _buildButton(
-              '自定义绑定确认',
-              () => DialogManager.showBindConfirm(
-                context: context,
-                title: '绑定确认',
-                content: '确定要绑定吗？',
-                confirmText: '确认',
-              ),
-            ),
-          ]),
           _buildSection('VIP会员弹窗', [
             _buildButton(
               '再看30秒得会员',

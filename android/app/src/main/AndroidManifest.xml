@@ -337,20 +337,14 @@
 
     <!-- 相机权限：用于拍照上传头像、图片等功能 -->
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- 存储权限：用于读取和保存图片、文件等，以及推送消息的缓存和日志 -->
+    <!-- 存储权限：用于读取和保存图片、文件等 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     
     <!-- 网络状态权限：用于检测网络连接状态，确保地图加载和数据同步 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- WiFi状态权限：用于支付功能、网络优化和推送服务网络状态监听 -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- WiFi变更权限：用于网络优化 -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <!-- 电话状态权限：高德地图SDK需要，用于设备标识 -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <!-- 电话号码权限：Android 10+使用，用于设备标识 -->
-    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <!-- 唤醒锁权限：保持CPU运行，用于后台定位和推送服务 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- 震动权限：用于通知提醒和交互反馈 -->
@@ -392,8 +386,6 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- 读取媒体图片权限：Android 13+替代READ_EXTERNAL_STORAGE -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- 读取媒体视频权限：Android 13+替代READ_EXTERNAL_STORAGE -->
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     
     <!-- Android 16 新增权限 -->
     <!-- 部分照片访问权限：Android 16+ 更精细的媒体访问控制 -->
@@ -419,6 +411,13 @@
         <package android:name="com.tencent.mobileqq" />
         <package android:name="com.tencent.tim" />
         <package android:name="com.tencent.qqlite" />
+        <!-- QQ SSO/分享使用的自定义协议，Android 11+ 需显式声明 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mqqapi" />
+        </intent>
+        <!-- 覆盖国际版QQ包名 -->
+        <package android:name="com.tencent.mobileqqi" />
         <!-- 查询支付宝应用是否存在，用于支付功能 -->
         <package android:name="com.eg.android.AlipayGphone" />
     </queries>

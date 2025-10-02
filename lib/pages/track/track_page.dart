@@ -434,11 +434,11 @@ class _TrackPageContentState extends State<_TrackPageContent> {
       if (widget.controller.isBindPartner.value) {
         return const SizedBox.shrink();
       }
-      
+    //以下为虚拟数据
       return Container(
         margin: const EdgeInsets.only(top: 1, bottom: 2),
         child: const Text(
-          "以下为虚拟数据",
+          " ",
           style: TextStyle(
             fontFamily: 'LiuhuanKatongShoushu',
             fontSize: 14,

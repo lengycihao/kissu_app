@@ -12,6 +12,8 @@ import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
+import 'package:kissu_app/widgets/guide_overlay_widget.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 
 class KissuHomePage extends StatefulWidget {
@@ -192,6 +194,32 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
           ),
 
 
+          // // 调试按钮 - 显示VIP开通弹窗
+          // Positioned(
+          //   top: 100,
+          //   left: 25,
+          //   child: GestureDetector(
+          //     onTap: () {
+          //       controller.showVipPurchaseDialog();
+          //     },
+          //     child: Container(
+          //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          //       decoration: BoxDecoration(
+          //         color: Colors.pink.withOpacity(0.8),
+          //         borderRadius: BorderRadius.circular(20),
+          //       ),
+          //       child: const Text(
+          //         '测试VIP弹窗',
+          //         style: TextStyle(
+          //           color: Colors.white,
+          //           fontSize: 12,
+          //           fontWeight: FontWeight.bold,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
+
           // 头像显示区域 - 根据绑定状态显示不同内容
           Obx(
             () => Positioned(
@@ -215,8 +243,8 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                 // 已绑定状态下点击头像跳转到恋爱信息页
                                 Get.to(() => const LoveInfoPage());
                               } else {
-                                // 未绑定状态下跳转分享页
-                                Get.toNamed(KissuRoutePath.share);
+                                // 未绑定状态下显示绑定弹窗
+                                CustomBottomDialog.show(context: context);
                               }
                             },
                             child: controller.userAvatar.value.startsWith('http')
@@ -259,8 +287,8 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                 )
                               : GestureDetector(
                                   onTap: () {
-                                    ///TODO 跳转分享页--1
-                                    Get.toNamed(KissuRoutePath.share);
+                                    // 显示绑定弹窗
+                                    CustomBottomDialog.show(context: context);
                                   },
                                   child: Container(
                                     width: 38,
@@ -452,6 +480,22 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               }
             }),
           ),
+
+          // 引导层覆盖层
+          Obx(() => GuideOverlayWidget(
+            isVisible: controller.showGuideOverlay.value,
+            guideType: controller.currentGuideType.value, // 根据当前状态显示对应引导图
+            onDismiss: () {
+              if (controller.currentGuideType.value == GuideType.swipe) {
+                // 引导图1关闭，执行其他逻辑
+                controller.onGuide1Dismissed();
+              } else {
+                // 引导图2关闭，执行后续逻辑
+                controller.onGuide2Dismissed();
+              }
+            },
+            dismissible: true, // 允许点击背景关闭
+          )),
         ],
       ),
     );
@@ -469,7 +513,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               return Center(
                 child: GestureDetector(
                   onTap: () {
-                     Get.toNamed(KissuRoutePath.share);
+                     CustomBottomDialog.show(context: context);
                   },
                   child: Container(
                     width: 303,

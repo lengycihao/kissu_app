@@ -221,9 +221,11 @@ class CustomBottomDialogController extends GetxController {
         final scanned = value.trim();
         final friendCode = _extractFriendCode(scanned);
         if (friendCode != null) {
+            // 扫描成功，直接开始绑定流程
           matchCodeController.text = friendCode;
-          OKToastUtil.show('已识别匹配码：$friendCode');
-        } else {
+          // 自动执行绑定
+          bindPartner();
+         } else {
           OKToastUtil.show('未识别到匹配码');
         }
       }
@@ -324,15 +326,16 @@ class CustomBottomDialogController extends GetxController {
 
       // 获取分享配置
       final user = UserManager.currentUser;
-      // final shareConfig = user?.shareConfig;
+ 
+      final shareConfig = user?.shareConfig;
       
       // 使用登录接口返回的分享配置，如果没有则使用默认值
-      final shareTitle =   "绑定邀请";
-      final shareDescription =   '快来和我绑定吧！';
-      final shareCover = "";
-      final sharePage =  
-          'https://www.ikissu.cn/share/matchingcode.html?bindCode=${userMatchCode.value}';
-
+      final shareTitle = shareConfig?.shareTitle ?? "绑定邀请";
+      final shareDescription = shareConfig?.shareIntroduction ?? '快来和我绑定吧！';
+      final shareCover = shareConfig?.shareCover;
+      final sharePage = '${shareConfig?.sharePage }?bindCode=${userMatchCode.value}';
+           
+ 
       if (target == '微信') {
         // 微信分享
         try {

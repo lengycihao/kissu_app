@@ -6,11 +6,11 @@ import 'package:kissu_app/model/phone_history_model/phone_history_model.dart';
 import 'package:kissu_app/model/phone_history_model/datum.dart';
 import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'phone_history_setting_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 class PhoneHistoryController extends GetxController {
   final _api = PhoneHistoryApi();
@@ -453,10 +453,12 @@ class PhoneHistoryController extends GetxController {
     }
   }
 
-  /// 显示绑定弹窗 - 直接跳转到分享页面
+  /// 显示绑定弹窗
   void showBindingDialog() {
-    // 直接跳转到分享页面，不再显示弹窗
-    Get.toNamed(KissuRoutePath.share);
+    // 显示绑定弹窗
+    if (Get.context != null) {
+      CustomBottomDialog.show(context: Get.context!);
+    }
   }
 
   /// 检查并刷新绑定状态

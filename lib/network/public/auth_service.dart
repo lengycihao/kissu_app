@@ -9,6 +9,7 @@ import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   // ✅ 公开构造函数，GetIt 可以直接 new 出来
@@ -198,7 +199,16 @@ class AuthService {
     }
   }
 
-
+  /// 清除VIP购买弹窗标记
+  Future<void> _clearVipPurchaseDialogFlag() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('vip_purchase_shown_this_session');
+      logger.info('VIP购买弹窗标记已清除', tag: 'AuthService');
+    } catch (e) {
+      logger.error('清除VIP购买弹窗标记失败: $e', tag: 'AuthService');
+    }
+  }
 
   Future<void> _saveCurrentUser(LoginModel user) async {
     try {
@@ -325,6 +335,9 @@ class AuthService {
     _currentUser = null;
     await _storage.delete(key: _currentUserKey);
 
+    // 清除VIP购买弹窗标记，确保重新登录时可以再次显示
+    await _clearVipPurchaseDialogFlag();
+
     logger.info('用户数据已清除', tag: 'AuthService');
   }
 
@@ -341,6 +354,9 @@ class AuthService {
     // 只清除本地数据
     _currentUser = null;
     await _storage.delete(key: _currentUserKey);
+
+    // 清除VIP购买弹窗标记，确保重新登录时可以再次显示
+    await _clearVipPurchaseDialogFlag();
 
     logger.info('本地用户数据已清除', tag: 'AuthService');
   }

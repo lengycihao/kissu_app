@@ -56,8 +56,6 @@ class MessageCenterController extends GetxController {
 
   /// 返回上一页
   void onBackTap() {
-    // 返回时刷新首页红点信息
-    _refreshHomeRedDot();
     Get.back();
   }
 
@@ -138,17 +136,6 @@ class MessageCenterController extends GetxController {
     }
   }
 
-  /// 刷新首页红点信息
-  Future<void> _refreshHomeRedDot() async {
-    try {
-      if (Get.isRegistered<HomeController>()) {
-        final homeController = Get.find<HomeController>();
-        await homeController.loadRedDotInfo();
-      }
-    } catch (e) {
-      debugPrint('刷新红点信息失败: $e');
-    }
-  }
 }
 
 /// 消息组数据模型

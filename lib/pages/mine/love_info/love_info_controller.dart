@@ -20,6 +20,7 @@ import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/utils/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -187,10 +188,10 @@ class LoveInfoController extends GetxController {
     return phone.isEmpty ? "未绑定" : phone;
   }
 
-  // 显示添加伴侣对话框 - 直接跳转到分享页面
+  // 显示添加伴侣对话框 - 显示绑定弹窗
   void showAddPartnerDialog(BuildContext context) {
-    // 直接跳转到分享页面，不再显示弹窗
-    Get.toNamed(KissuRoutePath.share);
+    // 显示绑定弹窗
+    CustomBottomDialog.show(context: context);
   }
 
   /// 处理头像点击

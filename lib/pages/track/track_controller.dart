@@ -11,12 +11,12 @@ import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/pages/track/component/custom_stay_point_info_window.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -1036,26 +1036,11 @@ class TrackController extends GetxController {
   
   // 移除所有缓存相关方法
 
-  /// 执行绑定操作 - 显示绑定输入弹窗
+  /// 执行绑定操作 - 显示绑定弹窗
   void performBindAction() {
-    Get.toNamed(KissuRoutePath.share);
-    // DialogManager.showBindingInput(
-    //   title: "",
-    //   context: Get.context!,
-    //   onConfirm: (code) {
-    //     // 绑定完成后会自动刷新数据，这里不需要额外操作
-    //     // 因为BindingInputDialog内部已经会调用UserManager.refreshUserInfo()
-    //     // 并且会更新各个页面的数据
-    //     _loadUserInfo(); // 重新加载用户信息更新绑定状态
-        
-    //     // 延迟执行导航，确保弹窗完全关闭后再执行
-    //     Future.delayed(const Duration(milliseconds: 300), () {
-    //       if (Get.context != null) {
-    //         Get.offAllNamed(KissuRoutePath.home);
-    //       }
-    //     });
-    //   },
-    // );
+    if (Get.context != null) {
+      CustomBottomDialog.show(context: Get.context!);
+    }
   }
 
   /// 选择日期
