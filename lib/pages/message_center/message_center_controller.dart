@@ -64,7 +64,7 @@ class MessageCenterController extends GetxController {
     if (action == 'accept') {
       await _affirmBind(message);
     } else if (action == 'reject') {
-      await _refuseBind();
+      await _refuseBind(message);
     }
   }
 
@@ -97,12 +97,13 @@ class MessageCenterController extends GetxController {
   }
 
   /// 拒绝绑定
-  Future<void> _refuseBind() async {
+  Future<void> _refuseBind(MessageItem message) async {
     try {
-      debugPrint('开始拒绝绑定');
+      debugPrint('开始拒绝绑定，消息ID: ${message.id}');
       
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.refuseBind,
+        jsonParam: {'system_notice_id': message.id},
         paramEncrypt: false,
       );
       
