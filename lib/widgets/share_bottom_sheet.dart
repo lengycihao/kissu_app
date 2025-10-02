@@ -156,67 +156,49 @@ class ShareBottomSheet extends StatelessWidget {
     );
   }
 
-  /// 分享到微信
+  /// 分享到微信（分享匹配码）
   void _shareToWeChat(BuildContext context) async {
     Navigator.of(context).pop();
     
     try {
-      // OKToastUtil.show('正在启动微信分享...');
+      // 使用统一的ShareService高级封装方法
+      final shareService = Get.find<ShareService>();
       
-      // 使用友盟分享，和分享页面保持一致
-      final shareService = Get.put(ShareService(), permanent: true);
-      await shareService.shareToWeChat(
-        title: "绑定邀请",
-        description: '快来和我绑定吧！',
-        webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=$matchCode',
+      // 调用新的统一方法，只传入bindCode，标题和描述使用接口配置
+      await shareService.shareToWeChatWithConfig(
+        bindCode: matchCode,
       );
       // 微信分享暂时不返回结果，假设成功
       // OKToastUtil.show('已调起微信分享');
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
-      
-      // // 异常时使用系统分享作为备用
-      // _shareApp();
     }
   }
 
-  /// 分享到QQ
+  /// 分享到QQ（分享匹配码）
   void _shareToQQ(BuildContext context) async {
     Navigator.of(context).pop();
     
     try {
-      // OKToastUtil.show('正在启动QQ分享...');
+      // 使用统一的ShareService高级封装方法
+      final shareService = Get.find<ShareService>();
       
-      // 使用友盟分享，和分享页面保持一致
-      final shareService = Get.put(ShareService(), permanent: true);
-      final shareUrl = 'https://www.ikissu.cn/share/matchingcode.html?bindCode=$matchCode';
-      
-      // 调试日志：查看实际分享的URL
-      debugPrint('🔗 QQ分享链接: $shareUrl');
-      debugPrint('🔗 分享链接域名需要在QQ开放平台配置白名单');
-      
-      final shareResult = await shareService.shareToQQ(
-        title: "绑定邀请",
-        description: '快来和我绑定吧！',
-        webpageUrl: shareUrl,
+      // 调用新的统一方法，只传入bindCode，标题和描述使用接口配置
+      final shareResult = await shareService.shareToQQWithConfig(
+        bindCode: matchCode,
       );
       
+      // 处理分享结果
       if (shareResult['success'] == true) {
         OKToastUtil.show('QQ分享成功');
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
         OKToastUtil.show('QQ分享失败: $errorMsg');
-        
-        // // 如果友盟QQ分享失败，尝试系统分享
-        // _shareApp();
       }
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
-      
-      // // 异常时使用系统分享作为备用
-      // _shareApp();
     }
   }
 
@@ -255,85 +237,45 @@ class ShareBottomSheet extends StatelessWidget {
 //     });
 //   }
 
-  /// 分享APP到微信
+  /// 分享APP到微信（使用用户配置）
   void _shareAppToWeChat(BuildContext context) async {
     Navigator.of(context).pop();
     
     try {
-      // OKToastUtil.show('正在启动微信分享...');
+      // 使用统一的ShareService高级封装方法
+      final shareService = Get.find<ShareService>();
       
-      // 获取分享配置
-      final user = UserManager.currentUser;
-      final shareConfig = user?.shareConfig;
-      
-      // 使用登录接口返回的分享配置，如果没有则使用默认值
-      final shareTitle = shareConfig?.shareTitle ?? "Kissu - 情侣专属App";
-      final shareDescription = shareConfig?.shareIntroduction ?? '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！';
-      final shareCover = shareConfig?.shareCover;
-      final sharePage = "${shareConfig?.sharePage}?bindCode=${user?.friendCode ?? '1000000'}" ;
-      
-      // 使用友盟分享分享APP
-      final shareService = Get.put(ShareService(), permanent: true);
-      await shareService.shareToWeChat(
-        title: shareTitle,
-        description: shareDescription,
-        imageUrl: shareCover,
-        webpageUrl: sharePage,
-      );
+      // 调用新的统一方法，不传入自定义参数，完全使用配置中的值
+      // bindCode会自动使用当前用户的friendCode
+      await shareService.shareToWeChatWithConfig();
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
-      
-      // // 异常时使用系统分享作为备用
-      // _shareApp();
     }
   }
 
-  /// 分享APP到QQ
+  /// 分享APP到QQ（使用用户配置）
   void _shareAppToQQ(BuildContext context) async {
     Navigator.of(context).pop();
     
     try {
-      // OKToastUtil.show('正在启动QQ分享...');
+      // 使用统一的ShareService高级封装方法
+      final shareService = Get.find<ShareService>();
       
-      // 获取分享配置
-      final user = UserManager.currentUser;
-      final shareConfig = user?.shareConfig;
+      // 调用新的统一方法，不传入自定义参数，完全使用配置中的值
+      // bindCode会自动使用当前用户的friendCode
+      final shareResult = await shareService.shareToQQWithConfig();
       
-      // 使用登录接口返回的分享配置，如果没有则使用默认值
-      final shareTitle = shareConfig?.shareTitle ?? "Kissu - 情侣专属App";
-      final shareDescription = shareConfig?.shareIntroduction ?? '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！';
-      final shareCover = shareConfig?.shareCover;
-      final sharePage =   "${shareConfig?.sharePage}?bindCode=${user?.friendCode ?? '1000000'}" ;
-      
-      // 调试日志：查看实际分享的URL
-      debugPrint('🔗 QQ分享链接: $sharePage');
-      debugPrint('🔗 分享链接域名需要在QQ开放平台配置白名单');
-      
-      // 使用友盟分享分享APP
-      final shareService = Get.put(ShareService(), permanent: true);
-      final shareResult = await shareService.shareToQQ(
-        title: shareTitle,
-        description: shareDescription,
-        imageUrl: shareCover,
-        webpageUrl: sharePage,
-      );
-      
+      // 处理分享结果
       if (shareResult['success'] == true) {
         OKToastUtil.show('QQ分享成功');
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
         OKToastUtil.show('QQ分享失败: $errorMsg');
-        
-        // // 如果友盟QQ分享失败，尝试系统分享
-        // _shareApp();
       }
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
-      
-      // // 异常时使用系统分享作为备用
-      // _shareApp();
     }
   }
 
@@ -341,11 +283,22 @@ class ShareBottomSheet extends StatelessWidget {
   void _copyAppLink(BuildContext context) {
     Navigator.of(context).pop();
     
-    // 获取分享配置中的链接
+    // 获取分享配置中的链接，并拼接匹配码（与分享时保持一致）
     final user = UserManager.currentUser;
     final shareConfig = user?.shareConfig;
-    final appLink = shareConfig?.sharePage ?? 
-        'https://www.ikissu.cn/share/matchingcode.html?bindCode=${user?.friendCode ?? '1000000'}';
+    final matchCode = user?.friendCode ?? '1000000';
+    
+    // 获取基础页面URL
+    final basePage = shareConfig?.sharePage ?? 
+        'https://www.ikissu.cn/share/matchingcode.html';
+    
+    // 智能拼接URL参数（与ShareService._buildShareParams保持一致）
+    String appLink;
+    if (basePage.contains('?')) {
+      appLink = '$basePage&bindCode=$matchCode';
+    } else {
+      appLink = '$basePage?bindCode=$matchCode';
+    }
     
     Clipboard.setData(ClipboardData(text: appLink)).then((_) {
       // OKToastUtil.show('链接已复制到剪贴板');

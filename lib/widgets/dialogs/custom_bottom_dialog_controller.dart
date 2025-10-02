@@ -53,23 +53,18 @@ class CustomBottomDialogController extends GetxController {
 
   /// 加载用户信息
   void _loadUserInfo() {
+    // 使用 UserManager 统一获取用户信息
+    userMatchCode.value = UserManager.friendCodeOrDefault;
+    
     final user = UserManager.currentUser;
-    if (user != null) {
-      // 设置用户匹配码
-      userMatchCode.value = user.friendCode ?? '1000000';
-
-      // 设置二维码
-      if (user.friendQrCode?.isNotEmpty == true) {
-        qrCodeUrl.value = user.friendQrCode!;
-      }
-
-      print('弹窗用户信息加载完成:');
-      print('匹配码: ${userMatchCode.value}');
-      print('二维码: ${qrCodeUrl.value}');
-    } else {
-      print('用户信息为空，使用默认值');
-      userMatchCode.value = '1000000';
+    // 设置二维码
+    if (user?.friendQrCode?.isNotEmpty == true) {
+      qrCodeUrl.value = user!.friendQrCode!;
     }
+
+    print('弹窗用户信息加载完成:');
+    print('匹配码: ${userMatchCode.value}');
+    print('二维码: ${qrCodeUrl.value}');
   }
 
   /// 绑定另一半
@@ -318,31 +313,16 @@ class CustomBottomDialogController extends GetxController {
     return null;
   }
 
-  /// 统一分享逻辑
+  /// 统一分享逻辑（重构后使用ShareService的高级封装）
   Future<void> _shareInvite({required String target}) async {
     try {
-      final shareService = Get.put(ShareService(), permanent: true);
-      Map<String, dynamic>? shareResult;
-
-      // 获取分享配置
-      final user = UserManager.currentUser;
-      final shareConfig = user?.shareConfig;
-      
-      // 使用登录接口返回的分享配置，如果没有则使用默认值
-      final shareTitle = shareConfig?.shareTitle ?? "绑定邀请";
-      final shareDescription = shareConfig?.shareIntroduction ?? '快来和我绑定吧！';
-      final shareCover = shareConfig?.shareCover;
-      final sharePage = '${shareConfig?.sharePage }?bindCode=${userMatchCode.value}';
-           
+      final shareService = Get.find<ShareService>();
 
       if (target == '微信') {
-        // 微信分享
+        // 微信分享 - 使用统一的高级封装方法
         try {
-          await shareService.shareToWeChat(
-            title: shareTitle,
-            description: shareDescription,
-            imageUrl: shareCover,
-            webpageUrl: sharePage,
+          await shareService.shareToWeChatWithConfig(
+            bindCode: userMatchCode.value,
           );
           OKToastUtil.show('已调起微信分享');
         } catch (e) {
@@ -350,24 +330,11 @@ class CustomBottomDialogController extends GetxController {
           OKToastUtil.show('微信分享异常: $e');
         }
       } else if (target == 'QQ') {
-        // QQ分享 - 优化处理逻辑
+        // QQ分享 - 使用统一的高级封装方法
         try {
-          // 先检查QQ是否安装
-          final isQQInstalled = await shareService.isQQInstalled();
-          print('QQ安装状态: $isQQInstalled');
-
-          if (!isQQInstalled) {
-            // QQ未安装
-            OKToastUtil.show('检测到QQ未安装');
-            return;
-          }
-
-          // QQ已安装，尝试分享
-          shareResult = await shareService.shareToQQ(
-            title: shareTitle,
-            description: shareDescription,
-            imageUrl: shareCover,
-            webpageUrl: sharePage,
+          // 调用新的统一方法，自动处理安装检查、配置获取等
+          final shareResult = await shareService.shareToQQWithConfig(
+            bindCode: userMatchCode.value,
           );
 
           print('QQ分享结果: $shareResult');
@@ -377,8 +344,6 @@ class CustomBottomDialogController extends GetxController {
           } else {
             final errorMsg = shareResult['message'] ?? '分享失败';
             print('QQ分享失败: $errorMsg');
-
-            // 根据错误类型给出不同提示
             OKToastUtil.show('QQ分享失败: $errorMsg');
           }
         } catch (e) {

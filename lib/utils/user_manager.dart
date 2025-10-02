@@ -61,6 +61,9 @@ class UserManager {
   /// 获取好友邀请码
   static String? get friendCode => _authService.friendCode;
 
+  /// 获取好友邀请码（带默认值）
+  static String get friendCodeOrDefault => friendCode ?? '1000000';
+
   /// 获取登录时间戳
   static int? get loginTime => _authService.currentUser?.loginTime;
 
@@ -191,6 +194,42 @@ class UserManager {
   /// 获取用户摘要信息（调试用）
   static Map<String, dynamic> getUserSummary() {
     return _authService.getUserSummary();
+  }
+
+  /// 📦 获取用户基本信息（用于UI展示）
+  /// 返回包含昵称、匹配码、头像、绑定状态等常用信息
+  static Map<String, dynamic> getUserBasicInfo() {
+    final user = currentUser;
+    if (user == null) {
+      return {
+        'nickname': '小可爱',
+        'matchCode': '1000000',
+        'avatar': '',
+        'isBound': false,
+        'partnerAvatar': '',
+        'bindDate': '',
+        'days': '',
+      };
+    }
+
+    // 绑定状态处理 (0和2未绑定，1绑定)
+    final isBound = user.bindStatus.toString() == "1";
+    
+    return {
+      'nickname': user.nickname ?? '小可爱',
+      'matchCode': user.friendCode ?? '1000000',
+      'avatar': user.headPortrait ?? '',
+      'isBound': isBound,
+      'partnerAvatar': isBound && user.loverInfo?.headPortrait != null 
+        ? user.loverInfo!.headPortrait! 
+        : '',
+      'bindDate': isBound && user.loverInfo?.bindDate != null 
+        ? user.loverInfo!.bindDate! 
+        : '',
+      'days': isBound && user.loverInfo?.loveDays != null 
+        ? user.loverInfo!.loveDays.toString() 
+        : '',
+    };
   }
 
   /// 检查用户权限的便捷方法

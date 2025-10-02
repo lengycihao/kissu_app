@@ -66,32 +66,42 @@ class MineController extends GetxController {
   }
 
   void loadUserInfo() {
+    // 使用 UserManager 统一获取用户基本信息
+    final userInfo = UserManager.getUserBasicInfo();
+    
+    // 基础信息
+    nickname.value = userInfo['nickname'];
+    matchCode.value = userInfo['matchCode'];
+    userAvatar.value = userInfo['avatar'].isNotEmpty 
+      ? userInfo['avatar'] 
+      : '';
+    
+    // 绑定状态
+    isBound.value = userInfo['isBound'];
+    
+    if (isBound.value) {
+      // 已绑定状态
+      partnerAvatar.value = userInfo['partnerAvatar'].isNotEmpty 
+        ? userInfo['partnerAvatar'] 
+        : "assets/kissu_home_add_avair.webp";
+      bindDate.value = userInfo['bindDate'];
+      days.value = userInfo['days'];
+      
+      // 如果有用户对象，继续处理绑定状态的其他数据
+      final user = UserManager.currentUser;
+      if (user != null) {
+        _handleBoundState(user);
+      }
+    } else {
+      // 未绑定状态
+      bindDate.value = "";
+      days.value = "";
+      partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+    }
+
+    // 会员信息处理
     final user = UserManager.currentUser;
     if (user != null) {
-      // 基础信息
-      nickname.value = user.nickname ?? "小可爱";
-      matchCode.value = user.friendCode ?? "1000000";
-
-      // 用户头像
-      if (user.headPortrait?.isNotEmpty == true) {
-        userAvatar.value = user.headPortrait!;
-      }
-
-      // 绑定状态处理 (0和2未绑定，1绑定)
-      final bindStatus = user.bindStatus.toString();
-      isBound.value = bindStatus.toString() == "1";
-
-      if (isBound.value) {
-        // 已绑定状态
-        _handleBoundState(user);
-      } else {
-        // 未绑定状态
-        bindDate.value = "";
-        days.value = "";
-        partnerAvatar.value = "assets/kissu_home_add_avair.webp";
-      }
-
-      // 会员信息处理
       _handleVipInfo(user);
     }
   }
