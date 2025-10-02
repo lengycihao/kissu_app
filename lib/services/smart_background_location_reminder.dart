@@ -114,8 +114,13 @@ class SmartBackgroundLocationReminder extends GetxService {
   
   /// 应用进入后台
   void _onAppEnteredBackground() {
-    _lastAppBackgroundTime.value = DateTime.now();
-    debugPrint('📱 应用进入后台，记录时间: ${_lastAppBackgroundTime.value}');
+    // 只在第一次进入后台时记录时间，避免重复更新
+    if (_lastAppBackgroundTime.value == null) {
+      _lastAppBackgroundTime.value = DateTime.now();
+      debugPrint('📱 应用进入后台，记录时间: ${_lastAppBackgroundTime.value}');
+    } else {
+      debugPrint('📱 应用已在后台，不重复记录时间（当前记录: ${_lastAppBackgroundTime.value}）');
+    }
   }
   
   /// 应用返回前台
@@ -126,6 +131,9 @@ class SmartBackgroundLocationReminder extends GetxService {
     _reminderTimer?.cancel();
     _reminderTimer = Timer(_reminderDelay, () {
       _checkAndShowBackgroundLocationReminder();
+      // 检查完成后清空后台时间，为下次进入后台做准备
+      _lastAppBackgroundTime.value = null;
+      debugPrint('📱 已清空后台时间记录，为下次后台检测做准备');
     });
   }
   
@@ -194,10 +202,21 @@ class SmartBackgroundLocationReminder extends GetxService {
   /// 检查是否在后台足够长时间
   bool _hasBeenInBackgroundLongEnough() {
     if (_lastAppBackgroundTime.value == null) {
+      debugPrint('📱 后台时间检查: _lastAppBackgroundTime 为 null');
       return false;
     }
     
     final backgroundDuration = DateTime.now().difference(_lastAppBackgroundTime.value!);
+    final thresholdSeconds = _backgroundTimeThreshold.inSeconds;
+    final actualSeconds = backgroundDuration.inSeconds;
+    
+    debugPrint('📱 后台时间检查:');
+    debugPrint('   - 进入后台时间: ${_lastAppBackgroundTime.value}');
+    debugPrint('   - 当前时间: ${DateTime.now()}');
+    debugPrint('   - 后台持续时长: ${actualSeconds}秒');
+    debugPrint('   - 要求阈值: ${thresholdSeconds}秒 (${_backgroundTimeThreshold.inMinutes}分钟)');
+    debugPrint('   - 是否满足: ${backgroundDuration >= _backgroundTimeThreshold}');
+    
     return backgroundDuration >= _backgroundTimeThreshold;
   }
   
