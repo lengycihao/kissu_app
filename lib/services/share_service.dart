@@ -170,7 +170,7 @@ class ShareService extends GetxService {
       if (result is Map<String, dynamic>) {
         return result;
       } else {
-        return {'success': false, 'message': '取消分享'};
+        return {'success': false, 'message': 'QQ未安装'};
       }
     } catch (e) {
       print('QQ好友分享异常: $e');
@@ -201,7 +201,7 @@ class ShareService extends GetxService {
       if (result is Map<String, dynamic>) {
         return result;
       } else {
-        return {'success': false, 'message': '取消分享'};
+        return {'success': false, 'message': '分享结果格式错误'};
       }
     } catch (e) {
       print('QQ空间分享异常: $e');
