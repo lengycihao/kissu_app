@@ -257,22 +257,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 重新设置API Key（确保在定位前生效）
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
 
-      // 🔐 关键修复：在Android上请求电话状态权限（高德地图SDK需要）
-      if (Platform.isAndroid && isPrivacyAgreed) {
-        final phoneStatus = await Permission.phone.status;
-        if (!phoneStatus.isGranted) {
-          debugPrint('🔐 高德地图SDK需要电话状态权限，正在申请...');
-          final result = await Permission.phone.request();
-          if (result.isGranted) {
-            debugPrint('✅ 电话状态权限已获取');
-          } else {
-            debugPrint('⚠️ 电话状态权限被拒绝，高德地图SDK可能功能受限');
-          }
-        } else {
-          debugPrint('✅ 电话状态权限已授权');
-        }
-      }
-
       debugPrint('🔧 高德定位隐私合规和API Key设置完成（隐私授权: ${isPrivacyAgreed ? "已同意" : "已拒绝"}）');
     } catch (e) {
       debugPrint('❌ 设置高德定位隐私合规失败: $e');

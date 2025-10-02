@@ -190,10 +190,16 @@ class ShareBottomSheet extends StatelessWidget {
       
       // 使用友盟分享，和分享页面保持一致
       final shareService = Get.put(ShareService(), permanent: true);
+      final shareUrl = 'https://www.ikissu.cn/share/matchingcode.html?bindCode=$matchCode';
+      
+      // 调试日志：查看实际分享的URL
+      debugPrint('🔗 QQ分享链接: $shareUrl');
+      debugPrint('🔗 分享链接域名需要在QQ开放平台配置白名单');
+      
       final shareResult = await shareService.shareToQQ(
         title: "绑定邀请",
         description: '快来和我绑定吧！',
-        webpageUrl: 'https://www.ikissu.cn/share/matchingcode.html?bindCode=$matchCode',
+        webpageUrl: shareUrl,
       );
       
       if (shareResult['success'] == true) {
@@ -299,6 +305,10 @@ class ShareBottomSheet extends StatelessWidget {
       final shareDescription = shareConfig?.shareIntroduction ?? '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！';
       final shareCover = shareConfig?.shareCover;
       final sharePage =   "${shareConfig?.sharePage}?bindCode=${user?.friendCode ?? '1000000'}" ;
+      
+      // 调试日志：查看实际分享的URL
+      debugPrint('🔗 QQ分享链接: $sharePage');
+      debugPrint('🔗 分享链接域名需要在QQ开放平台配置白名单');
       
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);

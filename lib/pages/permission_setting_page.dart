@@ -55,9 +55,6 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
       case PermissionType.camera:
         result = await _permissionService.requestCameraPermission();
         break;
-      case PermissionType.phone:
-        result = await _permissionService.requestPhonePermission();
-        break;
     }
 
     if (result) {
@@ -208,8 +205,6 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
         return Icons.photo_library;
       case PermissionType.camera:
         return Icons.camera_alt;
-      case PermissionType.phone:
-        return Icons.phone;
     }
   }
 
@@ -230,8 +225,6 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
         return "相册权限";
       case PermissionType.camera:
         return "相机权限";
-      case PermissionType.phone:
-        return "电话状态权限";
     }
   }
 }

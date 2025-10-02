@@ -19,6 +19,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
+import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
@@ -28,6 +29,7 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
+import 'dart:async';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 
 
@@ -84,6 +86,14 @@ class HomeController extends GetxController {
   // PAG动画相关 - 暂时移除
   // var pagAnimations = <Map<String, dynamic>>[].obs;
   
+  // 红点轮询定时器
+  Timer? _redDotPollingTimer;
+  
+  // 应用生命周期服务
+  late AppLifecycleService _appLifecycleService;
+  
+  // 应用生命周期监听
+  StreamSubscription<AppLifecycleState>? _appLifecycleSubscription;
 
   @override
   void onInit() {
@@ -104,6 +114,8 @@ class HomeController extends GetxController {
     loadUserInfo();
     _loadViewMode(); // 加载视图模式
     loadRedDotInfo(); // 加载红点信息
+    _startRedDotPolling(); // 启动红点轮询
+    _setupAppLifecycleListener(); // 设置应用生命周期监听
   }
 
   @override
@@ -192,6 +204,13 @@ class HomeController extends GetxController {
     // } catch (e) {
     //   debugPrint('清理资源时出错: $e');
     // }
+    
+    // 停止红点轮询
+    _stopRedDotPolling();
+    
+    // 取消应用生命周期监听
+    _appLifecycleSubscription?.cancel();
+    
     super.onClose();
   }
   
@@ -584,6 +603,10 @@ class HomeController extends GetxController {
 
   // 点击通知按钮
   void onNotificationTap() {
+    // 清除红点（点击时立即清除）
+    debugPrint('📭 点击消息中心按钮，清除红点');
+    redDotCount.value = 0;
+    
     // 跳转到消息中心页面
     Get.to(() => const MessageCenterPage(), binding: MessageCenterBinding());
   }
@@ -734,6 +757,77 @@ class HomeController extends GetxController {
     } catch (e) {
       debugPrint('红点信息加载异常: $e');
     }
+  }
+  
+  /// 启动红点轮询（每10秒刷新一次）
+  void _startRedDotPolling() {
+    // 先停止现有的定时器（如果有）
+    _stopRedDotPolling();
+    
+    // 创建新的定时器，每10秒执行一次
+    _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      debugPrint('🔔 定时刷新红点信息...');
+      loadRedDotInfo();
+    });
+    
+    debugPrint('✅ 红点轮询已启动（每10秒刷新）');
+  }
+  
+  /// 停止红点轮询
+  void _stopRedDotPolling() {
+    if (_redDotPollingTimer != null) {
+      _redDotPollingTimer?.cancel();
+      _redDotPollingTimer = null;
+      debugPrint('⏹️ 红点轮询已停止');
+    }
+  }
+  
+  /// 设置应用生命周期监听
+  void _setupAppLifecycleListener() {
+    try {
+      _appLifecycleService = AppLifecycleService.instance;
+      
+      // 监听应用状态变化
+      _appLifecycleSubscription = _appLifecycleService.appState.listen((state) {
+        _handleAppLifecycleChange(state);
+      });
+      
+      debugPrint('📱 首页应用生命周期监听已设置');
+    } catch (e) {
+      debugPrint('❌ 设置首页应用生命周期监听失败: $e');
+    }
+  }
+  
+  /// 处理应用生命周期变化
+  void _handleAppLifecycleChange(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        _onAppEnteredBackground();
+        break;
+      case AppLifecycleState.resumed:
+        _onAppReturnedToForeground();
+        break;
+      default:
+        break;
+    }
+  }
+  
+  /// 应用进入后台
+  void _onAppEnteredBackground() {
+    debugPrint('📱 首页：应用进入后台，停止红点轮询');
+    _stopRedDotPolling();
+  }
+  
+  /// 应用返回前台
+  void _onAppReturnedToForeground() {
+    debugPrint('📱 首页：应用返回前台，先获取红点数据再启动轮询');
+    
+    // 先立即获取一次红点数据
+    loadRedDotInfo().then((_) {
+      // 获取完成后再启动轮询
+      _startRedDotPolling();
+    });
   }
   
   /// 初始化PAG动画 - 暂时移除

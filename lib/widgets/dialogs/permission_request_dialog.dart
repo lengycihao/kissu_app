@@ -35,8 +35,8 @@ class PermissionRequestDialog extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       builder: (context) => PermissionRequestDialog(
-        title: '开启相册权限',
-        content: '我们需要访问您的相册，用于上传头像等场景',
+        title: '开启相册和相机权限',
+        content: '我们需要访问您的相册和相机，用于选择或拍摄头像',
         onContinue: () => Navigator.of(context).pop(true),
         onCancel: () => Navigator.of(context).pop(false),
       ),
