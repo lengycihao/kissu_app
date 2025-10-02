@@ -188,6 +188,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                                                 ),
                                                 const SizedBox(height: 16),
                                                 // 虚拟数据提示文字 - 设备信息模块上方居中显示
+                                                //以下为虚拟数据
                                                 Obx(() {
                                                   if (!widget
                                                       .controller
@@ -201,7 +202,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                                                       alignment:
                                                           Alignment.center,
                                                       child: const Text(
-                                                        "以下为虚拟数据",
+                                                        "",
                                                         style: TextStyle(
                                                           fontFamily:
                                                               'LiuhuanKatongShoushu',

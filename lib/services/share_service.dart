@@ -120,6 +120,7 @@ class ShareService extends GetxService {
       'text': description,
       'img': imageUrl ?? '',
       'weburl': webpageUrl,
+      
       'sharemedia': 0, // 0 = 微信好友
     });
   }
@@ -170,7 +171,7 @@ class ShareService extends GetxService {
       if (result is Map<String, dynamic>) {
         return result;
       } else {
-        return {'success': false, 'message': 'QQ未安装'};
+        return {'success': false, 'message': '分享失败'};
       }
     } catch (e) {
       print('QQ好友分享异常: $e');

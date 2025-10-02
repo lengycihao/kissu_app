@@ -14,7 +14,6 @@ import 'package:kissu_app/pages/message_center/message_center_binding.dart';
 import 'package:kissu_app/pages/message_center/message_center_page.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
-import 'package:kissu_app/widgets/dialogs/binding_input_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
@@ -527,22 +526,6 @@ class HomeController extends GetxController {
     return degrees * (3.14159265359 / 180);
   }
   
-  /// 点击未绑定提示组件
-  void onUnbindTipTap() {
-    // 弹出绑定输入弹窗
-    BindingInputDialog.show(
-      context: Get.context!,
-      title: '',
-      hintText: '输入对方匹配码',
-      confirmText: '确认绑定',
-      onConfirm: (String code) {
-        // 延迟执行刷新，确保弹窗完全关闭后再执行
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _refreshAfterBinding();
-        });
-      },
-    );
-  }
   
   /// 绑定成功后刷新数据
   Future<void> _refreshAfterBinding() async {

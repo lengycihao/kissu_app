@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'confirm_dialog.dart';
 import 'gender_select_dialog.dart';
 import 'input_dialog.dart';
-import 'bind_confirm_dialog.dart';
-import 'binding_input_dialog.dart';
 import 'vip_dialog.dart';
 import 'huawei_vip_promo_dialog.dart';
 import 'vip_purchase_dialog.dart';
@@ -13,8 +11,6 @@ export 'base_dialog.dart';
 export 'confirm_dialog.dart';
 export 'gender_select_dialog.dart';
 export 'input_dialog.dart';
-export 'bind_confirm_dialog.dart';
-export 'binding_input_dialog.dart';
 export 'vip_dialog.dart';
 export 'huawei_vip_promo_dialog.dart';
 export 'vip_purchase_dialog.dart';
@@ -112,58 +108,6 @@ class DialogManager {
     return NicknameInputDialog.show(context, currentNickname: currentNickname);
   }
 
-  /// 显示绑定确认弹窗
-  static Future<bool?> showBindConfirm({
-    required BuildContext context,
-    required String title,
-    required String content,
-    String? subContent,
-    String confirmText = '确认绑定',
-    VoidCallback? onConfirm,
-    String? userAvatar1,
-    String? userAvatar2,
-  }) {
-    return BindConfirmDialog.show(
-      context: context,
-      title: title,
-      content: content,
-      subContent: subContent,
-      confirmText: confirmText,
-      onConfirm: onConfirm,
-      userAvatar1: userAvatar1,
-      userAvatar2: userAvatar2,
-    );
-  }
-
-  /// 显示情侣绑定确认弹窗
-  static Future<bool?> showCoupleBindConfirm(
-    BuildContext context, {
-    String? userAvatar1,
-    String? userAvatar2,
-  }) {
-    return CoupleBindConfirmDialog.show(
-      context,
-      userAvatar1: userAvatar1,
-      userAvatar2: userAvatar2,
-    );
-  }
-
-  /// 显示绑定输入弹窗
-  static Future<bool?> showBindingInput({
-    required BuildContext context,
-    String title = ' ',
-    String hintText = '输入对方匹配码',
-    String confirmText = '确认绑定',
-    Function(String code)? onConfirm,
-  }) {
-    return BindingInputDialog.show(
-      context: context,
-      title: title,
-      hintText: hintText,
-      confirmText: confirmText,
-      onConfirm: onConfirm,
-    );
-  }
 
   /// 显示VIP弹窗
   static Future<void> showVip({

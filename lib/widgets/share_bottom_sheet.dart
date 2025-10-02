@@ -264,8 +264,7 @@ class ShareBottomSheet extends StatelessWidget {
       final shareTitle = shareConfig?.shareTitle ?? "Kissu - 情侣专属App";
       final shareDescription = shareConfig?.shareIntroduction ?? '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！';
       final shareCover = shareConfig?.shareCover;
-      final sharePage = shareConfig?.sharePage ?? 
-          'https://www.ikissu.cn/share/matchingcode.html?bindCode=${user?.friendCode ?? '1000000'}';
+      final sharePage = "${shareConfig?.sharePage}?bindCode=${user?.friendCode ?? '1000000'}" ;
       
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);
@@ -299,8 +298,7 @@ class ShareBottomSheet extends StatelessWidget {
       final shareTitle = shareConfig?.shareTitle ?? "Kissu - 情侣专属App";
       final shareDescription = shareConfig?.shareIntroduction ?? '实时定位，足迹记录，专属空间，快来和TA一起体验甜蜜吧！';
       final shareCover = shareConfig?.shareCover;
-      final sharePage = shareConfig?.sharePage ?? 
-          'https://www.ikissu.cn/share/matchingcode.html?bindCode=${user?.friendCode ?? '1000000'}';
+      final sharePage =   "${shareConfig?.sharePage}?bindCode=${user?.friendCode ?? '1000000'}" ;
       
       // 使用友盟分享分享APP
       final shareService = Get.put(ShareService(), permanent: true);

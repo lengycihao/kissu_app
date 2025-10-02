@@ -194,31 +194,31 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
           ),
 
 
-          // 调试按钮 - 显示VIP开通弹窗
-          Positioned(
-            top: 100,
-            left: 25,
-            child: GestureDetector(
-              onTap: () {
-                controller.showVipPurchaseDialog();
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.pink.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  '测试VIP弹窗',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // // 调试按钮 - 显示VIP开通弹窗
+          // Positioned(
+          //   top: 100,
+          //   left: 25,
+          //   child: GestureDetector(
+          //     onTap: () {
+          //       controller.showVipPurchaseDialog();
+          //     },
+          //     child: Container(
+          //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          //       decoration: BoxDecoration(
+          //         color: Colors.pink.withOpacity(0.8),
+          //         borderRadius: BorderRadius.circular(20),
+          //       ),
+          //       child: const Text(
+          //         '测试VIP弹窗',
+          //         style: TextStyle(
+          //           color: Colors.white,
+          //           fontSize: 12,
+          //           fontWeight: FontWeight.bold,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
 
           // 头像显示区域 - 根据绑定状态显示不同内容
           Obx(

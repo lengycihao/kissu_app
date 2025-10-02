@@ -206,11 +206,11 @@ class MineController extends GetxController {
 
   void _initSettingItems() {
     settingItems = [
-      SettingItem(
-        icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
-        title: "防偷拍检测",
-        onTap: () => _onShareAppTap(),
-      ),
+      // SettingItem(
+      //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
+      //   title: "防偷拍检测",
+      //   onTap: () => _onShareAppTap(),
+      // ),
       SettingItem(
         icon: "assets/kissu_share_item.webp",
         title: "分享APP",
