@@ -200,11 +200,13 @@ class CustomBottomDialogController extends GetxController {
 
   /// 分享到QQ
   void shareToQQ() {
+    Get.back(); // 关闭弹窗
     _shareInvite(target: 'QQ');
   }
 
   /// 分享到微信
   void shareToWechat() {
+    Get.back(); // 关闭弹窗
     _shareInvite(target: '微信');
   }
 
@@ -342,9 +344,9 @@ class CustomBottomDialogController extends GetxController {
           if (shareResult['success'] == true) {
             OKToastUtil.show('QQ分享成功');
           } else {
-            final errorMsg = shareResult['message'] ?? '分享失败';
-            print('QQ分享失败: $errorMsg');
-            OKToastUtil.show('QQ分享失败: $errorMsg');
+            // final errorMsg = shareResult['message'] ?? '分享失败';
+            // print('QQ分享失败: $errorMsg');
+            // OKToastUtil.show('QQ分享失败: $errorMsg');
           }
         } catch (e) {
           print('QQ分享异常: $e');

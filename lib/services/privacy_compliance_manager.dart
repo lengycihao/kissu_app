@@ -8,6 +8,7 @@ import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
+import 'package:kissu_app/services/screenshot_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 
 /// 安全的隐私合规管理器
@@ -200,7 +201,10 @@ class PrivacyComplianceManager extends GetxService {
       // 5. 启用敏感数据收集
       await _enableSensitiveDataCollection();
       
-      // 6. 通知其他服务隐私政策已同意
+      // 6. 启用截屏监听服务
+      await _enableScreenshotService();
+      
+      // 7. 通知其他服务隐私政策已同意
       _notifyPrivacyAgreement();
       
       if (kDebugMode) {
@@ -291,6 +295,23 @@ class PrivacyComplianceManager extends GetxService {
     } catch (e) {
       if (kDebugMode) {
         DebugUtil.error('OpenInstall服务初始化失败: $e');
+      }
+    }
+  }
+  
+  /// 启用截屏监听服务
+  Future<void> _enableScreenshotService() async {
+    try {
+      if (Get.isRegistered<ScreenshotService>()) {
+        final screenshotService = Get.find<ScreenshotService>();
+        await screenshotService.startListening();
+        if (kDebugMode) {
+          DebugUtil.success('截屏监听服务已启动');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('启动截屏监听服务失败: $e');
       }
     }
   }

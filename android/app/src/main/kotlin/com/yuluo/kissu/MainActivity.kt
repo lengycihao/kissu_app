@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import java.security.MessageDigest
@@ -43,9 +45,14 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val SHARE_CHANNEL = "app.share/invoke"
     private val UMSHARE_CHANNEL = "umshare"
     private val PAYMENT_CHANNEL = "kissu_payment"
+    private val SCREENSHOT_CHANNEL = "kissu_app/screenshot"
     
     // 微信支付API
     private var wxApi: IWXAPI? = null
+    
+    // 截屏监听器
+    private var screenshotObserver: ScreenshotObserver? = null
+    private var screenshotMethodChannel: MethodChannel? = null
     
     // 支付结果等待器
     private var paymentResultCompleter: ((Boolean, String) -> Unit)? = null
@@ -128,7 +135,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        Log.d("MainActivity", "🔧 configureFlutterEngine 开始执行...")
         super.configureFlutterEngine(flutterEngine)
+        Log.d("MainActivity", "🔧 super.configureFlutterEngine 完成")
+        
         // Flutter 3.16+ 使用自动插件注册，手动注册可能导致重复注册
         // 如果遇到插件重复注册警告，可以移除此代码块
         // 保留注释以说明历史原因
@@ -140,6 +150,30 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         }
         */
 
+        // 截屏监听通道
+        Log.d("MainActivity", "🔧 开始注册截屏通道...")
+        screenshotMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SCREENSHOT_CHANNEL)
+        Log.d("MainActivity", "📸 截屏通道已注册: $SCREENSHOT_CHANNEL")
+        screenshotMethodChannel?.setMethodCallHandler { call, result ->
+            Log.d("MainActivity", "📸 收到截屏方法调用: ${call.method}")
+            when (call.method) {
+                "startListening" -> {
+                    Log.d("MainActivity", "📸 开始启动截屏监听...")
+                    startScreenshotListening()
+                    result.success(true)
+                }
+                "stopListening" -> {
+                    Log.d("MainActivity", "📸 停止截屏监听...")
+                    stopScreenshotListening()
+                    result.success(true)
+                }
+                else -> {
+                    Log.d("MainActivity", "📸 未实现的方法: ${call.method}")
+                    result.notImplemented()
+                }
+            }
+        }
+        Log.d("MainActivity", "✅ 截屏通道方法处理器设置完成")
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -1262,5 +1296,36 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         if (wxApi != null) {
             wxApi!!.handleIntent(data, this)
         }
+    }
+
+    /**
+     * 开始截屏监听
+     */
+    private fun startScreenshotListening() {
+        Log.d("MainActivity", "📸 startScreenshotListening 被调用")
+        if (screenshotObserver == null) {
+            Log.d("MainActivity", "📸 创建新的 ScreenshotObserver...")
+            screenshotObserver = ScreenshotObserver(this) { screenshotPath ->
+                Log.d("MainActivity", "📸 截屏回调触发！路径: $screenshotPath")
+                // 截屏回调，通知Flutter层
+                Handler(Looper.getMainLooper()).post {
+                    Log.d("MainActivity", "📸 通知Flutter层: $screenshotPath")
+                    screenshotMethodChannel?.invokeMethod("onScreenshotCaptured", screenshotPath)
+                }
+            }
+            screenshotObserver?.startObserving()
+            Log.d("MainActivity", "✅ 截屏监听已启动")
+        } else {
+            Log.d("MainActivity", "⚠️ 截屏监听已经在运行中")
+        }
+    }
+
+    /**
+     * 停止截屏监听
+     */
+    private fun stopScreenshotListening() {
+        screenshotObserver?.stopObserving()
+        screenshotObserver = null
+        Log.d("MainActivity", "截屏监听已停止")
     }
 }

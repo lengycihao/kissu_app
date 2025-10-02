@@ -1,4 +1,5 @@
 import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'dart:io';
@@ -68,6 +69,14 @@ class PermissionService {
   /// 检查相册权限状态
   Future<bool> isPhotosPermissionGranted() async {
     try {
+      // Android 13+ 使用系统 Photo Picker，不再需要读取媒体权限
+      if (Platform.isAndroid) {
+        final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
+        if (isAndroid13OrAbove) {
+          return true;
+        }
+      }
+
       final permission = _getPhotosPermission();
       final status = await permission.status;
       print("相册权限检查: $status");
@@ -185,6 +194,15 @@ class PermissionService {
   /// 请求相册权限
   Future<bool> requestPhotosPermission() async {
     try {
+      // Android 13+ 使用系统 Photo Picker，不需要请求读取媒体权限
+      if (Platform.isAndroid) {
+        final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
+        if (isAndroid13OrAbove) {
+          print("Android 13+ 使用系统Photo Picker，无需申请相册权限");
+          return true;
+        }
+      }
+
       final permission = _getPhotosPermission();
       print("开始申请相册权限，权限类型: $permission");
       
@@ -221,6 +239,21 @@ class PermissionService {
       }
     } catch (e) {
       print("申请相册权限时发生错误: $e");
+      return false;
+    }
+  }
+
+  /// 判断是否为 Android 13 及以上（SDK >= 33）
+  Future<bool> _isAndroid13OrAbove() async {
+    try {
+      if (!Platform.isAndroid) return false;
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final int sdkInt = androidInfo.version.sdkInt;
+      return sdkInt >= 33;
+    } catch (e) {
+      // 获取设备信息失败时，保守返回 false，保持旧逻辑
+      print("获取Android版本信息失败: $e");
       return false;
     }
   }

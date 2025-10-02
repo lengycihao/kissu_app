@@ -29,6 +29,22 @@ class FeedbackController extends GetxController {
   final PermissionService _permissionService = PermissionService();
 
   @override
+  void onInit() {
+    super.onInit();
+    
+    // 检查是否有外部传入的截图路径
+    final arguments = Get.arguments;
+    if (arguments != null && arguments is Map<String, dynamic>) {
+      final screenshotPath = arguments['screenshotPath'] as String?;
+      if (screenshotPath != null && screenshotPath.isNotEmpty) {
+        // 设置截图
+        selectedImage.value = File(screenshotPath);
+        print('✅ 意见反馈: 已接收截图 path=$screenshotPath');
+      }
+    }
+  }
+
+  @override
   void onClose() {
     contactFocusNode.dispose();
     super.onClose();

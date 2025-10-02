@@ -6,6 +6,7 @@ import 'package:kissu_app/widgets/no_placeholder_image.dart';
 // import 'package:kissu_app/widgets/delayed_pag_widget.dart'; // 注释掉PAG动画相关导入
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
+import 'package:kissu_app/services/screenshot_service.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/location/location_binding.dart';
@@ -194,6 +195,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
           ),
 
 
+          // 🧪 测试按钮 - 触发截屏反馈按钮显示
           // // 调试按钮 - 显示VIP开通弹窗
           // Positioned(
           //   top: 100,

@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'package:kissu_app/pages/mine/sub_pages/feed_back_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
@@ -254,7 +253,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_yjfk.webp",
         title: "意见反馈",
-        onTap: () => Get.to(FeedbackPage()),
+        onTap: () => Get.toNamed(KissuRoutePath.feedback),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_ysaq.webp",

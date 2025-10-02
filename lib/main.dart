@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:kissu_app/network/example/http_manager_example.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
@@ -19,8 +18,9 @@ import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
-import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/services/screenshot_service.dart';
+import 'package:kissu_app/widgets/screenshot_feedback_button.dart';
 import 'package:kissu_app/network/utils/dir_util.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -146,6 +146,25 @@ void main() async {
     // 步骤16: 初始化隐私合规管理器
     Get.put(PrivacyComplianceManager(), permanent: true);
     DebugUtil.success('隐私合规管理器初始化完成');
+    
+    // 步骤17: 初始化截屏服务和按钮控制器
+    // 🔒 隐私合规：只注册服务，不启动监听（等待隐私政策同意后启动）
+    print('🔧 开始注册截屏服务...');
+    final screenshotService = Get.put(ScreenshotService(), permanent: true);
+    print('🔧 ScreenshotService 已注册到GetX');
+    
+    final buttonController = Get.put(ScreenshotFeedbackButtonController(), permanent: true);
+    print('🔧 ScreenshotFeedbackButtonController 已注册到GetX');
+    
+    // 添加截屏回调
+    screenshotService.addListener((screenshotPath) {
+      print('🔧 截屏监听回调被触发: $screenshotPath');
+      buttonController.show(screenshotPath);
+    });
+    print('🔧 截屏监听器已添加');
+    
+    // ⚠️ 不在这里启动监听！等待隐私政策同意后由 PrivacyComplianceManager 启动
+    DebugUtil.info('截屏监听服务已注册（等待隐私授权后启动）');
 
     DebugUtil.success('应用基础初始化完成，等待用户隐私政策确认后启用完整功能');
   } catch (e) {
@@ -186,6 +205,16 @@ class MyApp extends StatelessWidget {
         name: '/notfound',
         page: () => Scaffold(body: Center(child: Text('页面不存在'))),
       ),
+      // 全局 builder，用于在所有页面上叠加截图反馈按钮
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            // 全局截图反馈浮动按钮
+            const ScreenshotFeedbackButton(),
+          ],
+        );
+      },
     );
   }
 
