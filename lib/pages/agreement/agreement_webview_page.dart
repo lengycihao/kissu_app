@@ -177,7 +177,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/kissu_icon.webp',
+              'assets/kissu3_love_avater.webp',
               width: 80,
               height: 80,
             ),

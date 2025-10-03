@@ -4,6 +4,7 @@ import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/banner_preview_page.dart';
 // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -27,7 +28,7 @@ class MineController extends GetxController {
   var days = "".obs;
 
   // 头像信息
-  var userAvatar = "assets/kissu_icon.webp".obs;
+  var userAvatar = "assets/kissu3_love_avater.webp".obs;
   var partnerAvatar = "assets/kissu_home_add_avair.webp".obs;
 
   // 绑定状态
@@ -174,7 +175,7 @@ class MineController extends GetxController {
       partnerAvatar.value = user.halfUserInfo!.headPortrait!;
     } else if (isBound.value) {
       // 如果有绑定关系但没有头像，使用默认头像
-      partnerAvatar.value = "assets/kissu_icon.webp";
+      partnerAvatar.value = "assets/kissu3_love_avater.webp";
     } else {
       // 如果没有绑定关系，显示添加头像
       partnerAvatar.value = "assets/kissu_home_add_avair.webp";
@@ -221,6 +222,11 @@ class MineController extends GetxController {
       //   onTap: () => _onShareAppTap(),
       // ),
       SettingItem(
+        icon: "assets/kissu_mine_item_gywm.webp",
+        title: "Banner预览",
+        onTap: () => _onBannerPreviewTap(),
+      ),
+      SettingItem(
         icon: "assets/kissu_share_item.webp",
         title: "分享APP",
         onTap: () => _onShareAppTap(),
@@ -261,6 +267,11 @@ class MineController extends GetxController {
         onTap: () => Get.to(PrivacySettingPage()),
       ),
     ];
+  }
+
+  /// 打开 Banner 预览页面
+  void _onBannerPreviewTap() {
+    Get.to(() => const BannerPreviewPage());
   }
 
   /// 打开联系渠道（微信/企业微信客服）

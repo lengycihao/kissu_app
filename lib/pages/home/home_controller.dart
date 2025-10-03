@@ -26,6 +26,7 @@ import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
@@ -50,7 +51,7 @@ class HomeController extends GetxController {
   var isScreenView = true.obs;
   
   // 头像信息
-  var userAvatar = "assets/kissu_icon.webp".obs;
+  var userAvatar = "assets/kissu3_love_avater.webp".obs;
   var partnerAvatar = "assets/kissu_home_add_avair.webp".obs;
   
   // 定位服务相关
@@ -71,8 +72,19 @@ class HomeController extends GetxController {
   // 距离信息
   var distance = "0KM".obs;
   
+  // 停留点数量
+  var stayCount = 0.obs;
+  
   // 恋爱天数
   var loveDays = 0.obs;
+  
+  // 天气数据相关
+  var weatherIconUrl = Rxn<String>();
+  var weather = Rxn<String>();
+  var minTemp = Rxn<String>();
+  var maxTemp = Rxn<String>();
+  var currentTemp = Rxn<String>();
+  var isWeatherLoading = true.obs;
   
   // 引导层显示状态
   var showGuideOverlay = false.obs;
@@ -416,11 +428,15 @@ class HomeController extends GetxController {
         _loadDistanceInfo();
         // 加载恋爱天数
         _loadLoveDays(user);
+        // 加载天气数据
+        _loadWeatherData();
       } else {
         // 未绑定状态，重置伴侣头像
         partnerAvatar.value = "assets/kissu_home_add_avair.webp";
         // 重置距离信息
         distance.value = "0KM";
+        // 重置停留点数量
+        stayCount.value = 0;
         // 重置恋爱天数
         loveDays.value = 0;
       }
@@ -459,7 +475,7 @@ class HomeController extends GetxController {
     }
     // 否则使用默认头像
     else {
-      partnerAvatar.value = "assets/kissu_icon.webp";
+      partnerAvatar.value = "assets/kissu3_love_avater.webp";
     }
   }
   
@@ -474,10 +490,10 @@ class HomeController extends GetxController {
     }
   }
   
-  /// 加载距离信息
+  /// 加载距离信息和停留点数量
   Future<void> _loadDistanceInfo() async {
     try {
-      debugPrint('📍 开始获取距离信息...');
+      debugPrint('📍 开始获取距离信息和停留点数量...');
       final result = await LocationApi().getLocation();
       
       if (result.isSuccess && result.data != null) {
@@ -516,13 +532,25 @@ class HomeController extends GetxController {
             debugPrint('📍 缺少位置信息，设置默认距离');
           }
         }
+        
+        // 获取停留点数量（优先从伴侣数据获取，因为要显示"TA的足迹"）
+        final partnerStayCollect = partnerLocation?.stayCollect;
+        if (partnerStayCollect != null && partnerStayCollect.stayCount != null) {
+          stayCount.value = partnerStayCollect.stayCount!;
+          debugPrint('📍 获取到停留点数量: ${stayCount.value}');
+        } else {
+          stayCount.value = 0;
+          debugPrint('📍 停留点数量为空，设置默认值0');
+        }
       } else {
         debugPrint('❌ 获取距离信息失败: ${result.msg}');
         distance.value = "0KM";
+        stayCount.value = 0;
       }
     } catch (e) {
       debugPrint('❌ 获取距离信息异常: $e');
       distance.value = "0KM";
+      stayCount.value = 0;
     }
   }
   
@@ -588,10 +616,16 @@ class HomeController extends GetxController {
         Get.to(() =>  TrackPage(), binding: TrackBinding());
         break;
       case 2:
+        // 聊天
+        debugPrint("🔍 准备跳转到聊天页面");
+        // TODO: 实现聊天页面跳转
+        CustomToast.show(Get.context!, '聊天功能开发中');
+        break;
+      case 3:
         // 用机记录
         Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
         break;
-      case 3:
+      case 4:
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
@@ -627,8 +661,10 @@ class HomeController extends GetxController {
       case 1:
         return "assets/kissu_home_tab_foot.webp";
       case 2:
-        return "assets/kissu_home_tab_history.webp";
+        return "assets/kissu_home_tab_chat.webp";
       case 3:
+        return "assets/kissu_home_tab_history.webp";
+      case 4:
         return "assets/kissu_home_tab_mine.webp";
       default:
         return "assets/kissu_home_tab_location.webp";
@@ -643,8 +679,10 @@ class HomeController extends GetxController {
       case 1:
         return "assets/kissu_home_tab_mapT.webp";
       case 2:
-        return "assets/kissu_home_tab_historyT.webp";
+        return "assets/kissu_home_tab_chatT.webp";
       case 3:
+        return "assets/kissu_home_tab_historyT.webp";
+      case 4:
         return "assets/kissu_home_tab_mineT.webp";
       default:
         return "assets/kissu_home_tab_locationT.webp";
@@ -768,6 +806,12 @@ class HomeController extends GetxController {
     _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       debugPrint('🔔 定时刷新红点信息...');
       loadRedDotInfo();
+      
+      // 如果已绑定，同时刷新天气数据
+      if (isBound.value) {
+        debugPrint('🌤️ 定时刷新天气数据（已绑定状态）...');
+        _loadWeatherData();
+      }
     });
     
     debugPrint('✅ 红点轮询已启动（每10秒刷新）');
@@ -825,6 +869,12 @@ class HomeController extends GetxController {
     
     // 先立即获取一次红点数据
     loadRedDotInfo().then((_) {
+      // 如果已绑定，同时获取天气数据
+      if (isBound.value) {
+        debugPrint('🌤️ 应用返回前台，获取天气数据（已绑定状态）...');
+        _loadWeatherData();
+      }
+      
       // 获取完成后再启动轮询
       _startRedDotPolling();
     });
@@ -1228,6 +1278,61 @@ class HomeController extends GetxController {
       
     } catch (e) {
       debugPrint('❌ 显示绑定弹窗时发生错误: $e');
+    }
+  }
+
+  /// 加载天气数据
+  Future<void> _loadWeatherData() async {
+    try {
+      debugPrint('🌤️ 开始请求天气数据');
+      
+      final result = await HttpManagerN.instance.executeGet(
+        ApiRequest.getWeather,
+        queryParam: {
+          'extensions': 'base,all',
+          'is_oneself': 2, // 2表示对象
+        },
+      );
+
+      if (result.isSuccess && result.dataJson != null) {
+        final weatherData = result.dataJson!['lives'];
+        if (weatherData != null) {
+          // 解析 base 数据
+          final baseList = weatherData['base'] as List?;
+          if (baseList != null && baseList.isNotEmpty) {
+            final base = baseList.first;
+            weatherIconUrl.value = base['weather_icon'] as String?;
+            weather.value = base['weather'] as String?;
+            currentTemp.value = base['temperature'] as String?;
+            debugPrint('🌤️ 解析 base 数据: icon=$weatherIconUrl, weather=$weather, temp=$currentTemp');
+          }
+
+          // 解析 all 数据中的 casts
+          final allList = weatherData['all'] as List?;
+          if (allList != null && allList.isNotEmpty) {
+            final all = allList.first;
+            final casts = all['casts'] as List?;
+            if (casts != null && casts.isNotEmpty) {
+              final firstCast = casts.first;
+              minTemp.value = firstCast['nighttemp'] as String?;
+              maxTemp.value = firstCast['daytemp'] as String?;
+              debugPrint('🌤️ 解析 all 数据: min=$minTemp, max=$maxTemp');
+            }
+          }
+
+          isWeatherLoading.value = false;
+          debugPrint('✅ 天气数据加载成功');
+        } else {
+          debugPrint('⚠️ 天气数据格式异常');
+          isWeatherLoading.value = true;
+        }
+      } else {
+        debugPrint('❌ 天气数据请求失败: ${result.msg}');
+        isWeatherLoading.value = true;
+      }
+    } catch (e) {
+      debugPrint('❌ 加载天气数据时发生错误: $e');
+      isWeatherLoading.value = true;
     }
   }
   

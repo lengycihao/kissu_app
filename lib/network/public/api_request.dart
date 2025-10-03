@@ -34,4 +34,7 @@ class ApiRequest {
   // 消息中心绑定相关 API
   static const affirmBind = '/affirm/bind';
   static const refuseBind = '/refuse/bind';
+  
+  // 天气相关 API
+  static const getWeather = '/weather/getWeather';
 }

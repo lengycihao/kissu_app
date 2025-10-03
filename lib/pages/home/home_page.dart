@@ -6,15 +6,17 @@ import 'package:kissu_app/widgets/no_placeholder_image.dart';
 // import 'package:kissu_app/widgets/delayed_pag_widget.dart'; // 注释掉PAG动画相关导入
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
-import 'package:kissu_app/services/screenshot_service.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/kissu_banner_builder.dart';
+import 'package:kissu_app/widgets/island_view_button.dart';
 
 
 class KissuHomePage extends StatefulWidget {
@@ -160,7 +162,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               height: 90,
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: const Color(0xFF6D4128), width: 1),
+                border: Border.all(color: const Color(0xFFFFD4D0), width: 1),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -168,7 +170,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(4, (index) {
+                children: List.generate(5, (index) {
                   return InkWell(
                     onTap: () => controller.onButtonTap(index),
                     borderRadius: BorderRadius.circular(8),
@@ -180,11 +182,12 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                           width: 42,
                           height: 42,
                         ),
-                        const SizedBox(height: 4),
+                        // const SizedBox(height: 4),
                         Image.asset(
                           controller.getBottomIconPath(index),
-                          width: index == 2 ? 42 : 24,
+                          width: index == 3 ? 48 : 24,
                           height: 14,
+                          fit: BoxFit.contain,
                         ),
                       ],
                     ),
@@ -252,7 +255,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                             child: controller.userAvatar.value.startsWith('http')
                                 ? NoPlaceholderImage(
                                       imageUrl: controller.userAvatar.value,
-                                      defaultAssetPath: "assets/kissu_icon.webp",
+                                      defaultAssetPath: "assets/kissu3_love_avater.webp",
                                       width: 38,
                                       height: 38,
                                       fit: BoxFit.cover,
@@ -280,7 +283,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                   },
                                   child: NoPlaceholderImage(
                                     imageUrl: controller.partnerAvatar.value,
-                                    defaultAssetPath: "assets/kissu_icon.webp",
+                                    defaultAssetPath: "assets/kissu3_love_avater.webp",
                                     width: 38,
                                     height: 38,
                                     fit: BoxFit.cover,
@@ -503,112 +506,67 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
     );
   }
 
-  //屏视图
+  //屏视图 - 未绑定状态
   Widget _buildBanner() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 81,
+          height: 83,
           child: Swiper(
             itemBuilder: (BuildContext context, int index) {
               return Center(
                 child: GestureDetector(
                   onTap: () {
-                     CustomBottomDialog.show(context: context);
+                    // 前两张 banner 点击显示绑定弹窗，天气 banner 不需要点击事件
+                    if (index < 2) {
+                      CustomBottomDialog.show(context: context);
+                    }
                   },
-                  child: Container(
-                    width: 303,
-                    height: 81,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(
-                          index == 0
-                              ? "assets/home_banner_bg3.webp"
-                              : "assets/kissu_home_bind_last.webp",
-                              
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    child: index == 1
-                        ? Stack(
-                            children: [
-                              Positioned(
-                                left: 16,
-                                bottom: 8,
-                                child: Container(
-                                  width: 31,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage(
-                                        "assets/kissu_home_header_bg.webp",
-                                      ),
-                                    ),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Transform.translate(
-                                    offset: Offset(0, -2),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadiusGeometry.circular(15),
-                                      child: NoPlaceholderImage(
-                                        imageUrl: controller.userAvatar.value,
-                                        defaultAssetPath: "assets/kissu_icon.webp",
-                                        width: 28,
-                                        height: 28,
-                                        fit: BoxFit.cover,
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : Stack(
-                            children: [
-                              Positioned(
-                                left: 16,
-                                bottom: 8,
-                                child: Container(
-                                  width: 31,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: AssetImage(
-                                        "assets/kissu_home_header_bg.webp",
-                                      ),
-                                    ),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Transform.translate(
-                                    offset: Offset(0, -2),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadiusGeometry.circular(
-                                        15,
-                                      ),
-                                      child: NoPlaceholderImage(
-                                        imageUrl: controller.userAvatar.value,
-                                        defaultAssetPath: "assets/kissu_icon.webp",
-                                        width: 28,
-                                        height: 28,
-                                        fit: BoxFit.cover,
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
+                  child: Obx(() {
+                    // 获取当前用户的 VIP 状态
+                    final isVip = UserManager.isVip;
+                    final userAvatarUrl = controller.userAvatar.value;
+                    
+                    // index == 0: 定位 banner
+                    // index == 1: 足迹 banner
+                    // index == 2: 天气 banner
+                    if (index == 0) {
+                      return KissuBannerBuilder.buildLocationBannerWidget(
+                        isBound: false,
+                        isVip: isVip,
+                        userAvatarUrl: userAvatarUrl,
+                        width: 302,
+                        height: 83,
+                      );
+                    } else if (index == 1) {
+                      return KissuBannerBuilder.buildFootprintBannerWidget(
+                        isBound: false,
+                        isVip: isVip,
+                        userAvatarUrl: userAvatarUrl,
+                        width: 302,
+                        height: 83,
+                      );
+                    } else {
+                      // 天气 banner
+                      return KissuBannerBuilder.buildWeatherBannerWidget(
+                        weatherIconUrl: controller.weatherIconUrl.value,
+                        weather: controller.weather.value,
+                        minTemp: controller.minTemp.value,
+                        maxTemp: controller.maxTemp.value,
+                        currentTemp: controller.currentTemp.value,
+                        isLoading: controller.isWeatherLoading.value,
+                        width: 302,
+                        height: 83,
+                      );
+                    }
+                  }),
                 ),
               );
             },
             autoplay: true,
             loop: true,
-            itemCount: 2,
+            itemCount: 3, // 3 张 banner
             viewportFraction: 1,
             // 移除内置的pagination
             onIndexChanged: (index) {
@@ -619,7 +577,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
         const SizedBox(height: 8),
         // 外置的指示器
         Obx(
-          () => _buildCustomIndicator(controller.currentSwiperIndex.value, 2),
+          () => _buildCustomIndicator(controller.currentSwiperIndex.value, 3), // 3 个点
         ),
       ],
     );
@@ -631,179 +589,68 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 81,
+          height: 83,
           child: Swiper(
             itemBuilder: (BuildContext context, int index) {
               return Center(
                 child: GestureDetector(
-                  onTap: (){
-                    index == 0 ? Get.toNamed(KissuRoutePath.location) : Get.to(() => TrackPage(), binding: TrackBinding());
+                  onTap: () {
+                    // 前两张 banner 点击跳转到对应页面，天气 banner 不需要点击事件
+                    if (index == 0) {
+                      Get.toNamed(KissuRoutePath.location);
+                    } else if (index == 1) {
+                      Get.to(() => TrackPage(), binding: TrackBinding());
+                    }
                   },
-                  child: Container(
-                  width: 303,
-                  height: 81,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage(
-                        index == 0
-                            ? "assets/home_banner_bg_bing.webp"
-                            : "assets/kissu_home_bind_last.webp",
-                      ),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  child: index == 0
-                      ? Stack(
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 55,
-                              height: 18,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                  color: Color(0xffFF88AA),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Obx(
-                                () => Text(
-                                  controller.distance.value,
-                                  style: TextStyle(
-                                    color: Color(0xff000000),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            right: 26,
-                            bottom: 8,
-                            child: Container(
-                              width: 31,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                    "assets/kissu_home_header_bg.webp",
-                                  ),
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Transform.translate(
-                                offset: Offset(0, -2),
-                                child: ClipRRect(
-                                  borderRadius:
-                                      BorderRadiusGeometry.circular(15),
-                                  child: NoPlaceholderImage(
-                                    imageUrl: controller.partnerAvatar.value,
-                                    defaultAssetPath: "assets/kissu_icon.webp",
-                                    width: 28,
-                                    height: 28,
-                                    fit: BoxFit.cover,
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: 16,
-                            bottom: 8,
-                            child: Container(
-                              width: 31,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                    "assets/kissu_home_header_bg.webp",
-                                  ),
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Transform.translate(
-                                offset: Offset(0, -2),
-                                child: ClipRRect(
-                                  borderRadius:
-                                      BorderRadiusGeometry.circular(15),
-                                  child: NoPlaceholderImage(
-                                    imageUrl: controller.userAvatar.value,
-                                    defaultAssetPath: "assets/kissu_icon.webp",
-                                    width: 28,
-                                    height: 28,
-                                    fit: BoxFit.cover,
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                      : Stack(
-                        children: [
-                          // Center(
-                          //   child: Container(
-                          //     width: 55,
-                          //     height: 18,
-                          //     alignment: Alignment.center,
-                          //     decoration: BoxDecoration(
-                          //       color: Colors.white,
-                          //       borderRadius: BorderRadius.circular(9),
-                          //       border: Border.all(
-                          //         color: Color(0xffFF88AA),
-                          //         width: 1,
-                          //       ),
-                          //     ),
-                          //     child: Obx(
-                          //       () => Text(
-                          //         controller.distance.value,
-                          //         style: TextStyle(
-                          //           color: Color(0xff000000),
-                          //           fontSize: 12,
-                          //         ),
-                          //       ),
-                          //     ),
-                          //   ),
-                          // ),
-                          Positioned(
-                            left: 16,
-                            bottom: 8,
-                            child: Container(
-                              width: 31,
-                              height: 38,
-                              // 移除背景图decoration，保持容器尺寸和位置
-                              alignment: Alignment.center,
-                              child: Transform.translate(
-                                offset: Offset(0.5, -3),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadiusGeometry.circular(
-                                    15,
-                                  ),
-                                  child: NoPlaceholderImage(
-                                    imageUrl: controller.userAvatar.value,
-                                    defaultAssetPath: "assets/kissu_icon.webp",
-                                    width: 28,
-                                    height: 28,
-                                    fit: BoxFit.cover,
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  child: Obx(() {
+                    // 获取当前用户的 VIP 状态
+                    final isVip = UserManager.isVip;
+                    final userAvatarUrl = controller.userAvatar.value;
+                    final partnerAvatarUrl = controller.partnerAvatar.value;
+                    
+                    // index == 0: 定位 banner
+                    // index == 1: 足迹 banner
+                    // index == 2: 天气 banner
+                    if (index == 0) {
+                      return KissuBannerBuilder.buildLocationBannerWidget(
+                        isBound: true,
+                        isVip: isVip,
+                        userAvatarUrl: userAvatarUrl,
+                        partnerAvatarUrl: partnerAvatarUrl,
+                        distance: controller.distance.value,
+                        width: 302,
+                        height: 83,
+                      );
+                    } else if (index == 1) {
+                      return KissuBannerBuilder.buildFootprintBannerWidget(
+                        isBound: true,
+                        isVip: isVip,
+                        userAvatarUrl: userAvatarUrl,
+                        partnerAvatarUrl: partnerAvatarUrl,
+                        footprintCount: 0, // TODO: 添加实际的足迹数量
+                        width: 302,
+                        height: 83,
+                      );
+                    } else {
+                      // 天气 banner
+                      return KissuBannerBuilder.buildWeatherBannerWidget(
+                        weatherIconUrl: controller.weatherIconUrl.value,
+                        weather: controller.weather.value,
+                        minTemp: controller.minTemp.value,
+                        maxTemp: controller.maxTemp.value,
+                        currentTemp: controller.currentTemp.value,
+                        isLoading: controller.isWeatherLoading.value,
+                        width: 302,
+                        height: 83,
+                      );
+                    }
+                  }),
                 ),
-              
-                ));
+              );
             },
             autoplay: true,
             loop: true,
-            itemCount: 2,
+            itemCount: 3, // 3 张 banner
             viewportFraction: 1,
             // 移除内置的pagination
             onIndexChanged: (index) {
@@ -814,7 +661,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
         const SizedBox(height: 8),
         // 外置的指示器
         Obx(
-          () => _buildCustomIndicator(controller.currentSwiperIndex.value, 2),
+          () => _buildCustomIndicator(controller.currentSwiperIndex.value, 3), // 3 个点
         ),
       ],
     );
@@ -822,7 +669,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
 
   /// 岛视图
   Widget _bottomListView() {
-    return _AnimatedIslandView();
+    return _AnimatedIslandView(controller: controller);
   }
 
   /// 构建自定义指示器
@@ -847,6 +694,10 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
 
 /// 带动画的岛视图组件
 class _AnimatedIslandView extends StatefulWidget {
+  final HomeController controller;
+
+  const _AnimatedIslandView({Key? key, required this.controller}) : super(key: key);
+
   @override
   _AnimatedIslandViewState createState() => _AnimatedIslandViewState();
 }
@@ -892,89 +743,64 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
       builder: (context, child) {
         return Transform.scale(
           scale: _scaleAnimation.value,
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  // 点击足迹记录，跳转到足迹页面
-                  Get.to(() => TrackPage(), binding: TrackBinding());
-                },
-                child: Container(
-                  width: 178,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage("assets/home_list_bg.webp"),
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Image(
-                        image: AssetImage("assets/home_list_type_foot.webp"),
-                        width: 20,
-                        height: 20,
-                      ),
-                      Text(
-                        "TA的足迹记录",
-                        style: TextStyle(
-                          color: Color(0xFF333333),
-                          fontSize: 12,
-                        ),
-                      ),
-                      Image(
-                        image: AssetImage("assets/kissu_mine_arrow.webp"),
-                        width: 16,
-                        height: 16,
-                      ),
-                    ],
-                  ),
+          child: Obx(() {
+            final controller = widget.controller;
+            final isVip = UserManager.isVip;
+            final isBound = controller.isBound.value;
+            
+            // 根据VIP和绑定状态决定是否显示真实数据
+            final shouldMaskData = isBound && !isVip;
+            
+            // 停留点显示文本
+            final stayCountText = shouldMaskData 
+                ? '* 个停留点' 
+                : '${controller.stayCount.value}个停留点';
+            
+            // 距离显示文本
+            final distanceText = shouldMaskData 
+                ? '* KM' 
+                : controller.distance.value;
+            
+            // 天气显示文本（天气始终显示真实数据）
+            final weatherText = controller.currentTemp.value != null && controller.weather.value != null
+                ? '${controller.currentTemp.value}°${controller.weather.value}'
+                : '加载中...';
+            
+            return Column(
+              children: [
+                // 足迹按钮
+                IslandViewButton(
+                  iconAsset: "assets/home_list_type_foot.webp",
+                  title: "TA的足迹",
+                  value: stayCountText,
+                  valueColor: Color(0xffFF6591),
+                  onTap: () {
+                    Get.to(() => TrackPage(), binding: TrackBinding());
+                  },
                 ),
-              ),
-              SizedBox(height: 8),
-              GestureDetector(
-                onTap: () {
-                  // 点击定位，跳转到定位页面
-                  debugPrint("🔍 岛视图定位按钮被点击");
-                  Get.to(() => LocationPage(), binding: LocationBinding());
-                },
-                child: Container(
-                  width: 178,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage("assets/home_list_bg.webp"),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Image(
-                        image: AssetImage(
-                          "assets/home_list_type_location.webp",
-                        ),
-                        width: 20,
-                        height: 20,
-                      ),
-                      Text(
-                        "今天我们的定位",
-                        style: TextStyle(
-                          color: Color(0xFF333333),
-                          fontSize: 12,
-                        ),
-                      ),
-                      Image(
-                        image: AssetImage("assets/kissu_mine_arrow.webp"),
-                        width: 16,
-                        height: 16,
-                      ),
-                    ],
-                  ),
+                SizedBox(height: 4),
+                // 定位按钮
+                IslandViewButton(
+                  iconAsset: "assets/home_list_type_location.webp",
+                  title: "我们相距",
+                  value: distanceText,
+                  valueColor: Color(0xff3580FF),
+                  onTap: () {
+                    Get.to(() => LocationPage(), binding: LocationBinding());
+                  },
                 ),
-              ),
-            ],
-          ),
+                SizedBox(height: 4),
+                // 天气按钮（无点击事件，不显示箭头）
+                IslandViewButton(
+                  iconAsset: "assets/home_list_type_location.webp",
+                  title: "TA的天气",
+                  value: weatherText,
+                  valueColor: Color(0xff3580FF),
+                  showArrow: false,
+                ),
+              ],
+            );
+          }),
         );
       },
     );

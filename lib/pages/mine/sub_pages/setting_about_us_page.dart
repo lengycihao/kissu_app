@@ -124,7 +124,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
               // App 图标
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.asset("assets/kissu_icon.webp", width: 80, height: 80),
+                child: Image.asset("assets/kissu3_love_avater.webp", width: 80, height: 80),
               ),
 
               const SizedBox(height: 20),

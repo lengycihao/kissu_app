@@ -89,7 +89,7 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
                           
                           return NoPlaceholderImage(
                             imageUrl: _currentDisplayAvatar,
-                            defaultAssetPath: "assets/kissu_icon.webp",
+                            defaultAssetPath: "assets/kissu3_love_avater.webp",
                             width: imageSize,
                             height: imageSize,
                             fit: BoxFit.contain,
@@ -171,7 +171,7 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
               borderRadius: BorderRadius.circular(6),
               child: NoPlaceholderImage(
                 imageUrl: _controller.myAvatar.value,
-                defaultAssetPath: "assets/kissu_icon.webp",
+                defaultAssetPath: "assets/kissu3_love_avater.webp",
                 width: 78,
                 height: 78,
                 fit: BoxFit.cover,
@@ -225,7 +225,7 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
                   borderRadius: BorderRadius.circular(39),
                   child: NoPlaceholderImage(
                     imageUrl: _controller.myAvatar.value,
-                    defaultAssetPath: "assets/kissu_icon.webp",
+                    defaultAssetPath: "assets/kissu3_love_avater.webp",
                     width: 78,
                     height: 78,
                     fit: BoxFit.cover,
@@ -252,7 +252,7 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
                   borderRadius: BorderRadius.circular(32),
                   child: NoPlaceholderImage(
                     imageUrl: _controller.partnerAvatar.value,
-                    defaultAssetPath: "assets/kissu_icon.webp",
+                    defaultAssetPath: "assets/kissu3_love_avater.webp",
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,

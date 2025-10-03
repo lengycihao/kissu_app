@@ -270,8 +270,8 @@ class ShareBottomSheet extends StatelessWidget {
       if (shareResult['success'] == true) {
         OKToastUtil.show('QQ分享成功');
       } else {
-        final errorMsg = shareResult['message'] ?? '分享失败';
-        OKToastUtil.show('QQ分享失败: $errorMsg');
+        // final errorMsg = shareResult['message'] ?? '分享失败';
+        // OKToastUtil.show('QQ分享失败: $errorMsg');
       }
       
     } catch (e) {

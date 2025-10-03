@@ -88,20 +88,19 @@ class LocationController extends GetxController {
     super.onInit();
     DebugUtil.info(' LocationController onInit 开始');
     try {
-      // 加载用户信息
+      // 加载用户信息（同步）
       DebugUtil.info(' 开始加载用户信息...');
       _loadUserInfo();
       DebugUtil.info(' 用户信息加载完成');
       
-      // 初始化定位服务（不自动启动）
+      // 初始化定位服务（同步，不自动启动）
       DebugUtil.info(' 开始初始化定位服务...');
       _initLocationService();
       DebugUtil.info(' 定位服务初始化完成');
       
-      // 只加载历史位置数据，不自动启动定位
-      DebugUtil.info(' 开始调用loadLocationData...');
-      loadLocationData();
-      DebugUtil.info(' loadLocationData调用完成');
+      // 统一的异步初始化入口
+      DebugUtil.info(' 启动异步初始化流程');
+      _initializePageAsync();
     } catch (e) {
       DebugUtil.error(' onInit执行异常: $e');
       DebugUtil.error(' 异常类型: ${e.runtimeType}');
@@ -113,8 +112,35 @@ class LocationController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    // 页面准备完成后，检查定位权限
-    _checkLocationPermissionOnPageEnter();
+    DebugUtil.info(' LocationController onReady 完成');
+    // onReady 不再执行额外逻辑，避免与 onInit 中的异步初始化冲突
+    // 所有初始化逻辑已在 _initializePageAsync 中统一处理
+  }
+  
+  /// 统一的异步初始化流程（避免并发请求冲突）
+  Future<void> _initializePageAsync() async {
+    try {
+      DebugUtil.launch(' 异步初始化流程开始');
+      
+      // 步骤1: 加载历史位置数据
+      DebugUtil.info(' [步骤1] 开始加载历史位置数据...');
+      await loadLocationData();
+      DebugUtil.success(' [步骤1] 历史位置数据加载完成');
+      
+      // 步骤2: 检查定位权限并启动定位服务
+      // 添加短暂延迟，确保页面已完全就绪，避免与页面渲染冲突
+      DebugUtil.info(' [步骤2] 等待页面就绪...');
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      DebugUtil.info(' [步骤2] 开始检查定位权限...');
+      await _checkLocationPermissionOnPageEnter();
+      DebugUtil.success(' [步骤2] 定位权限检查完成');
+      
+      DebugUtil.success(' 异步初始化流程全部完成');
+    } catch (e, stackTrace) {
+      DebugUtil.error(' 异步初始化流程异常: $e');
+      DebugUtil.error(' 异常堆栈: $stackTrace');
+    }
   }
   
   /// 初始化定位服务
@@ -631,7 +657,7 @@ class LocationController extends GetxController {
             // 已绑定状态：使用真实头像
             myIcon = await _createAvatarMarker(
               correctMyAvatar,
-              defaultAsset: 'assets/kissu_track_header_boy.webp',
+              defaultAsset: 'assets/kissu3_love_avater.webp',
             );
           } else {
             // 未绑定状态：判断当前位置是否代表另一半
@@ -640,14 +666,14 @@ class LocationController extends GetxController {
               DebugUtil.info(' 💫 未绑定状态 - myLocation代表另一半，显示虚拟TA标签，使用头像: $correctMyAvatar');
               myIcon = await _createAvatarMarkerWithVirtualLabel(
                 correctMyAvatar, // 使用接口返回的真实头像
-                defaultAsset: 'assets/kissu_track_header_boy.webp',
+                defaultAsset: 'assets/kissu3_love_avater.webp',
               );
             } else {
               // 查看自己时，myLocation代表自己位置，使用正常头像
               DebugUtil.info(' 💫 未绑定状态 - myLocation代表自己，使用正常头像');
               myIcon = await _createAvatarMarker(
                 correctMyAvatar,
-                defaultAsset: 'assets/kissu_track_header_boy.webp',
+                defaultAsset: 'assets/kissu3_love_avater.webp',
               );
             }
           }
@@ -707,7 +733,7 @@ class LocationController extends GetxController {
             DebugUtil.info(' 🔗 已绑定状态 - 使用伴侣头像: $correctPartnerAvatar');
             partnerIcon = await _createAvatarMarker(
               correctPartnerAvatar,
-              defaultAsset: 'assets/kissu_track_header_girl.webp',
+              defaultAsset: 'assets/kissu3_love_avater.webp',
             );
           } else {
             // 未绑定状态：判断当前位置是否代表另一半
@@ -716,14 +742,14 @@ class LocationController extends GetxController {
               DebugUtil.info(' 💫 未绑定状态 - partnerLocation代表另一半，显示虚拟TA标签，使用头像: $correctPartnerAvatar');
               partnerIcon = await _createAvatarMarkerWithVirtualLabel(
                 correctPartnerAvatar, // 使用接口返回的真实头像
-                defaultAsset: 'assets/kissu_track_header_girl.webp',
+                defaultAsset: 'assets/kissu3_love_avater.webp',
               );
             } else {
               // 查看另一半时，partnerLocation代表自己位置，使用正常头像
               DebugUtil.info(' 💫 未绑定状态 - partnerLocation代表自己，使用正常头像');
               partnerIcon = await _createAvatarMarker(
                 correctPartnerAvatar,
-                defaultAsset: 'assets/kissu_track_header_girl.webp',
+                defaultAsset: 'assets/kissu3_love_avater.webp',
               );
             }
           }

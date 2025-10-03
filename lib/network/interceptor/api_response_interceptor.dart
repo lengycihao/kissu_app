@@ -564,7 +564,31 @@ class ApiResponseInterceptor extends Interceptor {
       case DioExceptionType.badResponse:
         return 'Bad response format from server';
       case DioExceptionType.unknown:
-        return e.message ?? 'Unknown network error occurred';
+        // 🔍 详细记录 unknown 错误信息，帮助定位问题
+        print('🔍 [Unknown Network Error] 详细信息:');
+        print('  📍 请求地址: ${e.requestOptions.uri}');
+        print('  📡 请求方法: ${e.requestOptions.method}');
+        print('  💬 错误消息: ${e.message}');
+        print('  🔧 错误类型: ${e.error?.runtimeType}');
+        print('  📊 错误对象: ${e.error}');
+        print('  📋 堆栈跟踪:\n${e.stackTrace}');
+        
+        // 根据错误消息内容返回更友好的提示
+        final errorMsg = e.message?.toLowerCase() ?? '';
+        if (errorMsg.contains('connection') || errorMsg.contains('connect')) {
+          return '网络连接异常，请检查网络状态';
+        } else if (errorMsg.contains('timeout')) {
+          return '网络请求超时，请稍后重试';
+        } else if (errorMsg.contains('certificate') || errorMsg.contains('ssl')) {
+          return '网络安全验证失败，请稍后重试';
+        } else if (errorMsg.contains('socket')) {
+          return '网络连接中断，请检查网络后重试';
+        } else if (errorMsg.contains('host')) {
+          return '无法连接到服务器，请检查网络';
+        }
+        
+        // 返回更友好的通用错误消息
+        return e.message ?? '网络请求异常，请检查网络后重试';
     }
   }
 
