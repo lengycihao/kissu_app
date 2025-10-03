@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import io.flutter.embedding.android.FlutterActivity
@@ -205,13 +206,28 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WECHAT_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "openWeComKf" -> {
-                    val url = call.argument<String>("kfidUrl") ?: ""
-                    if (url.isNotEmpty()) {
-                        openWeComKf(url)
+                "openWeComKfWithParams" -> {
+                    Log.d("MainActivity", "📞 收到 openWeComKfWithParams 调用")
+                    val corpId = call.argument<String>("corpId")
+                    val agentId = call.argument<String>("agentId")
+                    val kfId = call.argument<String>("kfId")
+                    
+                    Log.d("MainActivity", "参数: corpId=$corpId, agentId=$agentId, kfId=$kfId")
+                    
+                    if (corpId.isNullOrEmpty() || kfId.isNullOrEmpty()) {
+                        Log.e("MainActivity", "❌ 参数错误")
+                        result.error("INVALID_ARGS", "corpId and kfId are required", null)
+                        return@setMethodCallHandler
+                    }
+                    
+                    try {
+                        Log.d("MainActivity", "开始调用 openWeComKfWithParams")
+                        openWeComKfWithParams(corpId, agentId, kfId)
+                        Log.d("MainActivity", "✅ openWeComKfWithParams 调用成功")
                         result.success(null)
-                    } else {
-                        result.error("INVALID_ARGS", "kfidUrl is empty", null)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "❌ openWeComKfWithParams 失败: ${e.message}", e)
+                        result.error("OPEN_KF_FAILED", e.message, null)
                     }
                 }
                 "shareToWeChatText" -> {
@@ -633,28 +649,58 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         }
     }
 
-    private fun openWeComKf(kfidUrl: String) {
-        val wechatPkg = "com.tencent.mm"
-        val wecomPkg = "com.tencent.wework"
+    /**
+     * 拉起企业微信客服 - 直接使用微信 SDK，不走浏览器！
+     * corpId: 企业微信ID (ww开头)
+     * kfId: 客服ID
+     */
+    private fun openWeComKfWithParams(corpId: String, agentId: String?, kfId: String) {
+        Log.d("MainActivity", "📞 拉起企业微信客服 - 企业ID: $corpId, 客服ID: $kfId")
 
-        // 优先尝试用微信打开（kfid 链接通常在微信内直达会话）
-        if (isAppInstalled(wechatPkg) && openUrlInPackage(kfidUrl, wechatPkg)) {
-            return
+        // 初始化微信 API
+        if (wxApi == null) {
+            Log.d("MainActivity", "初始化微信 API")
+            wxApi = WXAPIFactory.createWXAPI(this, "wxca15128b8c388c13", true)
+            wxApi?.registerApp("wxca15128b8c388c13")
         }
 
-        // 再尝试企业微信
-        if (isAppInstalled(wecomPkg) && openUrlInPackage(kfidUrl, wecomPkg)) {
-            return
+        // 检查微信是否安装
+        if (wxApi?.isWXAppInstalled != true) {
+            Log.e("MainActivity", "❌ 微信未安装，无法拉起客服")
+            throw Exception("请先安装微信")
         }
 
-        // 兜底：交给系统默认浏览器
+        // 检查微信版本（降低版本要求）
+        val supportApi = wxApi?.wxAppSupportAPI ?: 0
+        val minVersion = 0x26050250  // 微信 6.5.2.80 (企业微信客服功能最低版本)
+        Log.d("MainActivity", "微信 API 版本: $supportApi (需要 >= $minVersion)")
+
+        if (supportApi < minVersion) {
+            Log.e("MainActivity", "❌ 微信版本过低 (当前: $supportApi, 需要: >= $minVersion)")
+            throw Exception("请升级微信到 6.5.2 或更高版本")
+        }
+
+        // 🚀 直接使用微信 SDK 拉起客服（不走浏览器！）
         try {
-            val browser = Intent(Intent.ACTION_VIEW, Uri.parse(kfidUrl)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val req = com.tencent.mm.opensdk.modelbiz.WXOpenCustomerServiceChat.Req()
+            req.corpId = corpId  // 企业微信ID: ww5c345e5aa1a2a697
+            req.url = "https://work.weixin.qq.com/kfid/$kfId"  // 客服链接
+            
+            Log.d("MainActivity", "🚀 发送微信客服请求: corpId=$corpId, url=${req.url}")
+            val success = wxApi?.sendReq(req) ?: false
+            
+            if (success) {
+                Log.d("MainActivity", "✅ 成功拉起微信客服！")
+            } else {
+                Log.e("MainActivity", "❌ 微信 SDK sendReq 返回 false")
+                throw Exception("拉起客服失败")
             }
-            startActivity(browser)
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ 拉起客服异常: ${e.message}", e)
+            throw e
+        }
     }
+    
 
     // ===== 友盟分享相关方法 =====
     private fun initUMengSDK(appKey: String, channel: String, logEnabled: Boolean) {

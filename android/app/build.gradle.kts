@@ -5,6 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 添加本地 AAR 仓库
+repositories {
+    flatDir {
+        dirs("../libs")
+    }
+}
+
 android {
     namespace = "com.yuluo.kissu"
     compileSdk = 36  // Android 16 (API 36)
