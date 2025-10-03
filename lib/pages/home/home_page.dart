@@ -170,7 +170,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
+                children: List.generate(4, (index) {
                   return InkWell(
                     onTap: () => controller.onButtonTap(index),
                     borderRadius: BorderRadius.circular(8),
@@ -185,7 +185,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         // const SizedBox(height: 4),
                         Image.asset(
                           controller.getBottomIconPath(index),
-                          width: index == 3 ? 48 : 24,
+                          width: index == 2 ? 48 : 24,
                           height: 14,
                           fit: BoxFit.contain,
                         ),

@@ -7,6 +7,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/network/interceptor/business_header_interceptor.dart' as business_header_interceptor;
 
 /// 敏感数据上报服务
 /// 负责监听各种系统事件并上报敏感数据
@@ -60,12 +61,6 @@ class SensitiveDataService extends GetxService {
     DebugUtil.success('敏感数据监听已启动（用户已同意隐私政策）');
   }
   
-  /// 初始化服务（内部使用）
-  void _initializeService() {
-    _startNetworkMonitoring();
-    _startBatteryMonitoring();
-  }
-  
   /// 开始网络状态监听
   void _startNetworkMonitoring() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
@@ -87,6 +82,14 @@ class SensitiveDataService extends GetxService {
   /// 处理网络状态变化
   void _handleNetworkChange(List<ConnectivityResult> results) async {
     if (results.isEmpty) return;
+    
+    // 🔧 修复：网络状态变化时清除网络信息缓存，避免使用过期的缓存数据
+    try {
+      business_header_interceptor.BusinessHeaderInterceptor.clearNetworkCache();
+      DebugUtil.info('网络状态变化，已清除网络信息缓存');
+    } catch (e) {
+      DebugUtil.error('清除网络信息缓存失败: $e');
+    }
     
     final result = results.first;
     String networkName = 'unknown';

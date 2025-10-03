@@ -616,16 +616,10 @@ class HomeController extends GetxController {
         Get.to(() =>  TrackPage(), binding: TrackBinding());
         break;
       case 2:
-        // 聊天
-        debugPrint("🔍 准备跳转到聊天页面");
-        // TODO: 实现聊天页面跳转
-        CustomToast.show(Get.context!, '聊天功能开发中');
-        break;
-      case 3:
         // 用机记录
         Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
         break;
-      case 4:
+      case 3:
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
@@ -661,10 +655,8 @@ class HomeController extends GetxController {
       case 1:
         return "assets/kissu_home_tab_foot.webp";
       case 2:
-        return "assets/kissu_home_tab_chat.webp";
-      case 3:
         return "assets/kissu_home_tab_history.webp";
-      case 4:
+      case 3:
         return "assets/kissu_home_tab_mine.webp";
       default:
         return "assets/kissu_home_tab_location.webp";
@@ -679,10 +671,8 @@ class HomeController extends GetxController {
       case 1:
         return "assets/kissu_home_tab_mapT.webp";
       case 2:
-        return "assets/kissu_home_tab_chatT.webp";
-      case 3:
         return "assets/kissu_home_tab_historyT.webp";
-      case 4:
+      case 3:
         return "assets/kissu_home_tab_mineT.webp";
       default:
         return "assets/kissu_home_tab_locationT.webp";

@@ -1,5 +1,4 @@
 import 'dart:io' show Platform;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 /// 权限设置助手类
@@ -59,23 +58,24 @@ class PermissionHelper {
     }
   }
 
-  /// 打开企业微信/微信 客服会话（支持 kfid 链接）
-  static Future<void> openWeComKf(String kfidUrl) async {
-    try {
-      if (Platform.isAndroid) {
-        await _wechatChannel.invokeMethod('openWeComKf', {
-          'kfidUrl': kfidUrl,
-        });
-        return;
-      }
-
-      // 非 Android 平台：降级为用系统浏览器打开，避免 MissingPluginException
-      final uri = Uri.tryParse(kfidUrl);
-      if (uri != null) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    } on PlatformException catch (e) {
-      print("打开企业微信客服失败: ${e.message}");
+  /// 打开企业微信客服会话（直接使用客服ID）
+  /// [corpId] 企业微信 CorpID
+  /// [kfId] 客服 ID
+  /// 
+  /// 注意：此方法只通过企业微信SDK拉起，失败会抛出异常
+  static Future<void> openWeComKfWithParams({
+    required String corpId,
+    required String kfId,
+    String? agentId,
+  }) async {
+    if (Platform.isAndroid) {
+      await _wechatChannel.invokeMethod('openWeComKfWithParams', {
+        'corpId': corpId,
+        'kfId': kfId,
+        'agentId': agentId,
+      });
+    } else {
+      throw UnsupportedError('仅支持 Android 平台');
     }
   }
 }

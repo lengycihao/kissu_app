@@ -33,6 +33,25 @@ class BusinessHeaderInterceptor extends Interceptor {
 
   BusinessHeaderInterceptor(this._authService);
 
+  /// 🔧 新增：安全处理HTTP头部值，确保符合HTTP标准
+  /// 对包含非ASCII字符的值进行URL编码
+  String _safeHeaderValue(String value) {
+    try {
+      // 检查是否包含非ASCII字符
+      if (value.runes.any((rune) => rune > 127)) {
+        // 包含非ASCII字符，进行URL编码
+        final encoded = Uri.encodeComponent(value);
+        DebugUtil.info('HTTP头部值已编码: $value -> $encoded');
+        return encoded;
+      }
+      return value;
+    } catch (e) {
+      DebugUtil.error('编码HTTP头部值失败: $e');
+      // 如果编码失败，返回安全的默认值
+      return 'unknown';
+    }
+  }
+
   /// 获取当前设置的渠道
   /// 返回当前渠道标识，用于判断是否需要显示特定功能
   static String? getCurrentChannel() {
@@ -148,10 +167,12 @@ class BusinessHeaderInterceptor extends Interceptor {
       }
 
       if (_cachedMobileModel != null) {
-        options.headers[HttpHeaderKey.mobileModel] = _cachedMobileModel;
+        // 🔧 修复：使用安全处理函数确保设备型号符合HTTP标准
+        options.headers[HttpHeaderKey.mobileModel] = _safeHeaderValue(_cachedMobileModel!);
       }
       if (_cachedBrand != null) {
-        options.headers[HttpHeaderKey.brand] = _cachedBrand;
+        // 🔧 修复：使用安全处理函数确保品牌名称符合HTTP标准
+        options.headers[HttpHeaderKey.brand] = _safeHeaderValue(_cachedBrand!);
       }
     } catch (e) {
       DebugUtil.error('获取设备信息失败: $e');
@@ -197,14 +218,25 @@ class BusinessHeaderInterceptor extends Interceptor {
           networkType = 'wifi';
           
           // 🔒 WiFi SSID是敏感信息，只在隐私合规后才获取
+          // 🔧 修复：添加超时控制，避免热点时获取SSID超时导致请求阻塞
           try {
             final networkInfo = NetworkInfo();
-            final wifiName = await networkInfo.getWifiName();
+            final wifiName = await networkInfo.getWifiName()
+                .timeout(
+                  const Duration(seconds: 2),
+                  onTimeout: () {
+                    DebugUtil.warning('获取WiFi SSID超时（2秒），使用默认值');
+                    return null;
+                  },
+                );
             if (wifiName != null && wifiName.isNotEmpty) {
-              networkType = 'wifi_${wifiName.replaceAll('"', '')}';
+              // 🔧 修复：对WiFi名称进行安全处理，避免中文字符导致HTTP头部格式错误
+              final cleanWifiName = wifiName.replaceAll('"', '');
+              networkType = 'wifi_$cleanWifiName';
             }
           } catch (e) {
             // 如果获取WiFi名称失败，使用默认的wifi
+            DebugUtil.warning('获取WiFi SSID失败: $e，使用默认值');
             networkType = 'wifi';
           }
         } else if (connectivityResults.contains(ConnectivityResult.mobile)) {
@@ -224,7 +256,8 @@ class BusinessHeaderInterceptor extends Interceptor {
         _cachedNetworkName = networkType;
       }
       
-      options.headers[HttpHeaderKey.networkName] = _cachedNetworkName;
+      // 🔧 修复：使用安全处理函数确保HTTP头部值符合标准
+      options.headers[HttpHeaderKey.networkName] = _safeHeaderValue(_cachedNetworkName ?? 'unknown');
     } catch (e) {
       DebugUtil.error('获取网络信息失败: $e');
       // 使用默认值
@@ -288,5 +321,16 @@ class BusinessHeaderInterceptor extends Interceptor {
     _cachedNetworkName = null;
     _cachedPower = null;
     _packageInfo = null;
+  }
+  
+  /// 🔧 新增：仅清除网络信息缓存（用于网络状态变化时）
+  static void clearNetworkCache() {
+    _cachedNetworkName = null;
+    DebugUtil.info('网络信息缓存已清除');
+  }
+  
+  /// 🔧 新增：仅清除电池信息缓存
+  static void clearBatteryCache() {
+    _cachedPower = null;
   }
 }

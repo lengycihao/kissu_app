@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/widgets/pag_animation_widget.dart';
 import 'package:kissu_app/utils/pag_preloader.dart';
+import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 /// 应用生命周期服务
 class AppLifecycleService extends GetxService with WidgetsBindingObserver {
@@ -54,6 +55,14 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   /// 应用恢复前台
   void _onAppResumed() {
     debugPrint('🔄 应用恢复前台，优化前台策略');
+    
+    // 🔧 修复：App恢复前台时清除网络信息缓存，避免使用过期数据
+    try {
+      BusinessHeaderInterceptor.clearNetworkCache();
+      debugPrint('📡 已清除过期的网络信息缓存');
+    } catch (e) {
+      debugPrint('❌ 清除网络缓存失败: $e');
+    }
     
     try {
       final simpleLocationService = SimpleLocationService.instance;

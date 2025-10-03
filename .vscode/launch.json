@@ -1,0 +1,105 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "kissu_app",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "kissu_app (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "kissu_app (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "amap_flutter_base-3.0.0",
+            "cwd": "plugins\\amap_flutter_base-3.0.0",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "amap_flutter_base-3.0.0 (profile mode)",
+            "cwd": "plugins\\amap_flutter_base-3.0.0",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "amap_flutter_base-3.0.0 (release mode)",
+            "cwd": "plugins\\amap_flutter_base-3.0.0",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "amap_flutter_location-3.0.0",
+            "cwd": "plugins\\amap_flutter_location-3.0.0",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "amap_flutter_location-3.0.0 (profile mode)",
+            "cwd": "plugins\\amap_flutter_location-3.0.0",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "amap_flutter_location-3.0.0 (release mode)",
+            "cwd": "plugins\\amap_flutter_location-3.0.0",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "amap_flutter_map-3.0.0",
+            "cwd": "plugins\\amap_flutter_map-3.0.0",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "amap_flutter_map-3.0.0 (profile mode)",
+            "cwd": "plugins\\amap_flutter_map-3.0.0",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "amap_flutter_map-3.0.0 (release mode)",
+            "cwd": "plugins\\amap_flutter_map-3.0.0",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "pag",
+            "cwd": "plugins\\pag",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "pag (profile mode)",
+            "cwd": "plugins\\pag",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "pag (release mode)",
+            "cwd": "plugins\\pag",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

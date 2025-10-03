@@ -221,11 +221,11 @@ class MineController extends GetxController {
       //   title: "防偷拍检测",
       //   onTap: () => _onShareAppTap(),
       // ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_gywm.webp",
-        title: "Banner预览",
-        onTap: () => _onBannerPreviewTap(),
-      ),
+      // SettingItem(
+      //   icon: "assets/kissu_mine_item_gywm.webp",
+      //   title: "Banner预览",
+      //   onTap: () => _onBannerPreviewTap(),
+      // ),
       SettingItem(
         icon: "assets/kissu_share_item.webp",
         title: "分享APP",
@@ -274,16 +274,23 @@ class MineController extends GetxController {
     Get.to(() => const BannerPreviewPage());
   }
 
-  /// 打开联系渠道（微信/企业微信客服）
-  void openContact() {
-    // 你的企业微信客服链接（kfid）
-    const String kfidUrl =
-        'https://work.weixin.qq.com/kfid/kfcf77b8b4a2a2a61d9';
+  /// 打开联系渠道（企业微信客服）
+  Future<void> openContact() async {
+    // 企业微信配置信息
+    const String corpId = 'ww5c345e5aa1a2a697';  // 企业微信ID (ww开头)
+    const String kfId = 'kfcf77b8b4a2a2a61d9';  // 客服 ID
 
     try {
-      PermissionHelper.openWeComKf(kfidUrl);
+      print('📞 开始拉起企业微信客服');
+      // 直接使用客服ID拉起会话
+      await PermissionHelper.openWeComKfWithParams(
+        corpId: corpId,
+        kfId: kfId,
+      );
+      print('✅ 企业微信客服拉起成功');
     } catch (e) {
-       OKToastUtil.show('无法打开微信/企业微信: $e');
+      print('❌ 拉起企业微信客服失败: $e');
+      OKToastUtil.show('拉起企业微信客服失败: $e');
     }
   }
 
