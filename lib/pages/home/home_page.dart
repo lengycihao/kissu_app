@@ -12,6 +12,7 @@ import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
+import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -60,6 +61,15 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
         debugPrint('🏠 应用回到前台但首页不可见，跳过刷新');
       }
     }
+  }
+
+  /// 红色容器点击事件处理
+  void _onRedContainerTap() {
+    debugPrint('🔴 红色容器被点击了');
+    ImageDialogUtil.showImageDialog(
+      context: context,
+      imagePath: 'assets/3.0/kissu3_picture_wall.webp',
+    );
   }
 
   @override
@@ -150,6 +160,26 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //   ),
                   // ),
                   
+                  // 新增的红色容器
+                  Positioned(
+                    left: 500, // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(88), // Y坐标基于高度缩放
+                    child: GestureDetector(
+                      onTap: () {
+                        // 点击事件处理
+                        _onRedContainerTap();
+                      },
+                      child: Container(
+                        width: ScreenAdaptation.scaleSizeByHeight(60), // 基于高度比例缩放宽度
+                        height: ScreenAdaptation.scaleSizeByHeight(54), // 基于高度比例缩放高度
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
                 ],
               ),
             ),
@@ -170,7 +200,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(4, (index) {
+                children: List.generate(5, (index) {
                   return InkWell(
                     onTap: () => controller.onButtonTap(index),
                     borderRadius: BorderRadius.circular(8),
@@ -185,7 +215,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         // const SizedBox(height: 4),
                         Image.asset(
                           controller.getBottomIconPath(index),
-                          width: index == 2 ? 48 : 24,
+                          width: index == 3 ? 48 : 24,
                           height: 14,
                           fit: BoxFit.contain,
                         ),

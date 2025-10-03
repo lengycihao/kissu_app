@@ -352,6 +352,8 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- 存储权限：用于读取和保存图片、文件等 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <!-- 录音权限：用于聊天语音消息录制功能 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     
     <!-- 网络状态权限：用于检测网络连接状态，确保地图加载和数据同步 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

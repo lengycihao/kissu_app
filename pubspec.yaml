@@ -79,6 +79,11 @@ dependencies:
   # PAG动画 - 使用本地插件版本
   pag:
     path: plugins/pag
+  record: ^5.2.0  # 录音插件
+  audioplayers: ^6.1.0  # 音频播放插件
+
+dependency_overrides:
+  record_linux: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -119,6 +124,7 @@ flutter:
     - assets/phone_history/
     - assets/mipmap-xxhdpi/
     - assets/3.0/
+    - assets/chat/
     - assets/kissu_heart.webp
     - assets/kissu_location_circle.webp
     - assets/kissu3_love_avater.webp

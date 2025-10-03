@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
 import '../../../routers/kissu_route_path.dart';
-import '../../../widgets/dialogs/confirm_dialog.dart';
+import '../../../widgets/dialogs/logout_dialog.dart';
 import '../../../widgets/custom_toast_widget.dart';
 
 class PhoneVerificationController extends GetxController {
@@ -167,7 +167,11 @@ class PhoneVerificationController extends GetxController {
 
   // 显示注销确认对话框
   void showCancellationDialog() async {
-    final result = await CancellationConfirmDialog.show(Get.context!);
+    final result = await showDialog<bool>(
+      context: Get.context!,
+      barrierDismissible: false,
+      builder: (context) => const LogoutDialog(),
+    );
     if (result == true) {
       // 执行注销操作
       await performCancellation();

@@ -213,9 +213,9 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
         onPressed: () async {
-          final result = await DialogManager.showUnbindConfirm(context);
-          if (result == false) {
-            // 返回false表示点击了左边的"确认解除"按钮
+          final result = await DialogManager.showUnbindRelationshipDialog();
+          if (result == true) {
+            // 返回true表示用户输入了正确的确认文字并点击了确认解除按钮
             await _handleBreakRelationship();
           }
         },

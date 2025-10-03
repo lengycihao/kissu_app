@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'confirm_dialog.dart';
 import 'gender_select_dialog.dart';
 import 'input_dialog.dart';
 import 'vip_dialog.dart';
 import 'huawei_vip_promo_dialog.dart';
 import 'vip_purchase_dialog.dart';
+import 'unbind_relationship_dialog.dart';
+import '../../pages/dialog_showcase/dialog_showcase_page.dart';
 
 /// 导出所有弹窗组件
 export 'base_dialog.dart';
@@ -14,6 +17,7 @@ export 'input_dialog.dart';
 export 'vip_dialog.dart';
 export 'huawei_vip_promo_dialog.dart';
 export 'vip_purchase_dialog.dart';
+export 'unbind_relationship_dialog.dart';
 
 /// 弹窗管理器
 class DialogManager {
@@ -166,5 +170,15 @@ class DialogManager {
       onConfirm: onConfirm,
       barrierDismissible: barrierDismissible,
     );
+  }
+
+  /// 显示弹窗展示页面
+  static void showDialogShowcase(BuildContext context) {
+    Get.to(() => const DialogShowcasePage());
+  }
+
+  /// 显示解除关系提示弹窗
+  static Future<bool?> showUnbindRelationshipDialog() {
+    return UnbindRelationshipDialogUtil.showUnbindRelationshipDialog();
   }
 }

@@ -18,7 +18,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
-import 'package:kissu_app/utils/image_source_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 

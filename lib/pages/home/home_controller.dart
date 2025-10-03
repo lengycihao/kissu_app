@@ -12,6 +12,8 @@ import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/message_center/message_center_binding.dart';
 import 'package:kissu_app/pages/message_center/message_center_page.dart';
+import 'package:kissu_app/pages/chat/chat_binding.dart';
+import 'package:kissu_app/pages/chat/chat_page.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
@@ -616,10 +618,15 @@ class HomeController extends GetxController {
         Get.to(() =>  TrackPage(), binding: TrackBinding());
         break;
       case 2:
+        // 聊天
+        debugPrint("💬 准备跳转到聊天页面");
+        Get.to(() => const ChatPage(), binding: ChatBinding());
+        break;
+      case 3:
         // 用机记录
         Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
         break;
-      case 3:
+      case 4:
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
@@ -655,8 +662,10 @@ class HomeController extends GetxController {
       case 1:
         return "assets/kissu_home_tab_foot.webp";
       case 2:
-        return "assets/kissu_home_tab_history.webp";
+        return "assets/kissu_home_tab_chat.webp";
       case 3:
+        return "assets/kissu_home_tab_history.webp";
+      case 4:
         return "assets/kissu_home_tab_mine.webp";
       default:
         return "assets/kissu_home_tab_location.webp";
@@ -671,8 +680,10 @@ class HomeController extends GetxController {
       case 1:
         return "assets/kissu_home_tab_mapT.webp";
       case 2:
-        return "assets/kissu_home_tab_historyT.webp";
+        return "assets/kissu_home_tab_chatT.webp";
       case 3:
+        return "assets/kissu_home_tab_historyT.webp";
+      case 4:
         return "assets/kissu_home_tab_mineT.webp";
       default:
         return "assets/kissu_home_tab_locationT.webp";

@@ -9,7 +9,7 @@ import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart';
-import 'phone_history_setting_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/phone_history_setting_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 
 class PhoneHistoryController extends GetxController {
