@@ -2,6 +2,7 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/network/enum/cache_control.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 
 class LocationApi {
@@ -11,6 +12,9 @@ class LocationApi {
     final result = await HttpManagerN.instance.executeGet(
       ApiRequest.getLocation,
       paramEncrypt: false,
+      networkDebounce: false, // 定位请求不去抖，避免二次启动首个请求被拦截
+      // 显式只走网络不使用缓存，避免返回过期数据
+      cacheControl: CacheControl.noCache,
     );
 
     if (result.isSuccess) {

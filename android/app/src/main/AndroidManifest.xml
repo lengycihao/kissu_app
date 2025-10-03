@@ -343,8 +343,12 @@
     <!-- 网络状态权限：用于检测网络连接状态，确保地图加载和数据同步 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
+    <!-- WiFi状态权限：用于获取WIFI信息进行网络定位（高德SDK必需） -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- WiFi变更权限：用于网络优化 -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- 手机状态权限：用于获取基站信息进行网络定位（高德SDK必需） -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <!-- 唤醒锁权限：保持CPU运行，用于后台定位和推送服务 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- 震动权限：用于通知提醒和交互反馈 -->

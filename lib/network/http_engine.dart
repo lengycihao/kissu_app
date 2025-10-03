@@ -52,7 +52,13 @@ class HttpEngine {
     }
     (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
       SecurityContext securityContext = SecurityContext();
-      securityContext.setAlpnProtocols(['TLSv1.3'], true);
+      // 放宽 ALPN/协议配置，避免部分设备在二次启动后因握手协商失败导致 unknown/handshake 错误
+      // 允许常见 TLS 版本，交由系统协商最佳协议
+      try {
+        securityContext.setAlpnProtocols(['h2', 'http/1.1'], true);
+      } catch (_) {
+        // 某些 ROM 不支持设置 ALPN，忽略即可
+      }
       HttpClient httpClient = HttpClient(context: securityContext);
       if (kDebugMode && _proxy.isNotEmpty) {
         httpClient.findProxy = (uri) {

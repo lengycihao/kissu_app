@@ -1118,9 +1118,9 @@ class LocationController extends GetxController {
   }
 
   /// 加载位置数据
-  Future<void> loadLocationData() async {
-    DebugUtil.check(' loadLocationData 被调用，当前isLoading状态: ${isLoading.value}');
-    if (isLoading.value) {
+  Future<void> loadLocationData({int retryCount = 0}) async {
+    DebugUtil.check(' loadLocationData 被调用，当前isLoading状态: ${isLoading.value}, 重试次数: $retryCount');
+    if (isLoading.value && retryCount == 0) {
       DebugUtil.warning(' 跳过API调用，因为正在加载中');
       return;
     }
@@ -1129,7 +1129,7 @@ class LocationController extends GetxController {
     isLoading.value = true;
     
     try {
-      DebugUtil.launch('开始调用LocationApi.getLocation()...');
+      DebugUtil.launch('开始调用LocationApi.getLocation()... (尝试 ${retryCount + 1}/3)');
       // 调用真实API获取定位数据
       final result = await LocationApi().getLocation();
       DebugUtil.info('API调用完成，结果: ${result.isSuccess ? "成功" : "失败"}');
@@ -1231,18 +1231,83 @@ class LocationController extends GetxController {
         // 不再自动移动地图，让用户自由控制地图视角
         
       } else {
-        CustomToast.show(Get.context!, result.msg ?? '获取定位数据失败');
+        // API 调用失败，检查是否需要重试
+        debugPrint('🔍 [LocationPage] API调用失败详情:');
+        debugPrint('  错误码: ${result.code}');
+        debugPrint('  错误消息: ${result.msg}');
+        debugPrint('  重试次数: $retryCount');
+
+        // 如果是网络错误且未超过最大重试次数，则自动重试
+        if (retryCount < 2 && _shouldRetry(result.msg ?? '')) {
+          DebugUtil.info(' 检测到网络错误，${1000 * (retryCount + 1)}ms 后自动重试...');
+          isLoading.value = false;
+          await Future.delayed(Duration(milliseconds: 1000 * (retryCount + 1)));
+          return loadLocationData(retryCount: retryCount + 1);
+        }
+
+        // 更友好的错误提示
+        _showFriendlyError(result.code, result.msg);
       }
       
-    } catch (e) {
-      DebugUtil.error(' loadLocationData API调用异常: $e');
-      DebugUtil.error(' 异常类型: ${e.runtimeType}');
-      DebugUtil.error(' 异常堆栈: ${StackTrace.current}');
-      CustomToast.show(Get.context!, '加载位置数据失败: $e');
+    } catch (e, stackTrace) {
+      debugPrint('🔍 [LocationPage] API调用异常:');
+      debugPrint('  异常类型: ${e.runtimeType}');
+      debugPrint('  异常消息: $e');
+      debugPrint('  重试次数: $retryCount');
+      debugPrint('  堆栈跟踪（前10行）:');
+      final stackLines = stackTrace.toString().split('\n').take(10);
+      for (var line in stackLines) {
+        debugPrint('    $line');
+      }
+      
+      // 如果未超过最大重试次数，则自动重试
+      if (retryCount < 2) {
+        DebugUtil.info(' 发生异常，${1000 * (retryCount + 1)}ms 后自动重试...');
+        isLoading.value = false;
+        await Future.delayed(Duration(milliseconds: 1000 * (retryCount + 1)));
+        return loadLocationData(retryCount: retryCount + 1);
+      }
+      
+      CustomToast.show(Get.context!, '加载位置数据失败，请稍后重试');
     } finally {
       DebugUtil.info(' 设置isLoading为false');
       isLoading.value = false;
     }
+  }
+  
+  /// 判断错误是否应该重试
+  bool _shouldRetry(String errorMsg) {
+    final msg = errorMsg.toLowerCase();
+    return msg.contains('网络') || 
+           msg.contains('超时') || 
+           msg.contains('连接') ||
+           msg.contains('timeout') ||
+           msg.contains('connection') ||
+           msg.contains('network');
+  }
+
+  /// 统一友好错误提示（不影响成功流程与重试逻辑）
+  void _showFriendlyError(int? code, String? msg) {
+    String tip;
+    final text = (msg ?? '').toLowerCase();
+
+    // 业务重复/频控类（示例：210 或包含 repeat 关键字）
+    if (code == 210 || text.contains('repeat')) {
+      tip = '操作太频繁啦，请稍后再试';
+    }
+    // 网络类 unknown/连接/超时 等
+    else if (text.contains('网络') || text.contains('超时') || text.contains('timeout') ||
+             text.contains('connect') || text.contains('connection')) {
+      tip = '网络不太给力，稍等片刻再试试';
+    } else if (text.contains('ssl') || text.contains('certificate') || text.contains('handshake')) {
+      tip = '网络安全验证失败，请稍后重试';
+    } else if (text.contains('host') || text.contains('refused') || text.contains('reset')) {
+      tip = '服务器连接异常，请稍后重试';
+    } else {
+      tip = msg ?? '获取定位数据失败，请稍后重试';
+    }
+
+    CustomToast.show(Get.context!, tip);
   }
   
   /// 🔧 新增：专门更新自己的头像数据

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart' as gg;
 import 'package:kissu_app/network/http_resultN.dart';
@@ -565,43 +566,67 @@ class ApiResponseInterceptor extends Interceptor {
         return 'Bad response format from server';
       case DioExceptionType.unknown:
         // 🔍 详细记录 unknown 错误信息，帮助定位问题
-        print('🔍 [Unknown Network Error] 详细信息:');
-        print('  📍 请求地址: ${e.requestOptions.uri}');
-        print('  📡 请求方法: ${e.requestOptions.method}');
-        print('  💬 错误消息: ${e.message}');
-        print('  🔧 错误类型: ${e.error?.runtimeType}');
-        print('  📊 错误对象: ${e.error}');
-        print('  📋 堆栈跟踪:\n${e.stackTrace}');
+        // 使用 debugPrint 确保在 Release 版本中也能输出关键错误信息
+        debugPrint('🔍 [Unknown Network Error] 详细信息:');
+        debugPrint('  📍 请求地址: ${e.requestOptions.uri}');
+        debugPrint('  📡 请求方法: ${e.requestOptions.method}');
+        debugPrint('  📋 请求头: ${e.requestOptions.headers}');
+        debugPrint('  💬 错误消息: ${e.message}');
+        debugPrint('  🔧 错误类型: ${e.error?.runtimeType}');
+        debugPrint('  📊 错误对象: ${e.error}');
+        
+        // 如果有响应，记录响应状态
+        if (e.response != null) {
+          debugPrint('  📥 响应状态码: ${e.response?.statusCode}');
+          debugPrint('  📥 响应消息: ${e.response?.statusMessage}');
+        }
+        
+        // 记录堆栈跟踪（仅关键部分）
+        final stackLines = e.stackTrace.toString().split('\n').take(5).join('\n');
+        debugPrint('  📋 堆栈跟踪（前5行）:\n$stackLines');
         
         // 根据错误消息内容返回更友好的提示
         final errorMsg = e.message?.toLowerCase() ?? '';
-        if (errorMsg.contains('connection') || errorMsg.contains('connect')) {
+        final errorObj = e.error?.toString().toLowerCase() ?? '';
+        
+        if (errorMsg.contains('connection') || errorMsg.contains('connect') || 
+            errorObj.contains('connection') || errorObj.contains('connect')) {
           return '网络连接异常，请检查网络状态';
-        } else if (errorMsg.contains('timeout')) {
+        } else if (errorMsg.contains('timeout') || errorObj.contains('timeout')) {
           return '网络请求超时，请稍后重试';
-        } else if (errorMsg.contains('certificate') || errorMsg.contains('ssl')) {
+        } else if (errorMsg.contains('certificate') || errorMsg.contains('ssl') ||
+                   errorObj.contains('certificate') || errorObj.contains('ssl') ||
+                   errorObj.contains('handshake')) {
           return '网络安全验证失败，请稍后重试';
-        } else if (errorMsg.contains('socket')) {
+        } else if (errorMsg.contains('socket') || errorObj.contains('socket')) {
           return '网络连接中断，请检查网络后重试';
-        } else if (errorMsg.contains('host')) {
+        } else if (errorMsg.contains('host') || errorObj.contains('host')) {
           return '无法连接到服务器，请检查网络';
+        } else if (errorMsg.contains('refused') || errorObj.contains('refused')) {
+          return '服务器拒绝连接，请稍后重试';
+        } else if (errorMsg.contains('reset') || errorObj.contains('reset')) {
+          return '网络连接被重置，请重试';
         }
         
-        // 返回更友好的通用错误消息
-        return e.message ?? '网络请求异常，请检查网络后重试';
+        // 返回更友好的通用错误消息，包含部分原始错误信息便于调试
+        final shortError = e.message != null && e.message!.length > 50 
+            ? '${e.message!.substring(0, 50)}...' 
+            : e.message ?? '未知错误';
+        debugPrint('  ⚠️ 返回给用户的错误消息: 网络请求异常');
+        debugPrint('  🔍 实际错误: $shortError');
+        return '$shortError网络请求异常，请检查网络后重试';
     }
   }
 
   /// 显示消息提示
-  void _showMessage(String message, {bool isError = true}) {
+  void _showMessage(String message) {
     try {
       CustomToast.show(
         gg.Get.context!,
         message,
-   
       );
     } catch (e) {
-      print('显示消息失败: $e, 消息内容: $message');
+      debugPrint('显示消息失败: $e, 消息内容: $message');
     }
   }
 }

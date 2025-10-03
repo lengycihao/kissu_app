@@ -469,17 +469,21 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         debugPrint('⚠️ 清理监听器时出现异常: $e');
       }
       
-      // 设置高德定位参数 - 参考iOS版本的高精度配置
-      debugPrint('🔧 开始设置高德定位参数（参考iOS版本）...');
+      // 设置高德定位参数 - 参考iOS版本的高精度配置 + 后台定位优化
+      debugPrint('🔧 开始设置高德定位参数（参考iOS版本 + 后台定位优化）...');
       AMapLocationOption locationOption = AMapLocationOption();
       
-      // 设置定位模式 - 使用高精度模式以获取GPS速度数据（参考iOS的kCLLocationAccuracyBest）
+      // 设置定位模式 - 使用Hight_Accuracy模式（最关键的配置）
+      // 🔥 重要：Hight_Accuracy模式在后台和息屏时会自动降级为基站+WIFI定位
+      // 这是Android系统的限制，无法通过配置完全避免
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy; // 高精度模式，包含GPS
       
       debugPrint('   - 定位模式: 高精度模式（GPS+网络+WIFI）- 参考iOS的kCLLocationAccuracyBest');
       debugPrint('   - 🚀 高德官方优化：启用高精度模式 + accuracy>100过滤 + 轨迹平滑算法');
+      debugPrint('   - ⚠️  息屏后限制：Android系统会限制GPS访问，自动降级为基站+WIFI定位');
       
       // 设置定位间隔（参考iOS版本）
+      // 🔥 后台定位优化：适当增加间隔以减少电量消耗和系统限制
       locationOption.locationInterval = _locationInterval; // 2秒间隔，平衡响应性与耗电
       debugPrint('   - 定位间隔: ${_locationInterval}ms（平衡响应性与耗电）');
       
@@ -494,6 +498,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 设置持续定位（参考iOS的allowsBackgroundLocationUpdates）
       locationOption.onceLocation = false;
       debugPrint('   - 持续定位: true（参考iOS的allowsBackgroundLocationUpdates）');
+      
+      // 🔥 关键配置：设置传感器使能（可能有助于后台定位）
+      // locationOption.sensorEnable = true; // 启用传感器辅助定位（如果SDK支持）
       
       // 注意：某些配置在当前版本的高德插件中可能不支持
       // locationOption.mockEnable = true;
@@ -571,6 +578,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       isLocationEnabled.value = true;
       hasInitialReport.value = false; // 重置初始上报状态
       
+      // 🔥 关键修复：立即启动前台服务，确保息屏后能继续定位
+      // 不等到进入后台才启动，因为用户可能随时息屏
+      debugPrint('🚀 立即启动前台服务以支持息屏后定位...');
+      await _enableForegroundServiceIfNeeded();
+      
       // 🔥 重要优化：根据应用状态智能决定是否启动后台定时器
       _smartStartLocationStrategy();
       
@@ -608,6 +620,30 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
             debugPrint('❌ 错误码13: 网络异常');
             suggestion = '网络连接异常，将尝试重新连接';
             shouldRetry = true;
+            // 屏幕熄灭或后台权限缺失时，优先尝试GPS-only或网络-only策略
+            try {
+              final appLifecycle = AppLifecycleService.instance;
+              final inBackground = appLifecycle.isInBackground;
+              final hasBg = _currentBackgroundPermission.value == PermissionStatus.granted;
+              if (inBackground && !hasBg) {
+                debugPrint('🧭 触发GPS-only降级（后台且无后台权限）');
+                _locationPlugin.stopLocation();
+                final gpsOnly = AMapLocationOption();
+                gpsOnly.locationMode = AMapLocationMode.Device_Sensors;
+                gpsOnly.locationInterval = 20000;
+                gpsOnly.distanceFilter = SimpleLocationService._distanceFilter;
+                gpsOnly.needAddress = false;
+                gpsOnly.onceLocation = false;
+                _locationPlugin.setLocationOption(gpsOnly);
+                _locationPlugin.startLocation();
+                debugPrint('✅ 已切换到GPS-only降级模式');
+              } else {
+                debugPrint('🌐 尝试纯网络定位以快速恢复');
+                tryNetworkLocationOnly();
+              }
+            } catch (e) {
+              debugPrint('❌ 错误码13降级处理失败: $e');
+            }
             break;
           case 14:
             debugPrint('❌ 错误码14: GPS定位失败');
@@ -1836,14 +1872,65 @@ extension AppLifecycleExtension on SimpleLocationService {
   /// 启用后台位置模式
   void _enableBackgroundLocationMode() {
     debugPrint('🔧 启用后台位置采集模式');
-    // 在后台时，可以适当降低采集频率以节省电量
-    // 但保持定期上报以确保数据完整性
+    // 在后台时，降低采集频率以节省电量，同时保证一定的更新
+    try {
+      // 若后台定位权限未授予，避免触发网络/WIFI基站采集导致错误13
+      if (_currentBackgroundPermission.value != PermissionStatus.granted) {
+        debugPrint('⚠️ 后台定位权限未授予，采用GPS优先的降级策略（Device_Sensors）');
+        _locationPlugin.stopLocation();
+
+        final gpsOnly = AMapLocationOption();
+        gpsOnly.locationMode = AMapLocationMode.Device_Sensors; // 仅设备传感器（GPS）
+        gpsOnly.locationInterval = 20000; // 降低频率，节能且避免频繁失败
+        gpsOnly.distanceFilter = SimpleLocationService._distanceFilter;
+        gpsOnly.needAddress = false; // 纯GPS不解析地址，避免网络依赖
+        gpsOnly.onceLocation = false;
+
+        _locationPlugin.setLocationOption(gpsOnly);
+        _locationPlugin.startLocation();
+        debugPrint('✅ 已应用GPS优先后台策略：Device_Sensors / 20s / no address');
+        return;
+      }
+
+      // 只调整定位参数，不重置全局监听器
+      _locationPlugin.stopLocation();
+
+      // 首选高精度模式，系统会在息屏/后台时自动降级为网络定位
+      final option = AMapLocationOption();
+      option.locationMode = AMapLocationMode.Hight_Accuracy;
+      option.locationInterval = 15000; // 后台15秒一次，降低功耗
+      option.distanceFilter = SimpleLocationService._distanceFilter; // 与前台保持一致的距离过滤
+      option.needAddress = true;
+      option.onceLocation = false;
+
+      _locationPlugin.setLocationOption(option);
+      _locationPlugin.startLocation();
+      debugPrint('✅ 后台模式参数已应用：Hight_Accuracy / 15s / distanceFilter=${SimpleLocationService._distanceFilter}');
+    } catch (e) {
+      debugPrint('❌ 启用后台位置模式失败: $e');
+    }
   }
   
   /// 启用前台位置模式
   void _enableForegroundLocationMode() {
     debugPrint('🔧 恢复前台位置采集模式');
-    // 前台时恢复正常的高频率采集
+    // 前台时恢复正常的采集频率与高精度
+    try {
+      _locationPlugin.stopLocation();
+
+      final option = AMapLocationOption();
+      option.locationMode = AMapLocationMode.Hight_Accuracy;
+      option.locationInterval = SimpleLocationService._locationInterval; // 恢复到默认频率
+      option.distanceFilter = SimpleLocationService._distanceFilter;
+      option.needAddress = true;
+      option.onceLocation = false;
+
+      _locationPlugin.setLocationOption(option);
+      _locationPlugin.startLocation();
+      debugPrint('✅ 前台模式参数已应用：Hight_Accuracy / ${SimpleLocationService._locationInterval}ms / distanceFilter=${SimpleLocationService._distanceFilter}');
+    } catch (e) {
+      debugPrint('❌ 启用前台位置模式失败: $e');
+    }
   }
   
   /// 应用终止前保存数据
