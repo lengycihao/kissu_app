@@ -47,6 +47,7 @@ class ChatController extends GetxController {
     super.onInit();
     debugPrint('💬 ChatController 初始化');
     _loadMockMessages();
+    _setupFocusListener();
   }
 
   @override
@@ -56,6 +57,20 @@ class ChatController extends GetxController {
     _audioRecorder.dispose();
     debugPrint('💬 ChatController 销毁');
     super.onClose();
+  }
+
+  // 设置输入框焦点监听器
+  void _setupFocusListener() {
+    inputFocusNode.addListener(() {
+      // 当输入框获得焦点时（键盘抬起），关闭所有面板
+      if (inputFocusNode.hasFocus) {
+        showEmojiPanel.value = false;
+        showExtensionPanel.value = false;
+        debugPrint('💬 键盘抬起，关闭所有面板');
+        // 键盘抬起时，延迟滚动到底部
+        _scrollToBottomWithDelay();
+      }
+    });
   }
 
   // 加载模拟消息
@@ -141,6 +156,11 @@ class ChatController extends GetxController {
     showEmojiPanel.value = !showEmojiPanel.value;
     if (showEmojiPanel.value) {
       showExtensionPanel.value = false;
+      // 展开表情面板时，收起键盘
+      inputFocusNode.unfocus();
+      debugPrint('💬 表情面板展开，收起键盘');
+      // 延迟滚动到底部，确保面板完全展开后再滚动
+      _scrollToBottomWithDelay();
     }
   }
 
@@ -149,6 +169,11 @@ class ChatController extends GetxController {
     showExtensionPanel.value = !showExtensionPanel.value;
     if (showExtensionPanel.value) {
       showEmojiPanel.value = false;
+      // 展开扩展功能面板时，收起键盘
+      inputFocusNode.unfocus();
+      debugPrint('💬 扩展功能面板展开，收起键盘');
+      // 延迟滚动到底部，确保面板完全展开后再滚动
+      _scrollToBottomWithDelay();
     }
   }
 
@@ -522,161 +547,10 @@ class ChatController extends GetxController {
     );
   }
 
-  // 更换背景对话框
+  // 更换背景 - 直接调起相册
   void _showChangeBackgroundDialog() async {
-    // 预设背景图列表
-    final List<String> backgroundOptions = [
-      '', // 无背景
-      'assets/chat/kissu3_chat_bg.webp',
-      'assets/3.0/kissu3_picture_wall.webp',
-    ];
-
-    // 显示背景选择对话框
-    await Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '选择聊天背景',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // 背景选项列表
-              ...backgroundOptions.asMap().entries.map((entry) {
-                final index = entry.key;
-                final bgPath = entry.value;
-                return _buildBackgroundOption(
-                  bgPath,
-                  label: index == 0 
-                      ? '无背景' 
-                      : '背景 $index',
-                  isSelected: backgroundImage.value == bgPath,
-                );
-              }),
-              const SizedBox(height: 10),
-              // 从相册选择
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xffBA92FD)),
-                title: const Text('从相册选择'),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                onTap: () {
-                  Get.back();
-                  _pickBackgroundFromGallery();
-                },
-              ),
-              const SizedBox(height: 10),
-              // 关闭按钮
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Get.back(),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('取消'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 构建背景选项
-  Widget _buildBackgroundOption(String bgPath, {required String label, required bool isSelected}) {
-    return GestureDetector(
-      onTap: () {
-        backgroundImage.value = bgPath;
-        Get.back();
-        Get.snackbar(
-          '成功',
-          '背景已更换',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: const Color(0xffBA92FD),
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 1),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? const Color(0xffBA92FD) : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            // 背景预览
-            Container(
-              width: 80,
-              height: 60,
-              decoration: BoxDecoration(
-                color: bgPath.isEmpty ? const Color(0xffFDF6F1) : null,
-                image: bgPath.isNotEmpty
-                    ? DecorationImage(
-                        image: _getBackgroundImageProvider(bgPath),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // 标签
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isSelected ? const Color(0xffBA92FD) : Colors.grey[800],
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            // 选中标记
-            if (isSelected)
-              const Padding(
-                padding: EdgeInsets.only(right: 12),
-                child: Icon(
-                  Icons.check_circle,
-                  color: Color(0xffBA92FD),
-                  size: 20,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 获取背景图片提供器（支持资产图片和文件图片）
-  ImageProvider _getBackgroundImageProvider(String path) {
-    if (path.startsWith('assets/')) {
-      return AssetImage(path);
-    } else {
-      return FileImage(File(path));
-    }
+    // 直接从相册选择背景图
+    _pickBackgroundFromGallery();
   }
 
   // 从相册选择背景
@@ -709,6 +583,19 @@ class ChatController extends GetxController {
   // 滚动到底部
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  // 延迟滚动到底部（用于面板展开时）
+  void _scrollToBottomWithDelay() {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (scrollController.hasClients) {
         scrollController.animateTo(
           scrollController.position.maxScrollExtent,

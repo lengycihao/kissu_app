@@ -91,7 +91,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -316,24 +316,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget _buildSendButton() {
     return GestureDetector(
       onTap: _sendMessage,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xffBA92FD), Color(0xff9D7FEA)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Image.asset(
+      child: Image.asset(
           'assets/chat/kissu3_chat_send.webp',
-          width: 18,
-          height: 18,
+          width: 60,
+          height: 40,
           fit: BoxFit.contain,
         ),
-      ),
     );
   }
 }

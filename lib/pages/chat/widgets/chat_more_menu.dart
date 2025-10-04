@@ -45,16 +45,18 @@ class ChatMoreMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 100,
-      height: 58,
+      width: 88,
+      height: 71,
+      margin: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsets.only(top: 10),
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/chat/kissu3_chat_more_bg.webp'),
           fit: BoxFit.fill,
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: _menuItems.map((item) {
           return _buildMenuItem(item);
         }).toList(),
@@ -66,10 +68,9 @@ class ChatMoreMenu extends StatelessWidget {
     return GestureDetector(
       onTap: () => onItemTap?.call(item.type),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Column(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5) ,
+        child: Row(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
               item.iconAsset,
@@ -77,15 +78,14 @@ class ChatMoreMenu extends StatelessWidget {
               height: 13,
               fit: BoxFit.contain,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(width: 3),
             Text(
               item.label,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 color: Color(0xff6D383E),
                 fontWeight: FontWeight.w400,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -99,37 +99,49 @@ class ChatMoreMenu extends StatelessWidget {
     required Offset position,
     Function(MoreMenuType)? onItemTap,
   }) {
+    print('🎯 ChatMoreMenu.show 被调用, position: $position');
     final overlay = Overlay.of(context);
+    print('🎯 Overlay: $overlay');
     OverlayEntry? overlayEntry;
 
     overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          // 点击外部区域关闭
-          GestureDetector(
-            onTap: () => overlayEntry?.remove(),
-            child: Container(
-              color: Colors.transparent,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-          // 菜单内容
-          Positioned(
-            right: MediaQuery.of(context).size.width - position.dx, // 从右边定位
-            top: position.dy,
-            child: Material(
-              color: Colors.transparent,
-              child: ChatMoreMenu(
-                onItemTap: (type) {
-                  overlayEntry?.remove();
-                  onItemTap?.call(type);
-                },
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final rightPosition = screenWidth - position.dx;
+        print('🎯 屏幕宽度: $screenWidth, right位置: $rightPosition, top: ${position.dy}');
+        
+        return Stack(
+          children: [
+            // 点击外部区域关闭
+            GestureDetector(
+              onTap: () {
+                print('🎯 点击外部，关闭菜单');
+                overlayEntry?.remove();
+              },
+              child: Container(
+                color: Colors.transparent,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
-          ),
-        ],
-      ),
+            // 菜单内容
+            Positioned(
+              right: rightPosition, // 从右边定位
+              top: position.dy,
+              child: Material(
+                color: Colors.transparent,
+                child: ChatMoreMenu(
+                  onItemTap: (type) {
+                    print('🎯 菜单项被点击: $type');
+                    overlayEntry?.remove();
+                    onItemTap?.call(type);
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
 
     overlay.insert(overlayEntry);
