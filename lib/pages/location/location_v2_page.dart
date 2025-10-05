@@ -6,6 +6,8 @@ import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
+import 'package:kissu_app/pages/chat/chat_page.dart';
+import 'package:kissu_app/pages/chat/chat_binding.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'location_v2_controller.dart';
@@ -43,9 +45,12 @@ class _LocationPageContentState extends State<_LocationPageContent> {
     super.didChangeDependencies();
     // 在这里计算屏幕尺寸相关参数
     screenHeight = MediaQuery.of(context).size.height;
-    initialHeight = screenHeight * 0.45;
-    minHeight = screenHeight * 0.45;
-    maxHeight = screenHeight - 150;
+    // 起始位置：下半屏高度为190px（顶部距离屏幕底部190px）
+    initialHeight = 190;
+    // 最小位置：不允许往下滑，最小就是初始位置190px
+    minHeight = 190;
+    // 最大位置：顶部距离屏幕顶部100px
+    maxHeight = screenHeight - 100;
     mapHeight = screenHeight - initialHeight + 90;
   }
 
@@ -53,10 +58,12 @@ class _LocationPageContentState extends State<_LocationPageContent> {
   Widget build(BuildContext context) {
     widget.controller.pageContext = context; // 保存 Scaffold 的 context
     return Scaffold(
-      backgroundColor: Color(0xffFFF6EF),
-
-      body: Stack(
-        children: [
+      body: Container(
+        decoration: BoxDecoration(
+          color: Color(0xFFFFF6EF),
+        ),
+        child: Stack(
+          children: [
           // 固定的地图模块 - 使用缓存优化
           Positioned(
             top: 0,
@@ -74,6 +81,14 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             screenHeight: screenHeight,
           ),
 
+          // 全屏渐变背景 - 从中间滑到顶部时显示
+          _GradientBackgroundOverlay(
+            controller: widget.controller,
+            screenHeight: screenHeight,
+            initialHeight: initialHeight,
+            maxHeight: maxHeight,
+          ),
+
           // 未绑定提示 - 放置在下半屏上方
           // Positioned(
           //   bottom: screenHeight * 0.3 + 20,
@@ -85,6 +100,12 @@ class _LocationPageContentState extends State<_LocationPageContent> {
           //     initialHeight: initialHeight,
           //   ),
           // ),
+
+          // 右侧浮动按钮组 - 位于地图和下半屏之间
+          _FloatingActionButtons(
+            screenHeight: screenHeight,
+            controller: widget.controller,
+          ),
 
           // 下半屏 DraggableScrollableSheet，扩大可拖动区域
           NotificationListener<DraggableScrollableNotification>(
@@ -109,6 +130,13 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                     maxChildSize: shouldLimitDrag
                         ? initialHeight / screenHeight
                         : maxHeight / screenHeight,
+                    snap: true, // 启用吸附效果
+                    snapSizes: shouldLimitDrag
+                        ? null
+                        : [
+                            0.5, // 中间位置（屏幕中间）
+                            (screenHeight - 100) / screenHeight, // 距离屏幕顶部100px
+                          ],
                     builder: (context, scrollController) {
                       return Column(
                         children: [
@@ -228,8 +256,9 @@ class _LocationPageContentState extends State<_LocationPageContent> {
                                           ),
                                         ),
 
-                                        // 列表 + 背景色
-                                        SliverToBoxAdapter(
+                                        // 列表 + 背景色 - 使用 SliverFillRemaining 确保白色背景填充到底部
+                                        SliverFillRemaining(
+                                          hasScrollBody: false,
                                           child: Stack(
                                             children: [
                                               Container(
@@ -414,6 +443,7 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             child: _CachedAvatarRow(controller: widget.controller),
           ),
         ],
+      ),
       ),
     );
   }
@@ -628,6 +658,61 @@ class _OptimizedOverlayWidget extends StatelessWidget {
             duration: const Duration(milliseconds: 100),
             opacity: opacity.clamp(0.0, 0.4),
             child: Container(color: Colors.black.withValues(alpha: 1.0)),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+// 全屏渐变背景遮罩 - 从中间滑到顶部时显示
+class _GradientBackgroundOverlay extends StatelessWidget {
+  final LocationV2Controller controller;
+  final double screenHeight;
+  final double initialHeight;
+  final double maxHeight;
+
+  const _GradientBackgroundOverlay({
+    required this.controller,
+    required this.screenHeight,
+    required this.initialHeight,
+    required this.maxHeight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      // 计算中间位置（屏幕中间）
+      final middlePosition = 0.5; // 屏幕中间位置
+      final maxPosition = maxHeight / screenHeight;
+      final currentPercent = controller.sheetPercent.value;
+
+      // 只在从中间位置滑到顶部时显示渐变背景
+      // 当 currentPercent > middlePosition 时开始显示
+      double opacity = 0.0;
+      if (currentPercent > middlePosition) {
+        // 从中间到顶部的进度：0 到 1
+        final progress = (currentPercent - middlePosition) / (maxPosition - middlePosition);
+        opacity = progress.clamp(0.0, 1.0);
+      }
+
+      return Positioned.fill(
+        child: IgnorePointer(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 150),
+            opacity: opacity,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFFEF6F0), // 顶部颜色
+                    Color(0xFFF6F6F6), // 底部颜色
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       );
@@ -878,6 +963,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
 
       // 使用ListView.builder优化大列表性能
       if (records.length > 10) {
+        // 数据太多，不显示背景图片
         return SizedBox(
           height: 400, // 限制高度，启用滚动
           child: Column(
@@ -924,15 +1010,55 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
           ),
         );
       } else {
-        // 少量数据时使用Column
-        return Column(
-          children: [
-            Obx(() {
-              final recordCount = controller.locationRecords.length;
-              return Row(
+        // 少量数据时使用Column，并显示背景图片
+        return _LocationListWithBackground(
+          controller: controller,
+          records: records,
+        );
+      }
+    });
+  }
+}
+
+// 带背景图片的停留点列表（只在数据较少时使用）
+class _LocationListWithBackground extends StatelessWidget {
+  final LocationV2Controller controller;
+  final List<LocationRecord> records;
+
+  const _LocationListWithBackground({
+    required this.controller,
+    required this.records,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final maxHeight = screenHeight - 100; // 顶部吸顶位置
+    final maxPercent = maxHeight / screenHeight;
+    final imageHeight = 140.0;
+    final startShowPercent = (maxHeight - imageHeight) / screenHeight; // 开始显示图片的位置
+
+    return Obx(() {
+      final currentPercent = controller.sheetPercent.value;
+      
+      // 计算图片透明度
+      // 从 startShowPercent 滑动到 maxPercent 时，透明度从 0 到 1
+      double imageOpacity = 0.0;
+      if (currentPercent >= startShowPercent && currentPercent <= maxPercent) {
+        final progress = (currentPercent - startShowPercent) / (maxPercent - startShowPercent);
+        imageOpacity = progress.clamp(0.0, 1.0);
+      } else if (currentPercent > maxPercent) {
+        imageOpacity = 1.0;
+      }
+
+      return Stack(
+        children: [
+          Column(
+            children: [
+              Row(
                 children: [
                   Text(
-                    "今日停留$recordCount个地方",
+                    "今日停留${records.length}个地方",
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF000000),
@@ -946,24 +1072,44 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                     height: 23,
                   ),
                 ],
-              );
-            }),
-            SizedBox(height: 16),
-            ...records.asMap().entries.map((entry) {
-              final index = entry.key;
-              final record = entry.value;
-              final isLast = index == records.length - 1;
-              return RepaintBoundary(
-                child: _LocationRecordItem(
-                  record: record,
-                  index: index,
-                  isLast: isLast,
+              ),
+              SizedBox(height: 16),
+              ...records.asMap().entries.map((entry) {
+                final index = entry.key;
+                final record = entry.value;
+                final isLast = index == records.length - 1;
+                return RepaintBoundary(
+                  child: _LocationRecordItem(
+                    record: record,
+                    index: index,
+                    isLast: isLast,
+                  ),
+                );
+              }),
+              // 添加底部间距，为背景图片留出空间
+              SizedBox(height: imageHeight),
+            ],
+          ),
+          // 底部背景图片 - 根据滑动位置逐渐显现
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 100),
+              opacity: imageOpacity,
+              child: Center(
+                child: Image.asset(
+                  'assets/location/kissu3_list_bottom_bg.webp',
+                  width: 284,
+                  height: imageHeight,
+                  fit: BoxFit.cover,
                 ),
-              );
-            }),
-          ],
-        );
-      }
+              ),
+            ),
+          ),
+        ],
+      );
     });
   }
 }
@@ -1197,3 +1343,139 @@ class _LocationRecordItem extends StatelessWidget {
 //     });
 //   }
 // }
+
+// 右侧浮动按钮组
+class _FloatingActionButtons extends StatelessWidget {
+  final double screenHeight;
+  final LocationV2Controller controller;
+
+  const _FloatingActionButtons({
+    required this.screenHeight,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 第一个按钮底部在屏幕中间上面20px
+    // 按钮高度50，所以bottom = screenHeight/2 + 20
+    final firstButtonBottom = screenHeight / 2;
+    
+    return Obx(() {
+      // 获取当前滑动进度
+      // 下半屏有三个位置：
+      // 1. 起始位置 (minHeight: 190px) - sheetPercent约为 190/screenHeight
+      // 2. 中间吸顶位置 (snapSizes[0]: 0.5) - sheetPercent = 0.5
+      // 3. 顶部吸顶位置 (maxHeight: screenHeight-100) - sheetPercent约为 (screenHeight-100)/screenHeight
+      final sheetPercent = controller.sheetPercent.value;
+      
+      // 计算顶部吸顶位置的百分比
+      final maxPercent = (screenHeight - 100) / screenHeight;
+      
+      // 计算透明度：
+      // - 当 sheetPercent <= 0.5（起始→中间吸顶）时，opacity = 1（完全显示，不变）
+      // - 当 sheetPercent >= maxPercent（顶部吸顶）时，opacity = 0（完全隐藏）
+      // - 当 0.5 < sheetPercent < maxPercent（中间→顶部）时，线性插值
+      double opacity;
+      if (sheetPercent <= 0.5) {
+        opacity = 1.0;
+      } else if (sheetPercent >= maxPercent) {
+        opacity = 0.0;
+      } else {
+        // 线性插值：从0.5到maxPercent之间，透明度从1降到0
+        opacity = (maxPercent - sheetPercent) / (maxPercent - 0.5);
+      }
+      
+      // 确保透明度在有效范围内 [0.0, 1.0]
+      opacity = opacity.clamp(0.0, 1.0);
+      
+      return Positioned(
+        right: 16,
+        bottom: firstButtonBottom,
+        child: Opacity(
+          opacity: opacity,
+          child: IgnorePointer(
+            ignoring: opacity == 0.0, // 透明度为0时忽略点击
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 第四个按钮：聊天
+                _FloatingButton(
+                  assetPath: 'assets/location/kissu3_location_chat_an.webp',
+                  onTap: () {
+                    Get.to(() => const ChatPage(), binding: ChatBinding());
+                  },
+                ),
+                const SizedBox(height: 5),
+                
+                // 第三个按钮：状态
+                _FloatingButton(
+                  assetPath: 'assets/location/kissu3_location_state_an.webp',
+                  onTap: () {
+                    Get.toNamed(KissuRoutePath.locationState);
+                  },
+                ),
+                const SizedBox(height: 5),
+                
+                // 第二个按钮：轨迹
+                _FloatingButton(
+                  assetPath: 'assets/location/kissu3_location_track_an.webp',
+                  onTap: () {
+                    // TODO: 实现轨迹功能
+                    print('轨迹按钮点击');
+                  },
+                ),
+                const SizedBox(height: 5),
+                
+                // 第一个按钮：敲门
+                _FloatingButton(
+                  assetPath: 'assets/location/kissu3_location_knock_an.webp',
+                  onTap: () {
+                    // TODO: 实现敲门功能
+                    print('敲门按钮点击');
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+// 单个浮动按钮
+class _FloatingButton extends StatelessWidget {
+  final String assetPath;
+  final VoidCallback onTap;
+
+  const _FloatingButton({
+    required this.assetPath,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Image.asset(
+          assetPath,
+          width: 50,
+          height: 50,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+}

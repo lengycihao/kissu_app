@@ -825,10 +825,12 @@ class LocationV2Controller extends GetxController {
       
       _polylines.add(Polyline(
         points: connectionPoints,
-        color: Colors.black, // 黑色连接线
-        width: 3, // 3pt宽度
+        color: const Color(0xFFFF4B99), // #FF4B99 粉色连接线
+        width: 6, // 加粗虚线
         visible: true,
-        alpha: 0.8,
+        alpha: 1.0,
+        dashLineType: DashLineType.circle, // 虚线样式（圆点样式，看起来不那么密集）
+        capType: CapType.round, // 圆形线头，让虚线更圆润
       ));
       
       DebugUtil.success(' 用户连接线创建成功，连接两个位置点');

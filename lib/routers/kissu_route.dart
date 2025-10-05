@@ -17,6 +17,8 @@ import 'package:kissu_app/pages/permission_setting_page.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/pages/mine/love_info/avatar_preview_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/feed_back_page.dart';
+import 'package:kissu_app/pages/location/location_state_page.dart';
+import 'package:kissu_app/pages/location/location_state_binding.dart';
  import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -97,6 +99,12 @@ class KissuRoute {
     GetPage(
       name: KissuRoutePath.feedback,
       page: () => const FeedbackPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.locationState,
+      page: () => LocationStatePage(),
+      binding: LocationStateBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(
