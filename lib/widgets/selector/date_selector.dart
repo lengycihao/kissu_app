@@ -37,14 +37,14 @@ class DateSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final dates = recentDates;
     final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = (screenWidth - 40) / 7; // 平分屏幕宽度
+    final itemWidth = (screenWidth - 12*6 - 32) / 7; // 平分屏幕宽度
     
     // 使用外部传入的selectedIndex或者创建本地的
     final selectedIndex = externalSelectedIndex ?? 6.obs;
 
     return Container(
       height: 50,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 9,vertical: 10),
       child: Row(
         children: List.generate(dates.length, (index) {
           final date = dates[index];
@@ -61,11 +61,17 @@ class DateSelector extends StatelessWidget {
               child: Container(
                 width: itemWidth,
                 height: 50,
+                margin: EdgeInsets.symmetric(horizontal: 6),
                 decoration: BoxDecoration(
                   color: selectedIndex.value == index
-                      ? const Color(0xFFFF6B9D)
+                      ? const Color(0xFFFF9AD8)
                       : Colors.transparent,
-
+                  border: Border.all(
+                    color: selectedIndex.value == index
+                        ? Colors.transparent
+                        : const Color(0xffFFB6E3),
+                    width: 1,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -77,9 +83,10 @@ class DateSelector extends StatelessWidget {
                         fontSize: 13,
                         color: selectedIndex.value == index
                             ? Colors.white
-                            : const Color(0xFF666666),
+                            : const Color(0xFF333333),
                       ),
                     ),
+                    SizedBox(height: 2),
                     Text(
                       getDateNumber(date),
                       style: TextStyle(
@@ -87,7 +94,7 @@ class DateSelector extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: selectedIndex.value == index
                             ? Colors.white
-                            : const Color(0xFF333333),
+                            : const Color(0xFF666666),
                       ),
                     ),
                   ],

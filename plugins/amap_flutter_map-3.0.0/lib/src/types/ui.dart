@@ -248,3 +248,15 @@ class CustomStyleOptions {
         styleData: styleData, styleExtraData: styleExtraData);
   }
 }
+
+/// Logo位置枚举
+enum LogoPosition {
+  /// 左下角（默认）
+  bottomLeft,
+
+  /// 中下方
+  bottomCenter,
+
+  /// 右下角
+  bottomRight,
+}

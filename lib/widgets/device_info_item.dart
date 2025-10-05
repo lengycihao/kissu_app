@@ -38,7 +38,7 @@ class DeviceInfoItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(iconPath, width: 22, height: 22),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               text,
               style: const TextStyle(

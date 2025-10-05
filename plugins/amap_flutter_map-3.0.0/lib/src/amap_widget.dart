@@ -44,6 +44,9 @@ class AMapWidget extends StatefulWidget {
   ///是否显示比例尺
   final bool scaleEnabled;
 
+  ///Logo位置
+  final LogoPosition logoPosition;
+
   ///是否支持缩放手势
   final bool zoomGesturesEnabled;
 
@@ -118,6 +121,7 @@ class AMapWidget extends StatefulWidget {
     this.minMaxZoomPreference,
     this.rotateGesturesEnabled = true,
     this.scaleEnabled = true,
+    this.logoPosition = LogoPosition.bottomLeft,
     this.scrollGesturesEnabled = true,
     this.tiltGesturesEnabled = true,
     this.touchPoiEnabled = true,
@@ -320,6 +324,9 @@ class _AMapOptions {
   ///是否显示比例尺
   final bool? scaleEnabled;
 
+  ///Logo位置
+  final LogoPosition? logoPosition;
+
   ///是否支持缩放手势
   final bool? zoomGesturesEnabled;
 
@@ -342,6 +349,7 @@ class _AMapOptions {
     this.limitBounds,
     this.minMaxZoomPreference,
     this.scaleEnabled,
+    this.logoPosition,
     this.touchPoiEnabled,
     this.trafficEnabled,
     this.rotateGesturesEnabled,
@@ -359,6 +367,7 @@ class _AMapOptions {
       limitBounds: map.limitBounds,
       minMaxZoomPreference: map.minMaxZoomPreference,
       scaleEnabled: map.scaleEnabled,
+      logoPosition: map.logoPosition,
       touchPoiEnabled: map.touchPoiEnabled,
       trafficEnabled: map.trafficEnabled,
       rotateGesturesEnabled: map.rotateGesturesEnabled,
@@ -386,6 +395,7 @@ class _AMapOptions {
     addIfNonNull('limitBounds', limitBounds?.toJson());
     addIfNonNull('minMaxZoomPreference', minMaxZoomPreference?.toJson());
     addIfNonNull('scaleEnabled', scaleEnabled);
+    addIfNonNull('logoPosition', logoPosition?.index);
     addIfNonNull('touchPoiEnabled', touchPoiEnabled);
     addIfNonNull('trafficEnabled', trafficEnabled);
     addIfNonNull('rotateGesturesEnabled', rotateGesturesEnabled);

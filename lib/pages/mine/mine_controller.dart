@@ -20,6 +20,8 @@ import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
+import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
+import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -236,6 +238,11 @@ class MineController extends GetxController {
         icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
         title: "弹窗展示",
         onTap: () => Get.to(() => const DialogShowcasePage()),
+      ),
+      SettingItem(
+        icon: "assets/kissu_home_tab_history.webp",
+        title: "用机报告",
+        onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",

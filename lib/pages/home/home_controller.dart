@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/location/location_page.dart';
+import 'package:kissu_app/pages/location/location_v2_binding.dart';
+import 'package:kissu_app/pages/location/location_v2_page.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
@@ -630,6 +632,11 @@ class HomeController extends GetxController {
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
+      case 5:
+        // 定位V2（新UI）
+        debugPrint("📍 准备跳转到定位V2页面");
+        Get.to(() => LocationV2Page(), binding: LocationV2Binding());
+        break;
       default:
         // 其他功能待实现
         break;
@@ -667,6 +674,8 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_history.webp";
       case 4:
         return "assets/kissu_home_tab_mine.webp";
+      case 5:
+        return "assets/kissu_home_tab_location.webp"; // 暂时复用定位图标
       default:
         return "assets/kissu_home_tab_location.webp";
     }
@@ -685,6 +694,8 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_historyT.webp";
       case 4:
         return "assets/kissu_home_tab_mineT.webp";
+      case 5:
+        return "assets/kissu_home_tab_locationT.webp"; // 暂时复用定位文字图标
       default:
         return "assets/kissu_home_tab_locationT.webp";
     }

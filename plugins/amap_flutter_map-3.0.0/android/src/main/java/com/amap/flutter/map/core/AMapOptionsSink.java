@@ -42,6 +42,7 @@ public interface AMapOptionsSink {
 
     public void setScaleEnabled(boolean scaleEnabled);
 
+    public void setLogoPosition(int logoPosition);
 
     public void setZoomGesturesEnabled(boolean zoomGesturesEnabled);
 

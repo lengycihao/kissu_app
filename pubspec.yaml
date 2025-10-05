@@ -125,6 +125,7 @@ flutter:
     - assets/mipmap-xxhdpi/
     - assets/3.0/
     - assets/chat/
+    - assets/location/
     - assets/kissu_heart.webp
     - assets/kissu_location_circle.webp
     - assets/kissu3_love_avater.webp

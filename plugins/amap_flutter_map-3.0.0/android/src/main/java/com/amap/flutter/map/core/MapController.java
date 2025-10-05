@@ -249,6 +249,14 @@ public class MapController
     }
 
     @Override
+    public void setLogoPosition(int logoPosition) {
+        // 0: LOGO_POSITION_BOTTOM_LEFT (default)
+        // 1: LOGO_POSITION_BOTTOM_CENTER
+        // 2: LOGO_POSITION_BOTTOM_RIGHT
+        amap.getUiSettings().setLogoPosition(logoPosition);
+    }
+
+    @Override
     public void setZoomGesturesEnabled(boolean zoomGesturesEnabled) {
         amap.getUiSettings().setZoomGesturesEnabled(zoomGesturesEnabled);
     }

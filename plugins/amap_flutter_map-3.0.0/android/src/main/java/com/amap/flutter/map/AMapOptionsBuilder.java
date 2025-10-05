@@ -195,6 +195,10 @@ class AMapOptionsBuilder implements AMapOptionsSink {
         options.scaleControlsEnabled(scaleEnabled);
     }
 
+    @Override
+    public void setLogoPosition(int logoPosition) {
+        options.logoPosition(logoPosition);
+    }
 
     @Override
     public void setInitialMarkers(Object markersObject) {

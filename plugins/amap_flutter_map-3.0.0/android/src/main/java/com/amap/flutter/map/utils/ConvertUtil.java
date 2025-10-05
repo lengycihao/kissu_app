@@ -245,6 +245,11 @@ public class ConvertUtil {
                 sink.setScaleEnabled(toBoolean(scaleEnabled));
             }
 
+            final Object logoPosition = data.get("logoPosition");
+            if (null != logoPosition) {
+                sink.setLogoPosition(toInt(logoPosition));
+            }
+
             final Object touchPoiEnabled = data.get("touchPoiEnabled");
             if (null != touchPoiEnabled) {
                 sink.setTouchPoiEnabled(toBoolean(touchPoiEnabled));
