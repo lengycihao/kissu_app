@@ -23,4 +23,5 @@ class KissuRoutePath {
   static const avatarPreview = '/kisssu_app/avatar_preview';
   static const feedback = '/kisssu_app/feedback';
   static const locationState = '/kisssu_app/location_state';
+  static const locationReminder = '/kisssu_app/location_reminder';
 }

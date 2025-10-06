@@ -71,6 +71,9 @@ class LocationV2Controller extends GetxController {
   /// 加载状态
   final isLoading = false.obs;
   
+  /// 地图类型 (1: 经典地图, 2: 卫星地图)
+  final mapType = 1.obs;
+  
   
   // 轨迹起点和终点标记集合 - 改为RxList以提升响应式更新
   final RxList<Marker> _trackStartEndMarkers = <Marker>[].obs;
@@ -1117,6 +1120,20 @@ class LocationV2Controller extends GetxController {
   Future<void> forceRefreshMarkers() async {
     DebugUtil.info(' 手动强制刷新地图标记');
     await _initTrackStartEndMarkers();
+  }
+  
+  /// 切换地图类型
+  void switchMapType(int type) {
+    if (mapType.value != type) {
+      mapType.value = type;
+      DebugUtil.info(' 切换地图类型: $type (1:经典, 2:卫星)');
+    }
+  }
+  
+  /// 刷新定位数据
+  Future<void> refreshLocationData() async {
+    DebugUtil.info(' 手动刷新定位数据');
+    await loadLocationData();
   }
 
   /// 加载位置数据

@@ -19,7 +19,9 @@ import 'package:kissu_app/pages/mine/love_info/avatar_preview_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/feed_back_page.dart';
 import 'package:kissu_app/pages/location/location_state_page.dart';
 import 'package:kissu_app/pages/location/location_state_binding.dart';
- import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/pages/location/location_reminder/location_reminder_page.dart';
+import 'package:kissu_app/pages/location/location_reminder/location_reminder_binding.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
 class KissuRoute {
@@ -105,6 +107,12 @@ class KissuRoute {
       name: KissuRoutePath.locationState,
       page: () => LocationStatePage(),
       binding: LocationStateBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.locationReminder,
+      page: () => LocationReminderPage(),
+      binding: LocationReminderBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(
