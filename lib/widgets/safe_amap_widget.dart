@@ -10,6 +10,8 @@ class SafeAMapWidget extends StatefulWidget {
   final Set<Marker>? markers;
   final Set<Polyline>? polylines;
   final Set<Polygon>? polygons;
+  final Set<Circle>? circles;
+  final MyLocationStyleOptions? myLocationStyleOptions;
   final bool compassEnabled;
   final bool scaleEnabled;
   final bool zoomGesturesEnabled;
@@ -31,6 +33,8 @@ class SafeAMapWidget extends StatefulWidget {
     this.markers,
     this.polylines,
     this.polygons,
+    this.circles,
+    this.myLocationStyleOptions,
     this.compassEnabled = false,
     this.scaleEnabled = false,
     this.zoomGesturesEnabled = true,
@@ -164,6 +168,8 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
       markers: widget.markers ?? <Marker>{},
       polylines: widget.polylines ?? <Polyline>{},
       polygons: widget.polygons ?? <Polygon>{},
+      circles: widget.circles ?? <Circle>{},
+      myLocationStyleOptions: widget.myLocationStyleOptions,
       compassEnabled: widget.compassEnabled,
       scaleEnabled: widget.scaleEnabled,
       zoomGesturesEnabled: widget.zoomGesturesEnabled,

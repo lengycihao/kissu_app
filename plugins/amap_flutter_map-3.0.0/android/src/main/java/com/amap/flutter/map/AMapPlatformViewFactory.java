@@ -63,6 +63,10 @@ class AMapPlatformViewFactory extends PlatformViewFactory {
                 builder.setInitialPolygons(params.get("polygonsToAdd"));
             }
 
+            if (params.containsKey("circlesToAdd")) {
+                builder.setInitialCircles(params.get("circlesToAdd"));
+            }
+
 
             if (params.containsKey("apiKey")) {
                 ConvertUtil.checkApiKey(params.get("apiKey"));

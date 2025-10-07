@@ -39,13 +39,18 @@ public class MarkersController
         AMap.OnPOIClickListener {
     private static final String CLASS_NAME = "MarkersController";
     private String selectedMarkerDartId;
+    private CustomInfoWindowAdapter customInfoWindowAdapter;
 
-    public MarkersController(MethodChannel methodChannel, AMap amap) {
+    public MarkersController(MethodChannel methodChannel, AMap amap, android.content.Context context) {
         super(methodChannel, amap);
         amap.addOnMarkerClickListener(this);
         amap.addOnMarkerDragListener(this);
         amap.addOnMapClickListener(this);
         amap.addOnPOIClickListener(this);
+        
+        // 初始化自定义 InfoWindow 适配器
+        customInfoWindowAdapter = new CustomInfoWindowAdapter(context, methodChannel);
+        amap.setInfoWindowAdapter(customInfoWindowAdapter);
     }
 
     @Override
@@ -103,9 +108,19 @@ public class MarkersController
                 if (null != clickable) {
                     marker.setClickable(ConvertUtil.toBoolean(clickable));
                 }
+                
+                // 处理自定义 InfoWindow
+                updateCustomInfoWindowData(marker.getId(), markerObj);
+                
                 MarkerController markerController = new MarkerController(marker);
                 controllerMapByDartId.put(dartMarkerId, markerController);
                 idMapByOverlyId.put(marker.getId(), dartMarkerId);
+                
+                // 如果有自定义 InfoWindow，自动显示
+                Object hasCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "hasCustomInfoWindow");
+                if (hasCustomInfoWindow != null && ConvertUtil.toBoolean(hasCustomInfoWindow)) {
+                    marker.showInfoWindow();
+                }
             }
         }
 
@@ -125,6 +140,9 @@ public class MarkersController
             MarkerController markerController = controllerMapByDartId.get(dartMarkerId);
             if (null != markerController) {
                 MarkerUtil.interpretMarkerOptions(markerToChange, markerController);
+                
+                // 更新自定义 InfoWindow
+                updateCustomInfoWindowData(markerController.getMarkerId(), markerToChange);
             }
         }
     }
@@ -141,7 +159,9 @@ public class MarkersController
             String markerId = (String) rawMarkerId;
             final MarkerController markerController = controllerMapByDartId.remove(markerId);
             if (markerController != null) {
-
+                // 移除自定义 InfoWindow 数据
+                customInfoWindowAdapter.removeMarkerInfo(markerController.getMarkerId());
+                
                 idMapByOverlyId.remove(markerController.getMarkerId());
                 markerController.remove();
             }
@@ -222,6 +242,42 @@ public class MarkersController
     @Override
     public void onPOIClick(Poi poi) {
         hideMarkerInfoWindow(selectedMarkerDartId, null != poi ? poi.getCoordinate() : null);
+    }
+
+    /**
+     * 更新自定义 InfoWindow 数据
+     */
+    private void updateCustomInfoWindowData(String markerId, Object markerObj) {
+        if (customInfoWindowAdapter == null) {
+            return;
+        }
+        
+        // 检查是否有自定义 InfoWindow
+        Object hasCustom = ConvertUtil.getKeyValueFromMapObject(markerObj, "hasCustomInfoWindow");
+        boolean hasCustomInfoWindow = hasCustom != null && ConvertUtil.toBoolean(hasCustom);
+        
+        // 获取 InfoWindow 数据
+        String locationName = null;
+        String address = null;
+        
+        Object infoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "infoWindow");
+        if (infoWindow != null && infoWindow instanceof Map) {
+            Map<String, Object> infoMap = (Map<String, Object>) infoWindow;
+            Object titleObj = infoMap.get("title");
+            Object snippetObj = infoMap.get("snippet");
+            
+            if (titleObj != null) {
+                locationName = titleObj.toString();
+            }
+            if (snippetObj != null) {
+                address = snippetObj.toString();
+            }
+        }
+        
+        // 更新适配器数据
+        CustomInfoWindowAdapter.MarkerInfoData infoData = 
+            new CustomInfoWindowAdapter.MarkerInfoData(hasCustomInfoWindow, locationName, address);
+        customInfoWindowAdapter.updateMarkerInfo(markerId, infoData);
     }
 
 }

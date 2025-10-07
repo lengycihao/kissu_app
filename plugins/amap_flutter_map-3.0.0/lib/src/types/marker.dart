@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 import 'dart:ui' show Offset;
-import 'package:amap_flutter_map/src/types/base_overlay.dart';
+import 'package:flutter/widgets.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'bitmap.dart';
 import 'base_overlay.dart';
 
 /// Marker拖动回调
 typedef void MarkerDragEndCallback(String id, LatLng endPosition);
+
+/// 自定义 InfoWindow 构建器
+typedef Widget CustomInfoWindowBuilder(BuildContext context);
 
 ///Marker的气泡
 ///
@@ -87,6 +90,7 @@ class Marker extends BaseOverlay {
     this.icon = BitmapDescriptor.defaultMarker,
     this.infoWindowEnable = true,
     this.infoWindow = InfoWindow.noText,
+    this.customInfoWindowBuilder,
     this.rotation = 0.0,
     this.visible = true,
     this.zIndex = 0.0,
@@ -128,6 +132,10 @@ class Marker extends BaseOverlay {
   /// 覆盖物上的气泡，当被点击时，如果infoWindowEnable为true,则会显示出来
   final InfoWindow infoWindow;
 
+  /// 自定义 InfoWindow 构建器（仅 Android 支持）
+  /// 如果设置了此参数，将优先使用自定义 InfoWindow，而不是默认的 title/snippet
+  final CustomInfoWindowBuilder? customInfoWindowBuilder;
+
   /// 位置,不能为空
   final LatLng position;
 
@@ -158,6 +166,7 @@ class Marker extends BaseOverlay {
     BitmapDescriptor? iconParam,
     bool? infoWindowEnableParam,
     InfoWindow? infoWindowParam,
+    CustomInfoWindowBuilder? customInfoWindowBuilderParam,
     LatLng? positionParam,
     double? rotationParam,
     bool? visibleParam,
@@ -172,6 +181,7 @@ class Marker extends BaseOverlay {
       icon: iconParam ?? icon,
       infoWindowEnable: infoWindowEnableParam ?? infoWindowEnable,
       infoWindow: infoWindowParam ?? infoWindow,
+      customInfoWindowBuilder: customInfoWindowBuilderParam ?? customInfoWindowBuilder,
       position: positionParam ?? position,
       rotation: rotationParam ?? rotation,
       visible: visibleParam ?? visible,
@@ -203,6 +213,7 @@ class Marker extends BaseOverlay {
     addIfPresent('icon', icon.toMap());
     addIfPresent('infoWindowEnable', infoWindowEnable);
     addIfPresent('infoWindow', infoWindow._toMap());
+    addIfPresent('hasCustomInfoWindow', customInfoWindowBuilder != null);
     addIfPresent('position', position.toJson());
     addIfPresent('rotation', rotation);
     addIfPresent('visible', visible);

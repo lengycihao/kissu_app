@@ -40,6 +40,12 @@ import android.content.Context
 import android.content.IntentFilter
 
 class MainActivity : FlutterActivity(), IWXAPIEventHandler {
+    companion object {
+        // 🔥 Flutter 引擎存活标记
+        @Volatile
+        var isFlutterEngineAlive = false
+    }
+    
     private val CHANNEL = "app.location/settings"
     private val WECHAT_CHANNEL = "app.wechat/launch"
     private val FOREGROUND_SERVICE_CHANNEL = "kissu_app/foreground_service"
@@ -47,6 +53,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val UMSHARE_CHANNEL = "umshare"
     private val PAYMENT_CHANNEL = "kissu_payment"
     private val SCREENSHOT_CHANNEL = "kissu_app/screenshot"
+    private val APP_INFO_CHANNEL = "kissu_app/app_info"
+    private val WHITELIST_CHANNEL = "kissu_app/whitelist"
     
     // 微信支付API
     private var wxApi: IWXAPI? = null
@@ -81,6 +89,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // 🔥 标记 Flutter 引擎已启动
+        isFlutterEngineAlive = true
+        Log.d("MainActivity", "🚀 Flutter 引擎已启动")
+        
         // 设置高德地图隐私合规
         setupAmapPrivacyCompliance()
         
@@ -110,6 +122,11 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     
     override fun onDestroy() {
         super.onDestroy()
+        
+        // 🔥 标记 Flutter 引擎已销毁
+        isFlutterEngineAlive = false
+        Log.d("MainActivity", "💀 Flutter 引擎已销毁")
+        
         try {
             unregisterReceiver(paymentResultReceiver)
             Log.d("MainActivity", "支付结果广播接收器已注销")
@@ -345,10 +362,64 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 "startForegroundService" -> {
                     val config = call.arguments as? Map<String, Any> ?: mapOf()
                     val success = ForegroundLocationService.startService(this, config)
+                    
+                    // 🔥 保存定位服务状态，用于开机自启动
+                    if (success) {
+                        BootCompletedReceiver.saveLocationServiceState(this, true)
+                        BootCompletedReceiver.resetFirstUnlockFlag(this)
+                        Log.d("MainActivity", "定位服务已启动，状态已保存用于开机自启动")
+                    }
+                    
                     result.success(success)
+                }
+                "saveUserToken" -> {
+                    // 🔥 保存用户 Token 和 API 配置（供 Native 定位上报使用）
+                    Log.d("MainActivity", "📥 收到 saveUserToken 请求")
+                    
+                    val token = call.argument<String>("token") ?: ""
+                    val userId = call.argument<String>("userId") ?: ""
+                    val baseUrl = call.argument<String>("baseUrl") ?: "https://service-api.ikissu.cn"
+                    
+                    Log.d("MainActivity", "📝 Token参数: token=${token.take(20)}..., userId=$userId, baseUrl=$baseUrl")
+                    
+                    if (token.isEmpty()) {
+                        Log.w("MainActivity", "❌ Token为空，无法保存")
+                        result.success(mapOf("success" to false, "message" to "token is empty"))
+                        return@setMethodCallHandler
+                    }
+                    
+                    try {
+                        val locationReportService = LocationReportService(this)
+                        locationReportService.saveUserToken(token, userId)
+                        locationReportService.saveBaseUrl(baseUrl)
+                        Log.d("MainActivity", "✅ 用户Token和API配置已保存: userId=$userId, baseUrl=$baseUrl")
+                        result.success(mapOf("success" to true, "message" to "Token saved successfully"))
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "❌ 保存Token失败", e)
+                        result.success(mapOf("success" to false, "message" to e.message))
+                    }
+                }
+                "clearUserToken" -> {
+                    // 🔥 清除用户 Token（登出时调用）
+                    try {
+                        val locationReportService = LocationReportService(this)
+                        locationReportService.clearUserInfo()
+                        Log.d("MainActivity", "用户Token已清除")
+                        result.success(mapOf("success" to true, "message" to "Token cleared successfully"))
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "清除Token失败", e)
+                        result.success(mapOf("success" to false, "message" to e.message))
+                    }
                 }
                 "stopForegroundService" -> {
                     val success = ForegroundLocationService.stopService(this)
+                    
+                    // 🔥 保存定位服务状态（已停止）
+                    if (success) {
+                        BootCompletedReceiver.saveLocationServiceState(this, false)
+                        Log.d("MainActivity", "定位服务已停止，开机将不会自动启动")
+                    }
+                    
                     result.success(success)
                 }
                 "isServiceRunning" -> {
@@ -371,6 +442,104 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     }
                     startService(intent)
                     result.success(true)
+                }
+                "checkNotificationPermission" -> {
+                    // 🔥 检查通知权限
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    var isEnabled = true
+                    var message = "通知权限正常"
+                    
+                    // Android 13+ 需要运行时通知权限
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) 
+                            != PackageManager.PERMISSION_GRANTED) {
+                            isEnabled = false
+                            message = "需要 POST_NOTIFICATIONS 权限 (Android 13+)"
+                        }
+                    }
+                    
+                    // 检查通知是否被全局禁用
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        if (!notificationManager.areNotificationsEnabled()) {
+                            isEnabled = false
+                            message = "应用通知已被用户全局禁用"
+                        }
+                    }
+                    
+                    result.success(mapOf(
+                        "isEnabled" to isEnabled,
+                        "message" to message
+                    ))
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // 🔥 厂商白名单引导通道
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WHITELIST_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getManufacturer" -> {
+                    val manufacturer = DeviceWhitelistHelper.getManufacturerName()
+                    result.success(manufacturer)
+                }
+                "needsWhitelistGuidance" -> {
+                    val needs = DeviceWhitelistHelper.needsWhitelistGuidance()
+                    result.success(needs)
+                }
+                "getGuidanceText" -> {
+                    val text = DeviceWhitelistHelper.getGuidanceText()
+                    result.success(text)
+                }
+                "getShortGuidance" -> {
+                    val text = DeviceWhitelistHelper.getShortGuidance()
+                    result.success(text)
+                }
+                "openWhitelistSettings" -> {
+                    val success = DeviceWhitelistHelper.openWhitelistSettings(this)
+                    result.success(success)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // 应用信息通道 - 用于获取应用名称等信息
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_INFO_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getAppName" -> {
+                    val packageName = call.argument<String>("packageName") ?: ""
+                    if (packageName.isEmpty()) {
+                        result.error("INVALID_ARGS", "packageName is required", null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val appName = getAppName(packageName)
+                        result.success(appName)
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "获取应用名称失败: ${e.message}")
+                        // 返回包名的最后一部分作为备用
+                        result.success(packageName.split(".").lastOrNull() ?: packageName)
+                    }
+                }
+                "getAppNames" -> {
+                    val packageNames = call.argument<List<String>>("packageNames") ?: emptyList()
+                    if (packageNames.isEmpty()) {
+                        result.success(emptyMap<String, String>())
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val appNames = mutableMapOf<String, String>()
+                        packageNames.forEach { packageName ->
+                            try {
+                                appNames[packageName] = getAppName(packageName)
+                            } catch (e: Exception) {
+                                // 如果获取失败，使用包名的最后一部分
+                                appNames[packageName] = packageName.split(".").lastOrNull() ?: packageName
+                            }
+                        }
+                        result.success(appNames)
+                    } catch (e: Exception) {
+                        result.error("GET_APP_NAMES_FAILED", e.message, null)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -592,31 +761,50 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     }
 
     private fun openUsageAccessSettings() {
-        // 尝试打开本应用的使用情况访问详情页
+        Log.d("MainActivity", "尝试打开使用情况访问设置页面")
+        
+        // 策略1: 优先打开使用情况访问列表（推荐，让用户看到完整列表）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                Log.d("MainActivity", "尝试打开使用情况访问列表")
+                val list = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(list)
+                Log.d("MainActivity", "✅ 成功打开使用情况访问列表")
+                return
+            } catch (e: Exception) { 
+                Log.e("MainActivity", "打开使用情况访问列表失败: ${e.message}")
+            }
+        }
+        
+        // 策略2: 尝试直接打开本应用的权限详情页（部分手机支持）
         try {
+            Log.d("MainActivity", "尝试打开本应用的使用情况访问详情")
             val perApp = Intent().apply {
                 setClassName("com.android.settings", "com.android.settings.Settings\$UsageAccessDetailsActivity")
                 data = Uri.parse("package:$packageName")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(perApp)
+            Log.d("MainActivity", "✅ 成功打开应用详情页")
             return
-        } catch (_: Exception) { }
-
-        // 标准：使用情况访问列表
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            try {
-                val list = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-                startActivity(list)
-                return
-            } catch (_: Exception) { }
+        } catch (e: Exception) { 
+            Log.e("MainActivity", "打开应用详情页失败: ${e.message}")
         }
-
-        // 兜底：应用详情页
-        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
+        
+        // 策略3: 兜底方案 - 打开应用设置页（用户可以从权限列表中找到）
+        try {
+            Log.d("MainActivity", "使用兜底方案：打开应用设置页")
+            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(fallback)
+            Log.d("MainActivity", "✅ 成功打开应用设置页")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ 所有跳转方式都失败: ${e.message}")
         }
-        startActivity(fallback)
     }
 
     private fun openAppSettings() {
@@ -633,6 +821,26 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             true
         } catch (_: Exception) {
             false
+        }
+    }
+    
+    /**
+     * 获取应用的真实名称
+     * @param packageName 应用包名
+     * @return 应用名称
+     */
+    private fun getAppName(packageName: String): String {
+        return try {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            val applicationInfo = packageInfo.applicationInfo
+                ?: throw Exception("ApplicationInfo is null for $packageName")
+            packageManager.getApplicationLabel(applicationInfo).toString()
+        } catch (e: PackageManager.NameNotFoundException) {
+            Log.w("MainActivity", "应用未安装: $packageName")
+            throw e
+        } catch (e: Exception) {
+            Log.w("MainActivity", "获取应用名称失败: $packageName, ${e.message}")
+            throw e
         }
     }
 

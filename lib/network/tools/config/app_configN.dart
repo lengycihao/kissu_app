@@ -60,7 +60,14 @@ class AppConfigN {
     // PackageInfo packageInfo = await PackageInfo.fromPlatform();
     // appVersion = packageInfo.version;
 
-    baseApiUrl = "http://129.204.154.113";
+    // 根据环境配置 API 地址
+    if (serverEnvironmentTest) {
+      // 测试环境
+      baseApiUrl = "http://dev-love-api.ikissu.cn";
+    } else {
+      // 生产环境（使用 HTTPS）
+      baseApiUrl = "https://service-api.ikissu.cn";
+    }
   }
 
   ///

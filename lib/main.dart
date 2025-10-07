@@ -14,6 +14,7 @@ import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/smart_background_location_reminder.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
+import 'package:kissu_app/services/geofence_monitoring_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
@@ -22,6 +23,7 @@ import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/services/screenshot_service.dart';
 import 'package:kissu_app/widgets/screenshot_feedback_button.dart';
 import 'package:kissu_app/network/utils/dir_util.dart';
+import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
@@ -41,6 +43,10 @@ void main() async {
   
   // 初始化内存管理器
   MemoryManager.initialize();
+  
+  // 🔧 初始化应用配置（包括 baseApiUrl）
+  await AppConfigN.configuration();
+  DebugUtil.success('应用配置初始化完成，API地址: ${AppConfigN.baseApiUrl}');
   
   // 🔒 隐私合规：高德地图的所有初始化都移到用户同意隐私政策后
   // 避免在应用启动时就设置API Key触发SDK初始化
@@ -120,6 +126,10 @@ void main() async {
     // 步骤11.2: 初始化前台定位服务
     Get.put(ForegroundLocationService(), permanent: true);
     DebugUtil.success('前台定位服务初始化完成');
+    
+    // 步骤11.3: 初始化电子围栏监测服务
+    Get.put(GeofenceMonitoringService(), permanent: true);
+    DebugUtil.success('电子围栏监测服务初始化完成');
     
     // 步骤12: 初始化敏感数据上报服务（但不立即上报）
     Get.put(SensitiveDataService(), permanent: true);

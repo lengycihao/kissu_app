@@ -1,3 +1,5 @@
+import 'package:kissu_app/models/screen_time_model.dart';
+
 /// 解锁记录类型枚举
 enum UnlockRecordType {
   mostFrequentTime, // 解锁次数最多时段
@@ -22,17 +24,6 @@ class UnlockRecordDetailModel {
     required this.hourlyData,
     required this.weeklyData,
     required this.records,
-  });
-}
-
-/// 图表数据点
-class ChartDataPoint {
-  final String label; // x轴标签
-  final double value; // y轴数值
-
-  ChartDataPoint({
-    required this.label,
-    required this.value,
   });
 }
 

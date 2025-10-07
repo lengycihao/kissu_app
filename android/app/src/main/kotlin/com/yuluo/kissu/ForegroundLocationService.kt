@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.Log
@@ -13,6 +14,7 @@ import io.flutter.Log
  * 前台定位服务
  * 
  * 为应用提供持续的后台定位能力，符合Android 8.0+的后台执行限制
+ * 增加 WAKE_LOCK 支持，确保息屏时定位仍然活跃
  */
 class ForegroundLocationService : Service() {
     
@@ -95,10 +97,26 @@ class ForegroundLocationService : Service() {
     private var notificationId = DEFAULT_NOTIFICATION_ID
     private var channelId = DEFAULT_CHANNEL_ID
     private var notificationBuilder: NotificationCompat.Builder? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "前台定位服务创建")
+        
+        // 🔥 获取 WAKE_LOCK，确保息屏时定位仍然活跃
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "Kissu::LocationWakeLock"
+            ).apply {
+                // 设置为非引用计数模式，避免重复 acquire/release 导致问题
+                setReferenceCounted(false)
+            }
+            Log.d(TAG, "WakeLock 创建成功")
+        } catch (e: Exception) {
+            Log.e(TAG, "创建 WakeLock 失败", e)
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -125,6 +143,20 @@ class ForegroundLocationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
+        
+        // 🔥 释放 WAKE_LOCK
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    Log.d(TAG, "WakeLock 已释放")
+                }
+            }
+            wakeLock = null
+        } catch (e: Exception) {
+            Log.e(TAG, "释放 WakeLock 失败", e)
+        }
+        
         Log.d(TAG, "前台定位服务销毁")
     }
     
@@ -161,6 +193,18 @@ class ForegroundLocationService : Service() {
             startForeground(notificationId, notification)
             isServiceRunning = true
             
+            // 🔥 获取 WAKE_LOCK，确保息屏时仍能定位
+            try {
+                wakeLock?.let {
+                    if (!it.isHeld) {
+                        it.acquire()
+                        Log.d(TAG, "WakeLock 已获取，息屏时将保持定位活跃")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "获取 WakeLock 失败", e)
+            }
+            
             Log.d(TAG, "前台定位服务启动成功")
             
         } catch (e: Exception) {
@@ -173,6 +217,14 @@ class ForegroundLocationService : Service() {
      */
     private fun stopForegroundService() {
         try {
+            // 🔥 释放 WAKE_LOCK
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    Log.d(TAG, "WakeLock 已释放（停止服务）")
+                }
+            }
+            
             stopForeground(true)
             stopSelf()
             isServiceRunning = false

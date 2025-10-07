@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/services/screen_usage_service.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class UsageReportController extends GetxController {
+  final PermissionService _permissionService = PermissionService();
+  final ScreenUsageService _screenUsageService = ScreenUsageService();
   // 选中的日期索引
   final selectedDateIndex = 0.obs;
   
@@ -63,6 +68,158 @@ class UsageReportController extends GetxController {
     pageController = PageController(initialPage: 0);
     tabScrollController = ScrollController();
     debugPrint('📊 UsageReportController 初始化');
+    
+    // 检查并请求屏幕使用时长权限
+    _checkAndRequestPermission();
+  }
+  
+  /// 检查并请求屏幕使用时长权限
+  Future<void> _checkAndRequestPermission() async {
+    debugPrint('📊 检查屏幕使用时长权限...');
+    
+    // 检查是否已授权
+    final bool isGranted = await _permissionService.isUsageAccessGranted();
+    
+    if (isGranted) {
+      debugPrint('✅ 屏幕使用时长权限已授权');
+      // 加载数据
+      loadData();
+    } else {
+      debugPrint('❌ 屏幕使用时长权限未授权，显示引导弹窗');
+      // 显示权限引导弹窗
+      _showPermissionDialog();
+    }
+  }
+  
+  /// 显示权限引导弹窗
+  void _showPermissionDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('需要使用统计权限'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '为了给您提供详细的屏幕使用报告，需要授予"使用情况访问权限"。',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '授权步骤：',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildPermissionStep('1', '点击下方"去授权"按钮'),
+              _buildPermissionStep('2', '在列表中找到"Kissu"应用'),
+              _buildPermissionStep('3', '点击并开启权限开关'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFFB74D), width: 1),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.info_outline, color: Color(0xFFFF9800), size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '如果列表中找不到应用，请尝试向下滚动或使用搜索功能查找"Kissu"',
+                        style: TextStyle(fontSize: 12, color: Color(0xFFE65100)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              // 请求权限
+              await _requestPermission();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6750A4),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('去授权'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+  
+  /// 构建权限步骤指示
+  Widget _buildPermissionStep(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF6750A4),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                text,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 请求权限
+  Future<void> _requestPermission() async {
+    debugPrint('📊 请求屏幕使用时长权限...');
+    
+    final bool granted = await _permissionService.requestUsageAccessPermission();
+    
+    if (granted) {
+      debugPrint('✅ 权限授予成功');
+      if (Get.context != null) {
+        CustomToast.show(Get.context!, '权限授予成功');
+      }
+      // 加载数据
+      loadData();
+    } else {
+      debugPrint('❌ 权限授予失败');
+      if (Get.context != null) {
+        CustomToast.show(Get.context!, '未授予权限，部分功能无法使用');
+      }
+    }
   }
 
   @override

@@ -4,21 +4,9 @@ import 'package:kissu_app/utils/debug_util.dart';
 /// 高德地图逆地理编码服务
 /// 用于将经纬度坐标转换为地址信息
 class AMapGeocodeService {
-  // ⚠️ 重要：高德地图 Web 服务需要专门的 Web 服务 API Key
-  // 
-  // 这里需要使用 **Web服务类型** 的Key，不能使用 Android/iOS SDK Key！
-  // 
-  // 申请步骤：
-  // 1. 访问高德开放平台：https://console.amap.com/dev/key/app
-  // 2. 创建应用或选择现有应用
-  // 3. 添加 Key，服务类型选择：Web服务
-  // 4. 将新Key替换下面的值
-  // 
-  // 当前使用的Key (38edb925a25f22e3aae2f86ce7f2ff3b) 是Android SDK Key，
-  // 会返回 USERKEY_PLAT_NOMATCH 错误
-  // 
-  // TODO: 请替换为正确的 Web 服务 Key
-  static const String _webApiKey = '38edb925a25f22e3aae2f86ce7f2ff3b';
+  // 高德地图 Web 服务 API Key
+  // 用于逆地理编码服务（将经纬度转换为地址）
+  static const String _webApiKey = '347b46716d628b9464546b31726ba3fc';
   
   // 高德地图逆地理编码 API 地址
   static const String _regeoApiUrl = 'https://restapi.amap.com/v3/geocode/regeo';

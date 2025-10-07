@@ -83,6 +83,17 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     );
   }
 
+  /// 更新circle的数据
+  Future<void> updateCircles(
+    CircleUpdates circleUpdates, {
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>(
+      'circles#update',
+      circleUpdates.toMap(),
+    );
+  }
+
   @override
   void dispose({required int id}) {
     if (_channels.containsKey(id)) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:kissu_app/models/screen_time_model.dart';
-import 'package:kissu_app/models/unlock_record_model.dart';
 import 'simple_curve_chart.dart';
 import '../common/screen_time_item.dart';
 

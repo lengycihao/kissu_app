@@ -16,6 +16,12 @@ class VipPage extends GetView<VipController> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupPageVisibilityListener();
     });
+    
+    // 计算底部支付组件的实际高度
+    // 包括：支付方式选项(~44) + 间距(10) + 按钮(50) + 间距(15) + 协议文字(~20) + 顶部padding(10) + 底部padding(25) + 底部安全区域
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final paymentComponentHeight = 44 + 10 + 50 + 15 + 20 + 10 + 25 + bottomPadding + 20; // 额外增加20px缓冲
+    
     return Scaffold(
       backgroundColor: const Color(0xFFFFFDF4),
       body: Stack(
@@ -23,7 +29,7 @@ class VipPage extends GetView<VipController> {
           // 主要内容区域 - 添加底部padding为支付组件留出空间
           SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 150), // 为底部固定支付组件留出空间
+              padding: EdgeInsets.only(bottom: paymentComponentHeight), // 动态计算底部padding
               child: Column(
                 children: [
                   // 顶部轮播图 - 紧贴屏幕顶部，全宽度
@@ -671,6 +677,11 @@ class VipPage extends GetView<VipController> {
 
   // 支付组件
   Widget _buildPaymentComponent() {
+    // 获取底部安全区域高度
+    final bottomPadding = MediaQuery.of(Get.context!).padding.bottom;
+    // 计算实际底部内边距：基础25px + 底部安全区域高度
+    final actualBottomPadding = 25.0 + bottomPadding;
+    
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -680,8 +691,14 @@ class VipPage extends GetView<VipController> {
           topRight: Radius.circular(12),
         ),
       ),
-      padding:   EdgeInsets.only(left: 20, right: 20, bottom: 25),
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 10,
+        bottom: actualBottomPadding,
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // 支付方式选择
           Obx(

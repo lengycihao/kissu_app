@@ -7,5 +7,7 @@ export 'polyline.dart';
 export 'polyline_updates.dart';
 export 'polygon.dart';
 export 'polygon_updates.dart';
+export 'circle.dart';
+export 'circle_updates.dart';
 export 'camera.dart';
 export 'bitmap.dart';

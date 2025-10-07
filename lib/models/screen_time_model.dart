@@ -1,4 +1,16 @@
-import 'package:kissu_app/models/unlock_record_model.dart';
+/// 图表数据点
+class ChartDataPoint {
+  /// 标签（如：小时数 "8"、"9"）
+  final String label;
+  
+  /// 值（如：使用时长分钟数）
+  final double value;
+  
+  ChartDataPoint({
+    required this.label,
+    required this.value,
+  });
+}
 
 /// 屏幕使用时长详情数据模型
 class ScreenTimeDetailModel {
@@ -49,12 +61,20 @@ class ScreenTimeRecordItem {
 
   /// 是否为隐私消息
   final bool isPrivacyMessage;
+  
+  /// 应用名称（可选）
+  final String? appName;
+  
+  /// 应用包名（可选）
+  final String? packageName;
 
   ScreenTimeRecordItem({
     required this.startTime,
     required this.endTime,
     required this.durationMinutes,
     this.isPrivacyMessage = false,
+    this.appName,
+    this.packageName,
   });
 
   /// 时间段显示（如：9-11点）

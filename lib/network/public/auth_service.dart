@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
+import 'package:kissu_app/services/native_location_report_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -135,6 +136,18 @@ class AuthService {
       tag: 'AuthService',
       extra: {'userId': user.id, 'nickname': user.nickname},
     );
+
+    // 🔥 保存用户 Token 到 Native（供后台定位上报使用）
+    try {
+      final success = await NativeLocationReportService.saveUserToken();
+      if (success) {
+        logger.info('用户Token已同步到Native端', tag: 'AuthService');
+      } else {
+        logger.error('同步Token到Native失败', tag: 'AuthService');
+      }
+    } catch (e) {
+      logger.error('同步Token到Native失败: $e', tag: 'AuthService');
+    }
 
     // 设置极光推送别名
     _setJPushAlias(user);
@@ -357,6 +370,14 @@ class AuthService {
 
     // 清除VIP购买弹窗标记，确保重新登录时可以再次显示
     await _clearVipPurchaseDialogFlag();
+
+    // 🔥 清除 Native 端的用户 Token
+    try {
+      await NativeLocationReportService.clearUserToken();
+      logger.info('Native端Token已清除', tag: 'AuthService');
+    } catch (e) {
+      logger.error('清除Native端Token失败: $e', tag: 'AuthService');
+    }
 
     logger.info('本地用户数据已清除', tag: 'AuthService');
   }

@@ -13,6 +13,8 @@ class LocationStatePage extends StatelessWidget {
   Widget build(BuildContext context) {
     // 设置替换确认弹窗的回调
     controller.onShowReplaceDialog = () => _showReplaceConfirmDialog(context);
+    // 设置返回确认弹窗的回调
+    controller.onShowBackDialog = () => _showBackConfirmDialog(context);
     
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6EF),
@@ -68,7 +70,7 @@ class LocationStatePage extends StatelessWidget {
               Positioned(
                 left: 0,
                 child: GestureDetector(
-                  onTap: () => Get.back(),
+                  onTap: () => controller.handleBack(),
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     child: Image.asset(
@@ -98,7 +100,10 @@ class LocationStatePage extends StatelessWidget {
 
           // 当前状态显示区域（有状态时显示）
           Obx(() {
-            if (!controller.hasStatus.value) {
+            // 当没有状态或状态数据不完整时，不显示
+            if (!controller.hasStatus.value || 
+                controller.currentStatusEmoji.value.isEmpty ||
+                controller.currentStatusText.value.isEmpty) {
               return const SizedBox.shrink();
             }
 
@@ -147,9 +152,14 @@ class LocationStatePage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Column(
                           children: [
-                            Text(
+                            // 使用网络图片显示表情
+                            Image.network(
                               controller.currentStatusEmoji.value,
-                              style: const TextStyle(fontSize: 46),
+                              width: 46,
+                              height: 46,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.image_not_supported, size: 46);
+                              },
                             ),
                             Text(
                               controller.currentStatusText.value,
@@ -167,29 +177,36 @@ class LocationStatePage extends StatelessWidget {
                       const Spacer(),
 
                       // 保存按钮
-                      GestureDetector(
-                        onTap: () {
-                          controller.saveStatus();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFB9C8),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: const Text(
-                            '保存',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFffffff),
-                              fontWeight: FontWeight.w400,
+                      Obx(() {
+                        final hasChanges = controller.hasUnsavedChanges;
+                        return GestureDetector(
+                          onTap: hasChanges ? () {
+                            controller.saveStatus();
+                          } : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: hasChanges 
+                                ? const Color(0xFFFF7C98)  // 可点击
+                                : const Color(0xFFFFB9C8), // 不可点击
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              '保存',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: hasChanges 
+                                  ? const Color(0xFFffffff)
+                                  : const Color(0xFFffffff).withOpacity(0.6),
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ],
                   ),
 
@@ -206,7 +223,7 @@ class LocationStatePage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // 有效期选项（顶部使用 selectedExpireHours）
+                  // 有效期选项（顶部使用 topExpireHours）
                   _buildExpireTimeOptions(isBottomSheet: false), const SizedBox(height: 12),
                 ],
               ),
@@ -220,6 +237,14 @@ class LocationStatePage extends StatelessWidget {
   /// 表情列表内容 - 所有分类垂直滚动展示
   Widget _buildEmojiContent() {
     return Obx(() {
+      // 加载中状态
+      if (controller.isLoading.value) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      }
+      
+      // 数据为空
       if (controller.emojiCategories.isEmpty) {
         return const Center(
           child: Text(
@@ -306,11 +331,16 @@ class LocationStatePage extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            // 使用网络图片显示表情
+                            Image.network(
                               emoji.emoji,
-                              style: const TextStyle(fontSize: 24),
+                              width: 24,
+                              height: 24,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.image_not_supported, size: 24);
+                              },
                             ),
-                            // const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               emoji.name,
                               style: const TextStyle(
@@ -358,6 +388,20 @@ class LocationStatePage extends StatelessWidget {
       },
       onCancel: () {
         controller.cancelReplace();
+      },
+    );
+  }
+  
+  /// 显示返回确认弹窗
+  void _showBackConfirmDialog(BuildContext context) {
+    LocationStateDeleteDialog.show(
+      context: context,
+      title: '确定要放弃当前更改吗？',
+      onConfirm: () {
+        controller.confirmBack();
+      },
+      onCancel: () {
+        controller.cancelBack();
       },
     );
   }
@@ -412,9 +456,14 @@ class LocationStatePage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Column(
                           children: [
-                            Text(
+                            // 使用网络图片显示表情
+                            Image.network(
                               emoji.emoji,
-                              style: const TextStyle(fontSize: 46),
+                              width: 46,
+                              height: 46,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.image_not_supported, size: 46);
+                              },
                             ),
                             Text(
                               emoji.name,
@@ -424,7 +473,7 @@ class LocationStatePage extends StatelessWidget {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                           ],
                         ),
                       );
@@ -487,7 +536,7 @@ class LocationStatePage extends StatelessWidget {
   }
 
   /// 有效期选项
-  /// [isBottomSheet] 是否是底部弹窗使用（true: 使用 tempExpireHours, false: 使用 selectedExpireHours）
+  /// [isBottomSheet] 是否是底部弹窗使用（true: 使用 tempExpireHours, false: 使用 topExpireHours）
   Widget _buildExpireTimeOptions({bool isBottomSheet = false}) {
     final options = [
       {'hours': 1, 'label': '1小时'},
@@ -509,7 +558,7 @@ class LocationStatePage extends StatelessWidget {
           // 根据是否是底部弹窗，使用不同的变量
           final isSelected = isBottomSheet
               ? controller.tempExpireHours.value == hours
-              : controller.selectedExpireHours.value == hours;
+              : controller.topExpireHours.value == hours;
 
           return GestureDetector(
             onTap: () {
@@ -517,7 +566,8 @@ class LocationStatePage extends StatelessWidget {
               if (isBottomSheet) {
                 controller.tempExpireHours.value = hours;
               } else {
-                controller.selectedExpireHours.value = hours;
+                // 顶部状态区域：只更新顶部有效期，不调用接口
+                controller.setExpireTime(hours);
               }
             },
             child: Container(

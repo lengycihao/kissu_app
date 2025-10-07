@@ -1,6 +1,7 @@
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/network/tools/config/app_configN.dart';
 
 /// HTTP 管理器初始化示例
 /// 展示如何正确配置业务请求头
@@ -11,14 +12,14 @@ class HttpManagerExample {
     final authService = getIt<AuthService>();
 
     // 初始化 HTTP 管理器，启用业务请求头
+    // 使用 AppConfigN 中配置的 baseApiUrl，根据 serverEnvironmentTest 自动切换环境
     HttpManagerN.instance.init(
-      // 'http://dev-love-api.ikissu.cn', // 开发URL
-      'https://service-api.ikissu.cn', // 生产URL
+      AppConfigN.baseApiUrl, // 从配置中获取 URL，支持测试/生产环境切换
       authService: authService, // 传入 AuthService 实例
       enableBusinessHeaders: true, // 启用业务请求头
       enableCache: true,
       enableDebounce: true,
-      enableEncryption: false, // 根据需要开启加密
+      enableEncryption: AppConfigN.apiEncrypt, // 根据环境自动开启/关闭加密
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),

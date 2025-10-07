@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:kissu_app/models/unlock_record_model.dart';
+import 'package:kissu_app/models/screen_time_model.dart';
 
 /// 简单曲线图组件
 class SimpleCurveChart extends StatelessWidget {

@@ -37,4 +37,14 @@ class ApiRequest {
   
   // 天气相关 API
   static const getWeather = '/weather/getWeather';
+  
+  // 状态表情相关 API
+  static const getFaceStatus = '/get/face';
+  static const setFaceStatus = '/save/face';
+  static const deleteFaceStatus = '/del/face';
+  
+  // 位置提醒（地理围栏）相关 API
+  static const getGeofencing = '/get/geofencing';
+  static const saveGeofencing = '/save/geofencing';
+  static const deleteGeofencing = '/del/geofencing';
 }

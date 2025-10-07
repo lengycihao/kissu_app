@@ -22,6 +22,8 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
+import 'package:kissu_app/services/screen_usage_service.dart';
+import 'package:kissu_app/services/permission_service.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -245,6 +247,11 @@ class MineController extends GetxController {
         onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
       ),
       SettingItem(
+        icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
+        title: "屏幕使用测试",
+        onTap: () => _onScreenUsageTestTap(),
+      ),
+      SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",
         title: "首页视图",
         onTap: () => Get.to(SettingHomePage()),
@@ -285,6 +292,174 @@ class MineController extends GetxController {
   /// 打开 Banner 预览页面
   void _onBannerPreviewTap() {
     Get.to(() => const BannerPreviewPage());
+  }
+  
+  /// 屏幕使用测试
+  Future<void> _onScreenUsageTestTap() async {
+    final permissionService = PermissionService();
+    
+    // 检查权限
+    final hasPermission = await permissionService.isUsageAccessGranted();
+    
+    if (!hasPermission) {
+      // 显示权限引导
+      Get.dialog(
+        AlertDialog(
+          title: const Text('需要使用统计权限'),
+          content: const Text(
+            '屏幕使用时长统计需要"使用情况访问权限"。\n\n'
+            '点击"去授权"后，请在设置页面找到 Kissu 并开启权限。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Get.back();
+                await permissionService.requestUsageAccessPermission();
+                // 再次检查权限
+                final granted = await permissionService.isUsageAccessGranted();
+                if (granted) {
+                  _showScreenUsageData();
+                } else {
+                  OKToastUtil.show('未授予权限');
+                }
+              },
+              child: const Text('去授权'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    // 有权限，直接显示数据
+    _showScreenUsageData();
+  }
+  
+  /// 显示屏幕使用数据
+  Future<void> _showScreenUsageData() async {
+    final screenUsageService = ScreenUsageService();
+    
+    // 显示加载中
+    Get.dialog(
+      const Center(
+        child: CircularProgressIndicator(),
+      ),
+      barrierDismissible: false,
+    );
+    
+    try {
+      // 获取今日屏幕使用时长
+      final todayMs = await screenUsageService.getTodayScreenTime();
+      final todayMinutes = (todayMs / (1000 * 60)).round();
+      final todayHours = todayMinutes ~/ 60;
+      final todayMins = todayMinutes % 60;
+      
+      // 获取今日应用使用详情（前5个）
+      final appStats = await screenUsageService.getTodayAppUsageStats(limit: 5);
+      
+      // 获取今日解锁次数
+      final unlockCount = await screenUsageService.getTodayUnlockCount();
+      
+      // 关闭加载
+      Get.back();
+      
+      // 构建应用列表文本
+      String appListText = '';
+      if (appStats.isNotEmpty) {
+        for (var i = 0; i < appStats.length; i++) {
+          final stat = appStats[i];
+          final appName = stat.appName; // 使用真实的应用名称
+          final minutes = (stat.totalTimeInForeground / (1000 * 60)).round();
+          appListText += '\n${i + 1}. $appName: ${minutes}分钟';
+        }
+      } else {
+        appListText = '\n暂无应用使用数据';
+      }
+      
+      // 显示结果
+      Get.dialog(
+        AlertDialog(
+          title: const Text('📊 屏幕使用统计'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '今日总使用时长：',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '${todayHours}小时${todayMins}分钟',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFFFF839E),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '今日解锁次数：$unlockCount 次',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '应用使用排行 TOP 5：',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  appListText,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('关闭'),
+            ),
+            TextButton(
+              onPressed: () {
+                Get.back();
+                Get.to(
+                  () => const UsageReportPage(),
+                  binding: UsageReportBinding(),
+                );
+              },
+              child: const Text('查看详情'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      // 关闭加载
+      Get.back();
+      
+      // 显示错误
+      Get.dialog(
+        AlertDialog(
+          title: const Text('错误'),
+          content: Text('获取屏幕使用数据失败：\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('确定'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   /// 打开联系渠道（企业微信客服）

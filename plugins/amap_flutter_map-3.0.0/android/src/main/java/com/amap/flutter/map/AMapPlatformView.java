@@ -16,6 +16,7 @@ import com.amap.flutter.map.core.MapController;
 import com.amap.flutter.map.overlays.marker.MarkersController;
 import com.amap.flutter.map.overlays.polygon.PolygonsController;
 import com.amap.flutter.map.overlays.polyline.PolylinesController;
+import com.amap.flutter.map.overlays.circle.CirclesController;
 import com.amap.flutter.map.utils.LogUtil;
 
 import java.util.HashMap;
@@ -47,6 +48,7 @@ public class AMapPlatformView
     private MarkersController markersController;
     private PolylinesController polylinesController;
     private PolygonsController polygonsController;
+    private CirclesController circlesController;
 
     private TextureMapView mapView;
 
@@ -68,9 +70,10 @@ public class AMapPlatformView
             mapView = new TextureMapView(context, options);
             AMap amap = mapView.getMap();
             mapController = new MapController(methodChannel, mapView);
-            markersController = new MarkersController(methodChannel, amap);
+            markersController = new MarkersController(methodChannel, amap, context);
             polylinesController = new PolylinesController(methodChannel, amap);
             polygonsController = new PolygonsController(methodChannel, amap);
+            circlesController = new CirclesController(methodChannel, amap);
             initMyMethodCallHandlerMap();
             lifecycleProvider.getLifecycle().addObserver(this);
         } catch (Throwable e) {
@@ -106,6 +109,13 @@ public class AMapPlatformView
                 myMethodCallHandlerMap.put(methodId, polygonsController);
             }
         }
+
+        methodIdArray = circlesController.getRegisterMethodIdArray();
+        if (null != methodIdArray && methodIdArray.length > 0) {
+            for (String methodId : methodIdArray) {
+                myMethodCallHandlerMap.put(methodId, circlesController);
+            }
+        }
     }
 
 
@@ -123,6 +133,10 @@ public class AMapPlatformView
 
     public PolygonsController getPolygonsController() {
         return polygonsController;
+    }
+
+    public CirclesController getCirclesController() {
+        return circlesController;
     }
 
 

@@ -2,6 +2,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:usage_stats/usage_stats.dart';
 import 'dart:io';
 
 /// 权限类型枚举
@@ -56,12 +57,17 @@ class PermissionService {
   }
 
   /// 检查使用情况访问权限状态（Android）
-  /// 注意：packageUsageStats在当前版本中可能不可用，暂时返回true
+  /// 使用 usage_stats 插件检查权限
   Future<bool> isUsageAccessGranted() async {
     if (Platform.isAndroid) {
-      // TODO: 使用正确的权限类型检查使用情况访问权限
-      // return await Permission.packageUsageStats.isGranted;
-      return true; // 暂时返回true，避免错误
+      try {
+        // 使用 usage_stats 插件检查权限（静态方法）
+        final bool granted = await UsageStats.checkUsagePermission() ?? false;
+        return granted;
+      } catch (e) {
+        print("检查使用情况访问权限时发生错误: $e");
+        return false;
+      }
     }
     return true; // iOS不需要此权限
   }
@@ -181,12 +187,28 @@ class PermissionService {
   }
 
   /// 请求使用情况访问权限
+  /// 这是一个特殊权限，需要跳转到系统设置页面让用户手动授权
   Future<bool> requestUsageAccessPermission() async {
     if (Platform.isAndroid) {
-      // TODO: 使用正确的权限类型请求使用情况访问权限
-      // final status = await Permission.packageUsageStats.request();
-      // return status.isGranted;
-      return true; // 暂时返回true，避免错误
+      try {
+        // 先检查是否已授权
+        final bool isGranted = await isUsageAccessGranted();
+        if (isGranted) {
+          print("使用情况访问权限已授权");
+          return true;
+        }
+        
+        // 未授权，跳转到系统设置页面
+        print("跳转到使用情况访问设置页面");
+        await openUsageAccessSettings();
+        
+        // 等待一段时间后再次检查权限状态
+        await Future.delayed(const Duration(milliseconds: 500));
+        return await isUsageAccessGranted();
+      } catch (e) {
+        print("请求使用情况访问权限时发生错误: $e");
+        return false;
+      }
     }
     return true;
   }

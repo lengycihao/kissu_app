@@ -255,6 +255,25 @@
             </intent-filter>
         </receiver>
         
+        <!-- 🔥 开机自启动接收器 - 用于恢复定位服务 -->
+        <receiver
+            android:name="com.yuluo.kissu.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter android:priority="999">
+                <!-- 系统启动完成 -->
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <!-- 应用更新完成 -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- 用户解锁屏幕（部分厂商需要） -->
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <!-- 快速启动模式（部分厂商支持） -->
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+        
         <!-- 高德定位服务 -->
         <service android:name="com.amap.api.location.APSService" />
         
@@ -414,6 +433,9 @@
     
     <!-- 精确闹钟权限：Android 16+优化 -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    
+    <!-- 使用情况访问权限：用于获取应用使用时长统计（需用户手动授权） -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
