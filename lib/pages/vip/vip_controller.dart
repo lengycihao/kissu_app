@@ -10,6 +10,7 @@ import 'package:kissu_app/services/payment_service.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 class VipController extends GetxController {
   // Logger实例
@@ -476,6 +477,7 @@ class VipController extends GetxController {
     try {
       _logger.i('💫 开始处理购买流程，套餐: ${package.title}, 支付方式: ${selectedPaymentMethod.value}');
       bool result = false;
+      bool paymentHandled = false; // 标记支付是否已处理，防止重复
       
       if (selectedPaymentMethod.value == 0) {
         // 支付宝支付
@@ -516,6 +518,16 @@ class VipController extends GetxController {
             nonceStr: payData.nonceStr ?? '',
             timeStamp: payData.timestamp ?? '',
             sign: payData.sign ?? '',
+            onVipStatusChanged: (success) {
+              // 轮询检测到VIP状态变化的回调
+              if (success && !paymentHandled) {
+                _logger.i('🎉 轮询检测到支付成功！');
+                paymentHandled = true;
+                OKToastUtil.show('支付成功');
+                _updateVipStatus(package);
+                _handlePaymentSuccess(package);
+              }
+            },
           );
           _logger.i('💫 微信支付SDK调用完成，结果: $result');
         } else {
@@ -527,14 +539,53 @@ class VipController extends GetxController {
       _logger.i('💫 支付结果: $result');
       
       if (result) {
-        _logger.i('💫 支付成功，开始处理后续操作');
-        // 购买成功后更新本地状态
-        _updateVipStatus(package);
-        
-        // 支付成功后的UI处理
-        _handlePaymentSuccess(package);
+        if (!paymentHandled) {
+          _logger.i('💫 支付成功，开始处理后续操作');
+          paymentHandled = true;
+          // 购买成功后更新本地状态
+          _updateVipStatus(package);
+          
+          // 支付成功后的UI处理
+          _handlePaymentSuccess(package);
+        } else {
+          _logger.i('💫 支付已由轮询处理，跳过重复处理');
+        }
       } else {
         _logger.e('💫 支付失败，result: $result');
+        
+        // 支付失败时，检查是否已被轮询处理
+        if (!paymentHandled) {
+          // 先查询一下VIP状态，避免遗漏已成功的支付
+          _logger.i('💫 支付回调失败，查询VIP状态以确认是否真的失败');
+          await Future.delayed(const Duration(seconds: 1)); // 等待1秒，让服务器有时间处理
+          
+          final vipCheckSuccess = await UserManager.refreshUserInfo();
+          if (vipCheckSuccess) {
+            final user = UserManager.currentUser;
+            // 检查是否已经是VIP（vipEndTime不为空且未过期）
+            if (user?.vipEndTime != null && user!.vipEndTime! > 0) {
+              try {
+                final vipEndTime = DateTime.fromMillisecondsSinceEpoch(user.vipEndTime! * 1000);
+                if (vipEndTime.isAfter(DateTime.now())) {
+                  _logger.i('💫 检测到用户已是VIP，支付可能已成功，按成功处理');
+                  paymentHandled = true;
+                  OKToastUtil.show('支付成功');
+                  // 按成功处理
+                  _updateVipStatus(package);
+                  await _handlePaymentSuccess(package);
+                  return; // 直接返回，不抛出异常
+                }
+              } catch (e) {
+                _logger.e('💫 解析VIP时间失败: $e');
+              }
+            }
+          }
+        } else {
+          _logger.i('💫 支付已由轮询处理成功，跳过失败逻辑');
+          return; // 已经处理成功，直接返回
+        }
+        
+        // 确认支付真的失败了
         // 支付失败时显示具体错误信息（支付服务中已经显示了）
         // 这里不再重复显示，避免重复提示
         throw Exception('支付失败');

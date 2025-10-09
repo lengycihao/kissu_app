@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/widgets/delayed_pag_widget.dart';
+import 'package:lottie/lottie.dart'; // Lottie 动画库
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 class VipPage extends GetView<VipController> {
@@ -43,7 +43,7 @@ class VipPage extends GetView<VipController> {
 
                   // 图片按钮组件 - 与轮播图底部重合，高度102px
                   Transform.translate(
-                    offset: const Offset(0, -20), // 向上移动20px实现重合
+                    offset: const Offset(0, -30), // 向上移动20px实现重合
                     child: _buildIconButtons(),
                   ),
 
@@ -59,7 +59,7 @@ class VipPage extends GetView<VipController> {
                           fit: BoxFit.fitHeight,
                         ),
 
-                        const SizedBox(height: 15),
+                        // const SizedBox(height: 15),
 
                         // 价格组件
                         _buildPriceComponents(),
@@ -152,19 +152,19 @@ class VipPage extends GetView<VipController> {
   // 顶部轮播图
   Widget _buildTopCarousel() {
     return Obx(() {
-      // 如果没有网络数据，显示本地PAG动画轮播
+      // 如果没有网络数据，显示本地Lottie动画轮播
       final bannerList = controller.bannerData.value?.vipIconBanner ?? [];
       
-      // 本地PAG动画文件列表
-      final localPagAssets = [
-        'assets/pag/kissu_vip_top1.pag',
-        'assets/pag/kissu_vip_top2.pag',
-        'assets/pag/kissu_vip_top3.pag',
-        'assets/pag/kissu_vip_top4.pag',
+      // 本地Lottie动画文件列表
+      final localLottieAssets = [
+        'assets/json/location.json',
+        'assets/json/track.json',
+        'assets/json/history.json',
+        'assets/json/mingan.json',
       ];
 
-      // 如果有网络数据则使用网络数据，否则使用本地PAG动画
-      final itemCount = bannerList.isNotEmpty ? bannerList.length : localPagAssets.length;
+      // 如果有网络数据则使用网络数据，否则使用本地Lottie动画
+      final itemCount = bannerList.isNotEmpty ? bannerList.length : localLottieAssets.length;
       
       if (itemCount == 0) {
         return Container(
@@ -183,77 +183,57 @@ class VipPage extends GetView<VipController> {
           onPageChanged: controller.onPageChanged,
           itemCount: itemCount,
           itemBuilder: (context, index) {
-            // 如果有网络数据，优先使用网络数据
-            if (bannerList.isNotEmpty) {
-              final item = bannerList[index];
-              if (item.vipIconBanner.isNotEmpty) {
-                return _buildImageItem(item.vipIconBanner);
-              }
-            }
-            
-            // 使用本地PAG动画
-            if (index < localPagAssets.length) {
-              return _buildPagAnimationItem(localPagAssets[index], index);
-            }
+            return _buildLottieAnimationItem(localLottieAssets[index]);
 
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(child: Text('暂无内容')),
-            );
+           
           },
         ),
       );
     });
   }
 
-  // PAG动画项
-  Widget _buildPagAnimationItem(String pagAssetPath, int index) {
+  // Lottie动画项 - 使用预加载的动画实现秒开
+  Widget _buildLottieAnimationItem(String lottieAssetPath) {
     return Container(
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: DelayedPagWidget(
-          assetPath: pagAssetPath,
+        child: Lottie.asset(
+          lottieAssetPath,
           width: double.infinity,
           height: 337,
-          delay: Duration(milliseconds: 500 * index), // 每个动画延迟500ms
-          autoPlay: true,
+          fit: BoxFit.cover,
           repeat: true,
+          animate: true,
+          frameRate: FrameRate.max,
+          addRepaintBoundary: true,
+          options: LottieOptions(
+            enableMergePaths: true,
+          ),
         ),
       ),
     );
   }
 
-  // 图片项
-  Widget _buildImageItem(String imageUrl) {
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey[300],
-              child: const Center(child: Text('图片加载失败')),
-            );
-          },
-        ),
-      ),
-    );
-  }
+   
 
   // 图片按钮组件
   Widget _buildIconButtons() {
     return Obx(() {
       final bannerList = controller.bannerData.value?.vipIconBanner ?? [];
       
-      // 只有当有网络数据时才显示图标按钮
-      if (bannerList.isEmpty) {
+      // 本地Lottie动画列表（对应location.json, track.json, history.json, mingan.json）
+      final localLottieAssets = [
+        'assets/json/location.json',
+        'assets/json/track.json',
+        'assets/json/history.json',
+        'assets/json/mingan.json',
+      ];
+      
+      // 如果有网络数据则使用网络数据，否则使用本地Lottie动画
+      final itemCount = bannerList.isNotEmpty ? bannerList.length : localLottieAssets.length;
+      
+      if (itemCount == 0) {
         return const SizedBox();
       }
 
@@ -265,29 +245,53 @@ class VipPage extends GetView<VipController> {
             fit: BoxFit.cover,
           ),
         ),
-        padding: EdgeInsets.only(top: 15),
+        padding: EdgeInsets.only(top: 24),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: List.generate(
-            bannerList.length,
-            (index) => GestureDetector(
-              onTap: () => controller.selectTab(index),
-              child: SizedBox(
-                width: 70,
-                child: Image.network(
-                  controller.currentIndex.value == index
-                      ? bannerList[index].vipIconSelect
-                      : bannerList[index].vipIcon,
-                  fit: BoxFit.fitWidth,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.error),
-                    );
-                  },
+            itemCount,
+            (index) {
+              // 根据索引确定图片资源
+              String imagePath;
+              final isSelected = controller.currentIndex.value == index;
+              
+              switch (index) {
+                case 0:
+                  imagePath = isSelected 
+                      ? 'assets/kissu_vip_banner_1sel.webp' 
+                      : 'assets/kissu_vip_banner_1unsel.webp';
+                  break;
+                case 1:
+                  imagePath = isSelected 
+                      ? 'assets/kissu_vip_banner_2sel.webp' 
+                      : 'assets/kissu_vip_banner_2unsel.webp';
+                  break;
+                case 2:
+                  imagePath = isSelected 
+                      ? 'assets/kissu_vip_banner_3sel.webp' 
+                      : 'assets/kissu_vip_banner_3unsel.webp';
+                  break;
+                case 3:
+                  imagePath = isSelected 
+                      ? 'assets/kissu_vip_banner_4sel.webp' 
+                      : 'assets/kissu_vip_banner_4unsel.webp';
+                  break;
+                default:
+                  imagePath = 'assets/kissu_vip_banner_1unsel.webp';
+              }
+              
+              return GestureDetector(
+                onTap: () => controller.selectTab(index),
+                child: SizedBox(
+                  width: 70,
+                  height: 78,
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.contain,
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       );
@@ -337,13 +341,14 @@ class VipPage extends GetView<VipController> {
         // 如果套餐数量超过可显示数量，使用横向滑动
         if (totalItems > maxVisibleItems) {
           return Container(
-            height: 130, // 增加高度以容纳底部标签，从115改为130
+            height: 125, // 高度：100px卡片 + 35px标签空间 + 20px额外边距
             child: Stack(
               children: [
-                ListView.separated(
+               ListView.separated(
                   controller: controller.priceScrollController,
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.symmetric(horizontal: sideMargin),
+                  clipBehavior: Clip.none, // 🔥 关键：允许子组件超出ListView边界
                   itemCount: totalItems,
                   separatorBuilder: (context, index) => SizedBox(width: itemSpacing),
                   itemBuilder: (context, index) {
@@ -407,7 +412,7 @@ class VipPage extends GetView<VipController> {
         } else {
           // 套餐数量较少时，使用居中的Row布局
           return Container(
-            height: 130, // 为Row布局也增加相同的高度
+            height: 155, // 为Row布局也增加相同的高度
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: controller.vipPackages.asMap().entries.map((entry) {
@@ -454,7 +459,7 @@ class VipPage extends GetView<VipController> {
   }) {
     return SizedBox(
       width: size.width,
-      height: size.height + (showBottomLabel ? 10 : 0), // 为底部标签增加额外空间
+      height: size.height + (showBottomLabel ? 35 : 0), // 为底部标签增加足够空间（标签偏移10px + 高度约25px）
       child: Stack(
         clipBehavior: Clip.none, // 允许子组件超出边界
         alignment: Alignment.bottomRight,
@@ -822,7 +827,7 @@ class VipPage extends GetView<VipController> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
          
         child: Row(
           mainAxisSize: MainAxisSize.min,

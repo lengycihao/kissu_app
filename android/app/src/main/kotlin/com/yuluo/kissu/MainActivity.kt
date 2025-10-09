@@ -1366,12 +1366,12 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 Log.d("MainActivity", "注意：此时不会立即返回支付结果，需要等待微信回调")
                 // 不立即返回，等待WXPayEntryActivity的回调
                 
-                // 设置15秒超时，提高响应速度
+                // 设置60秒超时，给用户足够的支付时间
                 CoroutineScope(Dispatchers.Main).launch {
-                    delay(15000) // 15秒超时
+                    delay(60000) // 60秒超时
                     if (paymentResultCompleter != null) {
-                        Log.w("MainActivity", "微信支付超时")
-                        paymentResultCompleter?.invoke(false, "支付超时")
+                        Log.w("MainActivity", "微信支付超时（60秒）")
+                        paymentResultCompleter?.invoke(false, "支付超时，请稍后查看订单状态")
                         paymentResultCompleter = null
                     }
                 }

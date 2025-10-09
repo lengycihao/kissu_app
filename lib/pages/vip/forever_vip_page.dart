@@ -1,6 +1,6 @@
- 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'forever_vip_controller.dart';
 
 class ForeverVipPage extends GetView<ForeverVipController> {
@@ -121,30 +121,38 @@ class ForeverVipPage extends GetView<ForeverVipController> {
                   Stack(
                     children: [
                       _buildAvatar(),
-                      Container(
-                        width: 50,
-                        height: 50,
-                        margin: const EdgeInsets.only(left: 60, top: 20),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(
-                            color: const Color(0xFFFFB6C1),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          size: 30,
-                          color: Color(0xFFFF69B4),
-                        ),
+                      // 根据是否绑定且有头像显示另一半头像或加号
+                      Builder(
+                        builder: (context) {
+                          DebugUtil.info('ForeverVipPage: Building partner widget, isBound=${controller.isBound.value}, hasAvatar=${controller.partnerAvatar.value.isNotEmpty}');
+                          return (controller.isBound.value && controller.partnerAvatar.value.isNotEmpty)
+                            ? _buildPartnerAvatar() 
+                            : Container(
+                                width: 50,
+                                height: 50,
+                                margin: const EdgeInsets.only(left: 60, top: 20),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: const Color(0xFFFFB6C1),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.add,
+                                  size: 30,
+                                  color: Color(0xFFFF69B4),
+                                ),
+                              );
+                        }
                       ),
                       Positioned(
                         right: 30,
@@ -245,6 +253,70 @@ class ForeverVipPage extends GetView<ForeverVipController> {
         ),
       ),
     );
+  }
+
+  /// 构建另一半头像
+  Widget _buildPartnerAvatar() {
+    return Obx(() => Container(
+      width: 50,
+      height: 50,
+      margin: const EdgeInsets.only(left: 60, top: 20),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(
+          color: const Color(0xFFFFB6C1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: controller.partnerAvatar.value.isNotEmpty
+            ? controller.partnerAvatar.value.startsWith('assets/')
+                ? Image.asset(
+                    controller.partnerAvatar.value,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: const Color(0xFFE8B4CB),
+                        child: const Icon(
+                          Icons.person,
+                          size: 30,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  )
+                : Image.network(
+                    controller.partnerAvatar.value,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: const Color(0xFFE8B4CB),
+                        child: const Icon(
+                          Icons.person,
+                          size: 30,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  )
+            : Container(
+                color: const Color(0xFFE8B4CB),
+                child: const Icon(
+                  Icons.person,
+                  size: 30,
+                  color: Colors.white,
+                ),
+              ),
+      ),
+    ));
   }
 
   /// 构建昵称区域

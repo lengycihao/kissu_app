@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
 import 'dart:async';
@@ -38,6 +39,12 @@ class PaymentService extends GetxService {
   void _setupAppLifecycleListener() {
     WidgetsBinding.instance.addObserver(_AppLifecycleObserver(this));
   }
+  
+  // VIP状态轮询相关
+  Timer? _vipStatusPollingTimer;
+  int _pollingCount = 0;
+  static const int _maxPollingCount = 30; // 最多轮询30次（30秒）
+  Function(bool)? _onVipStatusChanged;
   
   /// 初始化支付服务
   Future<void> _initializePayment() async {
@@ -83,6 +90,7 @@ class PaymentService extends GetxService {
     required String nonceStr,
     required String timeStamp,
     required String sign,
+    Function(bool)? onVipStatusChanged, // 新增：VIP状态变化回调
   }) async {
     Timer? timeoutTimer;
     
@@ -125,14 +133,18 @@ class PaymentService extends GetxService {
         return false;
       }
       
+      // 保存VIP状态变化回调
+      _onVipStatusChanged = onVipStatusChanged;
+      
       // 显示支付进度
       _showPaymentProgress('正在跳转微信支付...');
       _paymentInProgress.value = true;
       
-      // 设置支付超时机制 - 缩短超时时间，提高响应速度
-      timeoutTimer = Timer(const Duration(seconds: 15), () {
+      // 设置支付超时机制 - 60秒超时
+      timeoutTimer = Timer(const Duration(seconds: 60), () {
         if (_paymentInProgress.value) {
-          _logger.w('微信支付超时，重置支付状态');
+          _logger.w('微信支付超时（60秒），停止轮询');
+          _stopVipStatusPolling();
           _resetPaymentState();
         }
       });
@@ -157,12 +169,14 @@ class PaymentService extends GetxService {
         
         if (result != null && result['success'] == true) {
           _logger.i('微信支付成功');
+          _stopVipStatusPolling();
           _hideProgress();
           _paymentInProgress.value = false;
           return true;
         } else {
           String errorMsg = result?['message'] ?? '微信支付失败';
           _logger.e('微信支付失败: $errorMsg');
+          _stopVipStatusPolling();
           _hideProgress();
           _paymentInProgress.value = false;
           // 显示具体的错误信息给用户
@@ -173,6 +187,7 @@ class PaymentService extends GetxService {
       } catch (e) {
         timeoutTimer.cancel();
         _logger.e('微信支付调用异常: $e');
+        _stopVipStatusPolling();
         _hideProgress();
         _paymentInProgress.value = false;
         return false;
@@ -467,9 +482,95 @@ class PaymentService extends GetxService {
     _logger.i('支付状态检查完成，当前状态: ${_paymentInProgress.value}');
   }
   
+  /// 启动VIP状态轮询（用户从微信返回时调用）
+  void _startVipStatusPolling() {
+    // 停止之前的轮询（如果有）
+    _stopVipStatusPolling();
+    
+    _pollingCount = 0;
+    _logger.i('🔍 启动VIP状态轮询，最多轮询 $_maxPollingCount 次');
+    
+    // 立即执行第一次检测
+    _checkVipStatus();
+    
+    // 然后每1秒检测一次
+    _vipStatusPollingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _pollingCount++;
+      _logger.i('🔍 VIP状态轮询中... (${_pollingCount}/$_maxPollingCount)');
+      
+      if (_pollingCount >= _maxPollingCount) {
+        _logger.w('⏰ VIP状态轮询已达到最大次数，停止轮询');
+        _stopVipStatusPolling();
+        return;
+      }
+      
+      if (!_paymentInProgress.value) {
+        _logger.i('✅ 支付已完成，停止VIP状态轮询');
+        _stopVipStatusPolling();
+        return;
+      }
+      
+      _checkVipStatus();
+    });
+  }
+  
+  /// 检测VIP状态
+  Future<void> _checkVipStatus() async {
+    try {
+      _logger.i('🔍 检测VIP状态...');
+      
+      // 刷新用户信息
+      final refreshSuccess = await UserManager.refreshUserInfo();
+      if (!refreshSuccess) {
+        _logger.w('刷新用户信息失败');
+        return;
+      }
+      
+      // 检查VIP状态
+      final user = UserManager.currentUser;
+      if (user?.vipEndTime != null && user!.vipEndTime! > 0) {
+        final vipEndTime = DateTime.fromMillisecondsSinceEpoch(user.vipEndTime! * 1000);
+        if (vipEndTime.isAfter(DateTime.now())) {
+          _logger.i('✅ 检测到用户已成为VIP，支付成功！');
+          
+          // 停止轮询
+          _stopVipStatusPolling();
+          
+          // 重置支付状态
+          _hideProgress();
+          _paymentInProgress.value = false;
+          
+          // 触发回调
+          if (_onVipStatusChanged != null) {
+            _logger.i('📢 调用VIP状态变化回调');
+            _onVipStatusChanged!(true);
+            _onVipStatusChanged = null;
+          }
+        } else {
+          _logger.i('VIP已过期，继续轮询');
+        }
+      } else {
+        _logger.i('用户尚未成为VIP，继续轮询');
+      }
+    } catch (e) {
+      _logger.e('检测VIP状态失败: $e');
+    }
+  }
+  
+  /// 停止VIP状态轮询
+  void _stopVipStatusPolling() {
+    if (_vipStatusPollingTimer != null) {
+      _logger.i('⏹️ 停止VIP状态轮询');
+      _vipStatusPollingTimer?.cancel();
+      _vipStatusPollingTimer = null;
+      _pollingCount = 0;
+    }
+  }
+  
   /// 清理资源
   @override
   void onClose() {
+    _stopVipStatusPolling();
     _paymentInProgress.value = false;
     _hideProgress();
     super.onClose();
@@ -491,9 +592,22 @@ class _AppLifecycleObserver extends WidgetsBindingObserver {
       _paymentService._logger.i('应用回到前台，检查支付状态: ${_paymentService._paymentInProgress.value}');
       
       if (_paymentService._paymentInProgress.value) {
-        _paymentService._logger.w('检测到支付状态异常，立即强制重置支付状态');
-        // 立即强制重置，确保状态完全清理
-        _paymentService._forceResetPaymentState();
+        // 🚀 用户从微信返回，立即开始轮询VIP状态
+        _paymentService._logger.i('💰 用户从微信返回，立即启动VIP状态轮询检测');
+        _paymentService._startVipStatusPolling();
+        
+        // 不要立即重置，给微信回调和轮询一些时间（最多5秒）
+        _paymentService._logger.w('检测到支付进行中，等待5秒后检查是否需要重置');
+        
+        Future.delayed(const Duration(seconds: 5), () {
+          // 5秒后再次检查，如果仍然在支付中，说明可能是异常状态
+          if (_paymentService._paymentInProgress.value) {
+            _paymentService._logger.w('5秒后仍在支付中，强制重置支付状态');
+            _paymentService._forceResetPaymentState();
+          } else {
+            _paymentService._logger.i('支付状态已正常结束，无需重置');
+          }
+        });
       }
     }
   }

@@ -368,7 +368,14 @@ class ForegroundLocationService : Service() {
      */
     private fun getIconResourceId(iconName: String): Int {
         return try {
-            val resourceId = resources.getIdentifier(iconName, "drawable", packageName)
+            // 先在 drawable 中查找
+            var resourceId = resources.getIdentifier(iconName, "drawable", packageName)
+            
+            // 如果 drawable 中找不到，再在 mipmap 中查找（适用于 ic_launcher）
+            if (resourceId == 0) {
+                resourceId = resources.getIdentifier(iconName, "mipmap", packageName)
+            }
+            
             if (resourceId != 0) resourceId else android.R.drawable.ic_dialog_info
         } catch (e: Exception) {
             Log.w(TAG, "无法找到图标资源: $iconName，使用默认图标")

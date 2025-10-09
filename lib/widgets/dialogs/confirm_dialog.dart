@@ -177,7 +177,7 @@ class _LogoutConfirmDialogContent extends BaseDialog {
                 text: '确认',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                    'assets/kissu_dialop_common_cancel_bg.webp', // 退出确认用红色背景
                 onTap: () {
                   Navigator.of(context).pop(true); // 返回 true 表示确认退出
                 },
@@ -187,7 +187,7 @@ class _LogoutConfirmDialogContent extends BaseDialog {
                 text: '我再想想',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                    'assets/kissu_dialop_common_sure_bg.webp', // 取消退出用绿色背景
                 onTap: () {
                   Navigator.of(context).pop(false); // 返回 false 表示取消
                 },

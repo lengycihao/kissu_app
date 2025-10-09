@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kissu_app/widgets/pag_animation_widget.dart';
 
 /// 内存管理工具类
 /// 用于统一管理应用的内存使用和资源清理
@@ -11,9 +10,6 @@ class MemoryManager {
   /// 清理所有缓存资源
   static void clearAllCaches() {
     try {
-      // 清理PAG动画缓存
-      PagAnimationWidget.clearAllAssets();
-      
       // 清理图片缓存
       _clearImageCache();
       

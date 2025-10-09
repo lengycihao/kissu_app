@@ -47,4 +47,7 @@ class ApiRequest {
   static const getGeofencing = '/get/geofencing';
   static const saveGeofencing = '/save/geofencing';
   static const deleteGeofencing = '/del/geofencing';
+  
+  // 版本检查 API
+  static const checkVersion = '/version/checkVersion';
 }

@@ -1,8 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
-import 'package:kissu_app/widgets/pag_animation_widget.dart';
-import 'package:kissu_app/utils/pag_preloader.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 /// 应用生命周期服务
@@ -117,15 +115,6 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('❌ 停止定位服务失败: $e');
-    }
-    
-    // 清理PAG动画资源，防止MediaCodec错误
-    try {
-      PagAnimationWidget.clearAllAssets();
-      PagPreloader.clearCache();
-      debugPrint('✅ 已清理PAG动画资源');
-    } catch (e) {
-      debugPrint('❌ 清理PAG动画资源失败: $e');
     }
   }
   

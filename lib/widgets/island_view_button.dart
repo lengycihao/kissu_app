@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 /// 屏视图按钮组件（定位、足迹、天气）
 class IslandViewButton extends StatelessWidget {
-  final String iconAsset;
+  final String? iconAsset;
+  final String? iconUrl;
   final String title;
   final String value;
   final Color valueColor;
@@ -11,7 +12,8 @@ class IslandViewButton extends StatelessWidget {
 
   const IslandViewButton({
     Key? key,
-    required this.iconAsset,
+    this.iconAsset,
+    this.iconUrl,
     required this.title,
     required this.value,
     required this.valueColor,
@@ -35,11 +37,7 @@ class IslandViewButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             SizedBox(width: 22),
-            Image(
-              image: AssetImage(iconAsset),
-              width: 20,
-              height: 20,
-            ),
+            _buildIcon(),
             SizedBox(width: 20),
             Text(
               title,
@@ -83,6 +81,40 @@ class IslandViewButton extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildIcon() {
+    if (iconUrl != null && iconUrl!.isNotEmpty) {
+      // 使用网络图片（天气图标）
+      return Image.network(
+        iconUrl!,
+        width: 20,
+        height: 20,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // 如果网络图片加载失败，使用默认图标
+          return Image(
+            image: AssetImage(iconAsset ?? "assets/home_list_type_location.webp"),
+            width: 20,
+            height: 20,
+          );
+        },
+      );
+    } else if (iconAsset != null && iconAsset!.isNotEmpty) {
+      // 使用本地资源图片
+      return Image(
+        image: AssetImage(iconAsset!),
+        width: 20,
+        height: 20,
+      );
+    } else {
+      // 默认图标
+      return Image(
+        image: AssetImage("assets/home_list_type_location.webp"),
+        width: 20,
+        height: 20,
+      );
+    }
   }
 }
 

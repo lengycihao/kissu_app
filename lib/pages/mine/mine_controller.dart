@@ -236,21 +236,21 @@ class MineController extends GetxController {
         title: "分享APP",
         onTap: () => _onShareAppTap(),
       ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
-        title: "弹窗展示",
-        onTap: () => Get.to(() => const DialogShowcasePage()),
-      ),
-      SettingItem(
-        icon: "assets/kissu_home_tab_history.webp",
-        title: "用机报告",
-        onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
-      ),
-      SettingItem(
-        icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
-        title: "屏幕使用测试",
-        onTap: () => _onScreenUsageTestTap(),
-      ),
+      // SettingItem(
+      //   icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
+      //   title: "弹窗展示",
+      //   onTap: () => Get.to(() => const DialogShowcasePage()),
+      // ),
+      // SettingItem(
+      //   icon: "assets/kissu_home_tab_history.webp",
+      //   title: "用机报告",
+      //   onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
+      // ),
+      // SettingItem(
+      //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
+      //   title: "屏幕使用测试",
+      //   onTap: () => _onScreenUsageTestTap(),
+      // ),
       SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",
         title: "首页视图",

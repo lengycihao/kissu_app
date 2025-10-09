@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
-// import 'package:kissu_app/widgets/delayed_pag_widget.dart'; // 注释掉PAG动画相关导入
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
@@ -12,7 +11,6 @@ import 'package:kissu_app/pages/location/location_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
-import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -61,15 +59,6 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
         debugPrint('🏠 应用回到前台但首页不可见，跳过刷新');
       }
     }
-  }
-
-  /// 红色容器点击事件处理
-  void _onRedContainerTap() {
-    debugPrint('🔴 红色容器被点击了');
-    ImageDialogUtil.showImageDialog(
-      context: context,
-      imagePath: 'assets/3.0/kissu3_picture_wall.webp',
-    );
   }
 
   @override
@@ -160,25 +149,25 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //   ),
                   // ),
                   
-                  // 新增的红色容器
-                  Positioned(
-                    left: 500, // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(88), // Y坐标基于高度缩放
-                    child: GestureDetector(
-                      onTap: () {
-                        // 点击事件处理
-                        _onRedContainerTap();
-                      },
-                      child: Container(
-                        width: ScreenAdaptation.scaleSizeByHeight(60), // 基于高度比例缩放宽度
-                        height: ScreenAdaptation.scaleSizeByHeight(54), // 基于高度比例缩放高度
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // // 新增的红色容器
+                  // Positioned(
+                  //   left: 500, // 基于动态背景宽度缩放X坐标
+                  //   top: ScreenAdaptation.scaleY(88), // Y坐标基于高度缩放
+                  //   child: GestureDetector(
+                  //     onTap: () {
+                  //       // 点击事件处理
+                  //       _onRedContainerTap();
+                  //     },
+                  //     child: Container(
+                  //       width: ScreenAdaptation.scaleSizeByHeight(60), // 基于高度比例缩放宽度
+                  //       height: ScreenAdaptation.scaleSizeByHeight(54), // 基于高度比例缩放高度
+                  //       decoration: BoxDecoration(
+                  //         color: Colors.red,
+                  //         borderRadius: BorderRadius.circular(2),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                   
                 ],
               ),
@@ -200,7 +189,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(6, (index) {
+                children: List.generate(4, (index) {
                   return InkWell(
                     onTap: () => controller.onButtonTap(index),
                     borderRadius: BorderRadius.circular(8),
@@ -215,7 +204,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         // const SizedBox(height: 4),
                         Image.asset(
                           controller.getBottomIconPath(index),
-                          width: index == 3 ? 48 : 24,
+                          width: index == 2 ? 48 : 24,
                           height: 14,
                           fit: BoxFit.contain,
                         ),
@@ -794,7 +783,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
             // 天气显示文本（天气始终显示真实数据）
             final weatherText = controller.currentTemp.value != null && controller.weather.value != null
                 ? '${controller.currentTemp.value}°${controller.weather.value}'
-                : '加载中...';
+                : '';
             
             return Column(
               children: [
@@ -814,7 +803,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                   iconAsset: "assets/home_list_type_location.webp",
                   title: "我们相距",
                   value: distanceText,
-                  valueColor: Color(0xff3580FF),
+                  valueColor: Color(0xff6D5DFF),
                   onTap: () {
                     Get.to(() => LocationPage(), binding: LocationBinding());
                   },
@@ -822,7 +811,8 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                 SizedBox(height: 4),
                 // 天气按钮（无点击事件，不显示箭头）
                 IslandViewButton(
-                  iconAsset: "assets/home_list_type_location.webp",
+                  iconUrl: controller.weatherIconUrl.value,
+                  iconAsset: "assets/home_list_type_location.webp", // 备用图标
                   title: "TA的天气",
                   value: weatherText,
                   valueColor: Color(0xff3580FF),

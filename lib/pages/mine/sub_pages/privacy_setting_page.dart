@@ -80,7 +80,7 @@ class PrivacySettingPage extends StatelessWidget {
                     iconPath: "assets/kissu_setting_account_sjh.webp",
                     title: "手机号",
                     trailingText: phoneNumber,
-                    onTap: () => Get.to(() => PhoneChangePage()),
+                    onTap: () => _handlePhoneChange(context, phoneNumber),
                   ),
                 ],
               ),
@@ -138,6 +138,20 @@ class PrivacySettingPage extends StatelessWidget {
       );
     } else {
       return const SizedBox.shrink();
+    }
+  }
+
+  /// 处理手机号更改
+  void _handlePhoneChange(BuildContext context, String phoneNumber) async {
+    // 先显示确认弹窗
+    final result = await DialogManager.showPhoneChangeConfirm(
+      context,
+      phoneNumber,
+    );
+    
+    if (result == true) {
+      // 用户确认更改，跳转到手机号更换页面
+      Get.to(() => PhoneChangePage());
     }
   }
 

@@ -875,12 +875,6 @@ class KissuBannerBuilder {
               currentTemp: currentTemp,
               bannerWidth: width,
               bannerHeight: height,
-            )
-          else
-            // 只显示白色背景条（居中显示）
-            _buildEmptyTemperatureBar(
-              bannerWidth: width,
-              bannerHeight: height,
             ),
         ],
       ),
@@ -975,30 +969,6 @@ class KissuBannerBuilder {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// 构建空的温度条（只显示白色背景）
-  static Widget _buildEmptyTemperatureBar({
-    required double bannerWidth,
-    required double bannerHeight,
-  }) {
-    // 水平居中
-    final leftPosition = (bannerWidth - _temperatureBarWidth) / 2;
-    // 垂直居中
-    final topPosition = (bannerHeight - _temperatureBarHeight) / 2;
-
-    return Positioned(
-      left: leftPosition,
-      top: topPosition,
-      child: Container(
-        width: _temperatureBarWidth,
-        height: _temperatureBarHeight,
-        decoration: BoxDecoration(
-          color: _temperatureBarBgColor,
-          borderRadius: BorderRadius.circular(_temperatureBarHeight / 2),
-        ),
       ),
     );
   }

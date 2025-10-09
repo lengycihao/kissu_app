@@ -35,6 +35,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 import 'dart:async';
+import 'package:kissu_app/services/version_service.dart';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 
 
@@ -140,6 +141,9 @@ class HomeController extends GetxController {
     
     // 每次打开首页时刷新用户信息
     refreshUserInfoFromServer();
+    
+    // 检查版本更新（在引导图和其他弹窗之前检查）
+    _checkVersionUpdate();
     
     // 首先检查是否需要显示引导图1（新用户引导）
     _checkAndShowGuide1();
@@ -619,24 +623,24 @@ class HomeController extends GetxController {
         // 地图
         Get.to(() =>  TrackPage(), binding: TrackBinding());
         break;
+      // case 2:
+      //   // 聊天
+      //   debugPrint("💬 准备跳转到聊天页面");
+      //   Get.to(() => const ChatPage(), binding: ChatBinding());
+      //   break;
       case 2:
-        // 聊天
-        debugPrint("💬 准备跳转到聊天页面");
-        Get.to(() => const ChatPage(), binding: ChatBinding());
-        break;
-      case 3:
         // 用机记录
         Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
         break;
-      case 4:
+      case 3:
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
-      case 5:
-        // 定位V2（新UI）
-        debugPrint("📍 准备跳转到定位V2页面");
-        Get.to(() => LocationV2Page(), binding: LocationV2Binding());
-        break;
+      // case 5:
+      //   // 定位V2（新UI）
+      //   debugPrint("📍 准备跳转到定位V2页面");
+      //   Get.to(() => LocationV2Page(), binding: LocationV2Binding());
+      //   break;
       default:
         // 其他功能待实现
         break;
@@ -668,14 +672,14 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_location.webp";
       case 1:
         return "assets/kissu_home_tab_foot.webp";
+      // case 2:
+      //   return "assets/kissu_home_tab_chat.webp";
       case 2:
-        return "assets/kissu_home_tab_chat.webp";
-      case 3:
         return "assets/kissu_home_tab_history.webp";
-      case 4:
+      case 3:
         return "assets/kissu_home_tab_mine.webp";
-      case 5:
-        return "assets/kissu_home_tab_location.webp"; // 暂时复用定位图标
+      // case 5:
+      //   return "assets/kissu_home_tab_location.webp"; // 暂时复用定位图标
       default:
         return "assets/kissu_home_tab_location.webp";
     }
@@ -688,14 +692,14 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_locationT.webp";
       case 1:
         return "assets/kissu_home_tab_mapT.webp";
+      // case 2:
+      //   return "assets/kissu_home_tab_chatT.webp";
       case 2:
-        return "assets/kissu_home_tab_chatT.webp";
-      case 3:
         return "assets/kissu_home_tab_historyT.webp";
-      case 4:
+      case 3:
         return "assets/kissu_home_tab_mineT.webp";
-      case 5:
-        return "assets/kissu_home_tab_locationT.webp"; // 暂时复用定位文字图标
+      // case 5:
+      //   return "assets/kissu_home_tab_locationT.webp"; // 暂时复用定位文字图标
       default:
         return "assets/kissu_home_tab_locationT.webp";
     }
@@ -970,6 +974,27 @@ class HomeController extends GetxController {
       debugPrint('❌ 跳转到我的页面时刷新数据失败: $e');
       // 即使刷新失败也要跳转，不影响用户体验
       Get.to(() => MinePage(), binding: MineBinding());
+    }
+  }
+
+  /// 检查版本更新（首页自动检查）
+  Future<void> _checkVersionUpdate() async {
+    try {
+      debugPrint('🔄 开始检查版本更新');
+      
+      // 延迟一段时间后检查，避免影响首页加载
+      await Future.delayed(const Duration(milliseconds: 800));
+      
+      final currentContext = Get.context;
+      if (currentContext != null) {
+        final versionService = Get.find<VersionService>();
+        await versionService.checkVersionForHomePage(currentContext);
+        debugPrint('✅ 版本检查完成');
+      } else {
+        debugPrint('⚠️ 无法获取Context，跳过版本检查');
+      }
+    } catch (e) {
+      debugPrint('❌ 检查版本更新失败: $e');
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:kissu_app/services/version_service.dart';
 
 class AboutUsPage extends StatefulWidget {
   const AboutUsPage({super.key});
@@ -158,6 +159,11 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       _buildDashedDivider(),
                       _buildItem("用户协议", () {
                         AgreementUtils.toUserAgreement();
+                      }),
+                      _buildDashedDivider(),
+                      _buildItem("检查更新", () {
+                        final versionService = Get.find<VersionService>();
+                        versionService.checkVersionForAboutPage(context);
                       }),
                     ],
                   ),

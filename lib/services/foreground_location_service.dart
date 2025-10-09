@@ -78,7 +78,7 @@ class ForegroundLocationService extends GetxService {
         'notificationId': _notificationId,
         'title': 'Kissu - 情侣定位',
         'content': '正在为您提供位置定位服务',
-        'icon': 'ic_notification',
+        'icon': 'ic_launcher',
         'enableVibration': false,
         'enableSound': false,
         'priority': 'high',

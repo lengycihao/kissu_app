@@ -19,11 +19,13 @@ import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
+import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/services/screenshot_service.dart';
 import 'package:kissu_app/widgets/screenshot_feedback_button.dart';
 import 'package:kissu_app/network/utils/dir_util.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
+import 'package:kissu_app/services/lottie_preload_service.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
@@ -147,9 +149,20 @@ void main() async {
     Get.put(FirstLaunchService(), permanent: true);
     DebugUtil.success('首次启动服务初始化完成');
     
+    // 步骤14.1: 初始化版本更新服务
+    Get.put(VersionService(), permanent: true);
+    DebugUtil.success('版本更新服务初始化完成');
+    
     // 步骤15: 注册OpenInstall服务（但不立即初始化，等待隐私授权）
     // 🔒 隐私合规：OpenInstall的初始化移到隐私政策同意后
     DebugUtil.info('OpenInstall服务已注册（等待隐私授权后初始化）');
+    
+    // 步骤15.1: 🎬 预加载VIP页面Lottie动画（非阻塞，后台执行）
+    LottiePreloadService().preloadVipLottieAnimations().then((_) {
+      DebugUtil.success('VIP页面Lottie动画预加载完成');
+    }).catchError((e) {
+      DebugUtil.error('VIP页面Lottie动画预加载失败: $e');
+    });
     
     // ========== 第三阶段：隐私合规管理器初始化 ==========
     

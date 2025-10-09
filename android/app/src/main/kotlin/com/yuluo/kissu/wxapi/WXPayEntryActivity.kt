@@ -25,18 +25,24 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "WXPayEntryActivity onCreate")
+        Log.d(TAG, "=== WXPayEntryActivity onCreate ===")
+        Log.d(TAG, "Intent: ${intent?.toUri(0)}")
+        Log.d(TAG, "Intent extras: ${intent?.extras?.keySet()?.joinToString()}")
         
         // 初始化微信API
         api = WXAPIFactory.createWXAPI(this, "wxca15128b8c388c13")
-        api?.handleIntent(intent, this)
+        val handleResult = api?.handleIntent(intent, this)
+        Log.d(TAG, "handleIntent result: $handleResult")
     }
     
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        Log.d(TAG, "WXPayEntryActivity onNewIntent")
+        Log.d(TAG, "=== WXPayEntryActivity onNewIntent ===")
+        Log.d(TAG, "Intent: ${intent?.toUri(0)}")
+        Log.d(TAG, "Intent extras: ${intent?.extras?.keySet()?.joinToString()}")
         setIntent(intent)
-        api?.handleIntent(intent, this)
+        val handleResult = api?.handleIntent(intent, this)
+        Log.d(TAG, "handleIntent result: $handleResult")
     }
     
     override fun onReq(req: BaseReq?) {
@@ -44,35 +50,45 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
     }
     
     override fun onResp(resp: BaseResp?) {
-        Log.d(TAG, "onResp: ${resp?.type}, errCode: ${resp?.errCode}")
+        Log.d(TAG, "=== onResp 被调用 ===")
+        Log.d(TAG, "Response type: ${resp?.type}")
+        Log.d(TAG, "Error code: ${resp?.errCode}")
+        Log.d(TAG, "Error string: ${resp?.errStr}")
+        Log.d(TAG, "Transaction: ${resp?.transaction}")
+        Log.d(TAG, "OpenId: ${resp?.openId}")
         
         when (resp?.type) {
             ConstantsAPI.COMMAND_PAY_BY_WX -> {
+                Log.d(TAG, "✅ 确认是微信支付回调")
                 // 微信支付回调
                 when (resp.errCode) {
                     BaseResp.ErrCode.ERR_OK -> {
-                        Log.d(TAG, "微信支付成功")
+                        Log.d(TAG, "✅ 微信支付成功 (errCode=0)")
                         // 通知Flutter层支付成功
                         notifyFlutterPaymentResult(true, "支付成功")
                     }
                     BaseResp.ErrCode.ERR_USER_CANCEL -> {
-                        Log.d(TAG, "微信支付取消")
+                        Log.d(TAG, "⚠️ 微信支付取消 (errCode=-2)")
                         // 通知Flutter层支付取消
                         notifyFlutterPaymentResult(false, "用户取消支付")
                     }
                     BaseResp.ErrCode.ERR_COMM -> {
-                        Log.d(TAG, "微信支付错误")
+                        Log.d(TAG, "❌ 微信支付错误 (errCode=-1)")
                         // 通知Flutter层支付失败
                         notifyFlutterPaymentResult(false, "支付失败")
                     }
                     else -> {
-                        Log.d(TAG, "微信支付未知错误: ${resp.errCode}")
-                        notifyFlutterPaymentResult(false, "支付失败")
+                        Log.d(TAG, "❓ 微信支付未知错误码: ${resp.errCode}")
+                        notifyFlutterPaymentResult(false, "支付失败，错误码: ${resp.errCode}")
                     }
                 }
             }
+            else -> {
+                Log.d(TAG, "⚠️ 非微信支付回调: type=${resp?.type}")
+            }
         }
         
+        Log.d(TAG, "Activity即将finish")
         finish()
     }
     
@@ -81,6 +97,11 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
      */
     private fun notifyFlutterPaymentResult(success: Boolean, message: String) {
         try {
+            Log.d(TAG, "=== 开始通知Flutter支付结果 ===")
+            Log.d(TAG, "Success: $success")
+            Log.d(TAG, "Message: $message")
+            Log.d(TAG, "Package name: $packageName")
+            
             // 发送广播给MainActivity，让它通知Flutter
             val intent = android.content.Intent("kissu.payment.result").apply {
                 putExtra("success", success)
@@ -88,9 +109,9 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
                 setPackage(packageName)
             }
             sendBroadcast(intent)
-            Log.d(TAG, "已发送支付结果广播: success=$success, message=$message")
+            Log.d(TAG, "✅ 支付结果广播已发送: success=$success, message=$message")
         } catch (e: Exception) {
-            Log.e(TAG, "发送支付结果广播失败", e)
+            Log.e(TAG, "❌ 发送支付结果广播失败", e)
         }
     }
 }
