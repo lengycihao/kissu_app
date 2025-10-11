@@ -80,8 +80,9 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>需要访问相册以选择照片</string>
 	<!-- 麦克风权限描述 -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>需要访问麦克风以录制语音消息</string>
+	<!-- 🔇 暂时注释：麦克风权限 -->
+	<!-- <key>NSMicrophoneUsageDescription</key>
+	<string>需要访问麦克风以录制语音消息</string> -->
 	
 	<!-- 高德地图API Key -->
 	<key>MAMapKitApiKey</key>

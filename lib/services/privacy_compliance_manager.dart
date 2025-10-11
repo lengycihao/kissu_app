@@ -46,11 +46,15 @@ class PrivacyComplianceManager extends GetxService {
       final agreed = prefs.getBool(_privacyAgreedKey) ?? false;
       final version = prefs.getString(_privacyVersionKey) ?? '';
       
+      if (kDebugMode) {
+        DebugUtil.info('📋 加载隐私政策状态 - agreed: $agreed, version: $version, 当前版本: $_currentPrivacyVersion');
+      }
+      
       // 检查版本是否匹配，如果隐私政策更新了需要重新同意
       if (agreed && version == _currentPrivacyVersion) {
         _isPrivacyAgreed.value = true;
         if (kDebugMode) {
-          DebugUtil.success('隐私政策已同意，版本: $version');
+          DebugUtil.success('✅ 隐私政策已同意，版本: $version');
         }
         
         // 🔑 关键修复：即使已同意，也要在启动时重新初始化SDK
@@ -60,12 +64,12 @@ class PrivacyComplianceManager extends GetxService {
       } else {
         _isPrivacyAgreed.value = false;
         if (kDebugMode) {
-          DebugUtil.warning('隐私政策未同意或版本过期，当前版本: $_currentPrivacyVersion，已保存版本: $version');
+          DebugUtil.warning('⚠️ 隐私政策未同意或版本过期 - agreed: $agreed, 当前版本: $_currentPrivacyVersion，已保存版本: $version');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.error('加载隐私政策状态失败: $e');
+        DebugUtil.error('❌ 加载隐私政策状态失败: $e');
       }
       _isPrivacyAgreed.value = false;
     }
@@ -160,10 +164,12 @@ class PrivacyComplianceManager extends GetxService {
         DebugUtil.launch('开始补充初始化隐私相关功能');
       }
       
+      // 🔑 关键修复：先设置 isSdkInitialized = true，然后再启用隐私功能
+      // 这样在 _enablePrivacyFeatures() 内部调用 startMonitoring() 时，canCollectSensitiveData 就是 true
+      _isSdkInitialized.value = true;
+      
       // 安全策略：只补充隐私授权，不重复初始化已有服务
       await _enablePrivacyFeatures();
-      
-      _isSdkInitialized.value = true;
       
       if (kDebugMode) {
         DebugUtil.success('隐私相关功能启用完成');
@@ -176,6 +182,7 @@ class PrivacyComplianceManager extends GetxService {
       if (kDebugMode) {
         DebugUtil.error('隐私功能启用失败: $e');
       }
+      // 🔑 如果初始化失败，重置状态
       _isSdkInitialized.value = false;
       rethrow;
     } finally {

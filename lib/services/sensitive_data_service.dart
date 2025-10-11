@@ -52,7 +52,11 @@ class SensitiveDataService extends GetxService {
   /// 只有在用户同意隐私政策后才调用此方法
   void startMonitoring() {
     if (!_shouldReport()) {
-      DebugUtil.warning('隐私政策未同意，无法启动敏感数据监听');
+      // 增强日志：输出详细的检查结果
+      final canCollect = _canCollectSensitiveData();
+      final isLoggedIn = UserManager.isLoggedIn;
+      final hasToken = UserManager.userToken != null;
+      DebugUtil.warning('无法启动敏感数据监听 - 隐私合规检查: $canCollect, 已登录: $isLoggedIn, 有Token: $hasToken');
       return;
     }
     
@@ -263,7 +267,18 @@ class SensitiveDataService extends GetxService {
     try {
       if (Get.isRegistered<PrivacyComplianceManager>()) {
         final privacyManager = Get.find<PrivacyComplianceManager>();
-        return privacyManager.canCollectSensitiveData;
+        final canCollect = privacyManager.canCollectSensitiveData;
+        
+        // 增强日志：输出详细的隐私合规状态
+        if (!canCollect) {
+          DebugUtil.warning('隐私合规检查失败 - isPrivacyAgreed: ${privacyManager.isPrivacyAgreed}, '
+              'isSdkInitialized: ${privacyManager.isSdkInitialized}, '
+              'isInitializing: ${privacyManager.isInitializing}');
+        }
+        
+        return canCollect;
+      } else {
+        DebugUtil.error('PrivacyComplianceManager 未注册到 GetX');
       }
     } catch (e) {
       DebugUtil.error('检查隐私合规状态失败: $e');

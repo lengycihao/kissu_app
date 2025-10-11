@@ -88,19 +88,7 @@ class LoveInfoController extends GetxController {
   void _handleBoundState(user) {
     DebugUtil.info('Handling bound state...');
 
-    // 处理绑定时间和在一起天数
-    if (user.latelyBindTime != null) {
-      final bindTime = DateTime.fromMillisecondsSinceEpoch(
-        user.latelyBindTime! * 1000,
-      );
-      loveTime.value = _formatDate(bindTime);
-
-      // 计算在一起天数（作为备用值）
-      final now = DateTime.now();
-      final difference = now.difference(bindTime).inDays;
-      togetherDays.value = difference + 1;
-      DebugUtil.info('Calculated together days: ${togetherDays.value}');
-    }
+    // 处理伴侣信息
     if (user.halfUserInfo != null) {
       DebugUtil.info('Using halfUserInfo for partner data');
       final half = user.halfUserInfo!;
@@ -118,62 +106,30 @@ class LoveInfoController extends GetxController {
         'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
       );
     }
-    // 处理伴侣信息 - 优先使用loverInfo，其次halfUserInfo
+    // 处理恋爱信息 - 只使用接口返回的数据，不自己计算
     if (user.loverInfo != null) {
-      DebugUtil.info('Using loverInfo for partner data');
+      DebugUtil.info('Using loverInfo for love data');
       final lover = user.loverInfo!;
 
-      // 从LoverInfo获取恋爱信息
+      // 从LoverInfo获取恋爱信息 - 有就用，没有就保持默认值
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
         DebugUtil.info('Bind date from loverInfo: ${bindDate.value}');
       }
+      
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
         DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
-        
-        // 重新计算恋爱天数以保持一致性
-        _recalculateLoveDays();
       } else {
-        // 如果服务器没有提供 loveTime，保持之前设置的值（从 latelyBindTime 计算）
-        DebugUtil.info('Using calculated love time: ${loveTime.value}');
+        DebugUtil.info('No love time from server, keeping default value: 一一');
       }
+      
       if (lover.loveDays != null) {
-        // 优先使用服务器返回的天数，但如果存在不一致，则以本地计算为准
-        final serverLoveDays = lover.loveDays!;
-        _recalculateLoveDays();
-        final calculatedLoveDays = loveDays.value;
-        
-        // 如果服务器天数与本地计算相差超过1天，以本地计算为准
-        if ((serverLoveDays - calculatedLoveDays).abs() > 1) {
-          DebugUtil.warning('服务器恋爱天数($serverLoveDays)与本地计算($calculatedLoveDays)相差过大，使用本地计算结果');
-        } else {
-          loveDays.value = serverLoveDays; // 直接使用服务器数据
-        }
-        DebugUtil.info('Final love days: ${loveDays.value}');
+        loveDays.value = lover.loveDays!;
+        togetherDays.value = lover.loveDays!;
+        DebugUtil.info('Love days from loverInfo: ${loveDays.value}');
       } else {
-        // 如果服务器没有提供 loveDays，重新计算
-        _recalculateLoveDays();
-        DebugUtil.info('Using calculated love days: ${loveDays.value}');
-      }
-    }
-  }
-  
-  /// 重新计算恋爱天数
-  void _recalculateLoveDays() {
-    if (loveTime.value != "一一") {
-      try {
-        final loveDate = _parseDate(loveTime.value);
-        if (loveDate != null) {
-          final now = DateTime.now();
-          final difference = now.difference(loveDate).inDays;
-          // 直接使用计算结果，不加1
-          loveDays.value = difference;
-          togetherDays.value = difference;
-          DebugUtil.info('Recalculated love days: ${loveDays.value}');
-        }
-      } catch (e) {
-        DebugUtil.error('Failed to recalculate love days: $e');
+        DebugUtil.info('No love days from server, keeping default value: 0');
       }
     }
   }

@@ -37,6 +37,13 @@ import 'package:oktoast/oktoast.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 确保Flutter绑定初始化
   
+  // 🔒 锁定屏幕方向为竖屏，禁止自动旋转
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  DebugUtil.success('屏幕方向已锁定为竖屏模式');
+  
   // 初始化目录工具配置
   setInitDir(initTempDir: true);
   
