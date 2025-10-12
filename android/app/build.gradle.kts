@@ -30,7 +30,10 @@ android {
     // 解决资源链接问题
     packagingOptions {
         pickFirst("**/libc++_shared.so")
-        pickFirst("**/libjsc.so")
+        pickFirst("**/libjsc++_shared.so")
+        
+        // 保留所有架构的 .so 文件以支持多架构打包
+        // 不再排除任何架构
     }
 
     // 添加资源配置
@@ -55,10 +58,11 @@ android {
         
         // OpenInstall配置
         manifestPlaceholders["OPENINSTALL_APPKEY"] = "eb24o3"
-
-        // 只支持arm64-v8a架构
+        
+        // 只打 arm 架构，去掉 x86_64
+        // 使用 ndk.abiFilters 而不是 splits，因为 Flutter 插件会自动设置 abiFilters
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
     }
 

@@ -106,31 +106,79 @@ class LoveInfoController extends GetxController {
         'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
       );
     }
-    // 处理恋爱信息 - 只使用接口返回的数据，不自己计算
+    
+    // 处理恋爱信息和日期 - 与MineController保持一致的逻辑
+    _handleDateAndDays(user);
+  }
+  
+  void _handleDateAndDays(user) {
+    // 优先使用LoverInfo中的绑定信息
     if (user.loverInfo != null) {
       DebugUtil.info('Using loverInfo for love data');
       final lover = user.loverInfo!;
-
-      // 从LoverInfo获取恋爱信息 - 有就用，没有就保持默认值
+      
+      // 如果有绑定日期，使用LoverInfo中的数据
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
         DebugUtil.info('Bind date from loverInfo: ${bindDate.value}');
       }
       
+      // 如果有相恋时间，使用LoverInfo中的数据
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
         DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
-      } else {
-        DebugUtil.info('No love time from server, keeping default value: 一一');
       }
-      
-      if (lover.loveDays != null) {
+
+      // 如果有恋爱天数，直接使用服务器数据（优先使用接口数据）
+      if (lover.loveDays != null && lover.loveDays! > 0) {
         loveDays.value = lover.loveDays!;
         togetherDays.value = lover.loveDays!;
-        DebugUtil.info('Love days from loverInfo: ${loveDays.value}');
-      } else {
-        DebugUtil.info('No love days from server, keeping default value: 0');
+        DebugUtil.info('✅ Love days from loverInfo API: ${loveDays.value}');
+        return; // 使用了LoverInfo的数据，就不需要再计算了
       }
+
+      // 如果有bindTime但没有loveDays，尝试从bindTime计算
+      if (lover.bindTime != null && lover.bindTime!.isNotEmpty) {
+        try {
+          final bindTimestamp = int.parse(lover.bindTime!);
+          final bindTime = DateTime.fromMillisecondsSinceEpoch(
+            bindTimestamp * 1000,
+          );
+
+          // 如果bindDate为空，格式化bindTime作为bindDate
+          if (lover.bindDate?.isEmpty ?? true) {
+            bindDate.value = _formatDate(bindTime);
+            DebugUtil.info('Bind date from bindTime: ${bindDate.value}');
+          }
+
+          // 计算在一起天数
+          final now = DateTime.now();
+          final difference = now.difference(bindTime).inDays;
+          loveDays.value = difference;
+          togetherDays.value = difference;
+          DebugUtil.info('Love days calculated from bindTime: ${loveDays.value}');
+          return;
+        } catch (e) {
+          DebugUtil.error('解析LoverInfo bindTime失败: $e');
+        }
+      }
+    }
+
+    // 如果LoverInfo没有数据，回退到使用latelyBindTime
+    if (user.latelyBindTime != null) {
+      final bindTime = DateTime.fromMillisecondsSinceEpoch(
+        user.latelyBindTime! * 1000,
+      );
+      bindDate.value = _formatDate(bindTime);
+
+      // 计算在一起天数
+      final now = DateTime.now();
+      final difference = now.difference(bindTime).inDays;
+      loveDays.value = difference;
+      togetherDays.value = difference;
+      DebugUtil.info('Love days calculated from latelyBindTime: ${loveDays.value}');
+    } else {
+      DebugUtil.info('No love days data available, keeping default value: 0');
     }
   }
 

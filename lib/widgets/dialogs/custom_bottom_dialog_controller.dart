@@ -10,6 +10,7 @@ import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/pages/location/location_controller.dart';
+import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_controller.dart';
 
 /// 自定义底部弹窗控制器
@@ -153,7 +154,7 @@ class CustomBottomDialogController extends GetxController {
         }
       }
 
-      // 3. 刷新定位页控制器
+      // 3. 刷新定位页控制器（旧版本）
       if (Get.isRegistered<LocationController>()) {
         try {
           final locationController = Get.find<LocationController>();
@@ -161,6 +162,17 @@ class CustomBottomDialogController extends GetxController {
           print('定位页数据刷新完成');
         } catch (e) {
           print('刷新定位页控制器失败: $e');
+        }
+      }
+      
+      // 3.5 刷新新版定位页控制器
+      if (Get.isRegistered<LocationV2Controller>()) {
+        try {
+          final locationV2Controller = Get.find<LocationV2Controller>();
+          locationV2Controller.refreshUserInfo();
+          print('新版定位页数据刷新完成');
+        } catch (e) {
+          print('刷新新版定位页控制器失败: $e');
         }
       }
 

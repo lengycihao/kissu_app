@@ -1,153 +1,150 @@
-# Multi-Channel APK Build Script
-# Channels: Xiaomi, Huawei, Rongyao, Vivo, Oppo, Meizu, YYB
-# Meizu: 64-bit only | Others: 32-bit + 64-bit
+# 多渠道打包脚本
+# 魅族：只打64位（arm64-v8a）
+# 其他渠道：打64+32位通用包（arm64-v8a,armeabi-v7a）
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "   Kissu App Multi-Channel Build Tool" -ForegroundColor Cyan
-Write-Host "   Meizu: 64-bit | Others: 32+64-bit" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
+$ErrorActionPreference = "Stop"
+
+Write-Host "==================================" -ForegroundColor Cyan
+Write-Host "多渠道打包脚本启动" -ForegroundColor Cyan
+Write-Host "==================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Define channel list
-$channels = @(
-    @{name="kissu_xiaomi"; desc="Xiaomi"},
-    @{name="kissu_huawei"; desc="Huawei"},
-    @{name="kissu_rongyao"; desc="Rongyao"},
-    @{name="kissu_vivo"; desc="Vivo"},
-    @{name="kissu_oppo"; desc="Oppo"},
-    @{name="kissu_meizu"; desc="Meizu"},
-    @{name="kissu_yyb"; desc="YYB"}
-)
-
-# Target file
-$targetFile = "lib\network\interceptor\business_header_interceptor.dart"
-$backupFile = "lib\network\interceptor\business_header_interceptor.dart.backup"
-
-# Create output directory (use absolute path to ensure it exists)
-$outputDir = Join-Path (Get-Location) "multi_channel_apks"
-if (-not (Test-Path $outputDir)) {
-    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+# 定义渠道列表
+$channels = @{
+    "meizu" = "arm64-v8a"  # 魅族只打64位
+    "yingyongbao" = "arm64-v8a,armeabi-v7a"  # 应用宝打通用包
+    "huawei" = "arm64-v8a,armeabi-v7a"  # 华为打通用包
+    "xiaomi" = "arm64-v8a,armeabi-v7a"  # 小米打通用包
+    "oppo" = "arm64-v8a,armeabi-v7a"  # OPPO打通用包
+    "vivo" = "arm64-v8a,armeabi-v7a"  # VIVO打通用包
 }
-Write-Host "[OUTPUT] APK output directory: $outputDir" -ForegroundColor Cyan
 
-# Backup original file
-Write-Host "[BACKUP] Backing up original file..." -ForegroundColor Yellow
-Copy-Item $targetFile $backupFile -Force
+# 创建输出目录
+$outputDir = "multi_channel_apks"
+if (Test-Path $outputDir) {
+    Write-Host "清理旧的输出目录..." -ForegroundColor Yellow
+    Remove-Item -Path $outputDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $outputDir | Out-Null
 
-# Clean build cache ONCE before starting
-Write-Host "[CLEAN] Cleaning build cache (once)..." -ForegroundColor Yellow
-flutter clean | Out-Null
+# 记录成功和失败的渠道
+$successChannels = @()
+$failedChannels = @()
 
-# Record start time
-$startTime = Get-Date
-
-# Loop through each channel
-$successCount = 0
-$failCount = 0
-
-foreach ($channel in $channels) {
-    $channelName = $channel.name
-    $channelDesc = $channel.desc
+# 遍历每个渠道进行打包
+foreach ($channel in $channels.Keys) {
+    $targetAbi = $channels[$channel]
     
     Write-Host ""
-    Write-Host "========================================" -ForegroundColor Green
-    Write-Host "  Building: $channelDesc ($channelName)" -ForegroundColor Green
-    Write-Host "========================================" -ForegroundColor Green
+    Write-Host "==================================" -ForegroundColor Green
+    Write-Host "开始打包渠道: $channel" -ForegroundColor Green
+    Write-Host "目标架构: $targetAbi" -ForegroundColor Green
+    Write-Host "==================================" -ForegroundColor Green
+    Write-Host ""
     
-    # Read file content
-    $content = Get-Content $targetFile -Raw -Encoding UTF8
-    
-    # Replace channel configuration (around line 191)
-    # Original: _cachedChannel ??= Platform.isAndroid ? 'kissu_yyb' : 'Android';
-    # Target: _cachedChannel ??= Platform.isAndroid ? '$channelName' : 'Android';
-    $pattern = "(_cachedChannel \?\?= Platform\.isAndroid \? ')(kissu_[a-z]+)(' : 'Android';)"
-    $replacement = "`${1}$channelName`${3}"
-    
-    $newContent = $content -replace $pattern, $replacement
-    
-    # Save modified file
-    $newContent | Set-Content $targetFile -Encoding UTF8 -NoNewline
-    
-    Write-Host "[CONFIG] Channel updated: $channelName" -ForegroundColor Cyan
-    
-    # Determine build parameters based on channel
-    if ($channelName -eq "kissu_meizu") {
-        # Meizu: Only 64-bit (smaller size)
-        $buildPlatform = "android-arm64"
-        $buildDesc = "64-bit only"
-        $apkSuffix = "arm64"
-    } else {
-        # Others: 32-bit + 64-bit universal APK (larger size)
-        $buildPlatform = "android-arm,android-arm64"
-        $buildDesc = "32+64-bit universal"
-        $apkSuffix = "universal"
-    }
-    
-    Write-Host "[BUILD] Building $buildDesc APK..." -ForegroundColor Yellow
-    
-    $buildResult = flutter build apk --release --target-platform $buildPlatform 2>&1
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "[SUCCESS] Build completed!" -ForegroundColor Green
+    try {
+        # 1. 修改 AndroidManifest.xml 中的渠道标识
+        $manifestPath = "android\app\src\main\AndroidManifest.xml"
+        Write-Host "步骤 1/3: 修改渠道标识为 $channel..." -ForegroundColor Cyan
         
-        # Copy APK to output directory and rename IMMEDIATELY
-        $sourceApk = "build\app\outputs\flutter-apk\app-release.apk"
-        $destApk = Join-Path $outputDir "kissu_${channelName}_${apkSuffix}.apk"
+        $manifestContent = Get-Content $manifestPath -Raw -Encoding UTF8
+        $manifestContent = $manifestContent -replace 'android:value="[^"]*"(\s*android:name="UMENG_CHANNEL")', "android:value=`"$channel`"`$1"
+        $manifestContent | Set-Content $manifestPath -Encoding UTF8 -NoNewline
         
-        if (Test-Path $sourceApk) {
-            Copy-Item $sourceApk $destApk -Force
-            
-            # Get file size
-            $fileSize = [math]::Round((Get-Item $destApk).Length / 1MB, 2)
-            
-            Write-Host "[APK] Saved to: $destApk (Size: $fileSize MB)" -ForegroundColor Green
-            $successCount++
+        Write-Host "✓ 渠道标识修改成功" -ForegroundColor Green
+        
+        # 2. 清理并构建
+        Write-Host ""
+        Write-Host "步骤 2/3: 清理并构建 APK (架构: $targetAbi)..." -ForegroundColor Cyan
+        
+        # 先清理
+        flutter clean | Out-Null
+        
+        # 根据架构参数选择构建命令
+        if ($targetAbi -eq "arm64-v8a") {
+            # 只打64位架构
+            Write-Host "构建64位单架构APK..." -ForegroundColor Yellow
+            flutter build apk --release --target-platform android-arm64
         } else {
-            Write-Host "[ERROR] APK file not found" -ForegroundColor Red
-            $failCount++
+            # 打通用包 (arm64-v8a + armeabi-v7a)
+            Write-Host "构建通用APK (64+32位)..." -ForegroundColor Yellow
+            flutter build apk --release
         }
-    } else {
-        Write-Host "[ERROR] Build failed!" -ForegroundColor Red
-        Write-Host $buildResult -ForegroundColor Red
-        $failCount++
+        
+        if ($LASTEXITCODE -ne 0) {
+            throw "Flutter 构建失败"
+        }
+        
+        Write-Host "✓ APK 构建成功" -ForegroundColor Green
+        
+        # 3. 复制并重命名 APK
+        Write-Host ""
+        Write-Host "步骤 3/3: 复制并重命名 APK..." -ForegroundColor Cyan
+        
+        $sourceApk = "build\app\outputs\flutter-apk\app-release.apk"
+        
+        if (-not (Test-Path $sourceApk)) {
+            throw "找不到构建的 APK: $sourceApk"
+        }
+        
+        # 获取APK信息
+        $apkSize = [math]::Round((Get-Item $sourceApk).Length / 1MB, 2)
+        
+        # 重命名格式：kissu_渠道名_架构.apk
+        $abiSuffix = if ($targetAbi -eq "arm64-v8a") { "arm64" } else { "universal" }
+        $targetApk = "$outputDir\kissu_${channel}_${abiSuffix}.apk"
+        Copy-Item -Path $sourceApk -Destination $targetApk -Force
+        
+        Write-Host "✓ APK 已保存到: $targetApk ($apkSize MB)" -ForegroundColor Green
+        
+        $successChannels += "$channel ($abiSuffix)"
+        
+        Write-Host ""
+        Write-Host "✓✓✓ 渠道 $channel 打包完成 ✓✓✓" -ForegroundColor Green
+        
+    } catch {
+        Write-Host ""
+        Write-Host "✗✗✗ 渠道 $channel 打包失败 ✗✗✗" -ForegroundColor Red
+        Write-Host "错误信息: $_" -ForegroundColor Red
+        $failedChannels += $channel
     }
 }
 
-# Restore original file
+# 打印汇总信息
 Write-Host ""
-Write-Host "[RESTORE] Restoring original configuration..." -ForegroundColor Yellow
-Copy-Item $backupFile $targetFile -Force
-Remove-Item $backupFile -Force
-
-# Record end time
-$endTime = Get-Date
-$duration = $endTime - $startTime
-
-# Print summary
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "   Build Completed!" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "[SUCCESS] Successful builds: $successCount channels" -ForegroundColor Green
-Write-Host "[FAILED] Failed builds: $failCount channels" -ForegroundColor Red
-Write-Host "[TIME] Total duration: $($duration.ToString('hh\:mm\:ss'))" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "[OUTPUT] APK location: $outputDir" -ForegroundColor Cyan
+Write-Host "==================================" -ForegroundColor Cyan
+Write-Host "多渠道打包完成汇总" -ForegroundColor Cyan
+Write-Host "==================================" -ForegroundColor Cyan
 Write-Host ""
 
-# List generated APK files
-if (Test-Path $outputDir) {
-    Write-Host "Generated APK files:" -ForegroundColor Green
-    $apkFiles = Get-ChildItem $outputDir -Filter "*.apk" -ErrorAction SilentlyContinue
-    if ($apkFiles) {
-        foreach ($file in $apkFiles) {
-            $size = [math]::Round($file.Length / 1MB, 2)
-            Write-Host "  - $($file.Name) ($size MB)" -ForegroundColor White
-        }
-    } else {
-        Write-Host "  No APK files found!" -ForegroundColor Red
+if ($successChannels.Count -gt 0) {
+    Write-Host "成功打包的渠道 ($($successChannels.Count)):" -ForegroundColor Green
+    foreach ($channel in $successChannels) {
+        Write-Host "  ✓ $channel" -ForegroundColor Green
+    }
+}
+
+if ($failedChannels.Count -gt 0) {
+    Write-Host ""
+    Write-Host "失败的渠道 ($($failedChannels.Count)):" -ForegroundColor Red
+    foreach ($channel in $failedChannels) {
+        Write-Host "  ✗ $channel" -ForegroundColor Red
     }
 }
 
 Write-Host ""
-Write-Host "[DONE] All channels completed!" -ForegroundColor Green
+Write-Host "所有 APK 已保存到: $outputDir\" -ForegroundColor Cyan
+
+# 列出所有生成的APK
+Write-Host ""
+Write-Host "生成的APK文件列表:" -ForegroundColor Cyan
+Get-ChildItem -Path $outputDir -Filter "*.apk" | ForEach-Object {
+    $size = [math]::Round($_.Length / 1MB, 2)
+    Write-Host "  - $($_.Name) ($size MB)" -ForegroundColor White
+}
+
+Write-Host ""
+Write-Host "==================================" -ForegroundColor Cyan
+Write-Host "打包任务全部完成！" -ForegroundColor Cyan
+Write-Host "==================================" -ForegroundColor Cyan
+

@@ -60,7 +60,7 @@ class ScreenTimeRecordItem {
   final int durationMinutes;
 
   /// 是否为隐私消息
-  final bool isPrivacyMessage;
+  // final bool isPrivacyMessage;
   
   /// 应用名称（可选）
   final String? appName;
@@ -72,7 +72,7 @@ class ScreenTimeRecordItem {
     required this.startTime,
     required this.endTime,
     required this.durationMinutes,
-    this.isPrivacyMessage = false,
+    // this.isPrivacyMessage = false,
     this.appName,
     this.packageName,
   });

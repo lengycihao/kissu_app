@@ -533,6 +533,9 @@ class PaymentService extends GetxService {
         if (vipEndTime.isAfter(DateTime.now())) {
           _logger.i('✅ 检测到用户已成为VIP，支付成功！');
           
+          // 🔧 通知原生取消超时定时器
+          _cancelNativePaymentTimeout();
+          
           // 停止轮询
           _stopVipStatusPolling();
           
@@ -564,6 +567,18 @@ class PaymentService extends GetxService {
       _vipStatusPollingTimer?.cancel();
       _vipStatusPollingTimer = null;
       _pollingCount = 0;
+    }
+  }
+  
+  /// 🔧 通知原生取消支付超时定时器
+  Future<void> _cancelNativePaymentTimeout() async {
+    try {
+      _logger.i('🔔 通知原生层取消支付超时定时器');
+      await _channel.invokeMethod('cancelPaymentTimeout');
+      _logger.i('✅ 已成功通知原生层取消超时');
+    } catch (e) {
+      _logger.w('⚠️ 通知原生层取消超时失败（可能不支持此方法）: $e');
+      // 不抛出异常，因为这不是关键操作
     }
   }
   

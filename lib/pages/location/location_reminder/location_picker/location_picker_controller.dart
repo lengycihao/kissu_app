@@ -8,6 +8,8 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_picker/custom_location_info_window.dart';
+import 'package:kissu_app/models/poi_model.dart';
+import 'package:kissu_app/models/city_model.dart';
 
 /// 地图选点Controller
 class LocationPickerController extends GetxController {
@@ -17,10 +19,13 @@ class LocationPickerController extends GetxController {
   // 逆地理编码服务
   final _geocodeService = AMapGeocodeService();
   
-  // 初始位置参数
+  // 初始位置参数（用于新建模式）
   final double? initialLatitude;
   final double? initialLongitude;
   final String? initialLocationName;
+  
+  // 编辑模式：传入已有的LocationReminder对象
+  final LocationReminder? editingReminder;
   
   // 当前选中的位置
   final Rx<LatLng?> selectedLocation = Rx<LatLng?>(null);
@@ -32,10 +37,16 @@ class LocationPickerController extends GetxController {
   final isLoadingAddress = false.obs;
   
   // 选中的图标类型 (1-5: 公司/家/娱乐/健身房/商场)
-  final selectedIcon = 2.obs; // 默认为"家"
+  final selectedIcon = 1.obs; // 默认为"家"
 
   // 选中的提醒类型（到达/离开）
   final selectedBottomAway = true.obs;
+  
+  // 当前城市名称（用于显示）- 改为空字符串，等待从定位获取
+  final currentCity = ''.obs;
+  
+  // 当前城市对象（包含 adcode）
+  final Rx<CityModel?> currentCityModel = Rx<CityModel?>(null);
   
   // 地图类型 (1: 经典地图, 2: 卫星地图)
   final mapType = 1.obs;
@@ -68,6 +79,7 @@ class LocationPickerController extends GetxController {
     this.initialLatitude,
     this.initialLongitude,
     this.initialLocationName,
+    this.editingReminder,
   });
   
   @override
@@ -79,13 +91,76 @@ class LocationPickerController extends GetxController {
       noteText.value = noteController.text;
     });
     
+    // 初始化当前城市
+    _initializeCurrentCity();
+    
     // 如果有初始位置，设置初始标记
     _initializeLocation();
   }
   
+  /// 初始化当前城市（从定位服务获取）
+  Future<void> _initializeCurrentCity() async {
+    try {
+      final locationService = Get.find<SimpleLocationService>();
+      final currentLoc = locationService.currentLocation.value;
+      
+      if (currentLoc != null) {
+        final lat = double.tryParse(currentLoc.latitude);
+        final lng = double.tryParse(currentLoc.longitude);
+        
+        if (lat != null && lng != null) {
+          // 使用逆地理编码获取城市信息
+          final result = await _geocodeService.getAddressFromLocation(
+            longitude: lng,
+            latitude: lat,
+          );
+          
+          if (result['success'] == true) {
+            final cityName = result['city'] as String? ?? '';
+            final adcode = result['adcode'] as String? ?? '';
+            
+            if (cityName.isNotEmpty && adcode.isNotEmpty) {
+              currentCity.value = cityName;
+              currentCityModel.value = CityModel(
+                cityName: cityName,
+                adcode: adcode,
+              );
+              DebugUtil.success('✅ 从定位初始化城市: $cityName (adcode: $adcode)');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 初始化城市失败: $e');
+      // 失败时保持空字符串，显示"选择城市"
+    }
+  }
+  
   /// 初始化位置
   void _initializeLocation() {
-    if (initialLatitude != null && initialLongitude != null) {
+    // 优先使用编辑模式的数据
+    if (editingReminder != null) {
+      final reminder = editingReminder!;
+      final position = LatLng(reminder.latitude, reminder.longitude);
+      
+      // 设置所有字段
+      selectedLocation.value = position;
+      selectedAddress.value = reminder.address;
+      selectedIcon.value = reminder.icon;
+      selectedBottomAway.value = reminder.type == ReminderType.arrive;
+      mapType.value = reminder.mapType;
+      geofenceRadius.value = reminder.radius;
+      noteController.text = reminder.note;
+      noteText.value = reminder.note;
+      
+      // 更新地图标记和围栏
+      _updateMarker(position, reminder.address);
+      _updateGeofenceCircle(position);
+      
+      DebugUtil.info('🗺️ 编辑模式：已加载提醒数据 - ${reminder.note}');
+    } 
+    // 其次使用初始位置参数（新建模式）
+    else if (initialLatitude != null && initialLongitude != null) {
       final position = LatLng(initialLatitude!, initialLongitude!);
       selectedLocation.value = position;
       
@@ -135,7 +210,16 @@ class LocationPickerController extends GetxController {
   
   /// 初始相机位置
   CameraPosition get initialCameraPosition {
-    // 优先级：1. 传入的初始位置 > 2. 当前位置 > 3. 默认杭州
+    // 优先级：1. 编辑模式的位置 > 2. 传入的初始位置 > 3. 当前位置 > 4. 默认位置（全国视角）
+    if (editingReminder != null) {
+      // 🆕 编辑模式：相机向下偏移，让标记点显示在地图中上部
+      final offsetLatitude = editingReminder!.latitude - 0.0016;
+      return CameraPosition(
+        target: LatLng(offsetLatitude, editingReminder!.longitude),
+        zoom: 17.5, // 提高缩放级别，让围栏显示得更清晰
+      );
+    }
+    
     if (initialLatitude != null && initialLongitude != null) {
       return CameraPosition(
         target: LatLng(initialLatitude!, initialLongitude!),
@@ -162,7 +246,7 @@ class LocationPickerController extends GetxController {
       DebugUtil.error('获取当前位置失败: $e');
     }
     
-    // 默认杭州
+    // 默认位置（杭州，但地图会根据用户选择的城市进行调整）
     return const CameraPosition(
       target: LatLng(30.2741, 120.2206),
       zoom: 17.5,
@@ -317,6 +401,18 @@ class LocationPickerController extends GetxController {
           DebugUtil.success('✅ 地址获取成功: ${selectedAddress.value}');
         }
         
+        // 更新城市信息
+        final cityName = result['city'] ?? '';
+        final adcode = result['adcode'] ?? '';
+        if (cityName.isNotEmpty && adcode.isNotEmpty) {
+          currentCity.value = cityName;
+          currentCityModel.value = CityModel(
+            cityName: cityName,
+            adcode: adcode,
+          );
+          DebugUtil.info('🏙️ 更新城市信息: $cityName (adcode: $adcode)');
+        }
+        
         // 更新marker，显示获取到的地址
         _updateMarker(position, selectedAddress.value, context: context);
       } else {
@@ -363,8 +459,8 @@ class LocationPickerController extends GetxController {
     // 根据触发条件选择颜色：到达=蓝色，离开=粉色
     final bool isArrival = selectedBottomAway.value; // true=到达, false=离开
     final strokeColor = isArrival 
-        ? const Color(0x994D9FFF) // 蓝色边框 (60%透明度)
-        : const Color(0xFFFF88AA); // 粉色边框
+        ? const Color(0x66ffffff) // 蓝色边框 (60%透明度)
+        : const Color(0x66ffffff); // 粉色边框
     final fillColor = isArrival
         ? const Color(0x334D9FFF) // 蓝色填充 (20%透明度)
         : const Color(0x66FFD5E1); // 粉色填充 #FFD5E1 带透明度
@@ -372,7 +468,7 @@ class LocationPickerController extends GetxController {
     final circle = Circle(
       center: position,
       radius: geofenceRadius.value,
-      strokeWidth: 2,
+      strokeWidth: 5,
       strokeColor: strokeColor,
       fillColor: fillColor,
       visible: true,
@@ -385,27 +481,36 @@ class LocationPickerController extends GetxController {
     DebugUtil.success('🔵 围栏圆形已更新: 中心=$position, 半径=${geofenceRadius.value}米');
   }
   
-  /// 移动相机到指定位置，并向上偏移避免底部面板遮挡
-  // void _moveCameraToPosition(LatLng position) {
-  //   if (mapController != null) {
-  //     // 🔧 底部面板约占45%屏幕高度，标记点需要显示在屏幕上方25-30%位置
-  //     // 在缩放级别17.5下，屏幕高度约显示0.0063度纬度
-  //     // 标记点默认在屏幕中心（50%），需要上移到25%
-  //     // 向上偏移 = 屏幕高度 × (50% - 25%) = 0.0063 × 0.25 = 0.0016度
-  //     // 实际测试需要更大偏移量以避免被面板完全遮挡，使用 0.005 度
-  //     final offsetLatitude = position.latitude + 0.005;
-  //     final offsetPosition = LatLng(offsetLatitude, position.longitude);
+  /// 移动相机到指定位置，并向下偏移避免底部面板遮挡
+  void _moveCameraToPosition(LatLng position) {
+    if (mapController != null) {
+      // 🔧 底部面板高度约 310px，屏幕高度假设 800px
+      // 地图可见区域高度 = 800 - 310 = 490px
+      // 标记点应该在可见区域中上部（约40%位置），即从屏幕顶部 490×0.4 = 196px 处
+      // 要让标记点在屏幕上方，相机需要向下（向南）移动
+      // 屏幕中心在 400px 处，标记点在 196px，相机需要向下偏移 400-196 = 204px
+      // 在缩放级别17.5下，屏幕高度约显示 0.006 度纬度（约666米）
+      // 204px / 800px = 25.5% 的屏幕高度
+      // 偏移量 = 0.006 × 0.255 = 0.00153 度 ≈ 0.0016 度（约 170米）
+      // ⚠️ 向下偏移相机 = 减小纬度值
+      final offsetLatitude = position.latitude - 0.0016;
+      final offsetPosition = LatLng(offsetLatitude, position.longitude);
       
-  //     DebugUtil.info('📷 相机移动: 原位置=$position, 偏移后=$offsetPosition, 偏移量=0.005度');
+      DebugUtil.info('📷 相机移动: 原位置=$position, 偏移后=$offsetPosition, 偏移量=-0.0016度, 缩放=17.5');
       
-  //     // 使用动画移动相机，更平滑
-  //     mapController!.moveCamera(
-  //       CameraUpdate.newLatLng(offsetPosition),
-  //       animated: true,
-  //       duration: 300, // 动画时长300ms
-  //     );
-  //   }
-  // }
+      // 使用动画移动相机，同时设置缩放级别
+      mapController!.moveCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: offsetPosition,
+            zoom: 17.5, // 设置缩放级别，让100米围栏显示得更清晰
+          ),
+        ),
+        animated: true,
+        duration: 300, // 动画时长300ms
+      );
+    }
+  }
   
   /// 保存位置
   Future<LocationReminder?> saveLocation() async {
@@ -414,11 +519,17 @@ class LocationPickerController extends GetxController {
       return null;
     }
     
+    // 验证备注必填
+    if (noteText.value.trim().isEmpty) {
+      OKToastUtil.show('请输入备注');
+      return null;
+    }
+    
     try {
-      // 创建位置提醒对象（不再截取本地地图快照）
+      // 创建或更新位置提醒对象
       final reminder = LocationReminder(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: noteText.value.isNotEmpty ? noteText.value : _getDefaultName(),
+        id: editingReminder?.id ?? DateTime.now().millisecondsSinceEpoch.toString(), // 编辑模式保留原ID
+        name: noteText.value,
         address: selectedAddress.value,
         icon: selectedIcon.value,
         note: noteText.value,
@@ -428,9 +539,11 @@ class LocationPickerController extends GetxController {
         radius: geofenceRadius.value,
         type: selectedBottomAway.value ? ReminderType.arrive : ReminderType.leave,
         mapType: mapType.value, // 保存用户选择的地图类型
+        isActive: editingReminder?.isActive ?? true, // 编辑模式保留激活状态
       );
       
-      DebugUtil.success('✅ 位置提醒创建成功: 类型=${reminder.type}, 半径=${reminder.radius}米, 地图类型=${reminder.mapType}');
+      final mode = editingReminder != null ? '更新' : '创建';
+      DebugUtil.success('✅ 位置提醒${mode}成功: 类型=${reminder.type}, 半径=${reminder.radius}米, 地图类型=${reminder.mapType}');
       return reminder;
     } catch (e) {
       DebugUtil.error('❌ 保存位置失败: $e');
@@ -438,14 +551,59 @@ class LocationPickerController extends GetxController {
       return null;
     }
   }
-  
-  /// 获取默认名称（根据图标类型）
-  String _getDefaultName() {
-    final iconData = availableIcons.firstWhere(
-      (icon) => icon.id == selectedIcon.value,
-      orElse: () => availableIcons[1], // 默认返回"家"
-    );
-    return '我的${iconData.label}';
+
+  /// 从POI更新位置信息
+  Future<void> updateLocationFromPoi(PoiModel poi, {BuildContext? context}) async {
+    final location = LatLng(poi.latitude, poi.longitude);
+    selectedLocation.value = location;
+    selectedAddress.value = '${poi.name} - ${poi.address}';
+
+    // 更新城市信息
+    if (poi.cityname.isNotEmpty && poi.adcode.isNotEmpty) {
+      currentCity.value = poi.cityname;
+      currentCityModel.value = CityModel(
+        cityName: poi.cityname,
+        adcode: poi.adcode,
+      );
+      DebugUtil.info('🏙️ 从POI更新城市信息: ${poi.cityname} (adcode: ${poi.adcode})');
+    }
+
+    // 🆕 移动地图到选中位置，使用与编辑模式相同的缩放级别和偏移策略
+    if (mapController != null) {
+      // 向下偏移相机，避免被底部面板遮挡，与编辑模式保持一致
+      final offsetLatitude = location.latitude - 0.0016;
+      final offsetPosition = LatLng(offsetLatitude, location.longitude);
+      
+      DebugUtil.info('📷 从POI移动相机: 原位置=$location, 偏移后=$offsetPosition, zoom=17.5');
+      
+      mapController!.moveCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: offsetPosition,
+            zoom: 17.5, // 与编辑模式保持一致的缩放级别
+          ),
+        ),
+        animated: true,
+        duration: 300,
+      );
+    }
+
+    // 更新地图标记（使用自定义InfoWindow）
+    _updateMarker(location, '${poi.name} - ${poi.address}', context: context);
+
+    // 更新围栏圆形
+    _updateGeofenceCircle(location);
+    
+    DebugUtil.success('✅ 从POI更新位置: ${poi.name}，围栏已添加');
+  }
+
+  /// 更新当前城市
+  void updateCurrentCity(CityModel city) {
+    currentCity.value = city.cityName;
+    currentCityModel.value = city;
+    DebugUtil.success('✅ 切换城市: ${city.cityName} (adcode: ${city.adcode})');
+    
+    // TODO: 可以根据城市移动地图到该城市中心
   }
 }
 

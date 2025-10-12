@@ -57,7 +57,7 @@ class TrackController extends GetxController {
   /// 播放控制器UI状态 - true显示完整播放器，false显示简单按钮
   final showFullPlayer = false.obs;
   /// 播放期间已行走的距离
-  final replayDistance = "0.00km".obs;
+  final replayDistance = "".obs;
   /// 播放时间
   final replayTime = "00:00:00".obs;
   
@@ -1992,7 +1992,7 @@ class TrackController extends GetxController {
     // 重置播放状态
     _replayStartTime = null;
     _cumulativeDistance = 0.0;
-    replayDistance.value = "0.00km";
+    replayDistance.value = "";
     replayTime.value = "00:00:00";
     // 重置位置
     if (trackPoints.isNotEmpty) {
@@ -2083,7 +2083,7 @@ class TrackController extends GetxController {
     stayCount.value = 0;
     stayDuration.value = "";
     moveDistance.value = "";
-    replayDistance.value = "0.00km";
+    replayDistance.value = "";
     replayTime.value = "00:00:00";
     
     DebugUtil.success(' 轨迹页面资源清理完成');

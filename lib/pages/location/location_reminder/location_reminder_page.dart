@@ -2,18 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_picker/location_picker_page.dart';
-import 'package:kissu_app/pages/location/location_reminder/geofence_detail_page.dart';
-import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/location_map_snapshot.dart';
+import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 位置提醒页面
-class LocationReminderPage extends StatelessWidget {
-  LocationReminderPage({super.key});
-
-  final controller = Get.put(LocationReminderController());
+/// 
+/// 性能优化：
+/// - 使用 GetView 替代 StatelessWidget + Get.put
+/// - 使用 Get.lazyPut 管理 Controller 生命周期
+/// - 添加 ListView 缓存配置
+/// - 使用 ValueKey 优化 Widget 复用
+class LocationReminderPage extends GetView<LocationReminderController> {
+  const LocationReminderPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 使用 Get.lazyPut 确保 Controller 只创建一次，并在页面销毁时自动清理
+    Get.lazyPut<LocationReminderController>(
+      () => LocationReminderController(),
+      fenix: false,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6EF),
       appBar: AppBar(
@@ -70,6 +80,8 @@ class LocationReminderPage extends StatelessWidget {
           // 当达到20个时，不显示添加按钮
           final showAddButton = controller.reminders.length < 20;
           return ListView.builder(
+            // 添加缓存extent，提升性能
+            cacheExtent: 500, // 缓存屏幕外500像素的内容
             itemCount: controller.reminders.length + (showAddButton ? 1 : 0),
             itemBuilder: (context, index) {
               // 最后一个item是"添加地点"按钮
@@ -79,6 +91,7 @@ class LocationReminderPage extends StatelessWidget {
 
               // 显示已保存的位置提醒
               final reminder = controller.reminders[index];
+              // 使用 key 来优化 Widget 复用
               return _buildLocationItem(context, reminder, index);
             },
           );
@@ -93,13 +106,20 @@ class LocationReminderPage extends StatelessWidget {
     LocationReminder reminder,
     int index,
   ) {
+    // 使用 ValueKey 提高 Widget 复用效率
     return GestureDetector(
-      onTap: () {
-        // 跳转到围栏详情页面（只读模式）
-        Get.to(
-          () => GeofenceDetailPage(reminder: reminder),
+      key: ValueKey(reminder.id),
+      onTap: () async {
+        // 跳转到位置选择页面（编辑模式）
+        final result = await Get.to(
+          () => LocationPickerPage(editingReminder: reminder),
           transition: Transition.rightToLeft,
         );
+        
+        // 如果返回了更新后的数据，更新列表
+        if (result != null && result is LocationReminder) {
+          controller.updateReminder(result);
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
@@ -116,13 +136,13 @@ class LocationReminderPage extends StatelessWidget {
               // Icon
               _getLocationIcon(reminder.icon),
               const SizedBox(width: 8),
-              // 名称（根据图标类型和性别显示）
+              // 备注内容
               Expanded(
                 child: Row(
                   children: [
                     Flexible(
                       child: Text(
-                        _getLocationName(reminder.icon),
+                        reminder.note,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -182,16 +202,6 @@ class LocationReminderPage extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          // 备注（如果有）
-          if (reminder.note.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              '备注：${reminder.note}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
           const SizedBox(height: 3),
           // 围栏信息和开关
           // Row(
@@ -344,7 +354,7 @@ class LocationReminderPage extends StatelessWidget {
                         ),
                         // 半透明遮罩层
                         Container(
-                          color: const Color(0x66000000),
+                          color: const Color(0x44000000),
                         ),
                         // 添加地点文字
                         Center(
@@ -409,73 +419,21 @@ class LocationReminderPage extends StatelessWidget {
     );
   }
 
-  /// 获取位置名称（根据图标类型和伴侣性别）
-  String _getLocationName(int iconId) {
-    // 获取伴侣性别，默认为女性（她）
-    final user = UserManager.currentUser;
-    String pronoun = '她';
-    
-    if (user != null) {
-      // 优先使用 loverInfo
-      if (user.loverInfo?.gender != null) {
-        pronoun = user.loverInfo!.gender == 1 ? '他' : '她';
-      } 
-      // 其次使用 halfUserInfo
-      else if (user.halfUserInfo?.gender != null) {
-        pronoun = user.halfUserInfo!.gender == 1 ? '他' : '她';
-      }
-    }
-
-    switch (iconId) {
-      case 1:
-        return '${pronoun}的公司';
-      case 2:
-        return '${pronoun}的家';
-      case 3:
-        return '${pronoun}常去的娱乐场所';
-      case 4:
-        return '${pronoun}常去的健身房';
-      case 5:
-        return '${pronoun}常去的商场';
-      default:
-        return '${pronoun}的位置';
-    }
-  }
-
   /// 显示删除确认对话框
-  void _showDeleteDialog(BuildContext context, String reminderId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          '删除提醒',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        content: const Text(
-          '确定要删除这个位置提醒吗？',
-          style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              '取消',
-              style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              controller.removeReminder(reminderId);
-              Get.back();
-            },
-            child: const Text(
-              '删除',
-              style: TextStyle(fontSize: 16, color: Color(0xFFFF4177)),
-            ),
-          ),
-        ],
-      ),
+  void _showDeleteDialog(BuildContext context, String reminderId) async {
+    await DeleteLocationReminderDialogUtil.show(
+      onConfirm: () async {
+        // 执行原来的删除方法
+        final success = await controller.removeReminder(reminderId);
+        if (success) {
+          OKToastUtil.show('删除成功');
+        } else {
+          OKToastUtil.showError('删除失败，请重试');
+        }
+      },
+      onCancel: () {
+        // 弹窗消失，不需要额外操作
+      },
     );
   }
 }

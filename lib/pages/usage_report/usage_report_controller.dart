@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/models/screen_time_model.dart';
+import 'package:kissu_app/models/unlock_record_model.dart';
+import 'package:kissu_app/models/usage_record_api_model.dart';
+import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/services/permission_service.dart';
-import 'package:kissu_app/services/screen_usage_service.dart';
+import 'package:kissu_app/utils/usage_record_converter.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 class UsageReportController extends GetxController {
   final PermissionService _permissionService = PermissionService();
-  final ScreenUsageService _screenUsageService = ScreenUsageService();
+  final UsageRecordApi _usageRecordApi = UsageRecordApi();
+  
   // 选中的日期索引
   final selectedDateIndex = 0.obs;
   
@@ -41,6 +46,18 @@ class UsageReportController extends GetxController {
   final filterMediumSensitive = false.obs; // 中敏感
   final filterLowSensitive = false.obs; // 低敏感
   final filterShowDataCount = false.obs; // 显示数据数值
+
+  // API数据存储
+  final Rx<UsageRecordApiResponse?> apiData = Rx<UsageRecordApiResponse?>(null);
+  final isLoading = false.obs;
+  
+  // 转换后的UI数据
+  Rx<ScreenTimeDetailModel?> screenTimeData = Rx<ScreenTimeDetailModel?>(null);
+  Rx<UnlockRecordDetailModel?> unlockRecordData = Rx<UnlockRecordDetailModel?>(null);
+  Rx<RecordSection?> sensitiveRecordData = Rx<RecordSection?>(null);
+  Rx<RecordSection?> locationAnomalyData = Rx<RecordSection?>(null);
+  Rx<RecordSection?> allRecordData = Rx<RecordSection?>(null);
+  Rx<HalfLocationMobileDevice?> deviceInfo = Rx<HalfLocationMobileDevice?>(null);
 
   // 动态标签列表（根据筛选状态计算）
   List<String> get visibleTabs {
@@ -426,8 +443,72 @@ class UsageReportController extends GetxController {
 
   /// 加载数据
   Future<void> loadData() async {
-    debugPrint('📊 加载数据: ${DateFormat('yyyy-MM-dd').format(selectedDate.value)}');
-    // TODO: 实现数据加载逻辑
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    debugPrint('📊 加载数据: $dateStr');
+    
+    try {
+      isLoading.value = true;
+      
+      // 调用API
+      final result = await _usageRecordApi.getSensitiveRecord(date: selectedDate.value);
+      
+      if (result.isSuccess && result.data != null) {
+        debugPrint('✅ 数据加载成功');
+        apiData.value = result.data;
+        
+        // 转换数据
+        _convertApiDataToUIModels();
+      } else {
+        debugPrint('❌ 数据加载失败: ${result.msg}');
+        if (Get.context != null) {
+          CustomToast.show(Get.context!, result.msg ?? '数据加载失败');
+        }
+      }
+    } catch (e) {
+      debugPrint('💥 数据加载异常: $e');
+      if (Get.context != null) {
+        CustomToast.show(Get.context!, '数据加载异常: $e');
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  /// 将API数据转换为UI模型
+  void _convertApiDataToUIModels() {
+    if (apiData.value == null) return;
+    
+    final data = apiData.value!;
+    
+    // 1. 转换屏幕使用时长数据
+    screenTimeData.value = UsageRecordConverter.convertToScreenTimeModel(
+      data.mobileScreenUsageDurationRecord,
+      selectedDate.value,
+    );
+    debugPrint('📱 屏幕使用时长数据转换完成: ${screenTimeData.value?.records.length}条记录');
+    
+    // 2. 转换解锁记录数据
+    unlockRecordData.value = UsageRecordConverter.convertToUnlockRecordModel(
+      data.unlockMobileRecord,
+      selectedDate.value,
+    );
+    debugPrint('🔓 解锁记录数据转换完成: ${unlockRecordData.value?.records.length}条记录');
+    
+    // 3. 存储敏感记录数据
+    sensitiveRecordData.value = data.sensitiveRecord;
+    debugPrint('🔒 敏感记录数据: ${sensitiveRecordData.value?.data.length}条记录');
+    
+    // 4. 存储定位异常数据
+    locationAnomalyData.value = data.locationStayAbnormalRecord;
+    debugPrint('📍 定位异常数据: ${locationAnomalyData.value?.data.length}条记录');
+    
+    // 5. 存储全部记录数据
+    allRecordData.value = data.allRecord;
+    debugPrint('📋 全部记录数据: ${allRecordData.value?.data.length}条记录');
+    
+    // 6. 存储设备信息
+    deviceInfo.value = data.halfLocationMobileDevice;
+    debugPrint('📱 设备信息: 手机=${deviceInfo.value?.mobileModel}, 网络=${deviceInfo.value?.networkName}, 电量=${deviceInfo.value?.power}');
   }
 
   /// 显示设置对话框

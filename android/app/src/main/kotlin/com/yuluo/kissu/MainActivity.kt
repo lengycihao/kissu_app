@@ -15,7 +15,9 @@ import java.security.NoSuchAlgorithmException
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugins.GeneratedPluginRegistrant
+import android.location.LocationManager
 import com.umeng.analytics.MobclickAgent
 import com.umeng.commonsdk.UMConfigure
 import com.umeng.socialize.PlatformConfig
@@ -55,6 +57,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val SCREENSHOT_CHANNEL = "kissu_app/screenshot"
     private val APP_INFO_CHANNEL = "kissu_app/app_info"
     private val WHITELIST_CHANNEL = "kissu_app/whitelist"
+    private val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
     
     // 微信支付API
     private var wxApi: IWXAPI? = null
@@ -63,8 +66,14 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private var screenshotObserver: ScreenshotObserver? = null
     private var screenshotMethodChannel: MethodChannel? = null
     
+    // GPS状态监听器
+    private var gpsStatusReceiver: GpsStatusReceiver? = null
+    
     // 支付结果等待器
     private var paymentResultCompleter: ((Boolean, String) -> Unit)? = null
+    
+    // 🔧 支付超时定时器 Job（用于取消超时）
+    private var paymentTimeoutJob: Job? = null
     
     // 支付结果广播接收器
     private val paymentResultReceiver = object : BroadcastReceiver() {
@@ -133,6 +142,18 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         } catch (e: Exception) {
             Log.e("MainActivity", "注销广播接收器失败", e)
         }
+        
+        // 注销GPS状态接收器
+        try {
+            gpsStatusReceiver?.let { 
+                unregisterReceiver(it)
+                gpsStatusReceiver = null
+                GpsStatusReceiver.eventSink = null
+                Log.d("MainActivity", "GPS状态接收器已注销")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "注销GPS状态接收器失败", e)
+        }
     }
     
     /**
@@ -192,6 +213,48 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             }
         }
         Log.d("MainActivity", "✅ 截屏通道方法处理器设置完成")
+        
+        // GPS状态监听通道（EventChannel）
+        Log.d("MainActivity", "🔧 开始注册GPS状态通道...")
+        val gpsEventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, GPS_STATUS_CHANNEL)
+        gpsEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                Log.d("MainActivity", "📍 GPS状态监听已启动")
+                
+                // 设置EventSink到GpsStatusReceiver
+                GpsStatusReceiver.eventSink = events
+                
+                // 创建并注册GPS状态广播接收器
+                gpsStatusReceiver = GpsStatusReceiver()
+                val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(gpsStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                } else {
+                    registerReceiver(gpsStatusReceiver, filter)
+                }
+                
+                // 立即发送当前GPS状态
+                val currentStatus = gpsStatusReceiver?.getCurrentGpsStatus(this@MainActivity) ?: false
+                events?.success(currentStatus)
+                Log.d("MainActivity", "✅ GPS状态监听已注册，当前状态: ${if (currentStatus) "开启" else "关闭"}")
+            }
+            
+            override fun onCancel(arguments: Any?) {
+                Log.d("MainActivity", "📍 GPS状态监听已取消")
+                
+                // 注销广播接收器
+                try {
+                    gpsStatusReceiver?.let { unregisterReceiver(it) }
+                    gpsStatusReceiver = null
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "❌ 注销GPS状态接收器失败: ${e.message}")
+                }
+                
+                // 清除EventSink
+                GpsStatusReceiver.eventSink = null
+            }
+        })
+        Log.d("MainActivity", "✅ GPS状态通道注册完成")
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -351,6 +414,12 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     val orderInfo = call.argument<String>("orderInfo") ?: ""
                     Log.d("MainActivity", "收到支付宝支付请求，orderInfo长度: ${orderInfo.length}")
                     payWithAlipay(orderInfo, result)
+                }
+                "cancelPaymentTimeout" -> {
+                    // 🔧 新增：取消支付超时定时器（由Flutter轮询检测到支付成功后调用）
+                    Log.d("MainActivity", "收到取消支付超时请求")
+                    cancelPaymentTimeout()
+                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
@@ -1336,9 +1405,18 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 paymentResultCompleter = null
             }
             
+            // 🔧 取消之前的超时定时器（如果有）
+            paymentTimeoutJob?.cancel()
+            paymentTimeoutJob = null
+            
             // 设置支付结果回调，确保立即处理结果
             paymentResultCompleter = { success: Boolean, message: String ->
                 Log.d("MainActivity", "微信支付完成: success=$success, message=$message")
+                
+                // 🔧 取消超时定时器（支付已完成）
+                paymentTimeoutJob?.cancel()
+                paymentTimeoutJob = null
+                
                 try {
                     result.success(mapOf("success" to success, "message" to message))
                 } catch (e: Exception) {
@@ -1366,25 +1444,38 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 Log.d("MainActivity", "注意：此时不会立即返回支付结果，需要等待微信回调")
                 // 不立即返回，等待WXPayEntryActivity的回调
                 
-                // 设置60秒超时，给用户足够的支付时间
-                CoroutineScope(Dispatchers.Main).launch {
+                // 🔧 设置60秒超时，给用户足够的支付时间（保存 Job 以便取消）
+                paymentTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
                     delay(60000) // 60秒超时
                     if (paymentResultCompleter != null) {
                         Log.w("MainActivity", "微信支付超时（60秒）")
                         paymentResultCompleter?.invoke(false, "支付超时，请稍后查看订单状态")
                         paymentResultCompleter = null
+                        paymentTimeoutJob = null
                     }
                 }
             } else {
                 Log.e("MainActivity", "微信支付请求发送失败，sendResult: $sendResult")
                 paymentResultCompleter = null
+                paymentTimeoutJob?.cancel()
+                paymentTimeoutJob = null
                 result.success(mapOf("success" to false, "message" to "微信支付请求发送失败"))
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "微信支付异常", e)
             paymentResultCompleter = null
+            paymentTimeoutJob?.cancel()
+            paymentTimeoutJob = null
             result.success(mapOf("success" to false, "message" to "微信支付失败: ${e.message}"))
         }
+    }
+
+    // 🔧 取消支付超时定时器（由Flutter调用）
+    private fun cancelPaymentTimeout() {
+        Log.d("MainActivity", "取消支付超时定时器")
+        paymentTimeoutJob?.cancel()
+        paymentTimeoutJob = null
+        Log.d("MainActivity", "支付超时定时器已取消")
     }
 
     private fun isAlipayAppInstalled(): Boolean {

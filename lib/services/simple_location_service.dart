@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:amap_flutter_location/amap_location_option.dart';
@@ -14,6 +15,7 @@ import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:flutter/material.dart';
 
@@ -105,6 +107,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   // 权限状态监听
   final Rx<PermissionStatus> _currentLocationPermission = PermissionStatus.denied.obs;
   final Rx<PermissionStatus> _currentBackgroundPermission = PermissionStatus.denied.obs;
+  
+  // GPS开关状态监听（系统级别的定位服务开关）
+  static const EventChannel _gpsStatusChannel = EventChannel('kissu_app/gps_status');
+  StreamSubscription<dynamic>? _gpsStatusSubscription;
+  bool? _lastGpsEnabledStatus; // 上次的GPS开关状态（null表示未初始化）
   
   // 应用生命周期状态（用于模拟iOS的应用状态监听）
   // ignore: unused_field
@@ -204,6 +211,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     _globalLocationSub?.cancel();
     _globalLocationSub = null;
     _isGlobalListenerSetup = false;
+    
+    // 清理GPS状态监听
+    _gpsStatusSubscription?.cancel();
+    _gpsStatusSubscription = null;
+    
     super.onClose();
   }
   
@@ -219,6 +231,10 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     _setupAppLifecycleListener();
     // 初始化权限状态
     _initializePermissionStatus();
+    // 启动GPS状态监听（仅Android）
+    if (Platform.isAndroid) {
+      _startGpsStatusMonitoring();
+    }
     
     debugPrint('✅ 隐私合规定位服务启动完成');
   }
@@ -651,7 +667,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
             shouldRetry = true;
             break;
           case 15:
-            debugPrint('❌ 错误码15: 定位服务关闭');
+            debugPrint('❌ 错误码15: 定位服务关闭（系统GPS开关被关闭）');
             suggestion = '系统定位服务已关闭，请在设置中开启';
             break;
           case 16:
@@ -726,6 +742,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       
       // 成功定位，重置重试计数
       _locationRetryCount = 0;
+      
       // debugPrint('✅ 高德定位成功: 纬度=$latitude, 经度=$longitude, 精度=$accuracy 米');
 
       final location = LocationReportModel(
@@ -788,6 +805,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       hasInitialReport.value = false;
       _lastReportedLocation = null;
       _lastMinuteReportTime = null;
+      
+      // 🆕 清空当前位置数据，避免关闭定位后仍然使用旧位置
+      currentLocation.value = null;
 
       debugPrint('高德定位服务已停止（全局监听器保持激活）');
     } catch (e) {
@@ -2721,10 +2741,12 @@ extension PermissionManagementExtension on SimpleLocationService {
     
     if (from.isDenied && to.isGranted) {
       debugPrint('✅ 前台定位权限已开启');
-      // 可以在这里发送权限开启事件（参考iOS版本的locationPermissionEventSubject）
+      // 上报定位开启事件
+      SensitiveDataService.instance.reportLocationOpen();
     } else if (from.isGranted && to.isDenied) {
       debugPrint('❌ 前台定位权限已关闭');
-      // 可以在这里发送权限关闭事件
+      // 上报定位关闭事件
+      SensitiveDataService.instance.reportLocationClose();
       stopLocation(); // 自动停止定位服务
     }
   }
@@ -2769,6 +2791,70 @@ extension PermissionManagementExtension on SimpleLocationService {
         return '未知';
     }
   }
+  
+  /// 启动GPS状态监听（Android原生实现）
+  void _startGpsStatusMonitoring() {
+    debugPrint('🔧 启动GPS状态监听（Android原生）');
+    
+    try {
+      // 取消之前的订阅（如果存在）
+      _gpsStatusSubscription?.cancel();
+      
+      // 订阅GPS状态变化EventChannel
+      _gpsStatusSubscription = SimpleLocationService._gpsStatusChannel.receiveBroadcastStream().listen(
+        (dynamic isEnabled) {
+          if (isEnabled is bool) {
+            debugPrint('📍 收到GPS状态变化通知: ${isEnabled ? "开启" : "关闭"}');
+            _handleGpsStatusChange(isEnabled);
+          } else {
+            debugPrint('⚠️ GPS状态数据类型错误: ${isEnabled.runtimeType}');
+          }
+        },
+        onError: (dynamic error) {
+          debugPrint('❌ GPS状态监听错误: $error');
+        },
+        cancelOnError: false, // 发生错误时不取消订阅
+      );
+      
+      debugPrint('✅ GPS状态监听已启动');
+    } catch (e) {
+      debugPrint('❌ 启动GPS状态监听失败: $e');
+    }
+  }
+  
+  /// 处理GPS开关状态变化（系统级别的定位服务开关）
+  void _handleGpsStatusChange(bool isGpsEnabled) {
+    // 首次初始化，只记录状态不上报
+    if (_lastGpsEnabledStatus == null) {
+      _lastGpsEnabledStatus = isGpsEnabled;
+      debugPrint('🔐 初始化GPS状态: ${isGpsEnabled ? "开启" : "关闭"}');
+      return;
+    }
+    
+    // 检查状态是否发生变化
+    if (_lastGpsEnabledStatus == isGpsEnabled) {
+      // 状态未变化，无需处理
+      return;
+    }
+    
+    // 状态发生变化，记录并上报
+    debugPrint('🔄 检测到GPS状态变化: ${_lastGpsEnabledStatus! ? "开启" : "关闭"} -> ${isGpsEnabled ? "开启" : "关闭"}');
+    _lastGpsEnabledStatus = isGpsEnabled;
+    
+    if (isGpsEnabled) {
+      // GPS开启
+      debugPrint('✅ GPS已开启，上报定位开启事件');
+      SensitiveDataService.instance.reportLocationOpen();
+    } else {
+      // GPS关闭
+      debugPrint('❌ GPS已关闭，上报定位关闭事件');
+      SensitiveDataService.instance.reportLocationClose();
+    }
+  }
+}
+
+// MARK: - 位置数据验证扩展（防飘点算法）
+extension LocationValidationExtension on SimpleLocationService {
 
   /// 验证位置数据有效性（防飘点）
   bool _isLocationValid(LocationReportModel location) {

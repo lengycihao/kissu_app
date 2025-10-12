@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:kissu_app/models/screen_time_model.dart';
-import 'simple_curve_chart.dart';
+import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
 import '../common/screen_time_item.dart';
 
 /// 屏幕使用时长详情页面
@@ -13,7 +14,7 @@ class ScreenTimeDetailPage extends StatefulWidget {
 
 class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
   final ScrollController _scrollController = ScrollController();
-  late ScreenTimeDetailModel _data = _getMockData();
+  final UsageReportController _controller = Get.find<UsageReportController>();
 
   @override
   void initState() {
@@ -33,32 +34,55 @@ class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 600),
-          child: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              
-              // 柱状图（包含标题）
-              SliverToBoxAdapter(child: _buildBarChart()),
-              // 曲线图部分
-              SliverToBoxAdapter(child: _buildChartsSection()),
-              // 记录列表
-              SliverPadding(
-                padding: const EdgeInsets.only(top: 12, bottom: 20),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    return _buildRecordItem(_data.records[index]);
-                  }, childCount: _data.records.length),
+          child: Obx(() {
+            final data = _controller.screenTimeData.value;
+            
+            // 如果没有数据，显示空状态
+            if (data == null || data.records.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.hourglass_empty, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      '暂无屏幕使用记录',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+              );
+            }
+            
+            return CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // 柱状图（包含标题）
+                SliverToBoxAdapter(child: _buildBarChart(data)),
+                // 曲线图部分（暂不使用）
+                // SliverToBoxAdapter(child: _buildChartsSection()),
+                // 记录列表
+                SliverPadding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return _buildRecordItem(data.records[index]);
+                      },
+                      childCount: data.records.length,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
 
   /// 构建柱状图
-  Widget _buildBarChart() {
+  Widget _buildBarChart(ScreenTimeDetailModel data) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 20),
       padding: const EdgeInsets.all(16),
@@ -74,7 +98,7 @@ class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
             left: 16,
             right: 16,
             bottom: 0,
-            child: _InteractiveBarChart(data: _data.hourlyData),
+            child: _InteractiveBarChart(data: data.hourlyData),
           ),
           // 标题在柱状图背景上
           Positioned(
@@ -100,123 +124,9 @@ class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
     );
   }
 
-  /// 构建曲线图区域
-  Widget _buildChartsSection() {
-    return Container(
-      color: Colors.transparent,
-      padding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: SimpleCurveChart(
-              iconPath: 'assets/phone_history/kissu3_history_time_more.webp',
-              title: '使用时长最长时段',
-              timePeriod: '8-12',
-              count: 70,
-              data: _data.longestPeriodData,
-              curveColor: const Color(0xFFFFBBAD),
-              gradientStartColor: const Color(0x33FFBBAD),
-              gradientEndColor: const Color(0x00FFBBAD),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: SimpleCurveChart(
-              iconPath: 'assets/phone_history/kissu3_history_yichang.webp',
-              title: '23点后异常时段',
-              timePeriod: '23-2',
-              count: 60,
-              data: _data.abnormalPeriodData,
-              curveColor: const Color(0xFFA797FF),
-              gradientStartColor: const Color(0x33A797FF),
-              gradientEndColor: const Color(0x00A797FF),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 构建记录项（使用公共组件）
   Widget _buildRecordItem(ScreenTimeRecordItem record) {
     return ScreenTimeItemWidget(record: record);
-  }
-
-  /// 获取模拟数据
-  ScreenTimeDetailModel _getMockData() {
-    // 24小时数据（柱状图）
-    final hourlyData = [
-      ChartDataPoint(label: '0', value: 10),
-      ChartDataPoint(label: '1', value: 10),
-      ChartDataPoint(label: '2', value: 10),
-      ChartDataPoint(label: '3', value: 20),
-      ChartDataPoint(label: '4', value: 30),
-      ChartDataPoint(label: '5', value: 10),
-      ChartDataPoint(label: '6', value: 5),
-      ChartDataPoint(label: '7', value: 15),
-      ChartDataPoint(label: '8', value: 45),
-      ChartDataPoint(label: '9', value: 30),
-      ChartDataPoint(label: '10', value: 25),
-      ChartDataPoint(label: '11', value: 35),
-      ChartDataPoint(label: '12', value: 20),
-      ChartDataPoint(label: '13', value: 10),
-      ChartDataPoint(label: '14', value: 50),
-      ChartDataPoint(label: '15', value: 40),
-      ChartDataPoint(label: '16', value: 55),
-      ChartDataPoint(label: '17', value: 45),
-      ChartDataPoint(label: '18', value: 30),
-      ChartDataPoint(label: '19', value: 25),
-      ChartDataPoint(label: '20', value: 35),
-      ChartDataPoint(label: '21', value: 40),
-      ChartDataPoint(label: '22', value: 20),
-      ChartDataPoint(label: '23', value: 10),
-    ];
-
-    // 曲线数据 - 使用时长最长时段（8-12点，5个数据点）
-    final longestPeriodData = [
-      ChartDataPoint(label: '8', value: 45),
-      ChartDataPoint(label: '9', value: 60),
-      ChartDataPoint(label: '10', value: 55),
-      ChartDataPoint(label: '11', value: 70),
-      ChartDataPoint(label: '12', value: 50),
-    ];
-
-    // 23点后异常时段（23-2点，4个数据点）
-    final abnormalPeriodData = [
-      ChartDataPoint(label: '23', value: 30),
-      ChartDataPoint(label: '0', value: 45),
-      ChartDataPoint(label: '1', value: 60),
-      ChartDataPoint(label: '2', value: 35),
-    ];
-
-    final now = DateTime.now();
-    final records = [
-      ScreenTimeRecordItem(
-        startTime: DateTime(now.year, now.month, now.day, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day, 11, 0),
-        durationMinutes: 70, // 1h10min
-      ),
-      ScreenTimeRecordItem(
-        startTime: DateTime(now.year, now.month, now.day, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day, 11, 0),
-        durationMinutes: 70, // 1h10min
-      ),
-      // 隐私设置项
-      ScreenTimeRecordItem(
-        startTime: DateTime(now.year, now.month, now.day, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day, 11, 0),
-        durationMinutes: 0,
-        isPrivacyMessage: true,
-      ),
-    ];
-
-    return ScreenTimeDetailModel(
-      totalMinutes: 420, // 7h
-      hourlyData: hourlyData,
-      longestPeriodData: longestPeriodData,
-      abnormalPeriodData: abnormalPeriodData,
-      records: records,
-    );
   }
 }
 

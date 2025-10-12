@@ -15,6 +15,7 @@ import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/smart_background_location_reminder.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/services/geofence_monitoring_service.dart';
+import 'package:kissu_app/services/city_storage_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
@@ -111,6 +112,10 @@ void main() async {
     // 步骤8: 初始化权限状态管理服务
     Get.put(PermissionStateService(), permanent: true);
     DebugUtil.success('权限状态管理服务初始化完成');
+    
+    // 步骤8.5: 初始化城市存储服务
+    await Get.putAsync(() => CityStorageService().init(), permanent: true);
+    DebugUtil.success('城市存储服务初始化完成');
     
     // 步骤9: 注册定位服务（但不立即初始化，等待隐私授权）
     // 🔒 隐私合规：SimpleLocationService的初始化移到隐私政策同意后

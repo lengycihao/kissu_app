@@ -9,6 +9,9 @@ import 'package:kissu_app/widgets/dialogs/location_permission_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/simple_image_source_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/logout_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/logout_cancelled_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/partner_location_permission_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart';
 
 /// 弹窗展示页面
 class DialogShowcasePage extends StatelessWidget {
@@ -282,6 +285,21 @@ class DialogShowcasePage extends StatelessWidget {
                               '显示解除关系提示弹窗',
                               () => _showUnbindRelationshipDialog(),
                             ),
+                            _buildDialogItem(
+                              '删除位置提醒弹窗',
+                              '确认删除位置提醒数据',
+                              () => _showDeleteLocationReminderDialog(),
+                            ),
+                            _buildDialogItem(
+                              '对方未开通位置权限提示',
+                              '检查对方是否打开位置权限',
+                              () => _showPartnerLocationPermissionDialog(),
+                            ),
+                            _buildDialogItem(
+                              '自己未开通通知权限提示',
+                              '提示开通消息通知权限',
+                              () => _showSelfNotificationPermissionDialog(),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 40),
@@ -460,6 +478,45 @@ class DialogShowcasePage extends StatelessWidget {
     LogoutCancelledDialogUtil.showLogoutCancelledDialog().then((result) {
       if (result == true) {
         _showToast('已确认');
+      }
+    });
+  }
+
+  /// 显示删除位置提醒弹窗
+  void _showDeleteLocationReminderDialog() {
+    DeleteLocationReminderDialogUtil.show(
+      onConfirm: () => _showToast('已确认删除'),
+      onCancel: () => _showToast('已取消删除'),
+    ).then((result) {
+      if (result == true) {
+        _showToast('删除位置提醒');
+      } else if (result == false) {
+        _showToast('取消删除');
+      }
+    });
+  }
+
+  /// 显示对方位置权限提示弹窗
+  void _showPartnerLocationPermissionDialog() {
+    PartnerLocationPermissionDialogUtil.show(
+      onConfirm: () => _showToast('已知道对方未开通位置权限'),
+    ).then((result) {
+      if (result == true) {
+        _showToast('用户点击了知道了');
+      }
+    });
+  }
+
+  /// 显示自己通知权限提示弹窗
+  void _showSelfNotificationPermissionDialog() {
+    SelfNotificationPermissionDialogUtil.show(
+      onKnow: () => _showToast('用户点击了知道了'),
+      onGoSettings: () => _showToast('跳转到通知设置页面'),
+    ).then((result) {
+      if (result == true) {
+        _showToast('用户选择去开启通知');
+      } else if (result == false) {
+        _showToast('用户点击了知道了');
       }
     });
   }

@@ -29,7 +29,7 @@ enum LocationAnomalyType {
   move, // 移动
   location, // 定位
   exception, // 疑似异常点
-  yishi, // 疑似更改手机定位
+  // yishi, // 疑似更改手机定位
 }
 
 /// 异常子类型（当LocationAnomalyType为exception时）
@@ -51,8 +51,8 @@ extension LocationAnomalyTypeExtension on LocationAnomalyType {
         return 'assets/phone_history/kissu3_history_location.webp';
       case LocationAnomalyType.exception:
         return 'assets/phone_history/kissu3_history_yichang.webp';
-      case LocationAnomalyType.yishi:
-        return 'assets/phone_history/kissu3_history_yishi.webp';
+      // case LocationAnomalyType.yishi:
+      //   return 'assets/phone_history/kissu3_history_yishi.webp';
     }
   }
 
@@ -67,8 +67,8 @@ extension LocationAnomalyTypeExtension on LocationAnomalyType {
         return '定位';
       case LocationAnomalyType.exception:
         return '异常';
-      case LocationAnomalyType.yishi:
-        return '疑似更改手机定位';
+      // case LocationAnomalyType.yishi:
+      //   return '疑似更改手机定位';
     }
   }
 

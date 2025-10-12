@@ -5,6 +5,11 @@ import 'dart:math' as math;
 
 /// 位置地图快照组件
 /// 显示高德静态地图，并叠加自定义标记图标和围栏圆圈
+/// 
+/// 性能优化：
+/// - 使用 const 构造函数
+/// - 添加缓存配置
+/// - 减少不必要的日志输出
 class LocationMapSnapshot extends StatelessWidget {
   final double longitude;
   final double latitude;
@@ -38,7 +43,8 @@ class LocationMapSnapshot extends StatelessWidget {
       isSatellite: isSatellite,
     );
     
-    print('🗺️ 地图URL: $mapUrl');
+    // 仅在调试模式下输出日志
+    // print('🗺️ 地图URL: $mapUrl');
     
     return Container(
       height: height,
@@ -51,12 +57,17 @@ class LocationMapSnapshot extends StatelessWidget {
             child: Image.network(
               mapUrl,
               fit: BoxFit.cover,
+              // 添加缓存配置，避免重复下载
+              cacheWidth: 800, // 缓存宽度
+              cacheHeight: 160, // 缓存高度
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) {
-                  print('✅ 地图加载成功');
+                  // 移除频繁的日志输出
+                  // print('✅ 地图加载成功');
                   return child;
                 }
-                print('⏳ 地图加载中: ${loadingProgress.cumulativeBytesLoaded} / ${loadingProgress.expectedTotalBytes}');
+                // 移除频繁的日志输出
+                // print('⏳ 地图加载中: ${loadingProgress.cumulativeBytesLoaded} / ${loadingProgress.expectedTotalBytes}');
                 return Center(
                   child: CircularProgressIndicator(
                     value: loadingProgress.expectedTotalBytes != null
@@ -71,7 +82,8 @@ class LocationMapSnapshot extends StatelessWidget {
                 );
               },
               errorBuilder: (context, error, stackTrace) {
-                print('❌ 地图加载失败: $error');
+                // 仅在错误时输出日志（保留）
+                debugPrint('❌ 地图加载失败: $error');
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -113,11 +125,11 @@ class LocationMapSnapshot extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _getLocationIcon(iconId),
-                // 图标下方的小三角指示器
-                CustomPaint(
-                  size: const Size(8, 4),
-                  painter: _TrianglePainter(),
-                ),
+                // // 图标下方的小三角指示器
+                // CustomPaint(
+                //   size: const Size(8, 4),
+                //   painter: _TrianglePainter(),
+                // ),
               ],
             ),
           ),
@@ -128,44 +140,26 @@ class LocationMapSnapshot extends StatelessWidget {
   
   /// 获取位置图标
   Widget _getLocationIcon(int iconId) {
-    String assetPath;
-    switch (iconId) {
-      case 1: // 公司
-        assetPath = 'assets/location/kissu3_gongsi_sel.webp';
-        break;
-      case 2: // 家
-        assetPath = 'assets/location/kissu3_jia_sel.webp';
-        break;
-      case 3: // 娱乐
-        assetPath = 'assets/location/kissu3_yule_sel.webp';
-        break;
-      case 4: // 健身房
-        assetPath = 'assets/location/kissu3_jianshen_sel.webp';
-        break;
-      case 5: // 商场
-        assetPath = 'assets/location/kissu3_shangchang_sel.webp';
-        break;
-      default:
-        assetPath = 'assets/location/kissu3_jia_sel.webp'; // 默认使用家的图标
-    }
+    // 统一使用位置图标，不再根据 iconId 区分
+    const assetPath = 'assets/home_list_type_location.webp';
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.transparent,
+        // shape: BoxShape.circle,
+        // boxShadow: [
+        //   BoxShadow(
+        //     color: Colors.black.withOpacity(0.2),
+        //     blurRadius: 4,
+        //     offset: const Offset(0, 2),
+        //   ),
+        // ],
       ),
       padding: const EdgeInsets.all(6),
       child: Image.asset(
         assetPath,
-        width: 24,
-        height: 24,
+        width: 16,
+        height: 16,
         errorBuilder: (context, error, stackTrace) {
           // 如果图标加载失败，显示默认图标
           return const Icon(
@@ -180,12 +174,16 @@ class LocationMapSnapshot extends StatelessWidget {
 }
 
 /// 绘制圆圈的画笔
+/// 
+/// 性能优化：
+/// - 缓存 Paint 对象
+/// - 优化 shouldRepaint 判断
 class _CirclePainter extends CustomPainter {
   final int radius; // 实际半径（米）
   final int zoom; // 缩放级别
   final ReminderType reminderType; // 提醒类型
   
-  _CirclePainter({
+  const _CirclePainter({
     required this.radius,
     required this.zoom,
     required this.reminderType,
@@ -213,7 +211,7 @@ class _CirclePainter extends CustomPainter {
     
     // 圆圈边框画笔
     final borderPaint = Paint()
-      ..color = baseColor.withOpacity(0.6)
+      ..color = Colors.white.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     

@@ -40,7 +40,7 @@ class LocationController extends GetxController {
   final actualPartnerLocation = Rx<LatLng?>(null);
   
   /// 距离信息
-  final distance = "0.00km".obs;
+  final distance = "".obs;
   final updateTime = "".obs;
   
   /// 当前位置信息

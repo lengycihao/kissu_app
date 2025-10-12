@@ -4,20 +4,26 @@ import 'package:kissu_app/pages/location/location_reminder/location_picker/locat
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
-import 'package:kissu_app/widgets/location_map_snapshot.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:kissu_app/models/poi_model.dart';
+import 'package:kissu_app/models/city_model.dart';
+import 'package:kissu_app/pages/location/poi_search/poi_search_page.dart';
+import 'package:kissu_app/pages/location/poi_search/poi_search_controller.dart';
+import 'package:kissu_app/pages/location/city_list/city_list_page.dart';
 
 /// 地图选点页面
 class LocationPickerPage extends StatelessWidget {
   final double? initialLatitude;
   final double? initialLongitude;
   final String? initialLocationName;
+  final LocationReminder? editingReminder; // 编辑模式：传入已有的提醒对象
 
   LocationPickerPage({
     super.key,
     this.initialLatitude,
     this.initialLongitude,
     this.initialLocationName,
+    this.editingReminder,
   });
 
   LocationPickerController get controller => Get.put(
@@ -25,6 +31,7 @@ class LocationPickerPage extends StatelessWidget {
           initialLatitude: initialLatitude,
           initialLongitude: initialLongitude,
           initialLocationName: initialLocationName,
+          editingReminder: editingReminder,
         ),
       );
 
@@ -78,42 +85,149 @@ class LocationPickerPage extends StatelessWidget {
     });
   }
 
-  /// 构建顶部工具栏
+  /// 构建顶部工具栏（自定义导航栏）
   Widget _buildTopBar(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 19).copyWith(top: MediaQuery.of(context).padding.top+19),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
         child: Row(
           children: [
             // 返回按钮
             GestureDetector(
               onTap: () => Get.back(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.arrow_back,
-                  size: 20,
-                  color: Color(0xFF333333),
+              child:   Padding(
+                padding: EdgeInsets.all(8),
+                child: Image.asset(
+                  'assets/location/kissu3_back.webp',
+                  width: 20,
+                  height: 20,
                 ),
               ),
             ),
-            const Spacer(),
+
+ 
+            // 搜索框
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _goToPoiSearch(context),
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFffffff),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Color(0xFFFFBBB5),width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      
+                      const SizedBox(width: 16),
+                      Text(
+                        '请输入',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+ 
+            // 城市定位按钮
+            Obx(() {
+              final currentCity = controller.currentCity.value;
+              final hasCity = currentCity.isNotEmpty;
+              
+              return GestureDetector(
+                onTap: () => _goToCityList(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image(
+                        image: AssetImage('assets/location/kissu3_location_pink.webp'),
+                        width: 16,
+                        height: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        hasCity ? currentCity.replaceAll('市', '') : '选择城市',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: hasCity ? Colors.black : const Color(0xFFFF408D), // 无城市时用粉色提示
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ],
         ),
-      ),
+      )
+    ;
+  }
+
+  /// 跳转到POI搜索页面
+  void _goToPoiSearch(BuildContext context) async {
+    final result = await Get.to(
+      () => const PoiSearchPage(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<PoiSearchController>(
+          () => PoiSearchController(
+            initialCity: controller.currentCityModel.value,
+          ),
+        );
+      }),
     );
+    
+    if (result != null) {
+      // 新的返回数据结构：Map包含 poi, city, cityChanged
+      if (result is Map) {
+        final poi = result['poi'] as PoiModel?;
+        final city = result['city'] as CityModel?;
+        final cityChanged = result['cityChanged'] as bool? ?? false;
+        
+        // 如果选择了POI，更新位置并添加围栏
+        if (poi != null) {
+          controller.updateLocationFromPoi(poi, context: context);
+        }
+        
+        // 如果城市发生变化，同步城市信息
+        if (cityChanged && city != null) {
+          controller.updateCurrentCity(city);
+        }
+      }
+      // 兼容旧的返回方式（直接返回PoiModel）
+      else if (result is PoiModel) {
+        controller.updateLocationFromPoi(result, context: context);
+      }
+    }
+  }
+
+  /// 跳转到城市列表页面
+  void _goToCityList() async {
+    final result = await Get.to(() => const CityListPage());
+    if (result != null && result is CityModel) {
+      // 更新当前城市
+      controller.updateCurrentCity(result);
+    }
   }
 
   /// 构建底部信息面板
@@ -148,51 +262,8 @@ class LocationPickerPage extends StatelessWidget {
             //     ),
             //   ),
             // ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  onTap: () => Get.back(),
-                  child: Container(
-                    width: 40,
-                    height: 20,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '取消',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    final reminder = await controller.saveLocation();
-                    if (reminder != null) {
-                      Get.back(result: reminder);
-                    }
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 20,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '保存',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFFF88AA),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -202,12 +273,7 @@ class LocationPickerPage extends StatelessWidget {
                 children: [
                   // 使用说明
                   const Text(
-                    '1、轻点地图界面，即可选择你需要设置提醒的位置',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '2、点击建筑物可显示名称，地址信息显示在地图标记上',
+                    '目前有效提醒范围100m',
                     style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
                   ),
                   const SizedBox(height: 20),
@@ -218,71 +284,66 @@ class LocationPickerPage extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   // 备注输入
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: controller.noteController,
-                              maxLength: 10,
-                              decoration: InputDecoration(
-                                hintText: '请输入备注',
-                                hintStyle: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF999999),
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFffffff),
-                                // 普通状态边框
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFFFCCC8),
-                                    width: 2,
-                                  ),
-                                ),
-                                // 聚焦状态边框
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFFFCCC8),
-                                    width: 2,
-                                  ),
-                                ),
-                                // 禁用状态边框（可选）
-                                disabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFFFCCC8),
-                                    width: 2,
-                                  ),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                counterText: '',
-                              ),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF333333),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // 字符计数器
-                          Obx(() => Text(
-                            '${controller.noteText.value.length}/10',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF999999),
-                            ),
-                          )),
-                        ],
+                  TextField(
+                    controller: controller.noteController,
+                    maxLength: 10,
+                    decoration: InputDecoration(
+                      hintText: '请输入备注',
+                      hintStyle: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF999999),
                       ),
-                    ],
+                      filled: true,
+                      fillColor: const Color(0xFFffffff),
+                      // 普通状态边框
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFFCCC8),
+                          width: 2,
+                        ),
+                      ),
+                      // 聚焦状态边框
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFFCCC8),
+                          width: 2,
+                        ),
+                      ),
+                      // 禁用状态边框（可选）
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFFCCC8),
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      counterText: '',
+                      // 字符计数器放在输入框内右侧
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: Obx(() => Text(
+                          '${controller.noteText.value.length}/10',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF999999),
+                          ),
+                        )),
+                      ),
+                      suffixIconConstraints: const BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF333333),
+                    ),
                   ),
                   SizedBox(height: 10),
                   Obx(() {
@@ -355,14 +416,42 @@ class LocationPickerPage extends StatelessWidget {
                       ),
                     );
                   }),
-                  const SizedBox(height: 20),
+                  // const SizedBox(height: 20),
                   
-                  // 地图类型切换
-                  _buildMapTypeSelector(),
+                  // // 地图类型切换
+                  // _buildMapTypeSelector(),
                 ],
               ),
             ),
-            const SizedBox(height: 35),
+            const SizedBox(height: 12),
+            Obx(() {
+              // 判断是否可以保存：必须选择了位置且输入了备注
+              final canSave = controller.selectedLocation.value != null && 
+                              controller.noteText.value.trim().isNotEmpty;
+              
+              return GestureDetector(
+                onTap: canSave ? () async {
+                  final reminder = await controller.saveLocation();
+                  if (reminder != null) {
+                    Get.back(result: reminder);
+                  }
+                } : null,
+                child: Container(
+                  width: double.infinity,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: canSave ? Color(0xFFFF408D) : Color(0xFFFF9DC4),
+                    borderRadius: BorderRadius.circular(21),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '保存',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -381,8 +470,8 @@ class LocationPickerPage extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     image: DecorationImage(
                       image: AssetImage(
@@ -399,137 +488,8 @@ class LocationPickerPage extends StatelessWidget {
     });
   }
   
-  /// 构建地图类型切换器
-  Widget _buildMapTypeSelector() {
-    return Obx(() {
-      // 获取当前选中的位置，如果没有则使用默认位置
-      final location = controller.selectedLocation.value;
-      final latitude = location?.latitude ?? 39.90923;  // 默认天安门
-      final longitude = location?.longitude ?? 116.397428;
-      final radius = controller.geofenceRadius.value;
-      final reminderType = controller.selectedBottomAway.value 
-          ? ReminderType.arrive 
-          : ReminderType.leave;
-      
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '地图类型',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF333333),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              // 经典地图
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => controller.switchMapType(1),
-                  child: _MapTypeOption(
-                    latitude: latitude,
-                    longitude: longitude,
-                    radius: radius,
-                    reminderType: reminderType,
-                    iconId: controller.selectedIcon.value,
-                    label: '经典地图',
-                    isSelected: controller.mapType.value == 1,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              
-              // 卫星地图
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => controller.switchMapType(2),
-                  child: _MapTypeOption(
-                    latitude: latitude,
-                    longitude: longitude,
-                    radius: radius,
-                    reminderType: reminderType,
-                    iconId: controller.selectedIcon.value,
-                    label: '卫星地图',
-                    isSelected: controller.mapType.value == 2,
-                    isSatellite: true,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    });
-  }
+   
+
 }
 
-/// 地图类型选项组件
-class _MapTypeOption extends StatelessWidget {
-  final double latitude;
-  final double longitude;
-  final double radius;
-  final ReminderType reminderType;
-  final int iconId;
-  final String label;
-  final bool isSelected;
-  final bool isSatellite;
-
-  const _MapTypeOption({
-    Key? key,
-    required this.latitude,
-    required this.longitude,
-    required this.radius,
-    required this.reminderType,
-    required this.iconId,
-    required this.label,
-    required this.isSelected,
-    this.isSatellite = false,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // 地图预览图（使用地图快照）
-        Container(
-          height: 70,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? const Color(0xFFFFD1E4)
-                  : const Color(0xFFE0E0E0),
-              width: isSelected ? 3 : 1,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: LocationMapSnapshot(
-              latitude: latitude,
-              longitude: longitude,
-              radius: radius.round(),
-              iconId: iconId,
-              reminderType: reminderType,
-              isSatellite: isSatellite,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        // 地图类型标签
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isSelected 
-                ? const Color(0xFFFF88AA)
-                : const Color(0xFF999999),
-            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
-}
+ 

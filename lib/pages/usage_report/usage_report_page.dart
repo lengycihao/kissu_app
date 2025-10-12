@@ -482,57 +482,74 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   /// 构建设备信息
   Widget _buildDeviceInfo() {
-    return InkWell(
-      onTap: () {
-        // TODO: 点击查看设备信息
-        debugPrint('点击设备信息');
-      },
-      child: Container(
-         height: 48,
-         padding: EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Color(0xffFCFCFD),
-          borderRadius: BorderRadius.circular(24),
+    return Obx(() {
+      final deviceInfo = controller.deviceInfo.value;
+      
+      // 获取设备信息，如果没有则显示默认值
+      final mobileModel = deviceInfo?.mobileModel ?? '未知';
+      final networkName = deviceInfo?.networkName ?? '未知';
+      final power = deviceInfo?.power ?? '未知';
+      final isWifi = deviceInfo?.isConnectedToWifi ?? false;
+      
+      return InkWell(
+        onTap: () {
+          // TODO: 点击查看设备信息
+          debugPrint('点击设备信息');
+        },
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xffFCFCFD),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 手机型号
+              if (mobileModel.isNotEmpty) ...[
+                Image.asset(
+                  'assets/phone_history/kissu_phone_type.webp',
+                  width: 16,
+                  height: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  mobileModel,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                ),
+                const Spacer(),
+              ],
+              // 网络信息
+              Image.asset(
+                'assets/phone_history/kissu_phone_wifi.webp',
+                width: 16,
+                height: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isWifi && networkName.isNotEmpty ? networkName : '移动网络',
+                style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+              ),
+              const Spacer(),
+              // 电量信息
+              if (power.isNotEmpty) ...[
+                Image.asset(
+                  'assets/phone_history/kissu_phone_barry.webp',
+                  width: 16,
+                  height: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  power,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                ),
+              ],
+            ],
+          ),
         ),
-        child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // TODO: 获取设备图标，参考设备信息模块
-          Image.asset(
-            'assets/phone_history/kissu_phone_type.webp',
-            width: 16,
-            height: 16,
-          ),
-          const SizedBox(width: 4),
-           const Text(
-            'iPhone',
-            style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
-          ),Spacer(), 
-          Image.asset(
-            'assets/phone_history/kissu_phone_wifi.webp',
-            width: 16,
-            height: 16,
-          ),
-          const SizedBox(width: 4),
-          const Text(
-            'yuloyuloyulo',
-            style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
-          ),
-          Spacer(),
-          Image.asset(
-            'assets/phone_history/kissu_phone_barry.webp',
-            width: 16,
-            height: 16,
-          ),
-          const SizedBox(width: 4),
-          const Text(
-            '75%',
-            style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
-          ),
-        ],
-      ),
-  
-      )  );
+      );
+    });
   }
 }
 

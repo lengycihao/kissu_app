@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
+// import 'package:kissu_app/widgets/custom_toast_widget.dart'; // TODO: 临时注释，校验功能关闭时不需要
 
 /// 解除关系提示弹窗
 class UnbindRelationshipDialog extends StatefulWidget {
@@ -29,15 +29,19 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
   /// 确认解除关系
   void _confirmUnbind() {
-    final inputText = _textController.text.trim();
-    if (inputText == _requiredText) {
-      Get.back(result: true);
-    } else {
-      CustomToast.show(
-        Get.context!,
-        '请准确输入以上确认解除关系文字',
-      );
-    }
+    // TODO: 临时关闭校验，后续可能需要重新启用
+    // final inputText = _textController.text.trim();
+    // if (inputText == _requiredText) {
+    //   Get.back(result: true);
+    // } else {
+    //   CustomToast.show(
+    //     Get.context!,
+    //     '请准确输入以上确认解除关系文字',
+    //   );
+    // }
+    
+    // 直接返回确认结果，不进行文字校验
+    Get.back(result: true);
   }
 
   /// 取消解除

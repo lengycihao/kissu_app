@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/models/location_anomaly_model.dart';
-import 'package:kissu_app/pages/chat/utils/map_marker_util.dart';
+import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart'; 
 
 /// 定位/足迹异常卡片组件
 /// 显示地图预览，包含位置信息和图标标识
@@ -50,17 +50,17 @@ class _LocationAnomalyCardState extends State<LocationAnomalyCard> {
   @override
   Widget build(BuildContext context) {
     // 特殊处理疑似更改手机定位类型
-    if (widget.record.type == LocationAnomalyType.yishi) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          _buildTimeLabel(),
-          const SizedBox(height: 8),
-          _buildYishiCard(),
-        ],
-      );
-    }
+    // if (widget.record.type == LocationAnomalyType.yishi) {
+    //   return Column(
+    //     crossAxisAlignment: CrossAxisAlignment.start,
+    //     children: [
+    //       const SizedBox(height: 8),
+    //       _buildTimeLabel(),
+    //       const SizedBox(height: 8),
+    //       _buildYishiCard(),
+    //     ],
+    //   );
+    // }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

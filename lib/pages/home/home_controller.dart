@@ -13,9 +13,7 @@ import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/message_center/message_center_binding.dart';
-import 'package:kissu_app/pages/message_center/message_center_page.dart';
-import 'package:kissu_app/pages/chat/chat_binding.dart';
-import 'package:kissu_app/pages/chat/chat_page.dart';
+import 'package:kissu_app/pages/message_center/message_center_page.dart'; 
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
@@ -615,7 +613,7 @@ class HomeController extends GetxController {
 
     switch (index) {
       case 0:
-        // 定位
+        // 定位（旧版）
         debugPrint("🔍 准备跳转到定位页面");
         Get.to(() => LocationPage(), binding: LocationBinding());
         break;
@@ -623,11 +621,6 @@ class HomeController extends GetxController {
         // 地图
         Get.to(() =>  TrackPage(), binding: TrackBinding());
         break;
-      // case 2:
-      //   // 聊天
-      //   debugPrint("💬 准备跳转到聊天页面");
-      //   Get.to(() => const ChatPage(), binding: ChatBinding());
-      //   break;
       case 2:
         // 用机记录
         Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
@@ -636,11 +629,11 @@ class HomeController extends GetxController {
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
-      // case 5:
-      //   // 定位V2（新UI）
-      //   debugPrint("📍 准备跳转到定位V2页面");
-      //   Get.to(() => LocationV2Page(), binding: LocationV2Binding());
-      //   break;
+      case 4:
+        // 定位V2（新UI）
+        debugPrint("📍 准备跳转到定位V2页面");
+        Get.to(() => LocationV2Page(), binding: LocationV2Binding());
+        break;
       default:
         // 其他功能待实现
         break;
@@ -672,14 +665,12 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_location.webp";
       case 1:
         return "assets/kissu_home_tab_foot.webp";
-      // case 2:
-      //   return "assets/kissu_home_tab_chat.webp";
       case 2:
         return "assets/kissu_home_tab_history.webp";
       case 3:
         return "assets/kissu_home_tab_mine.webp";
-      // case 5:
-      //   return "assets/kissu_home_tab_location.webp"; // 暂时复用定位图标
+      case 4:
+        return "assets/kissu_home_tab_location.webp"; // 暂时复用定位图标
       default:
         return "assets/kissu_home_tab_location.webp";
     }
@@ -692,14 +683,12 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_locationT.webp";
       case 1:
         return "assets/kissu_home_tab_mapT.webp";
-      // case 2:
-      //   return "assets/kissu_home_tab_chatT.webp";
       case 2:
         return "assets/kissu_home_tab_historyT.webp";
       case 3:
         return "assets/kissu_home_tab_mineT.webp";
-      // case 5:
-      //   return "assets/kissu_home_tab_locationT.webp"; // 暂时复用定位文字图标
+      case 4:
+        return "assets/kissu_home_tab_locationT.webp"; // 暂时复用定位文字图标
       default:
         return "assets/kissu_home_tab_locationT.webp";
     }

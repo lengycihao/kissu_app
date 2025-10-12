@@ -35,6 +35,7 @@ class UnlockRecordItem {
   final DateTime? endTime; // 结束时间（如果是时段记录）
   final double? movementDistance; // 期间定位移动距离（米）
   final int? stayPointCount; // 期间停留点数量
+  final String icon; // 图标URL
 
   UnlockRecordItem({
     this.type,
@@ -43,6 +44,7 @@ class UnlockRecordItem {
     this.endTime,
     this.movementDistance,
     this.stayPointCount,
+    this.icon = '',
   });
 
   /// 是否为时段记录（有开始和结束时间）

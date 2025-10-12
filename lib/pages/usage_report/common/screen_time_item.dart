@@ -21,18 +21,19 @@ class ScreenTimeItemWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 时间标签（仅在全部记录页面显示）
-        if (showTimeLabel && !record.isPrivacyMessage) ...[
+        if (showTimeLabel ) ...[
           const SizedBox(height: 8),
           _buildTimeLabel(),
           const SizedBox(height: 8),
         ],
-        if (record.isPrivacyMessage) ...[
-          // 隐私消息格式
-          _buildPrivacyMessage(),
-        ] else ...[
-          // 正常使用记录格式
-          _buildNormalRecord(),
-        ],
+        _buildNormalRecord(),
+        // if (record.isPrivacyMessage) ...[
+        //   // 隐私消息格式
+        //   _buildPrivacyMessage(),
+        // ] else ...[
+        //   // 正常使用记录格式
+        //   _buildNormalRecord(),
+        // ],
       ],
     );
   }
@@ -46,38 +47,6 @@ class ScreenTimeItemWidget extends StatelessWidget {
         style: const TextStyle(
           fontSize: 12,
           color: Color(0xFF999999),
-        ),
-      ),
-    );
-  }
-
-  /// 构建隐私消息
-  Widget _buildPrivacyMessage() {
-    return Container(
-      margin: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Center(
-        child: RichText(
-          text: const TextSpan(
-            children: [
-              TextSpan(
-                text: '对方关闭了',
-                style: TextStyle(fontSize: 13, color: Color(0xFF666666)),
-              ),
-              TextSpan(
-                text: '"屏幕使用时长"',
-                style: TextStyle(fontSize: 13, color: Color(0xFF4D77FF)),
-              ),
-              TextSpan(
-                text: '对你可见',
-                style: TextStyle(fontSize: 13, color: Color(0xFF666666)),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -130,7 +99,7 @@ class ScreenTimeItemWidget extends StatelessWidget {
                     record.durationDisplay,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFFFF6B9D),
+                      color: Color(0xFFFF21AA),
                       fontWeight: FontWeight.w600,
                     ),
                   ),

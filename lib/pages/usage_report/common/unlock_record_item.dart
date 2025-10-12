@@ -76,8 +76,8 @@ class UnlockRecordItemWidget extends StatelessWidget {
       // mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 操作图标
-        _buildActionIcon(record.action),
+        // 操作图标（优先使用网络图标）
+        _buildIcon(record.icon, record.action),
         const SizedBox(width: 4),
         // 时间和文字
         Text(
@@ -106,8 +106,8 @@ class UnlockRecordItemWidget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 左侧：解锁图标
-        _buildActionIcon(UnlockActionType.unlock),
+        // 左侧：解锁图标（使用本地图标，因为type 19没有专门的解锁/锁定图标）
+        _buildLocalIcon(UnlockActionType.unlock),
         const SizedBox(width: 4),
         // 解锁手机文字
         const Text(
@@ -136,8 +136,8 @@ class UnlockRecordItemWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 20),
-        // 右侧：锁定图标
-        _buildActionIcon(UnlockActionType.lock),
+        // 右侧：锁定图标（使用本地图标）
+        _buildLocalIcon(UnlockActionType.lock),
         const SizedBox(width: 4),
         // 锁定手机文字
         const Text(
@@ -160,8 +160,27 @@ class UnlockRecordItemWidget extends StatelessWidget {
     );
   }
 
-  /// 构建操作图标
-  Widget _buildActionIcon(UnlockActionType action) {
+  /// 构建图标（优先使用网络图标，否则使用本地图标）
+  Widget _buildIcon(String iconUrl, UnlockActionType action) {
+    if (iconUrl.isNotEmpty) {
+      // 使用网络图标
+      return Image.network(
+        iconUrl,
+        width: 16,
+        height: 16,
+        errorBuilder: (context, error, stackTrace) {
+          // 网络图标加载失败，使用本地图标
+          return _buildLocalIcon(action);
+        },
+      );
+    } else {
+      // 没有网络图标，使用本地图标
+      return _buildLocalIcon(action);
+    }
+  }
+
+  /// 构建本地图标（兜底方案）
+  Widget _buildLocalIcon(UnlockActionType action) {
     final icon = action == UnlockActionType.lock
         ? 'assets/phone_history/kissu3_history_lock.webp'
         : 'assets/phone_history/kissu3_history_unlock.webp';

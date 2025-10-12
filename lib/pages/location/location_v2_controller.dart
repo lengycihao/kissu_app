@@ -27,6 +27,7 @@ class LocationV2Controller extends GetxController {
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
   final isBindPartner = false.obs;
+  final isVip = false.obs; // 🔧 添加响应式会员状态
   
   /// 位置信息
   /// 🔧 修复：明确位置数据的含义
@@ -40,7 +41,7 @@ class LocationV2Controller extends GetxController {
   final actualPartnerLocation = Rx<LatLng?>(null);
   
   /// 距离信息
-  final distance = "0.00km".obs;
+  final distance = "".obs;
   final updateTime = "".obs;
   
   /// 当前位置信息
@@ -56,6 +57,10 @@ class LocationV2Controller extends GetxController {
   final isWifi = "1".obs; // 是否WiFi连接
   final deviceId = "".obs; // 设备ID
   final locationTime = "".obs; // 定位时间
+  
+  /// 天气信息
+  final weatherIcon = "".obs; // 天气图标
+  final weather = "".obs; // 天气描述
   
   /// 位置记录列表
   final RxList<LocationRecord> locationRecords = <LocationRecord>[].obs;
@@ -250,6 +255,9 @@ class LocationV2Controller extends GetxController {
       // 检查绑定状态
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
+      
+      // 🔧 更新会员状态
+      isVip.value = UserManager.isVip;
       
       bool avatarUpdated = false;
       
@@ -1423,6 +1431,17 @@ class LocationV2Controller extends GetxController {
     distance.value = userData.distance ?? "未知";
     updateTime.value = userData.calculateLocationTime ?? "未知";
     
+    // 更新天气信息
+    if (userData.lives?.base != null && userData.lives!.base!.isNotEmpty) {
+      final baseWeather = userData.lives!.base!.first;
+      weatherIcon.value = baseWeather.weatherIcon ?? "";
+      weather.value = baseWeather.weather ?? "";
+      DebugUtil.info(' 更新天气信息: ${weather.value}, 图标: ${weatherIcon.value}');
+    } else {
+      weatherIcon.value = "";
+      weather.value = "";
+    }
+    
     // 更新当前位置文本
     DebugUtil.info(' 更新位置文本: ${userData.location ?? "位置信息不可用"}');
     currentLocationText.value = userData.location ?? "位置信息不可用";
@@ -1547,9 +1566,15 @@ class LocationV2Controller extends GetxController {
   
   /// 执行绑定操作 - 显示绑定弹窗
   void performBindAction() {
-    // 显示绑定弹窗
+    // 显示绑定弹窗，返回后刷新数据
     if (Get.context != null) {
-      CustomBottomDialog.show(context: Get.context!);
+      CustomBottomDialog.show(context: Get.context!).then((_) {
+        // 从绑定弹窗返回后，刷新用户信息和定位数据
+        // 虽然 CustomBottomDialogController 中已经会自动刷新，
+        // 但这里再次刷新作为双重保险，确保数据最新
+        DebugUtil.info(' 绑定弹窗关闭，刷新定位页数据');
+        refreshUserInfo();
+      });
     }
   }
 

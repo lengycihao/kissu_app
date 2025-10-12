@@ -122,6 +122,62 @@ class GeofenceApi {
     }
   }
   
+  /// 更新地理围栏
+  /// 
+  /// 参数:
+  /// - [geofencingId] 地理围栏ID（必填）
+  /// - [geoIcon] 图标类型 (1-5)
+  ///   1: 公司, 2: 家, 3: 娱乐, 4: 健身房, 5: 商场
+  /// - [geoAction] 提醒类型
+  ///   1: 离开位置提醒, 2: 到达位置提醒
+  /// - [longitude] 经度
+  /// - [latitude] 纬度
+  /// - [geoRadius] 围栏半径（米）
+  /// - [remark] 备注（可选）
+  Future<HttpResultN<Map<String, dynamic>>> updateGeofencing({
+    required String geofencingId,
+    required int geoIcon,
+    required int geoAction,
+    required double longitude,
+    required double latitude,
+    required int geoRadius,
+    String? remark,
+  }) async {
+    DebugUtil.info('🌐 开始更新地理围栏: $geofencingId');
+    DebugUtil.info('📍 参数: icon=$geoIcon, action=$geoAction, lng=$longitude, lat=$latitude, radius=$geoRadius, remark=$remark');
+    
+    final params = {
+      'geofencing_id': geofencingId,
+      'geo_icon': geoIcon,
+      'geo_action': geoAction,
+      'longitude': longitude.toString(),
+      'latitude': latitude.toString(),
+      'geo_radius': geoRadius.toString(),
+    };
+    
+    // 如果有备注，添加到参数中
+    if (remark != null && remark.isNotEmpty) {
+      params['remark'] = remark;
+    }
+    
+    final result = await HttpManagerN.instance.executePost(
+      ApiRequest.updateGeofencing,
+      jsonParam: params,
+      paramEncrypt: false,
+      networkDebounce: false,
+    );
+
+    if (result.isSuccess) {
+      DebugUtil.success('✅ 更新地理围栏成功');
+      final data = result.getDataJson();
+      DebugUtil.info('📦 返回数据: $data');
+      return result.convert(data: data);
+    } else {
+      DebugUtil.error('❌ 更新地理围栏失败: ${result.msg}');
+      return result.convert();
+    }
+  }
+  
   /// 删除地理围栏
   /// 
   /// 参数:

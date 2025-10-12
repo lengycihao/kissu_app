@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/geofence_monitoring_service.dart';
 import 'package:kissu_app/network/public/geofence_api.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart';
 
 /// 位置提醒Controller
 class LocationReminderController extends GetxController {
@@ -26,6 +28,35 @@ class LocationReminderController extends GetxController {
     loadRemindersFromServer();
     // 启动围栏监测
     _startGeofenceMonitoring();
+    // 检查通知权限
+    _checkNotificationPermission();
+  }
+  
+  /// 检查通知权限
+  Future<void> _checkNotificationPermission() async {
+    try {
+      final permissionService = PermissionService();
+      final hasPermission = await permissionService.isNotificationPermissionGranted();
+      
+      if (!hasPermission) {
+        // 延迟一下，等待页面完全显示
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // 显示通知权限弹窗
+        await SelfNotificationPermissionDialogUtil.show(
+          onKnow: () {
+            debugPrint('用户点击了知道了');
+          },
+          onGoSettings: () async {
+            debugPrint('用户点击去开启通知权限');
+            // 跳转到系统设置
+            await permissionService.openNotificationSettings();
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ 检查通知权限失败: $e');
+    }
   }
   
   @override
@@ -213,13 +244,44 @@ class LocationReminderController extends GetxController {
     }
   }
   
-  /// 编辑位置提醒
-  Future<void> updateReminder(LocationReminder reminder) async {
-    final index = reminders.indexWhere((r) => r.id == reminder.id);
-    if (index != -1) {
-      reminders[index] = reminder;
-      // await _saveReminders();
-      update();
+  /// 编辑位置提醒（调用服务端API）
+  Future<bool> updateReminder(LocationReminder reminder) async {
+    try {
+      debugPrint('🌐 开始更新位置提醒: ${reminder.id}');
+      
+      // 调用服务端API更新
+      final result = await _geofenceApi.updateGeofencing(
+        geofencingId: reminder.id,
+        geoIcon: reminder.icon,
+        geoAction: reminder.type == ReminderType.leave ? 1 : 2,
+        longitude: reminder.longitude,
+        latitude: reminder.latitude,
+        geoRadius: reminder.radius.toInt(),
+        remark: reminder.note.isNotEmpty ? reminder.note : null,
+      );
+      
+      if (result.isSuccess) {
+        debugPrint('✅ 位置提醒更新成功');
+        // 更新成功后重新从服务端加载列表
+        await loadRemindersFromServer();
+        return true;
+      } else {
+        debugPrint('❌ 位置提醒更新失败: ${result.msg}');
+        Get.snackbar(
+          '更新失败',
+          result.msg ?? '未知错误',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ 更新位置提醒异常: $e');
+      Get.snackbar(
+        '更新失败',
+        '网络错误，请重试',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
     }
   }
   

@@ -46,8 +46,12 @@ class ApiRequest {
   // 位置提醒（地理围栏）相关 API
   static const getGeofencing = '/get/geofencing';
   static const saveGeofencing = '/save/geofencing';
+  static const updateGeofencing = '/update/geofencing';
   static const deleteGeofencing = '/del/geofencing';
   
   // 版本检查 API
   static const checkVersion = '/version/checkVersion';
+  
+  // 用机记录 API
+  static const getSensitiveRecord = '/v2/get/sensitive/record';
 }

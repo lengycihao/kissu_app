@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
@@ -6,7 +7,6 @@ import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/banner_preview_page.dart';
 // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
-import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -19,7 +19,6 @@ import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
 import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 import 'package:kissu_app/services/screen_usage_service.dart';
@@ -236,16 +235,16 @@ class MineController extends GetxController {
         title: "分享APP",
         onTap: () => _onShareAppTap(),
       ),
-      // SettingItem(
-      //   icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
-      //   title: "弹窗展示",
-      //   onTap: () => Get.to(() => const DialogShowcasePage()),
-      // ),
-      // SettingItem(
-      //   icon: "assets/kissu_home_tab_history.webp",
-      //   title: "用机报告",
-      //   onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
-      // ),
+      SettingItem(
+        icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
+        title: "弹窗展示",
+        onTap: () => Get.to(() => const DialogShowcasePage()),
+      ),
+      SettingItem(
+        icon: "assets/kissu_home_tab_history.webp",
+        title: "用机记录",
+        onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
+      ),
       // SettingItem(
       //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
       //   title: "屏幕使用测试",
@@ -618,21 +617,14 @@ class MineController extends GetxController {
     Get.back(); // 关闭对话框
 
     try {
-      // 调用退出登录API
-      final authApi = AuthApi();
-      final result = await authApi.logout();
+      // 🔧 修复：直接调用 UserManager.logout()，内部会处理API调用
+      // 避免重复调用退出登录API导致两次跳转到登录页
+      await UserManager.logout();
 
-      if (result.isSuccess) {
-        // 清除本地用户数据
-        await UserManager.logout();
+      // 跳转到登录页面
+      Get.offAllNamed('/login');
 
-        // 跳转到登录页面
-        Get.offAllNamed('/login');
-
-        OKToastUtil.show('已退出登录');
-      } else {
-        OKToastUtil.showError(result.msg ?? '退出登录失败');
-      }
+      OKToastUtil.show('已退出登录');
     } catch (e) {
       OKToastUtil.showError('退出登录失败：$e');
     }

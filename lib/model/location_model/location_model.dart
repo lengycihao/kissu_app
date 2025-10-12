@@ -37,11 +37,14 @@ class UserLocationMobileDevice {
   final String? locationTime;
   final String? speed;
   final String? calculateLocationTime;
+  final int? isOpenLocation;
   final int? isOneself;
   final String? distance;
   final List<StopPoint>? stops;
   final StayCollect? stayCollect;
   final String? headPortrait;
+  final OnlineStatus? online;
+  final LivesInfo? lives;
 
   UserLocationMobileDevice({
     this.power,
@@ -54,11 +57,14 @@ class UserLocationMobileDevice {
     this.locationTime,
     this.speed,
     this.calculateLocationTime,
+    this.isOpenLocation,
     this.isOneself,
     this.distance,
     this.stops,
     this.stayCollect,
     this.headPortrait,
+    this.online,
+    this.lives,
   });
 
   factory UserLocationMobileDevice.fromJson(Map<String, dynamic> json) {
@@ -73,6 +79,7 @@ class UserLocationMobileDevice {
       locationTime: json['location_time'],
       speed: json['speed'],
       calculateLocationTime: json['calculate_location_time'],
+      isOpenLocation: json['is_open_location'],
       isOneself: json['is_oneself'],
       distance: json['distance'],
       stops: json['stops'] != null
@@ -82,6 +89,12 @@ class UserLocationMobileDevice {
           ? StayCollect.fromJson(json['stay_collect'])
           : null,
       headPortrait: json['head_portrait'],
+      online: json['online'] != null
+          ? OnlineStatus.fromJson(json['online'])
+          : null,
+      lives: json['lives'] != null
+          ? LivesInfo.fromJson(json['lives'])
+          : null,
     );
   }
 
@@ -97,11 +110,14 @@ class UserLocationMobileDevice {
       'location_time': locationTime,
       'speed': speed,
       'calculate_location_time': calculateLocationTime,
+      'is_open_location': isOpenLocation,
       'is_oneself': isOneself,
       'distance': distance,
       'stops': stops?.map((e) => e.toJson()).toList(),
       'stay_collect': stayCollect?.toJson(),
       'head_portrait': headPortrait,
+      'online': online?.toJson(),
+      'lives': lives?.toJson(),
     };
   }
 }
@@ -437,6 +453,233 @@ class TrackPoint {
     return {
       'latitude': lat,
       'longitude': lng,
+    };
+  }
+}
+
+// 在线状态模型
+class OnlineStatus {
+  final int? status;
+  final String? updateTime;
+  final int? problemId;
+
+  OnlineStatus({
+    this.status,
+    this.updateTime,
+    this.problemId,
+  });
+
+  factory OnlineStatus.fromJson(Map<String, dynamic> json) {
+    return OnlineStatus(
+      status: json['status'],
+      updateTime: json['update_time'],
+      problemId: json['problem_id'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'update_time': updateTime,
+      'problem_id': problemId,
+    };
+  }
+}
+
+// 天气/生活信息模型
+class LivesInfo {
+  final List<BaseWeather>? base;
+  final List<AllWeather>? all;
+
+  LivesInfo({
+    this.base,
+    this.all,
+  });
+
+  factory LivesInfo.fromJson(Map<String, dynamic> json) {
+    return LivesInfo(
+      base: json['base'] != null
+          ? (json['base'] as List).map((i) => BaseWeather.fromJson(i)).toList()
+          : null,
+      all: json['all'] != null
+          ? (json['all'] as List).map((i) => AllWeather.fromJson(i)).toList()
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'base': base?.map((e) => e.toJson()).toList(),
+      'all': all?.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+
+// 基础天气信息
+class BaseWeather {
+  final String? province;
+  final String? city;
+  final String? adcode;
+  final String? weather;
+  final String? temperature;
+  final String? winddirection;
+  final String? windpower;
+  final String? humidity;
+  final String? reporttime;
+  final String? temperatureFloat;
+  final String? humidityFloat;
+  final String? weatherIcon;
+
+  BaseWeather({
+    this.province,
+    this.city,
+    this.adcode,
+    this.weather,
+    this.temperature,
+    this.winddirection,
+    this.windpower,
+    this.humidity,
+    this.reporttime,
+    this.temperatureFloat,
+    this.humidityFloat,
+    this.weatherIcon,
+  });
+
+  factory BaseWeather.fromJson(Map<String, dynamic> json) {
+    return BaseWeather(
+      province: json['province'],
+      city: json['city'],
+      adcode: json['adcode'],
+      weather: json['weather'],
+      temperature: json['temperature'],
+      winddirection: json['winddirection'],
+      windpower: json['windpower'],
+      humidity: json['humidity'],
+      reporttime: json['reporttime'],
+      temperatureFloat: json['temperature_float'],
+      humidityFloat: json['humidity_float'],
+      weatherIcon: json['weather_icon'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'province': province,
+      'city': city,
+      'adcode': adcode,
+      'weather': weather,
+      'temperature': temperature,
+      'winddirection': winddirection,
+      'windpower': windpower,
+      'humidity': humidity,
+      'reporttime': reporttime,
+      'temperature_float': temperatureFloat,
+      'humidity_float': humidityFloat,
+      'weather_icon': weatherIcon,
+    };
+  }
+}
+
+// 完整天气预报信息
+class AllWeather {
+  final String? city;
+  final String? adcode;
+  final String? province;
+  final String? reporttime;
+  final List<WeatherCast>? casts;
+
+  AllWeather({
+    this.city,
+    this.adcode,
+    this.province,
+    this.reporttime,
+    this.casts,
+  });
+
+  factory AllWeather.fromJson(Map<String, dynamic> json) {
+    return AllWeather(
+      city: json['city'],
+      adcode: json['adcode'],
+      province: json['province'],
+      reporttime: json['reporttime'],
+      casts: json['casts'] != null
+          ? (json['casts'] as List).map((i) => WeatherCast.fromJson(i)).toList()
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'city': city,
+      'adcode': adcode,
+      'province': province,
+      'reporttime': reporttime,
+      'casts': casts?.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+
+// 天气预报详情
+class WeatherCast {
+  final String? date;
+  final String? week;
+  final String? dayweather;
+  final String? nightweather;
+  final String? daytemp;
+  final String? nighttemp;
+  final String? daywind;
+  final String? nightwind;
+  final String? daypower;
+  final String? nightpower;
+  final String? daytempFloat;
+  final String? nighttempFloat;
+
+  WeatherCast({
+    this.date,
+    this.week,
+    this.dayweather,
+    this.nightweather,
+    this.daytemp,
+    this.nighttemp,
+    this.daywind,
+    this.nightwind,
+    this.daypower,
+    this.nightpower,
+    this.daytempFloat,
+    this.nighttempFloat,
+  });
+
+  factory WeatherCast.fromJson(Map<String, dynamic> json) {
+    return WeatherCast(
+      date: json['date'],
+      week: json['week'],
+      dayweather: json['dayweather'],
+      nightweather: json['nightweather'],
+      daytemp: json['daytemp'],
+      nighttemp: json['nighttemp'],
+      daywind: json['daywind'],
+      nightwind: json['nightwind'],
+      daypower: json['daypower'],
+      nightpower: json['nightpower'],
+      daytempFloat: json['daytemp_float'],
+      nighttempFloat: json['nighttemp_float'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'week': week,
+      'dayweather': dayweather,
+      'nightweather': nightweather,
+      'daytemp': daytemp,
+      'nighttemp': nighttemp,
+      'daywind': daywind,
+      'nightwind': nightwind,
+      'daypower': daypower,
+      'nightpower': nightpower,
+      'daytemp_float': daytempFloat,
+      'nighttemp_float': nighttempFloat,
     };
   }
 }
