@@ -118,7 +118,7 @@ class UsageReportPage extends GetView<UsageReportController> {
                       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFFF87D1) : Colors.transparent,
+                        color: isSelected ? const Color(0xFFFF9AD8) : Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                       ),
                       alignment: Alignment.center,
@@ -197,17 +197,27 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildPageView() {
     return Stack(
       children: [
-        Obx(() {
-          final tabs = controller.visibleTabs;
-          return PageView.builder(
-            controller: controller.pageController,
-            itemCount: tabs.length,
-            onPageChanged: controller.onPageChanged,
-            itemBuilder: (context, index) {
-              return _buildTabContent(tabs[index]);
-            },
-          );
-        }),
+        GestureDetector(
+          onTap: () {
+            // 点击页面时隐藏筛选抽屉
+            controller.hideFilterDrawer();
+          },
+          onPanDown: (_) {
+            // 开始滑动时隐藏筛选抽屉
+            controller.hideFilterDrawer();
+          },
+          child: Obx(() {
+            final tabs = controller.visibleTabs;
+            return PageView.builder(
+              controller: controller.pageController,
+              itemCount: tabs.length,
+              onPageChanged: controller.onPageChanged,
+              itemBuilder: (context, index) {
+                return _buildTabContent(tabs[index]);
+              },
+            );
+          }),
+        ),
         // 筛选抽屉
         Obx(() {
           if (!controller.isFilterDrawerVisible.value) {
@@ -221,7 +231,10 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   // 构建标签内容
   Widget _buildTabContent(String tabName) {
-    switch (tabName) {
+    // 获取标签的基础名称（去除数量信息）
+    final baseTabName = _getBaseTabName(tabName);
+    
+    switch (baseTabName) {
       case '全部记录':
         return const AllRecordsPage();
       case '敏感记录':
@@ -235,6 +248,13 @@ class UsageReportPage extends GetView<UsageReportController> {
       default:
         return _buildPlaceholderPage(tabName);
     }
+  }
+
+  /// 获取标签的基础名称（去除数量信息）
+  String _getBaseTabName(String tabName) {
+    // 移除括号中的数量信息，例如 "敏感记录(12)" -> "敏感记录"
+    final regex = RegExp(r'\(\d+\)$');
+    return tabName.replaceAll(regex, '');
   }
 
   // 占位页面

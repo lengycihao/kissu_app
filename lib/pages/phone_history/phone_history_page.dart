@@ -511,8 +511,8 @@ class PhoneHistoryPage extends GetView<PhoneHistoryController> {
               children: [
                 Image.asset(
                   'assets/phone_history/kissu_phone_list_empty.webp',
-                  width: 120,
-                  height: 120,
+                  width: 128,
+                  height: 128,
                 ),
                 const SizedBox(height: 12),
                 const Text(

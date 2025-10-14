@@ -2,6 +2,7 @@
 import 'package:get/get.dart';
 import 'package:kissu_app/services/screen_usage_service.dart';
 import 'package:kissu_app/models/screen_time_model.dart';
+import 'package:kissu_app/models/usage_record_api_model.dart';
 
 /// 屏幕使用时长详情页面控制器
 class ScreenTimeDetailController extends GetxController {
@@ -14,6 +15,7 @@ class ScreenTimeDetailController extends GetxController {
   // 屏幕使用数据
   final totalMinutes = 0.obs;
   final screenTimeData = Rx<ScreenTimeDetailModel?>(null);
+  final screenUsageGroups = <ScreenUsageGroup>[].obs;
   
   @override
   void onInit() {
@@ -35,6 +37,9 @@ class ScreenTimeDetailController extends GetxController {
       
       // 获取今日应用使用详情（前10个）
       final appUsageStats = await _screenUsageService.getTodayAppUsageStats(limit: 10);
+      screenUsageGroups.value = []; // 暂时使用空数据，将在_generateChartDataFromAPI中处理
+      
+      debugPrint('📊 获取到 ${appUsageStats.length} 个应用使用数据');
       
       // 转换为记录列表
       final records = appUsageStats.map((stat) {
@@ -48,8 +53,8 @@ class ScreenTimeDetailController extends GetxController {
         );
       }).toList();
       
-      // 生成24小时数据（暂时使用模拟数据，后续可以根据真实数据生成）
-      final hourlyData = _generateHourlyData();
+      // 生成柱状图数据（使用API数据）
+      final hourlyData = _generateChartDataFromAPI();
       
       // 生成曲线数据
       final longestPeriodData = _findLongestPeriod(hourlyData);
@@ -76,28 +81,84 @@ class ScreenTimeDetailController extends GetxController {
     }
   }
   
-  /// 生成24小时使用数据（暂时使用模拟数据）
-  /// TODO: 后续可以通过查询事件来获取每小时的真实使用时长
-  List<ChartDataPoint> _generateHourlyData() {
-    // 这里暂时返回模拟数据
-    // 实际应用中，可以通过 queryEvents 获取每小时的使用时长
-    return List.generate(24, (index) {
-      return ChartDataPoint(
-        label: index.toString(),
-        value: (index >= 8 && index <= 22) ? (20 + (index % 7) * 5).toDouble() : 5.0,
-      );
-    });
+  
+  /// 从API数据生成柱状图数据
+  List<ChartDataPoint> _generateChartDataFromAPI() {
+    // 生成12个2小时时间段的数据点
+    final List<ChartDataPoint> chartData = [];
+    
+    // 如果有API数据，使用真实数据
+    if (screenUsageGroups.isNotEmpty) {
+      // 取前12个分组数据，如果不足12个则用模拟数据补充
+      for (int i = 0; i < 12; i++) {
+        if (i < screenUsageGroups.length) {
+          final group = screenUsageGroups[i];
+          
+          // 生成detail信息，格式为 "hour点：duration"
+          String detailInfo = '';
+          if (group.detail.isNotEmpty) {
+            final details = group.detail.map((d) => '${d.hour}点：${d.duration}').join('\n');
+            detailInfo = details;
+          } else {
+            detailInfo = '${group.groupLabel}：${group.groupDuration}';
+          }
+          
+          chartData.add(ChartDataPoint(
+            label: group.groupLabel, // 保存group_label用于x轴位置
+            value: group.groupDurationMinutes.toDouble(), // 使用group_duration
+            detail: detailInfo, // 用于tooltip显示
+          ));
+        } else {
+          // 补充模拟数据
+          final startHour = i * 2;
+          double value = 5.0;
+          if (startHour >= 8 && startHour <= 22) {
+            value = (20 + (i % 7) * 5).toDouble();
+          } else if (startHour >= 6 && startHour <= 7) {
+            value = 15.0;
+          }
+          chartData.add(ChartDataPoint(
+            label: '$startHour-${startHour + 1}',
+            value: value,
+            detail: '${startHour}点：${value.toInt()}min',
+          ));
+        }
+      }
+    } else {
+      // 没有API数据时，生成12个2小时时间段的模拟数据
+      for (int i = 0; i < 12; i++) {
+        final startHour = i * 2;
+        final endHour = startHour + 1;
+        final periodLabel = '$startHour-$endHour';
+        
+        // 模拟数据：白天时段使用时长较高
+        double value = 5.0;
+        if (startHour >= 8 && startHour <= 22) {
+          value = (20 + (i % 7) * 5).toDouble();
+        } else if (startHour >= 6 && startHour <= 7) {
+          value = 15.0;
+        }
+        
+        chartData.add(ChartDataPoint(
+          label: periodLabel,
+          value: value,
+          detail: '${startHour}点：${value.toInt()}min',
+        ));
+      }
+    }
+    
+    return chartData;
   }
   
   /// 找出使用时长最长的时段
   List<ChartDataPoint> _findLongestPeriod(List<ChartDataPoint> hourlyData) {
-    // 找出连续4-5小时使用时长最长的时段
+    // 找出连续2-3个时间段使用时长最长的时段
     double maxSum = 0;
-    int maxStartIndex = 8; // 默认从8点开始
+    int maxStartIndex = 4; // 默认从8-9点开始（第4个时间段）
     
-    for (int i = 0; i <= hourlyData.length - 5; i++) {
+    for (int i = 0; i <= hourlyData.length - 3; i++) {
       double sum = 0;
-      for (int j = i; j < i + 5; j++) {
+      for (int j = i; j < i + 3; j++) {
         sum += hourlyData[j].value;
       }
       if (sum > maxSum) {
@@ -106,42 +167,50 @@ class ScreenTimeDetailController extends GetxController {
       }
     }
     
-    return hourlyData.sublist(maxStartIndex, maxStartIndex + 5);
+    return hourlyData.sublist(maxStartIndex, maxStartIndex + 3);
   }
   
   /// 找出23点后异常时段数据
   List<ChartDataPoint> _findAbnormalPeriod(List<ChartDataPoint> hourlyData) {
-    // 23点到凌晨2点（23, 0, 1, 2）
+    // 22-23点、0-1点、2-3点（对应索引11, 0, 1）
     return [
-      hourlyData[23],
-      hourlyData[0],
-      hourlyData[1],
-      hourlyData[2],
+      hourlyData[11], // 22-23点
+      hourlyData[0],  // 0-1点
+      hourlyData[1],  // 2-3点
     ];
   }
   
   /// 获取模拟数据（作为备用）
   ScreenTimeDetailModel _getMockData() {
-    final hourlyData = List.generate(24, (index) {
+    final hourlyData = List.generate(12, (index) {
+      final startHour = index * 2;
+      final endHour = startHour + 1;
+      final periodLabel = '$startHour-$endHour';
+      
+      // 模拟数据：白天时段使用时长较高
+      double value = 5.0;
+      if (startHour >= 8 && startHour <= 22) {
+        value = (20 + (index % 7) * 5).toDouble();
+      } else if (startHour >= 6 && startHour <= 7) {
+        value = 15.0;
+      }
+      
       return ChartDataPoint(
-        label: index.toString(),
-        value: (index >= 8 && index <= 22) ? (20 + (index % 7) * 5).toDouble() : 5.0,
+        label: periodLabel,
+        value: value,
       );
     });
     
     final longestPeriodData = [
-      ChartDataPoint(label: '8', value: 45),
-      ChartDataPoint(label: '9', value: 60),
-      ChartDataPoint(label: '10', value: 55),
-      ChartDataPoint(label: '11', value: 70),
-      ChartDataPoint(label: '12', value: 50),
+      ChartDataPoint(label: '8-9', value: 45),
+      ChartDataPoint(label: '10-11', value: 60),
+      ChartDataPoint(label: '12-13', value: 55),
     ];
     
     final abnormalPeriodData = [
-      ChartDataPoint(label: '23', value: 30),
-      ChartDataPoint(label: '0', value: 45),
-      ChartDataPoint(label: '1', value: 60),
-      ChartDataPoint(label: '2', value: 35),
+      ChartDataPoint(label: '22-23', value: 30),
+      ChartDataPoint(label: '0-1', value: 45),
+      ChartDataPoint(label: '2-3', value: 60),
     ];
     
     final now = DateTime.now();

@@ -142,7 +142,7 @@ class TrackController extends GetxController {
       
       if (status.isGranted) {
         DebugUtil.success('轨迹页面权限已授予，加载数据');
-        loadLocationData();
+        Future.microtask(() => _loadDataAsync());
       } else {
         DebugUtil.error('轨迹页面权限未授予，请求权限');
         // 显示自定义权限申请弹窗
@@ -169,7 +169,7 @@ class TrackController extends GetxController {
           final result = await Permission.location.request();
           if (result.isGranted) {
             DebugUtil.success('轨迹页面权限获取成功，加载数据');
-            loadLocationData();
+            Future.microtask(() => _loadDataAsync());
           } else {
             DebugUtil.error('轨迹页面权限被拒绝');
             // 权限被拒绝时，静默处理，不显示额外提示
@@ -591,7 +591,140 @@ class TrackController extends GetxController {
     });
   }
   
-  /// 实际执行数据加载 - 支持缓存的智能加载
+  /// 完全非阻塞的数据加载方法（用于头像切换）
+  void _performLoadLocationDataDirectNonBlocking() {
+    // 不等待任何异步操作，完全非阻塞
+    Future(() async {
+      try {
+        // 增加数据版本号，确保数据一致性
+        final currentVersion = ++_dataVersion;
+        
+        final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+        final isOneSelfValue = isOneself.value == 1;
+        
+        DebugUtil.info('非阻塞智能请求数据: $dateString, isOneself=$isOneSelfValue');
+        
+        final result = await TrackApi.getTrack(
+          date: dateString,
+          isOneself: isOneSelfValue ? 1 : 0,
+          useCache: true, // 启用缓存
+        );
+        
+        if (result.isSuccess && result.data != null) {
+          // 检查数据版本是否还有效
+          if (currentVersion != _dataVersion) {
+            DebugUtil.warning('数据版本已过期，放弃数据处理');
+            return;
+          }
+          
+          // 更新数据
+          locationData.value = result.data;
+          
+          // 从API数据中更新头像信息
+          _updateAvatarsFromApiData(result.data!);
+          
+          DebugUtil.success('非阻塞获取到最新数据');
+          
+          // 使用完全非阻塞的渐进式数据更新
+          _progressiveDataUpdateNonBlocking();
+          
+        } else {
+          CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
+          _clearData();
+        }
+      } catch (e, stackTrace) {
+        DebugUtil.error('非阻塞数据加载异常: $e');
+        DebugUtil.error('异常堆栈: $stackTrace');
+        CustomToast.show(Get.context!, '加载数据失败，请稍后重试');
+        _clearData();
+      } finally {
+        isLoading.value = false;
+      }
+    });
+  }
+  
+  /// 直接执行数据加载 - 跳过防抖，用于头像切换
+  Future<void> _performLoadLocationDataDirect() async {
+    // 只有今天的数据才显示loading动画
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final selectedDateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    final isToday = selectedDateString == today;
+    
+    if (isToday) {
+      isLoading.value = true;
+    }
+    _resetReplayState();
+    
+    // 增加数据版本号，确保数据一致性
+    final currentVersion = ++_dataVersion;
+    
+    // 立即清空旧数据，给用户即时反馈
+    _clearDataInstantly();
+    
+    final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    final isOneSelfValue = isOneself.value == 1;
+    
+    try {
+      // 📡 智能获取数据：自动使用缓存（历史数据）或API（今日数据）
+      DebugUtil.info('智能请求数据: $dateString, isOneself=$isOneSelfValue');
+      
+      final result = await TrackApi.getTrack(
+        date: dateString,
+        isOneself: isOneSelfValue ? 1 : 0,
+        useCache: true, // 启用缓存
+      );
+      
+      if (result.isSuccess && result.data != null) {
+        // 检查数据版本是否还有效
+        if (currentVersion != _dataVersion) {
+          DebugUtil.warning('数据版本已过期，放弃数据处理');
+          return;
+        }
+        
+        // 已移除虚拟数据标记，所有情况都使用真实API数据
+        locationData.value = result.data;
+        
+        // 从API数据中更新头像信息
+        _updateAvatarsFromApiData(result.data!);
+        
+        DebugUtil.success('获取到最新数据');
+        
+        // 使用渐进式数据更新，避免长时间阻塞UI
+        await _progressiveDataUpdate();
+        
+      } else {
+        CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
+        _clearData();
+      }
+    } catch (e, stackTrace) {
+      DebugUtil.error('Track Controller loadLocationData error: $e');
+      DebugUtil.error('请求参数: date=$dateString, isOneself=$isOneSelfValue');
+      DebugUtil.error('Stack trace: $stackTrace');
+      
+      String errorMessage;
+      if (e.toString().contains('FormatException')) {
+        errorMessage = 'JSON数据格式错误，请检查服务器返回的数据格式';
+        DebugUtil.warning('建议检查API返回的JSON格式是否正确');
+      } else if (e.toString().contains('is not a subtype')) {
+        errorMessage = '数据类型不匹配，请稍后重试';
+      } else if (e.toString().contains('Unterminated string')) {
+        errorMessage = 'JSON字符串格式错误，可能存在未转义的特殊字符';
+        DebugUtil.warning('建议检查JSON中是否有未正确转义的引号或换行符');
+      } else {
+        errorMessage = '加载数据失败: ${e.toString().length > 100 ? '${e.toString().substring(0, 100)}...' : e.toString()}';
+      }
+      
+      CustomToast.show(
+        Get.context!,
+        errorMessage,
+      );
+      _clearData();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 实际执行数据加载 - 支持缓存的智能加载（带防抖）
   Future<void> _performLoadLocationData() async {
     // 只有今天的数据才显示loading动画
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -694,7 +827,7 @@ class TrackController extends GetxController {
     animationProgress.value = 0.0;
   }
   
-  /// 立即清空数据，给用户即时反馈
+  /// 立即清空数据，给用户即时反馈 - 非阻塞版本
   void _clearDataInstantly() {
     // 清空轨迹相关数据
     trackPoints.clear();
@@ -711,10 +844,33 @@ class TrackController extends GetxController {
     stayDuration.value = "加载中...";
     moveDistance.value = "加载中...";
     
-    // 强制触发地图更新，确保轨迹线被清空
-    _forceMapUpdate();
+    // 异步触发地图更新，避免阻塞UI
+    Future.microtask(() => _forceMapUpdate());
     
     DebugUtil.info('已立即清空旧数据，显示加载状态');
+  }
+  
+  /// 智能清空数据 - 头像切换专用，提供更好的用户反馈
+  void _clearDataForAvatarSwitch() {
+    // 立即清空可视数据
+    trackPoints.clear();
+    stopPoints.clear();
+    stayMarkers.clear();
+    trackStartEndMarkers.clear();
+    stopRecords.clear();
+    
+    // 重置轨迹线状态
+    hasValidTrackData.value = false;
+    
+    // 显示切换状态，而不是加载状态
+    stayCount.value = 0;
+    stayDuration.value = "切换中...";
+    moveDistance.value = "切换中...";
+    
+    // 异步触发地图更新
+    Future.microtask(() => _forceMapUpdate());
+    
+    DebugUtil.info('头像切换：已清空旧数据，显示切换状态');
   }
   
   /// 强制地图更新，确保UI同步
@@ -815,7 +971,7 @@ class TrackController extends GetxController {
 
   /// 新的API结构不需要设备数据，直接使用trace数据
 
-  /// 异步更新轨迹数据 - 优化性能
+  /// 异步更新轨迹数据 - 优化性能版本
   Future<void> _updateTrackDataAsync() async {
     if (locationData.value == null) {
       DebugUtil.error('位置数据为空，无法更新轨迹');
@@ -829,65 +985,58 @@ class TrackController extends GetxController {
     // 在后台线程处理数据以避免阻塞UI
     final rawPoints = await compute(_processLocationData, data.locations ?? []);
     
-    // 直接使用原始轨迹点，保持最高精度
-    // 如果需要平滑处理，可以取消注释下面的代码
     // 先检查数据有效性，再进行原子更新
     bool isValidData = rawPoints.isNotEmpty && rawPoints.length >= 2;
     
     // 原子更新：先更新状态，再更新数据
     hasValidTrackData.value = isValidData;
     trackPoints.value = rawPoints;
-    // trackPoints.value = _smoothTrackPoints(rawPoints); // 平滑处理（会损失精度）
     DebugUtil.info('轨迹点数量: ${trackPoints.length} (使用原始精度)');
     
-    // 如果轨迹点为空，强制触发地图更新确保轨迹线被清空
-    if (trackPoints.isEmpty) {
-      DebugUtil.warning('轨迹点为空，强制更新地图');
-      _forceMapUpdate();
-    } else {
-      // 有轨迹点时，确保地图已更新
-      DebugUtil.success('轨迹点已更新，确保地图同步');
-      _forceMapUpdate();
-    }
+    // 立即触发地图更新，确保轨迹线显示
+    _forceMapUpdate();
     
-    // 过滤停留点并调整到轨迹线上
-    final rawStopPoints = data.trace?.stops
-        .where((stop) => stop.lat != 0.0 && stop.lng != 0.0)
-        .toList() ?? [];
-    DebugUtil.info('原始停留点数量: ${rawStopPoints.length}');
+    // 异步处理停留点数据，避免阻塞主线程
+    _processStopPointsAsync(data);
     
-    // 将偏离的停留点移动到轨迹线上
-    stopPoints.value = _adjustStopPointsToTrackLine(rawStopPoints, trackPoints);
-    DebugUtil.info('调整后停留点数量: ${stopPoints.length}');
-    
-    // 更新停留点标记
+    // 异步更新标记，避免阻塞UI
+    _updateMarkersAsync();
+  }
+  
+  /// 异步处理停留点数据
+  Future<void> _processStopPointsAsync(LocationResponse data) async {
     try {
-      await _safeUpdateStayMarkers();
-    } catch (e) {
-      DebugUtil.error(' 更新停留点标记失败: $e');
-      // 即使失败也继续执行，避免阻塞整个流程
-    }
-    
-    // 更新轨迹起点和终点标记
-    try {
-      await _updateTrackStartEndMarkers();
-    } catch (e) {
-      DebugUtil.error(' 更新轨迹起终点标记失败: $e');
-      // 即使失败也继续执行，避免阻塞整个流程
-    }
-    
-    // 延迟地图视图调整，避免阻塞数据加载
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 自动调整地图视图以显示所有轨迹点
-      await _fitMapToTrackPoints();
+      // 过滤停留点并调整到轨迹线上
+      final rawStopPoints = data.trace?.stops
+          .where((stop) => stop.lat != 0.0 && stop.lng != 0.0)
+          .toList() ?? [];
+      DebugUtil.info('原始停留点数量: ${rawStopPoints.length}');
       
-      // 移动地图到合适位置
-      if (trackPoints.isNotEmpty) {
-        _moveMapToLocation(trackPoints.first);
-      } else {
-        _moveToValidPoint();
-      }
-    });
+      // 在后台线程处理停留点调整
+      final adjustedStopPoints = await compute(_adjustStopPointsToTrackLineStatic, {
+        'rawStopPoints': rawStopPoints,
+        'trackPoints': trackPoints.toList(),
+      });
+      stopPoints.value = adjustedStopPoints;
+      DebugUtil.info('调整后停留点数量: ${stopPoints.length}');
+      
+    } catch (e) {
+      DebugUtil.error('处理停留点数据失败: $e');
+      stopPoints.clear();
+    }
+  }
+  
+  /// 异步更新标记
+  Future<void> _updateMarkersAsync() async {
+    try {
+      // 并行更新停留点标记和起终点标记
+      await Future.wait([
+        _safeUpdateStayMarkers(),
+        _updateTrackStartEndMarkers(),
+      ]);
+    } catch (e) {
+      DebugUtil.error('更新标记失败: $e');
+    }
   }
   
   /// 在后台线程处理位置数据
@@ -896,6 +1045,140 @@ class TrackController extends GetxController {
         .map((location) => LatLng(location.lat, location.lng))
         .where((point) => point.latitude != 0.0 && point.longitude != 0.0)
         .toList();
+  }
+  
+  /// 静态版本的停留点调整方法，用于后台线程
+  static List<TrackStopPoint> _adjustStopPointsToTrackLineStatic(Map<String, dynamic> params) {
+    final rawStopPoints = params['rawStopPoints'] as List<TrackStopPoint>;
+    final trackPoints = params['trackPoints'] as List<LatLng>;
+    
+    if (rawStopPoints.isEmpty || trackPoints.isEmpty) {
+      return rawStopPoints;
+    }
+    
+    final adjustedStopPoints = <TrackStopPoint>[];
+    
+    for (final stopPoint in rawStopPoints) {
+      final stopLatLng = LatLng(stopPoint.lat, stopPoint.lng);
+      
+      // 找到停留点到轨迹线的最近距离和最近点
+      final nearestPoint = _findNearestPointOnTrackLineStatic(stopLatLng, trackPoints);
+      final distanceToTrack = _calculateDistanceBetweenPointsStatic(stopLatLng, nearestPoint.point);
+      
+      // 如果距离超过阈值，将停留点移动到轨迹线上
+      const double maxDistanceThreshold = 100.0; // 100米阈值
+      
+      if (distanceToTrack > maxDistanceThreshold) {
+        // 创建调整后的停留点
+        final adjustedStopPoint = TrackStopPoint(
+          lat: nearestPoint.point.latitude,
+          lng: nearestPoint.point.longitude,
+          startTime: stopPoint.startTime,
+          endTime: stopPoint.endTime,
+          locationName: stopPoint.locationName,
+          duration: stopPoint.duration,
+          status: stopPoint.status,
+          pointType: stopPoint.pointType,
+          serialNumber: stopPoint.serialNumber,
+        );
+        adjustedStopPoints.add(adjustedStopPoint);
+      } else {
+        // 距离在阈值内，保持原位置
+        adjustedStopPoints.add(stopPoint);
+      }
+    }
+    
+    return adjustedStopPoints;
+  }
+  
+  /// 静态版本的最近点查找方法
+  static ({LatLng point, int segmentIndex, double ratio}) _findNearestPointOnTrackLineStatic(LatLng targetPoint, List<LatLng> trackPoints) {
+    if (trackPoints.isEmpty) {
+      return (point: targetPoint, segmentIndex: 0, ratio: 0.0);
+    }
+    
+    if (trackPoints.length == 1) {
+      return (point: trackPoints.first, segmentIndex: 0, ratio: 0.0);
+    }
+    
+    double minDistance = double.infinity;
+    LatLng nearestPoint = trackPoints.first;
+    int nearestSegmentIndex = 0;
+    double nearestRatio = 0.0;
+    
+    // 遍历所有线段，找到最近的投影点
+    for (int i = 0; i < trackPoints.length - 1; i++) {
+      final segmentStart = trackPoints[i];
+      final segmentEnd = trackPoints[i + 1];
+      
+      // 计算目标点到当前线段的最近点
+      final projectionResult = _calculateProjectionOnSegmentStatic(targetPoint, segmentStart, segmentEnd);
+      final distance = _calculateDistanceBetweenPointsStatic(targetPoint, projectionResult.point);
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestPoint = projectionResult.point;
+        nearestSegmentIndex = i;
+        nearestRatio = projectionResult.ratio;
+      }
+    }
+    
+    return (point: nearestPoint, segmentIndex: nearestSegmentIndex, ratio: nearestRatio);
+  }
+  
+  /// 静态版本的投影计算方法
+  static ({LatLng point, double ratio}) _calculateProjectionOnSegmentStatic(LatLng targetPoint, LatLng segmentStart, LatLng segmentEnd) {
+    // 将经纬度转换为平面坐标进行计算（近似处理）
+    final double ax = segmentStart.longitude * 111320 * cos(segmentStart.latitude * pi / 180);
+    final double ay = segmentStart.latitude * 111320;
+    final double bx = segmentEnd.longitude * 111320 * cos(segmentEnd.latitude * pi / 180);
+    final double by = segmentEnd.latitude * 111320;
+    final double px = targetPoint.longitude * 111320 * cos(targetPoint.latitude * pi / 180);
+    final double py = targetPoint.latitude * 111320;
+    
+    // 计算向量
+    final double abx = bx - ax;
+    final double aby = by - ay;
+    final double apx = px - ax;
+    final double apy = py - ay;
+    
+    // 计算投影比例
+    final double abSquared = abx * abx + aby * aby;
+    if (abSquared == 0) {
+      // 线段退化为点
+      return (point: segmentStart, ratio: 0.0);
+    }
+    
+    double t = (apx * abx + apy * aby) / abSquared;
+    
+    // 限制投影点在线段范围内
+    t = max(0.0, min(1.0, t));
+    
+    // 计算投影点的经纬度
+    final double projX = ax + t * abx;
+    final double projY = ay + t * aby;
+    
+    // 转换回经纬度
+    final double projLat = projY / 111320;
+    final double projLng = projX / (111320 * cos(projLat * pi / 180));
+    
+    return (point: LatLng(projLat, projLng), ratio: t);
+  }
+  
+  /// 静态版本的距离计算方法
+  static double _calculateDistanceBetweenPointsStatic(LatLng point1, LatLng point2) {
+    const double earthRadius = 6371000; // 地球半径（米）
+    
+    final double lat1Rad = point1.latitude * pi / 180;
+    final double lat2Rad = point2.latitude * pi / 180;
+    final double deltaLat = (point2.latitude - point1.latitude) * pi / 180;
+    final double deltaLng = (point2.longitude - point1.longitude) * pi / 180;
+    
+    final double a = sin(deltaLat / 2) * sin(deltaLat / 2) +
+        cos(lat1Rad) * cos(lat2Rad) * sin(deltaLng / 2) * sin(deltaLng / 2);
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    
+    return earthRadius * c;
   }
 
   /// 更新统计数据
@@ -999,28 +1282,76 @@ class TrackController extends GetxController {
   /// 切换查看用户（自己/另一半）
   void switchUser() {
     isOneself.value = isOneself.value == 1 ? 0 : 1;
-    // 切换用户时，不使用缓存，直接获取最新数据
-    loadLocationData();
+    // 切换用户时，立即清空数据并异步加载，避免卡顿
+    _clearDataForAvatarSwitch();
+    Future.microtask(() => _loadDataAsync());
   }
   
-  /// 强制刷新当前用户数据（用于头像点击）
+  /// 强制刷新当前用户数据（用于头像点击）- 完全非阻塞版本
   void refreshCurrentUserData() {
     DebugUtil.info('🔄 刷新用户数据: isOneself=${isOneself.value}');
     
-    // 不再使用缓存，每次都获取最新数据
-    DebugUtil.success(' 不使用缓存，直接获取最新数据');
+    // 立即清空数据，给用户即时反馈
+    _clearDataForAvatarSwitch();
     
-    // 先停止播放和清理状态
-    _resetReplayState();
-    
-    // 立即清空当前数据，确保UI立即更新和地图同步
-    _clearDataInstantly();
-    
-    // 延迟一小段时间确保状态清理完成，然后重新加载数据
-    Future.delayed(const Duration(milliseconds: 100), () {
-      loadLocationData().then((_) {
-        // 数据加载完成后延迟调整地图视图，确保数据已完全更新
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
+    // 使用scheduleMicrotask确保在下一个微任务中执行，完全避免阻塞
+    scheduleMicrotask(() async {
+      try {
+        // 停止播放和清理状态
+        _resetReplayState();
+        
+        // 异步加载数据，但不等待完成，完全非阻塞
+        _loadDataAsyncNonBlocking();
+      } catch (e) {
+        DebugUtil.error('头像切换数据加载失败: $e');
+      }
+    });
+  }
+  
+  /// 完全非阻塞的数据加载方法（用于头像切换）
+  void _loadDataAsyncNonBlocking() {
+    // 不等待任何异步操作，完全非阻塞
+    Future(() async {
+      try {
+        // 显示加载状态（仅对今天的数据）
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        final selectedDateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+        final isToday = selectedDateString == today;
+        
+        if (isToday) {
+          isLoading.value = true;
+        }
+        
+        // 异步调用数据加载，但不等待完成
+        _performLoadLocationDataDirectNonBlocking();
+        
+      } catch (e) {
+        DebugUtil.error('非阻塞数据加载失败: $e');
+        isLoading.value = false;
+      }
+    });
+  }
+  
+  /// 异步加载数据，完全非阻塞版本
+  Future<void> _loadDataAsync() async {
+    try {
+      // 显示加载状态（仅对今天的数据）
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final selectedDateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+      final isToday = selectedDateString == today;
+      
+      if (isToday) {
+        isLoading.value = true;
+      }
+      
+      // 异步调用数据加载，避免阻塞UI
+      await _performLoadLocationDataDirect();
+      
+      // 数据加载完成后，异步调整地图视图
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          // 异步调整地图视图，避免阻塞
+          await Future.delayed(const Duration(milliseconds: 100));
           await _fitMapToTrackPoints();
           
           // 移动地图到合适位置
@@ -1029,9 +1360,54 @@ class TrackController extends GetxController {
           } else {
             _moveToValidPoint();
           }
-        });
+        } catch (e) {
+          DebugUtil.error('地图视图调整失败: $e');
+        }
       });
+      
+    } catch (e) {
+      DebugUtil.error('异步加载数据失败: $e');
+      isLoading.value = false;
+    }
+  }
+  
+  /// 完全非阻塞的渐进式数据更新（用于头像切换）
+  void _progressiveDataUpdateNonBlocking() {
+    // 不等待任何异步操作，完全非阻塞
+    Future(() async {
+      try {
+        // 第一步：更新统计数据（最快）
+        Future.microtask(() => _updateStatistics());
+        
+        // 第二步：更新停留记录（中等耗时）
+        await _updateStopRecords();
+        
+        // 第三步：更新轨迹数据（最耗时）
+        await _updateTrackDataAsync();
+        
+        DebugUtil.success('非阻塞渐进式数据更新完成');
+      } catch (e) {
+        DebugUtil.error('非阻塞渐进式数据更新失败: $e');
+      }
     });
+  }
+  
+  /// 渐进式数据更新 - 分步骤更新，避免长时间阻塞
+  Future<void> _progressiveDataUpdate() async {
+    try {
+      // 第一步：更新统计数据（最快）
+      Future.microtask(() => _updateStatistics());
+      
+      // 第二步：更新停留记录（中等耗时）
+      await _updateStopRecords();
+      
+      // 第三步：更新轨迹数据（最耗时）
+      await _updateTrackDataAsync();
+      
+      DebugUtil.success('渐进式数据更新完成');
+    } catch (e) {
+      DebugUtil.error('渐进式数据更新失败: $e');
+    }
   }
   
   // 移除所有缓存相关方法
@@ -1069,7 +1445,8 @@ class TrackController extends GetxController {
     // 清空当前数据，给用户即时反馈
     _clearDataForNewDate();
     
-    loadLocationData();
+    // 异步加载新日期数据，避免卡顿
+    Future.microtask(() => _loadDataAsync());
     
     // 移除预加载功能，改为按需加载避免卡顿
     // _preloadAdjacentDates(date);
@@ -1087,8 +1464,8 @@ class TrackController extends GetxController {
     stayDuration.value = "加载中...";
     moveDistance.value = "加载中...";
     
-    // 强制触发地图更新，确保轨迹线被清空
-    _forceMapUpdate();
+    // 异步触发地图更新，避免阻塞UI
+    Future.microtask(() => _forceMapUpdate());
   }
   
 
@@ -1178,7 +1555,7 @@ class TrackController extends GetxController {
     return BitmapDescriptor.fromBytes(uint8List);
   }
 
-  /// 安全地更新停留点 markers - 高性能版本
+  /// 安全地更新停留点 markers - 高性能优化版本
   Future<void> _safeUpdateStayMarkers() async {
     DebugUtil.info('🔄 更新停留点 markers...');
     
@@ -1188,16 +1565,70 @@ class TrackController extends GetxController {
       return;
     }
     
-    // 延迟执行，避免阻塞数据加载
+    // 异步执行，避免阻塞UI
     Future.microtask(() async {
       try {
-        await _updateStayMarkersWithIcons();
-      } catch (e) {
-        DebugUtil.error(' 更新停留点标记失败: $e');
-        // 失败时使用简单标记
+        // 优先使用简单标记，提升响应速度
         await _createSimpleStayMarkers();
+        
+        // 在后台异步创建自定义图标，完成后替换
+        _createCustomMarkersInBackground();
+        
+      } catch (e) {
+        DebugUtil.error('更新停留点标记失败: $e');
+        // 失败时使用最简单的默认标记
+        await _createFallbackMarkers();
       }
     });
+  }
+  
+  /// 在后台创建自定义标记
+  Future<void> _createCustomMarkersInBackground() async {
+    try {
+      await _updateStayMarkersWithIcons();
+      DebugUtil.success('自定义标记创建完成');
+    } catch (e) {
+      DebugUtil.warning('自定义标记创建失败，保持简单标记: $e');
+    }
+  }
+  
+  /// 创建降级标记
+  Future<void> _createFallbackMarkers() async {
+    stayMarkers.clear();
+    
+    if (stopPoints.isEmpty) return;
+    
+    DebugUtil.info('🚀 创建降级标记: ${stopPoints.length}个');
+    
+    for (int i = 0; i < stopPoints.length; i++) {
+      final stop = stopPoints[i];
+      
+      if (stop.lat == 0.0 || stop.lng == 0.0) continue;
+      
+      // 跳过终点和起点
+      bool isEndPoint = stop.pointType == 'end' || stop.serialNumber == '终';
+      bool isStartPoint = stop.pointType == 'start' || stop.serialNumber == '起';
+      if (isEndPoint || isStartPoint) continue;
+      
+      // 使用最简单的默认标记
+      final marker = Marker(
+        position: LatLng(stop.lat, stop.lng),
+        infoWindow: InfoWindow(
+          title: '停留点',
+          snippet: stop.locationName ?? '未知位置',
+        ),
+        onTap: (String markerId) {
+          DebugUtil.info('点击了停留点: ${stop.locationName}');
+          if (trackPoints.isNotEmpty) {
+            _moveMapToLocation(LatLng(stop.lat, stop.lng));
+          }
+        },
+      );
+      
+      stayMarkers.add(marker);
+    }
+    
+    DebugUtil.success('降级标记创建完成: ${stayMarkers.length}个');
   }
 
   /// 更新停留点 markers（使用自定义粉色圆形图标显示数字）
@@ -1647,142 +2078,6 @@ class TrackController extends GetxController {
     return LatLng(lat, lng);
   }
 
-  
-  /// 将偏离的停留点移动到轨迹线上最近的位置
-  /// 找到不在轨迹线上的停留点，将其移动到距离轨迹线最近的点
-  List<TrackStopPoint> _adjustStopPointsToTrackLine(List<TrackStopPoint> rawStopPoints, RxList<LatLng> trackPoints) {
-    if (rawStopPoints.isEmpty || trackPoints.isEmpty) {
-      return rawStopPoints;
-    }
-    
-    final adjustedStopPoints = <TrackStopPoint>[];
-    
-    for (final stopPoint in rawStopPoints) {
-      final stopLatLng = LatLng(stopPoint.lat, stopPoint.lng);
-      
-      // 找到停留点到轨迹线的最近距离和最近点
-      final nearestPoint = _findNearestPointOnTrackLine(stopLatLng, trackPoints);
-      final distanceToTrack = _calculateDistanceBetweenPoints(stopLatLng, nearestPoint.point);
-      
-      // 如果距离超过阈值，将停留点移动到轨迹线上
-      // 提高阈值以减少对原始停留点坐标的修改，保持数据精度
-      const double maxDistanceThreshold = 100.0; // 100米阈值（提高以减少修改）
-      
-      if (distanceToTrack > maxDistanceThreshold) {
-        // 创建调整后的停留点
-        final adjustedStopPoint = TrackStopPoint(
-          lat: nearestPoint.point.latitude,
-          lng: nearestPoint.point.longitude,
-          startTime: stopPoint.startTime,
-          endTime: stopPoint.endTime,
-          locationName: stopPoint.locationName,
-          duration: stopPoint.duration,
-          status: stopPoint.status,
-          pointType: stopPoint.pointType,
-          serialNumber: stopPoint.serialNumber,
-        );
-        adjustedStopPoints.add(adjustedStopPoint);
-        DebugUtil.info('📍 移动停留点: 从(${stopPoint.lat}, ${stopPoint.lng}) 到 (${nearestPoint.point.latitude}, ${nearestPoint.point.longitude}), 距离: ${distanceToTrack.toStringAsFixed(1)}米');
-      } else {
-        // 距离在阈值内，保持原位置
-        adjustedStopPoints.add(stopPoint);
-      }
-    }
-    
-    return adjustedStopPoints;
-  }
-  
-  /// 找到点在轨迹线上的最近点
-  /// 返回最近的点和所在的线段信息
-  ({LatLng point, int segmentIndex, double ratio}) _findNearestPointOnTrackLine(LatLng targetPoint, List<LatLng> trackPoints) {
-    if (trackPoints.isEmpty) {
-      return (point: targetPoint, segmentIndex: 0, ratio: 0.0);
-    }
-    
-    if (trackPoints.length == 1) {
-      return (point: trackPoints.first, segmentIndex: 0, ratio: 0.0);
-    }
-    
-    double minDistance = double.infinity;
-    LatLng nearestPoint = trackPoints.first;
-    int nearestSegmentIndex = 0;
-    double nearestRatio = 0.0;
-    
-    // 遍历所有线段，找到最近的投影点
-    for (int i = 0; i < trackPoints.length - 1; i++) {
-      final segmentStart = trackPoints[i];
-      final segmentEnd = trackPoints[i + 1];
-      
-      // 计算目标点到当前线段的最近点
-      final projectionResult = _calculateProjectionOnSegment(targetPoint, segmentStart, segmentEnd);
-      final distance = _calculateDistanceBetweenPoints(targetPoint, projectionResult.point);
-      
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestPoint = projectionResult.point;
-        nearestSegmentIndex = i;
-        nearestRatio = projectionResult.ratio;
-      }
-    }
-    
-    return (point: nearestPoint, segmentIndex: nearestSegmentIndex, ratio: nearestRatio);
-  }
-  
-  /// 计算点在线段上的投影
-  /// 返回投影点和投影比例
-  ({LatLng point, double ratio}) _calculateProjectionOnSegment(LatLng targetPoint, LatLng segmentStart, LatLng segmentEnd) {
-    // 将经纬度转换为平面坐标进行计算（近似处理）
-    final double ax = segmentStart.longitude * 111320 * cos(segmentStart.latitude * pi / 180);
-    final double ay = segmentStart.latitude * 111320;
-    final double bx = segmentEnd.longitude * 111320 * cos(segmentEnd.latitude * pi / 180);
-    final double by = segmentEnd.latitude * 111320;
-    final double px = targetPoint.longitude * 111320 * cos(targetPoint.latitude * pi / 180);
-    final double py = targetPoint.latitude * 111320;
-    
-    // 计算向量
-    final double abx = bx - ax;
-    final double aby = by - ay;
-    final double apx = px - ax;
-    final double apy = py - ay;
-    
-    // 计算投影比例
-    final double abSquared = abx * abx + aby * aby;
-    if (abSquared == 0) {
-      // 线段退化为点
-      return (point: segmentStart, ratio: 0.0);
-    }
-    
-    double t = (apx * abx + apy * aby) / abSquared;
-    
-    // 限制投影点在线段范围内
-    t = max(0.0, min(1.0, t));
-    
-    // 计算投影点的经纬度
-    final double projX = ax + t * abx;
-    final double projY = ay + t * aby;
-    
-    // 转换回经纬度
-    final double projLat = projY / 111320;
-    final double projLng = projX / (111320 * cos(projLat * pi / 180));
-    
-    return (point: LatLng(projLat, projLng), ratio: t);
-  }
-  
-  /// 计算两点之间的距离（米）
-  double _calculateDistanceBetweenPoints(LatLng point1, LatLng point2) {
-    const double earthRadius = 6371000; // 地球半径（米）
-    
-    final double lat1Rad = point1.latitude * pi / 180;
-    final double lat2Rad = point2.latitude * pi / 180;
-    final double deltaLat = (point2.latitude - point1.latitude) * pi / 180;
-    final double deltaLng = (point2.longitude - point1.longitude) * pi / 180;
-    
-    final double a = sin(deltaLat / 2) * sin(deltaLat / 2) +
-        cos(lat1Rad) * cos(lat2Rad) * sin(deltaLng / 2) * sin(deltaLng / 2);
-    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    
-    return earthRadius * c;
-  }
   
   
   /// 计算两点间距离（米）

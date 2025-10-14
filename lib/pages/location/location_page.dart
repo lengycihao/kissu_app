@@ -62,7 +62,8 @@ class _LocationPageContentState extends State<_LocationPageContent> {
             top: 0,
             left: 0,
             right: 0,
-            height: mapHeight,
+            bottom:  screenHeight * 0.45 - 15,
+            // height: mapHeight,
             child: _CachedMapWidget(controller: widget.controller),
           ),
 

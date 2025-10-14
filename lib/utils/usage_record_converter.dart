@@ -10,21 +10,38 @@ class UsageRecordConverter {
     ScreenUsageDurationRecord apiData,
     DateTime targetDate,
   ) {
-    // 1. 转换24小时柱状图数据
+    // 1. 转换12个2小时时间段柱状图数据
     final hourlyData = <ChartDataPoint>[];
-    for (int hour = 0; hour < 24; hour++) {
-      // 从statistics中查找该小时的数据
+    
+    // 创建12个时间段：[0,1], [2,3], [4,5], ..., [22,23]
+    for (int periodIndex = 0; periodIndex < 12; periodIndex++) {
+      final startHour = periodIndex * 2;
+      final endHour = startHour + 1;
+      
+      // 计算这个2小时时间段的总使用时长，并收集详细数据
       int totalMinutes = 0;
+      final List<HourDetail> hourDetails = [];
+      
       for (var group in apiData.mobileScreenUsageDurationStatistics) {
         for (var detail in group.detail) {
-          if (int.tryParse(detail.hour) == hour) {
+          final hour = int.tryParse(detail.hour) ?? 0;
+          if (hour >= startHour && hour <= endHour) {
             totalMinutes += detail.durationMinutes;
+            // 将API的ScreenUsageDetail转换为HourDetail
+            hourDetails.add(HourDetail(
+              hour: detail.hour,
+              duration: detail.duration,
+            ));
           }
         }
       }
+      
+      // 生成时间段标签，如 "0-1", "2-3", "4-5", ..., "22-23"
+      final periodLabel = '$startHour-$endHour';
       hourlyData.add(ChartDataPoint(
-        label: hour.toString(),
+        label: periodLabel,
         value: totalMinutes.toDouble(),
+        hourDetails: hourDetails.isNotEmpty ? hourDetails : null,
       ));
     }
 
@@ -80,6 +97,7 @@ class UsageRecordConverter {
           time: time,
           action: UnlockActionType.unlock,
           icon: item.icon,
+          eventType: item.eventType,
         ));
       } else if (item.eventType == 15) {
         // 锁定手机
@@ -87,6 +105,7 @@ class UsageRecordConverter {
           time: time,
           action: UnlockActionType.lock,
           icon: item.icon,
+          eventType: item.eventType,
         ));
       } else if (item.eventType == 19) {
         // 时段记录：解锁->锁定
@@ -115,6 +134,7 @@ class UsageRecordConverter {
           movementDistance: moveDistance,
           stayPointCount: stayNumber,
           icon: item.icon,
+          eventType: item.eventType,
         ));
       }
     }

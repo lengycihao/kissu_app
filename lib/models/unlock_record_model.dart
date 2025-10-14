@@ -36,6 +36,7 @@ class UnlockRecordItem {
   final double? movementDistance; // 期间定位移动距离（米）
   final int? stayPointCount; // 期间停留点数量
   final String icon; // 图标URL
+  final int? eventType; // 原始事件类型（用于区分类型19等特殊记录）
 
   UnlockRecordItem({
     this.type,
@@ -45,6 +46,7 @@ class UnlockRecordItem {
     this.movementDistance,
     this.stayPointCount,
     this.icon = '',
+    this.eventType,
   });
 
   /// 是否为时段记录（有开始和结束时间）

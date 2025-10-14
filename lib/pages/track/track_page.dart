@@ -133,7 +133,8 @@ class _TrackPageContentState extends State<_TrackPageContent> {
             top: 0,
             left: 0,
             right: 0,
-            height: mapHeight,
+            bottom:  screenHeight * 0.4 - 15,
+            // height: mapHeight,
             child: _CachedMapWidget(controller: widget.controller),
           ),
 
@@ -574,110 +575,70 @@ class _OptimizedOverlayWidget extends StatelessWidget {
   }
 }
 
-// 缓存的地图Widget - 避免不必要的重建
-class _CachedMapWidget extends StatelessWidget {
+// 高性能地图Widget - 减少不必要的重建
+class _CachedMapWidget extends StatefulWidget {
   final TrackController controller;
 
   const _CachedMapWidget({required this.controller});
 
   @override
+  State<_CachedMapWidget> createState() => _CachedMapWidgetState();
+}
+
+class _CachedMapWidgetState extends State<_CachedMapWidget> {
+  // 缓存地图元素，避免频繁重建
+  Set<Marker> _cachedMarkers = {};
+  Set<Polyline> _cachedPolylines = {};
+  Set<Polygon> _cachedPolygons = {};
+  
+  // 数据版本控制，只在数据真正变化时更新
+  int _markersVersion = -1;
+  int _polylinesVersion = -1;
+  int _polygonsVersion = -1;
+
+  @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // 创建标记集合
-      Set<Marker> markers = {};
+      bool needsUpdate = false;
       
-      // 安全地添加停留点标记
-      try {
-        markers.addAll(controller.stayMarkers);
-      } catch (e) {
-        DebugUtil.error('添加停留点标记失败: $e');
+      // 检查标记是否需要更新
+      final currentMarkersVersion = widget.controller.stayMarkers.length + 
+                                   widget.controller.trackStartEndMarkers.length + 
+                                   (widget.controller.currentPosition.value != null ? 1 : 0);
+      if (currentMarkersVersion != _markersVersion) {
+        _updateMarkers();
+        _markersVersion = currentMarkersVersion;
+        needsUpdate = true;
       }
       
-      // 安全地添加轨迹起点和终点标记
-      try {
-        markers.addAll(controller.trackStartEndMarkers);
-      } catch (e) {
-        DebugUtil.error('添加轨迹起终点标记失败: $e');
+      // 检查轨迹线是否需要更新
+      final currentPolylinesVersion = widget.controller.hasValidTrackData.value ? 
+                                     widget.controller.trackPoints.length : 0;
+      if (currentPolylinesVersion != _polylinesVersion) {
+        _updatePolylines();
+        _polylinesVersion = currentPolylinesVersion;
+        needsUpdate = true;
       }
       
-      // 安全地添加当前回放位置标记s
-      if (controller.currentPosition.value != null) {
-        try {
-          // 尝试使用自定义图标，如果失败则使用默认标记
-           markers.add(Marker(
-            position: controller.currentPosition.value!,
-            icon:  BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-            anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
-            infoWindow: const InfoWindow(
-              title: '当前位置',
-              snippet: '轨迹回放中',
-            ),
-          ));
-          DebugUtil.success('当前位置标记创建成功');
-        } catch (e) {
-          DebugUtil.error('添加当前位置标记失败: $e，使用简化标记');
-          // 降级方案：使用最简单的标记
-          try {
-            markers.add(Marker(
-              position: controller.currentPosition.value!,
-              anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
-            ));
-          } catch (fallbackError) {
-            DebugUtil.error('简化标记也失败: $fallbackError');
-          }
-        }
+      // 检查多边形是否需要更新
+      final currentPolygonsVersion = widget.controller.highlightCircles.length;
+      if (currentPolygonsVersion != _polygonsVersion) {
+        _updatePolygons();
+        _polygonsVersion = currentPolygonsVersion;
+        needsUpdate = true;
       }
       
-      // 创建轨迹线集合
-      Set<Polyline> polylines = {};
-      
-      // 安全创建轨迹线，防止空点集合错误
-      try {
-        // 双重检查确保轨迹线创建的安全性
-        if (controller.hasValidTrackData.value && 
-            controller.trackPoints.isNotEmpty && 
-            controller.trackPoints.length >= 2) {
-          // 创建轨迹点的副本，避免响应式变量在创建过程中变化
-          final pointsCopy = List<LatLng>.from(controller.trackPoints);
-          
-          if (pointsCopy.isNotEmpty && pointsCopy.length >= 2) {
-            // 主轨迹线 - 统一使用蓝色
-            polylines.add(Polyline(
-              points: pointsCopy,
-              color: const Color(0xFF3B96FF),
-              width: 5,
-            ));
-            DebugUtil.success('创建轨迹线，点数: ${pointsCopy.length}');
-          } else {
-            DebugUtil.warning('轨迹点副本检查失败，不创建轨迹线');
-          }
-        } else {
-          DebugUtil.info('无有效轨迹数据，不创建轨迹线。状态: ${controller.hasValidTrackData.value}, 点数: ${controller.trackPoints.length}');
-        }
-      } catch (e) {
-        DebugUtil.error('创建轨迹线时发生错误: $e');
-        // 确保不创建有问题的轨迹线
-      }
-      
-      // 创建多边形覆盖物集合（用于高亮圆圈）
-      Set<Polygon> polygons = {};
-      
-      // 安全地添加高亮圆圈
-      try {
-        polygons.addAll(controller.highlightCircles);
-        if (controller.highlightCircles.isNotEmpty) {
-          DebugUtil.success('添加高亮圆圈，数量: ${controller.highlightCircles.length}');
-        }
-      } catch (e) {
-        DebugUtil.error('添加高亮圆圈失败: $e');
+      // 只有在数据真正变化时才记录日志
+      if (needsUpdate) {
+        DebugUtil.info('地图数据变化，更新缓存');
       }
       
       return SafeAMapWidget(
-        initialCameraPosition: controller.initialCameraPosition,
-        onMapCreated: controller.onMapCreated,
-        markers: markers,
-        polylines: polylines,
-        polygons: polygons,
+        initialCameraPosition: widget.controller.initialCameraPosition,
+        onMapCreated: widget.controller.onMapCreated,
+        markers: _cachedMarkers,
+        polylines: _cachedPolylines,
+        polygons: _cachedPolygons,
         compassEnabled: true,
         scaleEnabled: true,
         zoomGesturesEnabled: true,
@@ -696,11 +657,89 @@ class _CachedMapWidget extends StatelessWidget {
         // 添加地图点击监听，点击地图时清除高亮圆圈
         onTap: (LatLng position) {
           // 点击地图时清除高亮圆圈和InfoWindow
-          controller.clearAllHighlightCircles();
+          widget.controller.clearAllHighlightCircles();
           CustomStayPointInfoWindowManager.hideInfoWindow();
         },
       );
     });
+  }
+  
+  /// 更新标记缓存
+  void _updateMarkers() {
+    final newMarkers = <Marker>{};
+    
+    // 安全地添加停留点标记
+    try {
+      newMarkers.addAll(widget.controller.stayMarkers);
+    } catch (e) {
+      DebugUtil.error('添加停留点标记失败: $e');
+    }
+    
+    // 安全地添加轨迹起点和终点标记
+    try {
+      newMarkers.addAll(widget.controller.trackStartEndMarkers);
+    } catch (e) {
+      DebugUtil.error('添加轨迹起终点标记失败: $e');
+    }
+    
+    // 安全地添加当前回放位置标记
+    if (widget.controller.currentPosition.value != null) {
+      try {
+        newMarkers.add(Marker(
+          position: widget.controller.currentPosition.value!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: const InfoWindow(
+            title: '当前位置',
+            snippet: '轨迹回放中',
+          ),
+        ));
+      } catch (e) {
+        DebugUtil.error('添加当前位置标记失败: $e');
+      }
+    }
+    
+    _cachedMarkers = newMarkers;
+  }
+  
+  /// 更新轨迹线缓存
+  void _updatePolylines() {
+    final newPolylines = <Polyline>{};
+    
+    try {
+      if (widget.controller.hasValidTrackData.value && 
+          widget.controller.trackPoints.isNotEmpty && 
+          widget.controller.trackPoints.length >= 2) {
+        
+        // 直接使用轨迹点，避免不必要的复制
+        final trackPoints = widget.controller.trackPoints;
+        
+        if (trackPoints.length >= 2) {
+          newPolylines.add(Polyline(
+            points: trackPoints,
+            color: const Color(0xFF3B96FF),
+            width: 5,
+          ));
+        }
+      }
+    } catch (e) {
+      DebugUtil.error('创建轨迹线缓存失败: $e');
+    }
+    
+    _cachedPolylines = newPolylines;
+  }
+  
+  /// 更新多边形缓存
+  void _updatePolygons() {
+    final newPolygons = <Polygon>{};
+    
+    try {
+      newPolygons.addAll(widget.controller.highlightCircles);
+    } catch (e) {
+      DebugUtil.error('添加高亮圆圈缓存失败: $e');
+    }
+    
+    _cachedPolygons = newPolygons;
   }
 }
 

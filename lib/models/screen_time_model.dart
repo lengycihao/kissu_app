@@ -1,3 +1,31 @@
+/// 小时详细数据
+class HourDetail {
+  /// 小时（如："0", "1"）
+  final String hour;
+  
+  /// 时长（秒数字符串，如："180", "537"）
+  final String duration;
+  
+  HourDetail({
+    required this.hour,
+    required this.duration,
+  });
+  
+  /// 从JSON创建
+  factory HourDetail.fromJson(Map<String, dynamic> json) {
+    return HourDetail(
+      hour: json['hour']?.toString() ?? '',
+      duration: json['duration']?.toString() ?? '0',
+    );
+  }
+  
+  /// 获取时长（分钟）
+  int get durationMinutes {
+    final seconds = int.tryParse(duration) ?? 0;
+    return (seconds / 60).round();
+  }
+}
+
 /// 图表数据点
 class ChartDataPoint {
   /// 标签（如：小时数 "8"、"9"）
@@ -6,9 +34,17 @@ class ChartDataPoint {
   /// 值（如：使用时长分钟数）
   final double value;
   
+  /// 详细信息（用于tooltip显示）
+  final String? detail;
+  
+  /// 小时详细数据列表
+  final List<HourDetail>? hourDetails;
+  
   ChartDataPoint({
     required this.label,
     required this.value,
+    this.detail,
+    this.hourDetails,
   });
 }
 

@@ -1,72 +1,166 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:kissu_app/models/unlock_record_model.dart';
-import 'package:kissu_app/utils/user_manager.dart';
+import '../../../models/unlock_record_model.dart';
+import '../../../utils/user_manager.dart';
+import '../../../routers/kissu_route_path.dart';
 
-/// 解锁记录列表项组件（公共组件，可在多个页面复用）
-class UnlockRecordItemWidget extends StatelessWidget {
+/// 类型19解锁记录专用组件
+/// 包含额外信息（移动距离和停留点）和毛玻璃效果
+class Type19UnlockRecordItemWidget extends StatelessWidget {
   final UnlockRecordItem record;
+  final bool showTimeLabel;
   final VoidCallback? onTap;
-  final bool showTimeLabel; // 是否显示时间标签（用于全部记录页面）
+  final VoidCallback? onVipStatusChanged; // VIP状态变化回调
 
-  const UnlockRecordItemWidget({
-    super.key,
+  const Type19UnlockRecordItemWidget({
+    Key? key,
     required this.record,
+    this.showTimeLabel = false,
     this.onTap,
-    this.showTimeLabel = false, // 默认不显示
-  });
+    this.onVipStatusChanged,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 时间标签（仅在全部记录页面显示）
+        // 时间标签
         if (showTimeLabel) ...[
-          const SizedBox(height: 8),
           _buildTimeLabel(),
           const SizedBox(height: 8),
         ],
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            margin: const EdgeInsets.only(left: 17, right: 17, bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildSingleActionRow(record),
-                // // 根据是否为时段记录显示不同样式
-                // if (record.isPeriodRecord)
-                //   _buildPeriodRecordRow(record)
-                // else
-                //   _buildSingleActionRow(record),
-                // // 额外信息（移动距离和停留点）
-                // if (record.hasExtraInfo) ...[
-                //   const SizedBox(height: 12),
-                //   _buildExtraInfo(record),
-                // ],
-              ],
-            ),
-          ),
-        ),
+        // 检查是否需要显示毛玻璃效果（敏感记录且非会员）
+        if (_shouldShowBlurOverlay())
+          _buildBlurOverlay()
+        else
+          _buildNormalContent(),
       ],
     );
   }
 
-  /// 构建时间标签
-  Widget _buildTimeLabel() {
-    final timeStr = DateFormat('HH:mm').format(record.time);
-    return Center(
-      child: Text(
-        timeStr,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Color(0xFF999999),
+  /// 判断是否需要显示毛玻璃效果
+  bool _shouldShowBlurOverlay() {
+    // 类型19的解锁记录在非会员状态下显示毛玻璃效果
+    return !UserManager.isVip;
+  }
+
+  /// 构建正常内容（会员状态）
+  Widget _buildNormalContent() {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 根据是否为时段记录显示不同样式
+            if (record.isPeriodRecord)
+              _buildPeriodRecordRow(record)
+            else
+              _buildSingleActionRow(record),
+            // 额外信息（移动距离和停留点）
+            if (record.hasExtraInfo) ...[
+              const SizedBox(height: 12),
+              _buildExtraInfo(record),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建毛玻璃遮罩效果（非会员状态的敏感记录）
+  Widget _buildBlurOverlay() {
+    return GestureDetector(
+      onTap: () async {
+        // 跳转到VIP页面
+        await Get.toNamed(KissuRoutePath.vip);
+        // VIP页面返回后刷新用户信息
+        await UserManager.refreshUserInfo();
+        // 通知父组件刷新UI
+        onVipStatusChanged?.call();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Stack(
+          children: [
+            // 原始内容（隐藏在毛玻璃下）
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 根据是否为时段记录显示不同样式
+                if (record.isPeriodRecord)
+                  _buildPeriodRecordRow(record)
+                else
+                  _buildSingleActionRow(record),
+                // 额外信息（移动距离和停留点）
+                if (record.hasExtraInfo) ...[
+                  const SizedBox(height: 12),
+                  _buildExtraInfo(record),
+                ],
+              ],
+            ),
+            // 毛玻璃遮罩层
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 敏感记录专用文字
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 13, color: Colors.black),
+                          children: [
+                            const TextSpan(text: '对方'),
+                            TextSpan(
+                              text: '手机产生了一条敏感记录',
+                              style: TextStyle(color: Color(0xFFB66CF2)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // 会员可查看按钮
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '会员可查看',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFFFF9500),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Image.asset(
+                            'assets/phone_history/kissu3_vip_go.webp',
+                            width: 6,
+                            height: 6,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -243,6 +337,20 @@ class UnlockRecordItemWidget extends StatelessWidget {
       ],
     );
   }
+
+  /// 构建时间标签
+  Widget _buildTimeLabel() {
+    final timeStr = DateFormat('HH:mm').format(record.time);
+    return Center(
+      child: Text(
+        timeStr,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFF999999),
+        ),
+      ),
+    );
+  }
 }
 
 /// 虚线绘制器
@@ -271,4 +379,3 @@ class _DashedLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

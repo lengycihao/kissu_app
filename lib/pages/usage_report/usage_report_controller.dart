@@ -13,8 +13,8 @@ class UsageReportController extends GetxController {
   final PermissionService _permissionService = PermissionService();
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
   
-  // 选中的日期索引
-  final selectedDateIndex = 0.obs;
+  // 选中的日期索引 (6对应今天，在DateSelector的recentDates数组中)
+  final selectedDateIndex = 6.obs;
   
   // 当前选中的日期
   final selectedDate = DateTime.now().obs;
@@ -42,9 +42,9 @@ class UsageReportController extends GetxController {
   final filterUnlockRecord = true.obs; // 解锁记录（默认选中）
   final filterScreenTime = true.obs; // 屏幕使用时长（默认选中）
   final filterLocationAnomaly = true.obs; // 定位/足迹异常（默认选中）
-  final filterHighSensitive = false.obs; // 高敏感
-  final filterMediumSensitive = false.obs; // 中敏感
-  final filterLowSensitive = false.obs; // 低敏感
+  final filterHighSensitive = true.obs; // 高敏感（默认选中）
+  final filterMediumSensitive = true.obs; // 中敏感（默认选中）
+  final filterLowSensitive = true.obs; // 低敏感（默认选中）
   final filterShowDataCount = false.obs; // 显示数据数值
 
   // API数据存储
@@ -61,11 +61,31 @@ class UsageReportController extends GetxController {
 
   // 动态标签列表（根据筛选状态计算）
   List<String> get visibleTabs {
-    final tabs = <String>['全部记录'];
-    if (filterSensitiveRecord.value) tabs.add('敏感记录');
-    if (filterUnlockRecord.value) tabs.add('解锁记录');
-    if (filterScreenTime.value) tabs.add('屏幕使用时长');
-    if (filterLocationAnomaly.value) tabs.add('定位/足迹异常');
+    final tabs = <String>[];
+    
+    // 获取各类数据的数量
+    final allRecordCount = allRecordData.value?.data.length ?? 0;
+    final sensitiveRecordCount = sensitiveRecordData.value?.data.length ?? 0;
+    final unlockRecordCount = unlockRecordData.value?.records.length ?? 0;
+    final screenTimeCount = screenTimeData.value?.records.length ?? 0;
+    final locationAnomalyCount = locationAnomalyData.value?.data.length ?? 0;
+    
+    // 根据是否显示数据数值来决定标签文本
+    if (filterShowDataCount.value) {
+      // 显示数据数值
+      tabs.add('全部记录($allRecordCount)');
+      if (filterSensitiveRecord.value) tabs.add('敏感记录($sensitiveRecordCount)');
+      if (filterUnlockRecord.value) tabs.add('解锁记录($unlockRecordCount)');
+      if (filterScreenTime.value) tabs.add('屏幕使用时长($screenTimeCount)');
+      if (filterLocationAnomaly.value) tabs.add('定位/足迹异常($locationAnomalyCount)');
+    } else {
+      // 不显示数据数值
+      tabs.add('全部记录');
+      if (filterSensitiveRecord.value) tabs.add('敏感记录');
+      if (filterUnlockRecord.value) tabs.add('解锁记录');
+      if (filterScreenTime.value) tabs.add('屏幕使用时长');
+      if (filterLocationAnomaly.value) tabs.add('定位/足迹异常');
+    }
     
     // 确保每个标签都有对应的 GlobalKey
     for (int i = 0; i < tabs.length; i++) {
@@ -269,6 +289,9 @@ class UsageReportController extends GetxController {
       selectedTabIndex.value = index;
       _scrollTabToVisible(index);
       debugPrint('📊 用户滑动到页面: $index');
+      
+      // 页面切换时隐藏筛选抽屉
+      hideFilterDrawer();
     }
   }
 
@@ -364,12 +387,92 @@ class UsageReportController extends GetxController {
     debugPrint('📊 筛选抽屉: ${isFilterDrawerVisible.value ? "显示" : "隐藏"}');
   }
 
+  /// 隐藏筛选抽屉
+  void hideFilterDrawer() {
+    if (isFilterDrawerVisible.value) {
+      isFilterDrawerVisible.value = false;
+      debugPrint('📊 筛选抽屉: 隐藏');
+    }
+  }
+
+  /// 检查上面四个标签筛选项是否可以被取消选择
+  bool canToggleTopTabFilter(String filterKey) {
+    // 计算当前选中的上面四个标签数量
+    int selectedCount = 0;
+    if (filterSensitiveRecord.value) selectedCount++;
+    if (filterUnlockRecord.value) selectedCount++;
+    if (filterScreenTime.value) selectedCount++;
+    if (filterLocationAnomaly.value) selectedCount++;
+    
+    // 获取当前筛选项的状态
+    bool currentValue = false;
+    switch (filterKey) {
+      case 'sensitiveRecord':
+        currentValue = filterSensitiveRecord.value;
+        break;
+      case 'unlockRecord':
+        currentValue = filterUnlockRecord.value;
+        break;
+      case 'screenTime':
+        currentValue = filterScreenTime.value;
+        break;
+      case 'locationAnomaly':
+        currentValue = filterLocationAnomaly.value;
+        break;
+    }
+    
+    // 如果当前是选中状态且只剩2个选中项，不允许取消
+    return !(currentValue && selectedCount <= 2);
+  }
+
+  /// 获取标签的基础名称（去除数量信息）
+  String _getBaseTabName(String tabName) {
+    // 移除括号中的数量信息，例如 "敏感记录(12)" -> "敏感记录"
+    final regex = RegExp(r'\(\d+\)$');
+    return tabName.replaceAll(regex, '');
+  }
+
   /// 切换筛选项
   void toggleFilter(String filterKey) {
-    // 保存当前选中的标签名称
+    // 保存当前选中的标签基础名称
     final currentTabName = selectedTabIndex.value < visibleTabs.length 
-        ? visibleTabs[selectedTabIndex.value] 
+        ? _getBaseTabName(visibleTabs[selectedTabIndex.value])
         : '全部记录';
+    
+    // 检查是否为上面四个标签之一
+    final isTopTabFilter = ['sensitiveRecord', 'unlockRecord', 'screenTime', 'locationAnomaly'].contains(filterKey);
+    
+    if (isTopTabFilter) {
+      // 计算当前选中的上面四个标签数量
+      int selectedCount = 0;
+      if (filterSensitiveRecord.value) selectedCount++;
+      if (filterUnlockRecord.value) selectedCount++;
+      if (filterScreenTime.value) selectedCount++;
+      if (filterLocationAnomaly.value) selectedCount++;
+      
+      // 如果当前要取消选择的项目是选中状态，且选中数量只有2个，则不允许取消
+      bool currentValue = false;
+      switch (filterKey) {
+        case 'sensitiveRecord':
+          currentValue = filterSensitiveRecord.value;
+          break;
+        case 'unlockRecord':
+          currentValue = filterUnlockRecord.value;
+          break;
+        case 'screenTime':
+          currentValue = filterScreenTime.value;
+          break;
+        case 'locationAnomaly':
+          currentValue = filterLocationAnomaly.value;
+          break;
+      }
+      
+      // 如果当前是选中状态且只剩2个选中项，不允许取消
+      if (currentValue && selectedCount <= 2) {
+        debugPrint('📊 筛选限制: 上面四个标签至少需要选中两个');
+        return;
+      }
+    }
     
     switch (filterKey) {
       case 'sensitiveRecord':
@@ -400,9 +503,18 @@ class UsageReportController extends GetxController {
     
     // 筛选变化后，尝试保持当前选中的标签
     final newTabs = visibleTabs;
-    final newIndex = newTabs.indexOf(currentTabName);
+    int newIndex = -1;
+    
+    // 根据基础名称查找匹配的标签
+    for (int i = 0; i < newTabs.length; i++) {
+      if (_getBaseTabName(newTabs[i]) == currentTabName) {
+        newIndex = i;
+        break;
+      }
+    }
+    
     if (newIndex != -1) {
-      // 如果当前标签仍然存在，保持选中
+      // 如果找到匹配的标签，保持选中
       selectedTabIndex.value = newIndex;
       // 同步 PageController
       if (pageController.hasClients && pageController.page?.toInt() != newIndex) {
@@ -419,25 +531,39 @@ class UsageReportController extends GetxController {
     
     debugPrint('📊 切换筛选项: $filterKey, 可见标签: $newTabs, 选中索引: ${selectedTabIndex.value}');
     
-    // TODO: 应用筛选并刷新数据
-    loadData();
+    // 应用本地筛选，不重新请求接口
+    _applyLocalFiltering();
   }
 
   /// 切换日期
   void changeDate(DateTime date) {
     selectedDate.value = date;
     
-    // 计算日期索引（相对于今天）
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-    final targetDate = DateTime(date.year, date.month, date.day);
-    final difference = todayDate.difference(targetDate).inDays;
+    // 切换日期时，自动切换到第一个标签页和内容页
+    _isProgrammaticPageChange = true;
+    selectedTabIndex.value = 0;
     
-    selectedDateIndex.value = difference;
+    // 同时重置标签栏滚动位置到起始位置
+    if (tabScrollController.hasClients) {
+      tabScrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
     
-    debugPrint('📊 切换日期: ${DateFormat('yyyy-MM-dd').format(date)}, 索引: $difference');
+    pageController.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      // 动画完成后重置标志位
+      _isProgrammaticPageChange = false;
+    });
     
-    // TODO: 加载该日期的数据
+    debugPrint('📊 切换日期: ${DateFormat('yyyy-MM-dd').format(date)}，重置标签页、内容页和标签栏滚动位置到第一个');
+    
+    // 加载该日期的数据
     loadData();
   }
 
@@ -494,21 +620,86 @@ class UsageReportController extends GetxController {
     );
     debugPrint('🔓 解锁记录数据转换完成: ${unlockRecordData.value?.records.length}条记录');
     
-    // 3. 存储敏感记录数据
-    sensitiveRecordData.value = data.sensitiveRecord;
+    // 3. 存储敏感记录数据（先存储原始数据，后续通过本地筛选）
+    sensitiveRecordData.value = _applySensitiveLevelFilter(data.sensitiveRecord);
     debugPrint('🔒 敏感记录数据: ${sensitiveRecordData.value?.data.length}条记录');
     
-    // 4. 存储定位异常数据
-    locationAnomalyData.value = data.locationStayAbnormalRecord;
+    // 4. 存储定位异常数据（先存储原始数据，后续通过本地筛选）
+    locationAnomalyData.value = _applySensitiveLevelFilter(data.locationStayAbnormalRecord);
     debugPrint('📍 定位异常数据: ${locationAnomalyData.value?.data.length}条记录');
     
-    // 5. 存储全部记录数据
-    allRecordData.value = data.allRecord;
+    // 5. 存储全部记录数据（先存储原始数据，后续通过本地筛选）
+    allRecordData.value = _applySensitiveLevelFilter(data.allRecord);
     debugPrint('📋 全部记录数据: ${allRecordData.value?.data.length}条记录');
     
     // 6. 存储设备信息
     deviceInfo.value = data.halfLocationMobileDevice;
     debugPrint('📱 设备信息: 手机=${deviceInfo.value?.mobileModel}, 网络=${deviceInfo.value?.networkName}, 电量=${deviceInfo.value?.power}');
+  }
+
+  /// 应用本地筛选（不重新请求接口）
+  void _applyLocalFiltering() {
+    if (apiData.value == null) {
+      debugPrint('⚠️ 本地筛选: API数据为空，无法进行筛选');
+      return;
+    }
+    
+    debugPrint('🔄 本地筛选: 重新应用敏感度筛选到已获取的数据');
+    
+    final data = apiData.value!;
+    
+    // 重新应用敏感度筛选到各个数据源
+    sensitiveRecordData.value = _applySensitiveLevelFilter(data.sensitiveRecord);
+    locationAnomalyData.value = _applySensitiveLevelFilter(data.locationStayAbnormalRecord);
+    allRecordData.value = _applySensitiveLevelFilter(data.allRecord);
+    
+    debugPrint('✅ 本地筛选完成: 敏感记录=${sensitiveRecordData.value?.data.length}条, 定位异常=${locationAnomalyData.value?.data.length}条, 全部记录=${allRecordData.value?.data.length}条');
+  }
+
+  /// 应用敏感度筛选
+  RecordSection? _applySensitiveLevelFilter(RecordSection? originalData) {
+    if (originalData == null) return null;
+    
+    // 如果没有选中任何敏感度筛选，返回空数据（0条记录）
+    if (!filterHighSensitive.value && !filterMediumSensitive.value && !filterLowSensitive.value) {
+      debugPrint('🔍 敏感度筛选: 未选中任何筛选条件，返回空数据 (0条)');
+      return RecordSection(
+        number: 0,
+        data: [],
+      );
+    }
+    
+    debugPrint('🔍 敏感度筛选: 高敏感=${filterHighSensitive.value}, 中敏感=${filterMediumSensitive.value}, 低敏感=${filterLowSensitive.value}');
+    
+    // 根据选中的敏感度筛选数据
+    final filteredData = originalData.data.where((record) {
+      final sensitiveLevel = record.sensitiveLevel;
+      
+      // 高敏感 (1)
+      if (filterHighSensitive.value && sensitiveLevel == 1) {
+        return true;
+      }
+      
+      // 中敏感 (2)
+      if (filterMediumSensitive.value && sensitiveLevel == 2) {
+        return true;
+      }
+      
+      // 低敏感 (3)
+      if (filterLowSensitive.value && sensitiveLevel == 3) {
+        return true;
+      }
+      
+      return false;
+    }).toList();
+    
+    debugPrint('🔍 敏感度筛选结果: 原始${originalData.data.length}条 -> 筛选后${filteredData.length}条');
+    
+    // 返回筛选后的数据
+    return RecordSection(
+      number: filteredData.length,
+      data: filteredData,
+    );
   }
 
   /// 显示设置对话框

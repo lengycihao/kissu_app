@@ -55,9 +55,59 @@ class _LocationAnomalyPageState extends State<LocationAnomalyPage> {
     await _controller.loadData();
   }
 
+  /// 根据eventType获取记录参数
+  Map<String, dynamic> _getRecordParams(int eventType) {
+    switch (eventType) {
+      case 17:
+        return {
+          'colors': [const Color(0xFF3B96FF), const Color(0xFF718DFF)],
+          'width': 70.0,
+          'text': '标记点',
+          'backgroundImage': null,
+        };
+      case 18:
+        return {
+          'colors': [const Color(0xFF3B96FF), const Color(0xFF718DFF)],
+          'width': 70.0,
+          'text': '标记点',
+          'backgroundImage': 'assets/phone_history/kissu3_history_blue_map.webp',
+        };
+      case 9:
+        return {
+          'colors': [const Color(0xFFFF6262), const Color(0xFFFF9B65)],
+          'width': 88.0,
+          'text': '疑似定位异常',
+          'backgroundImage': null,
+        };
+      case 20:
+        return {
+          'colors': [const Color(0xFFFF6262), const Color(0xFFFF9B65)],
+          'width': 105.0,
+          'text': '疑似异常点',
+          'backgroundImage': null,
+        };
+      default:
+        return {
+          'colors': null,
+          'width': null,
+          'text': null,
+          'backgroundImage': null,
+        };
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      // 检查是否所有敏感度筛选都未选中
+      final hasNoSensitiveLevelSelected = !_controller.filterHighSensitive.value && 
+                                         !_controller.filterMediumSensitive.value && 
+                                         !_controller.filterLowSensitive.value;
+      
+      if (hasNoSensitiveLevelSelected) {
+        return _buildNoSensitiveLevelSelectedState();
+      }
+      
       final data = _controller.locationAnomalyData.value;
       final records = data?.data ?? [];
 
@@ -73,12 +123,21 @@ class _LocationAnomalyPageState extends State<LocationAnomalyPage> {
             color: const Color(0xFFFF6B9D),
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.only(top: 12, bottom: 80),
+              padding: const EdgeInsets.only(top: 12, bottom: 20),
               itemCount: records.length,
               itemBuilder: (context, index) {
+                final record = records[index];
+                final params = _getRecordParams(record.eventType);
+                
                 return GenericRecordItemWidget(
-                  record: records[index],
+                  record: record,
+                  showTimeLabel: true, // 显示时间标签
                   showSensitiveLevel: true,
+                  onVipStatusChanged: () => _controller.loadData(), // VIP状态变化时刷新数据
+                  backgroundGradientColors: params['colors'],
+                  backgroundWidth: params['width'],
+                  backgroundText: params['text'],
+                  backgroundImage: params['backgroundImage'],
                 );
               },
             ),
@@ -90,25 +149,10 @@ class _LocationAnomalyPageState extends State<LocationAnomalyPage> {
               bottom: 10,
               child: GestureDetector(
                 onTap: _scrollToTop,
-                child: Container(
+                child: Image.asset(
+                  'assets/phone_history/kissu3_history_totop_icon.webp',
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Image.asset(
-                    'assets/phone_history/kissu3_history_totop_icon.webp',
-                    width: 20,
-                    height: 20,
-                  ),
                 ),
               ),
             ),
@@ -125,8 +169,8 @@ class _LocationAnomalyPageState extends State<LocationAnomalyPage> {
         children: [
           Image.asset(
             'assets/phone_history/kissu_phone_list_empty.webp',
-            width: 120,
-            height: 120,
+            width: 128,
+            height: 128,
           ),
           const SizedBox(height: 16),
           const Text(
@@ -135,6 +179,28 @@ class _LocationAnomalyPageState extends State<LocationAnomalyPage> {
               fontSize: 14,
               color: Color(0xFF999999),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建未选择敏感度筛选的状态
+  Widget _buildNoSensitiveLevelSelectedState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset('assets/phone_history/kissu_phone_list_empty.webp', width: 128, height: 128),
+          const SizedBox(height: 16),
+          const Text(
+            '请选择敏感度筛选条件',
+            style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '在右上角筛选中选择高敏感、中敏感或低敏感',
+            style: TextStyle(fontSize: 12, color: Color(0xFFCCCCCC)),
           ),
         ],
       ),
