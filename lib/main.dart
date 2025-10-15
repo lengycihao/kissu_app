@@ -12,6 +12,7 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/location_permission_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
+import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/smart_background_location_reminder.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/services/geofence_monitoring_service.dart';
@@ -148,6 +149,10 @@ void main() async {
     // 步骤12: 初始化敏感数据上报服务（但不立即上报）
     Get.put(SensitiveDataService(), permanent: true);
     DebugUtil.success('敏感数据上报服务初始化完成');
+    
+    // 步骤12.1: 初始化锁屏监听服务（但不立即启动监听）
+    Get.put(ScreenLockService(), permanent: true);
+    DebugUtil.success('锁屏监听服务初始化完成');
     
     // 步骤13: 初始化视图模式服务
     Get.put(ViewModeService(), permanent: true);

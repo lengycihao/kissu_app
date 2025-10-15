@@ -220,11 +220,11 @@ class MineController extends GetxController {
 
   void _initSettingItems() {
     settingItems = [
-      // SettingItem(
-      //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
-      //   title: "防偷拍检测",
-      //   onTap: () => _onShareAppTap(),
-      // ),
+      SettingItem(
+        icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
+        title: "防偷拍检测",
+        onTap: () => _onShareAppTap(),
+      ),
       // SettingItem(
       //   icon: "assets/kissu_mine_item_gywm.webp",
       //   title: "Banner预览",
@@ -290,7 +290,8 @@ class MineController extends GetxController {
 
   /// 打开 Banner 预览页面
   void _onBannerPreviewTap() {
-    Get.to(() => const BannerPreviewPage());
+    // Get.to(() => const BannerPreviewPage());
+    // 测试页面已移除
   }
   
   /// 屏幕使用测试

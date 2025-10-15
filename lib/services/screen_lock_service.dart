@@ -1,0 +1,236 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:kissu_app/services/sensitive_data_service.dart';
+import 'package:kissu_app/utils/debug_util.dart';
+
+/// 锁屏/解锁事件监听服务
+/// 
+/// 负责监听Android原生层的锁屏和解锁事件，并触发敏感数据上报
+/// 
+/// 功能特点：
+/// 1. 通过EventChannel接收Android原生锁屏/解锁事件
+/// 2. 自动触发敏感数据上报服务
+/// 3. 提供完整的生命周期管理
+/// 4. 支持隐私合规检查
+/// 
+/// 使用场景：
+/// - 用户锁屏/解锁手机时自动上报
+/// - 配合敏感数据上报服务使用
+/// 
+/// @author AI Assistant
+/// @date 2025-10-15
+class ScreenLockService extends GetxService {
+  static ScreenLockService get instance => Get.find<ScreenLockService>();
+  
+  // EventChannel 用于接收Android原生锁屏/解锁事件
+  static const EventChannel _eventChannel = EventChannel('kissu_app/screen_lock');
+  
+  // 事件流订阅
+  StreamSubscription<dynamic>? _eventSubscription;
+  
+  // 是否已初始化
+  bool _isInitialized = false;
+  
+  @override
+  void onInit() {
+    super.onInit();
+    DebugUtil.info('ScreenLockService 初始化');
+  }
+  
+  @override
+  void onClose() {
+    stopListening();
+    super.onClose();
+  }
+  
+  /// 开始监听锁屏/解锁事件
+  /// 
+  /// 注意：需要在隐私政策同意后调用
+  void startListening() {
+    if (_isInitialized) {
+      DebugUtil.warning('锁屏监听服务已经启动，跳过重复初始化');
+      return;
+    }
+    
+    try {
+      DebugUtil.info('开始启动锁屏监听服务...');
+      
+      _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
+        _handleScreenEvent,
+        onError: _handleError,
+        onDone: _handleDone,
+      );
+      
+      _isInitialized = true;
+      DebugUtil.success('锁屏监听服务启动成功');
+    } catch (e) {
+      DebugUtil.error('启动锁屏监听服务失败: $e');
+    }
+  }
+  
+  /// 停止监听锁屏/解锁事件
+  void stopListening() {
+    if (!_isInitialized) {
+      return;
+    }
+    
+    try {
+      _eventSubscription?.cancel();
+      _eventSubscription = null;
+      _isInitialized = false;
+      DebugUtil.info('锁屏监听服务已停止');
+    } catch (e) {
+      DebugUtil.error('停止锁屏监听服务失败: $e');
+    }
+  }
+  
+  /// 处理锁屏/解锁事件
+  void _handleScreenEvent(dynamic event) {
+    try {
+      DebugUtil.info('🔍 原始锁屏事件数据: $event');
+      DebugUtil.info('🔍 数据类型: ${event.runtimeType}');
+      
+      if (event is Map<String, dynamic>) {
+        DebugUtil.info('✅ 数据类型验证通过: Map<String, dynamic>');
+        
+        // 打印所有键值对
+        event.forEach((key, value) {
+          DebugUtil.info('🔍 键值对: $key => $value (${value.runtimeType})');
+        });
+        
+        // 尝试提取字段
+        dynamic rawEventType = event['event_type'];
+        dynamic rawTimestamp = event['timestamp'];
+        
+        DebugUtil.info('🔍 原始event_type: $rawEventType (${rawEventType.runtimeType})');
+        DebugUtil.info('🔍 原始timestamp: $rawTimestamp (${rawTimestamp.runtimeType})');
+        
+        // 安全类型转换
+        String? eventType;
+        int? timestamp;
+        
+        try {
+          eventType = rawEventType as String?;
+          DebugUtil.info('✅ event_type转换成功: $eventType');
+        } catch (e) {
+          DebugUtil.error('❌ event_type转换失败: $e');
+        }
+        
+        try {
+          timestamp = rawTimestamp as int?;
+          DebugUtil.info('✅ timestamp转换成功: $timestamp');
+        } catch (e) {
+          DebugUtil.error('❌ timestamp转换失败: $e');
+        }
+        
+        // 验证必要字段
+        if (eventType == null || timestamp == null) {
+          DebugUtil.warning('❌ 锁屏事件数据缺少必要字段 - eventType: $eventType, timestamp: $timestamp');
+          return;
+        }
+        
+        DebugUtil.success('✅ 收到有效锁屏事件: $eventType, 时间戳: $timestamp');
+        
+        // 根据事件类型触发相应的上报
+        switch (eventType) {
+          case 'unlock':
+            DebugUtil.info('🔓 处理解锁事件');
+            _handleUnlockEvent();
+            break;
+          case 'lock':
+            DebugUtil.info('🔒 处理锁屏事件');
+            _handleLockEvent();
+            break;
+          default:
+            DebugUtil.warning('❌ 未知的锁屏事件类型: $eventType');
+        }
+      } else {
+        DebugUtil.warning('❌ 收到无效的锁屏事件数据类型: ${event.runtimeType}, 数据: $event');
+      }
+    } catch (e, stackTrace) {
+      DebugUtil.error('❌ 处理锁屏事件时发生异常: $e');
+      DebugUtil.error('❌ 异常堆栈: $stackTrace');
+    }
+  }
+  
+  /// 处理解锁事件
+  void _handleUnlockEvent() {
+    try {
+      DebugUtil.info('处理手机解锁事件');
+      
+      // 检查敏感数据服务是否可用
+      if (Get.isRegistered<SensitiveDataService>()) {
+        final sensitiveDataService = SensitiveDataService.instance;
+        sensitiveDataService.reportScreenUnlock();
+      } else {
+        DebugUtil.warning('敏感数据服务未注册，无法上报解锁事件');
+      }
+    } catch (e) {
+      DebugUtil.error('处理解锁事件失败: $e');
+    }
+  }
+  
+  /// 处理锁屏事件
+  void _handleLockEvent() {
+    try {
+      DebugUtil.info('处理手机锁屏事件');
+      
+      // 检查敏感数据服务是否可用
+      if (Get.isRegistered<SensitiveDataService>()) {
+        final sensitiveDataService = SensitiveDataService.instance;
+        sensitiveDataService.reportScreenLock();
+      } else {
+        DebugUtil.warning('敏感数据服务未注册，无法上报锁屏事件');
+      }
+    } catch (e) {
+      DebugUtil.error('处理锁屏事件失败: $e');
+    }
+  }
+  
+  /// 处理事件流错误
+  void _handleError(dynamic error) {
+    DebugUtil.error('锁屏监听事件流发生错误: $error');
+    
+    // 尝试重新启动监听（延迟重试）
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!_isInitialized) {
+        DebugUtil.info('尝试重新启动锁屏监听服务...');
+        startListening();
+      }
+    });
+  }
+  
+  /// 处理事件流结束
+  void _handleDone() {
+    DebugUtil.warning('锁屏监听事件流已结束');
+    _isInitialized = false;
+  }
+  
+  /// 获取服务状态信息
+  Map<String, dynamic> getServiceStatus() {
+    return {
+      'isInitialized': _isInitialized,
+      'hasSubscription': _eventSubscription != null,
+      'serviceName': 'ScreenLockService',
+    };
+  }
+  
+  /// 手动触发解锁事件（用于测试）
+  void triggerUnlockEvent() {
+    DebugUtil.info('手动触发解锁事件（测试用）');
+    _handleUnlockEvent();
+  }
+  
+  /// 手动触发锁屏事件（用于测试）
+  void triggerLockEvent() {
+    DebugUtil.info('手动触发锁屏事件（测试用）');
+    _handleLockEvent();
+  }
+  
+  /// 处理测试事件（用于调试）
+  void handleTestEvent(dynamic event) {
+    DebugUtil.info('🧪 处理测试事件: $event');
+    _handleScreenEvent(event);
+  }
+}

@@ -13,10 +13,13 @@ class SensitiveDataApi {
   /// - 6: 更换网络
   /// - 7: 开始充电
   /// - 8: 结束充电
+  /// - 9: 手机解锁
+  /// - 10: 手机锁屏
   /// 
   /// [ext] 扩展参数：
   /// - eventType为7或8时：{"power": 手机电量}
   /// - eventType为6时：{"network_name": 网络名称}
+  /// - eventType为9或10时：{"timestamp": 时间戳}
   Future<HttpResultN> reportSensitiveData({
     required int eventType,
     Map<String, dynamic>? ext,
@@ -75,6 +78,22 @@ class SensitiveDataApi {
     return await reportSensitiveData(
       eventType: 8,
       ext: {'power': power},
+    );
+  }
+  
+  /// 上报手机解锁事件
+  Future<HttpResultN> reportScreenUnlock({int? timestamp}) async {
+    return await reportSensitiveData(
+      eventType: 9,
+      ext: timestamp != null ? {'timestamp': timestamp} : null,
+    );
+  }
+  
+  /// 上报手机锁屏事件
+  Future<HttpResultN> reportScreenLock({int? timestamp}) async {
+    return await reportSensitiveData(
+      eventType: 10,
+      ext: timestamp != null ? {'timestamp': timestamp} : null,
     );
   }
 }

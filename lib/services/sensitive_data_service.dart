@@ -251,6 +251,40 @@ class SensitiveDataService extends GetxService {
     }
   }
   
+  /// 上报手机解锁事件
+  Future<void> reportScreenUnlock() async {
+    if (!_shouldReport()) return;
+    
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final result = await _api.reportScreenUnlock(timestamp: timestamp);
+      if (result.isSuccess) {
+        DebugUtil.success('敏感数据上报成功: 手机解锁');
+      } else {
+        DebugUtil.error('敏感数据上报失败: 手机解锁 - ${result.msg}');
+      }
+    } catch (e) {
+      DebugUtil.error('敏感数据上报异常: 手机解锁 - $e');
+    }
+  }
+  
+  /// 上报手机锁屏事件
+  Future<void> reportScreenLock() async {
+    if (!_shouldReport()) return;
+    
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final result = await _api.reportScreenLock(timestamp: timestamp);
+      if (result.isSuccess) {
+        DebugUtil.success('敏感数据上报成功: 手机锁屏');
+      } else {
+        DebugUtil.error('敏感数据上报失败: 手机锁屏 - ${result.msg}');
+      }
+    } catch (e) {
+      DebugUtil.error('敏感数据上报异常: 手机锁屏 - $e');
+    }
+  }
+  
   /// 检查是否应该上报（隐私合规 + 有token且已登录）
   bool _shouldReport() {
     // 首先检查隐私合规状态

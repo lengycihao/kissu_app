@@ -58,6 +58,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val APP_INFO_CHANNEL = "kissu_app/app_info"
     private val WHITELIST_CHANNEL = "kissu_app/whitelist"
     private val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
+    private val SCREEN_LOCK_CHANNEL = "kissu_app/screen_lock"
     
     // 微信支付API
     private var wxApi: IWXAPI? = null
@@ -68,6 +69,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     
     // GPS状态监听器
     private var gpsStatusReceiver: GpsStatusReceiver? = null
+    
+    // 锁屏/解锁状态监听器
+    private var screenLockReceiver: ScreenLockReceiver? = null
     
     // 支付结果等待器
     private var paymentResultCompleter: ((Boolean, String) -> Unit)? = null
@@ -153,6 +157,18 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "注销GPS状态接收器失败", e)
+        }
+        
+        // 注销锁屏状态接收器
+        try {
+            screenLockReceiver?.let { 
+                unregisterReceiver(it)
+                screenLockReceiver = null
+                ScreenLockReceiver.setEventSink(null)
+                Log.d("MainActivity", "锁屏状态接收器已注销")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "注销锁屏状态接收器失败", e)
         }
     }
     
@@ -255,6 +271,52 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             }
         })
         Log.d("MainActivity", "✅ GPS状态通道注册完成")
+        
+        // 锁屏/解锁状态监听通道（EventChannel）
+        Log.d("MainActivity", "🔧 开始注册锁屏状态通道...")
+        val screenLockEventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, SCREEN_LOCK_CHANNEL)
+        screenLockEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                Log.d("MainActivity", "🔒 锁屏状态监听已启动")
+                
+                // 设置EventSink到ScreenLockReceiver
+                ScreenLockReceiver.setEventSink(events)
+                
+                // 创建并注册锁屏状态广播接收器
+                screenLockReceiver = ScreenLockReceiver()
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)  // 锁屏事件
+                    addAction(Intent.ACTION_USER_PRESENT)  // 解锁事件
+                }
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(screenLockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                } else {
+                    registerReceiver(screenLockReceiver, filter)
+                }
+                
+                Log.d("MainActivity", "✅ 锁屏状态接收器已注册")
+            }
+            
+            override fun onCancel(arguments: Any?) {
+                Log.d("MainActivity", "🔒 锁屏状态监听已取消")
+                
+                // 注销广播接收器
+                try {
+                    screenLockReceiver?.let { 
+                        unregisterReceiver(it)
+                        screenLockReceiver = null
+                        Log.d("MainActivity", "✅ 锁屏状态接收器已注销")
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "❌ 注销锁屏状态接收器失败: ${e.message}")
+                }
+                
+                // 清除EventSink
+                ScreenLockReceiver.setEventSink(null)
+            }
+        })
+        Log.d("MainActivity", "✅ 锁屏状态通道注册完成")
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {

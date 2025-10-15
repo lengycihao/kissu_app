@@ -9,6 +9,7 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screenshot_service.dart';
+import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 
 /// 安全的隐私合规管理器
@@ -330,6 +331,15 @@ class PrivacyComplianceManager extends GetxService {
       if (Get.isRegistered<SensitiveDataService>()) {
         final sensitiveDataService = Get.find<SensitiveDataService>();
         sensitiveDataService.startMonitoring(); // 启动监听
+        
+        // 启动锁屏监听服务（在用户同意后）
+        if (Get.isRegistered<ScreenLockService>()) {
+          final screenLockService = Get.find<ScreenLockService>();
+          screenLockService.startListening();
+          if (kDebugMode) {
+            DebugUtil.success('锁屏监听服务已启动');
+          }
+        }
         
         // 启动定位服务（在用户同意后）
         final locationService = Get.find<SimpleLocationService>();
