@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/services/sensitive_data_service.dart';
 
 /// 应用生命周期服务
 class AppLifecycleService extends GetxService with WidgetsBindingObserver {
@@ -10,11 +12,27 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   // 应用状态
   final Rx<AppLifecycleState> appState = AppLifecycleState.resumed.obs;
   
+  // 通知权限状态（用于监听变化）
+  bool? _lastNotificationPermissionStatus;
+  
   @override
   void onInit() {
     super.onInit();
     // 注册生命周期观察者
     WidgetsBinding.instance.addObserver(this);
+    // 初始化通知权限状态
+    _initNotificationPermissionStatus();
+  }
+  
+  /// 初始化通知权限状态
+  Future<void> _initNotificationPermissionStatus() async {
+    try {
+      final permissionService = PermissionService();
+      _lastNotificationPermissionStatus = await permissionService.isNotificationPermissionGranted();
+      debugPrint('📱 初始通知权限状态: $_lastNotificationPermissionStatus');
+    } catch (e) {
+      debugPrint('❌ 初始化通知权限状态失败: $e');
+    }
   }
   
   @override
@@ -62,6 +80,9 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       debugPrint('❌ 清除网络缓存失败: $e');
     }
     
+    // 检查通知权限变化
+    _checkNotificationPermissionChange();
+    
     try {
       final simpleLocationService = SimpleLocationService.instance;
       if (simpleLocationService.isLocationEnabled.value) {
@@ -71,6 +92,43 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('❌ 前台策略优化失败: $e');
+    }
+  }
+  
+  /// 检查通知权限变化
+  Future<void> _checkNotificationPermissionChange() async {
+    try {
+      final permissionService = PermissionService();
+      final currentStatus = await permissionService.isNotificationPermissionGranted();
+      
+      // 如果是第一次检查，只记录状态
+      if (_lastNotificationPermissionStatus == null) {
+        _lastNotificationPermissionStatus = currentStatus;
+        debugPrint('📱 首次检查通知权限: $currentStatus');
+        return;
+      }
+      
+      // 检查是否发生变化
+      if (_lastNotificationPermissionStatus != currentStatus) {
+        debugPrint('📱 通知权限发生变化: $_lastNotificationPermissionStatus -> $currentStatus');
+        
+        // 上报权限变化事件
+        final sensitiveDataService = SensitiveDataService.instance;
+        if (currentStatus) {
+          // 用户开启了通知权限
+          await sensitiveDataService.reportNotificationEnabled();
+        } else {
+          // 用户关闭了通知权限
+          await sensitiveDataService.reportNotificationDisabled();
+        }
+        
+        // 更新状态
+        _lastNotificationPermissionStatus = currentStatus;
+      } else {
+        debugPrint('📱 通知权限无变化: $currentStatus');
+      }
+    } catch (e) {
+      debugPrint('❌ 检查通知权限变化失败: $e');
     }
   }
   

@@ -223,7 +223,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
         title: "防偷拍检测",
-        onTap: () => _onShareAppTap(),
+        onTap: () => _onAntiSpyTap(),
       ),
       // SettingItem(
       //   icon: "assets/kissu_mine_item_gywm.webp",
@@ -647,6 +647,11 @@ class MineController extends GetxController {
   /// 分享APP点击事件
   void _onShareAppTap() {
     ShareBottomSheet.showShareApp(Get.context!);
+  }
+  
+  /// 防偷拍检测点击事件
+  void _onAntiSpyTap() {
+    Get.toNamed(KissuRoutePath.antiSpy);
   }
 }
 

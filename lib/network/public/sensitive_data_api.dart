@@ -10,16 +10,18 @@ class SensitiveDataApi {
   /// - 2: 打开APP
   /// - 4: 打开定位
   /// - 5: 关闭定位
-  /// - 6: 更换网络
+  /// - 6: 更换无线网络
   /// - 7: 开始充电
   /// - 8: 结束充电
-  /// - 9: 手机解锁
-  /// - 10: 手机锁屏
+  /// - 12: 对方开启了消息通知
+  /// - 13: 对方关闭了消息通知
+  /// - 14: 解锁手机
+  /// - 15: 锁定手机
+  /// - 21: 更换移动网络
   /// 
   /// [ext] 扩展参数：
-  /// - eventType为7或8时：{"power": 手机电量}
-  /// - eventType为6时：{"network_name": 网络名称}
-  /// - eventType为9或10时：{"timestamp": 时间戳}
+  /// - eventType为7或8时：{"power": "手机电量"}
+  /// - eventType为6时：{"network_name": "网络名称"}
   Future<HttpResultN> reportSensitiveData({
     required int eventType,
     Map<String, dynamic>? ext,
@@ -57,8 +59,8 @@ class SensitiveDataApi {
     return await reportSensitiveData(eventType: 5);
   }
   
-  /// 上报网络更换事件
-  Future<HttpResultN> reportNetworkChange({required String networkName}) async {
+  /// 上报更换无线网络事件
+  Future<HttpResultN> reportWifiChange({required String networkName}) async {
     return await reportSensitiveData(
       eventType: 6,
       ext: {'network_name': networkName},
@@ -69,7 +71,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportChargingStart({required int power}) async {
     return await reportSensitiveData(
       eventType: 7,
-      ext: {'power': power},
+      ext: {'power': power.toString()},
     );
   }
   
@@ -77,24 +79,33 @@ class SensitiveDataApi {
   Future<HttpResultN> reportChargingEnd({required int power}) async {
     return await reportSensitiveData(
       eventType: 8,
-      ext: {'power': power},
+      ext: {'power': power.toString()},
     );
+  }
+  
+  /// 上报开启消息通知事件
+  Future<HttpResultN> reportNotificationEnabled() async {
+    return await reportSensitiveData(eventType: 12);
+  }
+  
+  /// 上报关闭消息通知事件
+  Future<HttpResultN> reportNotificationDisabled() async {
+    return await reportSensitiveData(eventType: 13);
   }
   
   /// 上报手机解锁事件
-  Future<HttpResultN> reportScreenUnlock({int? timestamp}) async {
-    return await reportSensitiveData(
-      eventType: 9,
-      ext: timestamp != null ? {'timestamp': timestamp} : null,
-    );
+  Future<HttpResultN> reportScreenUnlock() async {
+    return await reportSensitiveData(eventType: 14);
   }
   
   /// 上报手机锁屏事件
-  Future<HttpResultN> reportScreenLock({int? timestamp}) async {
-    return await reportSensitiveData(
-      eventType: 10,
-      ext: timestamp != null ? {'timestamp': timestamp} : null,
-    );
+  Future<HttpResultN> reportScreenLock() async {
+    return await reportSensitiveData(eventType: 15);
+  }
+  
+  /// 上报更换移动网络事件
+  Future<HttpResultN> reportMobileNetworkChange() async {
+    return await reportSensitiveData(eventType: 21);
   }
 }
 

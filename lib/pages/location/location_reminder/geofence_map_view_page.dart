@@ -20,7 +20,8 @@ class GeofenceMapViewPage extends StatefulWidget {
   State<GeofenceMapViewPage> createState() => _GeofenceMapViewPageState();
 }
 
-class _GeofenceMapViewPageState extends State<GeofenceMapViewPage> {
+class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
+    with WidgetsBindingObserver {
   AMapController? _mapController;
   final _markers = <Marker>{}.obs;
   final _circles = <Circle>{}.obs;
@@ -28,7 +29,27 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeMap();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused) {
+      // 应用进入后台，暂停地图更新（释放资源）
+      print('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新');
+    } else if (state == AppLifecycleState.resumed) {
+      // 应用恢复前台，恢复地图更新
+      print('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新');
+    }
   }
 
   /// 初始化地图数据

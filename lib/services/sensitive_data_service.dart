@@ -97,6 +97,7 @@ class SensitiveDataService extends GetxService {
     
     final result = results.first;
     String networkName = 'unknown';
+    bool isMobile = false;
     
     switch (result) {
       case ConnectivityResult.wifi:
@@ -108,31 +109,42 @@ class SensitiveDataService extends GetxService {
           DebugUtil.error('获取WiFi SSID失败: $e');
           networkName = '未知wifi';
         }
+        isMobile = false;
         break;
       case ConnectivityResult.mobile:
         networkName = 'mobile';
+        isMobile = true;
         break;
       case ConnectivityResult.ethernet:
         networkName = 'ethernet';
+        isMobile = false;
         break;
       case ConnectivityResult.bluetooth:
         networkName = 'bluetooth';
+        isMobile = false;
         break;
       case ConnectivityResult.vpn:
         networkName = 'vpn';
+        isMobile = false;
         break;
       case ConnectivityResult.other:
         networkName = 'other';
+        isMobile = false;
         break;
       case ConnectivityResult.none:
         networkName = 'none';
+        isMobile = false;
         break;
     }
     
     // 如果网络名称发生变化，上报网络更换事件
     if (_currentNetworkName != networkName) {
       _currentNetworkName = networkName;
-      await _reportNetworkChange(networkName);
+      if (isMobile) {
+        await _reportMobileNetworkChange();
+      } else if (result == ConnectivityResult.wifi) {
+        await _reportWifiChange(networkName);
+      }
     }
   }
   
@@ -203,19 +215,35 @@ class SensitiveDataService extends GetxService {
     }
   }
   
-  /// 上报网络更换事件
-  Future<void> _reportNetworkChange(String networkName) async {
+  /// 上报更换无线网络事件
+  Future<void> _reportWifiChange(String networkName) async {
     if (!_shouldReport()) return;
     
     try {
-      final result = await _api.reportNetworkChange(networkName: networkName);
+      final result = await _api.reportWifiChange(networkName: networkName);
       if (result.isSuccess) {
-        DebugUtil.success('敏感数据上报成功: 网络更换 - $networkName');
+        DebugUtil.success('敏感数据上报成功: 更换无线网络 - $networkName');
       } else {
-        DebugUtil.error('敏感数据上报失败: 网络更换 - ${result.msg}');
+        DebugUtil.error('敏感数据上报失败: 更换无线网络 - ${result.msg}');
       }
     } catch (e) {
-      DebugUtil.error('敏感数据上报异常: 网络更换 - $e');
+      DebugUtil.error('敏感数据上报异常: 更换无线网络 - $e');
+    }
+  }
+  
+  /// 上报更换移动网络事件
+  Future<void> _reportMobileNetworkChange() async {
+    if (!_shouldReport()) return;
+    
+    try {
+      final result = await _api.reportMobileNetworkChange();
+      if (result.isSuccess) {
+        DebugUtil.success('敏感数据上报成功: 更换移动网络');
+      } else {
+        DebugUtil.error('敏感数据上报失败: 更换移动网络 - ${result.msg}');
+      }
+    } catch (e) {
+      DebugUtil.error('敏感数据上报异常: 更换移动网络 - $e');
     }
   }
   
@@ -256,8 +284,7 @@ class SensitiveDataService extends GetxService {
     if (!_shouldReport()) return;
     
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final result = await _api.reportScreenUnlock(timestamp: timestamp);
+      final result = await _api.reportScreenUnlock();
       if (result.isSuccess) {
         DebugUtil.success('敏感数据上报成功: 手机解锁');
       } else {
@@ -273,8 +300,7 @@ class SensitiveDataService extends GetxService {
     if (!_shouldReport()) return;
     
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final result = await _api.reportScreenLock(timestamp: timestamp);
+      final result = await _api.reportScreenLock();
       if (result.isSuccess) {
         DebugUtil.success('敏感数据上报成功: 手机锁屏');
       } else {
@@ -282,6 +308,38 @@ class SensitiveDataService extends GetxService {
       }
     } catch (e) {
       DebugUtil.error('敏感数据上报异常: 手机锁屏 - $e');
+    }
+  }
+  
+  /// 上报开启消息通知事件
+  Future<void> reportNotificationEnabled() async {
+    if (!_shouldReport()) return;
+    
+    try {
+      final result = await _api.reportNotificationEnabled();
+      if (result.isSuccess) {
+        DebugUtil.success('敏感数据上报成功: 开启消息通知');
+      } else {
+        DebugUtil.error('敏感数据上报失败: 开启消息通知 - ${result.msg}');
+      }
+    } catch (e) {
+      DebugUtil.error('敏感数据上报异常: 开启消息通知 - $e');
+    }
+  }
+  
+  /// 上报关闭消息通知事件
+  Future<void> reportNotificationDisabled() async {
+    if (!_shouldReport()) return;
+    
+    try {
+      final result = await _api.reportNotificationDisabled();
+      if (result.isSuccess) {
+        DebugUtil.success('敏感数据上报成功: 关闭消息通知');
+      } else {
+        DebugUtil.error('敏感数据上报失败: 关闭消息通知 - ${result.msg}');
+      }
+    } catch (e) {
+      DebugUtil.error('敏感数据上报异常: 关闭消息通知 - $e');
     }
   }
   
@@ -332,8 +390,10 @@ class SensitiveDataService extends GetxService {
         DebugUtil.error('获取WiFi SSID失败: $e');
         networkName = 'wifi_unknown';
       }
+      await _reportWifiChange(networkName);
+    } else if (networkName == 'mobile') {
+      await _reportMobileNetworkChange();
     }
-    await _reportNetworkChange(networkName);
   }
   
   /// 手动上报充电事件（用于测试）

@@ -7,7 +7,7 @@ class MinePage extends GetView<MineController> {
 
   // 固定的应用设置菜单项
   static const List<Map<String, String>> settingItems = [
-    // {"icon": "assets/3.0/kissu3_mine_ftp_icon.webp", "title": "防偷拍检测"},
+    {"icon": "assets/3.0/kissu3_mine_ftp_icon.webp", "title": "防偷拍检测"},
     {"icon": "assets/kissu_mine_item_syst.webp", "title": "首页视图"},
     {"icon": "assets/kissu_mine_item_xtqx.webp", "title": "系统权限"},
     {"icon": "assets/kissu_mine_item_gywm.webp", "title": "关于我们"},

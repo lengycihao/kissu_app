@@ -62,13 +62,48 @@ class _TrackPageContent extends StatefulWidget {
   State<_TrackPageContent> createState() => _TrackPageContentState();
 }
 
-class _TrackPageContentState extends State<_TrackPageContent> {
+class _TrackPageContentState extends State<_TrackPageContent>
+    with WidgetsBindingObserver {
   late final double screenHeight;
   late final double initialHeight;
   late final double minHeight;
   late final double maxHeight;
   late final double mapHeight;
   late final DraggableScrollableController _draggableController;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    // 清理自定义信息窗口
+    CustomStayPointInfoWindowManager.hideInfoWindow();
+    // 清理回调
+    widget.controller.onStayPointTapped = null;
+    // 移除生命周期观察者
+    WidgetsBinding.instance.removeObserver(this);
+    // 确保控制器被正确清理
+    DebugUtil.info('轨迹页面即将销毁，触发控制器清理...');
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused) {
+      // 应用进入后台，暂停地图更新（释放资源）
+      print('🛤️ TrackPage: 应用进入后台，暂停地图更新');
+      // 隐藏信息窗口
+      CustomStayPointInfoWindowManager.hideInfoWindow();
+    } else if (state == AppLifecycleState.resumed) {
+      // 应用恢复前台，恢复地图更新
+      print('🛤️ TrackPage: 应用恢复前台，恢复地图更新');
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -111,16 +146,6 @@ class _TrackPageContentState extends State<_TrackPageContent> {
     );
   }
 
-  @override
-  void dispose() {
-    // 清理自定义信息窗口
-    CustomStayPointInfoWindowManager.hideInfoWindow();
-    // 清理回调
-    widget.controller.onStayPointTapped = null;
-    // 确保控制器被正确清理
-    DebugUtil.info('轨迹页面即将销毁，触发控制器清理...');
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

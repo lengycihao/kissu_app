@@ -31,12 +31,38 @@ class _LocationPageContent extends StatefulWidget {
   State<_LocationPageContent> createState() => _LocationPageContentState();
 }
 
-class _LocationPageContentState extends State<_LocationPageContent> {
+class _LocationPageContentState extends State<_LocationPageContent>
+    with WidgetsBindingObserver {
   late double screenHeight;
   late double initialHeight;
   late double minHeight;
   late double maxHeight;
   late double mapHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused) {
+      // 应用进入后台，暂停地图更新（释放资源）
+      print('📍 LocationPage: 应用进入后台，暂停地图更新');
+    } else if (state == AppLifecycleState.resumed) {
+      // 应用恢复前台，恢复地图更新
+      print('📍 LocationPage: 应用恢复前台，恢复地图更新');
+    }
+  }
 
   @override
   void didChangeDependencies() {
