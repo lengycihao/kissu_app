@@ -49,6 +49,24 @@ class PermissionHelper {
     }
   }
 
+  /// 打开WiFi设置页面
+  static Future<void> openWifiSettings() async {
+    try {
+      await _channel.invokeMethod('openWifiSettings');
+      print("✅ WiFi设置页面打开成功");
+    } on PlatformException catch (e) {
+      print("❌ 打开WiFi设置失败 (PlatformException): ${e.message}");
+      rethrow;
+    } on MissingPluginException catch (e) {
+      print("❌ 打开WiFi设置失败 (MissingPluginException): ${e.message}");
+      print("提示：可能是 MethodChannel 还未初始化完成");
+      rethrow;
+    } catch (e) {
+      print("❌ 打开WiFi设置失败 (未知错误): $e");
+      rethrow;
+    }
+  }
+
   /// 打开通用应用设置页面
   static Future<void> openAppSettings() async {
     try {

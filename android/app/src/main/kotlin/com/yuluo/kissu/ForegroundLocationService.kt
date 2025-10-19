@@ -9,14 +9,19 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.Log
+import com.amap.api.location.AMapLocation
+import com.amap.api.location.AMapLocationClient
+import com.amap.api.location.AMapLocationClientOption
+import com.amap.api.location.AMapLocationListener
 
 /**
  * 前台定位服务
  * 
  * 为应用提供持续的后台定位能力，符合Android 8.0+的后台执行限制
  * 增加 WAKE_LOCK 支持，确保息屏时定位仍然活跃
+ * 🔥 新增：原生定位监听器，APP被杀后仍能持续定位上报
  */
-class ForegroundLocationService : Service() {
+class ForegroundLocationService : Service(), AMapLocationListener {
     
     companion object {
         private const val TAG = "ForegroundLocationService"
@@ -99,6 +104,10 @@ class ForegroundLocationService : Service() {
     private var notificationBuilder: NotificationCompat.Builder? = null
     private var wakeLock: PowerManager.WakeLock? = null
     
+    // 🔥 原生定位相关
+    private var locationClient: AMapLocationClient? = null
+    private var locationReportService: LocationReportService? = null
+    
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "前台定位服务创建")
@@ -117,6 +126,17 @@ class ForegroundLocationService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "创建 WakeLock 失败", e)
         }
+        
+        // 🔥 初始化定位上报服务
+        try {
+            locationReportService = LocationReportService(this)
+            Log.d(TAG, "定位上报服务初始化成功")
+        } catch (e: Exception) {
+            Log.e(TAG, "初始化定位上报服务失败", e)
+        }
+        
+        // 🔥 初始化原生定位客户端
+        initLocationClient()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -143,6 +163,9 @@ class ForegroundLocationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
+        
+        // 🔥 停止定位监听
+        stopLocationTracking()
         
         // 🔥 释放 WAKE_LOCK
         try {
@@ -204,6 +227,9 @@ class ForegroundLocationService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "获取 WakeLock 失败", e)
             }
+            
+            // 🔥 启动定位监听
+            startLocationTracking()
             
             Log.d(TAG, "前台定位服务启动成功")
             
@@ -380,6 +406,122 @@ class ForegroundLocationService : Service() {
         } catch (e: Exception) {
             Log.w(TAG, "无法找到图标资源: $iconName，使用默认图标")
             android.R.drawable.ic_dialog_info
+        }
+    }
+    
+    // ================================
+    // 🔥 原生定位监听相关方法
+    // ================================
+    
+    /**
+     * 初始化定位客户端
+     */
+    private fun initLocationClient() {
+        try {
+            locationClient = AMapLocationClient(applicationContext)
+            locationClient?.setLocationListener(this)
+            
+            // 配置定位参数
+            val locationOption = AMapLocationClientOption().apply {
+                locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
+                isGpsFirst = true
+                httpTimeOut = 30000
+                // ✅ 关键修复：与Flutter层统一为5秒，避免APP被杀后定位频率骤降
+                interval = 5000 // 5秒定位一次（与Flutter层保持一致）
+                isNeedAddress = true
+                isOnceLocation = false
+                isOnceLocationLatest = false
+                isSensorEnable = false
+                isWifiScan = true
+                isLocationCacheEnable = true
+                geoLanguage = AMapLocationClientOption.GeoLanguage.DEFAULT
+            }
+            
+            locationClient?.setLocationOption(locationOption)
+            Log.d(TAG, "原生定位客户端初始化成功")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "初始化定位客户端失败", e)
+        }
+    }
+    
+    /**
+     * 启动定位监听
+     */
+    private fun startLocationTracking() {
+        try {
+            locationClient?.let { client ->
+                if (!client.isStarted) {
+                    client.startLocation()
+                    Log.d(TAG, "🚀 原生定位监听已启动（APP被杀后仍可工作）")
+                } else {
+                    Log.d(TAG, "原生定位监听已在运行中")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "启动定位监听失败", e)
+        }
+    }
+    
+    /**
+     * 停止定位监听
+     */
+    private fun stopLocationTracking() {
+        try {
+            locationClient?.let { client ->
+                if (client.isStarted) {
+                    client.stopLocation()
+                    Log.d(TAG, "原生定位监听已停止")
+                }
+                client.onDestroy()
+            }
+            locationClient = null
+            locationReportService = null
+        } catch (e: Exception) {
+            Log.e(TAG, "停止定位监听失败", e)
+        }
+    }
+    
+    /**
+     * 定位监听回调
+     */
+    override fun onLocationChanged(location: AMapLocation?) {
+        if (location == null) {
+            Log.w(TAG, "⚠️ 原生定位回调：位置为空")
+            return
+        }
+        
+        Log.d(TAG, "📍 原生定位成功: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
+        
+        // 🔥 调用上报服务
+        locationReportService?.reportLocation(location)
+        
+        // 更新通知内容
+        updateLocationNotification(location)
+    }
+    
+    /**
+     * 更新定位通知内容
+     */
+    private fun updateLocationNotification(location: AMapLocation) {
+        try {
+            val locationInfo = if (location.errorCode == 0) {
+                "最新位置: ${location.address ?: "未知地址"}"
+            } else {
+                "定位失败: ${location.errorInfo}"
+            }
+            
+            val intent = Intent(this, ForegroundLocationService::class.java).apply {
+                action = ACTION_UPDATE_NOTIFICATION
+                putExtra(EXTRA_TITLE, "Kissu - 情侣定位")
+                putExtra(EXTRA_CONTENT, "正在为您提供位置定位服务")
+                putExtra(EXTRA_BIG_TEXT, locationInfo)
+            }
+            
+            startService(intent)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "更新定位通知失败", e)
         }
     }
 }

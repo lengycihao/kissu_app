@@ -286,7 +286,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 screenLockReceiver = ScreenLockReceiver()
                 val filter = IntentFilter().apply {
                     addAction(Intent.ACTION_SCREEN_OFF)  // 锁屏事件
-                    addAction(Intent.ACTION_USER_PRESENT)  // 解锁事件
+                    addAction(Intent.ACTION_SCREEN_ON)   // 屏幕亮起事件（用于检测快速解锁）
+                    addAction(Intent.ACTION_USER_PRESENT)  // 解锁事件（传统方式）
                 }
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -334,6 +335,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 }
                 "openUsageAccessSettings" -> {
                     openUsageAccessSettings()
+                    result.success(null)
+                }
+                "openWifiSettings" -> {
+                    openWifiSettings()
                     result.success(null)
                 }
                 "openAppSettings" -> {
@@ -935,6 +940,18 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             Log.d("MainActivity", "✅ 成功打开应用设置页")
         } catch (e: Exception) {
             Log.e("MainActivity", "❌ 所有跳转方式都失败: ${e.message}")
+        }
+    }
+
+    private fun openWifiSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            Log.d("MainActivity", "✅ 成功打开WiFi设置页面")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ 打开WiFi设置失败: ${e.message}")
         }
     }
 

@@ -4,10 +4,11 @@ part 'common_question_model.g.dart';
 
 @JsonSerializable()
 class CommonQuestionModel {
+  int? id;
   String? problem;
   String? answer;
 
-  CommonQuestionModel({this.problem, this.answer});
+  CommonQuestionModel({this.id, this.problem, this.answer});
 
   factory CommonQuestionModel.fromJson(Map<String, dynamic> json) {
     return _$CommonQuestionModelFromJson(json);

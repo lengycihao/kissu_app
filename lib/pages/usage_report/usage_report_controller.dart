@@ -4,14 +4,21 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/models/screen_time_model.dart';
 import 'package:kissu_app/models/unlock_record_model.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
+import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
+import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/usage_record_converter.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 class UsageReportController extends GetxController {
   final PermissionService _permissionService = PermissionService();
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
+  final PhoneHistoryApi _phoneHistoryApi = PhoneHistoryApi();
   
   // 选中的日期索引 (6对应今天，在DateSelector的recentDates数组中)
   final selectedDateIndex = 6.obs;
@@ -58,6 +65,11 @@ class UsageReportController extends GetxController {
   Rx<RecordSection?> locationAnomalyData = Rx<RecordSection?>(null);
   Rx<RecordSection?> allRecordData = Rx<RecordSection?>(null);
   Rx<HalfLocationMobileDevice?> deviceInfo = Rx<HalfLocationMobileDevice?>(null);
+
+  // 系统设置相关
+  final systemInfo = Rxn<SystemInfoModel>();
+  final isSystemInfoLoading = false.obs;
+  final isSystemSwitchLoading = false.obs;
 
   // 动态标签列表（根据筛选状态计算）
   List<String> get visibleTabs {
@@ -703,19 +715,103 @@ class UsageReportController extends GetxController {
   }
 
   /// 显示设置对话框
-  void showSettingDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: const Text('设置'),
-        content: const Text('用机报告设置功能开发中...'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
+  void showSettingDialog() async {
+    // 跳转到用机设置页面
+    Get.toNamed(KissuRoutePath.usageSettings);
+  }
+
+  /// 获取系统信息设置
+  Future<void> loadSystemInfo() async {
+    isSystemInfoLoading.value = true;
+    try {
+      final result = await _phoneHistoryApi.getSystemInfo();
+      if (result.isSuccess && result.data != null) {
+        systemInfo.value = result.data!;
+      } else {
+        OKToastUtil.show('获取系统设置失败: ${result.msg}');
+      }
+    } catch (e) {
+      OKToastUtil.show('获取系统设置异常: $e');
+    } finally {
+      isSystemInfoLoading.value = false;
+    }
+  }
+
+  /// 更新系统设置
+  Future<void> _updateSystemSettings(SystemInfoModel newSystemInfo) async {
+    isSystemSwitchLoading.value = true;
+    try {
+      final result = await _phoneHistoryApi.setSystemSwitch(
+        isPushKissuMsg: newSystemInfo.isPushKissuMsg.toString(),
+        isPushSystemMsg: newSystemInfo.isPushSystemMsg.toString(),
+        isPushPhoneStatusMsg: newSystemInfo.isPushPhoneStatusMsg.toString(),
+        isPushLocationMsg: newSystemInfo.isPushLocationMsg.toString(),
+      );
+
+      if (result.isSuccess) {
+        systemInfo.value = newSystemInfo;
+        OKToastUtil.show('设置成功');
+      } else {
+        OKToastUtil.show('设置失败: ${result.msg}');
+      }
+    } catch (e) {
+      OKToastUtil.showError('设置异常: $e');
+    } finally {
+      isSystemSwitchLoading.value = false;
+    }
+  }
+
+  /// 检查用户是否已绑定
+  bool isUserBound() {
+    final user = UserManager.currentUser;
+    if (user?.bindStatus != null) {
+      if (user!.bindStatus is int) {
+        return user.bindStatus == 1;
+      } else if (user.bindStatus is String) {
+        return user.bindStatus == "1";
+      }
+    }
+    return false;
+  }
+
+  /// 处理距离按钮点击事件
+  void handleDistanceButtonClick() {
+    if (isUserBound()) {
+      // 已绑定，跳转到定位页面
+      debugPrint('📍 用户已绑定，跳转到定位页面');
+      Get.toNamed(KissuRoutePath.location);
+    } else {
+      // 未绑定，显示绑定弹窗
+      debugPrint('💑 用户未绑定，显示绑定弹窗');
+      showBindingDialog();
+    }
+  }
+
+  /// 处理绑定按钮点击事件
+  void handleBindButtonClick() {
+    debugPrint('💑 立即绑定按钮被点击');
+    showBindingDialog();
+  }
+
+  /// 显示绑定弹窗
+  void showBindingDialog() {
+    final currentContext = Get.context;
+    if (currentContext != null) {
+      CustomBottomDialog.show(
+        context: currentContext,
+        onClose: () {
+          debugPrint('💑 绑定弹窗已关闭');
+        },
+      ).then((result) {
+        // 绑定弹窗关闭后，检查是否需要刷新页面
+        if (isUserBound()) {
+          debugPrint('💑 用户已绑定，刷新页面数据');
+          loadData();
+        }
+      });
+    } else {
+      debugPrint('❌ 无法获取Context，跳过显示绑定弹窗');
+    }
   }
 }
 

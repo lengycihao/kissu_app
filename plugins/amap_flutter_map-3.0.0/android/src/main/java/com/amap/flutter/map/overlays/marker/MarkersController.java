@@ -116,11 +116,14 @@ public class MarkersController
                 controllerMapByDartId.put(dartMarkerId, markerController);
                 idMapByOverlyId.put(marker.getId(), dartMarkerId);
                 
-                // 如果有自定义 InfoWindow，自动显示
+                // 如果有自定义 InfoWindow 且明确设置了自动显示，则在创建时就显示
                 Object hasCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "hasCustomInfoWindow");
-                if (hasCustomInfoWindow != null && ConvertUtil.toBoolean(hasCustomInfoWindow)) {
+                Object autoShowCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "autoShowCustomInfoWindow");
+                if (hasCustomInfoWindow != null && ConvertUtil.toBoolean(hasCustomInfoWindow) 
+                    && autoShowCustomInfoWindow != null && ConvertUtil.toBoolean(autoShowCustomInfoWindow)) {
                     marker.showInfoWindow();
                 }
+                // 注意：即使不自动显示，点击 Marker 时 InfoWindow 仍然会显示（这是高德地图的默认行为）
             }
         }
 
@@ -256,9 +259,15 @@ public class MarkersController
         Object hasCustom = ConvertUtil.getKeyValueFromMapObject(markerObj, "hasCustomInfoWindow");
         boolean hasCustomInfoWindow = hasCustom != null && ConvertUtil.toBoolean(hasCustom);
         
+        // 检查是否是轨迹样式
+        Object isTrackStyleObj = ConvertUtil.getKeyValueFromMapObject(markerObj, "isTrackStyle");
+        boolean isTrackStyle = isTrackStyleObj != null && ConvertUtil.toBoolean(isTrackStyleObj);
+        
         // 获取 InfoWindow 数据
         String locationName = null;
         String address = null;
+        String stayDuration = null;
+        String stayTime = null;
         
         Object infoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "infoWindow");
         if (infoWindow != null && infoWindow instanceof Map) {
@@ -274,9 +283,29 @@ public class MarkersController
             }
         }
         
+        // 获取轨迹专用数据
+        if (isTrackStyle) {
+            Object stayDurationObj = ConvertUtil.getKeyValueFromMapObject(markerObj, "stayDuration");
+            Object stayTimeObj = ConvertUtil.getKeyValueFromMapObject(markerObj, "stayTime");
+            
+            if (stayDurationObj != null) {
+                stayDuration = stayDurationObj.toString();
+            }
+            if (stayTimeObj != null) {
+                stayTime = stayTimeObj.toString();
+            }
+        }
+        
         // 更新适配器数据
-        CustomInfoWindowAdapter.MarkerInfoData infoData = 
-            new CustomInfoWindowAdapter.MarkerInfoData(hasCustomInfoWindow, locationName, address);
+        CustomInfoWindowAdapter.MarkerInfoData infoData;
+        if (isTrackStyle) {
+            // 使用轨迹样式构造函数
+            infoData = new CustomInfoWindowAdapter.MarkerInfoData(hasCustomInfoWindow, locationName, stayDuration, stayTime);
+        } else {
+            // 使用普通样式构造函数
+            infoData = new CustomInfoWindowAdapter.MarkerInfoData(hasCustomInfoWindow, locationName, address);
+        }
+        
         customInfoWindowAdapter.updateMarkerInfo(markerId, infoData);
     }
 

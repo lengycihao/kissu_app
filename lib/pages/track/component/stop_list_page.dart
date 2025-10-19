@@ -20,7 +20,7 @@ class StopListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         try {
           final controller = Get.find<TrackController>();
           
@@ -36,7 +36,8 @@ class StopListItem extends StatelessWidget {
           );
           
           // 使用增强版方法：移动地图、绘制高亮圆圈、显示InfoWindow
-          controller.moveToStopPointWithHighlight(
+          await controller.moveToStopPointWithHighlight(
+            context, // 传入正确的BuildContext
             record.latitude, 
             record.longitude, 
             stopPoint: stopPoint,
@@ -46,13 +47,14 @@ class StopListItem extends StatelessWidget {
         }
       },
       child: Container(
+        margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
         child: IntrinsicHeight(
           child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 左边时间部分 - 对齐
             Container(
-              width: 45, // 给时间一个固定宽度，确保对齐
+              width: 40, // 给时间一个固定宽度，确保对齐
               child: Text(
                 record.leftTime,
                 style: TextStyle(fontSize: 12, color: Color(0xff333333)),
@@ -64,13 +66,13 @@ class StopListItem extends StatelessWidget {
               child: Stack(
                 children: [
                   // 连接线 - 从圆点底部延伸到容器底部
-                  if (!isLast)
-                    Positioned(
-                      left: 9, // 圆点中心位置
-                      top: 16, // 圆点底部
-                      bottom: -16, // 延伸到margin区域
-                      child: Container(width: 1, color: Color(0xffFF88AA)),
-                    ),
+                  // if (!isLast)
+                  //   Positioned(
+                  //     left: 9, // 圆点中心位置
+                  //     top: 16, // 圆点底部
+                  //     bottom: -16, // 延伸到margin区域
+                  //     child: Container(width: 1, color: Color(0xffFF88AA)),
+                  //   ),
                   // 圆点
                   Positioned(
                     left: 1,
@@ -91,7 +93,7 @@ class StopListItem extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(width: 20),
+            SizedBox(width: 15),
             // 内容部分
             Expanded(
               child: Column(
@@ -101,13 +103,13 @@ class StopListItem extends StatelessWidget {
                     record.locationName,
                     style: TextStyle(fontSize: 12, color: Color(0xff333333)),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 11),
 
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xffFFEDF2), Color(0xffFFF8FA)],
+                        colors: [Color(0xffFFECEC), Color(0xffFFFfff)],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ),
@@ -139,9 +141,10 @@ class StopListItem extends StatelessWidget {
                         Row(
                             children: [
                               Image.asset(
-                                'assets/kissu_track_location.webp',
+                                record.status == 'staying' ? 'assets/kissu_track_staying.webp' : 'assets/kissu_track_location.webp',
                                 width: 24,
                                 height: 24,
+                                color: record.status == 'staying' ? Color(0xFFBE9DFF) : Color(0xFFFBAE84),
                               ),
                               const SizedBox(width: 12),
                               // 仅当 stayDuration 非空时显示
@@ -153,8 +156,8 @@ class StopListItem extends StatelessWidget {
                                       Text(
                                         record.stayDuration,
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xffFF4177),
+                                          fontSize: 12,fontWeight: FontWeight.bold,
+                                          color: Color(0xff333333),
                                         ),
                                         softWrap: true, // 启用自动换行
                                         maxLines: 2, // 最多显示两行

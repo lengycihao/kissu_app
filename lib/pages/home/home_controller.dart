@@ -2,18 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 // import 'package:kissu_app/utils/pag_preloader.dart'; // 注释掉PAG预加载器导入
 import 'package:kissu_app/services/home_scroll_service.dart';
-import 'package:kissu_app/pages/location/location_binding.dart';
-import 'package:kissu_app/pages/location/location_page.dart';
 import 'package:kissu_app/pages/location/location_v2_binding.dart';
 import 'package:kissu_app/pages/location/location_v2_page.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
-import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
-import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
+import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
+import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
-import 'package:kissu_app/pages/message_center/message_center_binding.dart';
-import 'package:kissu_app/pages/message_center/message_center_page.dart'; 
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
@@ -23,13 +20,11 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
-import 'package:kissu_app/network/public/api_request.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/network/public/index_api.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 import 'dart:async';
@@ -40,6 +35,19 @@ import 'package:kissu_app/services/version_service.dart';
 class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
   var selectedIndex = 0.obs;
+  
+  // App启动标记 - 静态变量，app被杀掉时会自动重置
+  static bool _hasAppStartedThisSession = false;
+  
+  // 绑定弹窗控制标志位 - 静态变量，确保整个app会话期间只显示一次
+  static bool _hasShownBindingDialogThisSession = false;
+  
+  // VIP购买弹窗控制标志位 - 静态变量，确保整个app会话期间只显示一次
+  static bool _hasShownVipDialogThisSession = false;
+  
+  // 防重复刷新用户信息的变量
+  bool _isRefreshingUserInfo = false;
+  DateTime? _lastUserInfoRefreshTime;
   
   // 滚动控制器，用于控制背景图片的初始位置
   late ScrollController scrollController;
@@ -67,6 +75,9 @@ class HomeController extends GetxController {
   
   // 红点相关
   var redDotCount = 0.obs;
+  var systemNoticeRedDot = 0.obs; // 系统消息红点数量
+  var interactionNoticeRedDot = 0.obs; // 互动消息红点数量
+  var isRedDot = false.obs; // 是否显示红点（基于is_red_dot字段）
   var isActivity = false.obs;
   var activityIcon = ''.obs;
   var activityLink = ''.obs;
@@ -89,14 +100,15 @@ class HomeController extends GetxController {
   var currentTemp = Rxn<String>();
   var isWeatherLoading = true.obs;
   
+  // 照片墙数据
+  var photoWallUrl = "assets/kissu_icon.webp".obs;
+  
   // 引导层显示状态
   var showGuideOverlay = false.obs;
   
   // 当前引导图类型
   var currentGuideType = GuideType.swipe.obs;
   
-  // 绑定弹窗控制标志位（每次app启动时重置为false）
-  var hasShownBindingDialogThisSession = false;
   
   // PAG动画相关 - 暂时移除
   // var pagAnimations = <Map<String, dynamic>>[].obs;
@@ -114,7 +126,10 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     
-    debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位已重置为: $hasShownBindingDialogThisSession');
+    debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: $_hasShownBindingDialogThisSession');
+    
+    // 检查是否是app启动时首次进入
+    checkAndRefreshUserInfoOnAppStartup();
     
     // 初始化滚动控制器，如果有预设位置则使用预设位置
     _initializeScrollController();
@@ -126,33 +141,29 @@ class HomeController extends GetxController {
     // _preloadPagAssets();
     
     _initializeLocationService();
-    loadUserInfo();
+    loadIndexData(); // 加载首页所有数据（替代原来的分别加载）
     _loadViewMode(); // 加载视图模式
-    loadRedDotInfo(); // 加载红点信息
     _startRedDotPolling(); // 启动红点轮询
     _setupAppLifecycleListener(); // 设置应用生命周期监听
+    _setupRedDotListeners(); // 设置红点监听器
   }
 
   @override
   void onReady() {
     super.onReady();
     
-    // 每次打开首页时刷新用户信息
-    refreshUserInfoFromServer();
-    
     // 检查版本更新（在引导图和其他弹窗之前检查）
     _checkVersionUpdate();
     
-    // 首先检查是否需要显示引导图1（新用户引导）
-    _checkAndShowGuide1();
+    // 注意：引导图检查将在数据加载完成后执行，确保绑定状态已获取
+    // 在 loadIndexData() 完成后会调用 _checkAndShowGuide1()
     
     // 注意：绑定弹窗将在所有其他弹窗之后显示，在_executeOtherLogic()中调用
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    debugPrint('🏠 首页重新获得焦点，刷新用户数据...');
-    refreshUserInfoFromServer();
+    debugPrint('🏠 首页重新获得焦点，不需要刷新用户信息（已在onInit中处理）');
   }
   
   
@@ -206,7 +217,7 @@ class HomeController extends GetxController {
   
   @override
   void onClose() {
-    debugPrint('🧹 HomeController 销毁 - 绑定弹窗标志位状态: $hasShownBindingDialogThisSession（即将被清除）');
+    debugPrint('🧹 HomeController 销毁 - 绑定弹窗标志位: $_hasShownBindingDialogThisSession, VIP弹窗标志位: $_hasShownVipDialogThisSession（静态变量不会被清除）');
     
     // 安全地清理ScrollController
     try {
@@ -414,6 +425,81 @@ class HomeController extends GetxController {
     }
   }
   
+  /// 加载首页所有数据（新的统一接口）
+  Future<void> loadIndexData() async {
+    try {
+      debugPrint('🏠 开始加载首页数据...');
+      
+      final result = await IndexApi().getIndexData();
+      
+      if (result.isSuccess && result.data != null) {
+        final indexData = result.data!;
+        
+        // 更新红点信息
+        systemNoticeRedDot.value = indexData.isSystemNoticeRedDot;
+        interactionNoticeRedDot.value = indexData.isInteractionNoticeRedDot;
+        // 是否显示红点（基于is_red_dot字段）
+        isRedDot.value = indexData.isRedDot == 1;
+        // 红点总数 = 系统消息红点 + 互动消息红点（保留用于其他逻辑）
+        redDotCount.value = systemNoticeRedDot.value + interactionNoticeRedDot.value;
+        isActivity.value = indexData.activity.isActivity == 1;
+        activityIcon.value = indexData.activity.isActivityIcon;
+        activityLink.value = indexData.activity.activityLink;
+        activityTitle.value = indexData.activity.activityTitle;
+        
+        debugPrint('📊 红点信息更新: 系统消息=${systemNoticeRedDot.value}, 互动消息=${interactionNoticeRedDot.value}, 总数=${redDotCount.value}, 显示红点=${isRedDot.value}');
+        
+        // 更新位置信息
+        distance.value = indexData.location.distance;
+        stayCount.value = indexData.location.stayCount;
+        
+        // 更新用户信息
+        loveDays.value = indexData.user.loverDays;
+        isBound.value = indexData.user.isBind == 1;
+        
+        // 更新头像
+        if (indexData.user.headPortrait.isNotEmpty) {
+          userAvatar.value = indexData.user.headPortrait;
+        }
+        
+        if (isBound.value && indexData.user.halfHeadPortrait.isNotEmpty) {
+          partnerAvatar.value = indexData.user.halfHeadPortrait;
+        } else if (!isBound.value) {
+          partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+        }
+        
+        // 更新照片墙
+        if (indexData.photo.photoWall.isNotEmpty) {
+          photoWallUrl.value = indexData.photo.photoWall;
+          debugPrint('📸 照片墙URL: ${photoWallUrl.value}');
+        } else {
+          photoWallUrl.value = "assets/kissu_icon.webp";
+          debugPrint('📸 照片墙为空，使用默认图片');
+        }
+        
+        // 更新天气数据
+        _updateWeatherData(indexData.weather);
+        
+        debugPrint('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
+        
+        // 数据加载完成后，检查是否需要显示引导图（确保绑定状态已获取）
+        _checkAndShowGuide1();
+      } else {
+        debugPrint('❌ 首页数据加载失败: ${result.msg}');
+        // 失败时回退到加载本地用户信息
+        loadUserInfo();
+        // 即使失败也要检查引导图（使用本地缓存的绑定状态）
+        _checkAndShowGuide1();
+      }
+    } catch (e) {
+      debugPrint('❌ 首页数据加载异常: $e');
+      // 异常时回退到加载本地用户信息
+      loadUserInfo();
+      // 异常情况下也要检查引导图（使用本地缓存的绑定状态）
+      _checkAndShowGuide1();
+    }
+  }
+
   /// 加载用户信息和绑定状态
   void loadUserInfo() {
     final user = UserManager.currentUser;
@@ -434,8 +520,7 @@ class HomeController extends GetxController {
         _loadDistanceInfo();
         // 加载恋爱天数
         _loadLoveDays(user);
-        // 加载天气数据
-        _loadWeatherData();
+        // 天气数据现在从首页接口统一获取，不再单独调用
       } else {
         // 未绑定状态，重置伴侣头像
         partnerAvatar.value = "assets/kissu_home_add_avair.webp";
@@ -449,8 +534,45 @@ class HomeController extends GetxController {
     }
   }
   
+  /// 检查并刷新用户信息（只在app启动时首次调用）
+  Future<void> checkAndRefreshUserInfoOnAppStartup() async {
+    // 如果app已经启动过，跳过刷新
+    if (_hasAppStartedThisSession) {
+      debugPrint('⏭️ App已在此会话中启动过，跳过用户信息刷新');
+      return;
+    }
+    
+    try {
+      debugPrint('🚀 App首次启动，刷新用户信息...');
+      await refreshUserInfoFromServer();
+      
+      // 标记app已启动
+      _hasAppStartedThisSession = true;
+      debugPrint('✅ 用户信息已刷新，已标记app启动状态');
+    } catch (e) {
+      debugPrint('❌ App启动时刷新用户信息失败: $e');
+    }
+  }
+  
   /// 从服务器刷新用户信息并更新缓存
   Future<void> refreshUserInfoFromServer() async {
+    // 防重复调用：如果正在刷新中，直接返回
+    if (_isRefreshingUserInfo) {
+      debugPrint('⏭️ 用户信息正在刷新中，跳过重复调用');
+      return;
+    }
+    
+    // 防重复调用：如果最近已经刷新过，跳过
+    final now = DateTime.now();
+    if (_lastUserInfoRefreshTime != null && 
+        now.difference(_lastUserInfoRefreshTime!).inSeconds < 3) {
+      debugPrint('⏭️ 用户信息最近已刷新（${now.difference(_lastUserInfoRefreshTime!).inSeconds}秒前），跳过重复调用');
+      return;
+    }
+    
+    _isRefreshingUserInfo = true;
+    _lastUserInfoRefreshTime = now;
+    
     try {
       debugPrint('🔄 开始从服务器刷新用户信息...');
       
@@ -466,6 +588,8 @@ class HomeController extends GetxController {
     } catch (e) {
       debugPrint('❌ 刷新用户信息时发生异常: $e');
       // 异常情况下继续使用本地缓存，不影响用户体验
+    } finally {
+      _isRefreshingUserInfo = false;
     }
   }
   
@@ -496,7 +620,8 @@ class HomeController extends GetxController {
     }
   }
   
-  /// 加载距离信息和停留点数量
+  /// 加载距离信息和停留点数量（已废弃，现在使用 loadIndexData）
+  @Deprecated('使用 loadIndexData() 替代')
   Future<void> _loadDistanceInfo() async {
     try {
       debugPrint('📍 开始获取距离信息和停留点数量...');
@@ -587,7 +712,7 @@ class HomeController extends GetxController {
       await UserManager.refreshUserInfo();
       
       // 重新加载当前页面数据
-      loadUserInfo();
+      loadIndexData();
       
       // 首页绑定状态已刷新
     } catch (e) {
@@ -600,7 +725,7 @@ class HomeController extends GetxController {
     try {
       print('🏠 首页收到刷新通知，正在更新用户信息...');
       // 不需要再次调用 UserManager.refreshUserInfo()，因为调用方已经刷新了
-      loadUserInfo();
+      loadIndexData();
       print('🏠 首页绑定状态已更新: ${isBound.value}');
     } catch (e) {
       print('🏠 首页刷新绑定状态失败: $e');
@@ -613,9 +738,9 @@ class HomeController extends GetxController {
 
     switch (index) {
       case 0:
-        // 定位（旧版）
-        debugPrint("🔍 准备跳转到定位页面");
-        Get.to(() => LocationPage(), binding: LocationBinding());
+        // 定位（新版）
+        debugPrint("📍 准备跳转到定位V2页面");
+        Get.to(() => LocationV2Page(), binding: LocationV2Binding());
         break;
       case 1:
         // 地图
@@ -623,16 +748,11 @@ class HomeController extends GetxController {
         break;
       case 2:
         // 用机记录
-        Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
+        Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
         break;
       case 3:
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
-        break;
-      case 4:
-        // 定位V2（新UI）
-        debugPrint("📍 准备跳转到定位V2页面");
-        Get.to(() => LocationV2Page(), binding: LocationV2Binding());
         break;
       default:
         // 其他功能待实现
@@ -642,12 +762,10 @@ class HomeController extends GetxController {
 
   // 点击通知按钮
   void onNotificationTap() {
-    // 清除红点（点击时立即清除）
-    debugPrint('📭 点击消息中心按钮，清除红点');
-    redDotCount.value = 0;
-    
-    // 跳转到消息中心页面
-    Get.to(() => const MessageCenterPage(), binding: MessageCenterBinding());
+    // 跳转到消息列表页面（一级页面）
+    // 注意：红点不在这里清除，而是在进入各个详情页时清除
+    debugPrint('📭 点击消息中心按钮，进入消息列表');
+    Get.toNamed(KissuRoutePath.messageList);
   }
 
   // 点击钱包按钮
@@ -669,8 +787,6 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_history.webp";
       case 3:
         return "assets/kissu_home_tab_mine.webp";
-      case 4:
-        return "assets/kissu_home_tab_location.webp"; // 暂时复用定位图标
       default:
         return "assets/kissu_home_tab_location.webp";
     }
@@ -687,8 +803,6 @@ class HomeController extends GetxController {
         return "assets/kissu_home_tab_historyT.webp";
       case 3:
         return "assets/kissu_home_tab_mineT.webp";
-      case 4:
-        return "assets/kissu_home_tab_locationT.webp"; // 暂时复用定位文字图标
       default:
         return "assets/kissu_home_tab_locationT.webp";
     }
@@ -777,29 +891,11 @@ class HomeController extends GetxController {
     debugPrint('切换到: ${isScreenView.value ? "屏视图" : "岛视图"}');
   }
   
-  /// 加载红点信息
+  /// 加载红点信息（已废弃，现在使用 loadIndexData）
+  @Deprecated('使用 loadIndexData() 替代')
   Future<void> loadRedDotInfo() async {
-    try {
-      final result = await HttpManagerN.instance.executeGet(
-        '/notice/isRedDot',
-        paramEncrypt: false,
-      );
-      
-      if (result.isSuccess) {
-        final data = result.getDataJson();
-        redDotCount.value = data['is_red_dot'] ?? 0;
-        isActivity.value = (data['is_activity'] ?? 0) == 1;
-        activityIcon.value = data['is_activity_icon'] ?? '';
-        activityLink.value = data['activity_link'] ?? '';
-        activityTitle.value = data['activity_title'] ?? '';
-        
-        debugPrint('红点信息加载成功: 红点数量=${redDotCount.value}, 活动状态=${isActivity.value}');
-      } else {
-        debugPrint('红点信息加载失败: ${result.msg}');
-      }
-    } catch (e) {
-      debugPrint('红点信息加载异常: $e');
-    }
+    // 此方法已废弃，红点信息现在通过 /index 接口统一获取
+    debugPrint('⚠️ loadRedDotInfo() 已废弃，请使用 loadIndexData()');
   }
   
   /// 启动红点轮询（每10秒刷新一次）
@@ -809,14 +905,8 @@ class HomeController extends GetxController {
     
     // 创建新的定时器，每10秒执行一次
     _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      debugPrint('🔔 定时刷新红点信息...');
-      loadRedDotInfo();
-      
-      // 如果已绑定，同时刷新天气数据
-      if (isBound.value) {
-        debugPrint('🌤️ 定时刷新天气数据（已绑定状态）...');
-        _loadWeatherData();
-      }
+      debugPrint('🔔 定时刷新首页数据...');
+      loadIndexData(); // 使用新的统一接口
     });
     
     debugPrint('✅ 红点轮询已启动（每10秒刷新）');
@@ -831,6 +921,21 @@ class HomeController extends GetxController {
     }
   }
   
+  /// 设置红点监听器，当子红点变化时自动更新总红点数
+  void _setupRedDotListeners() {
+    // 监听系统消息红点变化
+    ever(systemNoticeRedDot, (_) {
+      redDotCount.value = systemNoticeRedDot.value + interactionNoticeRedDot.value;
+      debugPrint('📊 系统消息红点变化，更新总红点数: ${redDotCount.value}');
+    });
+    
+    // 监听互动消息红点变化
+    ever(interactionNoticeRedDot, (_) {
+      redDotCount.value = systemNoticeRedDot.value + interactionNoticeRedDot.value;
+      debugPrint('📊 互动消息红点变化，更新总红点数: ${redDotCount.value}');
+    });
+  }
+
   /// 设置应用生命周期监听
   void _setupAppLifecycleListener() {
     try {
@@ -872,14 +977,8 @@ class HomeController extends GetxController {
   void _onAppReturnedToForeground() {
     debugPrint('📱 首页：应用返回前台，先获取红点数据再启动轮询');
     
-    // 先立即获取一次红点数据
-    loadRedDotInfo().then((_) {
-      // 如果已绑定，同时获取天气数据
-      if (isBound.value) {
-        debugPrint('🌤️ 应用返回前台，获取天气数据（已绑定状态）...');
-        _loadWeatherData();
-      }
-      
+    // 先立即获取一次首页数据
+    loadIndexData().then((_) {
       // 获取完成后再启动轮询
       _startRedDotPolling();
     });
@@ -1054,8 +1153,15 @@ class HomeController extends GetxController {
           _showGuide1();
         });
       } else {
-        debugPrint('ℹ️ 引导图1已显示过，执行其他逻辑');
-        _executeOtherLogic();
+        debugPrint('ℹ️ 引导图1已显示过，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
+        
+        // 如果已绑定，检查是否需要显示引导图2
+        if (isBound.value) {
+          _checkAndShowGuide2();
+        } else {
+          // 未绑定状态，执行其他逻辑
+          _executeOtherLogic();
+        }
       }
     } catch (e) {
       debugPrint('❌ 检查引导图1状态失败: $e');
@@ -1074,7 +1180,7 @@ class HomeController extends GetxController {
       }
 
       // 检查本次会话是否已显示过绑定弹窗
-      if (hasShownBindingDialogThisSession) {
+      if (_hasShownBindingDialogThisSession) {
         debugPrint('📱 本次会话已显示过绑定弹窗，不再显示');
         return;
       }
@@ -1172,18 +1278,12 @@ class HomeController extends GetxController {
       }
 
       // 3. 检查本次会话是否已显示过VIP购买弹窗
-      final prefs = await SharedPreferences.getInstance();
-      final hasShownThisSession = prefs.getBool('vip_purchase_shown_this_session') ?? false;
-      
-      if (hasShownThisSession) {
+      if (_hasShownVipDialogThisSession) {
         debugPrint('💎 本次会话已显示过VIP购买弹窗，不再显示');
         return;
       }
 
-      debugPrint('💎 用户已绑定且非会员，准备显示VIP购买弹窗');
-
-      // 标记本次会话已显示
-      await prefs.setBool('vip_purchase_shown_this_session', true);
+      debugPrint('💎 用户已绑定且非会员，本次会话未显示过VIP购买弹窗，准备显示');
 
       // 延迟显示VIP购买弹窗，确保首页完全加载
       Future.delayed(const Duration(milliseconds: 800), () {
@@ -1205,6 +1305,9 @@ class HomeController extends GetxController {
       }
 
       debugPrint('💎 显示VIP购买弹窗');
+      
+      // 标记本次会话已显示
+      _hasShownVipDialogThisSession = true;
       
       DialogManager.showVipPurchase(
         context: currentContext,
@@ -1248,7 +1351,7 @@ class HomeController extends GetxController {
       } else {
         debugPrint('ℹ️ 引导图2已显示过，执行其他逻辑');
         // 引导图2已显示过，执行其他逻辑
-        _executeOtherLogic();
+        _executeOtherLogicAfterGuide2();
       }
     } catch (e) {
       debugPrint('❌ 检查引导图2状态失败: $e');
@@ -1285,7 +1388,7 @@ class HomeController extends GetxController {
       debugPrint('💑 显示绑定弹窗');
       
       // 标记本次会话已显示
-      hasShownBindingDialogThisSession = true;
+      _hasShownBindingDialogThisSession = true;
       
       // 使用CustomBottomDialog显示绑定弹窗
       CustomBottomDialog.show(
@@ -1307,58 +1410,36 @@ class HomeController extends GetxController {
     }
   }
 
-  /// 加载天气数据
-  Future<void> _loadWeatherData() async {
+  /// 更新天气数据（从首页接口数据中解析）
+  void _updateWeatherData(WeatherData weatherData) {
     try {
-      debugPrint('🌤️ 开始请求天气数据');
+      debugPrint('🌤️ 开始解析首页天气数据');
       
-      final result = await HttpManagerN.instance.executeGet(
-        ApiRequest.getWeather,
-        queryParam: {
-          'extensions': 'base,all',
-          'is_oneself': 2, // 2表示对象
-        },
-      );
-
-      if (result.isSuccess && result.dataJson != null) {
-        final weatherData = result.dataJson!['lives'];
-        if (weatherData != null) {
-          // 解析 base 数据
-          final baseList = weatherData['base'] as List?;
-          if (baseList != null && baseList.isNotEmpty) {
-            final base = baseList.first;
-            weatherIconUrl.value = base['weather_icon'] as String?;
-            weather.value = base['weather'] as String?;
-            currentTemp.value = base['temperature'] as String?;
-            debugPrint('🌤️ 解析 base 数据: icon=$weatherIconUrl, weather=$weather, temp=$currentTemp');
-          }
-
-          // 解析 all 数据中的 casts
-          final allList = weatherData['all'] as List?;
-          if (allList != null && allList.isNotEmpty) {
-            final all = allList.first;
-            final casts = all['casts'] as List?;
-            if (casts != null && casts.isNotEmpty) {
-              final firstCast = casts.first;
-              minTemp.value = firstCast['nighttemp'] as String?;
-              maxTemp.value = firstCast['daytemp'] as String?;
-              debugPrint('🌤️ 解析 all 数据: min=$minTemp, max=$maxTemp');
-            }
-          }
-
-          isWeatherLoading.value = false;
-          debugPrint('✅ 天气数据加载成功');
-        } else {
-          debugPrint('⚠️ 天气数据格式异常');
-          isWeatherLoading.value = true;
-        }
-      } else {
-        debugPrint('❌ 天气数据请求失败: ${result.msg}');
-        isWeatherLoading.value = true;
+      // 解析 base 数据
+      if (weatherData.base.isNotEmpty) {
+        final base = weatherData.base.first;
+        weatherIconUrl.value = base.weatherIcon.isNotEmpty ? base.weatherIcon : null;
+        weather.value = base.weather.isNotEmpty ? base.weather : null;
+        currentTemp.value = base.temperature.isNotEmpty ? base.temperature : null;
+        debugPrint('🌤️ 解析 base 数据: icon=${weatherIconUrl.value}, weather=${weather.value}, temp=${currentTemp.value}');
       }
+      
+      // 解析 all 数据
+      if (weatherData.all.isNotEmpty) {
+        final all = weatherData.all.first;
+        if (all.casts.isNotEmpty) {
+          final todayCast = all.casts.first;
+          minTemp.value = todayCast.nighttemp.isNotEmpty ? todayCast.nighttemp : null;
+          maxTemp.value = todayCast.daytemp.isNotEmpty ? todayCast.daytemp : null;
+          debugPrint('🌤️ 解析 all 数据: min=${minTemp.value}, max=${maxTemp.value}');
+        }
+      }
+      
+      isWeatherLoading.value = false;
+      debugPrint('✅ 天气数据解析成功');
     } catch (e) {
-      debugPrint('❌ 加载天气数据时发生错误: $e');
-      isWeatherLoading.value = true;
+      debugPrint('❌ 天气数据解析异常: $e');
+      isWeatherLoading.value = false;
     }
   }
   

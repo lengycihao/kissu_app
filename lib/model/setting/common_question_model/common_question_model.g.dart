@@ -8,10 +8,15 @@ part of 'common_question_model.dart';
 
 CommonQuestionModel _$CommonQuestionModelFromJson(Map<String, dynamic> json) =>
     CommonQuestionModel(
+      id: (json['id'] as num?)?.toInt(),
       problem: json['problem'] as String?,
       answer: json['answer'] as String?,
     );
 
 Map<String, dynamic> _$CommonQuestionModelToJson(
   CommonQuestionModel instance,
-) => <String, dynamic>{'problem': instance.problem, 'answer': instance.answer};
+) => <String, dynamic>{
+  'id': instance.id,
+  'problem': instance.problem,
+  'answer': instance.answer,
+};

@@ -72,6 +72,8 @@ class AMapController {
         .listen((MarkerDragEndEvent e) => _mapState.onMarkerDragEnd(e.value, e.position));
 
     _methodChannel.onPolylineTap(mapId: mapId).listen((PolylineTapEvent e) => _mapState.onPolylineTap(e.value));
+
+    _methodChannel.onInfoWindowClose(mapId: mapId).listen((InfoWindowCloseEvent e) => _mapState.onInfoWindowClose());
   }
 
   void disponse() {

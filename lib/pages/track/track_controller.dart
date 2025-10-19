@@ -9,7 +9,6 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
-import 'package:kissu_app/pages/track/component/custom_stay_point_info_window.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -17,6 +16,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -37,7 +37,7 @@ class InitialCoordinateInfo {
   });
 }
 
-class TrackController extends GetxController {
+class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
   final isOneself = 0.obs; // 默认选择另一半
   
@@ -46,6 +46,10 @@ class TrackController extends GetxController {
   
   /// 轨迹线状态管理 - 用于解决高德地图轨迹线更新问题
   final RxBool hasValidTrackData = false.obs;
+
+  /// 🔒 动画锁机制，防止地图变化时的滑动冲突
+  bool _isAnimating = false;
+  Timer? _animationTimer;
   
   /// 移除了自定义图标，直接使用彩色默认标记
   
@@ -54,12 +58,20 @@ class TrackController extends GetxController {
   final partnerAvatar = "".obs;
   final isBindPartner = false.obs;
   
+  /// 缓存两个用户的轨迹数据
+  final Rx<LocationResponse?> mySelfData = Rx<LocationResponse?>(null);
+  final Rx<LocationResponse?> partnerData = Rx<LocationResponse?>(null);
+  
   /// 播放控制器UI状态 - true显示完整播放器，false显示简单按钮
   final showFullPlayer = false.obs;
   /// 播放期间已行走的距离
   final replayDistance = "".obs;
   /// 播放时间
   final replayTime = "00:00:00".obs;
+  /// 播放进度 (0.0 ~ 1.0)
+  final replayProgress = 0.0.obs;
+  /// 当前速度
+  final currentSpeed = "".obs;
   
   /// 当前选择的日期
   final selectedDate = DateTime.now().obs;
@@ -67,11 +79,12 @@ class TrackController extends GetxController {
   /// 日期选择器的选中索引（0-6，对应最近7天）
   final selectedDateIndex = 6.obs; // 默认选择今天（最右边）
   
+  /// 地图类型 (1: 经典地图, 2: 卫星地图)
+  final mapType = 1.obs;
+  
   /// 位置数据
   final Rx<LocationResponse?> locationData = Rx<LocationResponse?>(null);
   
-  /// 停留点点击回调
-  Function(TrackStopPoint, LatLng)? onStayPointTapped;
   
   /// 初始坐标信息（从定位页面传递）
   final Rx<InitialCoordinateInfo?> initialCoordinateInfo = Rx<InitialCoordinateInfo?>(null);
@@ -95,6 +108,9 @@ class TrackController extends GetxController {
   
   /// 加载状态
   final isLoading = false.obs;
+  
+  /// 🎯 是否需要自动显示InfoWindow（从定位页面跳转时）
+  bool _shouldAutoShowInfoWindow = false;
 
   /// 地图控制器 - 延迟初始化
   AMapController? mapController;
@@ -324,8 +340,8 @@ class TrackController extends GetxController {
 
   /// 自动调整地图视图以显示所有轨迹点
   Future<void> _fitMapToTrackPoints() async {
-    if (mapController == null) {
-      DebugUtil.warning('地图控制器为空，无法调整视图');
+    if (!isMapReady.value || mapController == null) {
+      DebugUtil.warning('地图未就绪或控制器为空，无法调整视图');
       return;
     }
     
@@ -360,6 +376,12 @@ class TrackController extends GetxController {
     // 设置地图就绪状态
     setMapReady(true);
     
+    // 立即关闭所有可能自动显示的 InfoWindow（缩短延迟）
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _closeAllInfoWindows();
+      DebugUtil.info('🔒 地图初始化后关闭所有 InfoWindow');
+    });
+    
     // 检查是否有初始坐标需要高亮显示
     _handleInitialCoordinates();
   }
@@ -371,7 +393,7 @@ class TrackController extends GetxController {
       DebugUtil.info('处理初始坐标高亮显示: ${initialInfo.latitude}, ${initialInfo.longitude}');
       
       // 延迟执行，确保地图完全加载
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 500), () async {
         // 创建停留点对象
         final stopPoint = TrackStopPoint(
           lat: initialInfo.latitude,
@@ -383,8 +405,8 @@ class TrackController extends GetxController {
           serialNumber: "1",
         );
         
-        // 使用增强版方法：移动地图、绘制高亮圆圈、显示InfoWindow
-        moveToStopPointWithHighlight(
+        // 使用内部方法：移动地图、绘制高亮圆圈（无InfoWindow）
+        await _moveToStopPointWithHighlightInternal(
           initialInfo.latitude,
           initialInfo.longitude,
           stopPoint: stopPoint,
@@ -399,84 +421,92 @@ class TrackController extends GetxController {
 
   /// 移动地图到指定位置
   void _moveMapToLocation(LatLng location) {
-    mapController?.moveCamera(CameraUpdate.newLatLng(location));
+    // 检查地图是否就绪
+    if (!isMapReady.value || mapController == null) {
+      DebugUtil.warning('地图未就绪或控制器为空，跳过移动地图');
+      return;
+    }
+    
+    try {
+      mapController?.moveCamera(CameraUpdate.newLatLng(location));
+    } catch (e) {
+      DebugUtil.error('移动地图失败: $e');
+    }
   }
   
   /// 移动地图到停留点（公共方法，用于列表点击）
   void moveToStopPoint(double latitude, double longitude) {
+    // 检查地图是否就绪
+    if (!isMapReady.value || mapController == null) {
+      DebugUtil.warning('地图未就绪或控制器为空，无法移动到停留点');
+      return;
+    }
+    
     final targetLocation = LatLng(latitude, longitude);
     
-    // 移动地图并调整缩放级别以更好地显示该点
-    mapController?.moveCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: targetLocation,
-          zoom: 17.0, // 使用较高的缩放级别以便更清楚地看到该位置
+    try {
+      // 移动地图并调整缩放级别以更好地显示该点
+      mapController?.moveCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: targetLocation,
+            zoom: 17.0, // 使用较高的缩放级别以便更清楚地看到该位置
+          ),
         ),
-      ),
-    );
-    
-    DebugUtil.info('地图移动到停留点: $latitude, $longitude');
+      );
+      
+      DebugUtil.info('地图移动到停留点: $latitude, $longitude');
+    } catch (e) {
+      DebugUtil.error('移动地图到停留点失败: $e');
+    }
   }
 
   /// 清除所有高亮圆圈
   void clearAllHighlightCircles() {
-    highlightCircles.clear();
-    DebugUtil.info('清除所有高亮圆圈');
+    if (highlightCircles.isNotEmpty) {
+      DebugUtil.info('🧹 [HighlightCircles] 清除 ${highlightCircles.length} 个高亮圆圈');
+      highlightCircles.clear();
+      highlightCircles.refresh();
+      circlesVersion.value++;
+      DebugUtil.success('✅ [HighlightCircles] 所有高亮圆圈已清除');
+    } else {
+      DebugUtil.info('📋 [HighlightCircles] 没有高亮圆圈需要清除');
+    }
   }
 
-  /// 绘制高亮圆圈（使用Polygon实现）
+  /// 绘制高亮圆圈（使用Circle实现）
   void drawHighlightCircle(LatLng center) {
+    DebugUtil.info('🎯 开始绘制高亮圆圈: ${center.latitude}, ${center.longitude}');
+    
     // 先清除之前的高亮圆圈
     clearAllHighlightCircles();
     
-    // 创建圆形Polygon，参考iOS实现：半径100米，白色边框，粉色填充
-    final circlePoints = generateCirclePoints(center, 100.0); // 100米半径（翻倍）
-    
-    final circle = Polygon(
-      points: circlePoints,
-      strokeColor: const Color(0xFFFFFFFF), // 白色边框
-      strokeWidth: 3.0,
-      fillColor: const Color(0xFFFFE3EB).withOpacity(0.38), // 背景色 #FFE3EB，不透明度38%
-    );
-    
-    highlightCircles.add(circle);
-    DebugUtil.info('绘制高亮圆圈: ${center.latitude}, ${center.longitude}');
+    try {
+      final circle = Circle(
+        center: center,
+        radius: 100.0, // 100米半径
+        strokeWidth: 3,
+        strokeColor: const Color(0xFFFFFFFF), // 白色边框
+        fillColor: const Color(0xFFFFE3EB).withOpacity(0.38), // 背景色 #FFE3EB，不透明度38%
+        visible: true,
+      );
+      
+      highlightCircles.add(circle);
+      highlightCircles.refresh();
+      circlesVersion.value++;
+      DebugUtil.success('✅ 高亮圆圈已添加，总数: ${highlightCircles.length}');
+      
+      // 🎯 强制触发地图更新，确保圆圈立即显示
+      Future.microtask(() {
+        DebugUtil.info('🔄 强制刷新地图以显示新圆圈');
+        update();
+      });
+      
+    } catch (e) {
+      DebugUtil.error('❌ 绘制高亮圆圈失败: $e');
+    }
   }
 
-  /// 生成精确圆形的多边形顶点（使用球面几何学）
-  List<LatLng> generateCirclePoints(LatLng center, double radius, {int sides = 180}) {
-    final points = <LatLng>[];
-    // 地球半径（米）
-    const double earthRadius = 6378137.0;
-    
-    // 将角度转换为弧度
-    final double centerLatRad = center.latitude * pi / 180.0;
-    final double centerLngRad = center.longitude * pi / 180.0;
-    
-    // 计算角度增量
-    final double angleIncrement = 2 * pi / sides;
-    for (int i = 0; i < sides; i++) {
-      final double angle = angleIncrement * i;
-      // 计算圆上点的经纬度（弧度）
-      final double latRad = asin(
-        sin(centerLatRad) * cos(radius / earthRadius) +
-        cos(centerLatRad) * sin(radius / earthRadius) * cos(angle)
-      );
-      
-      final double lngRad = centerLngRad + atan2(
-        sin(angle) * sin(radius / earthRadius) * cos(centerLatRad),
-        cos(radius / earthRadius) - sin(centerLatRad) * sin(latRad)
-      );
-      
-      // 转换为度并添加到点列表
-      points.add(LatLng(
-        latRad * 180.0 / pi,
-        lngRad * 180.0 / pi
-      ));
-    }
-    return points;
-  }
 
   /// 设置底部面板控制器
   void setDraggableController(DraggableScrollableController controller) {
@@ -491,6 +521,7 @@ class TrackController extends GetxController {
     String? duration,
     String? startTime,
     String? endTime,
+    bool autoShowInfoWindow = false, // 🎯 新增：是否自动显示InfoWindow
   }) {
     initialCoordinateInfo.value = InitialCoordinateInfo(
       latitude: latitude,
@@ -500,45 +531,358 @@ class TrackController extends GetxController {
       startTime: startTime,
       endTime: endTime,
     );
-    DebugUtil.info('设置初始坐标: $latitude, $longitude, 位置: $locationName');
+    DebugUtil.info('设置初始坐标: $latitude, $longitude, 位置: $locationName, 自动显示InfoWindow: $autoShowInfoWindow');
+    
+    // 🎯 如果需要自动显示InfoWindow，设置标记
+    if (autoShowInfoWindow) {
+      _shouldAutoShowInfoWindow = true;
+    }
   }
   
   /// 收起底部面板到最小高度
   void collapseBottomSheet() {
     if (_draggableController != null) {
+      // 计算最小高度比例，避免与中间吸顶位置重合
+      const minHeight = 190.0;
+      final screenHeight = Get.context != null ? MediaQuery.of(Get.context!).size.height : 800.0;
+      final minHeightRatio = minHeight / screenHeight;
+      
       _draggableController!.animateTo(
-        0.4, // 最小高度比例
+        minHeightRatio, // 使用计算出的最小高度比例，确保不会卡在中间吸顶位置
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }
   }
 
-  /// 移动地图到停留点并高亮显示（增强版方法）
-  void moveToStopPointWithHighlight(double latitude, double longitude, {TrackStopPoint? stopPoint}) {
+  /// 智能展开底部面板到中间位置（用于点击停留点时）
+  void expandToMiddlePosition() {
+    if (_draggableController != null) {
+      final screenHeight = Get.context != null ? MediaQuery.of(Get.context!).size.height : 800.0;
+      final actualBindStatus = getActualBindStatus();
+      final middleSnapSize = actualBindStatus
+          ? 0.5 + (21 / screenHeight) // 已绑定：屏幕中间
+          : 0.5 + (57 / screenHeight); // 未绑定：稍微往上偏移
+      
+      _draggableController!.animateTo(
+        middleSnapSize,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// 展开底部面板到底部吸顶位置（用于点击停留点时）
+  void expandToBottomPosition() {
+    if (_draggableController != null) {
+      const minHeight = 190.0;
+      final screenHeight = Get.context != null ? MediaQuery.of(Get.context!).size.height : 800.0;
+      final bottomSnapSize = minHeight / screenHeight;
+      
+      _draggableController!.animateTo(
+        bottomSnapSize,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// 移动地图到停留点并高亮显示（增强版方法，供外部调用）
+  Future<void> moveToStopPointWithHighlight(BuildContext context, double latitude, double longitude, {TrackStopPoint? stopPoint}) async {
+    await _moveToStopPointWithHighlightInternal(latitude, longitude, stopPoint: stopPoint, context: context);
+  }
+  
+  /// 移动地图到停留点并高亮显示（内部方法）
+  Future<void> _moveToStopPointWithHighlightInternal(double latitude, double longitude, {TrackStopPoint? stopPoint, BuildContext? context}) async {
     final targetLocation = LatLng(latitude, longitude);
     
-    // 0. 启动地图移动保护机制
-    CustomStayPointInfoWindowManager.startMapMoving();
+    DebugUtil.info('🎯 开始移动到停留点: ($latitude, $longitude)');
+    DebugUtil.info('🎯 stopPoint传入的坐标: (${stopPoint?.lat}, ${stopPoint?.lng})');
+    DebugUtil.info('🎯 停留点数据: ${stopPoint?.locationName ?? "无"}');
+    
+    // 🔒 设置动画锁，防止用户在地图变化时滑动面板造成冲突
+    setAnimationLock(true);
+    
+    // 🔍 查找对应的Marker坐标
+    final matchingMarker = stayMarkers.firstWhereOrNull((marker) {
+      final distance = _calculateDistanceBetweenPointsStatic(
+        marker.position, 
+        LatLng(stopPoint?.lat ?? latitude, stopPoint?.lng ?? longitude)
+      );
+      return distance < 10; // 10米范围内
+    });
+    
+    if (matchingMarker != null) {
+      DebugUtil.info('🎯 找到匹配的Marker坐标: (${matchingMarker.position.latitude}, ${matchingMarker.position.longitude})');
+      DebugUtil.info('🎯 传入参数坐标: ($latitude, $longitude)');
+      
+      // 计算坐标差异
+      final distance = _calculateDistanceBetweenPointsStatic(matchingMarker.position, targetLocation);
+      DebugUtil.warning('⚠️ 坐标差异: ${distance.toStringAsFixed(2)}米');
+      
+      if (distance > 5) {
+        DebugUtil.error('❌ 围栏圆圈将使用不同的坐标！Marker在(${matchingMarker.position.latitude}, ${matchingMarker.position.longitude})，围栏在($latitude, $longitude)');
+      }
+    }
+    
+    DebugUtil.info('🎯 地图控制器状态: ${mapController != null ? "已就绪" : "未就绪"}');
+    DebugUtil.info('🎯 地图就绪状态: ${isMapReady.value}');
+    
+    // 0. 关闭所有 InfoWindow（通过强制更新 Markers 列表）
+    _closeAllInfoWindows();
     
     // 1. 移动地图到停留点
     moveToStopPoint(latitude, longitude);
     
-    // 2. 绘制高亮圆圈
-    drawHighlightCircle(targetLocation);
-    
-    // 3. 收起底部面板，避免遮挡地图
+    // 2. 先收起底部面板到最小高度，让用户看到地图变化
     collapseBottomSheet();
     
-    // 4. 显示InfoWindow（如果有停留点回调和stopPoint数据）
-    if (onStayPointTapped != null && stopPoint != null) {
-      onStayPointTapped!(stopPoint, targetLocation);
+    // 3. 延迟后展开到底部位置，给用户更好的视觉体验
+    Future.delayed(const Duration(milliseconds: 600), () {
+      // 检查动画锁状态，如果用户正在滑动则不执行自动展开
+      if (_isAnimating) {
+        expandToBottomPosition();
+      } else {
+        DebugUtil.info('🔒 用户正在操作面板，跳过自动展开');
+      }
+    });
+    
+    // 4. 🎯 显示对应停留点的 InfoWindow（如果有stopPoint数据）
+    if (stopPoint != null) {
+      // 延迟一小段时间，确保地图移动完成
+      // 同时确保 _closeAllInfoWindows() 的影响已经稳定
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        await _showInfoWindowForStopPoint(stopPoint);
+        
+        // 5. ✨ InfoWindow创建完成后再绘制高亮圆圈
+        Future.delayed(const Duration(milliseconds: 200), () {
+          DebugUtil.info('🎯 InfoWindow创建完成，现在绘制高亮圆圈');
+          drawHighlightCircle(targetLocation);
+        });
+      });
+    } else {
+      // 如果没有stopPoint数据，直接绘制圆圈
+      Future.delayed(const Duration(milliseconds: 300), () {
+        drawHighlightCircle(targetLocation);
+      });
     }
     
-    // 5. 延迟结束保护机制（等待所有动画完成）
+    // 🔓 1.5秒后释放动画锁
     Future.delayed(const Duration(milliseconds: 1500), () {
-      CustomStayPointInfoWindowManager.stopMapMoving();
+      setAnimationLock(false);
+      DebugUtil.success('✅ 移动到停留点并高亮显示完成，动画锁已释放');
     });
+  }
+
+  /// 🔒 设置动画锁状态
+  void setAnimationLock(bool isLocked) {
+    _isAnimating = isLocked;
+    
+    // 清除之前的定时器
+    _animationTimer?.cancel();
+    
+    if (isLocked) {
+      DebugUtil.info('🔒 设置动画锁，防止滑动冲突');
+      // 设置最大锁定时间为3秒，防止意外情况下锁定过久
+      _animationTimer = Timer(const Duration(seconds: 3), () {
+        _isAnimating = false;
+        DebugUtil.warning('⏰ 动画锁超时自动释放');
+      });
+    } else {
+      DebugUtil.info('🔓 释放动画锁');
+    }
+  }
+  
+  /// 关闭所有 InfoWindow
+  void _closeAllInfoWindows() {
+    // 通过触发 Markers 列表更新来关闭所有 InfoWindow
+    // 这是因为高德地图没有直接的 API 来关闭 InfoWindow
+    // 所以我们创建一个新的列表引用，触发 Obx 更新
+    stayMarkers.refresh();
+    trackStartEndMarkers.refresh();
+    DebugUtil.info('🔒 已关闭所有 InfoWindow');
+  }
+  
+  /// 🎯 检查是否需要自动显示InfoWindow（从定位页面跳转时）
+  void _checkAutoShowInfoWindow() {
+    if (!_shouldAutoShowInfoWindow) return;
+    
+    final initialInfo = initialCoordinateInfo.value;
+    if (initialInfo == null) return;
+    
+    DebugUtil.info('🎯 检查自动显示InfoWindow: 初始坐标(${initialInfo.latitude}, ${initialInfo.longitude})');
+    
+    // 延迟执行，确保地图和标记都已加载完成
+    Future.delayed(const Duration(milliseconds: 1000), () async {
+      // 查找匹配的停留点
+      final matchingStopPoint = stopPoints.firstWhereOrNull((stop) {
+        final distance = _calculateDistance(
+          LatLng(initialInfo.latitude, initialInfo.longitude),
+          LatLng(stop.lat, stop.lng),
+        );
+        return distance < 100; // 100米内认为是同一个停留点
+      });
+      
+      if (matchingStopPoint != null) {
+        DebugUtil.success('✅ 找到匹配的停留点，自动显示InfoWindow: ${matchingStopPoint.locationName}');
+        await _showInfoWindowForStopPoint(matchingStopPoint);
+        
+        // 重置标记，避免重复显示
+        _shouldAutoShowInfoWindow = false;
+        } else {
+        DebugUtil.warning('⚠️ 未找到匹配的停留点，无法自动显示InfoWindow');
+      }
+    });
+  }
+  
+  /// 显示指定停留点的 InfoWindow
+  Future<void> _showInfoWindowForStopPoint(TrackStopPoint stopPoint) async {
+    try {
+      DebugUtil.info('🎯 直接在坐标位置创建 InfoWindow: ${stopPoint.locationName}');
+      DebugUtil.info('🎯 目标坐标: (${stopPoint.lat}, ${stopPoint.lng})');
+      
+      // 在指定位置创建临时 Marker 并显示 InfoWindow
+      final stopInfo = _parseStopInfo(stopPoint);
+      final String infoTitle = stopInfo['locationName']!;
+      final String infoSnippet = '${stopPoint.startTime ?? ''} ${stopPoint.duration?.isNotEmpty == true ? '停留${stopPoint.duration}' : ''}';
+      
+      // 先清除之前的临时 InfoWindow Marker（如果有）
+      _clearTempInfoWindowMarker();
+      
+      // 创建临时 Marker，设置自动显示 InfoWindow 并支持拖拽
+      final tempMarker = Marker(
+        position: LatLng(stopPoint.lat, stopPoint.lng),
+        alpha: 0.0, // 🎯 完全透明，不显示系统marker
+        anchor: const Offset(0.5, 0.5), // 🎯 设置锚点为中心，使InfoWindow相对坐标点居中
+        infoWindowEnable: true,
+        autoShowCustomInfoWindow: true, // 🎯 关键：自动显示 InfoWindow
+        draggable: true, // 🎯 启用拖拽功能
+        isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+        stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
+        stayTime: stopInfo['stayTime'], // 🎯 停留时间
+        infoWindow: InfoWindow(
+          title: infoTitle,
+          snippet: infoSnippet,
+        ),
+        customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+          stopInfo['locationName']!,
+          stopInfo['stayDuration']!,
+          stopInfo['stayTime']!,
+        ),
+        onDragEnd: (String markerId, LatLng newPosition) {
+          // 🎯 拖拽结束时清除现有圆圈并重新创建
+          DebugUtil.info('🎯 InfoWindow Marker 拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+          drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
+        },
+        onTap: (String markerId) {
+          DebugUtil.info('🎯 点击临时 InfoWindow 标记');
+        },
+      );
+      
+      // 保存临时标记的引用
+      _tempInfoWindowMarker = tempMarker;
+      
+      // 调用地图刷新方法，确保临时标记立即显示
+      await refreshCurrentUserData();
+      
+      DebugUtil.success('✅ 临时 InfoWindow 已创建并刷新地图');
+      
+    } catch (e) {
+      DebugUtil.error('❌ 显示停留点 InfoWindow 失败: $e');
+    }
+  }
+
+  /// 清除临时 InfoWindow Marker
+  void _clearTempInfoWindowMarker() {
+    if (_tempInfoWindowMarker != null) {
+      DebugUtil.info('🧹 清除之前的临时 InfoWindow Marker');
+      _tempInfoWindowMarker = null;
+      
+      // 清除后触发地图更新
+      _forceMapUpdate();
+      
+      DebugUtil.info('✅ 临时标记已清除');
+    }
+  }
+
+  /// 🎯 解析停留点信息，提取位置名称、停留时长和停留时间
+  /// [stop] 停留点数据
+  /// 返回 Map，包含 locationName、stayDuration、stayTime
+  Map<String, String> _parseStopInfo(TrackStopPoint stop) {
+    final locationName = stop.locationName ?? '未知位置';
+    final stayDuration = stop.duration ?? '';
+    
+    // 解析停留时间段
+    String stayTime = '';
+    if (stop.startTime?.isNotEmpty == true) {
+      if (stop.endTime?.isNotEmpty == true && stop.endTime != stop.startTime) {
+        // 有开始和结束时间
+        stayTime = '${stop.startTime}~${stop.endTime}';
+      } else {
+        // 只有开始时间
+        stayTime = stop.startTime!;
+      }
+    }
+    
+    return {
+      'locationName': locationName,
+      'stayDuration': stayDuration,
+      'stayTime': stayTime,
+    };
+  }
+
+
+
+  /// 🎯 构建轨迹样式的InfoWindow（占位符方法，实际使用Android原生实现）
+  /// 这个方法不会被实际调用，因为我们使用了Android原生的InfoWindow实现
+  /// 但为了避免编译错误，需要保留这个方法定义
+  Widget _buildTrackInfoWindow(String locationName, String stayDuration, String stayTime) {
+    return Container(
+      width: 280,
+      height: 120,
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            locationName,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF333333),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            stayDuration,
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            stayTime,
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF999999),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 轨迹点（从API数据获取）
@@ -553,20 +897,37 @@ class TrackController extends GetxController {
   /// 轨迹起点和终点 marker 列表
   final RxList<Marker> trackStartEndMarkers = <Marker>[].obs;
 
-  /// 高亮圆圈覆盖物列表（使用Polygon实现）
-  final RxList<Polygon> highlightCircles = <Polygon>[].obs;
+  /// 播放头像标记
+  final Rx<Marker?> replayAvatarMarker = Rx<Marker?>(null);
+
+  /// 临时 InfoWindow 标记（用于显示停留点详情）
+  Marker? _tempInfoWindowMarker;
+  
+  /// 获取临时 InfoWindow 标记
+  Marker? get tempInfoWindowMarker => _tempInfoWindowMarker;
+
+  /// 高亮圆圈覆盖物列表（使用Circle实现）
+  final RxSet<Circle> highlightCircles = <Circle>{}.obs;
+  /// 高亮圆圈版本号（用于触发UI更新，即使数量未变化）
+  final RxInt circlesVersion = 0.obs;
 
   /// 轨迹回放状态
   final currentReplayIndex = 0.obs;
   final isReplaying = false.obs; // 改为响应式变量
   final replaySpeed = 1.0.obs; // 播放速度倍数
-  Timer? _replayTimer;
-
+  
+  /// 动画控制器 - 替代Timer的更好方案
+  AnimationController? _replayAnimationController;
+  Animation<double>? _replayAnimation;
+  
   /// 平滑动画相关
   final currentPosition = Rx<LatLng?>(null);
   final animationProgress = 0.0.obs;
-  static const int animationSteps = 20; // 每两个点之间的插值步数
-  int _currentStep = 0;
+  
+  /// 播放相关参数
+  static const Duration _minReplayDuration = Duration(seconds: 3); // 最短播放时长
+  static const Duration _maxReplayDuration = Duration(seconds: 15); // 最长播放时长
+  static const double _baseSpeedKmh = 30.0; // 基础播放速度 30km/h
   
   /// 播放时间跟踪
   DateTime? _replayStartTime;
@@ -591,59 +952,9 @@ class TrackController extends GetxController {
     });
   }
   
-  /// 完全非阻塞的数据加载方法（用于头像切换）
-  void _performLoadLocationDataDirectNonBlocking() {
-    // 不等待任何异步操作，完全非阻塞
-    Future(() async {
-      try {
-        // 增加数据版本号，确保数据一致性
-        final currentVersion = ++_dataVersion;
-        
-        final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-        final isOneSelfValue = isOneself.value == 1;
-        
-        DebugUtil.info('非阻塞智能请求数据: $dateString, isOneself=$isOneSelfValue');
-        
-        final result = await TrackApi.getTrack(
-          date: dateString,
-          isOneself: isOneSelfValue ? 1 : 0,
-          useCache: true, // 启用缓存
-        );
-        
-        if (result.isSuccess && result.data != null) {
-          // 检查数据版本是否还有效
-          if (currentVersion != _dataVersion) {
-            DebugUtil.warning('数据版本已过期，放弃数据处理');
-            return;
-          }
-          
-          // 更新数据
-          locationData.value = result.data;
-          
-          // 从API数据中更新头像信息
-          _updateAvatarsFromApiData(result.data!);
-          
-          DebugUtil.success('非阻塞获取到最新数据');
-          
-          // 使用完全非阻塞的渐进式数据更新
-          _progressiveDataUpdateNonBlocking();
-          
-        } else {
-          CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
-          _clearData();
-        }
-      } catch (e, stackTrace) {
-        DebugUtil.error('非阻塞数据加载异常: $e');
-        DebugUtil.error('异常堆栈: $stackTrace');
-        CustomToast.show(Get.context!, '加载数据失败，请稍后重试');
-        _clearData();
-      } finally {
-        isLoading.value = false;
-      }
-    });
-  }
+  /// 已废弃：现在使用 _switchToCurrentUserData() 从缓存切换数据
   
-  /// 直接执行数据加载 - 跳过防抖，用于头像切换
+  /// 直接执行数据加载 - 跳过防抖，并发请求两个用户数据
   Future<void> _performLoadLocationDataDirect() async {
     // 只有今天的数据才显示loading动画
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -662,43 +973,66 @@ class TrackController extends GetxController {
     _clearDataInstantly();
     
     final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    final isOneSelfValue = isOneself.value == 1;
     
     try {
-      // 📡 智能获取数据：自动使用缓存（历史数据）或API（今日数据）
-      DebugUtil.info('智能请求数据: $dateString, isOneself=$isOneSelfValue');
+      DebugUtil.info('🚀 并发请求两个用户的轨迹数据: $dateString');
       
-      final result = await TrackApi.getTrack(
-        date: dateString,
-        isOneself: isOneSelfValue ? 1 : 0,
-        useCache: true, // 启用缓存
-      );
+      // 🚀 并发请求两个用户的数据
+      final results = await Future.wait([
+        TrackApi.getTrack(date: dateString, isOneself: 1, useCache: true), // 自己
+        TrackApi.getTrack(date: dateString, isOneself: 0, useCache: true), // 另一半
+      ]);
       
-      if (result.isSuccess && result.data != null) {
-        // 检查数据版本是否还有效
-        if (currentVersion != _dataVersion) {
-          DebugUtil.warning('数据版本已过期，放弃数据处理');
-          return;
-        }
-        
-        // 已移除虚拟数据标记，所有情况都使用真实API数据
-        locationData.value = result.data;
-        
-        // 从API数据中更新头像信息
-        _updateAvatarsFromApiData(result.data!);
-        
-        DebugUtil.success('获取到最新数据');
-        
-        // 使用渐进式数据更新，避免长时间阻塞UI
-        await _progressiveDataUpdate();
-        
-      } else {
-        CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
-        _clearData();
+      // 检查数据版本是否还有效
+      if (currentVersion != _dataVersion) {
+        DebugUtil.warning('数据版本已过期，放弃数据处理');
+        return;
       }
+      
+      final myselfResult = results[0];
+      final partnerResult = results[1];
+      
+      // 缓存两个用户的数据
+      if (myselfResult.isSuccess && myselfResult.data != null) {
+        mySelfData.value = myselfResult.data;
+        DebugUtil.success('✅ 自己的轨迹数据加载成功');
+      } else {
+        mySelfData.value = null;
+        DebugUtil.warning('⚠️ 自己的轨迹数据加载失败: ${myselfResult.msg}');
+      }
+      
+      if (partnerResult.isSuccess && partnerResult.data != null) {
+        partnerData.value = partnerResult.data;
+        DebugUtil.success('✅ 另一半的轨迹数据加载成功');
+      } else {
+        partnerData.value = null;
+        DebugUtil.warning('⚠️ 另一半的轨迹数据加载失败: ${partnerResult.msg}');
+      }
+      
+      // 根据当前选择显示对应的数据
+      final currentData = isOneself.value == 1 ? mySelfData.value : partnerData.value;
+      
+      if (currentData == null) {
+        DebugUtil.warning('⚠️ 当前用户数据为空');
+        CustomToast.show(Get.context!, '获取数据失败');
+        _clearData();
+        return;
+      }
+      
+      // 更新当前显示的数据
+      locationData.value = currentData;
+      
+      // 从API数据中更新头像信息
+      _updateAvatarsFromApiData(currentData);
+      
+      DebugUtil.success('获取到最新数据');
+      
+      // 使用渐进式数据更新，避免长时间阻塞UI
+      await _progressiveDataUpdate();
+      
     } catch (e, stackTrace) {
       DebugUtil.error('Track Controller loadLocationData error: $e');
-      DebugUtil.error('请求参数: date=$dateString, isOneself=$isOneSelfValue');
+      DebugUtil.error('请求参数: date=$dateString');
       DebugUtil.error('Stack trace: $stackTrace');
       
       String errorMessage;
@@ -725,6 +1059,7 @@ class TrackController extends GetxController {
   }
 
   /// 实际执行数据加载 - 支持缓存的智能加载（带防抖）
+  /// 并发请求两个用户的数据，避免切换时重新请求
   Future<void> _performLoadLocationData() async {
     // 只有今天的数据才显示loading动画
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -732,7 +1067,7 @@ class TrackController extends GetxController {
     final isToday = selectedDateString == today;
     
     if (isToday) {
-    isLoading.value = true;
+      isLoading.value = true;
     }
     _resetReplayState();
     
@@ -742,54 +1077,49 @@ class TrackController extends GetxController {
     // 立即清空旧数据，给用户即时反馈
     _clearDataInstantly();
     
-    // 不再基于绑定状态使用虚拟数据，所有情况都从真实接口获取数据
-    // 这样用户无论绑定与否都能看到真实的轨迹数据
-    
     final dateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    final isOneSelfValue = isOneself.value == 1;
     
     try {
-      // 📡 智能获取数据：自动使用缓存（历史数据）或API（今日数据）
-      DebugUtil.info('智能请求数据: $dateString, isOneself=$isOneSelfValue');
+      DebugUtil.info('🚀 并发请求两个用户的轨迹数据: $dateString');
       
-      final result = await TrackApi.getTrack(
-        date: dateString,
-        isOneself: isOneSelfValue ? 1 : 0,
-        useCache: true, // 启用缓存
-      );
+      // 🚀 并发请求两个用户的数据
+      final results = await Future.wait([
+        TrackApi.getTrack(date: dateString, isOneself: 1, useCache: true), // 自己
+        TrackApi.getTrack(date: dateString, isOneself: 0, useCache: true), // 另一半
+      ]);
       
-      if (result.isSuccess && result.data != null) {
-        // 检查数据版本是否还有效
-        if (currentVersion != _dataVersion) {
-          DebugUtil.warning('数据版本已过期，放弃数据处理');
-          return;
-        }
-        
-        
-        // 已移除虚拟数据标记，所有情况都使用真实API数据
-        locationData.value = result.data;
-        
-        // 从API数据中更新头像信息
-        _updateAvatarsFromApiData(result.data!);
-        
-        DebugUtil.success('获取到最新数据');
-        
-        // 异步并行处理数据，避免阻塞UI
-        await Future.wait([
-          _updateStopRecords(),
-          _updateTrackDataAsync(),
-        ]);
-        
-        // 统计数据可以同步更新，因为很快
-        _updateStatistics();
-        
-      } else {
-        CustomToast.show(Get.context!, result.msg ?? '获取数据失败');
-        _clearData();
+      // 检查数据版本是否还有效
+      if (currentVersion != _dataVersion) {
+        DebugUtil.warning('数据版本已过期，放弃数据处理');
+        return;
       }
+      
+      final myselfResult = results[0];
+      final partnerResult = results[1];
+      
+      // 缓存两个用户的数据
+      if (myselfResult.isSuccess && myselfResult.data != null) {
+        mySelfData.value = myselfResult.data;
+        DebugUtil.success('✅ 自己的轨迹数据加载成功');
+      } else {
+        mySelfData.value = null;
+        DebugUtil.warning('⚠️ 自己的轨迹数据加载失败: ${myselfResult.msg}');
+      }
+      
+      if (partnerResult.isSuccess && partnerResult.data != null) {
+        partnerData.value = partnerResult.data;
+        DebugUtil.success('✅ 另一半的轨迹数据加载成功');
+      } else {
+        partnerData.value = null;
+        DebugUtil.warning('⚠️ 另一半的轨迹数据加载失败: ${partnerResult.msg}');
+      }
+      
+      // 根据当前选择显示对应的数据
+      _switchToCurrentUserData();
+      
     } catch (e, stackTrace) {
       DebugUtil.error('Track Controller loadLocationData error: $e');
-      DebugUtil.error('请求参数: date=$dateString, isOneself=$isOneSelfValue');
+      DebugUtil.error('请求参数: date=$dateString');
       DebugUtil.error('Stack trace: $stackTrace');
       
       String errorMessage;
@@ -815,20 +1145,86 @@ class TrackController extends GetxController {
     }
   }
   
+  /// 切换到当前用户的数据（从缓存中）
+  void _switchToCurrentUserData() {
+    final currentData = isOneself.value == 1 ? mySelfData.value : partnerData.value;
+    
+    if (currentData == null) {
+      DebugUtil.warning('⚠️ 当前用户数据为空');
+      _clearData();
+      return;
+    }
+    
+    // 更新当前显示的数据
+    locationData.value = currentData;
+    
+    // 从API数据中更新头像信息
+    _updateAvatarsFromApiData(currentData);
+    
+    DebugUtil.success('✅ 切换到 ${isOneself.value == 1 ? "自己" : "另一半"} 的数据');
+    
+    // ⚠️ 注意顺序：先更新轨迹数据（调整stopPoints），再更新停留记录（使用调整后的stopPoints）
+    _updateTrackDataAsync().then((_) {
+      DebugUtil.success('🔄 轨迹数据更新完成，开始更新停留记录...');
+      // 轨迹数据更新完成后，再更新停留记录
+      return _updateStopRecords();
+    }).then((_) {
+      DebugUtil.success('🔄 停留记录更新完成，开始更新统计数据...');
+      // 统计数据可以同步更新，因为很快
+      _updateStatistics();
+      DebugUtil.success('✅ 所有数据更新完成！');
+    }).catchError((e, stackTrace) {
+      DebugUtil.error('❌ 数据更新失败: $e');
+      DebugUtil.error('Stack trace: $stackTrace');
+      // 即使出错也尝试更新统计数据
+      _updateStatistics();
+    });
+  }
+  
+  /// 获取实际的绑定状态（不受当前查看用户影响）
+  bool getActualBindStatus() {
+    // 优先使用自己的数据来判断绑定状态
+    if (mySelfData.value?.user?.isBind != null) {
+      return mySelfData.value!.user!.isBind == 1;
+    }
+    
+    // 如果自己的数据不可用，使用另一半的数据
+    if (partnerData.value?.user?.isBind != null) {
+      return partnerData.value!.user!.isBind == 1;
+    }
+    
+    // 最后使用当前的isBindPartner状态
+    return isBindPartner.value;
+  }
+
   /// 重置播放状态
   void _resetReplayState() {
     // 停止当前播放
-    _replayTimer?.cancel();
+    _replayAnimationController?.stop();
+    _replayAnimationController?.reset();
     isReplaying.value = false;
     currentReplayIndex.value = 0;
-    _currentStep = 0;
     replaySpeed.value = 1.0;
     currentPosition.value = null;
     animationProgress.value = 0.0;
+    
+    // 🎭 清除播放头像标记
+    if (replayAvatarMarker.value != null) {
+      DebugUtil.info('🧹 清除播放头像标记');
+      replayAvatarMarker.value = null;
+    }
   }
   
   /// 立即清空数据，给用户即时反馈 - 非阻塞版本
   void _clearDataInstantly() {
+    DebugUtil.info('🧹 [ClearInstantly] 开始立即清空数据（日期切换）...');
+    
+    // 🎯 保存当前的高亮圆圈，避免在数据刷新时被清除
+    final savedHighlightCircles = Set<Circle>.from(highlightCircles);
+    
+    // ⚠️ 必须先设置无效状态，防止在清空过程中触发Polyline创建
+    hasValidTrackData.value = false;
+    
     // 清空轨迹相关数据
     trackPoints.clear();
     stopPoints.clear();
@@ -836,22 +1232,34 @@ class TrackController extends GetxController {
     trackStartEndMarkers.clear();
     stopRecords.clear();
     
-    // 重置轨迹线状态
-    hasValidTrackData.value = false;
-    
     // 重置统计数据为加载状态
     stayCount.value = 0;
     stayDuration.value = "加载中...";
     moveDistance.value = "加载中...";
     
+    // 🎯 恢复高亮圆圈
+    if (savedHighlightCircles.isNotEmpty) {
+      highlightCircles.assignAll(savedHighlightCircles);
+      DebugUtil.info('🎯 [ClearInstantly] 已保持高亮圆圈: ${savedHighlightCircles.length}个');
+      circlesVersion.value++;
+    }
+    
     // 异步触发地图更新，避免阻塞UI
     Future.microtask(() => _forceMapUpdate());
     
-    DebugUtil.info('已立即清空旧数据，显示加载状态');
+    DebugUtil.success('✅ [ClearInstantly] 数据已清空，显示加载状态');
   }
   
   /// 智能清空数据 - 头像切换专用，提供更好的用户反馈
   void _clearDataForAvatarSwitch() {
+    DebugUtil.info('🧹 [ClearAvatar] 开始清空数据（头像切换）...');
+    
+    // 🎯 保存当前的高亮圆圈，避免在头像切换时被清除
+    final savedHighlightCircles = Set<Circle>.from(highlightCircles);
+    
+    // ⚠️ 必须先设置无效状态，防止在清空过程中触发Polyline创建
+    hasValidTrackData.value = false;
+    
     // 立即清空可视数据
     trackPoints.clear();
     stopPoints.clear();
@@ -859,18 +1267,22 @@ class TrackController extends GetxController {
     trackStartEndMarkers.clear();
     stopRecords.clear();
     
-    // 重置轨迹线状态
-    hasValidTrackData.value = false;
-    
     // 显示切换状态，而不是加载状态
     stayCount.value = 0;
     stayDuration.value = "切换中...";
     moveDistance.value = "切换中...";
     
+    // 🎯 恢复高亮圆圈
+    if (savedHighlightCircles.isNotEmpty) {
+      highlightCircles.assignAll(savedHighlightCircles);
+      DebugUtil.info('🎯 [ClearAvatar] 已保持高亮圆圈: ${savedHighlightCircles.length}个');
+      circlesVersion.value++;
+    }
+    
     // 异步触发地图更新
     Future.microtask(() => _forceMapUpdate());
     
-    DebugUtil.info('头像切换：已清空旧数据，显示切换状态');
+    DebugUtil.success('✅ [ClearAvatar] 数据已清空，显示切换状态');
   }
   
   /// 强制地图更新，确保UI同步
@@ -881,12 +1293,20 @@ class TrackController extends GetxController {
       return;
     }
     
+    DebugUtil.info('🔄 [ForceMapUpdate] 开始强制更新地图，当前圆圈数量: ${highlightCircles.length}');
+    
     // 强制刷新所有响应式变量，让UI重新构建
     trackPoints.refresh();
     stopPoints.refresh();
     stayMarkers.refresh();
     trackStartEndMarkers.refresh();
-    DebugUtil.info('地图强制更新完成');
+    highlightCircles.refresh(); // 🎯 确保高亮圆圈也被刷新
+    
+    // 🎯 触发地图页面的缓存更新（通过更新任意响应式变量）
+    // 这会让地图页面重新计算版本并更新缓存
+    update();
+    
+    DebugUtil.info('✅ [ForceMapUpdate] 地图强制更新完成，圆圈数量: ${highlightCircles.length}');
   }
   
   /// 设置地图就绪状态
@@ -927,11 +1347,9 @@ class TrackController extends GetxController {
       if (result.isSuccess && result.data != null) {
         locationData.value = result.data;
         
-        // 重新处理数据
-    await Future.wait([
-      _updateStopRecords(),
-      _updateTrackDataAsync(),
-    ]);
+        // ⚠️ 注意顺序：先更新轨迹数据（调整stopPoints），再更新停留记录（使用调整后的stopPoints）
+    await _updateTrackDataAsync();
+    await _updateStopRecords();
     _updateStatistics();
     
         CustomToast.show(Get.context!, '数据刷新成功');
@@ -956,6 +1374,12 @@ class TrackController extends GetxController {
 
   /// 清空数据
   void _clearData() {
+    DebugUtil.info('🧹 [ClearData] 开始清空所有数据...');
+    
+    // ⚠️ 必须先设置无效状态，防止在清空过程中触发Polyline创建
+    hasValidTrackData.value = false;
+    
+    // 然后清空所有数据
     trackPoints.clear();
     stopPoints.clear();
     stayMarkers.clear();
@@ -965,63 +1389,135 @@ class TrackController extends GetxController {
     stayDuration.value = "";
     moveDistance.value = "";
     
+    // 清空圆圈并提升版本
+    if (highlightCircles.isNotEmpty) {
+      highlightCircles.clear();
+      highlightCircles.refresh();
+      circlesVersion.value++;
+    }
+    
+    DebugUtil.info('✅ [ClearData] 数据已清空，准备触发地图更新');
+    
     // 强制触发地图更新，确保轨迹线被清空
+    // 由于hasValidTrackData已经设为false，_updatePolylines会跳过创建Polyline
     _forceMapUpdate();
+    
+    DebugUtil.success('✅ [ClearData] 数据清空完成');
   }
 
   /// 新的API结构不需要设备数据，直接使用trace数据
 
   /// 异步更新轨迹数据 - 优化性能版本
   Future<void> _updateTrackDataAsync() async {
+    DebugUtil.info('🔄 [TrackData] 开始更新轨迹数据...');
+    
     if (locationData.value == null) {
-      DebugUtil.error('位置数据为空，无法更新轨迹');
+      DebugUtil.error('❌ [TrackData] 位置数据为空，无法更新轨迹');
       return;
     }
     
     final data = locationData.value!;
-    final currentDate = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    DebugUtil.info('更新轨迹数据: 日期=$currentDate, isOneself=${isOneself.value}, 位置点=${data.locations?.length ?? 0}个');
     
-    // 在后台线程处理数据以避免阻塞UI
-    final rawPoints = await compute(_processLocationData, data.locations ?? []);
+    // 🎯 优先使用 locations 数组，如果为空则从 trace.stops 生成轨迹点
+    List<LatLng> rawPoints;
+    
+    if (data.locations != null && data.locations!.isNotEmpty) {
+      // 使用 locations 数组（旧版API）
+      DebugUtil.info('📊 [TrackData] 使用locations数据源，位置点=${data.locations!.length}个');
+      rawPoints = await compute(_processLocationData, data.locations!);
+    } else if (data.trace?.stops != null && data.trace!.stops.isNotEmpty) {
+      // 使用 trace.stops 生成轨迹点（新版API）
+      DebugUtil.info('📊 [TrackData] 使用trace.stops数据源，停留点=${data.trace!.stops.length}个');
+      rawPoints = await compute(_processStopsAsTrackData, data.trace!.stops);
+    } else {
+      DebugUtil.warning('⚠️ [TrackData] locations和trace.stops都为空，无轨迹数据');
+      rawPoints = [];
+    }
     
     // 先检查数据有效性，再进行原子更新
-    bool isValidData = rawPoints.isNotEmpty && rawPoints.length >= 2;
+    // 🎯 判断是否有效轨迹：至少2个点 + 不是所有点都在同一位置
+    bool isValidData = false;
+    if (rawPoints.isNotEmpty && rawPoints.length >= 2) {
+      // 检查是否所有点都是同一个坐标（误差范围内）
+      final firstPoint = rawPoints.first;
+      const double epsilon = 0.00001; // 约1米的误差范围
+      
+      bool allSameLocation = rawPoints.every((point) {
+        return (point.latitude - firstPoint.latitude).abs() < epsilon &&
+               (point.longitude - firstPoint.longitude).abs() < epsilon;
+      });
+      
+      isValidData = !allSameLocation; // 只有当不是所有点都在同一位置时，才是有效轨迹
+      
+      if (allSameLocation) {
+        DebugUtil.info('📍 [TrackData] 所有轨迹点在同一位置，不绘制轨迹线');
+      }
+    }
     
     // 原子更新：先更新状态，再更新数据
     hasValidTrackData.value = isValidData;
     trackPoints.value = rawPoints;
-    DebugUtil.info('轨迹点数量: ${trackPoints.length} (使用原始精度)');
+    DebugUtil.info('✅ [TrackData] 轨迹点数量: ${trackPoints.length}');
     
     // 立即触发地图更新，确保轨迹线显示
     _forceMapUpdate();
     
-    // 异步处理停留点数据，避免阻塞主线程
-    _processStopPointsAsync(data);
+    // ⚠️ 必须await，确保stopPoints更新完成后再返回
+    // 否则_updateStopRecords会在stopPoints更新之前被调用，导致stopRecords为空！
+    DebugUtil.info('🔄 [TrackData] 开始处理停留点数据...');
+    await _processStopPointsAsync(data);
+    DebugUtil.success('✅ [TrackData] 停留点数据处理完成，stopPoints=${stopPoints.length}');
     
-    // 异步更新标记，避免阻塞UI
+    // 异步更新标记，避免阻塞UI（可以不await）
     _updateMarkersAsync();
+    
+    DebugUtil.success('✅ [TrackData] 轨迹数据更新完成！');
   }
   
   /// 异步处理停留点数据
   Future<void> _processStopPointsAsync(LocationResponse data) async {
     try {
+      DebugUtil.info('📍 [StopPoints] 开始处理停留点数据...');
+      
       // 过滤停留点并调整到轨迹线上
       final rawStopPoints = data.trace?.stops
           .where((stop) => stop.lat != 0.0 && stop.lng != 0.0)
           .toList() ?? [];
-      DebugUtil.info('原始停留点数量: ${rawStopPoints.length}');
+      DebugUtil.info('📊 [StopPoints] 原始停留点数量: ${rawStopPoints.length}');
       
-      // 在后台线程处理停留点调整
+      if (rawStopPoints.isEmpty) {
+        DebugUtil.warning('⚠️ [StopPoints] 没有有效的停留点数据');
+        stopPoints.clear();
+        return;
+      }
+      
+      // 🎯 关键修复：如果没有有效轨迹线，直接使用原始停留点（不调整位置）
+      // 这种情况常见于：用户整天都在停留，没有移动轨迹
+      // 也包括多个点但都在同一位置的情况（没有实际移动）
+      if (trackPoints.isEmpty || trackPoints.length < 2 || !hasValidTrackData.value) {
+        DebugUtil.warning('⚠️ [StopPoints] 没有有效轨迹线（trackPoints=${trackPoints.length}, hasValidTrackData=${hasValidTrackData.value}），直接使用原始停留点坐标');
+        stopPoints.value = rawStopPoints;
+        DebugUtil.success('✅ [StopPoints] 使用原始停留点，数量: ${stopPoints.length}');
+        
+        // 🎯 检查是否需要自动显示InfoWindow
+        _checkAutoShowInfoWindow();
+        return;
+      }
+      
+      // 在后台线程处理停留点调整（将停留点调整到轨迹线上）
+      DebugUtil.info('🔄 [StopPoints] 开始调整停留点到轨迹线上...');
       final adjustedStopPoints = await compute(_adjustStopPointsToTrackLineStatic, {
         'rawStopPoints': rawStopPoints,
         'trackPoints': trackPoints.toList(),
       });
       stopPoints.value = adjustedStopPoints;
-      DebugUtil.info('调整后停留点数量: ${stopPoints.length}');
+      DebugUtil.success('✅ [StopPoints] 调整后停留点数量: ${stopPoints.length}');
+      
+      // 🎯 检查是否需要自动显示InfoWindow
+      _checkAutoShowInfoWindow();
       
     } catch (e) {
-      DebugUtil.error('处理停留点数据失败: $e');
+      DebugUtil.error('❌ [StopPoints] 处理停留点数据失败: $e');
       stopPoints.clear();
     }
   }
@@ -1039,10 +1535,19 @@ class TrackController extends GetxController {
     }
   }
   
-  /// 在后台线程处理位置数据
+  /// 在后台线程处理位置数据（旧版API - locations数组）
   static List<LatLng> _processLocationData(List<TrackLocation> locations) {
     return locations
         .map((location) => LatLng(location.lat, location.lng))
+        .where((point) => point.latitude != 0.0 && point.longitude != 0.0)
+        .toList();
+  }
+  
+  /// 在后台线程从stops生成轨迹数据（新版API - trace.stops）
+  static List<LatLng> _processStopsAsTrackData(List<TrackStopPoint> stops) {
+    // 从stops中提取所有有效的位置点作为轨迹点
+    return stops
+        .map((stop) => LatLng(stop.lat, stop.lng))
         .where((point) => point.latitude != 0.0 && point.longitude != 0.0)
         .toList();
   }
@@ -1209,40 +1714,49 @@ class TrackController extends GetxController {
 
   /// 更新停留记录列表 - 异步优化版本
   Future<void> _updateStopRecords() async {
+    DebugUtil.info('🔍 [StopRecords] 开始更新停留记录列表');
+    
     if (locationData.value == null) {
-      DebugUtil.error(' locationData为空，无法更新停留记录');
-      return;
-    }
-    
-    DebugUtil.info('🔍 开始更新停留记录列表');
-    
-    // 从 trace.stops 获取停留记录数据
-    final traceStops = locationData.value!.trace?.stops ?? [];
-    DebugUtil.info('📊 trace.stops数量: ${traceStops.length}');
-    
-    if (traceStops.isEmpty) {
-      DebugUtil.warning(' trace.stops为空');
+      DebugUtil.error('❌ [StopRecords] locationData为空，无法更新停留记录');
       stopRecords.clear();
       return;
     }
     
+    DebugUtil.info('✅ [StopRecords] locationData存在，trace=${locationData.value!.trace != null}');
+    
+    // ⚠️ 使用调整后的 stopPoints 而不是原始的 trace.stops
+    // 这样可以确保列表项和Marker使用相同的坐标（调整到轨迹线上的坐标）
+    if (stopPoints.isEmpty) {
+      DebugUtil.warning('⚠️ [StopRecords] stopPoints为空，清空stopRecords');
+      
+      // 调试：检查原始数据
+      final rawStops = locationData.value?.trace?.stops ?? [];
+      DebugUtil.warning('⚠️ [StopRecords] 但原始trace.stops有 ${rawStops.length} 条数据');
+      
+      stopRecords.clear();
+      return;
+    }
+    
+    DebugUtil.info('📊 [StopRecords] stopPoints数量: ${stopPoints.length}');
+    
     // 在后台线程处理停留记录数据转换
     try {
-      final processedRecords = await compute(_processStopRecords, traceStops);
+      final processedRecords = await compute(_processStopRecords, stopPoints.toList());
       stopRecords.value = processedRecords;
-      DebugUtil.success(' 停留记录更新完成，总数量: ${stopRecords.length}');
+      DebugUtil.success('✅ [StopRecords] 停留记录更新完成，总数量: ${stopRecords.length}');
+      DebugUtil.success('✅ [StopRecords] stopRecords使用调整后的stopPoints坐标，与Marker坐标一致');
     } catch (e) {
-      DebugUtil.error(' 处理停留记录失败: $e');
+      DebugUtil.error('❌ [StopRecords] 处理停留记录失败: $e');
       stopRecords.clear();
     }
   }
   
   /// 在后台线程处理停留记录数据
-  static List<StopRecord> _processStopRecords(List<TrackStopPoint> traceStops) {
-    return traceStops.map((stop) {
+  static List<StopRecord> _processStopRecords(List<TrackStopPoint> adjustedStopPoints) {
+    return adjustedStopPoints.map((stop) {
       return StopRecord(
-        latitude: stop.lat,
-        longitude: stop.lng,
+        latitude: stop.lat,   // 使用调整后的坐标
+        longitude: stop.lng,  // 使用调整后的坐标
         locationName: stop.locationName ?? '',
         startTime: stop.startTime ?? '',
         endTime: stop.endTime?.isNotEmpty == true ? stop.endTime! : (stop.startTime ?? ''),
@@ -1282,54 +1796,153 @@ class TrackController extends GetxController {
   /// 切换查看用户（自己/另一半）
   void switchUser() {
     isOneself.value = isOneself.value == 1 ? 0 : 1;
+    
+    // 🎯 注释掉清除高亮圆圈，让圆圈在切换用户时保持显示
+    // clearAllHighlightCircles();
+    
     // 切换用户时，立即清空数据并异步加载，避免卡顿
     _clearDataForAvatarSwitch();
     Future.microtask(() => _loadDataAsync());
   }
   
-  /// 强制刷新当前用户数据（用于头像点击）- 完全非阻塞版本
-  void refreshCurrentUserData() {
-    DebugUtil.info('🔄 刷新用户数据: isOneself=${isOneself.value}');
+  /// 头像点击时切换用户视角（不重新请求API，直接从缓存切换）
+  void onAvatarTapped(bool isMyself) {
+    DebugUtil.info('🎯 头像点击开始 - isMyself: $isMyself');
     
-    // 立即清空数据，给用户即时反馈
-    _clearDataForAvatarSwitch();
+    // 🎯 注释掉清除高亮圆圈，让圆圈在切换用户时保持显示
+    // clearAllHighlightCircles();
     
-    // 使用scheduleMicrotask确保在下一个微任务中执行，完全避免阻塞
-    scheduleMicrotask(() async {
-      try {
-        // 停止播放和清理状态
-        _resetReplayState();
-        
-        // 异步加载数据，但不等待完成，完全非阻塞
-        _loadDataAsyncNonBlocking();
-      } catch (e) {
-        DebugUtil.error('头像切换数据加载失败: $e');
-      }
+    // 🎬 切换头像时重置轨迹播放状态
+    if (isReplaying.value) {
+      DebugUtil.info('🛑 检测到正在播放轨迹，切换头像时重置播放状态');
+      _resetReplayState();
+    }
+    
+    // 更新状态
+    if (isMyself) {
+      // 点击自己头像，切换到自己的视角
+      isOneself.value = 1;
+      DebugUtil.info('🔄 切换到自己的视角');
+    } else {
+      // 点击另一半头像，切换到另一半的视角
+      isOneself.value = 0;
+      DebugUtil.info('🔄 切换到另一半的视角');
+    }
+    
+    // 🚀 直接从缓存切换数据，不重新请求API
+    DebugUtil.info('⚡ 从缓存切换数据，避免重新请求API');
+    
+    // 使用微任务确保不阻塞UI
+    scheduleMicrotask(() {
+      _switchToCurrentUserData();
+      
+      // 延迟一帧，确保数据已更新
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final targetUser = isOneself.value == 1;
+        DebugUtil.info('📡 数据切换完成，准备移动地图...');
+        _moveToTargetUserTrackLocation(targetUser);
+      });
     });
   }
   
-  /// 完全非阻塞的数据加载方法（用于头像切换）
-  void _loadDataAsyncNonBlocking() {
-    // 不等待任何异步操作，完全非阻塞
-    Future(() async {
-      try {
-        // 显示加载状态（仅对今天的数据）
-        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-        final selectedDateString = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-        final isToday = selectedDateString == today;
-        
-        if (isToday) {
-          isLoading.value = true;
-        }
-        
-        // 异步调用数据加载，但不等待完成
-        _performLoadLocationDataDirectNonBlocking();
-        
-      } catch (e) {
-        DebugUtil.error('非阻塞数据加载失败: $e');
-        isLoading.value = false;
+  /// 移动地图到目标用户的轨迹位置
+  void _moveToTargetUserTrackLocation(bool isMyself) {
+    if (!isMapReady.value || mapController == null) {
+      DebugUtil.error('🚫 地图未就绪或控制器不存在，无法移动地图');
+      return;
+    }
+    
+    LatLng? targetLocation;
+    String userName;
+    
+    if (isMyself) {
+      userName = "我的轨迹";
+    } else {
+      userName = "另一半的轨迹";
+    }
+    
+    DebugUtil.info('🎯 尝试移动到$userName，当前isOneself=${isOneself.value}');
+    
+    // 直接从最新的API数据中获取轨迹位置（避免依赖可能未更新的trackPoints）
+    if (locationData.value?.trace != null) {
+      final trace = locationData.value!.trace!;
+      DebugUtil.info('📊 API轨迹数据 - 起点: (${trace.startPoint.lat}, ${trace.startPoint.lng}), 终点: (${trace.endPoint.lat}, ${trace.endPoint.lng})');
+      
+      // 优先使用起点坐标
+      if (trace.startPoint.lat != 0.0 && trace.startPoint.lng != 0.0) {
+        targetLocation = LatLng(trace.startPoint.lat, trace.startPoint.lng);
+        DebugUtil.info('✅ 使用API起点作为目标位置: $targetLocation');
+      } else if (trace.endPoint.lat != 0.0 && trace.endPoint.lng != 0.0) {
+        targetLocation = LatLng(trace.endPoint.lat, trace.endPoint.lng);
+        DebugUtil.info('✅ 使用API终点作为目标位置: $targetLocation');
       }
-    });
+    } else {
+      DebugUtil.warning('⚠️ 没有API轨迹数据可用');
+    }
+    
+    // 如果API数据中没有轨迹信息，再尝试使用已处理的轨迹点
+    if (targetLocation == null && trackPoints.isNotEmpty) {
+      targetLocation = trackPoints.first;
+      DebugUtil.info('✅ 使用处理后的轨迹起点作为目标位置: $targetLocation');
+    }
+    
+    DebugUtil.info('📍 目标位置信息：$userName = $targetLocation');
+    
+    if (targetLocation == null) {
+      DebugUtil.error('❌ 无法移动到$userName：位置信息不存在');
+      return;
+    }
+    
+    // 移动到目标位置并放大（轨迹页面使用适中的缩放级别）
+    final targetZoomPosition = CameraPosition(
+      target: targetLocation,
+      zoom: 16.0, // 适合查看轨迹的缩放级别
+    );
+    
+    DebugUtil.info('🎯 头像点击：移动地图到$userName并调整缩放级别(16.0)');
+    
+    try {
+      // 异步执行地图动画，避免阻塞主线程
+      unawaited(mapController!.moveCamera(
+        CameraUpdate.newCameraPosition(targetZoomPosition),
+        animated: true,
+        duration: 800, // 800ms平滑动画
+      ));
+      DebugUtil.success('✅ 地图移动命令已发送');
+      
+      // 如果有完整轨迹数据，延迟后自动适配到完整轨迹视图
+      if (trackPoints.length > 1) {
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          _fitMapToTrackPoints();
+        });
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 地图移动失败: $e');
+    }
+  }
+
+  /// 刷新当前用户数据（用于外部调用，如绑定伴侣后刷新）
+  /// 会重新加载当前日期的轨迹数据
+  Future<void> refreshCurrentUserData() async {
+    DebugUtil.info('🔄 外部刷新请求: 重新加载当前日期的轨迹数据');
+    
+    try {
+      // 调用标准的数据加载方法，会并发请求两个用户的数据
+      await loadLocationData();
+      DebugUtil.success('✅ 轨迹数据刷新完成');
+    } catch (e) {
+      DebugUtil.error('❌ 轨迹数据刷新失败: $e');
+    }
+  }
+
+  /// 切换地图类型
+  void switchMapType(int type) {
+    if (type != 1 && type != 2) {
+      DebugUtil.warning('⚠️ 无效的地图类型: $type，应该是 1（经典）或 2（卫星）');
+      return;
+    }
+    mapType.value = type;
+    DebugUtil.info('🗺️ 地图类型已切换为: ${type == 1 ? "经典地图" : "卫星地图"}');
   }
   
   /// 异步加载数据，完全非阻塞版本
@@ -1371,26 +1984,7 @@ class TrackController extends GetxController {
     }
   }
   
-  /// 完全非阻塞的渐进式数据更新（用于头像切换）
-  void _progressiveDataUpdateNonBlocking() {
-    // 不等待任何异步操作，完全非阻塞
-    Future(() async {
-      try {
-        // 第一步：更新统计数据（最快）
-        Future.microtask(() => _updateStatistics());
-        
-        // 第二步：更新停留记录（中等耗时）
-        await _updateStopRecords();
-        
-        // 第三步：更新轨迹数据（最耗时）
-        await _updateTrackDataAsync();
-        
-        DebugUtil.success('非阻塞渐进式数据更新完成');
-      } catch (e) {
-        DebugUtil.error('非阻塞渐进式数据更新失败: $e');
-      }
-    });
-  }
+  /// 已废弃：现在使用 _switchToCurrentUserData() 中的数据更新逻辑
   
   /// 渐进式数据更新 - 分步骤更新，避免长时间阻塞
   Future<void> _progressiveDataUpdate() async {
@@ -1398,11 +1992,11 @@ class TrackController extends GetxController {
       // 第一步：更新统计数据（最快）
       Future.microtask(() => _updateStatistics());
       
-      // 第二步：更新停留记录（中等耗时）
-      await _updateStopRecords();
-      
-      // 第三步：更新轨迹数据（最耗时）
+      // 第二步：更新轨迹数据（最耗时，会调整stopPoints）
       await _updateTrackDataAsync();
+      
+      // ⚠️ 第三步：更新停留记录（必须在stopPoints调整之后，才能使用调整后的坐标）
+      await _updateStopRecords();
       
       DebugUtil.success('渐进式数据更新完成');
     } catch (e) {
@@ -1611,17 +2205,38 @@ class TrackController extends GetxController {
       if (isEndPoint || isStartPoint) continue;
       
       // 使用最简单的默认标记
+      final stopInfo = _parseStopInfo(stop);
+      final String markerTitle = stopInfo['locationName']!;
+      final String markerSnippet = '${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}';
+      
       final marker = Marker(
         position: LatLng(stop.lat, stop.lng),
+         alpha: 0.0, // 🎯 完全透明，不显示系统marker
+         anchor: const Offset(0.5, 0.5), // 🎯 设置锚点为中心，使InfoWindow相对坐标点居中
+         infoWindowEnable: true, // 允许点击时显示 InfoWindow
+         autoShowCustomInfoWindow: false, // 默认不自动显示
+         draggable: true, // 🎯 启用拖拽功能
+         isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+         stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
+         stayTime: stopInfo['stayTime'], // 🎯 停留时间
         infoWindow: InfoWindow(
-          title: '停留点',
-          snippet: stop.locationName ?? '未知位置',
+          title: markerTitle,
+          snippet: markerSnippet,
         ),
+        customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+          stopInfo['locationName']!,
+          stopInfo['stayDuration']!,
+          stopInfo['stayTime']!,
+        ),
+        onDragEnd: (String markerId, LatLng newPosition) {
+          // 🎯 拖拽结束时清除现有圆圈并重新创建
+          DebugUtil.info('🎯 停留点 Marker 拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+          drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
+        },
         onTap: (String markerId) {
-          DebugUtil.info('点击了停留点: ${stop.locationName}');
-          if (trackPoints.isNotEmpty) {
+          DebugUtil.info('🎯 点击地图上的停留点: ${stop.locationName}');
+          // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
             _moveMapToLocation(LatLng(stop.lat, stop.lng));
-          }
         },
       );
       
@@ -1644,18 +2259,7 @@ class TrackController extends GetxController {
     
     try {
       final List<Marker> tempMarkers = [];
-      // 先计算有效的停留点数量（排除终点和起点）
-      int validStopCount = 0;
-      for (int i = 0; i < stopPoints.length; i++) {
-        final stop = stopPoints[i];
-        bool isEndPoint = stop.pointType == 'end' || stop.serialNumber == '终';
-        bool isStartPoint = stop.pointType == 'start' || stop.serialNumber == '起';
-        if (!isEndPoint && !isStartPoint) {
-          validStopCount++;
-        }
-      }
-      
-      int stayPointIndex = validStopCount; // 从最大序号开始倒序
+      // 使用停留点的实际serialNumber，不再使用倒序编号
       
       for (int i = 0; i < stopPoints.length; i++) {
         final stop = stopPoints[i];
@@ -1669,16 +2273,19 @@ class TrackController extends GetxController {
           continue;
         }
         
+        // 使用停留点的实际serialNumber作为显示编号（在try块外定义）
+        String displayNumber = stop.serialNumber ?? (i + 1).toString();
+        
         try {
-          String title = '停留点 ${stayPointIndex}';
+          String title = '停留点 ${displayNumber}';
           BitmapDescriptor? icon;
           
           // 创建自定义停留点图标
           try {
-            icon = await _createCustomStayPointIcon(stayPointIndex.toString());
-            DebugUtil.success(' 停留点 ${stayPointIndex} 自定义图标创建成功');
+            icon = await _createCustomStayPointIcon(displayNumber);
+            DebugUtil.success(' 停留点 ${displayNumber} 自定义图标创建成功');
           } catch (iconError) {
-            DebugUtil.warning(' 停留点 ${stayPointIndex} 自定义图标创建失败，使用默认标记: $iconError');
+            DebugUtil.warning(' 停留点 ${displayNumber} 自定义图标创建失败，使用默认标记: $iconError');
             // 降级方案：使用粉色默认标记
             try {
               icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
@@ -1689,65 +2296,127 @@ class TrackController extends GetxController {
           }
           
           // 创建标记，根据icon是否可用决定是否设置
+          final stopInfo = _parseStopInfo(stop);
+          final String infoTitle = stopInfo['locationName']!;
+          final String infoSnippet = '${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}';
+          
           final marker = icon != null 
             ? Marker(
                 position: LatLng(stop.lat, stop.lng),
                 icon: icon,
                 anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
+                infoWindowEnable: true, // 允许点击时显示 InfoWindow
+                autoShowCustomInfoWindow: false, // 默认不自动显示
+                draggable: true, // 🎯 启用拖拽功能
+                isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+                stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
+                stayTime: stopInfo['stayTime'], // 🎯 停留时间
+                infoWindow: InfoWindow(
+                  title: infoTitle,
+                  snippet: infoSnippet,
+                ),
+                customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+                  stopInfo['locationName']!,
+                  stopInfo['stayDuration']!,
+                  stopInfo['stayTime']!,
+                ),
+                onDragEnd: (String markerId, LatLng newPosition) {
+                  // 🎯 拖拽结束时清除现有圆圈并重新创建
+                  DebugUtil.info('🎯 停留点标记（有图标）拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+                  drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
+                },
                 onTap: (String markerId) {
-                  DebugUtil.info('点击了停留点: $title - ${stop.locationName}');
-                  // 触发自定义信息窗口回调
-                  final position = LatLng(stop.lat, stop.lng);
-                  onStayPointTapped?.call(stop, position);
-                  // 点击标记时，可以跳转到对应的轨迹回放位置
-                  if (trackPoints.isNotEmpty) {
-                    _moveMapToLocation(position);
-                  }
+                  DebugUtil.info('🎯 点击地图上的停留点标记: $title - ${stop.locationName}');
+                  // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
+                  // 移动地图、绘制高亮圆圈
+                  unawaited(_moveToStopPointWithHighlightInternal(
+                    stop.lat, 
+                    stop.lng, 
+                    stopPoint: stop,
+                  ));
                 },
               )
             : Marker(
                 position: LatLng(stop.lat, stop.lng),
-                anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
+                 alpha: 0.0, // 🎯 完全透明，不显示系统marker
+                anchor: const Offset(0.5, 0.5), // 🎯 设置锚点为中心，使InfoWindow相对坐标点居中
+                 infoWindowEnable: true, // 允许点击时显示 InfoWindow
+                 autoShowCustomInfoWindow: false, // 默认不自动显示
+                 draggable: true, // 🎯 启用拖拽功能
+                 isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+                 stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
+                 stayTime: stopInfo['stayTime'], // 🎯 停留时间
+                infoWindow: InfoWindow(
+                  title: infoTitle,
+                  snippet: infoSnippet,
+                ),
+                customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+                  stopInfo['locationName']!,
+                  stopInfo['stayDuration']!,
+                  stopInfo['stayTime']!,
+                ),
+                onDragEnd: (String markerId, LatLng newPosition) {
+                  // 🎯 拖拽结束时清除现有圆圈并重新创建
+                  DebugUtil.info('🎯 停留点标记（无图标）拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+                  drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
+                },
                 onTap: (String markerId) {
-                  DebugUtil.info('点击了停留点: $title - ${stop.locationName}');
-                  // 触发自定义信息窗口回调
-                  final position = LatLng(stop.lat, stop.lng);
-                  onStayPointTapped?.call(stop, position);
-                  // 点击标记时，可以跳转到对应的轨迹回放位置
-                  if (trackPoints.isNotEmpty) {
-                    _moveMapToLocation(position);
-                  }
+                  DebugUtil.info('🎯 点击地图上的停留点标记: $title - ${stop.locationName}');
+                  // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
+                  // 移动地图、绘制高亮圆圈
+                  unawaited(_moveToStopPointWithHighlightInternal(
+                    stop.lat, 
+                    stop.lng, 
+                    stopPoint: stop,
+                  ));
                 },
               );
           
           tempMarkers.add(marker);
-          stayPointIndex--; // 倒序递减
-          DebugUtil.success(' 停留点 ${stayPointIndex + 1} ($title) 标记创建成功');
+          DebugUtil.success(' 停留点 ${displayNumber} ($title) 标记创建成功');
         } catch (e) {
-          DebugUtil.error(' 停留点 ${stayPointIndex} 标记创建失败: $e，尝试降级方案');
+          DebugUtil.error(' 停留点 ${displayNumber} 标记创建失败: $e，尝试降级方案');
           // 降级方案：使用最基本的标记（完全不设置图标）
           try {
-            String title = '停留点 ${stayPointIndex}';
+            String fallbackTitle = '停留点 ${displayNumber}';
+            final stopInfo = _parseStopInfo(stop);
+            final String fallbackInfoTitle = stopInfo['locationName']!;
+            final String fallbackInfoSnippet = '${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}';
             
             final fallbackMarker = Marker(
               position: LatLng(stop.lat, stop.lng),
-              // 完全不设置icon，让系统使用最基础的默认标记
+               alpha: 0.0, // 🎯 完全透明，不显示系统marker
+               anchor: const Offset(0.5, 0.5), // 🎯 设置锚点为中心，使InfoWindow相对坐标点居中
+               infoWindowEnable: true, // 允许点击时显示 InfoWindow
+               draggable: true, // 🎯 启用拖拽功能
+               isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+               stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
+               stayTime: stopInfo['stayTime'], // 🎯 停留时间
+              infoWindow: InfoWindow(
+                title: fallbackInfoTitle,
+                snippet: fallbackInfoSnippet,
+              ),
+              customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+                stopInfo['locationName']!,
+                stopInfo['stayDuration']!,
+                stopInfo['stayTime']!,
+              ),
+              onDragEnd: (String markerId, LatLng newPosition) {
+                // 🎯 拖拽结束时清除现有圆圈并重新创建
+                DebugUtil.info('🎯 降级停留点标记拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+                drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
+              },
               onTap: (String markerId) {
-                DebugUtil.info('点击了停留点: $title - ${stop.locationName}');
-                // 触发自定义信息窗口回调
-                final position = LatLng(stop.lat, stop.lng);
-                onStayPointTapped?.call(stop, position);
-                if (trackPoints.isNotEmpty) {
-                  _moveMapToLocation(position);
-                }
+                DebugUtil.info('🎯 点击地图上的停留点: $fallbackTitle - ${stop.locationName}');
+                // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
+                  _moveMapToLocation(LatLng(stop.lat, stop.lng));
               },
             );
             
             tempMarkers.add(fallbackMarker);
-            stayPointIndex--; // 倒序递减
-            DebugUtil.success(' 停留点 ${stayPointIndex + 1} ($title) 降级标记创建成功');
+            DebugUtil.success(' 停留点 ${displayNumber} ($fallbackTitle) 降级标记创建成功');
           } catch (fallbackError) {
-            DebugUtil.error(' 停留点 ${stayPointIndex} 降级方案也失败: $fallbackError，跳过此点');
+            DebugUtil.error(' 停留点 ${displayNumber} 降级方案也失败: $fallbackError，跳过此点');
             continue;
           }
         }
@@ -1760,6 +2429,12 @@ class TrackController extends GetxController {
         
         // 强制触发地图更新，确保标记显示同步
         _forceMapUpdate();
+        
+        // ✅ 在标记创建后立即关闭所有 InfoWindow，防止自动显示
+        Future.delayed(const Duration(milliseconds: 50), () {
+          _closeAllInfoWindows();
+          DebugUtil.info('🔒 停留点标记创建后关闭所有 InfoWindow');
+        });
       } else {
         DebugUtil.error(' 没有成功创建任何停留点标记');
       }
@@ -1769,14 +2444,27 @@ class TrackController extends GetxController {
       // 最后的降级方案：创建一个基础彩色标记
       try {
         if (stopPoints.isNotEmpty) {
+          final String emergencyTitle = '位置点';
+          final String emergencySnippet = stopPoints.first.locationName ?? '未知位置';
+          
           stayMarkers.add(Marker(
             position: LatLng(stopPoints.first.lat, stopPoints.first.lng),
             // 使用彩色默认图标
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            infoWindowEnable: true, // 允许点击时显示 InfoWindow
             infoWindow: InfoWindow(
-              title: '位置点',
-              snippet: stopPoints.first.locationName ?? '未知位置',
+              title: emergencyTitle,
+              snippet: emergencySnippet,
             ),
+            customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+              emergencyTitle, 
+              emergencySnippet.isNotEmpty ? emergencySnippet : "紧急位置", 
+              ""
+            ),
+            onTap: (String markerId) {
+              DebugUtil.info('🎯 点击地图上的紧急标记');
+              // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
+            },
           ));
           DebugUtil.success(' 降级方案：成功创建彩色标记');
         }
@@ -1901,6 +2589,12 @@ class TrackController extends GetxController {
         
         // 强制触发地图更新，确保标记显示同步
         _forceMapUpdate();
+        
+        // ✅ 在标记创建后立即关闭所有 InfoWindow，防止自动显示
+        Future.delayed(const Duration(milliseconds: 50), () {
+          _closeAllInfoWindows();
+          DebugUtil.info('🔒 起终点标记创建后关闭所有 InfoWindow');
+        });
       } else {
         DebugUtil.error(' 没有成功创建任何轨迹起终点标记');
       }
@@ -1919,19 +2613,7 @@ class TrackController extends GetxController {
     
     DebugUtil.info('🚀 创建简单停留点标记: ${stopPoints.length}个');
     
-    // 先计算有效的停留点数量（排除终点和起点）
-    int validStopCount = 0;
-    for (int i = 0; i < stopPoints.length; i++) {
-      final stop = stopPoints[i];
-      if (stop.lat == 0.0 || stop.lng == 0.0) continue;
-      bool isEndPoint = stop.pointType == 'end' || stop.serialNumber == '终';
-      bool isStartPoint = stop.pointType == 'start' || stop.serialNumber == '起';
-      if (!isEndPoint && !isStartPoint) {
-        validStopCount++;
-      }
-    }
-    
-    int stayPointIndex = validStopCount; // 从最大序号开始倒序
+    // 使用停留点的实际serialNumber，不再使用倒序编号
     
     for (int i = 0; i < stopPoints.length; i++) {
       final stop = stopPoints[i];
@@ -1947,25 +2629,51 @@ class TrackController extends GetxController {
         continue;
       }
       
-      String title = '停留点 ${stayPointIndex}';
+      // 使用停留点的实际serialNumber作为显示编号
+      String displayNumber = stop.serialNumber ?? (i + 1).toString();
+      String title = '停留点 ${displayNumber}';
       
       // 使用最简单的默认标记
+      final stopInfo = _parseStopInfo(stop);
+      final String simpleMarkerTitle = stopInfo['locationName']!;
+      final String simpleMarkerSnippet = '${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}';
+      
       final marker = Marker(
         position: LatLng(stop.lat, stop.lng),
+         alpha: 0.0, // 🎯 完全透明，不显示系统marker
+         anchor: const Offset(0.5, 0.5), // 🎯 设置锚点为中心，使InfoWindow相对坐标点居中
+         infoWindowEnable: true, // 允许点击时显示 InfoWindow
+         draggable: true, // 🎯 启用拖拽功能
+         isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+         stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
+         stayTime: stopInfo['stayTime'], // 🎯 停留时间
         infoWindow: InfoWindow(
-          title: title,
-          snippet: '${stop.locationName ?? '未知位置'}\n${stop.startTime ?? ''} ${stop.duration?.isNotEmpty == true ? '停留${stop.duration}' : ''}',
+          title: simpleMarkerTitle,
+          snippet: simpleMarkerSnippet,
         ),
+        customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+          stopInfo['locationName']!,
+          stopInfo['stayDuration']!,
+          stopInfo['stayTime']!,
+        ),
+        onDragEnd: (String markerId, LatLng newPosition) {
+          // 🎯 拖拽结束时清除现有圆圈并重新创建
+          DebugUtil.info('🎯 简单停留点 Marker 拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+          drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
+        },
         onTap: (String markerId) {
-          DebugUtil.info('点击了停留点: $title - ${stop.locationName}');
-          if (trackPoints.isNotEmpty) {
-            _moveMapToLocation(LatLng(stop.lat, stop.lng));
-          }
+          DebugUtil.info('🎯 点击地图上的简单停留点标记: $title - ${stop.locationName}');
+          // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
+          // 移动地图、绘制高亮圆圈
+          _moveToStopPointWithHighlightInternal(
+            stop.lat, 
+            stop.lng, 
+            stopPoint: stop,
+          );
         },
       );
       
       stayMarkers.add(marker);
-      stayPointIndex--; // 倒序递减
     }
     
     DebugUtil.success(' 简单停留点标记创建完成: ${stayMarkers.length}个');
@@ -1982,6 +2690,30 @@ class TrackController extends GetxController {
       DebugUtil.error(' 获取停留点标记失败: $e');
     }
     
+    // 添加临时 InfoWindow 标记（如果存在）
+    if (_tempInfoWindowMarker != null) {
+      try {
+        markers.add(_tempInfoWindowMarker!);
+        DebugUtil.info('✅ 已添加临时 InfoWindow 标记到地图');
+      } catch (e) {
+        DebugUtil.error(' 添加临时 InfoWindow 标记失败: $e');
+      }
+    }
+    
+    // 添加播放头像标记（如果存在且正在播放或暂停）
+    // 当播放头像存在时，不显示旧的当前位置标记
+    if (replayAvatarMarker.value != null) {
+      try {
+        markers.add(replayAvatarMarker.value!);
+        DebugUtil.info('✅ 已添加播放头像标记到地图');
+      } catch (e) {
+        DebugUtil.error(' 添加播放头像标记失败: $e');
+      }
+      // 如果有播放头像标记，就不添加普通的当前位置标记，直接返回
+      return markers;
+    }
+    
+    // 只有在没有播放头像标记时才显示普通的当前位置标记
     if (currentPosition.value != null) {
       try {
         // 安全创建当前位置标记
@@ -1995,28 +2727,46 @@ class TrackController extends GetxController {
         }
         
         // 根据icon是否可用决定如何创建标记
+        final String currentTitle = '当前位置';
+        final String currentSnippet = '轨迹回放当前位置';
+        
         final currentMarker = icon != null
           ? Marker(
               position: currentPosition.value!,
               icon: icon,
               anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
+              infoWindowEnable: true, // 允许点击时显示 InfoWindow
               infoWindow: InfoWindow(
-                title: '当前位置',
-                snippet: '轨迹回放当前位置',
+                title: currentTitle,
+                snippet: currentSnippet,
+              ),
+              customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+                currentTitle, 
+                currentSnippet.isNotEmpty ? currentSnippet : "当前位置", 
+                ""
               ),
               onTap: (String markerId) {
-                DebugUtil.info('点击了当前位置: $markerId');
+                DebugUtil.info('🎯 点击当前位置标记');
+                // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
               },
             )
           : Marker(
               position: currentPosition.value!,
+               alpha: 0.0, // 🎯 完全透明，不显示系统marker
               anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
+               infoWindowEnable: true, // 允许点击时显示 InfoWindow
               infoWindow: InfoWindow(
-                title: '当前位置',
-                snippet: '轨迹回放当前位置',
+                title: currentTitle,
+                snippet: currentSnippet,
+              ),
+              customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+                currentTitle, 
+                currentSnippet.isNotEmpty ? currentSnippet : "当前位置", 
+                ""
               ),
               onTap: (String markerId) {
-                DebugUtil.info('点击了当前位置: $markerId');
+                DebugUtil.info('🎯 点击当前位置标记');
+                // InfoWindow 会自动显示（因为 infoWindowEnable 为 true）
               },
             );
         
@@ -2025,13 +2775,23 @@ class TrackController extends GetxController {
         DebugUtil.error(' 创建当前位置标记失败: $e');
         // 降级：使用无图标的简单标记
         try {
+          final String fallbackTitle = '当前位置';
+          final String fallbackSnippet = '轨迹回放当前位置';
+          
           markers.add(
             Marker(
               position: currentPosition.value!,
+               alpha: 0.0, // 🎯 完全透明，不显示系统marker
               anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
+               infoWindowEnable: true, // 允许点击时显示 InfoWindow
               infoWindow: InfoWindow(
-                title: '当前位置',
-                snippet: '轨迹回放当前位置',
+                title: fallbackTitle,
+                snippet: fallbackSnippet,
+              ),
+              customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+                fallbackTitle, 
+                fallbackSnippet.isNotEmpty ? fallbackSnippet : "当前位置", 
+                ""
               ),
               onTap: (String markerId) {
                 DebugUtil.info('点击了当前位置: $markerId');
@@ -2044,6 +2804,121 @@ class TrackController extends GetxController {
       }
     }
     return markers;
+  }
+
+
+  /// 创建播放头像标记
+  /// [position] 标记位置
+  Future<void> _createReplayAvatarMarker(LatLng position) async {
+    try {
+      // 获取当前查看的用户头像
+      final avatarUrl = isOneself.value == 1 ? myAvatar.value : partnerAvatar.value;
+      
+      DebugUtil.info('🎭 创建播放头像标记，头像URL: $avatarUrl');
+      
+      // 使用 MapMarkerUtil 创建圆形头像标记
+      final icon = await MapMarkerUtil.createCircleAvatarMarker(
+        avatarUrl.isNotEmpty ? avatarUrl : null,
+        size: 180.0,  // 标记大小
+        borderWidth: 3.0,  // 边框宽度
+      );
+      
+      // 创建标记
+      replayAvatarMarker.value = Marker(
+        position: position,
+        icon: icon,
+        anchor: const Offset(0.5, 0.5), // 设置锚点为图片中心
+      );
+      
+      DebugUtil.success('✅ 播放头像标记创建成功');
+    } catch (e) {
+      DebugUtil.error('❌ 创建播放头像标记失败: $e');
+      replayAvatarMarker.value = null;
+    }
+  }
+
+  /// 更新播放头像标记位置 - 异步版本（兼容性保留）
+  /// [position] 新位置
+  Future<void> _updateReplayAvatarMarkerPosition(LatLng position) async {
+    _updateReplayAvatarMarkerSync(position);
+  }
+
+  /// 更新播放头像标记位置 - 同步版本（性能优化）
+  /// [position] 新位置
+  void _updateReplayAvatarMarkerSync(LatLng position) {
+    if (replayAvatarMarker.value == null) {
+      // 如果标记不存在，异步创建新标记
+      _createReplayAvatarMarker(position);
+    } else {
+      try {
+        // 同步更新现有标记的位置
+        final currentMarker = replayAvatarMarker.value!;
+        replayAvatarMarker.value = Marker(
+          position: position,
+          icon: currentMarker.icon,
+          anchor: currentMarker.anchor,
+        );
+        // 添加调试信息，但降低频率避免日志过多
+        if ((currentReplayIndex.value % 20) == 0) {
+          DebugUtil.info('🎯 平滑更新头像位置: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}');
+        }
+      } catch (e) {
+        DebugUtil.error('❌ 更新播放头像标记位置失败: $e');
+      }
+    }
+  }
+
+  /// 优化的标记更新方法 - 减少重建频率
+  /// [position] 新位置
+  void _updateReplayAvatarMarkerOptimized(LatLng position) {
+    if (replayAvatarMarker.value == null) {
+      // 如果标记不存在，创建新标记
+      _createReplayAvatarMarker(position);
+      return;
+    }
+
+    try {
+      final currentMarker = replayAvatarMarker.value!;
+      
+      // 计算旋转角度（如果需要方向指示）
+      final rotation = _getRotationAngle();
+      
+      // 只有在位置或角度变化显著时才重建标记
+      final oldPosition = currentMarker.position;
+      final positionChanged = _calculateDistance(oldPosition, position) > 0.1; // 0.1米阈值
+      final rotationChanged = (currentMarker.rotation - rotation).abs() > 0.1; // 0.1弧度阈值
+      
+      if (positionChanged || rotationChanged) {
+        replayAvatarMarker.value = Marker(
+          position: position,
+          icon: currentMarker.icon,
+          anchor: currentMarker.anchor,
+          rotation: rotation,
+          alpha: 1.0, // 确保完全不透明
+          zIndex: 999, // 确保在最上层
+        );
+        
+        // 降低日志频率
+        if ((currentReplayIndex.value % 50) == 0) {
+          DebugUtil.info('🎯 优化更新头像: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}, 角度: ${(rotation * 180 / pi).toStringAsFixed(1)}°');
+        }
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 优化标记更新失败: $e');
+      // 降级到基础更新方法
+      _updateReplayAvatarMarkerSync(position);
+    }
+  }
+
+  /// 平滑移动地图视角
+  /// [position] 目标位置
+  void _moveMapToLocationSmooth(LatLng position) {
+    try {
+      // 使用更平滑的地图移动
+      _moveMapToLocation(position);
+    } catch (e) {
+      DebugUtil.warning('平滑地图移动失败: $e');
+    }
   }
 
   /// 计算小人的朝向角度
@@ -2107,7 +2982,44 @@ class TrackController extends GetxController {
     return totalDistance;
   }
   
-  /// 更新播放状态（距离和时间）
+  /// 计算轨迹总距离（米）
+  double _calculateTotalTrackDistance() {
+    if (trackPoints.length < 2) return 0.0;
+    return _calculateCumulativeDistance(0, trackPoints.length - 1);
+  }
+  
+  /// 根据轨迹长度动态计算播放时间
+  Duration _calculateOptimalReplayDuration() {
+    if (trackPoints.isEmpty) return _minReplayDuration;
+    
+    // 计算轨迹总距离（公里）
+    final totalDistanceKm = _calculateTotalTrackDistance() / 1000.0;
+    
+    // 根据基础速度计算播放时间（秒）
+    // 播放时间 = 距离 / 速度 * 3600（转换为秒）
+    final calculatedSeconds = (totalDistanceKm / _baseSpeedKmh * 3600).round();
+    
+    // 应用限制：最短3秒，最长15秒
+    final clampedSeconds = calculatedSeconds.clamp(
+      _minReplayDuration.inSeconds, 
+      _maxReplayDuration.inSeconds
+    );
+    
+    // 对于很短的轨迹（小于100米），使用最短时间
+    if (totalDistanceKm < 0.1) {
+      return _minReplayDuration;
+    }
+    
+    // 对于中等长度轨迹，使用计算出的时间
+    if (totalDistanceKm <= 2.0) {
+      return Duration(seconds: clampedSeconds);
+    }
+    
+    // 对于长轨迹，使用最长时间
+    return _maxReplayDuration;
+  }
+  
+  /// 更新播放状态（距离、时间、速度，但不更新进度因为已实时更新）
   void _updateReplayStatus() {
     // 更新距离显示
     final distanceKm = _cumulativeDistance / 1000;
@@ -2120,6 +3032,19 @@ class TrackController extends GetxController {
       final minutes = duration.inMinutes % 60;
       final seconds = duration.inSeconds % 60;
       replayTime.value = "${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
+    }
+    
+    // 🎯 不再在这里更新播放进度，因为已经在定时器中实时更新以保持平滑
+    // 只在 seekToIndex 时才需要更新进度
+    
+    // 更新当前速度（计算最近两个点之间的速度）
+    if (trackPoints.length > 1 && currentReplayIndex.value > 0 && currentReplayIndex.value < trackPoints.length) {
+      final prevPoint = trackPoints[currentReplayIndex.value - 1];
+      final currentPoint = trackPoints[currentReplayIndex.value];
+      final distance = _calculateDistance(prevPoint, currentPoint);
+      // 假设每个点之间的时间间隔约为1秒
+      final speed = distance; // 米/秒
+      currentSpeed.value = "${speed.toStringAsFixed(0)}m/s";
     }
   }
   
@@ -2134,30 +3059,51 @@ class TrackController extends GetxController {
     currentPosition.value = trackPoints[safeIndex];
     _moveMapToLocation(trackPoints[safeIndex]);
     
+    // 如果存在播放头像标记，更新其位置
+    if (replayAvatarMarker.value != null) {
+      _updateReplayAvatarMarkerPosition(trackPoints[safeIndex]);
+    }
+    
     // 更新累计距离
     _cumulativeDistance = _calculateCumulativeDistance(0, safeIndex);
+    
+    // 🎯 手动更新进度（因为这是用户拖动）
+    replayProgress.value = safeIndex / (trackPoints.length - 1).clamp(1, trackPoints.length);
     
     // 如果正在播放，更新时间基准
     if (isReplaying.value && _replayStartTime != null) {
       // 根据当前进度调整开始时间，让时间显示更准确
       final progress = safeIndex / (trackPoints.length - 1);
-      final estimatedTotalSeconds = 300; // 假设总时长5分钟，可以根据实际情况调整
-      final currentSeconds = (progress * estimatedTotalSeconds).round();
-      _replayStartTime = DateTime.now().subtract(Duration(seconds: currentSeconds));
+      final optimalDuration = _calculateOptimalReplayDuration();
+      final currentSeconds = (progress * optimalDuration.inSeconds);
+      _replayStartTime = DateTime.now().subtract(Duration(milliseconds: (currentSeconds * 1000).round()));
     }
     
     _updateReplayStatus();
   }
 
-  /// 开始回放
+  /// 开始回放 - 使用AnimationController替代Timer
   void startReplay() {
     if (trackPoints.isEmpty) {
       CustomToast.show(Get.context!, '暂无轨迹数据可回放');
       return;
     }
+    
+    // 检查地图是否就绪
+    if (!isMapReady.value) {
+      CustomToast.show(Get.context!, '地图正在加载中，请稍后再试');
+      DebugUtil.warning('地图未就绪，无法开始回放');
+      return;
+    }
+    
+    print('🎬 开始播放回放...');
+    
+    // 停止之前的动画
+    _replayAnimationController?.dispose();
+    
     isReplaying.value = true;
     showFullPlayer.value = true; // 显示完整播放器
-    _currentStep = 0;
+    print('🎬 showFullPlayer = ${showFullPlayer.value}');
 
     // 确保currentReplayIndex在有效范围内
     currentReplayIndex.value = currentReplayIndex.value.clamp(0, trackPoints.length - 1);
@@ -2167,78 +3113,161 @@ class TrackController extends GetxController {
       currentPosition.value = trackPoints[currentReplayIndex.value];
     }
     
+    // 创建播放头像标记
+    if (currentPosition.value != null) {
+      _createReplayAvatarMarker(currentPosition.value!);
+    }
+    
     // 初始化播放时间跟踪
     _replayStartTime = DateTime.now();
-    // 计算已经播放过的距离（从开始到当前索引）
     _cumulativeDistance = _calculateCumulativeDistance(0, currentReplayIndex.value);
     _updateReplayStatus();
 
-    _replayTimer?.cancel();
-    // 根据播放速度调整定时器间隔，使动画更流畅
-    final intervalMs = (30 / replaySpeed.value).round(); // 从50ms改为30ms，让动画更流畅
-    _replayTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
-      // 检查轨迹点是否仍然有效
-      if (trackPoints.isEmpty) {
-        stopReplay();
-        return;
-      }
-      
-      // 确保currentReplayIndex在有效范围内
-      if (currentReplayIndex.value >= trackPoints.length) {
-        currentReplayIndex.value = trackPoints.length - 1;
-        stopReplay();
-        return;
-      }
-      
-      if (currentReplayIndex.value < trackPoints.length - 1) {
-        final currentIndex = currentReplayIndex.value.clamp(0, trackPoints.length - 2);
-        final startPoint = trackPoints[currentIndex];
-        final endPoint = trackPoints[currentIndex + 1];
+    // 🎯 创建动画控制器，根据轨迹长度动态计算播放时间
+    final optimalDuration = _calculateOptimalReplayDuration();
+    _replayAnimationController = AnimationController(
+      duration: optimalDuration,
+      vsync: this,
+    );
 
-        // 计算插值进度，避免除零
-        final progress = animationSteps > 0 ? _currentStep / animationSteps : 0.0;
+    // 创建动画，从当前进度到1.0
+    final startProgress = currentReplayIndex.value / (trackPoints.length - 1).clamp(1, trackPoints.length);
+    _replayAnimation = Tween<double>(
+      begin: startProgress,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _replayAnimationController!,
+      curve: Curves.linear, // 保持线性播放，平滑处理在插值函数中进行
+    ));
 
-        // 使用平滑插值算法，让动画更自然
-        final smoothProgress = _applySmoothEasing(progress.clamp(0.0, 1.0));
-
-        // 更新当前位置（插值）
-        currentPosition.value = _interpolatePosition(
-          startPoint,
-          endPoint,
-          smoothProgress,
-        );
-
-        // 平滑移动地图视角，添加一些延迟避免过于频繁
-        if (_currentStep % 3 == 0) { // 每3步更新一次地图位置
-          _moveMapToLocation(currentPosition.value!);
-        }
-
-        _currentStep++;
-
-        // 到达下一个点
-        if (_currentStep >= animationSteps) {
-          _currentStep = 0;
-          currentReplayIndex.value++;
-          // 更新累计距离和播放状态
-          _cumulativeDistance = _calculateCumulativeDistance(0, currentReplayIndex.value);
-          _updateReplayStatus();
-          
-          // 检查是否经过停留点，给予提示
-          _checkPassingStopPoint(currentReplayIndex.value);
-        }
-      } else {
-        // 到达终点
-        currentPosition.value = trackPoints.last;
-        _showReplayCompleteMessage();
-        stopReplay();
-      }
+    // 设置动画监听器的更新频率（60fps）
+    _replayAnimationController!.addListener(() {
+      // 确保动画以60fps的频率更新
     });
+
+    // 监听动画值变化
+    _replayAnimation!.addListener(_onReplayAnimationUpdate);
+    
+    // 监听动画完成
+    _replayAnimationController!.addStatusListener(_onReplayAnimationStatus);
+
+    final totalDistance = _calculateTotalTrackDistance();
+    print('🎬 开始播放: 轨迹点=${trackPoints.length}, 总距离=${(totalDistance/1000).toStringAsFixed(2)}km, 起始进度=${startProgress.toStringAsFixed(3)}, 播放时长=${optimalDuration.inSeconds}秒');
+    
+    // 开始动画
+    _replayAnimationController!.forward();
   }
   
-  /// 应用平滑缓动函数，让动画更自然
-  double _applySmoothEasing(double t) {
-    // 使用ease-in-out缓动函数
-    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  /// 动画更新回调
+  void _onReplayAnimationUpdate() {
+    if (_replayAnimation == null || trackPoints.isEmpty) return;
+    
+    final progress = _replayAnimation!.value;
+    final totalPoints = trackPoints.length;
+    
+    // 计算当前应该在哪个轨迹点，使用更高精度
+    final exactIndex = progress * (totalPoints - 1);
+    final currentIndex = exactIndex.floor().clamp(0, totalPoints - 2);
+    final nextIndex = (currentIndex + 1).clamp(0, totalPoints - 1);
+    final interpolationProgress = exactIndex - currentIndex;
+    
+    // 更新当前索引（用于UI显示）
+    if (currentReplayIndex.value != currentIndex) {
+      currentReplayIndex.value = currentIndex;
+      _cumulativeDistance = _calculateCumulativeDistance(0, currentIndex);
+      _updateReplayStatus();
+      _checkPassingStopPoint(currentIndex);
+    }
+    
+    // 使用更平滑的插值计算当前位置
+    final startPoint = trackPoints[currentIndex];
+    final endPoint = trackPoints[nextIndex];
+    
+    // 应用多级平滑处理 - 使用新的超平滑算法
+    final smoothProgress = _applyMultiLevelSmoothing(interpolationProgress.clamp(0.0, 1.0));
+    
+    // 计算平滑插值位置
+    final newPosition = _interpolatePosition(startPoint, endPoint, smoothProgress);
+    
+    // 只有当位置变化足够大时才更新，减少不必要的重建
+    if (currentPosition.value == null || 
+        _calculateDistance(currentPosition.value!, newPosition) > 0.5) { // 0.5米阈值
+      currentPosition.value = newPosition;
+      
+      // 使用优化的标记更新方法
+      _updateReplayAvatarMarkerOptimized(newPosition);
+    }
+    
+    // 更新播放进度
+    replayProgress.value = progress.clamp(0.0, 1.0);
+    
+    // 平滑移动地图视角（降低频率）
+    if ((progress * 1000).round() % 100 == 0) { // 每100毫秒更新一次地图位置，减少频率
+      _moveMapToLocationSmooth(newPosition);
+    }
+  }
+
+  /// 动画状态监听
+  void _onReplayAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      // 播放完成
+      currentReplayIndex.value = trackPoints.length - 1;
+      _showReplayCompleteMessage();
+      
+      // 播放完成后停止并隐藏头像
+      isReplaying.value = false;
+      _replayAnimationController?.stop();
+      _replayAnimationController?.reset();
+      replaySpeed.value = 1.0;
+      _replayStartTime = null;
+      _cumulativeDistance = _calculateCumulativeDistance(0, trackPoints.length - 1);
+      replayDistance.value = "";
+      replayTime.value = "00:00:00";
+      replayProgress.value = 1.0; // 设置为完成状态
+      currentSpeed.value = "";
+      
+      // 🎯 播放完成后隐藏头像标记
+      replayAvatarMarker.value = null;
+      currentPosition.value = null; // 清除当前位置，避免显示其他标记
+      
+      DebugUtil.info('🏁 轨迹播放完成，头像已隐藏');
+    }
+  }
+
+  /// 应用高级平滑处理，减少闪现效果
+  double _applyAdvancedSmoothing(double t) {
+    // 使用五次Hermite插值，提供更平滑的过渡
+    // 这个函数在0和1处的一阶和二阶导数都为0，提供超平滑的过渡
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+  }
+  
+  /// 应用贝塞尔曲线平滑处理
+  double _applyCubicBezierSmoothing(double t) {
+    // 使用三次贝塞尔曲线 (0.25, 0.1, 0.25, 1.0) 提供自然的缓动效果
+    const double c2 = 0.1;
+    const double c3 = 0.25;
+    
+    if (t <= 0.0) return 0.0;
+    if (t >= 1.0) return 1.0;
+    
+    // 简化的三次贝塞尔曲线计算
+    final double t2 = t * t;
+    final double t3 = t2 * t;
+    final double mt = 1.0 - t;
+    final double mt2 = mt * mt;
+    
+    return 3.0 * mt2 * t * c2 + 3.0 * mt * t2 * c3 + t3;
+  }
+  
+  /// 多级平滑处理 - 结合多种算法
+  double _applyMultiLevelSmoothing(double t) {
+    // 第一级：五次Hermite插值
+    double smoothed = _applyAdvancedSmoothing(t);
+    
+    // 第二级：轻微的贝塞尔曲线调整
+    smoothed = smoothed * 0.8 + _applyCubicBezierSmoothing(t) * 0.2;
+    
+    return smoothed.clamp(0.0, 1.0);
   }
   
   /// 检查是否经过停留点
@@ -2265,46 +3294,65 @@ class TrackController extends GetxController {
   
   /// 显示回放完成消息
   void _showReplayCompleteMessage() {
-    CustomToast.show(
-      Get.context!, 
-      '轨迹回放完成！总距离：${moveDistance.value}，总停留：${stayDuration.value}'
-    );
+    // CustomToast.show(
+    //   Get.context!, 
+    //   '轨迹回放完成！总距离：${moveDistance.value}，总停留：${stayDuration.value}'
+    // );
   }
 
   /// 暂停
   void pauseReplay() {
     isReplaying.value = false;
-    _replayTimer?.cancel();
+    _replayAnimationController?.stop();
+    // 暂停时保留头像标记，不清除
   }
 
   /// 停止并重置
   void stopReplay() {
     isReplaying.value = false;
-    _replayTimer?.cancel();
+    _replayAnimationController?.stop();
+    _replayAnimationController?.reset();
     currentReplayIndex.value = 0;
-    _currentStep = 0;
     replaySpeed.value = 1.0; // 重置播放速度
     // 重置播放状态
     _replayStartTime = null;
     _cumulativeDistance = 0.0;
     replayDistance.value = "";
     replayTime.value = "00:00:00";
-    // 重置位置
+    
+    // 🎭 清除播放头像标记
+    if (replayAvatarMarker.value != null) {
+      DebugUtil.info('🧹 停止播放时清除播放头像标记');
+      replayAvatarMarker.value = null;
+    }
+    replayProgress.value = 0.0; // 重置进度
+    currentSpeed.value = ""; // 重置速度
+    // 清除当前位置，避免显示橙色标记
+    currentPosition.value = null;
+    
+    // 重置地图位置到起点，但不设置currentPosition
     if (trackPoints.isNotEmpty) {
-      currentPosition.value = trackPoints.first;
       _moveMapToLocation(trackPoints.first);
     }
+    
+    DebugUtil.info('⏹️ 轨迹播放已停止，头像已隐藏');
   }
   
   /// 关闭播放器并重置动画
   void closePlayer() {
     stopReplay(); // 停止当前播放
     showFullPlayer.value = false; // 隐藏完整播放器
+    
+    // 🎯 确保头像标记被清除
+    replayAvatarMarker.value = null;
     currentPosition.value = null; // 清除当前位置标记
+    
     // 重置地图视图到初始状态
     if (trackPoints.isNotEmpty) {
       _moveMapToLocation(trackPoints.first);
     }
+    
+    DebugUtil.info('❌ 播放器已关闭，所有标记已清除');
   }
 
   /// 切换播放速度（快进）
@@ -2326,6 +3374,13 @@ class TrackController extends GetxController {
       }
     }
   }
+  
+  /// 根据进度跳转（用于进度条拖动）
+  void seekReplay(double progress) {
+    if (trackPoints.isEmpty) return;
+    final targetIndex = (progress * (trackPoints.length - 1)).round();
+    seekToIndex(targetIndex);
+  }
 
   /// 已移除虚拟数据加载方法，改为统一使用真实API数据
   
@@ -2335,15 +3390,18 @@ class TrackController extends GetxController {
   void onClose() {
     DebugUtil.info('🧹 开始清理轨迹页面资源和缓存...');
     
+    // ✅ 关闭所有 InfoWindow
+    _closeAllInfoWindows();
+    
     // 重置地图就绪状态
     isMapReady.value = false;
     
-    // 安全地清理所有定时器和资源
+    // 安全地清理所有定时器和动画资源
     try {
-      _replayTimer?.cancel();
-      _replayTimer = null;
+      _replayAnimationController?.dispose();
+      _replayAnimationController = null;
     } catch (e) {
-      debugPrint('清理replayTimer时出错: $e');
+      debugPrint('清理replayAnimationController时出错: $e');
     }
     
     try {

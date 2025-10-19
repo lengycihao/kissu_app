@@ -7,7 +7,6 @@ import 'package:kissu_app/services/amap_geocode_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
-import 'package:kissu_app/pages/location/location_reminder/location_picker/custom_location_info_window.dart';
 import 'package:kissu_app/models/poi_model.dart';
 import 'package:kissu_app/models/city_model.dart';
 
@@ -184,8 +183,6 @@ class LocationPickerController extends GetxController {
   
   @override
   void onClose() {
-    // 清理自定义InfoWindow
-    CustomLocationInfoWindowManager.dispose();
     noteController.dispose();
     super.onClose();
   }
@@ -198,7 +195,7 @@ class LocationPickerController extends GetxController {
   
   /// 地图相机位置改变回调
   void onCameraMove(CameraPosition position) {
-    CustomLocationInfoWindowManager.updateCameraPosition(position);
+    // InfoWindow现在通过Marker的customInfoWindowBuilder自动管理
   }
   
   /// 切换地图类型
@@ -313,6 +310,7 @@ class LocationPickerController extends GetxController {
         position: position,
         icon: icon,
         infoWindowEnable: true,
+        autoShowCustomInfoWindow: true, // 自动显示自定义 InfoWindow
         infoWindow: InfoWindow(
           title: address.split('\n').first, // 位置名称
           snippet: address.contains('\n') ? address.split('\n').skip(1).join('\n') : '', // 详细地址
@@ -479,37 +477,6 @@ class LocationPickerController extends GetxController {
     circles.refresh();
     
     DebugUtil.success('🔵 围栏圆形已更新: 中心=$position, 半径=${geofenceRadius.value}米');
-  }
-  
-  /// 移动相机到指定位置，并向下偏移避免底部面板遮挡
-  void _moveCameraToPosition(LatLng position) {
-    if (mapController != null) {
-      // 🔧 底部面板高度约 310px，屏幕高度假设 800px
-      // 地图可见区域高度 = 800 - 310 = 490px
-      // 标记点应该在可见区域中上部（约40%位置），即从屏幕顶部 490×0.4 = 196px 处
-      // 要让标记点在屏幕上方，相机需要向下（向南）移动
-      // 屏幕中心在 400px 处，标记点在 196px，相机需要向下偏移 400-196 = 204px
-      // 在缩放级别17.5下，屏幕高度约显示 0.006 度纬度（约666米）
-      // 204px / 800px = 25.5% 的屏幕高度
-      // 偏移量 = 0.006 × 0.255 = 0.00153 度 ≈ 0.0016 度（约 170米）
-      // ⚠️ 向下偏移相机 = 减小纬度值
-      final offsetLatitude = position.latitude - 0.0016;
-      final offsetPosition = LatLng(offsetLatitude, position.longitude);
-      
-      DebugUtil.info('📷 相机移动: 原位置=$position, 偏移后=$offsetPosition, 偏移量=-0.0016度, 缩放=17.5');
-      
-      // 使用动画移动相机，同时设置缩放级别
-      mapController!.moveCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: offsetPosition,
-            zoom: 17.5, // 设置缩放级别，让100米围栏显示得更清晰
-          ),
-        ),
-        animated: true,
-        duration: 300, // 动画时长300ms
-      );
-    }
   }
   
   /// 保存位置

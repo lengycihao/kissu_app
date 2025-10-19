@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
@@ -24,7 +26,7 @@ class SensitiveDataApi {
   /// - eventType为6时：{"network_name": "网络名称"}
   Future<HttpResultN> reportSensitiveData({
     required int eventType,
-    Map<String, dynamic>? ext,
+    String? ext,
   }) async {
     final params = <String, dynamic>{
       'event_type': eventType,
@@ -63,7 +65,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportWifiChange({required String networkName}) async {
     return await reportSensitiveData(
       eventType: 6,
-      ext: {'network_name': networkName},
+      ext: jsonEncode({'network_name': networkName}),
     );
   }
   
@@ -71,7 +73,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportChargingStart({required int power}) async {
     return await reportSensitiveData(
       eventType: 7,
-      ext: {'power': power.toString()},
+      ext: jsonEncode({'power': power.toString()}),
     );
   }
   
@@ -79,7 +81,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportChargingEnd({required int power}) async {
     return await reportSensitiveData(
       eventType: 8,
-      ext: {'power': power.toString()},
+      ext: jsonEncode({'power': power.toString()}),
     );
   }
   
@@ -95,12 +97,20 @@ class SensitiveDataApi {
   
   /// 上报手机解锁事件
   Future<HttpResultN> reportScreenUnlock() async {
-    return await reportSensitiveData(eventType: 14);
+    final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
+    return await reportSensitiveData(
+      eventType: 14,
+      ext: jsonEncode({"timestamp": timestamp.toString()}),
+    );
   }
   
   /// 上报手机锁屏事件
   Future<HttpResultN> reportScreenLock() async {
-    return await reportSensitiveData(eventType: 15);
+    final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
+    return await reportSensitiveData(
+      eventType: 15,
+      ext: jsonEncode({"timestamp": timestamp.toString()}),
+    );
   }
   
   /// 上报更换移动网络事件

@@ -3,6 +3,7 @@ import 'package:kissu_app/network/public/face_status_api.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/emoji_cache_manager.dart';
+import 'package:kissu_app/pages/location/location_v2_controller.dart';
 
 /// 状态设置页面控制器
 class LocationStateController extends GetxController {
@@ -256,7 +257,7 @@ class LocationStateController extends GetxController {
     selectedEmoji.value = null; // 只关闭底部弹窗
   }
   
-  /// 执行设置状态的实际操作（不返回页面）
+  /// 执行设置状态的实际操作（保存成功后返回定位页面并刷新）
   Future<void> _doSetStatus() async {
     if (selectedEmoji.value == null) return;
     
@@ -291,6 +292,9 @@ class LocationStateController extends GetxController {
         
         DebugUtil.info('✅ 设置状态成功');
         OKToastUtil.show('状态已设置');
+        
+        // 返回定位页面并刷新数据
+        _returnToLocationPageAndRefresh();
       } else {
         DebugUtil.warning('⚠️ 设置状态失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '设置失败');
@@ -432,7 +436,9 @@ class LocationStateController extends GetxController {
         
         DebugUtil.info('✅ 更新有效期成功');
         OKToastUtil.show('有效期已更新');
-        Get.back();
+        
+        // 返回定位页面并刷新数据
+        _returnToLocationPageAndRefresh();
       } else {
         DebugUtil.warning('⚠️ 更新有效期失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '更新失败');
@@ -480,6 +486,42 @@ class LocationStateController extends GetxController {
       return '${diff.inHours}小时后过期';
     } else {
       return '${diff.inDays}天后过期';
+    }
+  }
+  
+  /// 返回定位页面并刷新数据
+  void _returnToLocationPageAndRefresh() {
+    try {
+      DebugUtil.info('🔄 表情设置保存成功，准备返回定位页面并刷新数据');
+      
+      // 返回到定位页面
+      Get.back();
+      
+      // 刷新定位页面数据
+      _refreshLocationPageData();
+      
+      DebugUtil.success('✅ 已返回定位页面并触发数据刷新');
+    } catch (e) {
+      DebugUtil.error('❌ 返回定位页面并刷新数据失败: $e');
+      // 即使刷新失败，也要返回页面
+      Get.back();
+    }
+  }
+  
+  /// 刷新定位页面数据
+  void _refreshLocationPageData() {
+    try {
+      // 尝试获取定位页面控制器并刷新数据
+      // 检查是否存在LocationV2Controller
+      if (Get.isRegistered<LocationV2Controller>()) {
+        final locationController = Get.find<LocationV2Controller>();
+        locationController.refreshLocationData();
+        DebugUtil.info('🔄 已触发LocationV2Controller数据刷新');
+      } else {
+        DebugUtil.warning('⚠️ 未找到定位页面控制器，无法刷新数据');
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 刷新定位页面数据异常: $e');
     }
   }
 }

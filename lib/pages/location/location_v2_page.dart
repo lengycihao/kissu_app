@@ -6,7 +6,7 @@ import 'package:kissu_app/widgets/device_info_item.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
-import 'package:kissu_app/pages/track/track_binding.dart'; 
+import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'location_v2_controller.dart';
 
@@ -54,7 +54,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     if (state == AppLifecycleState.paused) {
       // 应用进入后台，暂停地图更新（释放资源）
       print('📍 LocationV2Page: 应用进入后台，暂停地图更新');
@@ -87,21 +87,10 @@ class _LocationPageContentState extends State<_LocationPageContent>
         child: Stack(
           children: [
             // 固定的地图模块 - 使用缓存优化
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: mapHeight,
+            Positioned.fill(
               child: _CachedMapWidget(controller: widget.controller),
             ),
 
-            // 背景遮罩层优化 - 减少重建频率
-            _OptimizedOverlayWidget(
-              controller: widget.controller,
-              mapHeight: mapHeight,
-              initialHeight: initialHeight,
-              screenHeight: screenHeight,
-            ),
 
             // 全屏渐变背景 - 从中间滑到顶部时显示
             _GradientBackgroundOverlay(
@@ -145,20 +134,26 @@ class _LocationPageContentState extends State<_LocationPageContent>
                 builder: (context) {
                   // 🔧 修改：只有已绑定、查看另一半头像时且非会员时才禁用拖动
                   return Obx(() {
-                    final isVip = widget.controller.isVip.value; // 🔧 使用controller的响应式isVip
+                    final isVip = widget
+                        .controller
+                        .isVip
+                        .value; // 🔧 使用controller的响应式isVip
                     final isViewingPartner =
                         widget.controller.isOneself.value == 0;
-                    final isBindPartner =
-                        widget.controller.isBindPartner.value;
-                    final shouldLimitDrag = !isVip && isViewingPartner && isBindPartner;
+                    final isBindPartner = widget.controller.isBindPartner.value;
+                    final shouldLimitDrag =
+                        !isVip && isViewingPartner && isBindPartner;
 
                     // 🔧 根据绑定状态动态计算中间吸顶位置
                     // 未绑定时设备信息模块高度134px，已绑定时92px，差42px
                     // 为了让视觉上的吸顶位置一致，需要调整snapSize
-                    final middleSnapSize = isBindPartner 
-                        ? 0.5 + (21 / screenHeight) // 已绑定：屏幕中间
-                        : 0.5 + (57 / screenHeight); // 未绑定：稍微往上偏移42px（设备模块高度差）+ 35
-                    
+                    final middleSnapSize = isBindPartner
+                        ? 0.5 +
+                              (21 / screenHeight) // 已绑定：屏幕中间
+                        : 0.5 +
+                              (57 /
+                                  screenHeight); // 未绑定：稍微往上偏移42px（设备模块高度差）+ 35
+
                     return DraggableScrollableSheet(
                       initialChildSize: initialHeight / screenHeight,
                       minChildSize: shouldLimitDrag
@@ -175,6 +170,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                               (screenHeight - 100) /
                                   screenHeight, // 距离屏幕顶部100px
                             ],
+                      snapAnimationDuration: const Duration(milliseconds: 200), // 🎯 优化滑动体验：缩短吸附动画时间
                       builder: (context, scrollController) {
                         return Column(
                           children: [
@@ -256,38 +252,132 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                                     // const SizedBox(height: 16),
                                                     // 虚拟数据提示文字 - 设备信息模块上方居中显示
                                                     //以下为虚拟数据
-                                                     
-                                                  
-                                                     // 虚拟提示文字 - 仅未绑定时显示
-                                                     Obx(() {
-                                                       if (!widget.controller.isBindPartner.value) {
-                                                         return Column(
-                                                           mainAxisSize: MainAxisSize.min,
-                                                           children: [
-                                                             Center(
-                                                               child: Container(
-                                                                 width: 125,
-                                                                 height: 23,
-                                                                 alignment: Alignment.center,
-                                                                 decoration: BoxDecoration(
-                                                                   color: Colors.white,
-                                                                   borderRadius: BorderRadius.circular(12.5),
-                                                                 ),
-                                                                 child: const Text(
-                                                                   '以下为虚拟数据',
-                                                                   style: TextStyle(
-                                                                     fontSize: 12,
-                                                                     color: Color(0xFF999999),
-                                                                   ),
-                                                                 ),
-                                                               ),
-                                                             ),
-                                                             const SizedBox(height: 10),
-                                                           ],
-                                                         );
-                                                       }
-                                                       return const SizedBox.shrink();
-                                                     }),
+
+                                                    // 虚拟提示文字 - 仅查看另一半数据且未绑定时显示
+                                                    Obx(() {
+                                                      // 只有查看另一半数据(isOneself=0)且未绑定时才显示虚拟数据提示
+                                                      if (widget.controller.isOneself.value == 0 && 
+                                                          !widget.controller.isBindPartner.value) {
+                                                        return Column(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Center(
+                                                              child: Container(
+                                                                width: 125,
+                                                                height: 23,
+                                                                alignment:
+                                                                    Alignment
+                                                                        .center,
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        12.5,
+                                                                      ),
+                                                                ),
+                                                                child: const Text(
+                                                                  '以下为虚拟数据',
+                                                                  style: TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color: Color(
+                                                                      0xFF999999,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              height: 10,
+                                                            ),
+                                                          ],
+                                                        );
+                                                      }
+                                                      return const SizedBox.shrink();
+                                                    }),
+                                                    //离线提醒
+                                                    Obx(() {
+                                                      // 只有在已绑定状态下，且另一半离线时才显示
+                                                      if (widget.controller.isBindPartner.value && 
+                                                          widget.controller.partnerOnlineStatus.value != null &&
+                                                          widget.controller.partnerOnlineStatus.value!.status == 0) {
+                                                        
+                                                        // 格式化离线时间
+                                                        String offlineTime = '';
+                                                        if (widget.controller.partnerOnlineStatus.value!.updateTime != null) {
+                                                          offlineTime = widget.controller.partnerOnlineStatus.value!.updateTime!;
+                                                        }
+                                                        
+                                                        return GestureDetector(
+                                                          onTap: () {
+                                                            // 点击查看原因，跳转到常见问题页面
+                                                            widget.controller.navigateToQuestionPage(
+                                                              widget.controller.partnerOnlineStatus.value!.problemId
+                                                            );
+                                                          },
+                                                          child: Container(
+                                                            width: double.infinity,
+                                                            margin: EdgeInsets.only(
+                                                              left: 14,
+                                                              right: 14,
+                                                              bottom: 10,
+                                                            ),
+                                                            padding: EdgeInsets.only(
+                                                              left: 10,
+                                                              right: 10,
+                                                            ),
+                                                            height: 28,
+                                                            decoration: BoxDecoration(
+                                                              color: Color(0xffFFFCE8),
+                                                              borderRadius: BorderRadius.circular(12),
+                                                            ),
+                                                            alignment: Alignment.center,
+                                                            child: Row(
+                                                              children: [
+                                                                Image.asset(
+                                                                  'assets/phone_history/kissu3_history_yichang.webp',
+                                                                  width: 16,
+                                                                  height: 16,
+                                                                ),
+                                                                SizedBox(width: 4),
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    'Ta离线啦${offlineTime.isNotEmpty ? '，离线时间: $offlineTime' : ''}',
+                                                                    style: TextStyle(
+                                                                      fontSize: 12,
+                                                                      color: Color(0xFF333333),
+                                                                    ),
+                                                                    overflow: TextOverflow.ellipsis,
+                                                                  ),
+                                                                ),
+                                                                Row(
+                                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                                  children: [
+                                                                    Text(
+                                                                      '查看原因',
+                                                                      style: TextStyle(
+                                                                        fontSize: 13,
+                                                                        color: Color(0xFFFF9500),
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(width: 4),
+                                                                    Image.asset(
+                                                                      'assets/phone_history/kissu3_arrow_blue.webp',
+                                                                      color: Color(0xFFAD6D48),
+                                                                      width: 16,
+                                                                      height: 16,
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                      return const SizedBox.shrink();
+                                                    }),
                                                     _buildDeviceInfoSection(),
                                                     const SizedBox(height: 10),
                                                     _buildLocationInfoSection(),
@@ -378,15 +468,21 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                           widget.controller.isOneself.value;
                                       final isBindPartner =
                                           widget.controller.isBindPartner.value;
-                                      final isVip = widget.controller.isVip.value; // 🔧 使用controller的响应式isVip
+                                      final isVip = widget
+                                          .controller
+                                          .isVip
+                                          .value; // 🔧 使用controller的响应式isVip
                                       final shouldShowVipMask =
-                                          !isVip && isSelfFlag == 0 && isBindPartner;
+                                          !isVip &&
+                                          isSelfFlag == 0 &&
+                                          isBindPartner;
                                       if (shouldShowVipMask) {
                                         return Positioned.fill(
                                           child: ClipRRect(
-                                            borderRadius: const BorderRadius.vertical(
-                                              top: Radius.circular(20),
-                                            ),
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                  top: Radius.circular(20),
+                                                ),
                                             child: BackdropFilter(
                                               filter: ImageFilter.blur(
                                                 sigmaX: 10.0,
@@ -394,17 +490,25 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                               ),
                                               child: Container(
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                                                  borderRadius: const BorderRadius.vertical(
-                                                    top: Radius.circular(20),
-                                                  ),
+                                                  color: const Color(
+                                                    0xFFFFFFFF,
+                                                  ).withOpacity(0.2),
+                                                  borderRadius:
+                                                      const BorderRadius.vertical(
+                                                        top: Radius.circular(
+                                                          20,
+                                                        ),
+                                                      ),
                                                 ),
                                                 child: GestureDetector(
                                                   onTap: () {
                                                     // 点击遮罩层时跳转到VIP页面，返回后刷新数据
-                                                    Get.toNamed(KissuRoutePath.vip)?.then((_) {
+                                                    Get.toNamed(
+                                                      KissuRoutePath.vip,
+                                                    )?.then((_) {
                                                       // 从VIP页面返回后，刷新用户信息和定位数据
-                                                      widget.controller.refreshUserInfo();
+                                                      widget.controller
+                                                          .refreshUserInfo();
                                                     });
                                                   },
                                                   child: Container(
@@ -421,10 +525,13 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                                             onTap: () {
                                                               // 点击图片时跳转到VIP页面，返回后刷新数据
                                                               Get.toNamed(
-                                                                KissuRoutePath.vip,
+                                                                KissuRoutePath
+                                                                    .vip,
                                                               )?.then((_) {
                                                                 // 从VIP页面返回后，刷新用户信息和定位数据
-                                                                widget.controller.refreshUserInfo();
+                                                                widget
+                                                                    .controller
+                                                                    .refreshUserInfo();
                                                               });
                                                             },
                                                             child: Image.asset(
@@ -570,7 +677,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   Spacer(),
                   // 天气模块
                   Obx(() {
-                    if (widget.controller.weatherIcon.value.isEmpty || 
+                    if (widget.controller.weatherIcon.value.isEmpty ||
                         widget.controller.weather.value.isEmpty) {
                       return const SizedBox.shrink();
                     }
@@ -726,44 +833,6 @@ class _LocationPageContentState extends State<_LocationPageContent>
   }
 }
 
-// 优化的遮罩层Widget - 减少重建频率
-class _OptimizedOverlayWidget extends StatelessWidget {
-  final LocationV2Controller controller;
-  final double mapHeight;
-  final double initialHeight;
-  final double screenHeight;
-
-  const _OptimizedOverlayWidget({
-    required this.controller,
-    required this.mapHeight,
-    required this.initialHeight,
-    required this.screenHeight,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // 计算遮罩透明度：从 0 到 0.4
-      final opacity =
-          (controller.sheetPercent.value - (initialHeight / screenHeight)) *
-          0.6;
-
-      return Positioned(
-        top: 0,
-        left: 0,
-        right: 0,
-        height: mapHeight,
-        child: IgnorePointer(
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 100),
-            opacity: opacity.clamp(0.0, 0.4),
-            child: Container(color: Colors.black.withValues(alpha: 1.0)),
-          ),
-        ),
-      );
-    });
-  }
-}
 
 // 全屏渐变背景遮罩 - 从中间滑到顶部时显示
 class _GradientBackgroundOverlay extends StatelessWidget {
@@ -809,6 +878,7 @@ class _GradientBackgroundOverlay extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Color(0xFFFEF6F0), // 顶部颜色
+                    Color(0xFFFFFFFF), // 中间颜色
                     Color(0xFFF6F6F6), // 底部颜色
                   ],
                 ),
@@ -1293,6 +1363,7 @@ class _LocationRecordItem extends StatelessWidget {
               initialDuration: record.duration,
               initialStartTime: record.startTime,
               initialEndTime: record.endTime,
+              autoShowInfoWindow: true, // 🎯 自动显示InfoWindow
             ),
             binding: TrackBinding(),
           );
@@ -1335,26 +1406,26 @@ class _LocationRecordItem extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7F7F7),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                       gradient: const LinearGradient(
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
-                        colors: [Color(0xFFFFEDF2), Color(0xFFFFF5F8)],
+                        colors: [Color(0xFFFFF5EF), Color(0xFFFfffff)],
                       ),
                     ),
                     child: Row(
                       children: [
                         Image.asset(
-                          'assets/kissu_track_location.webp',
+                         record.status == 'staying' ? 'assets/kissu_track_staying.webp' : 'assets/kissu_track_location_end.webp',
                           width: 24,
-                          height: 24,
+                          height: 24,color: record.status == 'staying' ? Color(0xFFBE9DFF) : Color(0xFFFBAE84),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
                         Text(
                           _getLeftText(record),
                           style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFFF4177),
+                            fontSize: 12,fontWeight: FontWeight.bold,
+                            color: Color(0xFF333333),
                           ),
                         ),
                         Spacer(),
@@ -1471,10 +1542,11 @@ class _FloatingActionButtons extends StatelessWidget {
       // 未绑定时设备信息模块高42px，需要向下偏移42px以对齐吸顶位置
       final isBindPartner = controller.isBindPartner.value;
       final deviceHeightDiff = -42.0; // 设备模块高度差
-      final firstButtonBottom = isBindPartner 
-          ? screenHeight / 2 - deviceHeightDiff // 已绑定：屏幕中间
+      final firstButtonBottom = isBindPartner
+          ? screenHeight / 2 -
+                deviceHeightDiff // 已绑定：屏幕中间
           : screenHeight / 2 - deviceHeightDiff; // 未绑定：向下偏移42px
-      
+
       // 获取当前滑动进度
       // 下半屏有三个位置：
       // 1. 起始位置 (minHeight: 190px) - sheetPercent约为 190/screenHeight
@@ -1483,9 +1555,7 @@ class _FloatingActionButtons extends StatelessWidget {
       final sheetPercent = controller.sheetPercent.value;
 
       // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
-      final middleSnapSize = isBindPartner 
-          ? 0.5 
-          : 0.5 ;
+      final middleSnapSize = isBindPartner ? 0.5 : 0.5;
 
       // 计算顶部吸顶位置的百分比
       final maxPercent = (screenHeight - 100) / screenHeight;
@@ -1501,7 +1571,9 @@ class _FloatingActionButtons extends StatelessWidget {
         opacity = 0.0;
       } else {
         // 线性插值：从middleSnapSize到maxPercent之间，透明度从1降到0
-        opacity = (maxPercent - sheetPercent) / (maxPercent - middleSnapSize-20/screenHeight);
+        opacity =
+            (maxPercent - sheetPercent) /
+            (maxPercent - middleSnapSize - 20 / screenHeight);
       }
 
       // 确保透明度在有效范围内 [0.0, 1.0]
@@ -1539,8 +1611,8 @@ class _FloatingActionButtons extends StatelessWidget {
                 _FloatingButton(
                   assetPath: 'assets/location/kissu3_location_track_an.webp',
                   onTap: () {
-                    // TODO: 实现轨迹功能
-                    print('轨迹按钮点击');
+                    // 跳转到足迹页面
+                    Get.toNamed(KissuRoutePath.track);
                   },
                 ),
                 const SizedBox(height: 5),
@@ -1612,18 +1684,19 @@ class _LeftFloatingButtons extends StatelessWidget {
       // 🔧 根据绑定状态动态计算按钮底部位置（与右侧按钮对齐）
       final isBindPartner = controller.isBindPartner.value;
       final deviceHeightDiff = -42.0; // 设备模块高度差
-      final firstButtonBottom = isBindPartner 
-          ? screenHeight / 2 - deviceHeightDiff // 已绑定：屏幕中间
+      final firstButtonBottom = isBindPartner
+          ? screenHeight / 2 -
+                deviceHeightDiff // 已绑定：屏幕中间
           : screenHeight / 2 - deviceHeightDiff; // 未绑定：向下偏移42px
-      
+
       // 使用与右侧按钮相同的透明度计算逻辑
       final sheetPercent = controller.sheetPercent.value;
-      
+
       // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
-      final middleSnapSize = isBindPartner 
-          ? 0.5 
+      final middleSnapSize = isBindPartner
+          ? 0.5
           : 0.5 + (deviceHeightDiff / screenHeight);
-      
+
       final maxPercent = (screenHeight - 100) / screenHeight;
 
       double opacity;
@@ -1760,7 +1833,7 @@ class _MapTypePickerSheet extends StatelessWidget {
                   },
                   child: Obx(
                     () => _MapTypeOption(
-                      imagePath: 'assets/map_textures/classic_map.png',
+                      imagePath: 'assets/kissu3_map_custom.webp',
                       label: '经典地图',
                       isSelected: controller.mapType.value == 1,
                     ),
@@ -1778,7 +1851,7 @@ class _MapTypePickerSheet extends StatelessWidget {
                   },
                   child: Obx(
                     () => _MapTypeOption(
-                      imagePath: 'assets/map_textures/satellite_map.png',
+                      imagePath: 'assets/kissu3_map_3d.webp',
                       label: '卫星地图',
                       isSelected: controller.mapType.value == 2,
                     ),
@@ -1872,3 +1945,4 @@ class _MapTypeOption extends StatelessWidget {
     );
   }
 }
+

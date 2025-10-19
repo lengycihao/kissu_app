@@ -6,7 +6,8 @@ import 'package:kissu_app/network/public/setting_api.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page_info.dart';
 
 class QuestionPage extends StatefulWidget {
-  const QuestionPage({Key? key}) : super(key: key);
+  final int? targetProblemId; // 目标问题ID，如果提供则自动跳转到对应问题详情
+  const QuestionPage({Key? key, this.targetProblemId}) : super(key: key);
 
   @override
   State<QuestionPage> createState() => _QuestionPageState();
@@ -33,6 +34,11 @@ class _QuestionPageState extends State<QuestionPage> {
           questions = result.data!;
           isLoading = false;
         });
+        
+        // 如果有目标问题ID，自动跳转到对应的问题详情
+        if (widget.targetProblemId != null) {
+          _navigateToTargetQuestion();
+        }
       } else {
         setState(() {
           errorMessage = result.msg ?? '加载失败';
@@ -43,6 +49,31 @@ class _QuestionPageState extends State<QuestionPage> {
       setState(() {
         errorMessage = '网络错误: $e';
         isLoading = false;
+      });
+    }
+  }
+
+  /// 跳转到目标问题详情
+  void _navigateToTargetQuestion() {
+    final targetQuestion = questions.firstWhereOrNull(
+      (question) => question.id == widget.targetProblemId,
+    );
+    
+    if (targetQuestion != null) {
+      // 找到对应的问题，跳转到详情页
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.to(
+          () => QuestionPageInfo(question: targetQuestion),
+        );
+      });
+    } else {
+      // 没有找到对应的问题，显示提示
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.snackbar(
+          '提示',
+          '未找到对应的问题信息',
+          snackPosition: SnackPosition.TOP,
+        );
       });
     }
   }

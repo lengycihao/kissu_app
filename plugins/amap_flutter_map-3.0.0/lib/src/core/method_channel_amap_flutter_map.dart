@@ -174,6 +174,10 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     return _events(mapId).whereType<PolylineTapEvent>();
   }
 
+  Stream<InfoWindowCloseEvent> onInfoWindowClose({required int mapId}) {
+    return _events(mapId).whereType<InfoWindowCloseEvent>();
+  }
+
   Future<dynamic> _handleMethodCall(MethodCall call, int mapId) async {
     switch (call.method) {
       case 'location#changed':
@@ -225,6 +229,9 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
       case 'polyline#onTap':
         _mapEventStreamController
             .add(PolylineTapEvent(mapId, call.arguments['polylineId']));
+        break;
+      case 'onInfoWindowClose':
+        _mapEventStreamController.add(InfoWindowCloseEvent(mapId));
         break;
       case 'map#onPoiTouched':
         try {

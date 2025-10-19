@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/simple_image_source_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
+import 'package:kissu_app/network/public/photo_wall_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 /// 图片弹窗工具类
@@ -20,6 +23,8 @@ class ImageDialogUtil {
   /// [showCloseButton] 是否显示关闭按钮，默认true
   /// [borderRadius] 圆角半径，默认12
   /// [backgroundColor] 背景颜色，已移除背景色
+  /// [onUploadSuccess] 上传成功后的回调函数
+  /// [currentPhotoWallUrl] 当前照片墙的网络图片URL
   static void showImageDialog({
     required BuildContext context,
     required String imagePath,
@@ -29,6 +34,8 @@ class ImageDialogUtil {
     bool showCloseButton = true,
     double borderRadius = 12,
     Color? backgroundColor,
+    VoidCallback? onUploadSuccess,
+    String? currentPhotoWallUrl,
   }) {
     showDialog(
       context: context,
@@ -38,6 +45,8 @@ class ImageDialogUtil {
           imagePath: imagePath,
           barrierDismissible: barrierDismissible,
           showCloseButton: showCloseButton,
+          onUploadSuccess: onUploadSuccess,
+          currentPhotoWallUrl: currentPhotoWallUrl,
         );
       },
     );
@@ -49,11 +58,15 @@ class _AvatarUploadDialog extends StatefulWidget {
   final String imagePath;
   final bool barrierDismissible;
   final bool showCloseButton;
+  final VoidCallback? onUploadSuccess;
+  final String? currentPhotoWallUrl;
 
   const _AvatarUploadDialog({
     required this.imagePath,
     required this.barrierDismissible,
     required this.showCloseButton,
+    this.onUploadSuccess,
+    this.currentPhotoWallUrl,
   });
 
   @override
@@ -63,6 +76,7 @@ class _AvatarUploadDialog extends StatefulWidget {
 class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
   final PermissionService _permissionService = PermissionService();
   final FileUploadApi _fileUploadApi = FileUploadApi();
+  final PhotoWallApi _photoWallApi = PhotoWallApi();
   
   File? _selectedImageFile; // 选中的本地图片文件
   bool _isUploading = false; // 是否正在上传
@@ -109,8 +123,8 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         CustomToast.show(context, '权限未授予，无法选择图片');
       }
     } catch (e) {
-      print('选择头像失败: $e');
-      CustomToast.show(context, '选择头像失败');
+      print('选择照片失败: $e');
+      CustomToast.show(context, '选择照片失败');
     }
   }
 
@@ -137,19 +151,39 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _selectedImageFile = File(pickedFile.path);
-        });
-        
-        // 选择完图片后自动上传
-        await _uploadAvatar();
+        // 进入图片裁剪页面
+        await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
       CustomToast.show(context, '选择图片失败: $e');
     }
   }
 
-  /// 上传头像
+  /// 导航到图片裁剪页面
+  Future<void> _navigateToCropPage(String imagePath) async {
+    try {
+      await Get.to(
+        () => ImageCropPage(
+          imagePath: imagePath,
+          onCropComplete: _onCropComplete,
+          customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp', // 自定义裁剪框
+        ),
+        fullscreenDialog: true,
+      );
+    } catch (e) {
+      print('导航到裁剪页面失败: $e');
+      CustomToast.show(context, '打开裁剪页面失败');
+    }
+  }
+
+  /// 裁剪完成回调
+  void _onCropComplete(String croppedImagePath) {
+    setState(() {
+      _selectedImageFile = File(croppedImagePath);
+    });
+  }
+
+  /// 上传头像（照片墙）
   Future<void> _uploadAvatar() async {
     if (_selectedImageFile == null) return;
 
@@ -158,31 +192,153 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
     });
 
     try {
-      final result = await _fileUploadApi.uploadFile(_selectedImageFile!);
+      // 第一步：上传图片文件，获取URL
+      final uploadResult = await _fileUploadApi.uploadFile(_selectedImageFile!);
 
-      if (result.isSuccess && result.data != null) {
+      if (!uploadResult.isSuccess || uploadResult.data == null) {
         setState(() {
           _isUploading = false;
         });
+        CustomToast.show(context, uploadResult.msg ?? '图片上传失败');
+        return;
+      }
+      
+      // 获取上传后的图片URL
+      final photoWallUrl = uploadResult.data!;
+      print('📸 图片上传成功，URL: $photoWallUrl');
+      
+      // 第二步：调用保存照片墙接口
+      final saveResult = await _photoWallApi.savePhotoWall(photoWallUrl);
+      
+      setState(() {
+        _isUploading = false;
+      });
+      
+      if (saveResult.isSuccess) {
+        CustomToast.show(context, '照片墙保存成功');
         
-        CustomToast.show(context, '头像上传成功');
+        // 保存成功后关闭弹窗
+        Navigator.of(context).pop();
         
-        // TODO: 这里预留后续调用更新用户头像的接口
-        // 上传成功后的URL: result.data
-        // await _updateUserAvatar(result.data!);
+        // 执行回调函数（刷新首页数据）
+        if (widget.onUploadSuccess != null) {
+          widget.onUploadSuccess!();
+        }
       } else {
-        setState(() {
-          _isUploading = false;
-        });
-        CustomToast.show(context, result.msg ?? '头像上传失败');
+        CustomToast.show(context, saveResult.msg ?? '照片墙保存失败');
       }
     } catch (e) {
       setState(() {
         _isUploading = false;
       });
-      print('上传头像失败: $e');
-      CustomToast.show(context, '头像上传失败');
+      print('照片墙保存失败: $e');
+      CustomToast.show(context, '操作失败: $e');
     }
+  }
+
+  /// 预览图片
+  void _previewImage() {
+    // 如果有选中的本地图片，预览本地图片
+    if (_selectedImageFile != null) {
+      _showImagePreview(
+        context,
+        isLocal: true,
+        localFile: _selectedImageFile,
+      );
+      return;
+    }
+    
+    // 如果有网络图片URL，预览网络图片
+    if (widget.currentPhotoWallUrl != null && 
+        widget.currentPhotoWallUrl!.isNotEmpty && 
+        widget.currentPhotoWallUrl!.startsWith('http')) {
+      _showImagePreview(
+        context,
+        isLocal: false,
+        networkUrl: widget.currentPhotoWallUrl,
+      );
+      return;
+    }
+    
+    // 如果是默认头像，不预览
+  }
+
+  /// 显示图片预览对话框
+  void _showImagePreview(
+    BuildContext context, {
+    required bool isLocal,
+    File? localFile,
+    String? networkUrl,
+  }) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (BuildContext context) {
+        return GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.zero,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              child: Stack(
+                children: [
+                  // 图片内容
+                  Center(
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: isLocal
+                          ? Image.file(
+                              localFile!,
+                              fit: BoxFit.contain,
+                            )
+                          : Image.network(
+                              networkUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Text(
+                                    '图片加载失败',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  // 关闭按钮
+                  Positioned(
+                    top: 40,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   /// 获取头像显示组件
@@ -190,7 +346,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
     // 如果有选中的本地图片，优先显示本地图片
     if (_selectedImageFile != null) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(4),
         child: Image.file(
           _selectedImageFile!,
           fit: BoxFit.cover,
@@ -200,9 +356,33 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       );
     }
     
+    // 如果有网络图片URL，显示网络图片
+    if (widget.currentPhotoWallUrl != null && 
+        widget.currentPhotoWallUrl!.isNotEmpty && 
+        widget.currentPhotoWallUrl!.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.network(
+          widget.currentPhotoWallUrl!,
+          fit: BoxFit.cover,
+          width: 100,
+          height: 100,
+          errorBuilder: (context, error, stackTrace) {
+            // 网络图片加载失败时显示默认头像
+            return Image.asset(
+              "assets/3.0/kissu3_love_avater.webp",
+              fit: BoxFit.cover,
+              width: 100,
+              height: 100,
+            );
+          },
+        ),
+      );
+    }
+    
     // 否则显示默认头像
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(4),
       child: Image.asset(
         "assets/3.0/kissu3_love_avater.webp",
         fit: BoxFit.cover,
@@ -245,18 +425,49 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                 children: [
                   SizedBox(height: 20),
                   Stack(
+                    clipBehavior: Clip.none, // 允许子元素超出容器
                     children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Color(0xffFBCDFF),
-                            width: 3,
+                      GestureDetector(
+                        onTap: _previewImage,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: Color(0xffFBCDFF),
+                              width: 3,
+                            ),
+                          ),
+                          child: _buildAvatarDisplay(),
+                        ),
+                      ),
+                      // 上传按钮（右下角，超出容器右边20px，下边8px）
+                      Positioned(
+                        right: -20, // 超出右边20px
+                        bottom: -8, // 超出下边8px
+                        child: GestureDetector(
+                          onTap: _isUploading ? null : _pickAvatar,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Image.asset(
+                                "assets/3.0/kissu3_upload_logo.webp",
+                                width: 46,
+                                height: 24,
+                              ),
+                              // 上传文字
+                              Text(
+                                "上传",
+                                style: TextStyle(
+                                  color: Color(0xFFFF78E2),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: _buildAvatarDisplay(),
                       ),
                       // 上传中的加载指示器
                       if (_isUploading)
@@ -277,7 +488,13 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                   ),
                   SizedBox(height: 33),
                   GestureDetector(
-                    onTap: _isUploading ? null : _pickAvatar,
+                    onTap: _isUploading ? null : () async {
+                      if (_selectedImageFile == null) {
+                        CustomToast.show(context, '请先选择照片');
+                        return;
+                      }
+                      await _uploadAvatar();
+                    },
                     child: Container(
                       height: 42,
                       width: 290,
@@ -291,7 +508,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                         borderRadius: BorderRadius.circular(21),
                       ),
                       child: Text(
-                        _isUploading ? "上传中..." : "上传头像",
+                        _isUploading ? "上传中..." : "保存照片",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,

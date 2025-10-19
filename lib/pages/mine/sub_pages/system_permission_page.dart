@@ -36,7 +36,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: 22,
-        vertical: 16,
+        vertical: 11,
       ),
       child: Row(
         children: [
@@ -54,8 +54,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
                 "系统权限",
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
+                 ),
               ),
             ),
           ),
@@ -76,7 +75,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
       }
 
       return Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(22.0),
         child: Column(
           children: controller.permissionItems.map((item) {
             final type = item["type"] as PermissionType;
@@ -96,7 +95,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
       final isEnabled = controller.isButtonEnabled(type);
 
       return Container(
-        margin: const EdgeInsets.symmetric(vertical: 14),
+        margin: const EdgeInsets.symmetric(vertical: 7),
         padding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
@@ -104,7 +103,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
         decoration: BoxDecoration(
           border: Border.all(color: const Color(0xFF6D4128)),
           borderRadius: BorderRadius.circular(12),
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white,
         ),
         child: Row(
           children: [
@@ -131,16 +130,16 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
                       fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  // 权限状态显示
-                  Text(
-                    controller.getPermissionStatusText(type),
-                    style: TextStyle(
-                      color: isGranted ? const Color(0xFF4CAF50) : const Color(0xFFFF5722),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  // const SizedBox(height: 4),
+                  // // 权限状态显示
+                  // Text(
+                  //   controller.getPermissionStatusText(type),
+                  //   style: TextStyle(
+                  //     color: isGranted ? const Color(0xFF4CAF50) : const Color(0xFFFF5722),
+                  //     fontSize: 11,
+                  //     fontWeight: FontWeight.w500,
+                  //   ),
+                  // ),
                 ],
               ),
             ),

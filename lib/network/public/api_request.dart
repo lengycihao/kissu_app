@@ -26,18 +26,19 @@ class ApiRequest {
   static const vipIconBanner = '/pay/iconBanner';
   
   // 敏感数据上报 API
-  static const sensitiveDataReport = '/reporting/sensitive/record';
+  static const sensitiveDataReport = '/v3/reporting/sensitive/record';
   
   // 系统通知 API
   static const systemNotice = '/system/notice';
+  
+  // 互动消息 API
+  static const interactionNotice = '/interaction/notice';
   
   // 消息中心绑定相关 API
   static const affirmBind = '/affirm/bind';
   static const refuseBind = '/refuse/bind';
   
-  // 天气相关 API
-  static const getWeather = '/weather/getWeather';
-  
+    
   // 状态表情相关 API
   static const getFaceStatus = '/get/face';
   static const setFaceStatus = '/save/face';
@@ -54,4 +55,7 @@ class ApiRequest {
   
   // 用机记录 API
   static const getSensitiveRecord = '/v2/get/sensitive/record';
+  
+  // 照片墙 API
+  static const savePhotoWall = '/save/photo/wall';
 }

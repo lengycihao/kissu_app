@@ -43,6 +43,7 @@ class UserLocationMobileDevice {
   final List<StopPoint>? stops;
   final StayCollect? stayCollect;
   final String? headPortrait;
+  final Face? face;
   final OnlineStatus? online;
   final LivesInfo? lives;
 
@@ -63,6 +64,7 @@ class UserLocationMobileDevice {
     this.stops,
     this.stayCollect,
     this.headPortrait,
+    this.face,
     this.online,
     this.lives,
   });
@@ -89,6 +91,9 @@ class UserLocationMobileDevice {
           ? StayCollect.fromJson(json['stay_collect'])
           : null,
       headPortrait: json['head_portrait'],
+      face: json['face'] != null && json['face'] is Map<String, dynamic> && (json['face'] as Map<String, dynamic>).isNotEmpty
+          ? Face.fromJson(json['face'])
+          : null,
       online: json['online'] != null
           ? OnlineStatus.fromJson(json['online'])
           : null,
@@ -116,6 +121,7 @@ class UserLocationMobileDevice {
       'stops': stops?.map((e) => e.toJson()).toList(),
       'stay_collect': stayCollect?.toJson(),
       'head_portrait': headPortrait,
+      'face': face?.toJson(),
       'online': online?.toJson(),
       'lives': lives?.toJson(),
     };
@@ -682,4 +688,52 @@ class WeatherCast {
       'nighttemp_float': nighttempFloat,
     };
   }
+}
+
+// Face表情模型
+class Face {
+  final String? classId;
+  final String? faceExpire;
+  final String? id;
+  final String? faceUrl;
+  final String? className;
+  final String? faceText;
+  final String? createTime;
+
+  Face({
+    this.classId,
+    this.faceExpire,
+    this.id,
+    this.faceUrl,
+    this.className,
+    this.faceText,
+    this.createTime,
+  });
+
+  factory Face.fromJson(Map<String, dynamic> json) {
+    return Face(
+      classId: json['class_id'],
+      faceExpire: json['face_expire'],
+      id: json['id'],
+      faceUrl: json['face_url'],
+      className: json['class_name'],
+      faceText: json['face_text'],
+      createTime: json['create_time'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'class_id': classId,
+      'face_expire': faceExpire,
+      'id': id,
+      'face_url': faceUrl,
+      'class_name': className,
+      'face_text': faceText,
+      'create_time': createTime,
+    };
+  }
+
+  // 检查face数据是否有效
+  bool get isValid => faceUrl != null && faceUrl!.isNotEmpty && faceText != null && faceText!.isNotEmpty;
 }

@@ -43,7 +43,7 @@ class ParticleRadarScanner extends StatefulWidget {
   
   const ParticleRadarScanner({
     super.key,
-    this.size = 280,
+    this.size = 200,
   });
 
   @override
@@ -252,7 +252,7 @@ class _ParticleRadarScannerState extends State<ParticleRadarScanner>
           child: AnimatedBuilder(
             animation: controller.pulseAnimation,
             builder: (context, child) {
-              final baseSize = isSuspicious ? 20.0 : 16.0;
+              final baseSize = isSuspicious ? 12.0 : 10.0;
               final animatedSize = baseSize * (0.9 + 0.3 * controller.pulseAnimation.value);
               final deviceColor = isSuspicious ? 
                 const Color(0xFFFF6B6B) : const Color(0xFF4FACFE);
@@ -278,8 +278,8 @@ class _ParticleRadarScannerState extends State<ParticleRadarScanner>
                 ),
                 child: Center(
                   child: Container(
-                    width: animatedSize * 0.4,
-                    height: animatedSize * 0.4,
+                    width: animatedSize * 0.3,
+                    height: animatedSize * 0.3,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
@@ -338,13 +338,13 @@ class _ParticleRadarScannerState extends State<ParticleRadarScanner>
     
     if (assetPath != null) {
       return SizedBox(
-        width: 24,
-        height: 24,
+        width: 20,
+        height: 20,
         child: Image.asset(
           assetPath,
-          width: 24,
-          height: 24,
-          fit: BoxFit.cover,
+          width: 20,
+          height: 20,
+          fit: BoxFit.fill,
         ),
       );
     }

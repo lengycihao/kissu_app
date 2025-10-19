@@ -31,8 +31,8 @@ class UsageReportPage extends GetView<UsageReportController> {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.white.withOpacity(1),
-                      Colors.white.withOpacity(0),
+                      Color(0xffF2F2F7),
+                      Color(0xffF2F2F7).withOpacity(0),
                     ],
                   ),
                 ),
@@ -49,7 +49,9 @@ class UsageReportPage extends GetView<UsageReportController> {
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/phone_history/kissu3_phone_history_bg.webp'),
+          image: AssetImage(
+            'assets/phone_history/kissu3_phone_history_bg.webp',
+          ),
           fit: BoxFit.fill,
         ),
       ),
@@ -58,17 +60,95 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   // 主内容
   Widget _buildMainContent() {
-    return Column(
+    return Stack(
       children: [
-        _buildHeader(),
-        _buildDateSelector(),
-        const SizedBox(height: 16),
-        _buildTabBarWithFilter(),
-        Expanded(
-          child: _buildPageView(),
+        Column(
+          children: [
+            _buildHeader(),
+            _buildDateSelector(),
+            const SizedBox(height: 16),
+            _buildTabBarWithFilter(),
+            Expanded(child: _buildPageView()),
+            // 底部信息栏
+            _buildBottomInfo(),
+          ],
         ),
-        // 底部信息栏
-        _buildBottomInfo(),
+        if (!controller.isUserBound())
+          Positioned(
+            top: 190, //
+            left: 0,
+            right: 0,
+            bottom: 90,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color(0xffffffff),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 10,
+                    left: 0,
+                    right: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 320,
+
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage(
+                                'assets/kissu3_history_unbind_bg.webp',
+                              ),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            controller.handleBindButtonClick();
+                          },
+                          child: Container(
+                            margin: EdgeInsets.only(left: 72,top: 20),
+                            width: 135,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              color: Color(0xFFFF408D),
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '立即绑定',
+                              style: TextStyle(fontSize: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 104,
+                      height: 160,
+
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage(
+                            'assets/kissu3_history_unbind_heart.webp',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -103,7 +183,8 @@ class UsageReportPage extends GetView<UsageReportController> {
           // 标签列表
           Obx(() {
             final tabs = controller.visibleTabs;
-            final selectedIndex = controller.selectedTabIndex.value; // 在 Obx 内部获取
+            final selectedIndex =
+                controller.selectedTabIndex.value; // 在 Obx 内部获取
             return ListView(
               controller: controller.tabScrollController, // 添加滚动控制器
               scrollDirection: Axis.horizontal,
@@ -115,10 +196,15 @@ class UsageReportPage extends GetView<UsageReportController> {
                     key: controller.tabKeys[index], // 添加 GlobalKey
                     onTap: () => controller.changeTab(index),
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 2,
+                        vertical: 3,
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFFF9AD8) : Colors.transparent,
+                        color: isSelected
+                            ? const Color(0xFFFF9AD8)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                       ),
                       alignment: Alignment.center,
@@ -126,8 +212,12 @@ class UsageReportPage extends GetView<UsageReportController> {
                         tabs[index],
                         style: TextStyle(
                           fontSize: 14,
-                          color: isSelected ? Colors.white : const Color(0xFF333333),
-                          fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF333333),
+                          fontWeight: isSelected
+                              ? FontWeight.w500
+                              : FontWeight.normal,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.visible,
@@ -136,7 +226,7 @@ class UsageReportPage extends GetView<UsageReportController> {
                     ),
                   );
                 }),
-                const SizedBox(width: 47), // 右侧占位（31px渐变蒙版 + 16px间距）
+                // const SizedBox(width: 47), // 右侧占位（31px渐变蒙版 + 16px间距）
               ],
             );
           }),
@@ -197,6 +287,7 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildPageView() {
     return Stack(
       children: [
+        // 未绑定状态的背景图
         GestureDetector(
           onTap: () {
             // 点击页面时隐藏筛选抽屉
@@ -233,7 +324,7 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildTabContent(String tabName) {
     // 获取标签的基础名称（去除数量信息）
     final baseTabName = _getBaseTabName(tabName);
-    
+
     switch (baseTabName) {
       case '全部记录':
         return const AllRecordsPage();
@@ -262,10 +353,7 @@ class UsageReportPage extends GetView<UsageReportController> {
     return Center(
       child: Text(
         '$title内容开发中...',
-        style: const TextStyle(
-          fontSize: 16,
-          color: Color(0xFF999999),
-        ),
+        style: const TextStyle(fontSize: 16, color: Color(0xFF999999)),
       ),
     );
   }
@@ -282,11 +370,13 @@ class UsageReportPage extends GetView<UsageReportController> {
           child: GestureDetector(
             onTap: () {}, // 阻止事件冒泡
             child: Container(
-              width: 118,
+              width: 125,
               height: 242,
               decoration: const BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage('assets/phone_history/kissu3_history_seting_more_bg.webp'),
+                  image: AssetImage(
+                    'assets/phone_history/kissu3_history_seting_more_bg.webp',
+                  ),
                   fit: BoxFit.fill,
                 ),
               ),
@@ -346,14 +436,16 @@ class UsageReportPage extends GetView<UsageReportController> {
       // 根据敏感级别设置不同的选中图标和文字颜色
       String selectedIcon;
       Color textColor;
-      
+
       switch (filterKey) {
         case 'highSensitive':
-          selectedIcon = 'assets/phone_history/kissu3_history_seting_high_sel.webp';
+          selectedIcon =
+              'assets/phone_history/kissu3_history_seting_high_sel.webp';
           textColor = const Color(0xFFFF0000); // 红色
           break;
         case 'mediumSensitive':
-          selectedIcon = 'assets/phone_history/kissu3_history_seting_middle_sel.webp';
+          selectedIcon =
+              'assets/phone_history/kissu3_history_seting_middle_sel.webp';
           textColor = const Color(0xFFFFA100); // 橙色
           break;
         case 'lowSensitive':
@@ -374,10 +466,7 @@ class UsageReportPage extends GetView<UsageReportController> {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: textColor,
-                ),
+                style: TextStyle(fontSize: 12, color: textColor),
               ),
             ),
             Image.asset(
@@ -452,13 +541,12 @@ class UsageReportPage extends GetView<UsageReportController> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        
           // 距离信息
           _buildDistanceInfo(),
           // 分割线
-           SizedBox(width: 15),
+          SizedBox(width: 15),
           // 设备信息
-          Expanded(child: _buildDeviceInfo()),SizedBox(width: 16),
+          Expanded(child: _buildDeviceInfo()), SizedBox(width: 16),
         ],
       ),
     );
@@ -468,8 +556,7 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildDistanceInfo() {
     return InkWell(
       onTap: () {
-        // TODO: 点击距离查看详情
-        debugPrint('点击距离信息');
+        controller.handleDistanceButtonClick();
       },
       child: Container(
         width: 60,
@@ -480,6 +567,7 @@ class UsageReportPage extends GetView<UsageReportController> {
             topRight: Radius.circular(24),
             bottomRight: Radius.circular(24),
           ),
+          border: Border.all(color: Color(0xFFF4E6FF), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -504,13 +592,13 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildDeviceInfo() {
     return Obx(() {
       final deviceInfo = controller.deviceInfo.value;
-      
+
       // 获取设备信息，如果没有则显示默认值
       final mobileModel = deviceInfo?.mobileModel ?? '未知';
       final networkName = deviceInfo?.networkName ?? '未知';
       final power = deviceInfo?.power ?? '未知';
       final isWifi = deviceInfo?.isConnectedToWifi ?? false;
-      
+
       return InkWell(
         onTap: () {
           // TODO: 点击查看设备信息
@@ -522,6 +610,7 @@ class UsageReportPage extends GetView<UsageReportController> {
           decoration: BoxDecoration(
             color: const Color(0xffFCFCFD),
             borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Color(0xFFF4E6FF), width: 1),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -536,7 +625,10 @@ class UsageReportPage extends GetView<UsageReportController> {
                 const SizedBox(width: 4),
                 Text(
                   mobileModel,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF333333),
+                  ),
                 ),
                 const Spacer(),
               ],
@@ -562,7 +654,10 @@ class UsageReportPage extends GetView<UsageReportController> {
                 const SizedBox(width: 4),
                 Text(
                   power,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF333333),
+                  ),
                 ),
               ],
             ],
@@ -572,4 +667,3 @@ class UsageReportPage extends GetView<UsageReportController> {
     });
   }
 }
-

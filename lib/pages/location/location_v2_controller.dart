@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:http/http.dart' as http;
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -16,8 +16,8 @@ import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/map_zoom_calculator.dart';
 import 'package:kissu_app/utils/debug_util.dart';
-import 'package:http/http.dart' as http;
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 
 class LocationV2Controller extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
@@ -26,8 +26,14 @@ class LocationV2Controller extends GetxController {
   /// 用户信息
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
+  final myFace = Rx<Face?>(null); // 我的表情数据
+  final partnerFace = Rx<Face?>(null); // 伴侣的表情数据
   final isBindPartner = false.obs;
   final isVip = false.obs; // 🔧 添加响应式会员状态
+  
+  /// 在线状态
+  // final myOnlineStatus = Rx<OnlineStatus?>(null); // 我的在线状态
+  final partnerOnlineStatus = Rx<OnlineStatus?>(null); // 伴侣的在线状态
   
   /// 位置信息
   /// 🔧 修复：明确位置数据的含义
@@ -90,6 +96,19 @@ class LocationV2Controller extends GetxController {
   /// Tooltip相关
   OverlayEntry? _overlayEntry;
   late BuildContext pageContext;
+  
+  /// 跳转到常见问题页面的特定问题
+  void navigateToQuestionPage(int? problemId) {
+    if (problemId == null) {
+      DebugUtil.info('问题ID为空，跳转到常见问题列表页面');
+      Get.to(() => const QuestionPage());
+      return;
+    }
+    
+    DebugUtil.info('跳转到问题ID: $problemId 的详情页面');
+    // 根据problemId跳转到对应的问题详情页
+    Get.to(() => QuestionPage(targetProblemId: problemId));
+  }
 
   @override
   void onInit() {
@@ -292,39 +311,74 @@ class LocationV2Controller extends GetxController {
     }
   }
   
-  /// 创建带"虚拟TA"标签的头像标记
-  Future<BitmapDescriptor> _createAvatarMarkerWithVirtualLabel(String avatarUrl, {String? defaultAsset}) async {
+  /// 🎯 创建带"虚拟TA"标签的紧凑头像标记
+  Future<BitmapDescriptor> _createAvatarMarkerWithVirtualLabel(
+    String avatarUrl, {
+    String? defaultAsset,
+    required String baseAsset,
+    Face? face, // 添加表情参数
+  }) async {
     try {
-      // 创建画布 - 增加高度以容纳标签
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      final size = Size(110, 135); // 标记图片尺寸，高度增加50像素用于标签
-      
-      // 绘制背景标记图片
-      final markerImage = await _loadImageFromAsset('assets/kissu_location_start.webp');
-      if (markerImage != null) {
-        // 计算缩放比例，确保图片完整显示在画布上
-        final imageSize = Size(markerImage.width.toDouble(), markerImage.height.toDouble());
-        final scaleX = size.width / imageSize.width;
-        final scaleY = (size.height - 50) / imageSize.height; // 减去标签高度
-        final scale = math.min(scaleX, scaleY); // 使用较小的缩放比例以保持比例
-        
-        final scaledWidth = imageSize.width * scale;
-        final scaledHeight = imageSize.height * scale;
-        
-        // 居中绘制，向下偏移以留出标签空间
-        final offsetX = (size.width - scaledWidth) / 2;
-        final offsetY = 50 + (size.height - 50 - scaledHeight) / 2; // 向下偏移50像素
-        
-        final srcRect = Rect.fromLTWH(0, 0, imageSize.width, imageSize.height);
-        final dstRect = Rect.fromLTWH(offsetX, offsetY, scaledWidth, scaledHeight);
-        
-        canvas.drawImageRect(markerImage, srcRect, dstRect, Paint());
+      // 🎨 第一步：先加载底座以确定实际尺寸
+      final pedestal = await _loadImageFromAsset(baseAsset);
+      if (pedestal == null) {
+        DebugUtil.error('底座图片加载失败');
+        return BitmapDescriptor.defaultMarker;
       }
       
-      // 绘制圆形头像
-      final avatarSize = 80.0;
-      final avatarCenter = Offset(55, 78); // 头像中心点位置，调整以与普通标记对齐
+      // 📐 配置尺寸
+      final avatarSize = 180.0; // 头像直径
+      final pedestalScale = 0.8; // 底座缩放
+      final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
+      final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
+      final labelHeight = 30.0; // 标签高度
+      final labelTopMargin = 50.0; // 标签距离头像顶部的距离
+      
+      // 表情背景尺寸（如果有表情）
+      final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0; // 表情背景高度
+      final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0; // 表情背景与头像的间距
+      
+      // 🖼️ 计算画布尺寸：标签 + 间距 + 表情背景 + 头像 + 底座下半部分
+      final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20;
+      final canvasHeight = labelHeight + labelTopMargin + emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10;
+      final size = Size(canvasWidth, canvasHeight);
+      
+      // 🎨 创建画布
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      
+      // 📍 关键坐标计算（从底部开始布局）
+      final pedestalBottom = size.height - 10; // 底座底部
+      final pedestalTop = pedestalBottom - pedestalHeight;
+      final pedestalLeft = (size.width - pedestalWidth) / 2;
+      
+      // 头像底部对齐底座中心
+      final avatarBottom = pedestalTop + pedestalHeight / 2;
+      final avatarTop = avatarBottom - avatarSize;
+      final avatarCenterX = size.width / 2;
+      final avatarCenterY = avatarTop + avatarSize / 2;
+      
+      // 表情背景位置（如果有表情）
+      final emojiBgTop = avatarTop - emojiBgMargin - emojiBgHeight;
+      final emojiBgLeft = (size.width - avatarSize) / 2; // 与头像宽度一致，居中对齐
+      
+      // 标签在表情背景上方（如果有表情）或头像上方（如果没有表情）
+      final labelTop = (face != null && face.isValid) 
+          ? emojiBgTop - labelTopMargin - labelHeight
+          : avatarTop - labelTopMargin - labelHeight;
+      
+      // 🖼️ 绘制底座
+      final srcRect = Rect.fromLTWH(0, 0, pedestal.width.toDouble(), pedestal.height.toDouble());
+      final dstRect = Rect.fromLTWH(pedestalLeft, pedestalTop, pedestalWidth, pedestalHeight);
+      canvas.drawImageRect(pedestal, srcRect, dstRect, Paint());
+      
+      // 🎨 绘制表情背景（如果有表情）
+      if (face != null && face.isValid) {
+        await _drawEmojiBackground(canvas, emojiBgLeft, emojiBgTop, avatarSize, emojiBgHeight, face);
+      }
+      
+      // 🎭 绘制圆形头像
+      final avatarCenter = Offset(avatarCenterX, avatarCenterY);
       
       // 创建圆形裁剪区域
       final avatarRect = Rect.fromCenter(
@@ -417,17 +471,20 @@ class LocationV2Controller extends GetxController {
         );
       }
       
-      // 绘制"虚拟TA"标签
+      // 底座已在头像背后绘制
+
+      // 🏷️ 绘制"虚拟TA"标签
+      final labelWidth = 120.0;
       final labelRect = Rect.fromLTWH(
-        size.width / 2 - 37.5, // 居中，宽度75
-        5, // 距离顶部5像素
-        75, // 宽度
-        30, // 高度
+        (size.width - labelWidth) / 2, // 水平居中
+        labelTop,
+        labelWidth,
+        labelHeight+15,
       );
       
       final labelRRect = RRect.fromRectAndRadius(labelRect, const Radius.circular(6));
       
-      // 绘制标签背景（白色背景）
+      // 绘制标签背景
       final labelBgPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.fill;
@@ -445,7 +502,7 @@ class LocationV2Controller extends GetxController {
         text: const TextSpan(
           text: "虚拟TA",
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 30,
             color: Colors.black,
             fontWeight: FontWeight.w600,
           ),
@@ -478,39 +535,68 @@ class LocationV2Controller extends GetxController {
     }
   }
 
-  /// 创建带头像的圆形标记
-  Future<BitmapDescriptor> _createAvatarMarker(String avatarUrl, {String? defaultAsset}) async {
+  /// 🎯 创建紧凑头像标记（底座紧贴画布底部，使用标准锚点）
+  Future<BitmapDescriptor> _createAvatarMarker(
+    String avatarUrl, {
+    String? defaultAsset,
+    required String baseAsset,
+    Face? face, // 添加表情参数
+  }) async {
     try {
-      // 创建画布
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      final size = Size(110, 115); // 标记图片尺寸 - 放大2.5倍
-      
-      // 绘制背景标记图片
-      final markerImage = await _loadImageFromAsset('assets/kissu_location_start.webp');
-      if (markerImage != null) {
-        // 计算缩放比例，确保图片完整显示在画布上
-        final imageSize = Size(markerImage.width.toDouble(), markerImage.height.toDouble());
-        final scaleX = size.width / imageSize.width;
-        final scaleY = size.height / imageSize.height;
-        final scale = math.min(scaleX, scaleY); // 使用较小的缩放比例以保持比例
-        
-        final scaledWidth = imageSize.width * scale;
-        final scaledHeight = imageSize.height * scale;
-        
-        // 居中绘制
-        final offsetX = (size.width - scaledWidth) / 2;
-        final offsetY = (size.height - scaledHeight) / 2;
-        
-        final srcRect = Rect.fromLTWH(0, 0, imageSize.width, imageSize.height);
-        final dstRect = Rect.fromLTWH(offsetX, offsetY, scaledWidth, scaledHeight);
-        
-        canvas.drawImageRect(markerImage, srcRect, dstRect, Paint());
+      // 🎨 第一步：先加载底座以确定实际尺寸
+      final pedestal = await _loadImageFromAsset(baseAsset);
+      if (pedestal == null) {
+        DebugUtil.error('底座图片加载失败');
+        return BitmapDescriptor.defaultMarker;
       }
       
-      // 绘制圆形头像 - 放大一倍为90x90像素
-      final avatarSize = 80.0;
-      final avatarCenter = Offset(45, 43); // 头像中心点位置，原始(22,15)×2.5倍 - 放大2.5倍
+      // 📐 配置尺寸
+      final avatarSize = 180.0; // 头像直径
+      final pedestalScale = 0.8; // 底座缩放
+      final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
+      final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
+      
+      // 表情背景尺寸（如果有表情）
+      final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0; // 表情背景高度
+      final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0; // 表情背景与头像的间距
+      
+      // 🖼️ 计算画布尺寸：确保能容纳表情背景、头像和底座
+      final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20; // 左右各留10px边距
+      final canvasHeight = emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10; // 表情背景 + 间距 + 头像高度 + 底座下半部分 + 底部边距
+      final size = Size(canvasWidth, canvasHeight);
+      
+      // 🎨 创建画布
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      
+      // 📍 关键坐标计算
+      // 底座底部 = 画布底部（留10px边距）
+      final pedestalBottom = size.height - 10;
+      final pedestalTop = pedestalBottom - pedestalHeight;
+      final pedestalLeft = (size.width - pedestalWidth) / 2; // 底座水平居中
+      
+      // 头像底部 = 底座中心（视觉上头像"站在"底座上）
+      final avatarBottom = pedestalTop + pedestalHeight / 2;
+      final avatarTop = avatarBottom - avatarSize;
+      final avatarCenterX = size.width / 2; // 头像水平居中
+      final avatarCenterY = avatarTop + avatarSize / 2;
+      
+      // 表情背景位置（如果有表情）
+      final emojiBgTop = avatarTop - emojiBgMargin - emojiBgHeight;
+      final emojiBgLeft = (size.width - avatarSize) / 2; // 与头像宽度一致，居中对齐
+      
+      // 🖼️ 绘制底座
+      final srcRect = Rect.fromLTWH(0, 0, pedestal.width.toDouble(), pedestal.height.toDouble());
+      final dstRect = Rect.fromLTWH(pedestalLeft, pedestalTop, pedestalWidth, pedestalHeight);
+      canvas.drawImageRect(pedestal, srcRect, dstRect, Paint());
+      
+      // 🎨 绘制表情背景（如果有表情）
+      if (face != null && face.isValid) {
+        await _drawEmojiBackground(canvas, emojiBgLeft, emojiBgTop, avatarSize, emojiBgHeight, face);
+      }
+      
+      // 🎭 绘制圆形头像
+      final avatarCenter = Offset(avatarCenterX, avatarCenterY);
       
       // 创建圆形裁剪区域
       final avatarRect = Rect.fromCenter(
@@ -603,6 +689,8 @@ class LocationV2Controller extends GetxController {
         );
       }
       
+      // 底座已在头像背后绘制
+
       // 完成绘制
       final picture = recorder.endRecording();
       final image = await picture.toImage(size.width.toInt(), size.height.toInt());
@@ -620,6 +708,97 @@ class LocationV2Controller extends GetxController {
     }
   }
   
+  /// 🎨 绘制表情背景
+  Future<void> _drawEmojiBackground(
+    Canvas canvas,
+    double left,
+    double top,
+    double width,
+    double height,
+    Face face,
+  ) async {
+    try {
+      // 加载表情背景图片
+      final emojiBg = await _loadImageFromAsset('assets/3.0/kissu3_emoij_bg.webp');
+      if (emojiBg == null) {
+        DebugUtil.error('表情背景图片加载失败');
+        return;
+      }
+      
+      // 绘制背景图片
+      final bgSrcRect = Rect.fromLTWH(0, 0, emojiBg.width.toDouble(), emojiBg.height.toDouble());
+      final bgDstRect = Rect.fromLTWH(left, top, width, height);
+      canvas.drawImageRect(emojiBg, bgSrcRect, bgDstRect, Paint());
+      
+      // 绘制表情图标和文字
+      if (face.faceUrl != null && face.faceUrl!.isNotEmpty) {
+        // 加载表情图标
+        final emojiIcon = await _loadImageFromNetwork(face.faceUrl!);
+        if (emojiIcon != null) {
+          // 表情图标尺寸
+          final iconSize = height * 0.45;
+          
+          // 计算文字尺寸
+          TextPainter? textPainter;
+          if (face.faceText != null && face.faceText!.isNotEmpty) {
+            textPainter = TextPainter(
+              text: TextSpan(
+                text: face.faceText!,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'LiuHuanKaTongShouShu',
+                ),
+              ),
+              textDirection: TextDirection.ltr,
+            );
+            textPainter.layout();
+          }
+          
+          // 计算总宽度（图标 + 间距 + 文字）
+          final spacing = (textPainter != null) ? 6.0 : 0.0;
+          final textWidth = textPainter?.width ?? 0.0;
+          final totalWidth = iconSize + spacing + textWidth;
+          
+          // 计算起始位置（居中）
+          final startLeft = left + (width - totalWidth) / 2;
+          
+          // 绘制表情图标（居中）
+          final iconTop = top + (height - iconSize) / 2;
+          final iconSrcRect = Rect.fromLTWH(0, 0, emojiIcon.width.toDouble(), emojiIcon.height.toDouble());
+          final iconDstRect = Rect.fromLTWH(startLeft, iconTop, iconSize, iconSize);
+          canvas.drawImageRect(emojiIcon, iconSrcRect, iconDstRect, Paint());
+          
+          // 绘制表情文字（在图标右侧，整体居中）
+          if (textPainter != null) {
+            final textLeft = startLeft + iconSize + spacing;
+            final textTop = top + (height - textPainter.height) / 2;
+            textPainter.paint(canvas, Offset(textLeft, textTop));
+          }
+        }
+      }
+    } catch (e) {
+      DebugUtil.error('绘制表情背景失败: $e');
+    }
+  }
+  
+  /// 从网络加载图片
+  Future<ui.Image?> _loadImageFromNetwork(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        return frame.image;
+      }
+    } catch (e) {
+      DebugUtil.error('从网络加载图片失败: $e');
+    }
+    return null;
+  }
+
   /// 从资源加载图片
   Future<ui.Image?> _loadImageFromAsset(String assetPath) async {
     try {
@@ -649,55 +828,29 @@ class LocationV2Controller extends GetxController {
     try {
       final List<Marker> tempMarkers = [];
       
-      // 创建我的位置标记（带头像）
-      if (myLocation.value != null) {
+      // 创建我的位置标记（永远对应自己）
+      final LatLng? myPos = actualMyLocation.value ?? myLocation.value;
+      if (myPos != null) {
         try {
-          // 🔧 根据isOneself动态选择正确的头像，确保头像与位置匹配
-          String correctMyAvatar;
-          if (isOneself.value == 1) {
-            // 查看自己时，我的位置对应userLocationMobileDevice，使用myAvatar
-            correctMyAvatar = myAvatar.value;
-          } else {
-            // 查看另一半时，我的位置对应halfLocationMobileDevice，使用partnerAvatar
-            correctMyAvatar = partnerAvatar.value;
-          }
+          // 头像始终使用自己的头像
+          final String correctMyAvatar = myAvatar.value;
           
-          // 根据绑定状态和查看的用户选择标记类型
+          // 根据绑定状态选择标记类型（自己从不显示"虚拟TA"标签）
           late final myIcon;
-          if (isBindPartner.value) {
-            // 已绑定状态：使用真实头像
-            myIcon = await _createAvatarMarker(
-              correctMyAvatar,
-              defaultAsset: 'assets/kissu3_love_avater.webp',
-            );
-          } else {
-            // 未绑定状态：判断当前位置是否代表另一半
-            if (isOneself.value == 0) {
-              // 查看另一半时，myLocation代表另一半位置，应显示虚拟TA标签
-              DebugUtil.info(' 💫 未绑定状态 - myLocation代表另一半，显示虚拟TA标签，使用头像: $correctMyAvatar');
-              myIcon = await _createAvatarMarkerWithVirtualLabel(
-                correctMyAvatar, // 使用接口返回的真实头像
-                defaultAsset: 'assets/kissu3_love_avater.webp',
-              );
-            } else {
-              // 查看自己时，myLocation代表自己位置，使用正常头像
-              DebugUtil.info(' 💫 未绑定状态 - myLocation代表自己，使用正常头像');
-              myIcon = await _createAvatarMarker(
-                correctMyAvatar,
-                defaultAsset: 'assets/kissu3_love_avater.webp',
-              );
-            }
-          }
+          myIcon = await _createAvatarMarker(
+            correctMyAvatar,
+            defaultAsset: 'assets/kissu3_love_avater.webp',
+            baseAsset: 'assets/3.0/kissu3_location_she.webp',
+            face: myFace.value,
+          );
           
           final myMarker = Marker(
-            position: myLocation.value!,
+            position: myPos,
             icon: myIcon,
-            anchor: (!isBindPartner.value && isOneself.value == 0) 
-                ? const Offset(0.5, 0.925) // 带虚拟TA标签的标记锚点调整
-                : const Offset(0.5, 0.913), // 锚点Y坐标调整到105像素位置
+            anchor: const Offset(0.5, 1.0), // 🎯 标准锚点：画布底部中心对应经纬度坐标
             onTap: (String markerId) {
               DebugUtil.info('点击了我的位置');
-              _moveMapToLocation(myLocation.value!);
+              _moveMapToLocation(myPos);
             },
           );
           
@@ -724,20 +877,14 @@ class LocationV2Controller extends GetxController {
         }
       }
       
-      // 创建伴侣位置标记（带头像）
-      if (partnerLocation.value != null) {
+      // 创建伴侣位置标记（永远对应另一半）
+      final LatLng? partnerPos = actualPartnerLocation.value ?? partnerLocation.value;
+      if (partnerPos != null) {
         try {
-          // 🔧 根据isOneself动态选择正确的头像，确保头像与位置匹配
-          String correctPartnerAvatar;
-          if (isOneself.value == 1) {
-            // 查看自己时，伴侣位置对应halfLocationMobileDevice，使用partnerAvatar
-            correctPartnerAvatar = partnerAvatar.value;
-          } else {
-            // 查看另一半时，伴侣位置对应userLocationMobileDevice，使用myAvatar
-            correctPartnerAvatar = myAvatar.value;
-          }
+          // 头像始终使用另一半的头像
+          final String correctPartnerAvatar = partnerAvatar.value;
           
-          // 根据绑定状态选择标记类型
+          // 根据绑定状态选择标记类型（未绑定时显示“虚拟TA”标签）
           late final partnerIcon;
           if (isBindPartner.value) {
             // 已绑定状态：使用真实的伴侣头像
@@ -745,35 +892,26 @@ class LocationV2Controller extends GetxController {
             partnerIcon = await _createAvatarMarker(
               correctPartnerAvatar,
               defaultAsset: 'assets/kissu3_love_avater.webp',
+              baseAsset: 'assets/3.0/kissu3_location_she.webp',
+              face: partnerFace.value,
             );
           } else {
-            // 未绑定状态：判断当前位置是否代表另一半
-            if (isOneself.value == 1) {
-              // 查看自己时，partnerLocation代表另一半位置，应显示虚拟TA标签
-              DebugUtil.info(' 💫 未绑定状态 - partnerLocation代表另一半，显示虚拟TA标签，使用头像: $correctPartnerAvatar');
-              partnerIcon = await _createAvatarMarkerWithVirtualLabel(
-                correctPartnerAvatar, // 使用接口返回的真实头像
-                defaultAsset: 'assets/kissu3_love_avater.webp',
-              );
-            } else {
-              // 查看另一半时，partnerLocation代表自己位置，使用正常头像
-              DebugUtil.info(' 💫 未绑定状态 - partnerLocation代表自己，使用正常头像');
-              partnerIcon = await _createAvatarMarker(
-                correctPartnerAvatar,
-                defaultAsset: 'assets/kissu3_love_avater.webp',
-              );
-            }
+            // 未绑定：另一半显示虚拟TA标签
+            partnerIcon = await _createAvatarMarkerWithVirtualLabel(
+              correctPartnerAvatar,
+              defaultAsset: 'assets/kissu3_love_avater.webp',
+              baseAsset: 'assets/3.0/kissu3_location_she.webp',
+              face: partnerFace.value,
+            );
           }
           
           final partnerMarker = Marker(
-            position: partnerLocation.value!,
+            position: partnerPos,
             icon: partnerIcon,
-            anchor: (!isBindPartner.value && isOneself.value == 1) 
-                ? const Offset(0.5, 0.925) // 带虚拟TA标签的标记锚点调整
-                : const Offset(0.5, 0.913), // 锚点Y坐标调整到105像素位置
+            anchor: const Offset(0.5, 1.0), // 🎯 标准锚点：画布底部中心对应经纬度坐标
             onTap: (String markerId) {
               DebugUtil.info('点击了伴侣位置');
-              _moveMapToLocation(partnerLocation.value!);
+              _moveMapToLocation(partnerPos);
             },
           );
           
@@ -1346,6 +1484,22 @@ class LocationV2Controller extends GetxController {
       myAvatar.value = userData.headPortrait!;
       DebugUtil.info(' 更新我的头像: ${userData.headPortrait!}');
     }
+    
+    // 更新我的表情数据
+    myFace.value = userData.face;
+    if (userData.face != null && userData.face!.isValid) {
+      DebugUtil.info(' 更新我的表情: ${userData.face!.faceText} - ${userData.face!.faceUrl}');
+    } else {
+      DebugUtil.info(' 我的表情数据为空或无效');
+    }
+    
+    // 更新我的在线状态
+    // myOnlineStatus.value = userData.online;
+    // if (userData.online != null) {
+    //   DebugUtil.info(' 更新我的在线状态: status=${userData.online!.status}, updateTime=${userData.online!.updateTime}');
+    // } else {
+    //   DebugUtil.info(' 我的在线状态数据为空');
+    // }
   }
   
   /// 🔧 新增：专门更新另一半的头像数据
@@ -1356,6 +1510,22 @@ class LocationV2Controller extends GetxController {
     if (userData.headPortrait != null && userData.headPortrait!.isNotEmpty) {
       partnerAvatar.value = userData.headPortrait!;
       DebugUtil.info(' 更新伴侣头像: ${userData.headPortrait!}');
+    }
+    
+    // 更新伴侣的表情数据
+    partnerFace.value = userData.face;
+    if (userData.face != null && userData.face!.isValid) {
+      DebugUtil.info(' 更新伴侣表情: ${userData.face!.faceText} - ${userData.face!.faceUrl}');
+    } else {
+      DebugUtil.info(' 伴侣表情数据为空或无效');
+    }
+    
+    // 更新伴侣的在线状态
+    partnerOnlineStatus.value = userData.online;
+    if (userData.online != null) {
+      DebugUtil.info(' 更新伴侣在线状态: status=${userData.online!.status}, updateTime=${userData.online!.updateTime}');
+    } else {
+      DebugUtil.info(' 伴侣在线状态数据为空');
     }
   }
   
@@ -1516,7 +1686,7 @@ class LocationV2Controller extends GetxController {
           status: stop.status,
           latitude: stop.latitude != null ? double.tryParse(stop.latitude!) : null,
           longitude: stop.longitude != null ? double.tryParse(stop.longitude!) : null,
-        );
+         );
         
         locationRecords.add(record);
         DebugUtil.success('添加位置记录$i: ${record.locationName} - ${record.time} - 时长:${record.duration}');
@@ -1776,7 +1946,7 @@ class LocationRecord {
   final String? status;      // 状态: "staying", "ended"
   final double? latitude;    // 纬度
   final double? longitude;   // 经度
-
+ 
   LocationRecord({
     this.time,
     this.locationName,
@@ -1787,6 +1957,6 @@ class LocationRecord {
     this.status,
     this.latitude,
     this.longitude,
-  });
+   });
 }
 

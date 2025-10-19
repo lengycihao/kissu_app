@@ -19,6 +19,8 @@ import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:flutter/material.dart';
 
+// 枚举定义已简化
+
 // 🚀 轨迹平滑算法：位置点数据结构（基于高德官方建议）
 class LocationPoint {
   final double latitude;
@@ -100,9 +102,8 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   bool _isGlobalListenerSetup = false; // 全局监听器是否已设置
   int _locationRetryCount = 0; // 定位重试计数
   
-  // 新的上报策略相关变量
-  LocationReportModel? _lastReportedLocation; // 最后一次上报的位置
-  DateTime? _lastMinuteReportTime; // 最后一次定时上报时间
+  // 旧的上报策略相关变量（已迁移到新策略）
+  // DateTime? _lastMinuteReportTime; // 已移除：最后一次定时上报时间
   
   // 权限状态监听
   final Rx<PermissionStatus> _currentLocationPermission = PermissionStatus.denied.obs;
@@ -144,29 +145,49 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   bool _isHuaweiDevice = false; // 华为设备标记
   int _huaweiLocationFilterCount = 0; // 华为设备过滤计数
   
-  // 🚀 轨迹平滑算法相关变量（基于高德官方建议）
+  // 智能过滤相关变量已简化
+  
+  // 智能过滤状态已简化
+  
+  // 🚀 新的收集与上报分离策略
+  List<LocationReportModel> _collectionBuffer = []; // 收集缓冲区（50米收集一个点）
+  LocationReportModel? _lastCollectedLocation; // 上次收集的位置
+  LocationReportModel? _lastReportedLocation; // 上次上报的位置
+  DateTime? _lastReportTime; // 上次上报时间
+  Timer? _reportTimer; // 上报定时器
+  bool _isFirstLocationSuccess = true; // 是否首次定位成功
+  bool _isReportStrategyRunning = false; // 上报策略是否正在运行
+  
+  // 🚀 轨迹平滑算法相关变量（已简化）
   List<LocationPoint> _locationHistory = [];
-  static const int _trajectoryHistorySize = 10; // 保留最近10个有效位置
   double _lastValidSpeed = 0.0; // 上次有效速度
-  int _consecutiveHighAccuracyCount = 0; // 连续高精度计数
   int _consecutiveLowSpeedCount = 0; // 连续低速计数
   
   // 后台通知管理
   bool _isBackgroundNotificationShown = false; // 后台通知显示状态
   DateTime? _lastNotificationTime; // 上次通知时间
   
-  // 配置参数 - 与iOS版本完全一致的策略
-  static const Duration _reportInterval = Duration(minutes: 1); // 1分钟上报间隔（与iOS一致）
-  static const int _maxHistorySize = 200; // 最大历史记录数（增加容量）
-  static const double _distanceFilter = 50.0; // 50米距离过滤（与iOS版本完全一致）
-  static const int _locationInterval = 6000; // 6秒定位间隔（平衡响应性与耗电）
-  static const double _desiredAccuracy = 10.0; // 期望精度10米（已优化）
+  // 🚀 核心策略参数 - 新的收集与上报分离策略
+  static const Duration _reportInterval = Duration(minutes: 1); // 1分钟上报间隔
+  static const double _collectionDistance = 50.0; // 50米收集一个点位（不立即上报）
+  // ⚠️ 关键修复：取消distanceFilter，让定位层保证数据完整性，距离过滤在上报层处理
+  static const double _distanceFilter = 0.0; // 不做距离过滤（原50米），改由上报层过滤
+  static const int _locationInterval = 5000; // 5秒定位间隔（提高响应性）
+  static const double _desiredAccuracy = 15.0; // 期望精度15米（平衡精度与功耗）
+  static const int _maxCollectionBufferSize = 20; // 最大收集缓冲区大小（1分钟内最多20个点）
+  static const int _maxHistorySize = 200; // 最大历史记录数
   
-  // 飘点过滤参数
-  static const double _maxAccuracyThreshold = 100.0; // 最大精度阈值（超过100米的定位数据被认为不可靠）
-  static const double _maxSpeedThreshold = 50.0; // 最大速度阈值（50m/s = 180km/h，超过则认为是飘点）
-  static const double _maxJumpDistance = 500.0; // 最大跳跃距离（超过500米的瞬间跳跃认为是飘点）
-  static const int _stableLocationCount = 3; // 稳定位置计数（连续3个相近位置才认为是真实移动）
+  // 智能防飘点参数已简化，使用基础的精度检查即可
+  
+  // 🚀 智能速度阈值 - 根据运动状态动态调整（预留）
+  // static const double _walkingSpeedThreshold = 8.0; // 已移除：步行速度阈值
+  // static const double _drivingSpeedThreshold = 60.0; // 已移除：驾车速度阈值
+  static const double _maxSpeedThreshold = 80.0; // 绝对最大速度阈值（80m/s = 288km/h）
+  
+  // 🚀 智能跳跃距离 - 根据精度和时间间隔动态计算（预留）
+  // static const double _baseJumpDistance = 200.0; // 已移除：基础跳跃距离
+  static const double _maxJumpDistance = 1000.0; // 最大跳跃距离
+  static const int _stableLocationCount = 5; // 稳定位置计数（增加到5个点）
   
   // 华为设备特殊处理参数
   static const double _huaweiAccuracyThreshold = 80.0; // 华为设备精度阈值（更严格）
@@ -177,6 +198,8 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   static const int _maxConsecutiveFailures = 3; // 最大连续失败次数
   static const int _successCountForOptimization = 10; // 成功次数阈值
   static const Duration _lowPowerCheckInterval = Duration(seconds: 120); // 低功耗模式检查间隔
+  
+  // 智能运动状态检测和环境感知参数已删除，简化为基础过滤
   
   // 电池优化参数
   static const int _batteryOptimizationThreshold = 20; // 电池优化阈值（连续成功次数）
@@ -207,6 +230,12 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     _removeAppLifecycleListener(); // 清理生命周期监听
     _backgroundKeepAliveTimer?.cancel();
     _batteryOptimizedTimer?.cancel(); // 清理电池优化定时器
+    
+    // 🚀 清理新的定时上报器
+    _reportTimer?.cancel();
+    _reportTimer = null;
+    _isReportStrategyRunning = false;
+    
     // 清理全局监听器
     _globalLocationSub?.cancel();
     _globalLocationSub = null;
@@ -500,12 +529,15 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       
       // 设置定位间隔（参考iOS版本）
       // 🔥 后台定位优化：适当增加间隔以减少电量消耗和系统限制
-      locationOption.locationInterval = _locationInterval; // 2秒间隔，平衡响应性与耗电
+      locationOption.locationInterval = _locationInterval; // 5秒间隔，平衡响应性与耗电
       debugPrint('   - 定位间隔: ${_locationInterval}ms（平衡响应性与耗电）');
       
-      // 设置距离过滤（与iOS版本完全一致）
-      locationOption.distanceFilter = _distanceFilter; // 50米距离过滤
-      debugPrint('   - 距离过滤: ${_distanceFilter}米（与iOS版本完全一致）');
+      // ✅ 关键修复：取消距离过滤，让定位层保证数据完整性
+      // 高德SDK规则：locationInterval和distanceFilter同时设置时需同时满足才触发
+      // 这会导致静止状态下即使过了时间间隔也不会触发定位回调
+      // 解决方案：在定位层取消距离过滤，改由上报层进行距离过滤
+      locationOption.distanceFilter = _distanceFilter; // 设为0，不做距离过滤
+      debugPrint('   - 距离过滤: ${_distanceFilter}米（设为0以避免与时间间隔冲突）');
       
       // 设置地址信息（参考iOS的locatingWithReGeocode）
       locationOption.needAddress = true;
@@ -692,18 +724,21 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         
         debugPrint('💡 建议: $suggestion');
         
-        // 智能重试逻辑
-        if (shouldRetry && _locationRetryCount < 3) {
+        // ✅ 优化：使用指数退避策略进行智能重试
+        if (shouldRetry && _locationRetryCount < 5) {
           _locationRetryCount++;
-          debugPrint('🔄 第$_locationRetryCount 次重试定位...');
+          // 指数退避：2秒、4秒、8秒、16秒、32秒
+          final delaySeconds = 2 * (1 << (_locationRetryCount - 1)); // 2^(n-1)
+          debugPrint('🔄 第$_locationRetryCount 次重试定位（延迟${delaySeconds}秒）...');
           
-          // 延迟后重试
-          Future.delayed(Duration(seconds: 2), () async {
+          // 使用指数退避延迟后重试
+          Future.delayed(Duration(seconds: delaySeconds), () async {
             try {
               await _lightweightReinitializePlugin();
               _locationPlugin.startLocation();
+              debugPrint('✅ 定位重试已启动（第$_locationRetryCount次）');
             } catch (e) {
-              debugPrint('❌ 重试定位失败: $e');
+              debugPrint('❌ 重试定位失败（第$_locationRetryCount次）: $e');
             }
           });
         } else {
@@ -795,6 +830,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 停止定时单次定位
       _periodicLocationTimer?.cancel();
       _periodicLocationTimer = null;
+      
+      // 🚀 停止新的定时上报器
+      _reportTimer?.cancel();
+      _reportTimer = null;
+      _isReportStrategyRunning = false;
 
       // 停止高德定位（但保持全局监听器）
       _locationPlugin.stopLocation();
@@ -804,12 +844,21 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       isReporting.value = false;
       hasInitialReport.value = false;
       _lastReportedLocation = null;
-      _lastMinuteReportTime = null;
+      // _lastMinuteReportTime = null; // 已移除
+      
+      // 🚀 清理新的收集缓冲区
+      _collectionBuffer.clear();
+      _lastCollectedLocation = null;
+      _lastReportTime = null;
+      _isFirstLocationSuccess = true; // 重置首次定位标记
+      
+      // 智能状态已简化
       
       // 🆕 清空当前位置数据，避免关闭定位后仍然使用旧位置
       currentLocation.value = null;
 
-      debugPrint('高德定位服务已停止（全局监听器保持激活）');
+      debugPrint('🛑 高德定位服务已停止（全局监听器保持激活）');
+      debugPrint('🧹 收集缓冲区和智能状态已清理');
     } catch (e) {
       debugPrint('停止高德定位失败: $e');
     }
@@ -990,6 +1039,10 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   Future<void> _restartContinuousLocation() async {
     try {
       debugPrint('🔄 重启持续定位...');
+      
+      // 重置首次定位标志
+      _isFirstLocationSuccess = true;
+      
       _locationPlugin.stopLocation();
       await Future.delayed(Duration(milliseconds: 300));
       
@@ -1349,12 +1402,14 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         return true;
       }
       
-      // 2. 强制重启定位服务
-      debugPrint('\n📋 步骤2：强制重启定位服务');
-      bool restartSuccess = await forceRestartLocation();
+      // 2. 重启定位服务
+      debugPrint('\n📋 步骤2：重启定位服务');
+      stopLocation();
+      await Future.delayed(Duration(seconds: 2));
+      bool restartSuccess = await startLocation();
       
       if (!restartSuccess) {
-        debugPrint('❌ 强制重启失败');
+        debugPrint('❌ 重启失败');
         return false;
       }
       
@@ -1376,11 +1431,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       
       debugPrint('❌ 30秒后仍未获得位置数据');
       
-      // 4. 最后尝试：模拟位置（测试用）
-      debugPrint('\n📋 步骤4：生成测试位置数据');
-      _generateTestLocation();
-      
-      return currentLocation.value != null;
+      return false;
       
     } catch (e) {
       debugPrint('❌ 诊断和修复过程中出错: $e');
@@ -1479,110 +1530,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     }
   }
 
-  /// 生成测试位置数据（用于调试）
-  void _generateTestLocation() {
-    debugPrint('🧪 生成测试位置数据（北京天安门附近）');
-    
-    // 模拟北京天安门附近的位置
-    final testLocation = LocationReportModel(
-      longitude: '116.397470',
-      latitude: '39.908722',
-      locationTime: (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString(),
-      speed: '0.00',
-      altitude: '45.00',
-      locationName: '北京市东城区天安门广场',
-      accuracy: '10.00',
-    );
-    
-    currentLocation.value = testLocation;
-    debugPrint('✅ 测试位置数据已生成');
-    debugPrint('   经度: ${testLocation.longitude}');
-    debugPrint('   纬度: ${testLocation.latitude}');
-    debugPrint('   地址: ${testLocation.locationName}');
-  }
+  // 调试方法已删除
 
-  /// 检查高德插件内部状态（调试用）
-  Future<void> checkAMapPluginStatus() async {
-    debugPrint('🔍 ========== 高德插件状态检查 ==========');
-    
-    try {
-      // 检查插件基本状态
-      debugPrint('📊 检查高德定位插件基本状态...');
-      
-      // 尝试获取插件版本信息（如果有）
-      try {
-        debugPrint('🔧 尝试停止和重新初始化插件...');
-        _locationPlugin.stopLocation();
-        await Future.delayed(Duration(milliseconds: 500));
-        
-        // 重新设置API Key和隐私合规
-        await _setupPrivacyCompliance();
-        debugPrint('✅ 插件重新初始化完成');
-        
-      } catch (e) {
-        debugPrint('⚠️ 插件重新初始化过程中出现问题: $e');
-      }
-      
-      // 检查当前的监听器状态
-      debugPrint('📊 当前监听器状态:');
-      debugPrint('   _isGlobalListenerSetup: $_isGlobalListenerSetup');
-      debugPrint('   _globalLocationSub是否为null: ${_globalLocationSub == null}');
-      debugPrint('   isLocationEnabled: ${isLocationEnabled.value}');
-      
-      // 尝试重新创建监听器
-      try {
-        // 全局监听器无需清理
-        await Future.delayed(Duration(milliseconds: 1000));
-        
-        debugPrint('🔧 尝试重新设置监听器...');
-        // 全局监听器已激活，无需重新设置
-        
-      } catch (e) {
-        debugPrint('❌ 重新设置监听器失败: $e');
-      }
-      
-    } catch (e) {
-      debugPrint('❌ 插件状态检查失败: $e');
-    }
-    
-    debugPrint('🔍 ========== 插件状态检查结束 ==========');
-  }
-
-  /// 强制重启定位服务（用于测试）
-  Future<bool> forceRestartLocation() async {
-    try {
-      debugPrint('🔄 强制重启定位服务...');
-      
-      // 完全停止服务
-      try {
-        _locationPlugin.stopLocation();
-        // 全局监听器无需清理
-        
-        // 重置所有状态
-        isLocationEnabled.value = false;
-        isReporting.value = false;
-        _isGlobalListenerSetup = false;
-        
-        // 停止定时器
-        _periodicLocationTimer?.cancel();
-        _periodicLocationTimer = null;
-        
-        debugPrint('✅ 完全停止完成');
-      } catch (e) {
-        debugPrint('⚠️ 停止过程中出现错误: $e');
-      }
-      
-      // 等待确保完全停止和状态重置
-      await Future.delayed(Duration(milliseconds: 2000));
-      
-      // 重新启动
-      debugPrint('🚀 重新启动定位服务...');
-      return await startLocation();
-    } catch (e) {
-      debugPrint('❌ 强制重启定位服务失败: $e');
-      return false;
-    }
-  }
+  // 调试工具方法已删除
   
   
   /// 计算两点间距离（米）
@@ -1700,7 +1650,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     currentLocation.value = null;
     hasInitialReport.value = false;
     _lastReportedLocation = null;
-    _lastMinuteReportTime = null;
+    // _lastMinuteReportTime = null; // 已移除
     debugPrint('已清空所有位置数据');
   }
   
@@ -2547,8 +2497,25 @@ extension BackgroundTaskExtension on SimpleLocationService {
   
   /// 检查待上报数据
   void _checkPendingReports() {
-    // 新策略：实时上报，无需检查待上报数据
-    debugPrint('📊 新策略：实时上报，无待上报数据积压');
+    // 检查是否有待上报的数据
+    if (_collectionBuffer.isNotEmpty) {
+      debugPrint('📊 保活检查：发现${_collectionBuffer.length}个待上报位置');
+      _reportCollectedLocations();
+    }
+  }
+  
+  /// 上报收集的位置数据
+  void _reportCollectedLocations() {
+    if (_collectionBuffer.isNotEmpty) {
+      final locationsToReport = List<LocationReportModel>.from(_collectionBuffer);
+      _collectionBuffer.clear();
+      
+      debugPrint('📤 保活上报: ${locationsToReport.length}个位置点');
+      _reportMultipleLocations(locationsToReport, '保活检查上报');
+      
+      _lastReportTime = DateTime.now();
+      _lastReportedLocation = locationsToReport.last;
+    }
   }
   
   /// 重启定位服务（智能增强版）
@@ -2560,7 +2527,11 @@ extension BackgroundTaskExtension on SimpleLocationService {
       final restartTime = DateTime.now();
       debugPrint('🔄 定位服务重启时间: $restartTime，失败次数: $_consecutiveFailureCount');
       
-      // 2. 优雅停止当前定位
+      // 2. 重置首次定位标志，确保重启后首次定位成功会上报
+      _isFirstLocationSuccess = true;
+      debugPrint('🔄 重置首次定位标志');
+      
+      // 3. 优雅停止当前定位
       stopLocation();
       
       // 3. 根据失败次数调整重启策略
@@ -3038,67 +3009,161 @@ extension LocationValidationExtension on SimpleLocationService {
     }
   }
 
-  /// 3. 每分钟定时上报
+  /// 🚀 新策略：收集与上报分离
+  /// 1. 每50米收集一个点位到缓冲区（不立即上报）
+  /// 2. 每1分钟批量上报缓冲区中的点位
+  /// 3. 首次定位成功后延迟上报当前位置（避免首次上报失败）
   void _handleLocationReporting(LocationReportModel location) {
-    // 首先进行飘点验证
-    if (!_isLocationValid(location)) {
-      debugPrint('❌ 位置验证失败，跳过上报');
-      return;
-    }
-    
     final now = DateTime.now();
     
-    // 策略1: 首次定位立即上报
-    if (!hasInitialReport.value) {
+    // 🚀 策略1: 首次定位成功后延迟上报当前位置
+    if (_isFirstLocationSuccess) {
+      _isFirstLocationSuccess = false;
       hasInitialReport.value = true;
       _lastReportedLocation = location;
-      _lastMinuteReportTime = now;
-      debugPrint('🚀 首次定位成功，立即上报位置数据');
-      _reportSingleLocation(location, '首次定位');
+      _lastReportTime = now;
+      
+      // ⏰ 延迟3秒后上报，避免应用刚启动时服务器状态未就绪
+      debugPrint('🚀 首次定位成功，3秒后上报位置数据（避免服务器状态未就绪）');
+      Future.delayed(const Duration(seconds: 3), () {
+        // 再次验证数据有效性
+        if (location.isFullyValid) {
+          _reportSingleLocation(location, '首次定位成功');
+        } else {
+          debugPrint('⚠️ 首次定位数据验证失败，跳过上报');
+        }
+      });
+      
+      // 启动定时上报器（检查是否已运行）
+      if (!_isReportStrategyRunning) {
+        _startReportTimer();
+      }
       return;
     }
     
-    bool shouldReport = false;
-    String reportReason = '';
+    // 🚀 策略2: 强化防飘点验证 - 多层级过滤
+    if (!_isLocationValidWithAdvancedFilter(location)) {
+      debugPrint('❌ 高级防飘点验证失败，跳过收集');
+      return;
+    }
     
-    // 策略2: 移动超过50米立即上报
-    if (_lastReportedLocation != null) {
+    // 🚀 策略3: 50米距离收集到缓冲区（不立即上报）
+    bool shouldCollect = false;
+    String collectReason = '';
+    
+    if (_lastCollectedLocation == null) {
+      shouldCollect = true;
+      collectReason = '首次收集';
+    } else {
       double distance = _calculateDistance(
-        double.parse(_lastReportedLocation!.latitude),
-        double.parse(_lastReportedLocation!.longitude),
+        double.parse(_lastCollectedLocation!.latitude),
+        double.parse(_lastCollectedLocation!.longitude),
         double.parse(location.latitude),
         double.parse(location.longitude),
       );
       
-      if (distance >= 50.0) {
-        shouldReport = true;
-        reportReason = '移动距离触发(${distance.toStringAsFixed(1)}m≥50m)';
+      if (distance >= SimpleLocationService._collectionDistance) {
+        shouldCollect = true;
+        collectReason = '移动${distance.toStringAsFixed(1)}m≥${SimpleLocationService._collectionDistance}m';
       }
     }
     
-    // 策略3: 每分钟定时上报（与距离上报不冲突）
-    if (_lastMinuteReportTime == null || 
-        now.difference(_lastMinuteReportTime!).inSeconds >= 60) {
-      // 如果还没有因为距离触发上报，则执行定时上报
-      if (!shouldReport) {
-        shouldReport = true;
-        reportReason = '定时上报(间隔${_lastMinuteReportTime != null ? now.difference(_lastMinuteReportTime!).inSeconds : 0}秒)';
-      }
-      _lastMinuteReportTime = now;
-    }
-    
-    // 执行上报
-    if (shouldReport) {
-      _lastReportedLocation = location;
-      debugPrint('📍 位置上报触发: $reportReason');
-      _reportSingleLocation(location, reportReason);
+    // 执行收集
+    if (shouldCollect) {
+      _collectLocationToBuffer(location, collectReason);
     } else {
-      debugPrint('📍 位置更新跳过: 距离=${_lastReportedLocation != null ? _calculateDistance(
-        double.parse(_lastReportedLocation!.latitude),
-        double.parse(_lastReportedLocation!.longitude),
+      debugPrint('📍 位置更新跳过收集: 距离=${_lastCollectedLocation != null ? _calculateDistance(
+        double.parse(_lastCollectedLocation!.latitude),
+        double.parse(_lastCollectedLocation!.longitude),
         double.parse(location.latitude),
         double.parse(location.longitude),
-      ).toStringAsFixed(1) : '0.0'}m, 时间间隔=${_lastMinuteReportTime != null ? now.difference(_lastMinuteReportTime!).inSeconds : 0}秒');
+      ).toStringAsFixed(1) : '0.0'}m < ${SimpleLocationService._collectionDistance}m');
+    }
+  }
+
+  /// 🚀 高级防飘点验证 - 简化为基础精度和距离过滤
+  bool _isLocationValidWithAdvancedFilter(LocationReportModel location) {
+    try {
+      // 使用基础验证即可（已包含精度检查）
+      return _isLocationValid(location);
+    } catch (e) {
+      debugPrint('❌ 防飘点验证异常: $e');
+      return false;
+    }
+  }
+  
+  // 运动状态检测和环境感知方法已删除，简化为基础的精度和距离过滤
+  
+  /// 🚀 收集位置到缓冲区
+  void _collectLocationToBuffer(LocationReportModel location, String reason) {
+    _lastCollectedLocation = location;
+    _collectionBuffer.add(location);
+    
+    // ✅ 优化：缓冲区满了立即上报，避免丢失数据
+    if (_collectionBuffer.length >= SimpleLocationService._maxCollectionBufferSize) {
+      debugPrint('⚠️ 缓冲区已满(${_collectionBuffer.length}/${SimpleLocationService._maxCollectionBufferSize})，触发强制上报');
+      // 立即上报缓冲区内的所有位置
+      final locationsToReport = List<LocationReportModel>.from(_collectionBuffer);
+      _collectionBuffer.clear();
+      _reportMultipleLocations(locationsToReport, '缓冲区满');
+      return;
+    }
+    
+    // ✅ 优化：定期清理过期数据（超过10分钟的点）
+    final now = DateTime.now();
+    _collectionBuffer.removeWhere((point) {
+      final timestamp = DateTime.fromMillisecondsSinceEpoch(
+        int.tryParse(point.locationTime) ?? 0
+      );
+      final isExpired = now.difference(timestamp).inMinutes > 10;
+      if (isExpired) {
+        debugPrint('🗑️ 清理过期位置点: ${point.latitude}, ${point.longitude}');
+      }
+      return isExpired;
+    });
+    
+    debugPrint('📦 位置收集: $reason (缓冲区: ${_collectionBuffer.length}/${SimpleLocationService._maxCollectionBufferSize})');
+    debugPrint('📍 收集位置: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m');
+  }
+  
+  /// 🚀 启动定时上报器
+  void _startReportTimer() {
+    if (_isReportStrategyRunning) {
+      debugPrint('⚠️ 上报策略已在运行，跳过重复启动');
+      return;
+    }
+    
+    _reportTimer?.cancel();
+    _reportTimer = Timer.periodic(SimpleLocationService._reportInterval, (timer) {
+      _performScheduledReport();
+    });
+    _isReportStrategyRunning = true;
+    debugPrint('⏰ 定时上报器已启动，间隔: ${SimpleLocationService._reportInterval.inMinutes}分钟');
+  }
+  
+  /// 🚀 执行定时上报
+  void _performScheduledReport() {
+    final now = DateTime.now();
+    
+    if (_collectionBuffer.isNotEmpty) {
+      // 有收集的点位，批量上报
+      final locationsToReport = List<LocationReportModel>.from(_collectionBuffer);
+      _collectionBuffer.clear();
+      
+      debugPrint('📤 定时批量上报: ${locationsToReport.length}个位置点');
+      _reportMultipleLocations(locationsToReport, '定时批量上报');
+      
+      _lastReportTime = now;
+      _lastReportedLocation = locationsToReport.last;
+    } else {
+      // 没有新收集的点位，上报上次的位置
+      if (_lastReportedLocation != null) {
+        debugPrint('📤 定时重复上报: 使用上次位置');
+        _reportSingleLocation(_lastReportedLocation!, '定时重复上报');
+        _lastReportTime = now;
+      } else {
+        debugPrint('⚠️ 定时上报跳过: 没有可用位置');
+      }
     }
   }
 
@@ -3127,6 +3192,50 @@ extension LocationValidationExtension on SimpleLocationService {
     } catch (e) {
       debugPrint('❌ 单点上报异常: $e');
       debugPrint('❌ 上报原因: $reason');
+    } finally {
+      isReporting.value = false;
+    }
+  }
+
+  /// 🚀 批量位置上报
+  Future<void> _reportMultipleLocations(List<LocationReportModel> locations, String reason) async {
+    if (isReporting.value) {
+      debugPrint('⚠️ 正在上报中，跳过本次批量上报');
+      return;
+    }
+    
+    if (locations.isEmpty) {
+      debugPrint('⚠️ 批量上报列表为空');
+      return;
+    }
+    
+    try {
+      isReporting.value = true;
+      debugPrint('📤 开始批量上报: $reason');
+      debugPrint('📍 批量上报数量: ${locations.length}个位置点');
+      
+      // 打印每个位置的简要信息
+      for (int i = 0; i < locations.length; i++) {
+        final loc = locations[i];
+        debugPrint('   [$i] ${loc.latitude}, ${loc.longitude}, 精度: ${loc.accuracy}m');
+      }
+      
+      final api = LocationReportApi();
+      final result = await api.reportLocation(locations);
+      
+      if (result.isSuccess) {
+        debugPrint('✅ 批量位置上报成功: $reason');
+        debugPrint('✅ 上报数量: ${locations.length}个位置点');
+        debugPrint('✅ 服务器响应: ${result.msg}');
+      } else {
+        debugPrint('❌ 批量位置上报失败: ${result.msg}');
+        debugPrint('❌ 上报原因: $reason');
+        debugPrint('❌ 上报数量: ${locations.length}个位置点');
+      }
+    } catch (e) {
+      debugPrint('❌ 批量上报异常: $e');
+      debugPrint('❌ 上报原因: $reason');
+      debugPrint('❌ 上报数量: ${locations.length}个位置点');
     } finally {
       isReporting.value = false;
     }
@@ -3166,249 +3275,63 @@ extension LocationValidationExtension on SimpleLocationService {
     }
   }
   
-  // ========== 🚀 高德官方轨迹平滑算法实现（基于卡尔曼滤波思想） ==========
+  // ========== 🚀 简化的运动合理性检查 ==========
   
-  /// 检查运动轨迹是否合理（基于高德官方demo的轨迹平滑工具类）
+  /// 检查运动轨迹是否合理（简化版本，保留核心检查）
   bool _isMotionReasonable(double latitude, double longitude, double speed) {
     final currentPoint = LocationPoint(
       latitude: latitude,
       longitude: longitude,
-      accuracy: 0, // 在验证函数中会单独检查
+      accuracy: 0,
       speed: speed,
       timestamp: DateTime.now(),
     );
     
     // 如果没有历史记录，接受第一个点
     if (_locationHistory.isEmpty) {
-      _addToHistory(currentPoint);
+      _locationHistory.add(currentPoint);
+      _lastValidSpeed = speed;
       return true;
     }
     
     final lastPoint = _locationHistory.last;
+    final distance = currentPoint.distanceTo(lastPoint);
+    final timeDiff = currentPoint.timeDifferenceInSeconds(lastPoint);
     
-    // 1. 🚀 速度一致性检查（高德建议的轨迹平滑核心）
-    if (!_isSpeedConsistent(currentPoint, lastPoint)) {
-      debugPrint('🚨 速度不一致检测：当前${speed.toStringAsFixed(1)}m/s，上次${_lastValidSpeed.toStringAsFixed(1)}m/s');
-      return false;
-    }
-    
-    // 2. 🚀 加速度合理性检查
-    if (!_isAccelerationReasonable(currentPoint, lastPoint)) {
-      debugPrint('🚨 加速度异常检测：可能是GPS跳跃');
-      return false;
-    }
-    
-    // 3. 🚀 轨迹连续性检查
-    if (!_isTrajectoryConsistent(currentPoint)) {
-      debugPrint('🚨 轨迹不连续检测：偏离运动方向');
-      return false;
-    }
-    
-    // 通过所有检查，添加到历史记录
-    _addToHistory(currentPoint);
-    _lastValidSpeed = speed;
-    return true;
-  }
-  
-  /// 速度一致性检查
-  bool _isSpeedConsistent(LocationPoint current, LocationPoint last) {
-    final calculatedSpeed = current.calculateSpeedTo(last);
-    final reportedSpeed = current.speed;
-    
-    // 如果计算速度和报告速度差异过大，可能是跳跃
-    const double speedToleranceRatio = 3.0; // 允许3倍差异
-    
-    if (calculatedSpeed > 0 && reportedSpeed > 0) {
-      final ratio = calculatedSpeed > reportedSpeed ? 
-        calculatedSpeed / reportedSpeed : reportedSpeed / calculatedSpeed;
-      
-      if (ratio > speedToleranceRatio) {
-        return false;
-      }
-    }
-    
-    // 检查突然加速（可能是GPS跳跃）
-    const double maxInstantAcceleration = 10.0; // 最大瞬时加速度 m/s²
-    final timeDiff = current.timeDifferenceInSeconds(last);
-    
+    // 基础的速度合理性检查
     if (timeDiff > 0) {
-      final acceleration = (reportedSpeed - _lastValidSpeed).abs() / timeDiff;
-      if (acceleration > maxInstantAcceleration) {
-        debugPrint('🚨 瞬时加速度过大: ${acceleration.toStringAsFixed(1)}m/s²');
+      final calculatedSpeed = distance / timeDiff;
+      
+      // 检查速度是否超出合理范围
+      const double maxVehicleSpeed = 50.0; // 50 m/s = 180 km/h
+      if (calculatedSpeed > maxVehicleSpeed) {
+        debugPrint('🚨 速度超出合理范围: ${calculatedSpeed.toStringAsFixed(1)}m/s');
         return false;
       }
-    }
-    
-    return true;
-  }
-  
-  /// 加速度合理性检查
-  bool _isAccelerationReasonable(LocationPoint current, LocationPoint last) {
-    final distance = current.distanceTo(last);
-    final timeDiff = current.timeDifferenceInSeconds(last);
-    
-    if (timeDiff <= 0) return true; // 时间差为0或负数，跳过检查
-    
-    final calculatedSpeed = distance / timeDiff;
-    
-    // 🚀 高德建议：如果计算速度远超合理范围，认为是跳跃
-    const double maxWalkingSpeed = 5.0; // 5 m/s = 18 km/h （快跑速度）
-    const double maxVehicleSpeed = 50.0; // 50 m/s = 180 km/h （高速行驶）
-    
-    // 根据当前运动状态判断合理速度
-    if (_consecutiveLowSpeedCount > 3) {
-      // 如果之前是低速状态，突然高速可能是跳跃
-      if (calculatedSpeed > maxWalkingSpeed) {
+      
+      // 检查静止状态下的突然高速移动
+      if (_lastValidSpeed < 2.0 && calculatedSpeed > 10.0) {
         debugPrint('🚨 从静止状态突然高速移动: ${calculatedSpeed.toStringAsFixed(1)}m/s');
         return false;
       }
-    } else if (calculatedSpeed > maxVehicleSpeed) {
-      // 极高速度，肯定是异常
-      debugPrint('🚨 速度超出合理范围: ${calculatedSpeed.toStringAsFixed(1)}m/s');
-      return false;
     }
     
-    return true;
-  }
-  
-  /// 轨迹连续性检查
-  bool _isTrajectoryConsistent(LocationPoint current) {
-    if (_locationHistory.length < 3) return true; // 历史点不足，跳过检查
-    
-    // 获取最近的3个点，检查轨迹方向一致性
-    final recentPoints = _locationHistory.take(3).toList();
-    
-    // 计算前两个点的方向向量
-    final direction1 = _calculateDirection(recentPoints[1], recentPoints[0]);
-    // 计算当前点与前一个点的方向向量
-    final direction2 = _calculateDirection(current, recentPoints[0]);
-    
-    // 计算方向差异（角度）
-    final angleDiff = _calculateAngleDifference(direction1, direction2);
-    
-    // 🚀 如果方向突然改变超过120度，可能是跳跃
-    const double maxAngleChange = 120.0; // 度
-    
-    if (angleDiff > maxAngleChange && current.speed > 2.0) {
-      debugPrint('🚨 运动方向突变: ${angleDiff.toStringAsFixed(1)}°');
-      return false;
+    // 通过检查，更新历史记录
+    _locationHistory.add(currentPoint);
+    if (_locationHistory.length > 5) {
+      _locationHistory.removeAt(0); // 只保留最近5个点
     }
+    _lastValidSpeed = speed;
     
-    return true;
-  }
-  
-  /// 添加位置到历史记录
-  void _addToHistory(LocationPoint point) {
-    _locationHistory.insert(0, point);
-    
-    // 保持历史记录大小
-    if (_locationHistory.length > SimpleLocationService._trajectoryHistorySize) {
-      _locationHistory.removeRange(SimpleLocationService._trajectoryHistorySize, _locationHistory.length);
-    }
-    
-    // 更新统计信息
-    if (point.accuracy < 20) {
-      _consecutiveHighAccuracyCount++;
-    } else {
-      _consecutiveHighAccuracyCount = 0;
-    }
-    
-    if (point.speed < 1.0) {
+    // 更新低速计数
+    if (speed < 1.0) {
       _consecutiveLowSpeedCount++;
     } else {
       _consecutiveLowSpeedCount = 0;
     }
+    
+    return true;
   }
   
-  /// 计算两点间的方向向量
-  Map<String, double> _calculateDirection(LocationPoint from, LocationPoint to) {
-    final deltaLat = to.latitude - from.latitude;
-    final deltaLng = to.longitude - from.longitude;
-    return {'dx': deltaLng, 'dy': deltaLat};
-  }
-  
-  /// 计算两个方向向量间的角度差异
-  double _calculateAngleDifference(Map<String, double> dir1, Map<String, double> dir2) {
-    final angle1 = math.atan2(dir1['dy']!, dir1['dx']!) * 180 / math.pi;
-    final angle2 = math.atan2(dir2['dy']!, dir2['dx']!) * 180 / math.pi;
-    
-    double diff = (angle2 - angle1).abs();
-    if (diff > 180) diff = 360 - diff;
-    
-    return diff;
-  }
-  
-  /// 🚀 高德建议的轨迹平滑：获取平滑后的位置
-  LocationPoint? getSmoothLocation(double latitude, double longitude, double accuracy, double speed) {
-    // 如果历史记录不足，直接返回当前位置
-    if (_locationHistory.length < 2) {
-      return LocationPoint(
-        latitude: latitude,
-        longitude: longitude,
-        accuracy: accuracy,
-        speed: speed,
-        timestamp: DateTime.now(),
-      );
-    }
-    
-    // 🚀 简单卡尔曼滤波思想：基于历史轨迹预测位置
-    final predictedPoint = _predictNextLocation();
-    final currentPoint = LocationPoint(
-      latitude: latitude,
-      longitude: longitude,
-      accuracy: accuracy,
-      speed: speed,
-      timestamp: DateTime.now(),
-    );
-    
-    // 如果当前位置与预测位置相差太远，使用预测位置进行平滑
-    if (predictedPoint != null) {
-      final distance = currentPoint.distanceTo(predictedPoint);
-      
-      // 🚀 平滑因子：精度越差，越倾向于使用预测位置
-      if (distance > 50 && accuracy > 30) {
-        debugPrint('🎯 轨迹平滑：使用预测位置进行平滑 (偏差${distance.toStringAsFixed(1)}m)');
-        
-        // 加权平均：精度差时更多依赖预测
-        final weight = math.min(accuracy / 100, 0.8); // 权重范围 0-0.8
-        
-        return LocationPoint(
-          latitude: currentPoint.latitude * (1 - weight) + predictedPoint.latitude * weight,
-          longitude: currentPoint.longitude * (1 - weight) + predictedPoint.longitude * weight,
-          accuracy: accuracy,
-          speed: speed,
-          timestamp: DateTime.now(),
-        );
-      }
-    }
-    
-    return currentPoint; // 返回原始位置
-  }
-  
-  /// 基于历史轨迹预测下一个位置
-  LocationPoint? _predictNextLocation() {
-    if (_locationHistory.length < 2) return null;
-    
-    final latest = _locationHistory[0];
-    final previous = _locationHistory[1];
-    
-    // 计算运动向量
-    final deltaLat = latest.latitude - previous.latitude;
-    final deltaLng = latest.longitude - previous.longitude;
-    final deltaTime = latest.timeDifferenceInSeconds(previous);
-    
-    if (deltaTime <= 0) return null;
-    
-    // 假设保持当前运动趋势
-    const double predictionTimeSeconds = 6.0; // 预测6秒后的位置
-    final ratio = predictionTimeSeconds / deltaTime;
-    
-    return LocationPoint(
-      latitude: latest.latitude + deltaLat * ratio,
-      longitude: latest.longitude + deltaLng * ratio,
-      accuracy: latest.accuracy,
-      speed: latest.speed,
-      timestamp: DateTime.now().add(Duration(seconds: predictionTimeSeconds.round())),
-    );
-  }
+  // 复杂的轨迹平滑算法已简化，保留核心的基础验证
 }

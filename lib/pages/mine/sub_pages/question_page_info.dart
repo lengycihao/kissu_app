@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 import 'package:kissu_app/model/setting/common_question_model/common_question_model.dart';
-import 'package:kissu_app/widgets/dash_top_border.dart';
 
 class QuestionPageInfo extends StatefulWidget {
   final CommonQuestionModel question;
@@ -35,11 +34,35 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
 
   // 用来记录每条是否展开
   final List<bool> expanded = [];
+  
+  final GlobalKey _questionTextKey = GlobalKey();
+  double _questionSpacing = 50.0;
 
   @override
   void initState() {
     super.initState();
     expanded.addAll(List.filled(questions.length, false));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _calculateSpacing();
+    });
+  }
+
+  void _calculateSpacing() {
+    final RenderBox? renderBox = _questionTextKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final double textHeight = renderBox.size.height;
+      // 根据文本高度动态调整间距
+      // 假设单行高度约为18-20，如果超过25说明有换行
+      setState(() {
+        if (textHeight > 25) {
+          // 多行时使用较小间距
+          _questionSpacing = 35.0;
+        } else {
+          // 单行时使用较大间距
+          _questionSpacing = 55.0;
+        }
+      });
+    }
   }
 
   @override
@@ -79,69 +102,87 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 22),
+                    const SizedBox(width: 15),
                   ],
                 ),
               ),
               Container(
-                width: double.infinity,
+                width: 332,
+                height: 605,
                 decoration: BoxDecoration(
                   image: const DecorationImage(
-                    image: AssetImage('assets/kissu_mine_question_bg.webp'),
+                    image: AssetImage('assets/kissu3_question_info_bg.webp'),
                     fit: BoxFit.fill,
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(left: 21, right: 21, top: 30),
-                child: Text(
-                  widget.question.problem ?? "问题描述",
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xff333333),
-                  ),
-                ),
-              ),
-              Transform.translate(
-                offset: const Offset(0, -5), // 往上移动 5px
-                child: Container(
-                  // padding: const EdgeInsets.only(left: 22, right: 22, bottom: 22),
-                  margin: const EdgeInsets.only(
-                    left: 22,
-                    right: 22,
-                    bottom: 22,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xffffffff),
-
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: DashedTopBorderContainer(
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: Color(0xffff6D4128),
-                    dashWidth: 2,
-                    dashSpace: 2,
-                    child: Container(
-                      width: double.infinity,
-                      // decoration: BoxDecoration(
-                      //   color: const Color(0xffffffff),
-                      //   border: Border.all(color: const Color(0xff6D4128)),
-                      //   borderRadius: BorderRadius.circular(10),
-                      // ),
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        widget.question.answer ?? "问题描述",
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.8,
-                          color: Color(0xff333333),
-                        ),
+                margin: const EdgeInsets.only(left: 21, right: 21, top: 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.question.problem ?? "问题描述",
+                      key: _questionTextKey,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xff333333),
                       ),
                     ),
-                  ),
+                    SizedBox(height: _questionSpacing),
+                    Text(
+                      widget.question.answer ?? "答案描述",
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.8,
+                        color: Color(0xff333333),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+
+              // Transform.translate(
+              //   offset: const Offset(0, -5), // 往上移动 5px
+              //   child: Container(
+              //     // padding: const EdgeInsets.only(left: 22, right: 22, bottom: 22),
+              //     margin: const EdgeInsets.only(
+              //       left: 22,
+              //       right: 22,
+              //       bottom: 22,
+              //     ),
+              //     decoration: BoxDecoration(
+              //       color: const Color(0xffffffff),
+
+              //       borderRadius: BorderRadius.circular(10),
+              //     ),
+              //     child: DashedTopBorderContainer(
+              //       borderRadius: 12,
+              //       borderWidth: 1,
+              //       borderColor: Color(0xffff6D4128),
+              //       dashWidth: 2,
+              //       dashSpace: 2,
+              //       child: Container(
+              //         width: double.infinity,
+              //         // decoration: BoxDecoration(
+              //         //   color: const Color(0xffffffff),
+              //         //   border: Border.all(color: const Color(0xff6D4128)),
+              //         //   borderRadius: BorderRadius.circular(10),
+              //         // ),
+              //         padding: const EdgeInsets.all(16),
+              //         child: Text(
+              //           widget.question.answer ?? "问题描述",
+              //           style: const TextStyle(
+              //             fontSize: 13,
+              //             height: 1.8,
+              //             color: Color(0xff333333),
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ],

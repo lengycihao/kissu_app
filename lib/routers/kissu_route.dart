@@ -1,8 +1,8 @@
 import 'package:kissu_app/pages/splash/splash_page.dart';
 import 'package:kissu_app/pages/home/home_binding.dart';
 import 'package:kissu_app/pages/home/home_page.dart';
-import 'package:kissu_app/pages/location/location_binding.dart';
-import 'package:kissu_app/pages/location/location_page.dart';
+import 'package:kissu_app/pages/location/location_v2_binding.dart';
+import 'package:kissu_app/pages/location/location_v2_page.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_binding.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_page.dart';
 import 'package:kissu_app/pages/qr/qr_scan_page.dart';
@@ -23,6 +23,15 @@ import 'package:kissu_app/pages/location/location_reminder/location_reminder_pag
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_binding.dart';
 import 'package:kissu_app/pages/anti_spy/anti_spy_page.dart';
 import 'package:kissu_app/pages/anti_spy/anti_spy_binding.dart';
+import 'package:kissu_app/pages/usage_settings/usage_settings_page.dart';
+import 'package:kissu_app/pages/message_list/message_list_page.dart';
+import 'package:kissu_app/pages/message_list/message_list_binding.dart';
+import 'package:kissu_app/pages/message_detail/message_detail_page.dart';
+import 'package:kissu_app/pages/message_detail/message_detail_binding.dart';
+import 'package:kissu_app/pages/interaction_message/interaction_message_page.dart';
+import 'package:kissu_app/pages/interaction_message/interaction_message_binding.dart';
+import 'package:kissu_app/pages/track/track_page.dart';
+import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -53,8 +62,8 @@ class KissuRoute {
     ),
     GetPage(
       name: KissuRoutePath.location,
-      page: () => LocationPage(),
-      binding: LocationBinding(),
+      page: () => LocationV2Page(),
+      binding: LocationV2Binding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
@@ -121,6 +130,35 @@ class KissuRoute {
       name: KissuRoutePath.antiSpy,
       page: () => const AntiSpyPage(),
       binding: AntiSpyBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.usageSettings,
+      page: () => const UsageSettingsPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.messageList,
+      page: () => const MessageListPage(),
+      binding: MessageListBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.messageDetail,
+      page: () => const MessageDetailPage(),
+      binding: MessageDetailBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.interactionMessage,
+      page: () => const InteractionMessagePage(),
+      binding: InteractionMessageBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.track,
+      page: () => const TrackPage(),
+      binding: TrackBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

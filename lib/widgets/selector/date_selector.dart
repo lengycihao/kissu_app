@@ -37,7 +37,7 @@ class DateSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final dates = recentDates;
     final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = (screenWidth - 12*6 - 32) / 7; // 平分屏幕宽度
+    final itemWidth = (screenWidth - 12*4 - 32) / 7; // 平分屏幕宽度
     
     // 使用外部传入的selectedIndex或者创建本地的
     final selectedIndex = externalSelectedIndex ?? 6.obs;
@@ -61,7 +61,7 @@ class DateSelector extends StatelessWidget {
               child: Container(
                 width: itemWidth,
                 height: 50,
-                margin: EdgeInsets.symmetric(horizontal: 6),
+                margin: EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: selectedIndex.value == index
                       ? const Color(0xFFFF9AD8)

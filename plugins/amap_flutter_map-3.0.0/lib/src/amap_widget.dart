@@ -92,6 +92,9 @@ class AMapWidget extends StatefulWidget {
   ///位置回调
   final ArgumentCallback<AMapLocation>? onLocationChanged;
 
+  /// InfoWindow关闭事件回调
+  final VoidCallback? onInfoWindowClose;
+
   ///需要应用到地图上的手势集合
   final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers;
 
@@ -140,6 +143,7 @@ class AMapWidget extends StatefulWidget {
     this.onTap,
     this.onLongPress,
     this.onPoiTouched,
+    this.onInfoWindowClose,
     this.markers = const <Marker>{},
     this.polylines = const <Polyline>{},
     this.polygons = const <Polygon>{},
@@ -262,6 +266,16 @@ class _MapState extends State<AMapWidget> {
       if (_onTap != null) {
         _onTap(polylineId);
       }
+    }
+  }
+
+  void onInfoWindowClose() {
+    // InfoWindow关闭事件处理
+    print('InfoWindow closed');
+    
+    // 通过回调通知上层应用
+    if (widget.onInfoWindowClose != null) {
+      widget.onInfoWindowClose!();
     }
   }
 

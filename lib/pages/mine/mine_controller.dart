@@ -11,18 +11,17 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:flutter/material.dart';
-import '../phone_history/phone_history_controller.dart';
+import '../usage_report/usage_report_controller.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
-import 'package:kissu_app/pages/phone_history/phone_history_page.dart';
-import 'package:kissu_app/pages/phone_history/phone_history_binding.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/services/screen_usage_service.dart';
 import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/pages/debug/screen_lock_debug_page.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -53,7 +52,7 @@ class MineController extends GetxController {
     Get.to(() => TrackPage(), binding: TrackBinding());
   }
   void onHisstoryTap() {
-    Get.to(() => const PhoneHistoryPage(), binding: PhoneHistoryBinding());
+    Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
   }
 
   // 设置项
@@ -235,16 +234,22 @@ class MineController extends GetxController {
         title: "分享APP",
         onTap: () => _onShareAppTap(),
       ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
-        title: "弹窗展示",
-        onTap: () => Get.to(() => const DialogShowcasePage()),
-      ),
-      SettingItem(
-        icon: "assets/kissu_home_tab_history.webp",
-        title: "用机记录",
-        onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
-      ),
+      // SettingItem(
+      //   icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
+      //   title: "弹窗展示",
+      //   onTap: () => Get.to(() => const DialogShowcasePage()),
+      // ),
+
+      // SettingItem(
+      //   icon: "assets/kissu_mine_item_syst.webp",
+      //   title: "🔧 锁屏监听调试",
+      //   onTap: () => _onScreenLockDebugTap(),
+      // ),
+      // SettingItem(
+      //   icon: "assets/kissu_home_tab_history.webp",
+      //   title: "用机记录",
+      //   onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
+      // ),
       // SettingItem(
       //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
       //   title: "屏幕使用测试",
@@ -292,6 +297,11 @@ class MineController extends GetxController {
   void _onBannerPreviewTap() {
     // Get.to(() => const BannerPreviewPage());
     // 测试页面已移除
+  }
+  
+  /// 打开锁屏监听调试页面
+  void _onScreenLockDebugTap() {
+    Get.to(() => const ScreenLockDebugPage());
   }
   
   /// 屏幕使用测试
@@ -542,8 +552,8 @@ class MineController extends GetxController {
         // 刷新成功后重新加载页面数据
         loadUserInfo();
         
-        // 同时刷新敏感记录页面数据（如果绑定状态发生变化）
-        _refreshPhoneHistoryPage();
+        // 同时刷新用机记录页面数据（如果绑定状态发生变化）
+        _refreshUsageReportPage();
         
         // 下拉刷新时不显示snackbar，避免界面干扰
         if (!isRefreshing.value) {
@@ -631,16 +641,16 @@ class MineController extends GetxController {
     }
   }
 
-  /// 刷新敏感记录页面数据
-  void _refreshPhoneHistoryPage() {
+  /// 刷新用机记录页面数据
+  void _refreshUsageReportPage() {
     try {
-      if (Get.isRegistered<PhoneHistoryController>()) {
-        final phoneHistoryController = Get.find<PhoneHistoryController>();
-        phoneHistoryController.loadData(isRefresh: true);
-        print('已刷新敏感记录页面数据');
+      if (Get.isRegistered<UsageReportController>()) {
+        final usageReportController = Get.find<UsageReportController>();
+        usageReportController.loadData();
+        print('已刷新用机记录页面数据');
       }
     } catch (e) {
-      print('刷新敏感记录页面数据失败: $e');
+      print('刷新用机记录页面数据失败: $e');
     }
   }
 

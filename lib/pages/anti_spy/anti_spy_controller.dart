@@ -7,7 +7,9 @@ import 'package:network_info_plus/network_info_plus.dart';
 import 'package:ping_discover_network_forked/ping_discover_network_forked.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'widgets/radar_selector.dart';
+import '../../utils/permission_helper.dart';
 
 /// 信号量类，用于控制并发数量
 class Semaphore {
@@ -119,6 +121,17 @@ class DeviceInfo {
     }
     return '正常';
   }
+  
+  // 重写 == 操作符，基于 IP 地址进行比较
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is DeviceInfo && other.ip == ip;
+  }
+  
+  // 重写 hashCode，基于 IP 地址
+  @override
+  int get hashCode => ip.hashCode;
 }
 
 class AntiSpyController extends GetxController with GetTickerProviderStateMixin {
@@ -128,6 +141,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   // 当前连接的WiFi信息
   var currentWifiName = "未连接WiFi".obs;
   var currentWifiSSID = "".obs;
+  var isWifiConnected = false.obs;
   
   // 扫描到的设备列表
   var discoveredDevices = <DeviceInfo>[].obs;
@@ -137,7 +151,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   var scanProgress = 0.0.obs;
   
   // 雷达动画类型
-  var radarAnimationType = RadarAnimationType.modern.obs;
+  var radarAnimationType = RadarAnimationType.particle.obs;
   
   // 动画控制器
   late AnimationController radarAnimationController;
@@ -151,12 +165,16 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   // 网络信息服务
   final NetworkInfo _networkInfo = NetworkInfo();
   
+  // 网络连接监听
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  
   
   @override
   void onInit() {
     super.onInit();
     _initAnimations();
     _checkWifiConnection();
+    _startNetworkListener();
   }
   
   void _initAnimations() {
@@ -187,6 +205,27 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     ));
   }
   
+  /// 开始网络连接监听
+  void _startNetworkListener() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      _handleConnectivityChange(results);
+    });
+  }
+  
+  /// 处理网络连接状态变化
+  void _handleConnectivityChange(List<ConnectivityResult> results) {
+    final hasWifi = results.contains(ConnectivityResult.wifi);
+    if (hasWifi) {
+      // 连接到WiFi，检查WiFi信息
+      _checkWifiConnection();
+    } else {
+      // 未连接WiFi
+      isWifiConnected.value = false;
+      currentWifiName.value = "未连接WiFi";
+      currentWifiSSID.value = "";
+    }
+  }
+  
   /// 检查WiFi连接状态
   Future<void> _checkWifiConnection() async {
     try {
@@ -194,14 +233,17 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       final wifiBSSID = await _networkInfo.getWifiBSSID();
       
       if (wifiName != null && wifiName.isNotEmpty) {
+        isWifiConnected.value = true;
         currentWifiName.value = wifiName.replaceAll('"', ''); // 移除引号
         currentWifiSSID.value = wifiBSSID ?? '';
       } else {
+        isWifiConnected.value = false;
         currentWifiName.value = "未连接WiFi";
         currentWifiSSID.value = "";
       }
     } catch (e) {
       print('获取WiFi信息失败: $e');
+      isWifiConnected.value = false;
       currentWifiName.value = "获取WiFi信息失败";
     }
   }
@@ -214,7 +256,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     
     // 检查WiFi连接
     await _checkWifiConnection();
-    if (currentWifiName.value == "未连接WiFi" || currentWifiName.value == "获取WiFi信息失败") {
+    if (!isWifiConnected.value) {
       scanState.value = ScanState.failed;
       return;
     }
@@ -1398,10 +1440,33 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 测试实时更新功能
  
+  /// 打开WiFi设置页面
+  void openWifiSettings() async {
+    try {
+      // 添加小延迟确保 MethodChannel 已初始化
+      await Future.delayed(const Duration(milliseconds: 100));
+      await PermissionHelper.openWifiSettings();
+    } catch (e) {
+      print("打开WiFi设置失败: $e");
+      // 如果原生方法失败，尝试使用 url_launcher 打开设置
+      try {
+        // 这里可以添加备用方案，比如显示提示信息
+        Get.snackbar(
+          "提示", 
+          "请手动前往系统设置 > WiFi 连接网络",
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+      } catch (e2) {
+        print("显示提示信息也失败: $e2");
+      }
+    }
+  }
 
   @override
   void onClose() {
     _scanSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     radarAnimationController.dispose();
     pulseAnimationController.dispose();
     super.onClose();

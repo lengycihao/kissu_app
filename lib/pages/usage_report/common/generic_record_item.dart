@@ -295,25 +295,49 @@ class GenericRecordItemWidget extends StatelessWidget {
       right: 0,
       top: 30,
       bottom: 0,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '查看',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF2289FF),
+      child: GestureDetector(
+        onTap: () => _handleViewButtonTap(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '查看',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2289FF),
+              ),
             ),
-          ),
-          Image.asset(
-            'assets/phone_history/kissu3_arrow_blue.webp',
-            width: 12,
-            height: 12,
-          ),
-        ],
+            Image.asset(
+              'assets/phone_history/kissu3_arrow_blue.webp',
+              width: 12,
+              height: 12,
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// 处理查看按钮点击事件
+  /// 开通会员的情况下：
+  /// - 类型 20：跳转到定位页面
+  /// - 类型 9, 17, 18：跳转到轨迹页面
+  void _handleViewButtonTap() {
+    // 只有会员才能查看
+    if (!UserManager.isVip) {
+      _navigateToVipPage();
+      return;
+    }
+
+    // 根据类型跳转到不同页面
+    if (record.eventType == 20) {
+      // 类型20跳转到定位页面
+      Get.toNamed(KissuRoutePath.location);
+    } else if ([9, 17, 18].contains(record.eventType)) {
+      // 类型9, 17, 18跳转到轨迹页面
+      Get.toNamed(KissuRoutePath.track);
+    }
   }
 
   /// 获取限制长度的文字（类型9、17、18超过5个字符时显示省略号）

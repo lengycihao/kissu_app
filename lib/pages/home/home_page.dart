@@ -2,12 +2,13 @@ import 'package:card_swiper/card_swiper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
-import 'package:kissu_app/pages/location/location_page.dart';
-import 'package:kissu_app/pages/location/location_binding.dart';
+import 'package:kissu_app/pages/location/location_v2_page.dart';
+import 'package:kissu_app/pages/location/location_v2_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
@@ -48,15 +49,14 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     
-    // 当应用从后台回到前台时刷新用户信息
-    // 但只有当页面当前可见时才刷新，避免不必要的UI更新
+    // 应用生命周期变化时不需要特殊处理
+    // 用户信息刷新已通过静态变量控制在app启动时只执行一次
     if (state == AppLifecycleState.resumed) {
       final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
       if (isCurrentRoute) {
-        debugPrint('🏠 应用回到前台且首页可见，刷新用户信息');
-        controller.refreshUserInfoFromServer();
+        debugPrint('🏠 应用回到前台且首页可见，但不需要刷新用户信息（已通过静态变量控制）');
       } else {
-        debugPrint('🏠 应用回到前台但首页不可见，跳过刷新');
+        debugPrint('🏠 应用回到前台但首页不可见');
       }
     }
   }
@@ -149,25 +149,42 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //   ),
                   // ),
                   
-                  // // 新增的红色容器
-                  // Positioned(
-                  //   left: 500, // 基于动态背景宽度缩放X坐标
-                  //   top: ScreenAdaptation.scaleY(88), // Y坐标基于高度缩放
-                  //   child: GestureDetector(
-                  //     onTap: () {
-                  //       // 点击事件处理
-                  //       _onRedContainerTap();
-                  //     },
-                  //     child: Container(
-                  //       width: ScreenAdaptation.scaleSizeByHeight(60), // 基于高度比例缩放宽度
-                  //       height: ScreenAdaptation.scaleSizeByHeight(54), // 基于高度比例缩放高度
-                  //       decoration: BoxDecoration(
-                  //         color: Colors.red,
-                  //         borderRadius: BorderRadius.circular(2),
-                  //       ),
-                  //     ),
-                  //   ),
-                  // ),
+                  // 照片墙容器
+                  Positioned(
+                    left: 500, // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(83), // Y坐标基于高度缩放
+                    child: GestureDetector(
+                      onTap: () {
+                        // 点击事件处理
+                        _onRedContainerTap();
+                      },
+                      child: Obx(() => Container(
+                        width: ScreenAdaptation.scaleXByDynamicWidth(60), // 基于高度比例缩放宽度
+                        height: ScreenAdaptation.scaleSizeByHeight(59), // 基于高度比例缩放高度
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: controller.photoWallUrl.value.startsWith('http')
+                            ? NoPlaceholderImage(
+                                imageUrl: controller.photoWallUrl.value,
+                                defaultAssetPath: "assets/kissu_icon.webp",
+                                width: ScreenAdaptation.scaleXByDynamicWidth(60),
+                                height: ScreenAdaptation.scaleSizeByHeight(59),
+                                fit: BoxFit.cover,
+                                borderRadius: BorderRadius.circular(2),
+                              )
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset(
+                                  controller.photoWallUrl.value,
+                                  width:ScreenAdaptation.scaleXByDynamicWidth(60),
+                                  height: ScreenAdaptation.scaleSizeByHeight(59),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                      )),
+                    ),
+                  ),
                   
                 ],
               ),
@@ -189,7 +206,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
+                children: List.generate(4, (index) {
                   return InkWell(
                     onTap: () => controller.onButtonTap(index),
                     borderRadius: BorderRadius.circular(8),
@@ -404,38 +421,20 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                             ),
                             // 红点角标
                             Obx(() {
-                              if (controller.redDotCount.value > 0) {
+                              if (controller.isRedDot.value) {
                                 return Positioned(
                                   right: 0,
                                   top: 0,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
+                                    width: 12,
+                                    height: 12,
                                     decoration: BoxDecoration(
                                       color: const Color(0xffFF6B6B),
-                                      borderRadius: BorderRadius.circular(10),
+                                      shape: BoxShape.circle,
                                       border: Border.all(
                                         color: Colors.white,
                                         width: 1,
                                       ),
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      controller.redDotCount.value > 99
-                                          ? '99+'
-                                          : controller.redDotCount.value
-                                                .toString(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 );
@@ -450,7 +449,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                               controller.activityIcon.value.isNotEmpty) {
                             return Column(
                               children: [
-                                const SizedBox(height: 20), // 间距30px
+                                const SizedBox(height: 5), // 间距30px
                                 GestureDetector(
                                   onTap: () {
                                     controller.navigateToH5(
@@ -685,6 +684,18 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
       ],
     );
   }
+  //照片墙
+  void _onRedContainerTap() {
+    ImageDialogUtil.showImageDialog(
+      context: context, 
+      imagePath: "assets/3.0/kissu3_picture_wall.webp",
+      currentPhotoWallUrl: controller.photoWallUrl.value, // 传入当前照片墙的URL
+      onUploadSuccess: () {
+        // 上传成功后刷新首页数据
+        controller.loadIndexData();
+      },
+    );
+  }
 
   /// 岛视图
   Widget _bottomListView() {
@@ -805,7 +816,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                   value: distanceText,
                   valueColor: Color(0xff6D5DFF),
                   onTap: () {
-                    Get.to(() => LocationPage(), binding: LocationBinding());
+                    Get.to(() => LocationV2Page(), binding: LocationV2Binding());
                   },
                 ),
                 SizedBox(height: 4),

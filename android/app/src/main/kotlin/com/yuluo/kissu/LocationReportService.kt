@@ -94,10 +94,12 @@ class LocationReportService(private val context: Context) {
     
     /**
      * 检查是否需要上报
-     * 策略：
+     * ✅ 增强策略：
      * 1. 首次定位必报
-     * 2. 距离上次上报超过60秒
-     * 3. 距离上次上报位置超过50米
+     * 2. 精度过滤：accuracy > 100米的位置不上报
+     * 3. 时间触发：距离上次上报超过60秒
+     * 4. 距离触发：距离上次上报位置超过50米（且间隔≥10秒，防抖）
+     * 5. 速度触发：高速移动时（>20m/s，约72km/h）提高上报频率（30秒）
      */
     private fun shouldReport(location: AMapLocation): Boolean {
         // 检查定位是否有效
@@ -106,23 +108,30 @@ class LocationReportService(private val context: Context) {
             return false
         }
         
+        // ✅ 1. 精度过滤
+        if (location.accuracy > 100.0) {
+            Log.d(TAG, "⚠️ 精度不足(${location.accuracy}m > 100m)，跳过上报")
+            return false
+        }
+        
         val currentTime = System.currentTimeMillis()
         val lastReportTime = sharedPreferences.getLong(KEY_LAST_REPORT_TIME, 0)
         
-        // 首次上报
+        // ✅ 2. 首次上报
         if (lastReportTime == 0L) {
-            Log.d(TAG, "🚀 首次定位，立即上报")
+            Log.d(TAG, "🚀 首次定位，立即上报 (精度: ${location.accuracy}m)")
             return true
         }
         
-        // 时间间隔检查
         val timeDiff = (currentTime - lastReportTime) / 1000 // 转换为秒
+        
+        // ✅ 3. 时间间隔检查（60秒）
         if (timeDiff >= MIN_REPORT_INTERVAL_SECONDS) {
-            Log.d(TAG, "⏰ 时间触发上报: 距离上次上报${timeDiff}秒")
+            Log.d(TAG, "⏰ 时间触发上报: 距离上次上报${timeDiff}秒 (精度: ${location.accuracy}m)")
             return true
         }
         
-        // 距离检查
+        // ✅ 4. 距离检查（50米 + 最小10秒间隔防抖）
         val lastLat = sharedPreferences.getString(KEY_LAST_REPORT_LAT, null)?.toDoubleOrNull()
         val lastLng = sharedPreferences.getString(KEY_LAST_REPORT_LNG, null)?.toDoubleOrNull()
         
@@ -132,13 +141,19 @@ class LocationReportService(private val context: Context) {
                 location.latitude, location.longitude
             )
             
-            if (distance >= MIN_REPORT_DISTANCE_METERS) {
-                Log.d(TAG, "📍 距离触发上报: 移动${distance.toInt()}米")
+            if (distance >= MIN_REPORT_DISTANCE_METERS && timeDiff >= 10) {
+                Log.d(TAG, "📍 距离触发上报: 移动${distance.toInt()}米 (精度: ${location.accuracy}m)")
                 return true
             }
         }
         
-        Log.d(TAG, "📍 不满足上报条件: 时间间隔${timeDiff}秒, 距离检查未通过")
+        // ✅ 5. 速度检查：高速移动时提高上报频率
+        if (location.speed > 20.0 && timeDiff >= 30) {
+            Log.d(TAG, "🚀 高速移动触发上报: 速度${location.speed}m/s ≈ ${(location.speed * 3.6).toInt()}km/h")
+            return true
+        }
+        
+        Log.d(TAG, "📍 不满足上报条件: 时间${timeDiff}秒, 精度${location.accuracy}m, 速度${location.speed}m/s")
         return false
     }
     

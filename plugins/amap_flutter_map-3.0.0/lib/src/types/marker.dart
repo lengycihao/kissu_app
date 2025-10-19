@@ -91,6 +91,10 @@ class Marker extends BaseOverlay {
     this.infoWindowEnable = true,
     this.infoWindow = InfoWindow.noText,
     this.customInfoWindowBuilder,
+    this.autoShowCustomInfoWindow = false,
+    this.isTrackStyle = false,
+    this.stayDuration,
+    this.stayTime,
     this.rotation = 0.0,
     this.visible = true,
     this.zIndex = 0.0,
@@ -136,6 +140,23 @@ class Marker extends BaseOverlay {
   /// 如果设置了此参数，将优先使用自定义 InfoWindow，而不是默认的 title/snippet
   final CustomInfoWindowBuilder? customInfoWindowBuilder;
 
+  /// 是否自动显示自定义 InfoWindow（仅在设置了 customInfoWindowBuilder 时有效）
+  /// 默认为 false，不自动显示，需要点击 Marker 才显示
+  /// 如果为 true，则 Marker 创建时自动显示 InfoWindow
+  final bool autoShowCustomInfoWindow;
+
+  /// 是否使用轨迹样式的 InfoWindow（仅 Android 支持）
+  /// 如果为 true，将使用轨迹页面专用的 InfoWindow 样式
+  final bool isTrackStyle;
+
+  /// 停留时长（轨迹样式专用）
+  /// 如："停留了1小时21分钟"
+  final String? stayDuration;
+
+  /// 停留时间（轨迹样式专用）
+  /// 如："21:52~23:12"
+  final String? stayTime;
+
   /// 位置,不能为空
   final LatLng position;
 
@@ -167,6 +188,10 @@ class Marker extends BaseOverlay {
     bool? infoWindowEnableParam,
     InfoWindow? infoWindowParam,
     CustomInfoWindowBuilder? customInfoWindowBuilderParam,
+    bool? autoShowCustomInfoWindowParam,
+    bool? isTrackStyleParam,
+    String? stayDurationParam,
+    String? stayTimeParam,
     LatLng? positionParam,
     double? rotationParam,
     bool? visibleParam,
@@ -182,6 +207,10 @@ class Marker extends BaseOverlay {
       infoWindowEnable: infoWindowEnableParam ?? infoWindowEnable,
       infoWindow: infoWindowParam ?? infoWindow,
       customInfoWindowBuilder: customInfoWindowBuilderParam ?? customInfoWindowBuilder,
+      autoShowCustomInfoWindow: autoShowCustomInfoWindowParam ?? autoShowCustomInfoWindow,
+      isTrackStyle: isTrackStyleParam ?? isTrackStyle,
+      stayDuration: stayDurationParam ?? stayDuration,
+      stayTime: stayTimeParam ?? stayTime,
       position: positionParam ?? position,
       rotation: rotationParam ?? rotation,
       visible: visibleParam ?? visible,
@@ -214,6 +243,10 @@ class Marker extends BaseOverlay {
     addIfPresent('infoWindowEnable', infoWindowEnable);
     addIfPresent('infoWindow', infoWindow._toMap());
     addIfPresent('hasCustomInfoWindow', customInfoWindowBuilder != null);
+    addIfPresent('autoShowCustomInfoWindow', autoShowCustomInfoWindow);
+    addIfPresent('isTrackStyle', isTrackStyle);
+    addIfPresent('stayDuration', stayDuration);
+    addIfPresent('stayTime', stayTime);
     addIfPresent('position', position.toJson());
     addIfPresent('rotation', rotation);
     addIfPresent('visible', visible);
@@ -239,6 +272,9 @@ class Marker extends BaseOverlay {
         icon == typedOther.icon &&
         infoWindowEnable == typedOther.infoWindowEnable &&
         infoWindow == typedOther.infoWindow &&
+        isTrackStyle == typedOther.isTrackStyle &&
+        stayDuration == typedOther.stayDuration &&
+        stayTime == typedOther.stayTime &&
         position == typedOther.position &&
         rotation == typedOther.rotation &&
         visible == typedOther.visible &&

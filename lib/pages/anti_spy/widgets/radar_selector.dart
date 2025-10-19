@@ -21,7 +21,7 @@ class RadarSelector extends StatelessWidget {
   const RadarSelector({
     super.key,
     this.size = 280,
-    this.type = RadarAnimationType.modern, // 默认使用现代波纹雷达
+    this.type = RadarAnimationType.particle, // 默认使用粒子雷达
   });
 
   @override
@@ -122,7 +122,7 @@ class RadarAnimationSelectorPage extends StatefulWidget {
 }
 
 class _RadarAnimationSelectorPageState extends State<RadarAnimationSelectorPage> {
-  RadarAnimationType selectedType = RadarAnimationType.modern;
+  RadarAnimationType selectedType = RadarAnimationType.particle;
 
   final List<Map<String, dynamic>> animationTypes = [
     {

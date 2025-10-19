@@ -9,7 +9,7 @@ class HomeScrollService extends GetxService {
   double? _presetScrollOffset;
   
   /// 预设滚动偏移量
-  double? get presetScrollOffset => _presetScrollOffset;
+  double? get presetScrollOffset => _presetScrollOffset; 
   
   /// 计算并设置预设滚动位置
   void calculateAndSetPresetPosition() {

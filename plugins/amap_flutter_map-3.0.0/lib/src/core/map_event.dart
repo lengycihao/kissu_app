@@ -75,3 +75,8 @@ class PolylineTapEvent extends MapEvent<String> {
 class MapPoiTouchEvent extends MapEvent<AMapPoi> {
   MapPoiTouchEvent(int mapId, AMapPoi poi) : super(mapId, poi);
 }
+
+/// InfoWindow关闭事件
+class InfoWindowCloseEvent extends MapEvent<void> {
+  InfoWindowCloseEvent(int mapId) : super(mapId, null);
+}

@@ -29,6 +29,7 @@ class SafeAMapWidget extends StatefulWidget {
   final void Function(CameraPosition)? onCameraMove;
   final void Function(CameraPosition)? onCameraMoveEnd;
   final void Function(AMapPoi)? onPoiTouched;
+  final VoidCallback? onInfoWindowClose;
 
   const SafeAMapWidget({
     Key? key,
@@ -52,6 +53,7 @@ class SafeAMapWidget extends StatefulWidget {
     this.onCameraMove,
     this.onCameraMoveEnd,
     this.onPoiTouched,
+    this.onInfoWindowClose,
   }) : super(key: key);
 
   @override
@@ -234,6 +236,7 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
       onCameraMove: widget.onCameraMove,
       onCameraMoveEnd: widget.onCameraMoveEnd,
       onPoiTouched: widget.onPoiTouched,
+      onInfoWindowClose: widget.onInfoWindowClose,
       // 必须正确设置的合规隐私声明，否则SDK不会工作，会造成地图白屏等问题
       privacyStatement: const AMapPrivacyStatement(
         hasContains: true, 

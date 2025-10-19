@@ -5,7 +5,7 @@ import 'break_relationship_controller.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
 import '../mine_controller.dart';
-import '../../phone_history/phone_history_controller.dart';
+import '../../usage_report/usage_report_controller.dart';
 import '../../home/home_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
@@ -330,15 +330,15 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       print('❌ 刷新首页绑定状态失败: $e');
     }
     
-    // 刷新敏感记录页面（提前刷新）
+    // 刷新用机记录页面（提前刷新）
     try {
-      if (Get.isRegistered<PhoneHistoryController>()) {
-        final phoneHistoryController = Get.find<PhoneHistoryController>();
-        phoneHistoryController.loadData(isRefresh: true);
-        print('✅ 已刷新敏感记录页面数据');
+      if (Get.isRegistered<UsageReportController>()) {
+        final usageReportController = Get.find<UsageReportController>();
+        usageReportController.loadData();
+        print('✅ 已刷新用机记录页面数据');
       }
     } catch (e) {
-      print('❌ 刷新敏感记录页面数据失败: $e');
+      print('❌ 刷新用机记录页面数据失败: $e');
     }
   }
   
