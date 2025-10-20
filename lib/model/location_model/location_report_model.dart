@@ -32,13 +32,14 @@ class LocationReportModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'longitude': longitude,
-      'latitude': latitude,
-      'location_time': locationTime,
-      'speed': speed,
-      'altitude': altitude,
-      'location_name': locationName,
-      'accuracy': accuracy,
+      'longitude': longitude.toString(),      // 🎯 确保输出字符串
+      'latitude': latitude.toString(),        // 🎯 确保输出字符串
+      'location_time': locationTime.toString(), // 🎯 确保输出字符串
+      'speed': speed.toString(),              // 🎯 确保输出字符串
+      'altitude': altitude.toString(),        // 🎯 确保输出字符串
+      'location_name': locationName.toString(), // 🎯 确保输出字符串
+      // 🔧 修复：移除accuracy字段，与iOS原生版本和服务器API保持一致
+      'accuracy': accuracy.toString(),     // ❌ 服务器不需要此字段
     };
   }
 
@@ -119,10 +120,10 @@ class LocationReportModel {
       final timestamp = int.tryParse(locationTime);
       if (timestamp == null) return false;
       
-      // 检查时间戳是否在合理范围内
+      // 检查时间戳是否在合理范围内（10位秒时间戳）
       // 2020-01-01 到 2100-01-01
-      final minTimestamp = 1577836800000; // 2020-01-01
-      final maxTimestamp = 4102444800000; // 2100-01-01
+      final minTimestamp = 1577836800; // 2020-01-01 (10位秒)
+      final maxTimestamp = 4102444800; // 2100-01-01 (10位秒)
       
       return timestamp >= minTimestamp && timestamp <= maxTimestamp;
     } catch (e) {

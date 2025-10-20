@@ -4,11 +4,8 @@ import 'package:get/get.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
-import 'package:kissu_app/pages/location/location_v2_page.dart';
-import 'package:kissu_app/pages/location/location_v2_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
@@ -17,6 +14,7 @@ import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/kissu_banner_builder.dart';
 import 'package:kissu_app/widgets/island_view_button.dart';
+import 'package:kissu_app/utils/vip_navigation_helper.dart';
 
 
 class KissuHomePage extends StatefulWidget {
@@ -615,7 +613,8 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   onTap: () {
                     // 前两张 banner 点击跳转到对应页面，天气 banner 不需要点击事件
                     if (index == 0) {
-                      Get.toNamed(KissuRoutePath.location);
+                      // 定位banner - 添加会员检查
+                      VipNavigationHelper.navigateToLocationWithVipCheck();
                     } else if (index == 1) {
                       Get.to(() => TrackPage(), binding: TrackBinding());
                     }
@@ -816,7 +815,8 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                   value: distanceText,
                   valueColor: Color(0xff6D5DFF),
                   onTap: () {
-                    Get.to(() => LocationV2Page(), binding: LocationV2Binding());
+                    // 距离按钮 - 添加会员检查
+                    VipNavigationHelper.navigateToLocationWithVipCheck();
                   },
                 ),
                 SizedBox(height: 4),

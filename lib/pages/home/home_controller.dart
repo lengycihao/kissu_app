@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 // import 'package:kissu_app/utils/pag_preloader.dart'; // 注释掉PAG预加载器导入
 import 'package:kissu_app/services/home_scroll_service.dart';
-import 'package:kissu_app/pages/location/location_v2_binding.dart';
-import 'package:kissu_app/pages/location/location_v2_page.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
@@ -11,6 +9,7 @@ import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
@@ -738,9 +737,9 @@ class HomeController extends GetxController {
 
     switch (index) {
       case 0:
-        // 定位（新版）
-        debugPrint("📍 准备跳转到定位V2页面");
-        Get.to(() => LocationV2Page(), binding: LocationV2Binding());
+        // 定位（新版）- 添加会员检查
+        debugPrint("📍 准备跳转到定位V2页面（检查会员状态）");
+        VipNavigationHelper.navigateToLocationWithVipCheck();
         break;
       case 1:
         // 地图

@@ -65,7 +65,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportWifiChange({required String networkName}) async {
     return await reportSensitiveData(
       eventType: 6,
-      ext: jsonEncode({'network_name': networkName}),
+      ext: "{\"network_name\": $networkName}",
     );
   }
   
@@ -73,7 +73,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportChargingStart({required int power}) async {
     return await reportSensitiveData(
       eventType: 7,
-      ext: jsonEncode({'power': power.toString()}),
+      ext: "{\"power\": ${power.toString()}}",
     );
   }
   
@@ -81,7 +81,7 @@ class SensitiveDataApi {
   Future<HttpResultN> reportChargingEnd({required int power}) async {
     return await reportSensitiveData(
       eventType: 8,
-      ext: jsonEncode({'power': power.toString()}),
+      ext: "{\"power\": ${power.toString()}}",
     );
   }
   
@@ -100,7 +100,7 @@ class SensitiveDataApi {
     final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
     return await reportSensitiveData(
       eventType: 14,
-      ext: jsonEncode({"timestamp": timestamp.toString()}),
+      ext: "{\"timestamp\": ${timestamp.toString()}}",
     );
   }
   
@@ -109,7 +109,7 @@ class SensitiveDataApi {
     final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
     return await reportSensitiveData(
       eventType: 15,
-      ext: jsonEncode({"timestamp": timestamp.toString()}),
+      ext: "{\"timestamp\": ${timestamp.toString()}}",
     );
   }
   

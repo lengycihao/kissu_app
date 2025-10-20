@@ -2,13 +2,18 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
-import 'package:kissu_app/widgets/device_info_item.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'location_v2_controller.dart';
+import 'widgets/device_info_section.dart';
+import 'widgets/location_info_section.dart';
+import 'widgets/cached_map_widget.dart';
+import 'widgets/floating_action_buttons.dart';
+import 'widgets/left_floating_buttons.dart';
+import 'widgets/floating_tips_widget.dart';
 
 class LocationV2Page extends StatelessWidget {
   LocationV2Page({super.key});
@@ -51,6 +56,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
     super.dispose();
   }
 
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
@@ -61,6 +67,9 @@ class _LocationPageContentState extends State<_LocationPageContent>
     } else if (state == AppLifecycleState.resumed) {
       // 应用恢复前台，恢复地图更新
       print('📍 LocationV2Page: 应用恢复前台，恢复地图更新');
+      
+      // 应用恢复前台时，重新检查权限状态（用户可能在设置中修改了权限）
+      widget.controller.tipsManager.onAppResumed();
     }
   }
 
@@ -88,7 +97,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
           children: [
             // 固定的地图模块 - 使用缓存优化
             Positioned.fill(
-              child: _CachedMapWidget(controller: widget.controller),
+              child: CachedMapWidget(controller: widget.controller),
             ),
 
 
@@ -100,28 +109,24 @@ class _LocationPageContentState extends State<_LocationPageContent>
               maxHeight: maxHeight,
             ),
 
-            // 未绑定提示 - 放置在下半屏上方
-            // Positioned(
-            //   bottom: screenHeight * 0.3 + 20,
-            //   left: 20,
-            //   right: 20,
-            //   child: _FloatingUnbindNotification(
-            //     controller: widget.controller,
-            //     screenHeight: screenHeight,
-            //     initialHeight: initialHeight,
-            //   ),
-            // ),
 
             // 右侧浮动按钮组 - 位于地图和下半屏之间
-            _FloatingActionButtons(
+            FloatingActionButtons(
               screenHeight: screenHeight,
               controller: widget.controller,
             ),
 
             // 左侧浮动按钮组 - 刷新和切换地图类型
-            _LeftFloatingButtons(
+            LeftFloatingButtons(
               screenHeight: screenHeight,
               controller: widget.controller,
+            ),
+
+            // 浮动提示组件
+            FloatingTipsWidget(
+              controller: widget.controller,
+              tipsManager: widget.controller.tipsManager,
+              screenHeight: screenHeight,
             ),
 
             // 下半屏 DraggableScrollableSheet，扩大可拖动区域
@@ -174,19 +179,6 @@ class _LocationPageContentState extends State<_LocationPageContent>
                       builder: (context, scrollController) {
                         return Column(
                           children: [
-                            // 未绑定提示 - 放置在播放按钮和下半屏之间
-                            // Padding(
-                            //   padding: const EdgeInsets.only(
-                            //     left: 20,
-                            //     right: 20,
-                            //     bottom: 15,
-                            //   ),
-                            //   child: _FloatingUnbindNotification(
-                            //     controller: widget.controller,
-                            //     screenHeight: screenHeight,
-                            //     initialHeight: initialHeight,
-                            //   ),
-                            // ),
                             Expanded(
                               child: Container(
                                 decoration: const BoxDecoration(
@@ -219,37 +211,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                           SliverToBoxAdapter(
                                             child: Stack(
                                               children: [
-                                                // Container(
-                                                //   width: double.infinity,
-                                                //   height: 30,
-                                                //   decoration: BoxDecoration(
-                                                //     gradient: LinearGradient(
-                                                //       begin: Alignment.topCenter,
-                                                //       end: Alignment.bottomCenter,
-                                                //       colors: [
-                                                //         Color(0xffFFF7D0),
-                                                //         Colors.white,
-                                                //       ],
-                                                //     ),
-                                                //     borderRadius:
-                                                //         BorderRadius.circular(16),
-                                                //   ),
-                                                // ),
                                                 Column(
                                                   children: [
-                                                    // const SizedBox(height: 12),
-                                                    // Container(
-                                                    //   width: 40,
-                                                    //   height: 4,
-                                                    //   decoration: BoxDecoration(
-                                                    //     color: Colors.grey[300],
-                                                    //     borderRadius:
-                                                    //         BorderRadius.circular(
-                                                    //           2,
-                                                    //         ),
-                                                    //   ),
-                                                    // ),
-                                                    // const SizedBox(height: 16),
                                                     // 虚拟数据提示文字 - 设备信息模块上方居中显示
                                                     //以下为虚拟数据
 
@@ -378,9 +341,9 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                                       }
                                                       return const SizedBox.shrink();
                                                     }),
-                                                    _buildDeviceInfoSection(),
+                                                    DeviceInfoSection(controller: widget.controller),
                                                     const SizedBox(height: 10),
-                                                    _buildLocationInfoSection(),
+                                                    LocationInfoSection(controller: widget.controller),
                                                   ],
                                                 ),
                                               ],
@@ -618,219 +581,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
     );
   }
 
-  // 设备信息模块
-  Widget _buildDeviceInfoSection() {
-    return Stack(
-      children: [
-        Container(
-          height: !widget.controller.isBindPartner.value ? 134 : 92,
-          padding: !widget.controller.isBindPartner.value
-              ? EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ).copyWith(top: 55)
-              : EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ).copyWith(top: 15),
-          margin: EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: !widget.controller.isBindPartner.value
-                  ? AssetImage(
-                      'assets/location/kissu3_location_unbind_device_bg.webp',
-                    )
-                  : AssetImage(
-                      'assets/location/kissu3_location_bind_device_bg.webp',
-                    ),
-              fit: BoxFit.fill,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 距离和更新时间
-              Row(
-                children: [
-                  const Text(
-                    '我们相距',
-                    style: TextStyle(fontSize: 16, color: Color(0xFF333333)),
-                  ),
 
-                  const SizedBox(width: 22),
-                  Image(
-                    image: AssetImage('assets/kissu_location_time_logo.webp'),
-                    width: 22,
-                    height: 22,
-                  ),
-                  SizedBox(width: 4),
-                  Obx(
-                    () => Text(
-                      widget.controller.speed.value,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                  ),
-                  Spacer(),
-                  // 天气模块
-                  Obx(() {
-                    if (widget.controller.weatherIcon.value.isEmpty ||
-                        widget.controller.weather.value.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return Row(
-                      children: [
-                        const SizedBox(width: 12),
-                        Image.network(
-                          widget.controller.weatherIcon.value,
-                          width: 16,
-                          height: 16,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          widget.controller.weather.value,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFFFC04B),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-              Obx(
-                () => IntrinsicWidth(
-                  child: Text(
-                    widget.controller.distance.value,
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Obx(() {
-          if (widget.controller.isBindPartner.value) {
-            return const SizedBox.shrink();
-          }
-          return Positioned(
-            right: 28,
-            top: 12,
-            child: GestureDetector(
-              onTap: () => widget.controller.performBindAction(),
-              child: Container(
-                width: 70,
-                height: 30,
-                color: Colors.transparent,
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  //位置信息模块
-  Widget _buildLocationInfoSection() {
-    return Container(
-      // height: 100,
-      margin: EdgeInsets.symmetric(horizontal: 14),
-      padding: EdgeInsets.symmetric(
-        horizontal: 19,
-        vertical: 14,
-      ).copyWith(bottom: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
-      ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF2C4),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  "位置",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF000000),
-                    fontFamily: 'LiuhuanKatongShoushu',
-                  ),
-                ),
-              ),
-              SizedBox(width: 15),
-              Expanded(
-                child: Obx(() {
-                  return Text(
-                    widget.controller.currentLocationText.value,
-                    style: TextStyle(fontSize: 12, color: Color(0xFF333333)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 设备信息行
-          Container(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Obx(
-                    () => DeviceInfoItem(
-                      text: widget.controller.myDeviceModel.value,
-                      iconPath: 'assets/phone_history/kissu_phone_type.webp',
-                      isDevice: true,
-                      onLongPress: widget.controller.showTooltip,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Obx(
-                    () => DeviceInfoItem(
-                      text: widget.controller.myBatteryLevel.value,
-                      iconPath: 'assets/phone_history/kissu_phone_barry.webp',
-                      isDevice: false,
-                      onLongPress: widget.controller.showTooltip,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Obx(
-                    () => DeviceInfoItem(
-                      text: widget.controller.myNetworkName.value,
-                      iconPath: 'assets/phone_history/kissu_phone_wifi.webp',
-                      isDevice: false,
-                      onLongPress: widget.controller.showTooltip,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 
@@ -1416,7 +1167,7 @@ class _LocationRecordItem extends StatelessWidget {
                     child: Row(
                       children: [
                         Image.asset(
-                         record.status == 'staying' ? 'assets/kissu_track_staying.webp' : 'assets/kissu_track_location_end.webp',
+                         record.status == 'staying' ? 'assets/kissu_track_staying.webp' : 'assets/kissu_track_location.webp',
                           width: 24,
                           height: 24,color: record.status == 'staying' ? Color(0xFFBE9DFF) : Color(0xFFFBAE84),
                         ),
@@ -1449,500 +1200,6 @@ class _LocationRecordItem extends StatelessWidget {
   }
 }
 
-// // 浮动未绑定提示组件 - 位于播放按钮和下半屏之间
-// class _FloatingUnbindNotification extends StatelessWidget {
-//   final LocationV2Controller controller;
-//   final double screenHeight;
-//   final double initialHeight;
 
-//   const _FloatingUnbindNotification({
-//     required this.controller,
-//     required this.screenHeight,
-//     required this.initialHeight,
-//   });
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Obx(() {
-//       // 只在未绑定时显示
-//       if (controller.isBindPartner.value) {
-//         return const SizedBox.shrink();
-//       }
-
-//       // final sheetPercent = controller.sheetPercent.value;
-//       // final initialPosition = initialHeight / screenHeight;
-//       // final shouldShow = (sheetPercent <= initialPosition + 0.15);
-
-//       return Container(
-//         height: 60,
-//         padding: const EdgeInsets.symmetric(horizontal: 15),
-//         decoration: const BoxDecoration(
-//           image: DecorationImage(
-//             image: AssetImage('assets/kissu_unbind_bg.webp'),
-//             fit: BoxFit.fill,
-//           ),
-//         ),
-//         alignment: Alignment.center,
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           crossAxisAlignment: CrossAxisAlignment.center,
-//           children: [
-//             const Column(
-//               mainAxisAlignment: MainAxisAlignment.center,
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Text(
-//                   "还没有绑定另一半，快去绑定吧！",
-//                   style: TextStyle(fontSize: 14, color: Color(0xff333333)),
-//                 ),
-//                 Text(
-//                   "绑定关系，开启甜蜜之旅",
-//                   style: TextStyle(fontSize: 12, color: Color(0xff666666)),
-//                 ),
-//               ],
-//             ),
-//             GestureDetector(
-//               onTap: () => controller.performBindAction(),
-//               child: Container(
-//                 padding: const EdgeInsets.symmetric(
-//                   horizontal: 10,
-//                   vertical: 6,
-//                 ),
-//                 decoration: BoxDecoration(
-//                   color: const Color(0xffFF88AA),
-//                   borderRadius: BorderRadius.circular(20),
-//                 ),
-//                 child: const Text(
-//                   "立即绑定",
-//                   style: TextStyle(fontSize: 12, color: Colors.white),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       );
-//     });
-//   }
-// }
-
-// 右侧浮动按钮组
-class _FloatingActionButtons extends StatelessWidget {
-  final double screenHeight;
-  final LocationV2Controller controller;
-
-  const _FloatingActionButtons({
-    required this.screenHeight,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // 🔧 根据绑定状态动态计算按钮底部位置
-      // 未绑定时设备信息模块高42px，需要向下偏移42px以对齐吸顶位置
-      final isBindPartner = controller.isBindPartner.value;
-      final deviceHeightDiff = -42.0; // 设备模块高度差
-      final firstButtonBottom = isBindPartner
-          ? screenHeight / 2 -
-                deviceHeightDiff // 已绑定：屏幕中间
-          : screenHeight / 2 - deviceHeightDiff; // 未绑定：向下偏移42px
-
-      // 获取当前滑动进度
-      // 下半屏有三个位置：
-      // 1. 起始位置 (minHeight: 190px) - sheetPercent约为 190/screenHeight
-      // 2. 中间吸顶位置 (snapSizes[0]: 动态) - sheetPercent根据绑定状态动态调整
-      // 3. 顶部吸顶位置 (maxHeight: screenHeight-100) - sheetPercent约为 (screenHeight-100)/screenHeight
-      final sheetPercent = controller.sheetPercent.value;
-
-      // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
-      final middleSnapSize = isBindPartner ? 0.5 : 0.5;
-
-      // 计算顶部吸顶位置的百分比
-      final maxPercent = (screenHeight - 100) / screenHeight;
-
-      // 🔧 计算透明度（使用动态的middleSnapSize）：
-      // - 当 sheetPercent <= middleSnapSize（起始→中间吸顶）时，opacity = 1（完全显示，不变）
-      // - 当 sheetPercent >= maxPercent（顶部吸顶）时，opacity = 0（完全隐藏）
-      // - 当 middleSnapSize < sheetPercent < maxPercent（中间→顶部）时，线性插值
-      double opacity;
-      if (sheetPercent <= middleSnapSize) {
-        opacity = 1.0;
-      } else if (sheetPercent >= maxPercent) {
-        opacity = 0.0;
-      } else {
-        // 线性插值：从middleSnapSize到maxPercent之间，透明度从1降到0
-        opacity =
-            (maxPercent - sheetPercent) /
-            (maxPercent - middleSnapSize - 20 / screenHeight);
-      }
-
-      // 确保透明度在有效范围内 [0.0, 1.0]
-      opacity = opacity.clamp(0.0, 1.0);
-
-      return Positioned(
-        right: 16,
-        bottom: firstButtonBottom,
-        child: Opacity(
-          opacity: opacity,
-          child: IgnorePointer(
-            ignoring: opacity == 0.0, // 透明度为0时忽略点击
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 第四个按钮：聊天
-                // _FloatingButton(
-                //   assetPath: 'assets/location/kissu3_location_chat_an.webp',
-                //   onTap: () {
-                //     Get.to(() => const ChatPage(), binding: ChatBinding());
-                //   },
-                // ),
-                const SizedBox(height: 5),
-
-                // 第三个按钮：状态
-                _FloatingButton(
-                  assetPath: 'assets/location/kissu3_location_state_an.webp',
-                  onTap: () {
-                    Get.toNamed(KissuRoutePath.locationState);
-                  },
-                ),
-                const SizedBox(height: 5),
-
-                // 第二个按钮：轨迹
-                _FloatingButton(
-                  assetPath: 'assets/location/kissu3_location_track_an.webp',
-                  onTap: () {
-                    // 跳转到足迹页面
-                    Get.toNamed(KissuRoutePath.track);
-                  },
-                ),
-                const SizedBox(height: 5),
-
-                // 第一个按钮：位置提醒
-                _FloatingButton(
-                  assetPath: 'assets/location/kissu3_location_knock_an.webp',
-                  onTap: () {
-                    // 跳转到位置提醒页面
-                    Get.toNamed(KissuRoutePath.locationReminder);
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-// 单个浮动按钮
-class _FloatingButton extends StatelessWidget {
-  final String assetPath;
-  final VoidCallback onTap;
-
-  const _FloatingButton({required this.assetPath, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Image.asset(
-          assetPath,
-          width: 50,
-          height: 50,
-          fit: BoxFit.contain,
-        ),
-      ),
-    );
-  }
-}
-
-// 左侧浮动按钮组
-class _LeftFloatingButtons extends StatelessWidget {
-  final double screenHeight;
-  final LocationV2Controller controller;
-
-  const _LeftFloatingButtons({
-    required this.screenHeight,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // 🔧 根据绑定状态动态计算按钮底部位置（与右侧按钮对齐）
-      final isBindPartner = controller.isBindPartner.value;
-      final deviceHeightDiff = -42.0; // 设备模块高度差
-      final firstButtonBottom = isBindPartner
-          ? screenHeight / 2 -
-                deviceHeightDiff // 已绑定：屏幕中间
-          : screenHeight / 2 - deviceHeightDiff; // 未绑定：向下偏移42px
-
-      // 使用与右侧按钮相同的透明度计算逻辑
-      final sheetPercent = controller.sheetPercent.value;
-
-      // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
-      final middleSnapSize = isBindPartner
-          ? 0.5
-          : 0.5 + (deviceHeightDiff / screenHeight);
-
-      final maxPercent = (screenHeight - 100) / screenHeight;
-
-      double opacity;
-      if (sheetPercent <= middleSnapSize) {
-        opacity = 1.0;
-      } else if (sheetPercent >= maxPercent) {
-        opacity = 0.0;
-      } else {
-        opacity = (maxPercent - sheetPercent) / (maxPercent - middleSnapSize);
-      }
-
-      opacity = opacity.clamp(0.0, 1.0);
-
-      return Positioned(
-        left: 16,
-        bottom: firstButtonBottom,
-        child: Opacity(
-          opacity: opacity,
-          child: IgnorePointer(
-            ignoring: opacity == 0.0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 刷新按钮
-                  GestureDetector(
-                    onTap: () async {
-                      await controller.refreshLocationData();
-                    },
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Image(
-                        image: AssetImage(
-                          'assets/location/kissu_refresh_map.webp',
-                        ),
-                        width: 24,
-                        height: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-
-                  // 切换地图类型按钮
-                  GestureDetector(
-                    onTap: () {
-                      _showMapTypePicker(context);
-                    },
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Image(
-                        image: AssetImage(
-                          'assets/location/kissu3_change_map.webp',
-                        ),
-                        fit: BoxFit.contain,
-                        width: 24,
-                        height: 24,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-
-  // 显示地图类型选择弹窗
-  void _showMapTypePicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _MapTypePickerSheet(controller: controller),
-    );
-  }
-}
-
-// 地图类型选择弹窗
-class _MapTypePickerSheet extends StatelessWidget {
-  final LocationV2Controller controller;
-
-  const _MapTypePickerSheet({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 顶部拖动条
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E0E0),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 地图类型选项
-          Row(
-            children: [
-              // 经典地图
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    controller.switchMapType(1);
-                    Navigator.pop(context);
-                  },
-                  child: Obx(
-                    () => _MapTypeOption(
-                      imagePath: 'assets/kissu3_map_custom.webp',
-                      label: '经典地图',
-                      isSelected: controller.mapType.value == 1,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // 卫星地图
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    controller.switchMapType(2);
-                    Navigator.pop(context);
-                  },
-                  child: Obx(
-                    () => _MapTypeOption(
-                      imagePath: 'assets/kissu3_map_3d.webp',
-                      label: '卫星地图',
-                      isSelected: controller.mapType.value == 2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
-// 地图类型选项组件
-class _MapTypeOption extends StatelessWidget {
-  final String imagePath;
-  final String label;
-  final bool isSelected;
-
-  const _MapTypeOption({
-    required this.imagePath,
-    required this.label,
-    required this.isSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // 地图预览图
-        Container(
-          height: 70,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? const Color(0xFFFFD1E4)
-                  : const Color(0xFFffffff),
-              width: isSelected ? 5 : 1,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                // 如果图片加载失败，显示占位符
-                return Container(
-                  color: const Color(0xFFF5F5F5),
-                  child: const Center(
-                    child: Icon(Icons.map, size: 48, color: Color(0xFFCCCCCC)),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // 地图类型标签
-        Stack(
-          children: [
-            Positioned(
-              bottom: 1,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFFFFEBF3)
-                      : const Color(0xFFffffff),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: const Color(0xFF333333),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
 

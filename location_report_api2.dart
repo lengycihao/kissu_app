@@ -11,45 +11,25 @@ class LocationReportApi {
     List<LocationReportModel> locations,
   ) async {
     try {
-      // 过滤无效的位置数据
-      final validLocations = locations
-          .where((loc) => loc.isFullyValid)
-          .toList();
-
-      if (validLocations.isEmpty) {
-        print('⚠️ 没有有效的位置数据可上报');
-        return HttpResultN<LocationReportResponse>(
-          isSuccess: false,
-          code: -2,
-          msg: '没有有效的位置数据可上报',
-        );
-      }
-
-      // 将位置模型列表转换为JSON字符串（正确处理）
-      final locationsJsonList = validLocations.map((e) => e.toJson()).toList();
-      final locationsString = jsonEncode(locationsJsonList);
-
+      // 将位置数组转换为JSON字符串
+      final locationsJson = locations.map((location) => location.toJson()).toList();
+      final locationsString = jsonEncode(locationsJson);
+      
       // 添加调试信息
       print('🚀 位置上报API调用开始');
       print('📝 API端点: ${ApiRequest.reportLocation}');
       print('📦 请求数据: $locationsString');
-      print('📊 有效位置数据数量: ${validLocations.length}');
-
-      // 发送位置上报请求
+      print('📊 位置数据数量: ${locations.length}');
+      
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.reportLocation,
-        jsonParam: {
-          'locations': locationsString,
-        },
+        jsonParam: {'locations': locationsString},
       );
 
       print('📡 API响应状态: ${result.isSuccess}');
       print('📡 API响应码: ${result.code}');
       print('📡 API响应消息: ${result.msg}');
-      print('📡 原始响应dataJson: ${result.dataJson}');
-      print('📡 原始响应listJson: ${result.listJson}');
-      print('📡 完整响应对象: ${result.toString()}');
-
+      
       if (result.isSuccess) {
         print('✅ 位置上报成功');
         return result.convert(

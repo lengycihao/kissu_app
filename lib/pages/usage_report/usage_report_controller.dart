@@ -14,6 +14,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/vip_navigation_helper.dart';
 
 class UsageReportController extends GetxController {
   final PermissionService _permissionService = PermissionService();
@@ -777,9 +778,9 @@ class UsageReportController extends GetxController {
   /// 处理距离按钮点击事件
   void handleDistanceButtonClick() {
     if (isUserBound()) {
-      // 已绑定，跳转到定位页面
-      debugPrint('📍 用户已绑定，跳转到定位页面');
-      Get.toNamed(KissuRoutePath.location);
+      // 已绑定，跳转到定位页面（添加会员检查）
+      debugPrint('📍 用户已绑定，跳转到定位页面（检查会员状态）');
+      VipNavigationHelper.navigateToLocationWithVipCheck();
     } else {
       // 未绑定，显示绑定弹窗
       debugPrint('💑 用户未绑定，显示绑定弹窗');

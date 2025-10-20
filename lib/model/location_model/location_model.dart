@@ -712,13 +712,13 @@ class Face {
 
   factory Face.fromJson(Map<String, dynamic> json) {
     return Face(
-      classId: json['class_id'],
-      faceExpire: json['face_expire'],
-      id: json['id'],
-      faceUrl: json['face_url'],
-      className: json['class_name'],
-      faceText: json['face_text'],
-      createTime: json['create_time'],
+      classId: json['class_id']?.toString(),
+      faceExpire: json['face_expire']?.toString(),
+      id: json['id']?.toString(),
+      faceUrl: json['face_url']?.toString(),
+      className: json['class_name']?.toString(),
+      faceText: json['face_text']?.toString(),
+      createTime: json['create_time']?.toString(),
     );
   }
 

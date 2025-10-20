@@ -25,6 +25,13 @@ class ApiResponseInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     try {
+      // 🔍 打印原始响应body数据（用于调试）
+      print('🔍 原始响应URL: ${response.requestOptions.uri}');
+      print('🔍 原始响应状态码: ${response.statusCode}');
+      print('🔍 原始响应Headers: ${response.headers}');
+      print('🔍 原始响应Body: ${response.data}');
+      print('🔍 原始响应Body类型: ${response.data.runtimeType}');
+      
       // 处理401未授权
       if (response.statusCode == 401) {
         _handleTokenExpired('登录已过期，请重新登录');

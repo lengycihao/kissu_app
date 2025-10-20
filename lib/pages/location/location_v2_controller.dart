@@ -18,6 +18,7 @@ import 'package:kissu_app/utils/map_zoom_calculator.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
+import 'widgets/location_tips_manager.dart';
 
 class LocationV2Controller extends GetxController {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
@@ -71,7 +72,8 @@ class LocationV2Controller extends GetxController {
   /// 位置记录列表
   final RxList<LocationRecord> locationRecords = <LocationRecord>[].obs;
   
-  
+  /// 定位数据（供提示管理器使用）
+  final Rx<LocationResponseModel?> locationData = Rx<LocationResponseModel?>(null);
   
   /// DraggableScrollableSheet 状态
   final sheetPercent = 0.3.obs;
@@ -92,6 +94,9 @@ class LocationV2Controller extends GetxController {
   
   /// 定位服务
   late SimpleLocationService _locationService;
+  
+  /// 提示管理器
+  late LocationTipsManager tipsManager;
   
   /// Tooltip相关
   OverlayEntry? _overlayEntry;
@@ -124,6 +129,13 @@ class LocationV2Controller extends GetxController {
       DebugUtil.info(' 开始初始化定位服务...');
       _initLocationService();
       DebugUtil.info(' 定位服务初始化完成');
+      
+      // 初始化提示管理器
+      DebugUtil.info(' 开始初始化提示管理器...');
+      tipsManager = LocationTipsManager(this);
+      // 手动调用onInit，因为LocationTipsManager不是通过Get.put注册的
+      tipsManager.onInit();
+      DebugUtil.info(' 提示管理器初始化完成');
       
       // 统一的异步初始化入口
       DebugUtil.info(' 启动异步初始化流程');
@@ -1300,28 +1312,29 @@ class LocationV2Controller extends GetxController {
       DebugUtil.info('API调用完成，结果: ${result.isSuccess ? "成功" : "失败"}');
       
       if (result.isSuccess && result.data != null) {
-        final locationData = result.data!;
+        final locationDataResult = result.data!;
+        locationData.value = locationDataResult; // 更新响应式变量
         DebugUtil.success('成功获取locationData对象');
         
         DebugUtil.check('API返回数据结构:');
-        DebugUtil.check('  userLocationMobileDevice: ${locationData.userLocationMobileDevice != null ? "存在" : "为空"}');
-        DebugUtil.check('  halfLocationMobileDevice: ${locationData.halfLocationMobileDevice != null ? "存在" : "为空"}');
+        DebugUtil.check('  userLocationMobileDevice: ${locationDataResult.userLocationMobileDevice != null ? "存在" : "为空"}');
+        DebugUtil.check('  halfLocationMobileDevice: ${locationDataResult.halfLocationMobileDevice != null ? "存在" : "为空"}');
         
         // 添加详细的stops调试信息
-        if (locationData.userLocationMobileDevice?.stops != null) {
-          DebugUtil.check('userLocationMobileDevice stops数量: ${locationData.userLocationMobileDevice!.stops!.length}');
-          for (int i = 0; i < locationData.userLocationMobileDevice!.stops!.length; i++) {
-            final stop = locationData.userLocationMobileDevice!.stops![i];
+        if (locationDataResult.userLocationMobileDevice?.stops != null) {
+          DebugUtil.check('userLocationMobileDevice stops数量: ${locationDataResult.userLocationMobileDevice!.stops!.length}');
+          for (int i = 0; i < locationDataResult.userLocationMobileDevice!.stops!.length; i++) {
+            final stop = locationDataResult.userLocationMobileDevice!.stops![i];
             DebugUtil.check('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
           }
         } else {
           DebugUtil.check('userLocationMobileDevice stops为空');
         }
         
-        if (locationData.halfLocationMobileDevice?.stops != null) {
-          DebugUtil.check('halfLocationMobileDevice stops数量: ${locationData.halfLocationMobileDevice!.stops!.length}');
-          for (int i = 0; i < locationData.halfLocationMobileDevice!.stops!.length; i++) {
-            final stop = locationData.halfLocationMobileDevice!.stops![i];
+        if (locationDataResult.halfLocationMobileDevice?.stops != null) {
+          DebugUtil.check('halfLocationMobileDevice stops数量: ${locationDataResult.halfLocationMobileDevice!.stops!.length}');
+          for (int i = 0; i < locationDataResult.halfLocationMobileDevice!.stops!.length; i++) {
+            final stop = locationDataResult.halfLocationMobileDevice!.stops![i];
             DebugUtil.check('  stops[$i]: ${stop.locationName} - ${stop.startTime}~${stop.endTime}');
           }
         } else {
@@ -1335,14 +1348,14 @@ class LocationV2Controller extends GetxController {
         
         // 🔧 修复头像显示错乱：直接按照用户身份更新头像，不根据isOneself动态切换
         // myAvatar 始终存储自己的头像，partnerAvatar 始终存储另一半的头像
-        if (locationData.userLocationMobileDevice != null) {
-          _updateMyAvatarData(locationData.userLocationMobileDevice!);
-          _updateActualMyLocationData(locationData.userLocationMobileDevice!);
+        if (locationDataResult.userLocationMobileDevice != null) {
+          _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
+          _updateActualMyLocationData(locationDataResult.userLocationMobileDevice!);
         }
         
-        if (locationData.halfLocationMobileDevice != null) {
-          _updatePartnerAvatarData(locationData.halfLocationMobileDevice!);
-          _updateActualPartnerLocationData(locationData.halfLocationMobileDevice!);
+        if (locationDataResult.halfLocationMobileDevice != null) {
+          _updatePartnerAvatarData(locationDataResult.halfLocationMobileDevice!);
+          _updateActualPartnerLocationData(locationDataResult.halfLocationMobileDevice!);
         }
         
         // 根据当前查看的用户类型显示对应数据
@@ -1351,13 +1364,13 @@ class LocationV2Controller extends GetxController {
         
         if (isOneself.value == 1) {
           // 查看自己的数据
-          currentUser = locationData.userLocationMobileDevice;
-          partnerUser = locationData.halfLocationMobileDevice;
+          currentUser = locationDataResult.userLocationMobileDevice;
+          partnerUser = locationDataResult.halfLocationMobileDevice;
           DebugUtil.check(' 查看自己的数据 - isOneself=1');
         } else {
           // 查看另一半的数据
-          currentUser = locationData.halfLocationMobileDevice;
-          partnerUser = locationData.userLocationMobileDevice;
+          currentUser = locationDataResult.halfLocationMobileDevice;
+          partnerUser = locationDataResult.userLocationMobileDevice;
           DebugUtil.check(' 查看另一半的数据 - isOneself=0');
         }
         
@@ -1928,6 +1941,13 @@ class LocationV2Controller extends GetxController {
       hideTooltip(); // 清理overlay
     } catch (e) {
       debugPrint('清理tooltip时出错: $e');
+    }
+    
+    // 清理提示管理器
+    try {
+      tipsManager.onClose();
+    } catch (e) {
+      debugPrint('清理提示管理器时出错: $e');
     }
     
     // AMapController 无需手动dispose

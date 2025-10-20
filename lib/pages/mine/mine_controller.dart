@@ -13,6 +13,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:flutter/material.dart';
 import '../usage_report/usage_report_controller.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
+import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
@@ -46,7 +47,8 @@ class MineController extends GetxController {
 
   // 点击事件
   void onLocationTap() {
-    Get.toNamed(KissuRoutePath.location);
+    // 添加会员检查
+    VipNavigationHelper.navigateToLocationWithVipCheck();
   }
   void onTrackTap() {
     Get.to(() => TrackPage(), binding: TrackBinding());

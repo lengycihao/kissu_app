@@ -37,9 +37,10 @@ class LocationReportService(private val context: Context) {
         private const val KEY_LAST_REPORT_LAT = "last_report_latitude"
         private const val KEY_LAST_REPORT_LNG = "last_report_longitude"
         
-        // 上报策略
-        private const val MIN_REPORT_INTERVAL_SECONDS = 60 // 最小上报间隔60秒
-        private const val MIN_REPORT_DISTANCE_METERS = 50.0 // 最小上报距离50米
+        // 与Flutter层保持一致的上报策略参数
+        private const val COLLECTION_DISTANCE_METERS = 50.0 // 50米收集距离，与Flutter层_collectionDistance一致
+        private const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔，与Flutter层_reportInterval一致
+        private const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)，与Flutter层一致
     }
     
     private val sharedPreferences: SharedPreferences = 
@@ -47,15 +48,22 @@ class LocationReportService(private val context: Context) {
     
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
+    // 收集缓冲区，与Flutter层策略保持一致
+    private val collectionBuffer = mutableListOf<JSONObject>()
+    private var reportTimer: Timer? = null
+    private var isReportTimerRunning = false
+    
     /**
-     * 上报单个定位数据
+     * 处理定位数据（与Flutter层策略保持一致）
+     * 1. 检查是否需要收集
+     * 2. 收集到缓冲区
+     * 3. 启动定时上报器
      */
     fun reportLocation(location: AMapLocation) {
         coroutineScope.launch {
             try {
-                // 检查是否需要上报
-                if (!shouldReport(location)) {
-                    Log.d(TAG, "📍 定位数据不满足上报条件，跳过")
+                // 检查是否需要收集定位
+                if (!shouldCollectLocation(location)) {
                     return@launch
                 }
                 
@@ -67,71 +75,151 @@ class LocationReportService(private val context: Context) {
                 Log.d(TAG, "🔑 读取用户信息: token=${if (token.isNullOrEmpty()) "空" else "已存在(${token.take(20)}...)"}, userId=$userId, baseUrl=$baseUrl")
                 
                 if (token.isNullOrEmpty()) {
-                    Log.w(TAG, "⚠️ 用户未登录，无法上报定位数据")
+                    Log.w(TAG, "⚠️ 用户未登录，无法收集定位数据")
                     return@launch
                 }
                 
-                // 构建上报数据
+                // 构建定位数据并加入收集缓冲区
                 val locationData = buildLocationData(location)
-                val locationArray = JSONArray().apply {
-                    put(locationData)
+                synchronized(collectionBuffer) {
+                    collectionBuffer.add(locationData)
+                    Log.d(TAG, "📦 位置已收集到缓冲区 (${collectionBuffer.size}/${MAX_COLLECTION_BUFFER_SIZE}): ${location.latitude}, ${location.longitude}")
+                    
+                    // 如果缓冲区满了，立即上报
+                    if (collectionBuffer.size >= MAX_COLLECTION_BUFFER_SIZE) {
+                        Log.d(TAG, "⚠️ 缓冲区已满，触发立即上报")
+                        performImmediateReport(token)
+                    }
                 }
                 
-                // 发送 HTTP 请求
-                val success = sendLocationToServer(token, locationArray)
+                // 启动定时上报器
+                startReportTimer(token)
                 
-                if (success) {
-                    Log.d(TAG, "✅ 定位上报成功: ${location.latitude}, ${location.longitude}")
-                    updateLastReportInfo(location)
-                } else {
-                    Log.w(TAG, "❌ 定位上报失败")
-                }
+                // 更新最后收集的位置信息
+                updateLastCollectionInfo(location)
+                
             } catch (e: Exception) {
-                Log.e(TAG, "💥 定位上报异常", e)
+                Log.e(TAG, "💥 定位处理异常", e)
             }
         }
     }
     
     /**
-     * 检查是否需要上报
-     * ✅ 增强策略：
-     * 1. 首次定位必报
-     * 2. 精度过滤：accuracy > 100米的位置不上报
-     * 3. 时间触发：距离上次上报超过60秒
-     * 4. 距离触发：距离上次上报位置超过50米（且间隔≥10秒，防抖）
-     * 5. 速度触发：高速移动时（>20m/s，约72km/h）提高上报频率（30秒）
+     * 启动定时上报器（与Flutter层1分钟间隔保持一致）
      */
-    private fun shouldReport(location: AMapLocation): Boolean {
+    private fun startReportTimer(token: String) {
+        if (isReportTimerRunning) {
+            return
+        }
+        
+        reportTimer?.cancel()
+        reportTimer = Timer().apply {
+            schedule(object : TimerTask() {
+                override fun run() {
+                    performScheduledReport(token)
+                }
+            }, REPORT_INTERVAL_SECONDS * 1000L, REPORT_INTERVAL_SECONDS * 1000L)
+        }
+        isReportTimerRunning = true
+        Log.d(TAG, "⏰ 定时上报器已启动，间隔: ${REPORT_INTERVAL_SECONDS}秒")
+    }
+    
+    /**
+     * 执行定时上报
+     */
+    private fun performScheduledReport(token: String) {
+        coroutineScope.launch {
+            val locationsToReport: JSONArray
+            val bufferSize: Int
+            
+            // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
+            synchronized(collectionBuffer) {
+                if (collectionBuffer.isEmpty()) {
+                    Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
+                    return@launch
+                }
+                
+                locationsToReport = JSONArray()
+                collectionBuffer.forEach { locationData ->
+                    locationsToReport.put(locationData)
+                }
+                bufferSize = collectionBuffer.size
+            }
+            
+            Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize")
+            
+            // 在synchronized块外调用挂起函数
+            val success = sendLocationToServer(token, locationsToReport)
+            
+            // 根据结果处理缓冲区
+            synchronized(collectionBuffer) {
+                if (success) {
+                    collectionBuffer.clear()
+                    Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
+                } else {
+                    Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
+                }
+            }
+        }
+    }
+    
+    /**
+     * 执行立即上报（缓冲区满时）
+     */
+    private fun performImmediateReport(token: String) {
+        coroutineScope.launch {
+            val locationsToReport: JSONArray
+            val bufferSize: Int
+            
+            // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
+            synchronized(collectionBuffer) {
+                locationsToReport = JSONArray()
+                collectionBuffer.forEach { locationData ->
+                    locationsToReport.put(locationData)
+                }
+                bufferSize = collectionBuffer.size
+            }
+            
+            Log.d(TAG, "⚡ 执行立即上报，位置数量: $bufferSize")
+            
+            // 在synchronized块外调用挂起函数
+            val success = sendLocationToServer(token, locationsToReport)
+            
+            // 根据结果处理缓冲区
+            synchronized(collectionBuffer) {
+                if (success) {
+                    collectionBuffer.clear()
+                    Log.d(TAG, "✅ 立即上报成功，缓冲区已清空")
+                } else {
+                    Log.w(TAG, "❌ 立即上报失败，缓冲区保留数据")
+                }
+            }
+        }
+    }
+    
+    /**
+     * 检查是否需要收集定位
+     * 与Flutter层策略保持一致：
+     * 1. 首次定位必收集
+     * 2. 与上次收集位置距离>=50米时收集
+     * 3. 每1分钟上报一次收集到的位置
+     */
+    private fun shouldCollectLocation(location: AMapLocation): Boolean {
         // 检查定位是否有效
         if (location.errorCode != 0) {
             Log.d(TAG, "⚠️ 定位失败，错误码: ${location.errorCode}")
             return false
         }
         
-        // ✅ 1. 精度过滤
-        if (location.accuracy > 100.0) {
-            Log.d(TAG, "⚠️ 精度不足(${location.accuracy}m > 100m)，跳过上报")
-            return false
-        }
-        
-        val currentTime = System.currentTimeMillis()
         val lastReportTime = sharedPreferences.getLong(KEY_LAST_REPORT_TIME, 0)
         
-        // ✅ 2. 首次上报
+        // 首次定位必收集
         if (lastReportTime == 0L) {
-            Log.d(TAG, "🚀 首次定位，立即上报 (精度: ${location.accuracy}m)")
+            Log.d(TAG, "🚀 首次定位，必须收集: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
             return true
         }
         
-        val timeDiff = (currentTime - lastReportTime) / 1000 // 转换为秒
-        
-        // ✅ 3. 时间间隔检查（60秒）
-        if (timeDiff >= MIN_REPORT_INTERVAL_SECONDS) {
-            Log.d(TAG, "⏰ 时间触发上报: 距离上次上报${timeDiff}秒 (精度: ${location.accuracy}m)")
-            return true
-        }
-        
-        // ✅ 4. 距离检查（50米 + 最小10秒间隔防抖）
+        // 检查与上次位置的距离
         val lastLat = sharedPreferences.getString(KEY_LAST_REPORT_LAT, null)?.toDoubleOrNull()
         val lastLng = sharedPreferences.getString(KEY_LAST_REPORT_LNG, null)?.toDoubleOrNull()
         
@@ -141,19 +229,15 @@ class LocationReportService(private val context: Context) {
                 location.latitude, location.longitude
             )
             
-            if (distance >= MIN_REPORT_DISTANCE_METERS && timeDiff >= 10) {
-                Log.d(TAG, "📍 距离触发上报: 移动${distance.toInt()}米 (精度: ${location.accuracy}m)")
+            if (distance >= COLLECTION_DISTANCE_METERS) {
+                Log.d(TAG, "📍 距离触发收集: 移动${distance.toInt()}米 >= ${COLLECTION_DISTANCE_METERS}米 (精度: ${location.accuracy}m)")
                 return true
+            } else {
+                Log.d(TAG, "📍 距离不足，跳过收集: 移动${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米")
+                return false
             }
         }
         
-        // ✅ 5. 速度检查：高速移动时提高上报频率
-        if (location.speed > 20.0 && timeDiff >= 30) {
-            Log.d(TAG, "🚀 高速移动触发上报: 速度${location.speed}m/s ≈ ${(location.speed * 3.6).toInt()}km/h")
-            return true
-        }
-        
-        Log.d(TAG, "📍 不满足上报条件: 时间${timeDiff}秒, 精度${location.accuracy}m, 速度${location.speed}m/s")
         return false
     }
     
@@ -161,12 +245,19 @@ class LocationReportService(private val context: Context) {
      * 构建定位数据 JSON
      */
     private fun buildLocationData(location: AMapLocation): JSONObject {
-        val locationTime = location.time // 定位时间戳
+        // 转换为10位时间戳（秒）
+        val locationTime = if (location.time > 0) {
+            // 高德返回的是13位毫秒时间戳，转换为10位秒时间戳
+            (location.time / 1000).toString()
+        } else {
+            // 如果高德时间戳无效，使用当前时间
+            (System.currentTimeMillis() / 1000).toString()
+        }
         
         return JSONObject().apply {
             put("longitude", location.longitude.toString())
             put("latitude", location.latitude.toString())
-            put("location_time", locationTime.toString())
+            put("location_time", locationTime) // 10位时间戳
             put("speed", location.speed.toString())
             put("altitude", location.altitude.toString())
             put("accuracy", location.accuracy.toString())
@@ -301,19 +392,21 @@ class LocationReportService(private val context: Context) {
     }
     
     /**
-     * 更新最后上报信息
+     * 更新最后收集信息
      */
-    private fun updateLastReportInfo(location: AMapLocation) {
+    private fun updateLastCollectionInfo(location: AMapLocation) {
         sharedPreferences.edit().apply {
             putLong(KEY_LAST_REPORT_TIME, System.currentTimeMillis())
             putString(KEY_LAST_REPORT_LAT, location.latitude.toString())
             putString(KEY_LAST_REPORT_LNG, location.longitude.toString())
             apply()
         }
+        Log.d(TAG, "📍 最后收集位置已更新: ${location.latitude}, ${location.longitude}")
     }
     
     /**
      * 计算两点之间的距离（米）
+     * 与Flutter层的距离计算保持一致
      */
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val earthRadius = 6371000.0 // 地球半径，单位：米
@@ -384,6 +477,17 @@ class LocationReportService(private val context: Context) {
      * 清除用户信息（登出时调用）
      */
     fun clearUserInfo() {
+        // 停止定时器
+        reportTimer?.cancel()
+        reportTimer = null
+        isReportTimerRunning = false
+        
+        // 清空缓冲区
+        synchronized(collectionBuffer) {
+            collectionBuffer.clear()
+        }
+        
+        // 清除SharedPreferences
         sharedPreferences.edit().apply {
             remove(KEY_USER_TOKEN)
             remove(KEY_USER_ID)
@@ -392,7 +496,7 @@ class LocationReportService(private val context: Context) {
             remove(KEY_LAST_REPORT_LNG)
             apply()
         }
-        Log.d(TAG, "🗑️ 用户信息已清除")
+        Log.d(TAG, "🗑️ 用户信息、定时器和缓冲区已清除")
     }
     
     /**
@@ -465,8 +569,20 @@ class LocationReportService(private val context: Context) {
      * 销毁服务
      */
     fun destroy() {
+        // 停止定时器
+        reportTimer?.cancel()
+        reportTimer = null
+        isReportTimerRunning = false
+        
+        // 清空缓冲区
+        synchronized(collectionBuffer) {
+            collectionBuffer.clear()
+        }
+        
+        // 取消协程
         coroutineScope.cancel()
         Log.d(TAG, "LocationReportService 已销毁")
     }
 }
+
 

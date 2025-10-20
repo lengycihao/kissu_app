@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/vip_navigation_helper.dart';
 
 /// 通用记录列表项组件（用于敏感记录、定位异常等）
 /// 根据event_type和ext动态渲染不同的UI
@@ -332,8 +333,8 @@ class GenericRecordItemWidget extends StatelessWidget {
 
     // 根据类型跳转到不同页面
     if (record.eventType == 20) {
-      // 类型20跳转到定位页面
-      Get.toNamed(KissuRoutePath.location);
+      // 类型20跳转到定位页面（添加会员检查）
+      VipNavigationHelper.navigateToLocationWithVipCheck();
     } else if ([9, 17, 18].contains(record.eventType)) {
       // 类型9, 17, 18跳转到轨迹页面
       Get.toNamed(KissuRoutePath.track);
