@@ -94,6 +94,17 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     );
   }
 
+  /// 更新单个标记
+  Future<void> updateMarker(
+    Marker marker, {
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>(
+      'marker#update',
+      marker.toMap(),
+    );
+  }
+
   @override
   void dispose({required int id}) {
     if (_channels.containsKey(id)) {
@@ -298,5 +309,73 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     required int mapId,
   }) {
     return channel(mapId).invokeMethod<void>('map#clearDisk');
+  }
+
+  /// 隐藏所有 InfoWindow
+  Future<void> hideAllInfoWindows({
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>('map#hideAllInfoWindows');
+  }
+
+  /// 隐藏指定 Marker 的 InfoWindow
+  Future<void> hideInfoWindow(String markerId, {
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>('map#hideInfoWindow', <String, dynamic>{
+      'markerId': markerId,
+    });
+  }
+
+  /// 显示指定 Marker 的 InfoWindow
+  Future<void> showInfoWindow(String markerId, {
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>('map#showInfoWindow', <String, dynamic>{
+      'markerId': markerId,
+    });
+  }
+
+  /// 显示围栏圆圈
+  Future<void> showGeofenceCircle({
+    required double latitude,
+    required double longitude,
+    required double radius,
+    required String strokeColor,
+    required String fillColor,
+    required double strokeWidth,
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>('map#showGeofenceCircle', <String, dynamic>{
+      'latitude': latitude,
+      'longitude': longitude,
+      'radius': radius,
+      'strokeColor': strokeColor,
+      'fillColor': fillColor,
+      'strokeWidth': strokeWidth,
+    });
+  }
+
+  /// 隐藏围栏圆圈
+  Future<void> hideGeofenceCircle({
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>('map#hideGeofenceCircle');
+  }
+
+  /// 清除围栏圆圈
+  Future<void> clearGeofenceCircle({
+    required int mapId,
+  }) {
+    return channel(mapId).invokeMethod<void>('map#clearGeofenceCircle');
+  }
+
+  /// 获取当前相机位置
+  Future<CameraPosition?> getCameraPosition({
+    required int mapId,
+  }) async {
+    final result = await channel(mapId).invokeMethod<Map<dynamic, dynamic>>('map#getCameraPosition');
+    if (result == null) return null;
+    return CameraPosition.fromMap(result);
   }
 }

@@ -73,13 +73,14 @@ class UsageReportPage extends GetView<UsageReportController> {
             _buildBottomInfo(),
           ],
         ),
-        if (!controller.isUserBound())
-          Positioned(
-            top: 190, //
-            left: 0,
-            right: 0,
-            bottom: 90,
-            child: Container(
+        Obx(() {
+          if (!controller.isUserBound.value) {
+            return Positioned(
+              top: 190, //
+              left: 0,
+              right: 0,
+              bottom: 90,
+              child: Container(
               decoration: BoxDecoration(
                 color: Color(0xffffffff),
                 borderRadius: BorderRadius.only(
@@ -148,7 +149,11 @@ class UsageReportPage extends GetView<UsageReportController> {
                 ],
               ),
             ),
-          ),
+            );
+          } else {
+            return SizedBox.shrink();
+          }
+        }),
       ],
     );
   }
@@ -263,24 +268,30 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   // 构建筛选按钮
   Widget _buildFilterButton() {
-    return GestureDetector(
-      onTap: () => controller.toggleFilterDrawer(),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFFFB6E3), width: 1),
+    return Obx(() {
+      final isFilterOpen = controller.isFilterDrawerVisible.value;
+      
+      return GestureDetector(
+        onTap: () => controller.toggleFilterDrawer(),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFFFB6E3), width: 1),
+          ),
+          alignment: Alignment.center,
+          child: Image.asset(
+            isFilterOpen 
+              ? 'assets/phone_history/kissu3_history_seting_more.webp'
+              : 'assets/phone_history/kissu3_history_seting_more_close.webp',
+            width: 16,
+            height: 16,
+          ),
         ),
-        alignment: Alignment.center,
-        child: Image.asset(
-          'assets/phone_history/kissu3_history_seting_more.webp',
-          width: 16,
-          height: 16,
-        ),
-      ),
-    );
+      );
+    });
   }
 
   // 构建 PageView
@@ -554,38 +565,65 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   /// 构建距离信息
   Widget _buildDistanceInfo() {
-    return InkWell(
-      onTap: () {
-        controller.handleDistanceButtonClick();
-      },
-      child: Container(
-        width: 60,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Color(0xffFCFCFD),
-          borderRadius: BorderRadius.only(
-            topRight: Radius.circular(24),
-            bottomRight: Radius.circular(24),
+    return Obx(() {
+      final isUserBound = controller.isUserBound.value;
+      
+      return InkWell(
+        onTap: () {
+          controller.handleDistanceButtonClick();
+        },
+        child: Container(
+          width: 60,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Color(0xffFCFCFD),
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+            ),
+            border: Border.all(color: Color(0xFFF4E6FF), width: 1),
           ),
-          border: Border.all(color: Color(0xFFF4E6FF), width: 1),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isUserBound) ...[
+                // 已绑定状态：显示距离图标
+                Image.asset(
+                  'assets/phone_history/kissu3_history_diatance.webp',
+                  width: 16,
+                  height: 16,
+                ),
+                const SizedBox(height: 3),
+                const Text(
+                  '距离',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF333333)),
+                ),
+              ] else ...[
+                // 未绑定状态：显示加号图标
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFF577C),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    size: 10,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                const Text(
+                  '去绑定',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF333333)),
+                ),
+              ],
+            ],
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/phone_history/kissu3_history_diatance.webp',
-              width: 16,
-              height: 16,
-            ),
-            const SizedBox(height: 3),
-            const Text(
-              '距离',
-              style: TextStyle(fontSize: 10, color: Color(0xFF333333)),
-            ),
-          ],
-        ),
-      ),
-    );
+      );
+    });
   }
 
   /// 构建设备信息
@@ -623,11 +661,15 @@ class UsageReportPage extends GetView<UsageReportController> {
                   height: 16,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  mobileModel,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF333333),
+                Flexible(
+                  child: Text(
+                    mobileModel.length > 4 ? '${mobileModel.substring(0, 4)}...' : mobileModel,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
                 const Spacer(),
@@ -639,9 +681,16 @@ class UsageReportPage extends GetView<UsageReportController> {
                 height: 16,
               ),
               const SizedBox(width: 4),
-              Text(
-                isWifi && networkName.isNotEmpty ? networkName : '移动网络',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+              Flexible(
+                child: Text(
+                  () {
+                    final displayName = isWifi && networkName.isNotEmpty ? networkName : '移动网络';
+                    return displayName.length > 4 ? '${displayName.substring(0, 4)}...' : displayName;
+                  }(),
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
               const Spacer(),
               // 电量信息

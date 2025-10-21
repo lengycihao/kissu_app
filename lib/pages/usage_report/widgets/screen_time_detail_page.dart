@@ -57,11 +57,15 @@ class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.hourglass_empty, size: 64, color: Colors.grey[400]),
+                    Image.asset(
+                      'assets/phone_history/kissu_phone_list_empty.webp',
+                      width: 128,
+                      height: 128,
+                    ),
                     const SizedBox(height: 16),
-                    Text(
+                    const Text(
                       '暂无屏幕使用记录',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
                     ),
                   ],
                 ),

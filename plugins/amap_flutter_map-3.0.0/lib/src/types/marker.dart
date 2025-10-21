@@ -4,7 +4,9 @@
 
 import 'dart:ui' show Offset;
 import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 import 'bitmap.dart';
 import 'base_overlay.dart';
 
@@ -63,7 +65,7 @@ class InfoWindow {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other.runtimeType != runtimeType) return false;
-    if (other is !InfoWindow) {
+    if (other is! InfoWindow) {
       return false;
     }
     final InfoWindow typedOther = other;
@@ -92,12 +94,14 @@ class Marker extends BaseOverlay {
     this.infoWindow = InfoWindow.noText,
     this.customInfoWindowBuilder,
     this.autoShowCustomInfoWindow = false,
+    this.infoWindowId,
     this.isTrackStyle = false,
     this.stayDuration,
     this.stayTime,
     this.rotation = 0.0,
     this.visible = true,
     this.zIndex = 0.0,
+    Matrix4? transform,
     this.onTap,
     this.onDragEnd,
   })  : this.alpha =
@@ -112,6 +116,7 @@ class Marker extends BaseOverlay {
                     anchor.dy > 1)
                 ? Offset(0.5, 1.0)
                 : anchor)),
+        this.transform = transform ?? Matrix4.identity(),
         super();
 
   /// 透明度
@@ -145,6 +150,10 @@ class Marker extends BaseOverlay {
   /// 如果为 true，则 Marker 创建时自动显示 InfoWindow
   final bool autoShowCustomInfoWindow;
 
+  /// InfoWindow 的唯一标识符（用于精准控制 InfoWindow 的显示和隐藏）
+  /// 如果不设置，则使用 Marker 的 id 作为默认标识
+  final String? infoWindowId;
+
   /// 是否使用轨迹样式的 InfoWindow（仅 Android 支持）
   /// 如果为 true，将使用轨迹页面专用的 InfoWindow 样式
   final bool isTrackStyle;
@@ -172,6 +181,9 @@ class Marker extends BaseOverlay {
   /// 值越小，图层越靠下，iOS该值不支持动态修改,仅能在初始化时指定
   final double zIndex;
 
+  /// Matrix4变换矩阵，用于支持复杂的动画效果
+  final Matrix4 transform;
+
   /// 回调的参数是对应的id
   final ArgumentCallback<String>? onTap;
 
@@ -189,13 +201,15 @@ class Marker extends BaseOverlay {
     InfoWindow? infoWindowParam,
     CustomInfoWindowBuilder? customInfoWindowBuilderParam,
     bool? autoShowCustomInfoWindowParam,
+    String? infoWindowIdParam,
     bool? isTrackStyleParam,
     String? stayDurationParam,
     String? stayTimeParam,
     LatLng? positionParam,
     double? rotationParam,
     bool? visibleParam,
-    ArgumentCallback<String?> ? onTapParam,
+    Matrix4? transformParam,
+    ArgumentCallback<String>? onTapParam,
     MarkerDragEndCallback? onDragEndParam,
   }) {
     Marker copyMark = Marker(
@@ -208,6 +222,7 @@ class Marker extends BaseOverlay {
       infoWindow: infoWindowParam ?? infoWindow,
       customInfoWindowBuilder: customInfoWindowBuilderParam ?? customInfoWindowBuilder,
       autoShowCustomInfoWindow: autoShowCustomInfoWindowParam ?? autoShowCustomInfoWindow,
+      infoWindowId: infoWindowIdParam ?? infoWindowId,
       isTrackStyle: isTrackStyleParam ?? isTrackStyle,
       stayDuration: stayDurationParam ?? stayDuration,
       stayTime: stayTimeParam ?? stayTime,
@@ -215,6 +230,7 @@ class Marker extends BaseOverlay {
       rotation: rotationParam ?? rotation,
       visible: visibleParam ?? visible,
       zIndex: zIndex,
+      transform: transformParam ?? transform,
       onTap: onTapParam ?? onTap,
       onDragEnd: onDragEndParam ?? onDragEnd,
     );
@@ -244,6 +260,7 @@ class Marker extends BaseOverlay {
     addIfPresent('infoWindow', infoWindow._toMap());
     addIfPresent('hasCustomInfoWindow', customInfoWindowBuilder != null);
     addIfPresent('autoShowCustomInfoWindow', autoShowCustomInfoWindow);
+    addIfPresent('infoWindowId', infoWindowId);
     addIfPresent('isTrackStyle', isTrackStyle);
     addIfPresent('stayDuration', stayDuration);
     addIfPresent('stayTime', stayTime);
@@ -251,6 +268,7 @@ class Marker extends BaseOverlay {
     addIfPresent('rotation', rotation);
     addIfPresent('visible', visible);
     addIfPresent('zIndex', zIndex);
+    addIfPresent('transform', _matrix4ToJson(transform));
     return json;
   }
 
@@ -258,11 +276,20 @@ class Marker extends BaseOverlay {
     return <dynamic>[offset.dx, offset.dy];
   }
 
+  dynamic _matrix4ToJson(Matrix4 matrix) {
+    return <dynamic>[
+      matrix.storage[0], matrix.storage[1], matrix.storage[2], matrix.storage[3],
+      matrix.storage[4], matrix.storage[5], matrix.storage[6], matrix.storage[7],
+      matrix.storage[8], matrix.storage[9], matrix.storage[10], matrix.storage[11],
+      matrix.storage[12], matrix.storage[13], matrix.storage[14], matrix.storage[15],
+    ];
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other.runtimeType != runtimeType) return false;
-    if(other is !Marker) return false;
+    if (other is! Marker) return false;
     final Marker typedOther = other;
     return id == typedOther.id &&
         alpha == typedOther.alpha &&
@@ -272,13 +299,15 @@ class Marker extends BaseOverlay {
         icon == typedOther.icon &&
         infoWindowEnable == typedOther.infoWindowEnable &&
         infoWindow == typedOther.infoWindow &&
+        infoWindowId == typedOther.infoWindowId &&
         isTrackStyle == typedOther.isTrackStyle &&
         stayDuration == typedOther.stayDuration &&
         stayTime == typedOther.stayTime &&
         position == typedOther.position &&
         rotation == typedOther.rotation &&
         visible == typedOther.visible &&
-        zIndex == typedOther.zIndex;
+        zIndex == typedOther.zIndex &&
+        transform == typedOther.transform;
   }
 
   @override

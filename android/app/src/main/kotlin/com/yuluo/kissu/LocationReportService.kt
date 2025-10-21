@@ -38,7 +38,7 @@ class LocationReportService(private val context: Context) {
         private const val KEY_LAST_REPORT_LNG = "last_report_longitude"
         
         // 与Flutter层保持一致的上报策略参数
-        private const val COLLECTION_DISTANCE_METERS = 50.0 // 50米收集距离，与Flutter层_collectionDistance一致
+        private const val COLLECTION_DISTANCE_METERS = 50 // 50米收集距离，与Flutter层 <50m 丢弃一致
         private const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔，与Flutter层_reportInterval一致
         private const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)，与Flutter层一致
     }
@@ -370,7 +370,7 @@ class LocationReportService(private val context: Context) {
                     val jsonResponse = JSONObject(response)
                     val code = jsonResponse.optInt("code", -1)
                     
-                    if (code == 200) {
+                    if (code == 0) {
                         Log.d(TAG, "✅ 定位上报成功")
                         return@withContext true
                     } else {
@@ -529,18 +529,18 @@ class LocationReportService(private val context: Context) {
         // 添加请求体参数
         allParams.putAll(bodyParams)
         
-        Log.d(TAG, "🔐 签名参数汇总: $allParams")
+        // Log.d(TAG, "🔐 签名参数汇总: $allParams")
         
         // 按 key ASCII 升序排序
         val sortedKeys = allParams.keys.sorted()
-        Log.d(TAG, "🔐 排序后的key: $sortedKeys")
+        // Log.d(TAG, "🔐 排序后的key: $sortedKeys")
         
         // 拼接所有 value
         val signBuilder = StringBuilder()
         sortedKeys.forEach { key ->
             val value = allParams[key]
             signBuilder.append(value)
-            Log.d(TAG, "🔐 拼接参数 $key = $value")
+            // Log.d(TAG, "🔐 拼接参数 $key = $value")
         }
         
         // 拼接密钥
@@ -548,10 +548,10 @@ class LocationReportService(private val context: Context) {
         
         // 生成 MD5 并转大写
         val signString = signBuilder.toString()
-        Log.d(TAG, "🔐 完整签名字符串: $signString")
+        // Log.d(TAG, "🔐 完整签名字符串: $signString")
         
         val signature = md5(signString).uppercase()
-        Log.d(TAG, "🔐 最终签名: $signature")
+        // Log.d(TAG, "🔐 最终签名: $signature")
         
         return signature
     }

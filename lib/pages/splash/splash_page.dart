@@ -19,10 +19,43 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  bool _imagesLoaded = false;
+
   @override
   void initState() {
     super.initState();
-    _checkLoginStatusAndNavigate();
+    _preloadImagesAndNavigate();
+  }
+
+  /// 预加载所有启动页图片，避免闪烁
+  Future<void> _preloadImagesAndNavigate() async {
+    try {
+      // 预加载所有启动页图片
+      await Future.wait([
+        precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash.webp'), context),
+        precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'), context),
+        precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'), context),
+      ]);
+      
+      // 图片加载完成，更新状态
+      if (mounted) {
+        setState(() {
+          _imagesLoaded = true;
+        });
+      }
+      
+      // 继续原有的导航逻辑
+      await _checkLoginStatusAndNavigate();
+    } catch (e) {
+      DebugUtil.error('预加载启动页图片失败: $e');
+      // 即使预加载失败，也继续执行
+      if (mounted) {
+        setState(() {
+          _imagesLoaded = true;
+        });
+      }
+      await _checkLoginStatusAndNavigate();
+    }
   }
 
   Future<void> _checkLoginStatusAndNavigate() async {
@@ -258,44 +291,46 @@ class _SplashPageState extends State<SplashPage> {
     final titleHeight = 258.0 * scale;
     final iconWidth = 80.0 * scale;
     final iconHeight = 80.0 * scale;
-    // 计算间距
-    final spacing = 110.0 * scale;
     
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/mipmap-xxhdpi/flash.webp'),
-            fit: BoxFit.cover,
+      body: AnimatedOpacity(
+        opacity: _imagesLoaded ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/mipmap-xxhdpi/flash.webp'),
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        child: Stack(
-          children: [
-            Transform.translate(
-              offset: Offset(0, -100 ),
-              child: Center(
-              child:Image.asset(
-                    'assets/mipmap-xxhdpi/flash_title.webp',
-                    width: titleWidth,
-                    height: titleHeight,
-                    fit: BoxFit.contain,
-                  ),
-            ),
-            ),
-            Positioned(
-              bottom: 60*scale,
-              left: 0,
-              right: 0,
-              child: Image.asset(
-                      'assets/mipmap-xxhdpi/flash_icon.webp',
-                      width: iconWidth,
-                      height: iconHeight,
+          child: Stack(
+            children: [
+              Transform.translate(
+                offset: Offset(0, -100 ),
+                child: Center(
+                child:Image.asset(
+                      'assets/mipmap-xxhdpi/flash_title.webp',
+                      width: titleWidth,
+                      height: titleHeight,
                       fit: BoxFit.contain,
                     ),
-            ),
-          ],
+              ),
+              ),
+              Positioned(
+                bottom: 60*scale,
+                left: 0,
+                right: 0,
+                child: Image.asset(
+                        'assets/mipmap-xxhdpi/flash_icon.webp',
+                        width: iconWidth,
+                        height: iconHeight,
+                        fit: BoxFit.contain,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

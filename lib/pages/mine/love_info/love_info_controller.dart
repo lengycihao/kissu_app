@@ -7,7 +7,6 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
-import 'package:kissu_app/model/login_model/lover_info.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -112,73 +111,37 @@ class LoveInfoController extends GetxController {
   }
   
   void _handleDateAndDays(user) {
-    // 优先使用LoverInfo中的绑定信息
+    // 只使用LoverInfo中的接口数据，不做本地计算
     if (user.loverInfo != null) {
       DebugUtil.info('Using loverInfo for love data');
       final lover = user.loverInfo!;
       
-      // 如果有绑定日期，使用LoverInfo中的数据
+      // 绑定日期
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
         DebugUtil.info('Bind date from loverInfo: ${bindDate.value}');
       }
       
-      // 如果有相恋时间，使用LoverInfo中的数据
+      // 相恋时间
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
         DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
       }
 
-      // 如果有恋爱天数，直接使用服务器数据（优先使用接口数据）
-      if (lover.loveDays != null && lover.loveDays! > 0) {
+      // 恋爱天数 - 直接使用服务器数据
+      if (lover.loveDays != null) {
         loveDays.value = lover.loveDays!;
         togetherDays.value = lover.loveDays!;
         DebugUtil.info('✅ Love days from loverInfo API: ${loveDays.value}');
-        return; // 使用了LoverInfo的数据，就不需要再计算了
+      } else {
+        loveDays.value = 0;
+        togetherDays.value = 0;
+        DebugUtil.info('❌ Love days is null, set to 0');
       }
-
-      // 如果有bindTime但没有loveDays，尝试从bindTime计算
-      if (lover.bindTime != null && lover.bindTime!.isNotEmpty) {
-        try {
-          final bindTimestamp = int.parse(lover.bindTime!);
-          final bindTime = DateTime.fromMillisecondsSinceEpoch(
-            bindTimestamp * 1000,
-          );
-
-          // 如果bindDate为空，格式化bindTime作为bindDate
-          if (lover.bindDate?.isEmpty ?? true) {
-            bindDate.value = _formatDate(bindTime);
-            DebugUtil.info('Bind date from bindTime: ${bindDate.value}');
-          }
-
-          // 计算在一起天数
-          final now = DateTime.now();
-          final difference = now.difference(bindTime).inDays;
-          loveDays.value = difference;
-          togetherDays.value = difference;
-          DebugUtil.info('Love days calculated from bindTime: ${loveDays.value}');
-          return;
-        } catch (e) {
-          DebugUtil.error('解析LoverInfo bindTime失败: $e');
-        }
-      }
-    }
-
-    // 如果LoverInfo没有数据，回退到使用latelyBindTime
-    if (user.latelyBindTime != null) {
-      final bindTime = DateTime.fromMillisecondsSinceEpoch(
-        user.latelyBindTime! * 1000,
-      );
-      bindDate.value = _formatDate(bindTime);
-
-      // 计算在一起天数
-      final now = DateTime.now();
-      final difference = now.difference(bindTime).inDays;
-      loveDays.value = difference;
-      togetherDays.value = difference;
-      DebugUtil.info('Love days calculated from latelyBindTime: ${loveDays.value}');
     } else {
-      DebugUtil.info('No love days data available, keeping default value: 0');
+      DebugUtil.info('No loverInfo data available, keeping default value: 0');
+      loveDays.value = 0;
+      togetherDays.value = 0;
     }
   }
 
@@ -1117,79 +1080,8 @@ class LoveInfoController extends GetxController {
       final result = await authApi.updateUserInfo(loveTime: loveTimeStr);
 
       if (result.isSuccess) {
-        // 更新本地数据
-        loveTime.value = _formatDate(loveTimeDate);
-
-        // 重新计算在一起天数
-        final now = DateTime.now();
-        final difference = now.difference(loveTimeDate).inDays;
-        togetherDays.value = difference + 1;
-        loveDays.value = difference + 1;
-
-        // 更新用户缓存
-        final currentUser = UserManager.currentUser;
-        if (currentUser != null) {
-          // 更新loverInfo中的恋爱信息
-          LoverInfo? updatedLoverInfo = currentUser.loverInfo;
-          if (updatedLoverInfo != null) {
-            updatedLoverInfo = LoverInfo(
-              id: updatedLoverInfo.id,
-              phone: updatedLoverInfo.phone,
-              nickname: updatedLoverInfo.nickname,
-              headPortrait: updatedLoverInfo.headPortrait,
-              gender: updatedLoverInfo.gender,
-              birthday: updatedLoverInfo.birthday,
-              provinceName: updatedLoverInfo.provinceName,
-              cityName: updatedLoverInfo.cityName,
-              bindTime: updatedLoverInfo.bindTime,
-              bindDate: updatedLoverInfo.bindDate,
-              loveTime: _formatLoveTime(loveTimeDate), // 更新相恋时间
-              loveDays: difference + 1, // 更新恋爱天数
-            );
-          }
-
-          final updatedUser = LoginModel(
-            id: currentUser.id,
-            phone: currentUser.phone,
-            nickname: currentUser.nickname,
-            headPortrait: currentUser.headPortrait,
-            gender: currentUser.gender,
-            loverId: currentUser.loverId,
-            birthday: currentUser.birthday,
-            halfUid: currentUser.halfUid,
-            status: currentUser.status,
-            inviterId: currentUser.inviterId,
-            friendCode: currentUser.friendCode,
-            friendQrCode: currentUser.friendQrCode,
-            isForEverVip: currentUser.isForEverVip,
-            vipEndTime: currentUser.vipEndTime,
-            channel: currentUser.channel,
-            mobileModel: currentUser.mobileModel,
-            deviceId: currentUser.deviceId,
-            uniqueId: currentUser.uniqueId,
-            provinceName: currentUser.provinceName,
-            cityName: currentUser.cityName,
-            bindStatus: currentUser.bindStatus,
-            latelyBindTime: currentUser.latelyBindTime,
-            latelyUnbindTime: currentUser.latelyUnbindTime,
-            latelyLoginTime: currentUser.latelyLoginTime,
-            latelyPayTime: currentUser.latelyPayTime,
-            loginNums: currentUser.loginNums,
-            openAppNums: currentUser.openAppNums,
-            latelyOpenAppTime: currentUser.latelyOpenAppTime,
-            isTest: currentUser.isTest,
-            isOrderVip: currentUser.isOrderVip,
-            loginTime: currentUser.loginTime,
-            vipEndDate: currentUser.vipEndDate,
-            isVip: currentUser.isVip,
-            token: currentUser.token,
-            imSign: currentUser.imSign,
-            isPerfectInformation: currentUser.isPerfectInformation,
-            halfUserInfo: currentUser.halfUserInfo, // 保留伴侣信息
-            loverInfo: updatedLoverInfo, // 更新恋爱信息
-          );
-          await UserManager.updateUserInfo(updatedUser);
-        }
+        // 重新获取用户信息，使用服务器返回的最新数据
+        _loadUserInfo();
 
         // 通知我的页面刷新
         try {

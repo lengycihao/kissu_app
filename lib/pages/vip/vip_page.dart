@@ -120,18 +120,16 @@ class VipPage extends GetView<VipController> {
             top: 55,
             child: GestureDetector(
               onTap: () => Get.back(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 24,
-                ),
+              child: Padding(
+                padding: EdgeInsets.all(8.0).copyWith(top: 0),
+               
+                 
+                child:  Image(
+                image: AssetImage('assets/kissu_mine_back.webp'),
+                width: 22,
+                height: 22,
+                fit: BoxFit.cover,
+              ),
               ),
             ),
           ),
@@ -308,7 +306,7 @@ class VipPage extends GetView<VipController> {
     );
   }
 
-  // 价格组件 - 支持横向滑动
+  // 价格组件 - 支持横向滑动，解决对齐问题
   Widget _buildPriceComponents() {
     return Obx(
       () {
@@ -338,17 +336,20 @@ class VipPage extends GetView<VipController> {
         final maxVisibleItems = ((availableWidth + itemSpacing) / (itemWidth + itemSpacing)).floor();
         final totalItems = controller.vipPackages.length;
         
+        // 🔥 统一容器高度：100px卡片 + 35px标签空间，确保所有套餐对齐
+        const unifiedHeight = 115.0;
+        
         // 如果套餐数量超过可显示数量，使用横向滑动
         if (totalItems > maxVisibleItems) {
           return Container(
-            height: 125, // 高度：100px卡片 + 35px标签空间 + 20px额外边距
+            height: unifiedHeight,
             child: Stack(
               children: [
-               ListView.separated(
+                ListView.separated(
                   controller: controller.priceScrollController,
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.symmetric(horizontal: sideMargin),
-                  clipBehavior: Clip.none, // 🔥 关键：允许子组件超出ListView边界
+                  clipBehavior: Clip.none, // 允许子组件超出ListView边界
                   itemCount: totalItems,
                   separatorBuilder: (context, index) => SizedBox(width: itemSpacing),
                   itemBuilder: (context, index) {
@@ -412,32 +413,34 @@ class VipPage extends GetView<VipController> {
         } else {
           // 套餐数量较少时，使用居中的Row布局
           return Container(
-            height: 155, // 为Row布局也增加相同的高度
+            height: unifiedHeight, // 使用统一高度
+            alignment: Alignment.topCenter, // 顶部对齐
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start, // 🔥 关键：顶部对齐
               children: controller.vipPackages.asMap().entries.map((entry) {
-              final index = entry.key;
-              final package = entry.value;
-              final isLast = index == controller.vipPackages.length - 1;
-              
-              return Row(
-                children: [
-                  _buildPriceItem(
-                    title: package.durationText,
-                    price1: package.priceText,
-                    price2: package.originalPriceText,
-                    size: const Size(100, 100),
-                    background: "assets/kissu_vip_year_bg.webp",
-                    isSelected: currentSelectedIndex == index,
-                    onTap: () => controller.selectPrice(index),
-                    showBottomLabel: isLast, // 最后一个显示底部标签
-                    bottomLabel: '80%选择',
-                  ),
-                  if (index < controller.vipPackages.length - 1)
-                    SizedBox(width: itemSpacing),
-                ],
-              );
-            }).toList(),
+                final index = entry.key;
+                final package = entry.value;
+                final isLast = index == controller.vipPackages.length - 1;
+                
+                return Row(
+                  children: [
+                    _buildPriceItem(
+                      title: package.durationText,
+                      price1: package.priceText,
+                      price2: package.originalPriceText,
+                      size: const Size(100, 100),
+                      background: "assets/kissu_vip_year_bg.webp",
+                      isSelected: currentSelectedIndex == index,
+                      onTap: () => controller.selectPrice(index),
+                      showBottomLabel: isLast, // 最后一个显示底部标签
+                      bottomLabel: '80%选择',
+                    ),
+                    if (index < controller.vipPackages.length - 1)
+                      SizedBox(width: itemSpacing),
+                  ],
+                );
+              }).toList(),
             ),
           );
         }
@@ -445,7 +448,7 @@ class VipPage extends GetView<VipController> {
     );
   }
 
-  // 单个价格组件
+  // 单个价格组件 - 重新设计确保完美对齐
   Widget _buildPriceItem({
     required String title,
     required String price1,
@@ -459,72 +462,76 @@ class VipPage extends GetView<VipController> {
   }) {
     return SizedBox(
       width: size.width,
-      height: size.height + (showBottomLabel ? 35 : 0), // 为底部标签增加足够空间（标签偏移10px + 高度约25px）
+      height: 115, // 🔥 固定统一高度：100px卡片 + 35px标签空间
       child: Stack(
-        clipBehavior: Clip.none, // 允许子组件超出边界
-        alignment: Alignment.bottomRight,
+        clipBehavior: Clip.none,
         children: [
-          // 主价格卡片
-          GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: size.width,
-              height: size.height,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(
-                  color: isSelected ? const Color(0xFFFF950A) : const Color(0xFFFFF3B8),
-                  width: 2,
+          // 主价格卡片 - 固定在顶部
+          Positioned(
+            top: 0,
+            left: 0,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                width: size.width,
+                height: size.height, // 卡片本身保持100px高度
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFFFF950A) : const Color(0xFFFFF3B8),
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Container(
-                    width: size.width - 10,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                    margin: const EdgeInsets.only(top: 6),
-                    decoration:  BoxDecoration(
-                      color: isSelected ?Color(0xFFFF0A6C):Color(0xffFF77AD),
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: size.width - 10,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFFF0A6C) : const Color(0xffFF77AD),
+                        borderRadius: const BorderRadius.all(Radius.circular(10)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontSize: 12, color: Colors.white),
+                      ),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      title,
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                    const SizedBox(height: 4),
+                    Text(
+                      price1,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        color: Color(0xFF5E3603),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    price1,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      color: Color(0xFF5E3603),
-                      fontWeight: FontWeight.bold,
+                    Text(
+                      price2,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF999999),
+                        decoration: TextDecoration.lineThrough,
+                      ),
                     ),
-                  ),
-                  Text(
-                    price2,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF999999),
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-          // 底部标签 - 确保在最上层显示
+          // 底部标签 - 固定位置，不影响卡片对齐
           if (showBottomLabel)
-            Transform.translate(
-              offset: const Offset(5, 10), // 向下移动20px
+            Positioned(
+              bottom: 5, // 固定在底部
+              right: -5, // 稍微向右偏移
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: const BoxDecoration(
                   color: Color(0xff046AE4),
-                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
                 child: Text(
                   bottomLabel,
@@ -752,7 +759,7 @@ class VipPage extends GetView<VipController> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  '${UserManager.isVip ? "继续续费" : "立即开通"} ${controller.getCurrentPrice()}',
+                  '${UserManager.isVip ? "立即续费" : "立即开通"} ${controller.getCurrentPrice()}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

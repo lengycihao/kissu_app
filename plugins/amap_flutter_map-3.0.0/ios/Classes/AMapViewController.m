@@ -234,6 +234,36 @@
         [weakSelf.mapView clearDisk];
         result(nil);
     }];
+    [self.channel addMethodName:@"map#hideAllInfoWindows" withHandler:^(FlutterMethodCall * _Nonnull call, FlutterResult  _Nonnull result) {
+        [weakSelf.markerController hideAllInfoWindows];
+        result(nil);
+    }];
+    [self.channel addMethodName:@"map#hideInfoWindow" withHandler:^(FlutterMethodCall * _Nonnull call, FlutterResult  _Nonnull result) {
+        NSString *markerId = call.arguments[@"markerId"];
+        if (markerId) {
+            [weakSelf.markerController hideInfoWindowByMarkerId:markerId];
+            result(nil);
+        } else {
+            result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"markerId is null" details:nil]);
+        }
+    }];
+    [self.channel addMethodName:@"map#showInfoWindow" withHandler:^(FlutterMethodCall * _Nonnull call, FlutterResult  _Nonnull result) {
+        NSString *markerId = call.arguments[@"markerId"];
+        if (markerId) {
+            [weakSelf.markerController showInfoWindowByMarkerId:markerId];
+            result(nil);
+        } else {
+            result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"markerId is null" details:nil]);
+        }
+    }];
+    [self.channel addMethodName:@"map#getCameraPosition" withHandler:^(FlutterMethodCall * _Nonnull call, FlutterResult  _Nonnull result) {
+        AMapCameraPosition *position = [weakSelf.mapView getCurrentCameraPosition];
+        if (position) {
+            result([position toDictionary]);
+        } else {
+            result(nil);
+        }
+    }];
 }
 
 //MARK: MAMapViewDelegate

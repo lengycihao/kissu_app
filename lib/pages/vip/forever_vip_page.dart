@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 import 'forever_vip_controller.dart';
 
 class ForeverVipPage extends GetView<ForeverVipController> {
@@ -13,10 +12,17 @@ class ForeverVipPage extends GetView<ForeverVipController> {
         children: [
           // 全屏背景
           Positioned.fill(
-            child: Image.asset("assets/kissu_mine_bg.webp", fit: BoxFit.cover),
+            child: Image.asset(
+              "assets/3.0/kissu_mine_vip_bg.webp",
+              fit: BoxFit.cover,
+            ),
           ),
           Padding(
-            padding: EdgeInsets.only(left: 15, top: MediaQuery.of(context).padding.top+20, right: 15),
+            padding: EdgeInsets.only(
+              left: 15,
+              top: MediaQuery.of(context).padding.top + 20,
+              right: 15,
+            ),
             child: Column(
               children: [
                 // 自定义顶部导航栏
@@ -78,8 +84,6 @@ class ForeverVipPage extends GetView<ForeverVipController> {
     );
   }
 
-   
-
   // Tips图片
   Widget _buildTipsImage() {
     return Container(
@@ -93,118 +97,107 @@ class ForeverVipPage extends GetView<ForeverVipController> {
   // 信息背景图片
   Widget _buildInfoImage() {
     return Container(
-       child: Image.asset("assets/kissu_vip_info_bg.webp", fit: BoxFit.fill),
+      child: Image.asset("assets/kissu_vip_info_bg.webp", fit: BoxFit.fill),
     );
   }
 
-  /// 构建头像和昵称区域
+  /// 构建头像和昵称区域 - 重新设计与"我的"页面保持一致
   Widget _buildAvatarAndNicknameSection() {
     return Container(
       width: double.infinity,
-      height: 170,
+      height: 130,
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage("assets/kissu_vip_back_info.png"),
+          image: AssetImage("assets/kissu_vip_back_info.webp"),
           fit: BoxFit.fill,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Obx(
-              () => Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // 双人头像（保持原有样式）
-                  Stack(
-                    children: [
-                      _buildAvatar(),
-                      // 根据是否绑定且有头像显示另一半头像或加号
-                      Builder(
-                        builder: (context) {
-                          DebugUtil.info('ForeverVipPage: Building partner widget, isBound=${controller.isBound.value}, hasAvatar=${controller.partnerAvatar.value.isNotEmpty}');
-                          return (controller.isBound.value && controller.partnerAvatar.value.isNotEmpty)
-                            ? _buildPartnerAvatar() 
-                            : Container(
-                                width: 50,
-                                height: 50,
-                                margin: const EdgeInsets.only(left: 60, top: 20),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white,
-                                  border: Border.all(
-                                    color: const Color(0xFFFFB6C1),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.add,
-                                  size: 30,
-                                  color: Color(0xFFFF69B4),
-                                ),
-                              );
-                        }
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 🔥 新的头像区域 - 与"我的"页面保持一致
+                    _buildNewAvatarSection(),
+                    const SizedBox(width: 15),
+                    // 昵称信息
+                    Expanded(child: _buildNicknameSection()),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildVipMemberInfo(),
+                const SizedBox(height: 5),
+                Stack(
+                  alignment: Alignment.bottomLeft,
+                  children: [
+                    Positioned(
+                      // bottom: 0,
+                      // left: 0,
+                      child: Container(
+                      width: 85,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFFD4D0),
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                      Positioned(
-                        right: 30,
-                        top: 40,
-                        child: Image(
-                          image: const AssetImage("assets/kissu_heart.webp"),
-                          width: 29,
-                          height: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 15),
-                  // 昵称信息
-                  Expanded(child: _buildNicknameSection()),
-                ],
-              ),
+                    )),
+                    Text(
+                      "尊贵权益终身有效",
+                      style: TextStyle(fontSize: 10, color: Color(0xFF593A37)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            _buildVipMemberInfo(),
-            const SizedBox(height: 5),
-            Text(
-              "尊贵权益终身有效",
-              style: TextStyle(
-                fontSize: 10,
-                color: Color(0xff593A37),
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          Positioned(
+            top: 10,
+            left: 120,
+            child: Image.asset(
+              "assets/3.0/kissu3_vip_hat.webp",
+              width: 12,
+              height: 10,
+              fit: BoxFit.cover,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// 构建双人头像
-  /// 构建头像
+  /// 🔥 新的头像区域 - 与"我的"页面保持一致
+  Widget _buildNewAvatarSection() {
+    return Obx(
+      () => Stack(
+        children: [
+          // 用户头像
+          _buildAvatar(),
+          // 另一半头像 - 只有绑定时才显示，无+按钮
+          if (controller.isBound.value &&
+              controller.partnerAvatar.value.isNotEmpty)
+            Positioned(right: 0, bottom: 0, child: _buildPartnerAvatar()),
+        ],
+      ),
+    );
+  }
+
+  /// 构建用户头像 - 重新设计与"我的"页面保持一致
   Widget _buildAvatar() {
     return Container(
-      width: 80,
-      height: 80,
-      padding: const EdgeInsets.all(2),
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
-          fit: BoxFit.fill,
-        ),
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xffffffff), width: 1),
+        borderRadius: BorderRadius.circular(30),
       ),
-      child: Padding(
-        padding: EdgeInsets.only(left: 6, top: 6, right: 0, bottom: 3),
-        child: ClipOval(
-          child: controller.userAvatar.value.isNotEmpty
-              ? controller.userAvatar.value.startsWith('assets/')
+      child: ClipOval(
+        child: controller.userAvatar.value.isNotEmpty
+            ? controller.userAvatar.value.startsWith('assets/')
                   ? Image.asset(
                       controller.userAvatar.value,
                       fit: BoxFit.cover,
@@ -216,7 +209,7 @@ class ForeverVipPage extends GetView<ForeverVipController> {
                           ),
                           child: const Icon(
                             Icons.person,
-                            size: 40,
+                            size: 56,
                             color: Colors.white,
                           ),
                         );
@@ -233,90 +226,107 @@ class ForeverVipPage extends GetView<ForeverVipController> {
                           ),
                           child: const Icon(
                             Icons.person,
-                            size: 40,
+                            size: 56,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 56,
                             color: Colors.white,
                           ),
                         );
                       },
                     )
-              : Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(40),
-                    color: const Color(0xFFE8B4CB),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.white,
-                  ),
+            : Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(40),
+                  color: const Color(0xFFE8B4CB),
                 ),
-        ),
+                child: const Icon(Icons.person, size: 56, color: Colors.white),
+              ),
       ),
     );
   }
 
-  /// 构建另一半头像
+  /// 构建另一半头像 - 重新设计与"我的"页面保持一致
   Widget _buildPartnerAvatar() {
-    return Obx(() => Container(
-      width: 50,
-      height: 50,
-      margin: const EdgeInsets.only(left: 60, top: 20),
+    return Container(
+      width: 22,
+      height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
-        border: Border.all(
-          color: const Color(0xFFFFB6C1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFffffff), width: 1),
       ),
       child: ClipOval(
         child: controller.partnerAvatar.value.isNotEmpty
             ? controller.partnerAvatar.value.startsWith('assets/')
-                ? Image.asset(
-                    controller.partnerAvatar.value,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFE8B4CB),
-                        child: const Icon(
-                          Icons.person,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                      );
-                    },
-                  )
-                : Image.network(
-                    controller.partnerAvatar.value,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFE8B4CB),
-                        child: const Icon(
-                          Icons.person,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                      );
-                    },
-                  )
+                  ? Image.asset(
+                      controller.partnerAvatar.value,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
+                  : Image.network(
+                      controller.partnerAvatar.value,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
             : Container(
-                color: const Color(0xFFE8B4CB),
-                child: const Icon(
-                  Icons.person,
-                  size: 30,
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFE8B4CB),
                 ),
+                child: const Icon(Icons.person, size: 16, color: Colors.white),
               ),
       ),
-    ));
+    );
   }
 
   /// 构建昵称区域
@@ -329,18 +339,18 @@ class ForeverVipPage extends GetView<ForeverVipController> {
           Text(
             controller.userNickname.value,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xff593A37),
               fontFamily: "LiuHuanKaTongShouShu",
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 3),
           // 另一半的昵称
           Text(
             controller.partnerNickname.value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: Color(0xff593A37),
               fontFamily: "LiuHuanKaTongShouShu",
             ),
@@ -353,36 +363,41 @@ class ForeverVipPage extends GetView<ForeverVipController> {
   /// 构建VIP会员信息
   Widget _buildVipMemberInfo() {
     return Obx(
-      () => Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.3),
-            width: 1,
+      () => Stack(
+        alignment: Alignment.bottomLeft,
+        children: [
+           Positioned(
+                      // bottom: 0,
+                      // left: 0,
+                      child: Container(
+                      width: 145,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFFD4D0),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    )),
+          Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            "终身会员：",
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF593A37), // 金色
+            ),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Text(
-              "终身会员：",
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF593A37), // 金色
-                fontWeight: FontWeight.bold,
-              ),
+          Text(
+            controller.vipMemberId.value,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF593A37), // 金色
             ),
-            Text(
-              controller.vipMemberId.value,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF666666), // 金色
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+        ],
+      )
     );
   }
 }

@@ -88,6 +88,9 @@ class HomeController extends GetxController {
   // 停留点数量
   var stayCount = 0.obs;
   
+  // 出行工具 (1=行走, 2=骑车, 3=坐车)
+  var travelTool = 1.obs;
+  
   // 恋爱天数
   var loveDays = 0.obs;
   
@@ -425,9 +428,10 @@ class HomeController extends GetxController {
   }
   
   /// 加载首页所有数据（新的统一接口）
-  Future<void> loadIndexData() async {
+  /// [shouldCheckGuide] 是否检查并显示引导图，默认为true。绑定后刷新时应该传false避免重复弹窗
+  Future<void> loadIndexData({bool shouldCheckGuide = true}) async {
     try {
-      debugPrint('🏠 开始加载首页数据...');
+      debugPrint('🏠 开始加载首页数据... (是否检查引导图: $shouldCheckGuide)');
       
       final result = await IndexApi().getIndexData();
       
@@ -451,6 +455,7 @@ class HomeController extends GetxController {
         // 更新位置信息
         distance.value = indexData.location.distance;
         stayCount.value = indexData.location.stayCount;
+        travelTool.value = indexData.location.travelTool;
         
         // 更新用户信息
         loveDays.value = indexData.user.loverDays;
@@ -482,20 +487,28 @@ class HomeController extends GetxController {
         debugPrint('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
         
         // 数据加载完成后，检查是否需要显示引导图（确保绑定状态已获取）
-        _checkAndShowGuide1();
+        if (shouldCheckGuide) {
+          _checkAndShowGuide1();
+        } else {
+          debugPrint('🔒 跳过引导图检查（绑定后刷新）');
+        }
       } else {
         debugPrint('❌ 首页数据加载失败: ${result.msg}');
         // 失败时回退到加载本地用户信息
         loadUserInfo();
         // 即使失败也要检查引导图（使用本地缓存的绑定状态）
-        _checkAndShowGuide1();
+        if (shouldCheckGuide) {
+          _checkAndShowGuide1();
+        }
       }
     } catch (e) {
       debugPrint('❌ 首页数据加载异常: $e');
       // 异常时回退到加载本地用户信息
       loadUserInfo();
       // 异常情况下也要检查引导图（使用本地缓存的绑定状态）
-      _checkAndShowGuide1();
+      if (shouldCheckGuide) {
+        _checkAndShowGuide1();
+      }
     }
   }
 
@@ -610,8 +623,9 @@ class HomeController extends GetxController {
   
   /// 加载恋爱天数
   void _loadLoveDays(user) {
-    if (user.loverInfo?.loveDays != null && user.loverInfo!.loveDays! > 0) {
-      loveDays.value = user.loverInfo!.loveDays!;  // 直接使用服务器数据
+    // 直接使用服务器返回的loveDays数据
+    if (user.loverInfo?.loveDays != null) {
+      loveDays.value = user.loverInfo!.loveDays!;
       debugPrint('🏠 加载恋爱天数: ${loveDays.value}天');
     } else {
       loveDays.value = 0;
@@ -710,8 +724,8 @@ class HomeController extends GetxController {
       // 刷新用户信息
       await UserManager.refreshUserInfo();
       
-      // 重新加载当前页面数据
-      loadIndexData();
+      // 重新加载当前页面数据，但不触发引导图检查（避免重复弹窗）
+      loadIndexData(shouldCheckGuide: false);
       
       // 首页绑定状态已刷新
     } catch (e) {
@@ -724,7 +738,8 @@ class HomeController extends GetxController {
     try {
       print('🏠 首页收到刷新通知，正在更新用户信息...');
       // 不需要再次调用 UserManager.refreshUserInfo()，因为调用方已经刷新了
-      loadIndexData();
+      // 外部刷新时不触发引导图检查，避免重复弹窗
+      loadIndexData(shouldCheckGuide: false);
       print('🏠 首页绑定状态已更新: ${isBound.value}');
     } catch (e) {
       print('🏠 首页刷新绑定状态失败: $e');
@@ -845,19 +860,19 @@ class HomeController extends GetxController {
   }
   
   /// 获取定位服务状态
-  Map<String, dynamic> getLocationServiceStatus() {
-    return _locationService.serviceStatus;
-  }
+  // Map<String, dynamic> getLocationServiceStatus() {
+  //   return _locationService.serviceStatus;
+  // }
   
-  /// 手动上报当前位置
-  Future<bool> reportCurrentLocation() async {
-    return await _locationService.reportCurrentLocation();
-  }
+  // /// 手动上报当前位置
+  // Future<bool> reportCurrentLocation() async {
+  //   return await _locationService.reportCurrentLocation();
+  // }
   
-  /// 强制上报所有待上报数据
-  Future<bool> forceReportAllPending() async {
-    return await _locationService.forceReportAllPending();
-  }
+  // /// 强制上报所有待上报数据
+  // Future<bool> forceReportAllPending() async {
+  //   return await _locationService.forceReportAllPending();
+  // }
   
   /// 加载视图模式
   Future<void> _loadViewMode() async {
@@ -905,7 +920,7 @@ class HomeController extends GetxController {
     // 创建新的定时器，每10秒执行一次
     _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       debugPrint('🔔 定时刷新首页数据...');
-      loadIndexData(); // 使用新的统一接口
+      loadIndexData(shouldCheckGuide: false); // 轮询时不触发引导图检查
     });
     
     debugPrint('✅ 红点轮询已启动（每10秒刷新）');
@@ -976,8 +991,8 @@ class HomeController extends GetxController {
   void _onAppReturnedToForeground() {
     debugPrint('📱 首页：应用返回前台，先获取红点数据再启动轮询');
     
-    // 先立即获取一次首页数据
-    loadIndexData().then((_) {
+    // 先立即获取一次首页数据，不触发引导图检查
+    loadIndexData(shouldCheckGuide: false).then((_) {
       // 获取完成后再启动轮询
       _startRedDotPolling();
     });

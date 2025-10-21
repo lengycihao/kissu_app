@@ -146,10 +146,10 @@ class PhoneVerificationController extends GetxController {
       return false;
     }
 
-    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+    if (!RegExp(r'^\d{5}$').hasMatch(code)) {
       CustomToast.show(
         Get.context!,
-        '请输入6位数字验证码',
+        '请输入5位数字验证码',
       );
       return false;
     }
@@ -159,7 +159,7 @@ class PhoneVerificationController extends GetxController {
 
   // 确认注销
   Future<void> confirmCancellation() async {
-    if (!validatePhoneNumber() || !validateCode()) return;
+    if ( !validateCode()) return;
 
     // 显示确认对话框
     showCancellationDialog();

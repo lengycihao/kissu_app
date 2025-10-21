@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_picker/location_picker_controller.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/models/poi_model.dart';
@@ -430,12 +431,24 @@ class LocationPickerPage extends StatelessWidget {
                               controller.noteText.value.trim().isNotEmpty;
               
               return GestureDetector(
-                onTap: canSave ? () async {
+                onTap: () async {
+                  if (!canSave) {
+                    // 检查具体缺少什么并给出相应提示
+                    if (controller.selectedLocation.value == null) {
+                      OKToastUtil.show('请在地图上添加要提醒的位置');
+                      return;
+                    }
+                    if (controller.noteText.value.trim().isEmpty) {
+                      OKToastUtil.show('请添加备注');
+                      return;
+                    }
+                  }
+                  
                   final reminder = await controller.saveLocation();
                   if (reminder != null) {
                     Get.back(result: reminder);
                   }
-                } : null,
+                },
                 child: Container(
                   width: double.infinity,
                   height: 42,

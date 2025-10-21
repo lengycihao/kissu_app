@@ -22,11 +22,20 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
+  bool _canGoBack = false; // WebView是否可以返回
 
   @override
   void initState() {
     super.initState();
     _initializeWebView();
+  }
+
+  /// 更新导航状态
+  Future<void> _updateNavigationState() async {
+    final canGoBack = await _controller.canGoBack();
+    setState(() {
+      _canGoBack = canGoBack;
+    });
   }
 
   void _initializeWebView() {
@@ -50,6 +59,13 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             setState(() {
               _isLoading = false;
             });
+            // 更新导航状态
+            _updateNavigationState();
+          },
+          onUrlChange: (UrlChange change) {
+            print('WebView URL改变: ${change.url}');
+            // URL改变时更新导航状态
+            _updateNavigationState();
           },
           onWebResourceError: (WebResourceError error) {
             print('WebView加载错误: ${error.description}');
@@ -92,47 +108,101 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
     }
   }
 
+  /// 处理返回操作
+  Future<void> _handleBack() async {
+    if (_canGoBack) {
+      // 如果WebView可以返回，则返回到上一页
+      await _controller.goBack();
+      _updateNavigationState();
+    } else {
+      // 否则关闭页面
+      Get.back();
+    }
+  }
+
+  /// 处理关闭操作
+  void _handleClose() {
+    Get.back();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F0),
-      appBar: AppBar(
+    return PopScope(
+      // 拦截系统返回按钮
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (!didPop) {
+          await _handleBack();
+        }
+      },
+      child: Scaffold(
         backgroundColor: const Color(0xFFFFF6F0),
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFF6F0),
+          elevation: 0,
+          leading: GestureDetector(
+            onTap: _handleBack,
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Color(0xFF333333),
+                size: 20,
+              ),
             ),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
+          ),
+          title: Text(
+            widget.title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
               color: Color(0xFF333333),
-              size: 20,
             ),
           ),
+          centerTitle: true,
+          // 当WebView有历史记录时显示关闭按钮
+          actions: _canGoBack
+              ? [
+                  GestureDetector(
+                    onTap: _handleClose,
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.close,
+                          color: Color(0xFF333333),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ]
+              : null,
         ),
-        title: Text(
-          widget.title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
-          ),
-        ),
-        centerTitle: true,
-         
-      ),
-      body: Stack(
+        body: Stack(
         children: [
           // WebView内容
           if (!_hasError)
@@ -164,6 +234,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
               ),
             ),
         ],
+        ),
       ),
     );
   }

@@ -100,6 +100,14 @@ class AMapController {
     return _methodChannel.updateCircles(circleUpdates, mapId: mapId);
   }
 
+  /// 更新单个标记
+  /// 
+  /// 用于更新已存在的标记属性，如位置、旋转角度等
+  /// [marker] 要更新的标记对象，必须包含markerId
+  Future<void> updateMarker(Marker marker) {
+    return _methodChannel.updateMarker(marker, mapId: mapId);
+  }
+
   ///改变地图视角
   ///
   ///通过[CameraUpdate]对象设置新的中心点、缩放比例、放大缩小、显示区域等内容
@@ -144,5 +152,78 @@ class AMapController {
   /// 清空缓存
   Future<void> clearDisk() {
     return _methodChannel.clearDisk(mapId: mapId);
+  }
+
+  /// 隐藏所有 InfoWindow
+  /// 
+  /// 调用此方法将关闭地图上所有正在显示的 InfoWindow
+  Future<void> hideAllInfoWindows() {
+    return _methodChannel.hideAllInfoWindows(mapId: mapId);
+  }
+
+  /// 隐藏指定 Marker 的 InfoWindow
+  /// 
+  /// [markerId] Marker 的 ID
+  /// 调用此方法将关闭指定 Marker 的 InfoWindow
+  Future<void> hideInfoWindow(String markerId) {
+    return _methodChannel.hideInfoWindow(markerId, mapId: mapId);
+  }
+
+  /// 显示指定 Marker 的 InfoWindow
+  /// 
+  /// [markerId] Marker 的 ID
+  /// 调用此方法将显示指定 Marker 的 InfoWindow
+  Future<void> showInfoWindow(String markerId) {
+    return _methodChannel.showInfoWindow(markerId, mapId: mapId);
+  }
+
+  /// 显示围栏圆圈
+  /// 
+  /// [latitude] 纬度
+  /// [longitude] 经度
+  /// [radius] 半径（米），默认100米
+  /// [strokeColor] 边框颜色，默认白色
+  /// [fillColor] 填充颜色，默认粉色半透明
+  /// [strokeWidth] 边框宽度，默认3
+  /// 
+  /// 调用此方法将在指定位置显示一个围栏圆圈（会先清除之前的圆圈）
+  Future<void> showGeofenceCircle({
+    required double latitude,
+    required double longitude,
+    double radius = 100.0,
+    String strokeColor = '#FFFFFF',
+    String fillColor = '#61FFE3EB', // #61 = 38% 不透明度
+    double strokeWidth = 3.0,
+  }) {
+    return _methodChannel.showGeofenceCircle(
+      latitude: latitude,
+      longitude: longitude,
+      radius: radius,
+      strokeColor: strokeColor,
+      fillColor: fillColor,
+      strokeWidth: strokeWidth,
+      mapId: mapId,
+    );
+  }
+
+  /// 隐藏围栏圆圈
+  /// 
+  /// 调用此方法将隐藏当前显示的围栏圆圈（但不删除，可以重新显示）
+  Future<void> hideGeofenceCircle() {
+    return _methodChannel.hideGeofenceCircle(mapId: mapId);
+  }
+
+  /// 清除围栏圆圈
+  /// 
+  /// 调用此方法将完全清除围栏圆圈（删除，需要重新创建）
+  Future<void> clearGeofenceCircle() {
+    return _methodChannel.clearGeofenceCircle(mapId: mapId);
+  }
+
+  /// 获取当前相机位置
+  /// 
+  /// 返回当前地图的相机位置信息，包括中心点坐标、缩放级别、倾斜角度和旋转角度
+  Future<CameraPosition?> getCameraPosition() {
+    return _methodChannel.getCameraPosition(mapId: mapId);
   }
 }

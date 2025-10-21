@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/models/location_anomaly_model.dart';
-import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart'; 
+import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
+import 'package:kissu_app/widgets/safe_amap_widget.dart'; 
 
 /// 定位/足迹异常卡片组件
 /// 显示地图预览，包含位置信息和图标标识
@@ -423,7 +424,7 @@ class _StaticMapSnapshotState extends State<_StaticMapSnapshot>
   Widget build(BuildContext context) {
     super.build(context); // 必须调用，用于 AutomaticKeepAliveClientMixin
     
-    return AMapWidget(
+    return SafeAMapWidget(
       onMapCreated: (AMapController controller) {
         controller.moveCamera(
           CameraUpdate.newCameraPosition(
@@ -454,7 +455,6 @@ class _StaticMapSnapshotState extends State<_StaticMapSnapshot>
               ),
             },
       mapType: MapType.normal,
-      logoPosition: LogoPosition.bottomRight,
       zoomGesturesEnabled: false,
       scrollGesturesEnabled: false,
       rotateGesturesEnabled: false,

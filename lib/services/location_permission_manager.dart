@@ -12,6 +12,9 @@ class LocationPermissionManager {
   
   LocationPermissionManager._();
 
+  // 防重复弹窗标志
+  bool _isShowingDialog = false;
+
   /// 请求定位权限（完整流程）
   /// 1. 先检查权限状态
   /// 2. 如果未授权，先弹自定义弹窗
@@ -22,6 +25,12 @@ class LocationPermissionManager {
     bool showCustomDialog = true,
   }) async {
     try {
+      // 防重复弹窗检查
+      if (_isShowingDialog) {
+        debugPrint('⚠️ 权限弹窗已在显示中，跳过重复请求');
+        return false;
+      }
+
       debugPrint('🔐 开始定位权限申请流程...');
 
       // 1. 检查当前权限状态
@@ -34,10 +43,13 @@ class LocationPermissionManager {
         return true;
       }
 
-      // 如果被永久拒绝，显示自定义弹窗
+      // 如果被永久拒绝，引导用户去设置页面
       if (locationStatus.isPermanentlyDenied) {
-        debugPrint('❌ 定位权限被永久拒绝，显示自定义弹窗');
+        debugPrint('❌ 定位权限被永久拒绝，引导用户去设置');
+        _isShowingDialog = true;
         bool userConfirmed = await _showCustomPermissionDialog();
+        _isShowingDialog = false;
+        
         if (userConfirmed) {
           // 用户确认后，尝试打开系统设置
           await openAppSettings();
@@ -49,8 +61,10 @@ class LocationPermissionManager {
       if (showCustomDialog) {
         debugPrint('💬 显示自定义权限申请弹窗...');
         
+        _isShowingDialog = true;
         // 显示自定义弹窗
         final customResult = await LocationPermissionDialog.show(Get.context!);
+        _isShowingDialog = false;
         
         // 如果用户拒绝自定义弹窗，直接返回失败
         if (customResult != true) {
@@ -78,18 +92,18 @@ class LocationPermissionManager {
         );
         return false;
       } else if (locationStatus.isPermanentlyDenied) {
-        debugPrint('❌ 定位权限被永久拒绝，显示自定义弹窗');
-        // 权限被永久拒绝时，也显示自定义弹窗
-        bool userConfirmed = await _showCustomPermissionDialog();
-        if (userConfirmed) {
-          // 用户确认后，尝试打开系统设置
-          await openAppSettings();
-        }
+        debugPrint('❌ 定位权限被永久拒绝');
+        // 🔧 修复：移除重复弹窗，已经在上面处理过永久拒绝的情况
+        CustomToast.show(
+          Get.context!,
+          '定位权限被永久拒绝，请在设置中手动开启',
+        );
         return false;
       }
 
       return false;
     } catch (e) {
+      _isShowingDialog = false; // 确保异常时重置状态
       debugPrint('❌ 定位权限申请失败: $e');
       CustomToast.show(
         Get.context!,
@@ -125,6 +139,12 @@ class LocationPermissionManager {
   /// 显示自定义权限申请弹窗
   Future<bool> _showCustomPermissionDialog() async {
     try {
+      // 检查是否已在显示弹窗
+      if (_isShowingDialog) {
+        debugPrint('⚠️ 权限弹窗已在显示中，跳过重复请求');
+        return false;
+      }
+
       final result = await LocationPermissionDialog.show(Get.context!);
       return result == true;
     } catch (e) {

@@ -55,6 +55,25 @@ class _ModernRadarScannerState extends State<ModernRadarScanner>
       parent: _rotationController,
       curve: Curves.linear,
     ));
+    
+    // 🎯 监听扫描状态变化，控制动画启停，避免在build中重复调用
+    final controller = Get.find<AntiSpyController>();
+    ever(controller.scanState, (state) {
+      if (!mounted) return;
+      if (state == ScanState.scanning) {
+        if (!_waveController.isAnimating) _waveController.repeat();
+        if (!_rotationController.isAnimating) _rotationController.repeat();
+      } else {
+        _waveController.stop();
+        _rotationController.stop();
+      }
+    });
+    
+    // 初始状态检查
+    if (controller.scanState.value == ScanState.scanning) {
+      _waveController.repeat();
+      _rotationController.repeat();
+    }
   }
 
   @override
@@ -93,42 +112,34 @@ class _ModernRadarScannerState extends State<ModernRadarScanner>
   Widget build(BuildContext context) {
     final controller = Get.find<AntiSpyController>();
     
-    return Obx(() {
-      final state = controller.scanState.value;
-      
-      // 根据状态控制动画
-      if (state == ScanState.scanning) {
-        _waveController.repeat();
-        _rotationController.repeat();
-      } else {
-        _waveController.stop();
-        _rotationController.stop();
-      }
-      
-      return SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // 背景网格
-            _buildBackgroundGrid(),
-            
-            // 波纹效果
-            if (state == ScanState.scanning) _buildWaveEffect(controller),
-            
-            // 旋转扫描线
-            if (state == ScanState.scanning) _buildRotatingScanLine(controller),
-            
-            // 设备点
-            _buildDevicePoints(controller),
-            
-            // 中心图标
-            _buildCenterIcon(controller),
-          ],
-        ),
-      );
-    });
+    // 🎯 不再使用Obx包裹整个Widget树，避免不必要的重建导致动画卡顿
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 背景网格 - 静态
+          _buildBackgroundGrid(),
+          
+          // 波纹效果 - 🎯 使用Obx只监听状态变化来控制显示/隐藏
+          Obx(() => controller.scanState.value == ScanState.scanning
+              ? _buildWaveEffect(controller)
+              : const SizedBox.shrink()),
+          
+          // 旋转扫描线 - 🎯 使用Obx只监听状态变化来控制显示/隐藏
+          Obx(() => controller.scanState.value == ScanState.scanning
+              ? _buildRotatingScanLine(controller)
+              : const SizedBox.shrink()),
+          
+          // 设备点 - 🎯 使用Obx监听设备列表变化
+          Obx(() => _buildDevicePoints(controller)),
+          
+          // 中心图标 - 🎯 使用Obx监听状态变化
+          Obx(() => _buildCenterIcon(controller)),
+        ],
+      ),
+    );
   }
   
   Widget _buildBackgroundGrid() {
@@ -139,34 +150,40 @@ class _ModernRadarScannerState extends State<ModernRadarScanner>
   }
   
   Widget _buildWaveEffect(AntiSpyController controller) {
-    return AnimatedBuilder(
-      animation: _waveAnimation,
-      builder: (context, child) {
-        return CustomPaint(
-          size: Size(widget.size, widget.size),
-          painter: WaveEffectPainter(
-            progress: _waveAnimation.value,
-            color: _getRadarColor(controller.scanState.value),
-          ),
-        );
-      },
+    // 🎯 使用RepaintBoundary隔离重绘区域，避免影响其他Widget
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _waveAnimation,
+        builder: (context, child) {
+          return CustomPaint(
+            size: Size(widget.size, widget.size),
+            painter: WaveEffectPainter(
+              progress: _waveAnimation.value,
+              color: _getRadarColor(controller.scanState.value),
+            ),
+          );
+        },
+      ),
     );
   }
   
   Widget _buildRotatingScanLine(AntiSpyController controller) {
-    return AnimatedBuilder(
-      animation: _rotationAnimation,
-      builder: (context, child) {
-        return Transform.rotate(
-          angle: _rotationAnimation.value * 2 * math.pi,
-          child: CustomPaint(
-            size: Size(widget.size, widget.size),
-            painter: ModernScanLinePainter(
-              color: _getRadarColor(controller.scanState.value),
+    // 🎯 使用RepaintBoundary隔离重绘区域
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _rotationAnimation,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: _rotationAnimation.value * 2 * math.pi,
+            child: CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: ModernScanLinePainter(
+                color: _getRadarColor(controller.scanState.value),
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
   

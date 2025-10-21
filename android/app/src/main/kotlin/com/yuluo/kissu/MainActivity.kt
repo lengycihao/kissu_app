@@ -66,6 +66,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     // 截屏监听器
     private var screenshotObserver: ScreenshotObserver? = null
     private var screenshotMethodChannel: MethodChannel? = null
+    private var paymentMethodChannel: MethodChannel? = null
     
     // GPS状态监听器
     private var gpsStatusReceiver: GpsStatusReceiver? = null
@@ -85,7 +86,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             if (intent?.action == "kissu.payment.result") {
                 val success = intent.getBooleanExtra("success", false)
                 val message = intent.getStringExtra("message") ?: ""
-                Log.d("MainActivity", "收到支付结果广播: success=$success, message=$message")
+                val timestamp = intent.getLongExtra("timestamp", 0)
+                val isRetry = intent.getBooleanExtra("retry", false)
+                
+                Log.d("MainActivity", "收到支付结果广播: success=$success, message=$message, timestamp=$timestamp, isRetry=$isRetry")
                 
                 // 立即处理支付结果，确保用户取消支付时能立即得到反馈
                 if (paymentResultCompleter != null) {
@@ -94,6 +98,20 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     paymentResultCompleter = null
                 } else {
                     Log.w("MainActivity", "收到支付结果但无等待的回调: success=$success, message=$message")
+                    // 如果没有等待的回调，可能是状态异常，尝试通过MethodChannel直接通知Flutter
+                    if (!success) {
+                        Log.d("MainActivity", "尝试通过MethodChannel直接通知Flutter支付失败")
+                        try {
+                            runOnUiThread {
+                                paymentMethodChannel?.invokeMethod("onPaymentResult", mapOf(
+                                    "success" to success,
+                                    "message" to message
+                                ))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "通过MethodChannel通知Flutter失败", e)
+                        }
+                    }
                 }
             }
         }
@@ -285,9 +303,12 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 // 创建并注册锁屏状态广播接收器
                 screenLockReceiver = ScreenLockReceiver()
                 val filter = IntentFilter().apply {
-                    addAction(Intent.ACTION_SCREEN_OFF)  // 锁屏事件
-                    addAction(Intent.ACTION_SCREEN_ON)   // 屏幕亮起事件（用于检测快速解锁）
-                    addAction(Intent.ACTION_USER_PRESENT)  // 解锁事件（传统方式）
+                    addAction(Intent.ACTION_SCREEN_OFF)           // 锁屏事件
+                    addAction(Intent.ACTION_SCREEN_ON)            // 屏幕亮起事件（用于检测快速解锁）
+                    addAction(Intent.ACTION_USER_PRESENT)         // 解锁事件（传统方式）
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        addAction(Intent.ACTION_USER_UNLOCKED)    // Android 7.0+ 用户已解锁（包含设备启动后首次解锁）
+                    }
                 }
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -451,7 +472,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         }
 
         // 支付通道
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PAYMENT_CHANNEL).setMethodCallHandler { call, result ->
+        paymentMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PAYMENT_CHANNEL)
+        paymentMethodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "initWechat" -> {
                     val appId = call.argument<String>("appId") ?: ""

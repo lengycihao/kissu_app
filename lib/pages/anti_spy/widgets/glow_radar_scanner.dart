@@ -70,6 +70,28 @@ class _GlowRadarScannerState extends State<GlowRadarScanner>
       parent: _breatheController,
       curve: Curves.easeInOut,
     ));
+    
+    // 🎯 监听扫描状态变化，控制动画启停，避免在build中重复调用
+    final controller = Get.find<AntiSpyController>();
+    ever(controller.scanState, (state) {
+      if (!mounted) return;
+      if (state == ScanState.scanning) {
+        if (!_glowController.isAnimating) _glowController.repeat(reverse: true);
+        if (!_rotationController.isAnimating) _rotationController.repeat();
+        if (!_breatheController.isAnimating) _breatheController.repeat(reverse: true);
+      } else {
+        _glowController.stop();
+        _rotationController.stop();
+        _breatheController.stop();
+      }
+    });
+    
+    // 初始状态检查
+    if (controller.scanState.value == ScanState.scanning) {
+      _glowController.repeat(reverse: true);
+      _rotationController.repeat();
+      _breatheController.repeat(reverse: true);
+    }
   }
 
   @override
@@ -109,44 +131,34 @@ class _GlowRadarScannerState extends State<GlowRadarScanner>
   Widget build(BuildContext context) {
     final controller = Get.find<AntiSpyController>();
     
-    return Obx(() {
-      final state = controller.scanState.value;
-      
-      // 根据状态控制动画
-      if (state == ScanState.scanning) {
-        _glowController.repeat(reverse: true);
-        _rotationController.repeat();
-        _breatheController.repeat(reverse: true);
-      } else {
-        _glowController.stop();
-        _rotationController.stop();
-        _breatheController.stop();
-      }
-      
-      return SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // 背景光环
-            _buildBackgroundGlow(controller),
-            
-            // 发光圆环
-            if (state == ScanState.scanning) _buildGlowRings(controller),
-            
-            // 旋转扫描光束
-            if (state == ScanState.scanning) _buildGlowScanBeam(controller),
-            
-            // 设备点
-            _buildDevicePoints(controller),
-            
-            // 中心图标
-            _buildCenterIcon(controller),
-          ],
-        ),
-      );
-    });
+    // 🎯 不再使用Obx包裹整个Widget树，避免不必要的重建导致动画卡顿
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 背景光环 - 🎯 使用Obx监听状态变化
+          Obx(() => _buildBackgroundGlow(controller)),
+          
+          // 发光圆环 - 🎯 使用Obx只监听状态变化来控制显示/隐藏
+          Obx(() => controller.scanState.value == ScanState.scanning
+              ? _buildGlowRings(controller)
+              : const SizedBox.shrink()),
+          
+          // 旋转扫描光束 - 🎯 使用Obx只监听状态变化来控制显示/隐藏
+          Obx(() => controller.scanState.value == ScanState.scanning
+              ? _buildGlowScanBeam(controller)
+              : const SizedBox.shrink()),
+          
+          // 设备点 - 🎯 使用Obx监听设备列表变化
+          Obx(() => _buildDevicePoints(controller)),
+          
+          // 中心图标 - 🎯 使用Obx监听状态变化
+          Obx(() => _buildCenterIcon(controller)),
+        ],
+      ),
+    );
   }
   
   Widget _buildBackgroundGlow(AntiSpyController controller) {
@@ -176,34 +188,40 @@ class _GlowRadarScannerState extends State<GlowRadarScanner>
   }
   
   Widget _buildGlowRings(AntiSpyController controller) {
-    return AnimatedBuilder(
-      animation: _glowAnimation,
-      builder: (context, child) {
-        return CustomPaint(
-          size: Size(widget.size, widget.size),
-          painter: GlowRingsPainter(
-            progress: _glowAnimation.value,
-            color: _getRadarColor(controller.scanState.value),
-          ),
-        );
-      },
+    // 🎯 使用RepaintBoundary隔离重绘区域
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _glowAnimation,
+        builder: (context, child) {
+          return CustomPaint(
+            size: Size(widget.size, widget.size),
+            painter: GlowRingsPainter(
+              progress: _glowAnimation.value,
+              color: _getRadarColor(controller.scanState.value),
+            ),
+          );
+        },
+      ),
     );
   }
   
   Widget _buildGlowScanBeam(AntiSpyController controller) {
-    return AnimatedBuilder(
-      animation: _rotationAnimation,
-      builder: (context, child) {
-        return Transform.rotate(
-          angle: _rotationAnimation.value * 2 * math.pi,
-          child: CustomPaint(
-            size: Size(widget.size, widget.size),
-            painter: GlowScanBeamPainter(
-              color: _getRadarColor(controller.scanState.value),
+    // 🎯 使用RepaintBoundary隔离重绘区域
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _rotationAnimation,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: _rotationAnimation.value * 2 * math.pi,
+            child: CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: GlowScanBeamPainter(
+                color: _getRadarColor(controller.scanState.value),
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
   

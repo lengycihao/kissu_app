@@ -16,6 +16,9 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.LatLngBounds;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.Poi;
+import com.amap.api.maps.model.Circle;
+import com.amap.api.maps.model.CircleOptions;
+import android.graphics.Color;
 import com.amap.flutter.map.MyMethodCallHandler;
 import com.amap.flutter.map.utils.Const;
 import com.amap.flutter.map.utils.ConvertUtil;
@@ -53,6 +56,12 @@ public class MapController
     private static final String CLASS_NAME = "MapController";
 
     private boolean mapLoaded = false;
+    
+    // MarkersController 的引用，用于控制 InfoWindow
+    private com.amap.flutter.map.overlays.marker.MarkersController markersController;
+
+    // 围栏圆圈对象
+    private Circle geofenceCircle;
 
     public MapController(MethodChannel methodChannel, TextureMapView mapView) {
         this.methodChannel = methodChannel;
@@ -145,11 +154,70 @@ public class MapController
                     result.success(null);
                 }
                 break;
+            case Const.METHOD_MAP_HIDE_ALL_INFO_WINDOWS:
+                if (null != markersController) {
+                    markersController.hideAllInfoWindows();
+                    result.success(null);
+                } else {
+                    result.error("NO_MARKERS_CONTROLLER", "MarkersController not initialized", null);
+                }
+                break;
+            case Const.METHOD_MAP_HIDE_INFO_WINDOW:
+                if (null != markersController) {
+                    String markerId = call.argument("markerId");
+                    if (markerId != null) {
+                        markersController.hideInfoWindowByMarkerId(markerId);
+                        result.success(null);
+                    } else {
+                        result.error("INVALID_ARGUMENT", "markerId is null", null);
+                    }
+                } else {
+                    result.error("NO_MARKERS_CONTROLLER", "MarkersController not initialized", null);
+                }
+                break;
+            case Const.METHOD_MAP_SHOW_INFO_WINDOW:
+                if (null != markersController) {
+                    String markerId = call.argument("markerId");
+                    if (markerId != null) {
+                        markersController.showInfoWindowByMarkerId(markerId);
+                        result.success(null);
+                    } else {
+                        result.error("INVALID_ARGUMENT", "markerId is null", null);
+                    }
+                } else {
+                    result.error("NO_MARKERS_CONTROLLER", "MarkersController not initialized", null);
+                }
+                break;
+            case Const.METHOD_MAP_SHOW_GEOFENCE_CIRCLE:
+                showGeofenceCircle(call, result);
+                break;
+            case Const.METHOD_MAP_HIDE_GEOFENCE_CIRCLE:
+                hideGeofenceCircle(result);
+                break;
+            case Const.METHOD_MAP_CLEAR_GEOFENCE_CIRCLE:
+                clearGeofenceCircle(result);
+                break;
+            case Const.METHOD_MAP_GET_CAMERA_POSITION:
+                CameraPosition position = getCameraPosition();
+                if (position != null) {
+                    result.success(ConvertUtil.cameraPositionToMap(position));
+                } else {
+                    result.success(null);
+                }
+                break;
             default:
                 LogUtil.w(CLASS_NAME, "onMethodCall not find methodId:" + call.method);
                 break;
         }
 
+    }
+    
+    /**
+     * 设置 MarkersController 的引用
+     * 需要在创建 MapController 后调用
+     */
+    public void setMarkersController(com.amap.flutter.map.overlays.marker.MarkersController markersController) {
+        this.markersController = markersController;
     }
 
     @Override
@@ -377,5 +445,104 @@ public class MapController
         //不实现
     }
 
+    /**
+     * 显示围栏圆圈
+     */
+    private void showGeofenceCircle(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            Double latitude = call.argument("latitude");
+            Double longitude = call.argument("longitude");
+            Double radius = call.argument("radius");
+            String strokeColor = call.argument("strokeColor");
+            String fillColor = call.argument("fillColor");
+            Double strokeWidth = call.argument("strokeWidth");
+
+            if (latitude == null || longitude == null) {
+                result.error("INVALID_ARGUMENT", "latitude or longitude is null", null);
+                return;
+            }
+
+            // 设置默认值
+            if (radius == null) radius = 100.0;
+            if (strokeWidth == null) strokeWidth = 3.0;
+            if (strokeColor == null) strokeColor = "#FFFFFF";
+            if (fillColor == null) fillColor = "#61FFE3EB";
+
+            // 清除旧的圆圈
+            if (geofenceCircle != null) {
+                geofenceCircle.remove();
+                geofenceCircle = null;
+            }
+
+            // 创建新的圆圈
+            CircleOptions circleOptions = new CircleOptions()
+                    .center(new LatLng(latitude, longitude))
+                    .radius(radius)
+                    .strokeWidth((float) strokeWidth.doubleValue())
+                    .strokeColor(parseColor(strokeColor))
+                    .fillColor(parseColor(fillColor))
+                    .visible(true);
+
+            geofenceCircle = amap.addCircle(circleOptions);
+            
+            LogUtil.i(CLASS_NAME, "Geofence circle created at: " + latitude + ", " + longitude);
+            result.success(null);
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "Error creating geofence circle", e);
+            result.error("ERROR", "Failed to create geofence circle: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 隐藏围栏圆圈
+     */
+    private void hideGeofenceCircle(MethodChannel.Result result) {
+        try {
+            if (geofenceCircle != null) {
+                geofenceCircle.setVisible(false);
+                LogUtil.i(CLASS_NAME, "Geofence circle hidden");
+            }
+            result.success(null);
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "Error hiding geofence circle", e);
+            result.error("ERROR", "Failed to hide geofence circle: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 清除围栏圆圈
+     */
+    private void clearGeofenceCircle(MethodChannel.Result result) {
+        try {
+            if (geofenceCircle != null) {
+                geofenceCircle.remove();
+                geofenceCircle = null;
+                LogUtil.i(CLASS_NAME, "Geofence circle cleared");
+            }
+            result.success(null);
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "Error clearing geofence circle", e);
+            result.error("ERROR", "Failed to clear geofence circle: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 解析颜色字符串
+     * 支持格式: #RRGGBB, #AARRGGBB
+     */
+    private int parseColor(String colorString) {
+        try {
+            if (colorString.startsWith("#")) {
+                return Color.parseColor(colorString);
+            } else {
+                // 如果没有#前缀，添加它
+                return Color.parseColor("#" + colorString);
+            }
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "Error parsing color: " + colorString + ", using default", e);
+            return Color.WHITE; // 默认白色
+        }
+    }
 
 }

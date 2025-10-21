@@ -66,6 +66,9 @@ public class MarkersController
             case Const.METHOD_MARKER_UPDATE:
                 invokeMarkerOptions(call, result);
                 break;
+            case Const.METHOD_SINGLE_MARKER_UPDATE:
+                invokeSingleMarkerUpdate(call, result);
+                break;
         }
     }
 
@@ -87,6 +90,33 @@ public class MarkersController
         Object markerIdsToRemove = methodCall.argument("markerIdsToRemove");
         removeByIdList((List<Object>) markerIdsToRemove);
         result.success(null);
+    }
+
+    /**
+     * 更新单个标记
+     *
+     * @param methodCall
+     * @param result
+     */
+    public void invokeSingleMarkerUpdate(MethodCall methodCall, MethodChannel.Result result) {
+        if (null == methodCall) {
+            result.error("INVALID_ARGUMENT", "MethodCall is null", null);
+            return;
+        }
+        
+        try {
+            // 直接从methodCall.arguments获取标记数据
+            Object markerData = methodCall.arguments;
+            if (markerData != null) {
+                update(markerData);
+                result.success(null);
+            } else {
+                result.error("INVALID_ARGUMENT", "Marker data is null", null);
+            }
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "invokeSingleMarkerUpdate", e);
+            result.error("UPDATE_ERROR", "Failed to update marker: " + e.getMessage(), null);
+        }
     }
 
     public void addByList(List<Object> markersToAdd) {
@@ -245,6 +275,57 @@ public class MarkersController
     @Override
     public void onPOIClick(Poi poi) {
         hideMarkerInfoWindow(selectedMarkerDartId, null != poi ? poi.getCoordinate() : null);
+    }
+
+    /**
+     * 隐藏所有 InfoWindow
+     */
+    public void hideAllInfoWindows() {
+        if (customInfoWindowAdapter != null) {
+            customInfoWindowAdapter.hideCurrentInfoWindow();
+        }
+        selectedMarkerDartId = null;
+        LogUtil.i(CLASS_NAME, "hideAllInfoWindows: 已隐藏所有 InfoWindow");
+    }
+    
+    /**
+     * 根据 Marker ID 隐藏特定的 InfoWindow
+     */
+    public void hideInfoWindowByMarkerId(String dartMarkerId) {
+        if (TextUtils.isEmpty(dartMarkerId)) {
+            LogUtil.w(CLASS_NAME, "hideInfoWindowByMarkerId: markerId is empty");
+            return;
+        }
+        
+        MarkerController markerController = controllerMapByDartId.get(dartMarkerId);
+        if (markerController != null) {
+            markerController.hideInfoWindow();
+            if (dartMarkerId.equals(selectedMarkerDartId)) {
+                selectedMarkerDartId = null;
+            }
+            LogUtil.i(CLASS_NAME, "hideInfoWindowByMarkerId: 已隐藏 marker " + dartMarkerId + " 的 InfoWindow");
+        } else {
+            LogUtil.w(CLASS_NAME, "hideInfoWindowByMarkerId: marker not found: " + dartMarkerId);
+        }
+    }
+    
+    /**
+     * 根据 Marker ID 显示特定的 InfoWindow
+     */
+    public void showInfoWindowByMarkerId(String dartMarkerId) {
+        if (TextUtils.isEmpty(dartMarkerId)) {
+            LogUtil.w(CLASS_NAME, "showInfoWindowByMarkerId: markerId is empty");
+            return;
+        }
+        
+        MarkerController markerController = controllerMapByDartId.get(dartMarkerId);
+        if (markerController != null) {
+            markerController.showInfoWindow();
+            selectedMarkerDartId = dartMarkerId;
+            LogUtil.i(CLASS_NAME, "showInfoWindowByMarkerId: 已显示 marker " + dartMarkerId + " 的 InfoWindow");
+        } else {
+            LogUtil.w(CLASS_NAME, "showInfoWindowByMarkerId: marker not found: " + dartMarkerId);
+        }
     }
 
     /**

@@ -148,6 +148,58 @@
 //    return YES;
 //}
 
+/// 隐藏所有 InfoWindow
+- (void)hideAllInfoWindows {
+    // 遍历所有的标注视图，隐藏它们的callout
+    for (id<MAAnnotation> annotation in self.mapView.annotations) {
+        MAAnnotationView *view = [self.mapView viewForAnnotation:annotation];
+        if (view && view.calloutView) {
+            [view setSelected:NO animated:NO];
+        }
+    }
+    NSLog(@"hideAllInfoWindows: 已隐藏所有 InfoWindow");
+}
 
+/// 隐藏指定 Marker 的 InfoWindow
+- (void)hideInfoWindowByMarkerId:(NSString *)markerId {
+    if (!markerId || markerId.length == 0) {
+        NSLog(@"hideInfoWindowByMarkerId: markerId is empty");
+        return;
+    }
+    
+    AMapMarker *marker = _markerDict[markerId];
+    if (marker && marker.annotation) {
+        MAAnnotationView *view = [self.mapView viewForAnnotation:marker.annotation];
+        if (view) {
+            [view setSelected:NO animated:NO];
+            NSLog(@"hideInfoWindowByMarkerId: 已隐藏 marker %@ 的 InfoWindow", markerId);
+        } else {
+            NSLog(@"hideInfoWindowByMarkerId: 未找到 marker %@ 的 view", markerId);
+        }
+    } else {
+        NSLog(@"hideInfoWindowByMarkerId: marker not found: %@", markerId);
+    }
+}
+
+/// 显示指定 Marker 的 InfoWindow
+- (void)showInfoWindowByMarkerId:(NSString *)markerId {
+    if (!markerId || markerId.length == 0) {
+        NSLog(@"showInfoWindowByMarkerId: markerId is empty");
+        return;
+    }
+    
+    AMapMarker *marker = _markerDict[markerId];
+    if (marker && marker.annotation) {
+        MAAnnotationView *view = [self.mapView viewForAnnotation:marker.annotation];
+        if (view) {
+            [view setSelected:YES animated:YES];
+            NSLog(@"showInfoWindowByMarkerId: 已显示 marker %@ 的 InfoWindow", markerId);
+        } else {
+            NSLog(@"showInfoWindowByMarkerId: 未找到 marker %@ 的 view", markerId);
+        }
+    } else {
+        NSLog(@"showInfoWindowByMarkerId: marker not found: %@", markerId);
+    }
+}
 
 @end

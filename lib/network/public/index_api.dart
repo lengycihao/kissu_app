@@ -82,16 +82,19 @@ class ActivityData {
 class LocationData {
   final int stayCount;
   final String distance;
+  final int travelTool; // 1=行走, 2=骑车, 3=坐车
 
   LocationData({
     required this.stayCount,
     required this.distance,
+    required this.travelTool,
   });
 
   factory LocationData.fromJson(Map<String, dynamic> json) {
     return LocationData(
       stayCount: json['stay_count'] ?? 0,
       distance: json['distance'] ?? '未知',
+      travelTool: json['travel_tool'] ?? 1, // 默认为行走
     );
   }
 }

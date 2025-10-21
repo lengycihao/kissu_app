@@ -6,6 +6,10 @@ class VipPackageModel {
   final String vipPrice;
   final String vipOriginalPrice;
   final int vipDays;
+  final String productId;
+  final int isSubscribe;
+  final int isDiscounts;
+  final String discountsImg;
 
   VipPackageModel({
     required this.id,
@@ -15,6 +19,10 @@ class VipPackageModel {
     required this.vipPrice,
     required this.vipOriginalPrice,
     required this.vipDays,
+    required this.productId,
+    required this.isSubscribe,
+    required this.isDiscounts,
+    required this.discountsImg,
   });
 
   factory VipPackageModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +34,10 @@ class VipPackageModel {
       vipPrice: json['vip_price'] ?? '0.00',
       vipOriginalPrice: json['vip_original_price'] ?? '0.00',
       vipDays: json['vip_days'] ?? 0,
+      productId: json['product_id'] ?? '',
+      isSubscribe: json['is_subscribe'] ?? 0,
+      isDiscounts: json['is_discounts'] ?? 0,
+      discountsImg: json['discounts_img'] ?? '',
     );
   }
 
@@ -38,6 +50,10 @@ class VipPackageModel {
       'vip_price': vipPrice,
       'vip_original_price': vipOriginalPrice,
       'vip_days': vipDays,
+      'product_id': productId,
+      'is_subscribe': isSubscribe,
+      'is_discounts': isDiscounts,
+      'discounts_img': discountsImg,
     };
   }
 
@@ -58,4 +74,10 @@ class VipPackageModel {
 
   /// 获取时长显示文本（用于价格项标题）
   String get durationText => title;
+
+  /// 是否有折扣
+  bool get hasDiscount => isDiscounts == 1;
+
+  /// 是否为订阅套餐
+  bool get isSubscription => isSubscribe == 1;
 }

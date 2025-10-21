@@ -539,11 +539,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       print('🔍 PING发现新设备: $ip - $deviceName (总数: ${discoveredDevices.length})');
       update(); // 实时更新UI，PING扫描到一个显示一个
       
-      // 添加小延迟让用户能看到实时效果
-      Future.delayed(Duration(milliseconds: 200), () {
-        // 再次更新确保UI刷新
-        update();
-      });
+      // ⚠️ 移除冗余的延迟更新，避免过度刷新UI影响动画
     }
   }
   
@@ -825,6 +821,10 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     }
   }
   
+  // 批量更新定时器，用于减少UI刷新频率
+  int _pendingUpdateCount = 0;
+  static const int _batchUpdateThreshold = 5; // 每5个设备批量更新一次
+  
   /// 添加发现的设备
   void _addDiscoveredDevice(String ip, int port) {
     // 检查是否已经记录过这个IP
@@ -843,7 +843,6 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       );
       discoveredDevices.add(device);
       print('🔍 端口扫描发现新设备: $ip:$port - $deviceName (总数: ${discoveredDevices.length})');
-      update(); // 立即更新UI
       
       // 判断是否为可疑设备（摄像头常用端口）
       if (_isSuspiciousDevice(port)) {
@@ -851,10 +850,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         print('⚠️ 发现可疑设备: $ip:$port - $deviceName');
       }
       
-      // 添加小延迟让用户能看到实时效果
-      Future.delayed(Duration(milliseconds: 150), () {
-        update();
-      });
+      // 🎯 批量更新UI，减少刷新频率，避免影响动画
+      _pendingUpdateCount++;
+      if (_pendingUpdateCount >= _batchUpdateThreshold) {
+        _pendingUpdateCount = 0;
+        update(); // 批量更新UI
+      }
     } else {
       // 设备已存在，更新端口信息
       if (!existingDevice.openPorts.contains(port)) {
@@ -1403,6 +1404,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   /// 完成扫描
   void _finalizeScan() {
     _stopAnimations();
+    
+    // 🎯 确保最后一批设备也被显示
+    if (_pendingUpdateCount > 0) {
+      _pendingUpdateCount = 0;
+      update();
+    }
     
     if (suspiciousDevices.isNotEmpty) {
       scanState.value = ScanState.suspicious;

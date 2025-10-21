@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 // import 'package:kissu_app/widgets/custom_toast_widget.dart'; // TODO: 临时注释，校验功能关闭时不需要
 
 /// 解除关系提示弹窗
@@ -30,18 +31,18 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   /// 确认解除关系
   void _confirmUnbind() {
     // TODO: 临时关闭校验，后续可能需要重新启用
-    // final inputText = _textController.text.trim();
-    // if (inputText == _requiredText) {
-    //   Get.back(result: true);
-    // } else {
-    //   CustomToast.show(
-    //     Get.context!,
-    //     '请准确输入以上确认解除关系文字',
-    //   );
-    // }
-    
-    // 直接返回确认结果，不进行文字校验
+    final inputText = _textController.text.trim();
+    if (inputText == _requiredText) {
+      Get.back(result: true);
+    } else {
+      CustomToast.show(
+        Get.context!,
+        '请准确输入以上确认解除关系文字',
+      );
+    }
     Get.back(result: true);
+    // 直接返回确认结果，不进行文字校验
+    // Get.back(result: true);
   }
 
   /// 取消解除
@@ -52,24 +53,33 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   @override
   Widget build(BuildContext context) {
     final threeDaysLaterDate = _getThreeDaysLaterDate();
+    final screenSize = MediaQuery.of(context).size;
+    final maxWidth = screenSize.width * 0.85; // 最大宽度为屏幕宽度的85%
+    final dialogWidth = maxWidth > 320 ? 320.0 : maxWidth; // 在320和最大宽度之间选择较小值
     
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        width: 320,
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/3.0/kissu3_dialog_jiechu_bg.webp'),
-            fit: BoxFit.cover,
-          ),
-          borderRadius: BorderRadius.all(Radius.circular(20)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: screenSize.height * 0.8, // 最大高度为屏幕高度的80%
+          maxWidth: dialogWidth,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
+        child: Container(
+          width: dialogWidth,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/3.0/kissu3_dialog_jiechu_bg.webp'),
+              fit: BoxFit.fill, // 改为fill以适应容器尺寸
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView( // 添加滚动支持
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
               // 标题
               const Text(
                 '解除关系提示',
@@ -227,7 +237,9 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                   ),
                 ],
               ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

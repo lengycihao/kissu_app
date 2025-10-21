@@ -60,5 +60,31 @@ print("📤 updateNotificationSetting 参数: $params");
   }
 }
 
+  /// 批量更新通知设置
+  /// [settings] 要更新的设置映射，格式: {"change_network_notification": 1, "stay_number_notification": 0}
+  Future<HttpResultN<void>> batchUpdateNotificationSettings(Map<String, int> settings) async {
+    try {
+      final params = <String, dynamic>{
+        'notification_set_data': jsonEncode(settings),
+      };
+      
+      print("📤 batchUpdateNotificationSettings 参数: $params");
+      
+      final result = await HttpManagerN.instance.executePost(
+        '/v3/set/notification',
+        jsonParam: params,
+        paramEncrypt: false,
+      );
+
+      return result.convert();
+    } catch (e) {
+      return HttpResultN<void>(
+        isSuccess: false,
+        code: -1,
+        msg: '批量更新通知设置失败: $e',
+      );
+    }
+  }
+
 }
 

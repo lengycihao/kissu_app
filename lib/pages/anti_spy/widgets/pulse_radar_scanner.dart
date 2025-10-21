@@ -55,6 +55,25 @@ class _PulseRadarScannerState extends State<PulseRadarScanner>
       parent: _scanController,
       curve: Curves.linear,
     ));
+    
+    // 🎯 监听扫描状态变化，控制动画启停，避免在build中重复调用
+    final controller = Get.find<AntiSpyController>();
+    ever(controller.scanState, (state) {
+      if (!mounted) return;
+      if (state == ScanState.scanning) {
+        if (!_pulseController.isAnimating) _pulseController.repeat();
+        if (!_scanController.isAnimating) _scanController.repeat();
+      } else {
+        _pulseController.stop();
+        _scanController.stop();
+      }
+    });
+    
+    // 初始状态检查
+    if (controller.scanState.value == ScanState.scanning) {
+      _pulseController.repeat();
+      _scanController.repeat();
+    }
   }
 
   @override
@@ -93,39 +112,29 @@ class _PulseRadarScannerState extends State<PulseRadarScanner>
   Widget build(BuildContext context) {
     final controller = Get.find<AntiSpyController>();
     
-    return Obx(() {
-      final state = controller.scanState.value;
-      
-      // 根据状态控制动画
-      if (state == ScanState.scanning) {
-        _pulseController.repeat();
-        _scanController.repeat();
-      } else {
-        _pulseController.stop();
-        _scanController.stop();
-      }
-      
-      return SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // 背景圆圈
-            _buildBackgroundCircles(),
-            
-            // 脉冲扫描效果
-            if (state == ScanState.scanning) _buildPulseScan(controller),
-            
-            // 设备点
-            _buildDevicePoints(controller),
-            
-            // 中心图标
-            _buildCenterIcon(controller),
-          ],
-        ),
-      );
-    });
+    // 🎯 不再使用Obx包裹整个Widget树，避免不必要的重建导致动画卡顿
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 背景圆圈 - 静态
+          _buildBackgroundCircles(),
+          
+          // 脉冲扫描效果 - 🎯 使用Obx只监听状态变化来控制显示/隐藏
+          Obx(() => controller.scanState.value == ScanState.scanning
+              ? _buildPulseScan(controller)
+              : const SizedBox.shrink()),
+          
+          // 设备点 - 🎯 使用Obx监听设备列表变化
+          Obx(() => _buildDevicePoints(controller)),
+          
+          // 中心图标 - 🎯 使用Obx监听状态变化
+          Obx(() => _buildCenterIcon(controller)),
+        ],
+      ),
+    );
   }
   
   Widget _buildBackgroundCircles() {
@@ -139,34 +148,38 @@ class _PulseRadarScannerState extends State<PulseRadarScanner>
     return Stack(
       alignment: Alignment.center,
       children: [
-        // 旋转扫描线
-        AnimatedBuilder(
-          animation: _scanAnimation,
-          builder: (context, child) {
-            return Transform.rotate(
-              angle: _scanAnimation.value * 2 * math.pi,
-              child: CustomPaint(
-                size: Size(widget.size, widget.size),
-                painter: PulseScanLinePainter(
-                  color: _getRadarColor(controller.scanState.value),
+        // 旋转扫描线 - 🎯 使用RepaintBoundary隔离重绘
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _scanAnimation,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _scanAnimation.value * 2 * math.pi,
+                child: CustomPaint(
+                  size: Size(widget.size, widget.size),
+                  painter: PulseScanLinePainter(
+                    color: _getRadarColor(controller.scanState.value),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
         
-        // 脉冲圆环
-        AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return CustomPaint(
-              size: Size(widget.size, widget.size),
-              painter: PulseRingPainter(
-                progress: _pulseAnimation.value,
-                color: _getRadarColor(controller.scanState.value),
-              ),
-            );
-          },
+        // 脉冲圆环 - 🎯 使用RepaintBoundary隔离重绘
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return CustomPaint(
+                size: Size(widget.size, widget.size),
+                painter: PulseRingPainter(
+                  progress: _pulseAnimation.value,
+                  color: _getRadarColor(controller.scanState.value),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );

@@ -43,7 +43,7 @@ class AMapPoiService {
       // 如果传递了location参数，则添加到查询参数中（用于计算距离）
       // 同时添加 sortrule=distance 来按距离排序，这样API才会返回distance字段
       if (location != null && location.isNotEmpty) {
-        // queryParams['location'] = location;
+        queryParams['location'] = location;
         queryParams['sortrule'] = 'distance'; // 按距离排序，这样会返回distance字段
       }
 

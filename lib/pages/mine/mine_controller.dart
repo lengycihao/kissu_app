@@ -128,8 +128,8 @@ class MineController extends GetxController {
         bindDate.value = user.loverInfo!.bindDate!;
       }
 
-      // 如果有恋爱天数，直接使用服务器数据
-      if (user.loverInfo!.loveDays != null && user.loverInfo!.loveDays! > 0) {
+      // 如果有恋爱天数，直接使用服务器数据（包括0）
+      if (user.loverInfo!.loveDays != null) {
         days.value = "${user.loverInfo!.loveDays}";
         return; // 使用了LoverInfo的数据，就不需要再计算了
       }
@@ -210,7 +210,7 @@ class MineController extends GetxController {
     } else {
       // 非会员
       vipButtonText.value = "立即开通";
-      vipDateText.value = "了解更多权益";
+      vipDateText.value = "一人开通，两人均能享受六大专属权益";
     }
   }
 
@@ -255,7 +255,8 @@ class MineController extends GetxController {
       // SettingItem(
       //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
       //   title: "屏幕使用测试",
-      //   onTap: () => _onScreenUsageTestTap(),
+      //   onTap: () => Get.toNamed(KissuRoutePath.trackPlayTest),
+        
       // ),
       SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",
@@ -306,50 +307,50 @@ class MineController extends GetxController {
     Get.to(() => const ScreenLockDebugPage());
   }
   
-  /// 屏幕使用测试
-  Future<void> _onScreenUsageTestTap() async {
-    final permissionService = PermissionService();
+  // /// 屏幕使用测试
+  // Future<void> _onScreenUsageTestTap() async {
+  //   final permissionService = PermissionService();
     
-    // 检查权限
-    final hasPermission = await permissionService.isUsageAccessGranted();
+  //   // 检查权限
+  //   final hasPermission = await permissionService.isUsageAccessGranted();
     
-    if (!hasPermission) {
-      // 显示权限引导
-      Get.dialog(
-        AlertDialog(
-          title: const Text('需要使用统计权限'),
-          content: const Text(
-            '屏幕使用时长统计需要"使用情况访问权限"。\n\n'
-            '点击"去授权"后，请在设置页面找到 Kissu 并开启权限。',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Get.back();
-                await permissionService.requestUsageAccessPermission();
-                // 再次检查权限
-                final granted = await permissionService.isUsageAccessGranted();
-                if (granted) {
-                  _showScreenUsageData();
-                } else {
-                  OKToastUtil.show('未授予权限');
-                }
-              },
-              child: const Text('去授权'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  //   if (!hasPermission) {
+  //     // 显示权限引导
+  //     Get.dialog(
+  //       AlertDialog(
+  //         title: const Text('需要使用统计权限'),
+  //         content: const Text(
+  //           '屏幕使用时长统计需要"使用情况访问权限"。\n\n'
+  //           '点击"去授权"后，请在设置页面找到 Kissu 并开启权限。',
+  //         ),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () => Get.back(),
+  //             child: const Text('取消'),
+  //           ),
+  //           TextButton(
+  //             onPressed: () async {
+  //               Get.back();
+  //               await permissionService.requestUsageAccessPermission();
+  //               // 再次检查权限
+  //               final granted = await permissionService.isUsageAccessGranted();
+  //               if (granted) {
+  //                 _showScreenUsageData();
+  //               } else {
+  //                 OKToastUtil.show('未授予权限');
+  //               }
+  //             },
+  //             child: const Text('去授权'),
+  //           ),
+  //         ],
+  //       ),
+  //     );
+  //     return;
+  //   }
     
-    // 有权限，直接显示数据
-    _showScreenUsageData();
-  }
+  //   // 有权限，直接显示数据
+  //   _showScreenUsageData();
+  // }
   
   /// 显示屏幕使用数据
   Future<void> _showScreenUsageData() async {

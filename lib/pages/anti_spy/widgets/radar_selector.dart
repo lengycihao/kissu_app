@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'radar_scanner.dart';
-import 'modern_radar_scanner.dart';
-import 'pulse_radar_scanner.dart';
-import 'particle_radar_scanner.dart';
-import 'glow_radar_scanner.dart';
+import 'layered_radar_scanner.dart';
+import 'radar_animation_layer.dart';
 
 enum RadarAnimationType {
-  original,    // 原始雷达
-  modern,      // 现代波纹雷达
+  original,    // 原始雷达 (经典扫描线)
+  modern,      // 现代波纹雷达 (经典扫描线)
   pulse,       // 脉冲扫描雷达
   particle,    // 粒子雷达
   glow,        // 发光环雷达
 }
 
+/// 🎯 雷达选择器 - 统一使用分层架构
 class RadarSelector extends StatelessWidget {
   final double size;
   final RadarAnimationType type;
@@ -26,17 +24,24 @@ class RadarSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🎯 所有雷达样式统一使用分层架构
+    return LayeredRadarScanner(
+      size: size,
+      style: _getRadarStyle(type),
+    );
+  }
+  
+  RadarStyle _getRadarStyle(RadarAnimationType type) {
     switch (type) {
       case RadarAnimationType.original:
-        return RadarScanner(size: size);
       case RadarAnimationType.modern:
-        return ModernRadarScanner(size: size);
+        return RadarStyle.classic;
       case RadarAnimationType.pulse:
-        return PulseRadarScanner(size: size);
+        return RadarStyle.pulse;
       case RadarAnimationType.particle:
-        return ParticleRadarScanner(size: size);
+        return RadarStyle.particle;
       case RadarAnimationType.glow:
-        return GlowRadarScanner(size: size);
+        return RadarStyle.glow;
     }
   }
 }

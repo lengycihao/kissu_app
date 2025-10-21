@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import '../utils/map_style_loader.dart';
 
 /// 安全的高德地图包装器
 /// 功能：
 /// 1. 解决mapId不匹配导致的空值错误
 /// 2. 解决Platform View渲染引擎不一致导致的花屏问题
 /// 3. 优化地图初始化和渲染流程
+/// 4. 支持自定义地图样式
 class SafeAMapWidget extends StatefulWidget {
   final CameraPosition initialCameraPosition;
   final void Function(AMapController)? onMapCreated;
@@ -23,6 +25,8 @@ class SafeAMapWidget extends StatefulWidget {
   final bool rotateGesturesEnabled;
   final bool tiltGesturesEnabled;
   final MapType mapType;
+  final bool buildingsEnabled;
+  // final bool labelsEnabled;
   final void Function(LatLng)? onTap;
   final void Function(LatLng)? onLongPress;
   final void Function(AMapLocation)? onLocationChanged;
@@ -30,6 +34,8 @@ class SafeAMapWidget extends StatefulWidget {
   final void Function(CameraPosition)? onCameraMoveEnd;
   final void Function(AMapPoi)? onPoiTouched;
   final VoidCallback? onInfoWindowClose;
+  /// 是否启用自定义地图样式
+  final bool enableCustomStyle;
 
   const SafeAMapWidget({
     Key? key,
@@ -47,6 +53,8 @@ class SafeAMapWidget extends StatefulWidget {
     this.rotateGesturesEnabled = true,
     this.tiltGesturesEnabled = true,
     this.mapType = MapType.normal,
+    this.buildingsEnabled = true,
+    // this.labelsEnabled = true,
     this.onTap,
     this.onLongPress,
     this.onLocationChanged,
@@ -54,6 +62,7 @@ class SafeAMapWidget extends StatefulWidget {
     this.onCameraMoveEnd,
     this.onPoiTouched,
     this.onInfoWindowClose,
+    this.enableCustomStyle = true, // 默认启用自定义样式
   }) : super(key: key);
 
   @override
@@ -64,11 +73,15 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
   bool _isMapReady = false;
   bool _shouldRender = false;
   final Completer<void> _mapReadyCompleter = Completer<void>();
+  CustomStyleOptions? _customStyleOptions;
 
   @override
   void initState() {
     super.initState();
     print('🗺️ SafeAMapWidget 初始化开始');
+    
+    // 加载自定义地图样式
+    _loadCustomMapStyle();
     
     // 延迟渲染，等待Flutter渲染树稳定后再显示地图
     // 这可以避免初始化时Flutter渲染引擎与原生地图渲染引擎的冲突，减少花屏
@@ -84,6 +97,22 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
         });
       }
     });
+  }
+
+  /// 加载自定义地图样式
+  Future<void> _loadCustomMapStyle() async {
+    if (!widget.enableCustomStyle) {
+      print('🗺️ SafeAMapWidget 自定义样式已禁用');
+      return;
+    }
+
+    try {
+      _customStyleOptions = await MapStyleLoader.getCustomMapStyle();
+      print('🗺️ SafeAMapWidget 自定义样式加载成功');
+    } catch (e) {
+      print('🗺️ SafeAMapWidget 自定义样式加载失败: $e');
+      _customStyleOptions = null;
+    }
   }
 
   @override
@@ -223,6 +252,7 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
       polygons: widget.polygons ?? <Polygon>{},
       circles: widget.circles ?? <Circle>{},
       myLocationStyleOptions: widget.myLocationStyleOptions,
+      customStyleOptions: _customStyleOptions, // 应用自定义地图样式
       compassEnabled: widget.compassEnabled,
       scaleEnabled: widget.scaleEnabled,
       zoomGesturesEnabled: widget.zoomGesturesEnabled,
@@ -230,6 +260,8 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
       rotateGesturesEnabled: widget.rotateGesturesEnabled,
       tiltGesturesEnabled: widget.tiltGesturesEnabled,
       mapType: widget.mapType,
+      buildingsEnabled: widget.buildingsEnabled,
+      // labelsEnabled: widget.labelsEnabled,
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       onLocationChanged: widget.onLocationChanged,

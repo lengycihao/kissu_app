@@ -199,10 +199,6 @@
             android:name="JPUSH_APPKEY"
             android:value="4ee497251fc479522e1e6b7d"
             tools:replace="android:value" />
-        <meta-data
-            android:name="JPUSH_MASTER_SECRET"
-            android:value="73394575cf91ff845b03f25e"
-            tools:replace="android:value" />
             
         <!-- 自定义通知样式配置 -->
         <meta-data

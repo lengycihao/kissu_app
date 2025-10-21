@@ -481,16 +481,16 @@ class LocationPickerController extends GetxController {
   
   /// 保存位置
   Future<LocationReminder?> saveLocation() async {
-    if (selectedLocation.value == null) {
-      OKToastUtil.show('请先在地图上选择一个位置');
-      return null;
-    }
+    // if (selectedLocation.value == null) {
+    //   OKToastUtil.show('请在地图上添加要提醒的位置');
+    //   return null;
+    // }
     
-    // 验证备注必填
-    if (noteText.value.trim().isEmpty) {
-      OKToastUtil.show('请输入备注');
-      return null;
-    }
+    // // 验证备注必填
+    // if (noteText.value.trim().isEmpty) {
+    //   OKToastUtil.show('请添加备注');
+    //   return null;
+    // }
     
     try {
       // 创建或更新位置提醒对象

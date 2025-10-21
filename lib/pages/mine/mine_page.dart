@@ -6,22 +6,22 @@ class MinePage extends GetView<MineController> {
   const MinePage({super.key});
 
   // 固定的应用设置菜单项
-  static const List<Map<String, String>> settingItems = [
-    {"icon": "assets/3.0/kissu3_mine_ftp_icon.webp", "title": "防偷拍检测"},
-    {"icon": "assets/kissu_mine_item_syst.webp", "title": "首页视图"},
-    {"icon": "assets/kissu_mine_item_xtqx.webp", "title": "系统权限"},
-    {"icon": "assets/kissu_mine_item_gywm.webp", "title": "关于我们"},
-    {"icon": "assets/kissu_mine_item_cjwt.webp", "title": "常见问题"},
-    {"icon": "assets/kissu_mine_item_lxwm.webp", "title": "联系我们"},
-    {"icon": "assets/kissu_mine_item_yjfk.webp", "title": "意见反馈"},
-    {"icon": "assets/kissu_mine_item_ysaq.webp", "title": "账号及隐私安全"},
-  ];
+  // static const List<Map<String, String>> settingItems = [
+  //   {"icon": "assets/3.0/kissu3_mine_ftp_icon.webp", "title": "防偷拍检测"},
+  //   {"icon": "assets/kissu_mine_item_syst.webp", "title": "首页视图"},
+  //   {"icon": "assets/kissu_mine_item_xtqx.webp", "title": "系统权限"},
+  //   {"icon": "assets/kissu_mine_item_gywm.webp", "title": "关于我们"},
+  //   {"icon": "assets/kissu_mine_item_cjwt.webp", "title": "常见问题"},
+  //   {"icon": "assets/kissu_mine_item_lxwm.webp", "title": "联系我们"},
+  //   {"icon": "assets/kissu_mine_item_yjfk.webp", "title": "意见反馈"},
+  //   {"icon": "assets/kissu_mine_item_ysaq.webp", "title": "账号及隐私安全"},
+  // ];
 
   
   // 顶部导航
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16).copyWith(bottom: 30),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16).copyWith(bottom: 20),
       child: Row(
         children: [
           GestureDetector(
@@ -136,16 +136,16 @@ class MinePage extends GetView<MineController> {
                   child: _buildPartnerAvatar(),
                 ),
               ),
-              // 心形图标
-              Positioned(
-                right: 30,
-                top: 40,
-                child: Image(
-                  image: AssetImage("assets/kissu_heart.webp"),
-                  width: 29,
-                  height: 20,
-                ),
-              ),
+              // // 心形图标
+              // Positioned(
+              //   right: 30,
+              //   top: 40,
+              //   child: Image(
+              //     image: AssetImage("assets/kissu_heart.webp"),
+              //     width: 29,
+              //     height: 20,
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -313,9 +313,9 @@ class MinePage extends GetView<MineController> {
                     Text(
                       controller.isVip.value
                           ? (controller.isForeverVip.value
-                                ? "KissU终身会员"
-                                : "KissU会员")
-                          : "KissU会员",
+                                ? "Kissu终身会员"
+                                : "Kissu会员")
+                          : "Kissu情侣双人会员",
                       style: const TextStyle(
                         fontSize: 18,
                         color: Color(0xff6D4128),
@@ -473,14 +473,14 @@ class MinePage extends GetView<MineController> {
                                 color: Color(0xFF333333),
                               ),
                             ),
-                            // index == 0
-                            //     ? Padding(padding:  EdgeInsets.only(left: 6),child: Image(
-                            //         image: AssetImage(
-                            //           "assets/3.0/kissu3_mine_ftp_tip.webp",
-                            //         ),
-                            //         width: 75,height: 14,
-                            //       ),)
-                            //     : SizedBox(),
+                            index == 0
+                                ? Padding(padding:  EdgeInsets.only(left: 6),child: Image(
+                                    image: AssetImage(
+                                      "assets/3.0/kissu3_mine_ftp_tip.webp",
+                                    ),
+                                    width: 75,height: 14,
+                                  ),)
+                                : SizedBox(),
                           ],
                         ),
                       ),
@@ -539,23 +539,32 @@ class MinePage extends GetView<MineController> {
             ),
           ),
           SafeArea(
-            child: RefreshIndicator(
-              onRefresh: controller.onRefresh,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTopBar(),
-                    _buildNewUserInfo(),
-                    // const SizedBox(height: 16),
-                    _buildVipCard(),
-                    const SizedBox(height: 24),
-                    _buildSettings(),
-                    const SizedBox(height: 20),
-                  ],
+            child: Column(
+              children: [
+                // 固定的顶部导航栏
+                _buildTopBar(),
+                // 可滚动的内容区域
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: controller.onRefresh,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: 10),
+                          _buildNewUserInfo(),
+                          // const SizedBox(height: 16),
+                          _buildVipCard(),
+                          const SizedBox(height: 24),
+                          _buildSettings(),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],

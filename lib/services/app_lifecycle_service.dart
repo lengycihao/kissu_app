@@ -236,15 +236,15 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   }
   
   /// 获取定位服务状态
-  Map<String, dynamic> getLocationServiceStatus() {
-    try {
-      final simpleLocationService = SimpleLocationService.instance;
-      return simpleLocationService.currentServiceStatus;
-    } catch (e) {
-      debugPrint('❌ 获取定位服务状态失败: $e');
-      return {};
-    }
-  }
+  // Map<String, dynamic> getLocationServiceStatus() {
+  //   try {
+  //     final simpleLocationService = SimpleLocationService.instance;
+  //     return simpleLocationService.currentServiceStatus;
+  //   } catch (e) {
+  //     debugPrint('❌ 获取定位服务状态失败: $e');
+  //     return {};
+  //   }
+  // }
   
   /// 确保后台策略激活
   void _ensureBackgroundStrategyActive() {
@@ -269,31 +269,31 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   }
   
   /// 获取应用生命周期和定位服务的综合状态
-  Map<String, dynamic> getComprehensiveStatus() {
-    try {
-      final simpleLocationService = SimpleLocationService.instance;
-      return {
-        'appState': appState.value.toString(),
-        'isInForeground': isInForeground,
-        'isInBackground': isInBackground,
-        'locationService': simpleLocationService.serviceStatus,
-        'locationCollection': simpleLocationService.getLocationCollectionStats(),
-      };
-    } catch (e) {
-      debugPrint('❌ 获取综合状态失败: $e');
-      return {};
-    }
-  }
+  // Map<String, dynamic> getComprehensiveStatus() {
+  //   try {
+  //     final simpleLocationService = SimpleLocationService.instance;
+  //     return {
+  //       'appState': appState.value.toString(),
+  //       'isInForeground': isInForeground,
+  //       'isInBackground': isInBackground,
+  //       'locationService': simpleLocationService.serviceStatus,
+  //       'locationCollection': simpleLocationService.getLocationCollectionStats(),
+  //     };
+  //   } catch (e) {
+  //     debugPrint('❌ 获取综合状态失败: $e');
+  //     return {};
+  //   }
+  // }
   
   /// 打印应用生命周期和定位服务的综合状态
-  void printComprehensiveStatus() {
-    final status = getComprehensiveStatus();
-    debugPrint('📊 应用生命周期和定位服务综合状态:');
-    debugPrint('   应用状态: ${status['appState']}');
-    debugPrint('   是否在前台: ${status['isInForeground']}');
-    debugPrint('   是否在后台: ${status['isInBackground']}');
-    debugPrint('   定位服务状态: ${status['locationService']['isLocationEnabled'] ? '运行中' : '已停止'}');
-    debugPrint('   总采样点数: ${status['locationCollection']['totalLocationPoints']}');
-    debugPrint('   待上报点数: ${status['locationCollection']['pendingReportPoints']}');
-  }
+  // void printComprehensiveStatus() {
+  //   final status = getComprehensiveStatus();
+  //   debugPrint('📊 应用生命周期和定位服务综合状态:');
+  //   debugPrint('   应用状态: ${status['appState']}');
+  //   debugPrint('   是否在前台: ${status['isInForeground']}');
+  //   debugPrint('   是否在后台: ${status['isInBackground']}');
+  //   debugPrint('   定位服务状态: ${status['locationService']['isLocationEnabled'] ? '运行中' : '已停止'}');
+  //   debugPrint('   总采样点数: ${status['locationCollection']['totalLocationPoints']}');
+  //   debugPrint('   待上报点数: ${status['locationCollection']['pendingReportPoints']}');
+  // }
 }

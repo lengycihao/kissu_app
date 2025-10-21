@@ -18,6 +18,13 @@ public class Const {
     public static final String METHOD_MAP_SET_RENDER_FPS = "map#setRenderFps";
     public static final String METHOD_MAP_TAKE_SNAPSHOT = "map#takeSnapshot";
     public static final String METHOD_MAP_CLEAR_DISK = "map#clearDisk";
+    public static final String METHOD_MAP_HIDE_ALL_INFO_WINDOWS = "map#hideAllInfoWindows";
+    public static final String METHOD_MAP_HIDE_INFO_WINDOW = "map#hideInfoWindow";
+    public static final String METHOD_MAP_SHOW_INFO_WINDOW = "map#showInfoWindow";
+    public static final String METHOD_MAP_SHOW_GEOFENCE_CIRCLE = "map#showGeofenceCircle";
+    public static final String METHOD_MAP_HIDE_GEOFENCE_CIRCLE = "map#hideGeofenceCircle";
+    public static final String METHOD_MAP_CLEAR_GEOFENCE_CIRCLE = "map#clearGeofenceCircle";
+    public static final String METHOD_MAP_GET_CAMERA_POSITION = "map#getCameraPosition";
 
     public static final String[] METHOD_ID_LIST_FOR_MAP = {
             METHOD_MAP_CONTENT_APPROVAL_NUMBER,
@@ -27,14 +34,22 @@ public class Const {
             METHOD_MAP_MOVE_CAMERA,
             METHOD_MAP_SET_RENDER_FPS,
             METHOD_MAP_TAKE_SNAPSHOT,
-            METHOD_MAP_CLEAR_DISK};
+            METHOD_MAP_CLEAR_DISK,
+            METHOD_MAP_HIDE_ALL_INFO_WINDOWS,
+            METHOD_MAP_HIDE_INFO_WINDOW,
+            METHOD_MAP_SHOW_INFO_WINDOW,
+            METHOD_MAP_SHOW_GEOFENCE_CIRCLE,
+            METHOD_MAP_HIDE_GEOFENCE_CIRCLE,
+            METHOD_MAP_CLEAR_GEOFENCE_CIRCLE,
+            METHOD_MAP_GET_CAMERA_POSITION};
 
 
     /**
      * markers
      */
     public static final String METHOD_MARKER_UPDATE = "markers#update";
-    public static final String[] METHOD_ID_LIST_FOR_MARKER = {METHOD_MARKER_UPDATE};
+    public static final String METHOD_SINGLE_MARKER_UPDATE = "marker#update";
+    public static final String[] METHOD_ID_LIST_FOR_MARKER = {METHOD_MARKER_UPDATE, METHOD_SINGLE_MARKER_UPDATE};
 
     /**
      * polygons

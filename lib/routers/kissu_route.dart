@@ -32,6 +32,7 @@ import 'package:kissu_app/pages/interaction_message/interaction_message_page.dar
 import 'package:kissu_app/pages/interaction_message/interaction_message_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
+import 'package:kissu_app/pages/track_play_test/track_play_test_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -159,6 +160,11 @@ class KissuRoute {
       name: KissuRoutePath.track,
       page: () => const TrackPage(),
       binding: TrackBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.trackPlayTest,
+      page: () => const TrackPlayTestPage(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

@@ -3,9 +3,12 @@ package com.yuluo.kissu
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.app.ActivityManager
+import android.app.usage.UsageStatsManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.Log
@@ -493,11 +496,107 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         
         Log.d(TAG, "📍 原生定位成功: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
         
-        // 🔥 调用上报服务
-        locationReportService?.reportLocation(location)
+        // 🔥 检查是否应该上报位置（避免与Flutter重复上报）
+        if (shouldReportLocation()) {
+            Log.d(TAG, "✅ 应用在后台，执行原生位置上报")
+            locationReportService?.reportLocation(location)
+        } else {
+            Log.d(TAG, "⏸️ 应用在前台，跳过原生位置上报（Flutter正在处理）")
+        }
         
         // 更新通知内容
         updateLocationNotification(location)
+    }
+    
+    /**
+     * 检查是否应该上报位置
+     * 避免与Flutter应用前台时的位置上报重复
+     */
+    private fun shouldReportLocation(): Boolean {
+        return try {
+            // 使用更现代的方法检测应用是否在前台
+            val isAppInForeground = isAppInForeground()
+            
+            if (isAppInForeground) {
+                Log.d(TAG, "检测到应用在前台，跳过原生位置上报")
+                return false
+            }
+            
+            // 应用在后台，允许上报
+            Log.d(TAG, "应用在后台，允许原生位置上报")
+            true
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "检查应用状态失败，默认允许上报", e)
+            // 如果检查失败，为了保险起见，允许上报
+            true
+        }
+    }
+    
+    /**
+     * 检测应用是否在前台运行
+     * 使用多种方法确保兼容性
+     */
+    private fun isAppInForeground(): Boolean {
+        return try {
+            // 方法1: 使用 ActivityManager (适用于较新版本)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val runningAppProcesses = activityManager.runningAppProcesses
+                
+                for (processInfo in runningAppProcesses) {
+                    if (processInfo.processName == packageName) {
+                        val isForeground = processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                        Log.d(TAG, "使用RunningAppProcesses检测: 应用${if (isForeground) "在前台" else "在后台"}")
+                        return isForeground
+                    }
+                }
+            }
+            
+            // 方法2: 使用 UsageStatsManager (需要权限，但更准确)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+                    val time = System.currentTimeMillis()
+                    val usageStats = usageStatsManager.queryUsageStats(
+                        UsageStatsManager.INTERVAL_DAILY,
+                        time - 1000 * 60, // 1分钟前
+                        time
+                    )
+                    
+                    for (usageStat in usageStats) {
+                        if (usageStat.packageName == packageName) {
+                            val isForeground = usageStat.lastTimeUsed > time - 1000 * 10 // 10秒内有使用
+                            Log.d(TAG, "使用UsageStats检测: 应用${if (isForeground) "在前台" else "在后台"}")
+                            return isForeground
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "UsageStats检测失败，可能缺少权限", e)
+                }
+            }
+            
+            // 方法3: 使用传统的getRunningTasks (作为后备方案)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val runningTasks = activityManager.getRunningTasks(1)
+                
+                if (runningTasks.isNotEmpty()) {
+                    val topActivity = runningTasks[0].topActivity
+                    val isForeground = topActivity?.packageName == packageName
+                    Log.d(TAG, "使用getRunningTasks检测: 应用${if (isForeground) "在前台" else "在后台"}")
+                    return isForeground
+                }
+            }
+            
+            // 如果所有方法都失败，默认认为应用在后台
+            Log.w(TAG, "无法检测应用状态，默认认为在后台")
+            false
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "检测应用前台状态失败", e)
+            false
+        }
     }
     
     /**

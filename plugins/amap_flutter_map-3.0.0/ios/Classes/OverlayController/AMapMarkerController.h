@@ -35,6 +35,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 //- (BOOL)onInfoWindowTap:(NSString *)markerId;
 
+/// 隐藏所有 InfoWindow
+- (void)hideAllInfoWindows;
+
+/// 隐藏指定 Marker 的 InfoWindow
+- (void)hideInfoWindowByMarkerId:(NSString *)markerId;
+
+/// 显示指定 Marker 的 InfoWindow
+- (void)showInfoWindowByMarkerId:(NSString *)markerId;
+
 @end
 
 NS_ASSUME_NONNULL_END

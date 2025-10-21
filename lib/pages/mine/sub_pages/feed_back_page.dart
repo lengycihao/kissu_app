@@ -9,7 +9,6 @@ import '../../../network/public/file_upload_api.dart';
 import '../../../utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/permission_service.dart';
-import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 控制器
@@ -32,15 +31,10 @@ class FeedbackController extends GetxController {
   void onInit() {
     super.onInit();
     
-    // 检查是否有外部传入的截图路径
-    final arguments = Get.arguments;
-    if (arguments != null && arguments is Map<String, dynamic>) {
-      final screenshotPath = arguments['screenshotPath'] as String?;
-      if (screenshotPath != null && screenshotPath.isNotEmpty) {
-        // 设置截图
-        selectedImage.value = File(screenshotPath);
-        print('✅ 意见反馈: 已接收截图 path=$screenshotPath');
-      }
+    // 自动填入用户手机号到联系方式输入框
+    if (UserManager.userPhone != null && UserManager.userPhone!.isNotEmpty) {
+      contact.value = UserManager.userPhone!;
+      print('✅ 意见反馈: 已自动填入用户手机号 ${UserManager.userPhone}');
     }
   }
 
@@ -96,35 +90,40 @@ class FeedbackController extends GetxController {
   /// 选择图片
   Future<void> pickImage() async {
     try {
-      // 检查是否已有相册权限
-      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
+      // 直接检查权限状态
+      final hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
       
-      // 如果已有权限，直接选择图片
-      if (hasPhotoPermission) {
+      if (hasPermission) {
+        // 有权限，直接选择图片
+        print('✅ 意见反馈: 已有权限，直接选择图片');
         final picked = await picker.pickImage(source: ImageSource.gallery);
         if (picked != null) {
           selectedImage.value = File(picked.path);
-        }
-        return;
-      }
-      
-      // 如果没有权限，先显示权限说明弹窗
-      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
-      if (shouldContinue != true) return;
-      
-      // 申请权限
-      final permissionGranted = await _permissionService.requestPhotosPermission();
-      
-      if (permissionGranted) {
-        final picked = await picker.pickImage(source: ImageSource.gallery);
-        if (picked != null) {
-          selectedImage.value = File(picked.path);
+          print('✅ 意见反馈: 图片选择成功 path=${picked.path}');
+        } else {
+          print('⚠️ 意见反馈: 用户取消了图片选择');
         }
       } else {
-        OKToastUtil.show('权限未授予，无法选择图片');
+        // 没有权限，申请权限（会弹出系统权限弹窗）
+        print('⚠️ 意见反馈: 没有权限，申请权限');
+        final permissionGranted = await _permissionService.requestPhotosPermission();
+        
+        if (permissionGranted) {
+          print('✅ 意见反馈: 权限申请成功，开始选择图片');
+          final picked = await picker.pickImage(source: ImageSource.gallery);
+          if (picked != null) {
+            selectedImage.value = File(picked.path);
+            print('✅ 意见反馈: 图片选择成功 path=${picked.path}');
+          } else {
+            print('⚠️ 意见反馈: 用户取消了图片选择');
+          }
+        } else {
+          print('❌ 意见反馈: 权限申请被拒绝');
+          OKToastUtil.show('需要相册权限才能选择图片');
+        }
       }
     } catch (e) {
-      print('选择图片失败: $e');
+      print('❌ 意见反馈: 选择图片失败 - $e');
       OKToastUtil.showError('选择图片失败');
     }
   }
@@ -471,8 +470,12 @@ class FeedbackPage extends StatelessWidget {
                                     color: Color(0xFF333333),
                                   ),
                                 ),
-                                TextField(
+                                Obx(() => TextField(
                                   focusNode: controller.contactFocusNode,
+                                  controller: TextEditingController(text: controller.contact.value)
+                                    ..selection = TextSelection.fromPosition(
+                                      TextPosition(offset: controller.contact.value.length),
+                                    ),
                                   onChanged: (val) =>
                                       controller.contact.value = val,
                                   onSubmitted: (_) =>
@@ -507,7 +510,7 @@ class FeedbackPage extends StatelessWidget {
                                     ),
                                     isDense: true, // 减少默认内边距
                                   ),
-                                ),
+                                )),
                               ],
                             ),
                           ),

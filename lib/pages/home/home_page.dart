@@ -16,7 +16,6 @@ import 'package:kissu_app/widgets/kissu_banner_builder.dart';
 import 'package:kissu_app/widgets/island_view_button.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 
-
 class KissuHomePage extends StatefulWidget {
   const KissuHomePage({super.key});
 
@@ -24,7 +23,8 @@ class KissuHomePage extends StatefulWidget {
   State<KissuHomePage> createState() => _KissuHomePageState();
 }
 
-class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+class _KissuHomePageState extends State<KissuHomePage>
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   late HomeController controller;
 
   @override
@@ -46,7 +46,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     // 应用生命周期变化时不需要特殊处理
     // 用户信息刷新已通过静态变量控制在app启动时只执行一次
     if (state == AppLifecycleState.resumed) {
@@ -62,7 +62,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以支持AutomaticKeepAliveClientMixin
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -71,7 +71,8 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
             scrollDirection: Axis.horizontal,
             controller: controller.scrollController,
             child: SizedBox(
-              width: ScreenAdaptation.getDynamicContainerSize().width, // 使用动态宽度以支持滑动
+              width: ScreenAdaptation.getDynamicContainerSize()
+                  .width, // 使用动态宽度以支持滑动
               height: ScreenAdaptation.getAdaptedContainerSize().height,
               child: Stack(
                 children: [
@@ -80,11 +81,12 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                     child: Image.asset(
                       "assets/kissu_home_bg.webp",
                       width: 1500, // 固定宽度1500px
-                      height: ScreenAdaptation.getDynamicBackgroundSize().height, // 使用动态高度
+                      height: ScreenAdaptation.getDynamicBackgroundSize()
+                          .height, // 使用动态高度
                       fit: BoxFit.cover, // 改回cover以保持原有显示效果
                     ),
                   ),
-                  
+
                   // PAG动画层 - home_bg_person.pag (已注释)
                   // Positioned(
                   //   left: ScreenAdaptation.scaleXByDynamicWidth(395), // 基于动态背景宽度缩放X坐标
@@ -98,7 +100,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //     repeat: true,
                   //   ),
                   // ),
-                  
+
                   // PAG动画层 - home_bg_fridge.pag (已注释)
                   // Positioned(
                   //   left: ScreenAdaptation.scaleXByDynamicWidth(22), // 基于动态背景宽度缩放X坐标
@@ -110,7 +112,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //     delay: Duration(milliseconds: 400), // 减少延迟时间
                   //   ),
                   // ),
-                  
+
                   // PAG动画层 - home_bg_clothes.pag (已注释)
                   // Positioned(
                   //   left: ScreenAdaptation.scaleXByDynamicWidth(1228), // 基于动态背景宽度缩放X坐标
@@ -122,7 +124,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //     delay: Duration(milliseconds: 600), // 减少延迟时间
                   //   ),
                   // ),
-                  
+
                   // PAG动画层 - home_bg_flowers.pag (已注释)
                   // Positioned(
                   //   left: ScreenAdaptation.scaleXByDynamicWidth(675), // 基于动态背景宽度缩放X坐标
@@ -134,7 +136,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //     delay: Duration(milliseconds: 800), // 减少延迟时间
                   //   ),
                   // ),
-                  
+
                   // PAG动画层 - home_bg_music.pag (已注释)
                   // Positioned(
                   //   left: ScreenAdaptation.scaleXByDynamicWidth(352), // 基于动态背景宽度缩放X坐标
@@ -146,44 +148,66 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                   //     delay: Duration(milliseconds: 1000), // 减少延迟时间
                   //   ),
                   // ),
-                  
+
                   // 照片墙容器
                   Positioned(
-                    left: 500, // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(83), // Y坐标基于高度缩放
+                    left: 475, // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(70), // Y坐标基于高度缩放
                     child: GestureDetector(
                       onTap: () {
                         // 点击事件处理
                         _onRedContainerTap();
                       },
-                      child: Obx(() => Container(
-                        width: ScreenAdaptation.scaleXByDynamicWidth(60), // 基于高度比例缩放宽度
-                        height: ScreenAdaptation.scaleSizeByHeight(59), // 基于高度比例缩放高度
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: controller.photoWallUrl.value.startsWith('http')
-                            ? NoPlaceholderImage(
-                                imageUrl: controller.photoWallUrl.value,
-                                defaultAssetPath: "assets/kissu_icon.webp",
-                                width: ScreenAdaptation.scaleXByDynamicWidth(60),
-                                height: ScreenAdaptation.scaleSizeByHeight(59),
-                                fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(2),
-                              )
-                            : ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: Image.asset(
-                                  controller.photoWallUrl.value,
-                                  width:ScreenAdaptation.scaleXByDynamicWidth(60),
-                                  height: ScreenAdaptation.scaleSizeByHeight(59),
-                                  fit: BoxFit.cover,
-                                ),
+                      child: Obx(
+                        () => Container(
+                          width: ScreenAdaptation.scaleXByDynamicWidth(
+                            74,
+                          ), // 基于高度比例缩放宽度
+                          height: ScreenAdaptation.scaleSizeByHeight(
+                            83,
+                          ), // 基于高度比例缩放高度
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            image: DecorationImage(
+                              image: AssetImage(
+                                "assets/kissu_home_avair_bg.webp",
                               ),
-                      )),
+                              fit: BoxFit.fill,
+                            ),
+                          ),
+                          padding: EdgeInsets.only(left: 7, right: 7,top: 15,bottom: 7),
+                          child:
+                              controller.photoWallUrl.value.startsWith('http')
+                              ? NoPlaceholderImage(
+                                  imageUrl: controller.photoWallUrl.value,
+                                  defaultAssetPath: "assets/kissu_icon.webp",
+                                  width: ScreenAdaptation.scaleXByDynamicWidth(
+                                    60,
+                                  ),
+                                  height: ScreenAdaptation.scaleSizeByHeight(
+                                    59,
+                                  ),
+                                  fit: BoxFit.fill,
+                                  borderRadius: BorderRadius.circular(2),
+                                )
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(2),
+                                  child: Image.asset(
+                                    controller.photoWallUrl.value,
+                                    width:
+                                        ScreenAdaptation.scaleXByDynamicWidth(
+                                          60,
+                                        ),
+                                    height: ScreenAdaptation.scaleSizeByHeight(
+                                      59,
+                                    ),
+                                    fit: BoxFit.fill,
+                                  ),
+                                ),
+                        ),
+                      ),
                     ),
                   ),
-                  
                 ],
               ),
             ),
@@ -230,7 +254,6 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
               ),
             ),
           ),
-
 
           // 🧪 测试按钮 - 触发截屏反馈按钮显示
           // // 调试按钮 - 显示VIP开通弹窗
@@ -286,15 +309,17 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                 CustomBottomDialog.show(context: context);
                               }
                             },
-                            child: controller.userAvatar.value.startsWith('http')
+                            child:
+                                controller.userAvatar.value.startsWith('http')
                                 ? NoPlaceholderImage(
-                                      imageUrl: controller.userAvatar.value,
-                                      defaultAssetPath: "assets/kissu3_love_avater.webp",
-                                      width: 38,
-                                      height: 38,
-                                      fit: BoxFit.cover,
-                                      borderRadius: BorderRadius.circular(5),
-                                    )
+                                    imageUrl: controller.userAvatar.value,
+                                    defaultAssetPath:
+                                        "assets/kissu3_love_avater.webp",
+                                    width: 38,
+                                    height: 38,
+                                    fit: BoxFit.cover,
+                                    borderRadius: BorderRadius.circular(5),
+                                  )
                                 : Image.asset(
                                     controller.userAvatar.value,
                                     width: 38,
@@ -317,7 +342,8 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                   },
                                   child: NoPlaceholderImage(
                                     imageUrl: controller.partnerAvatar.value,
-                                    defaultAssetPath: "assets/kissu3_love_avater.webp",
+                                    defaultAssetPath:
+                                        "assets/kissu3_love_avater.webp",
                                     width: 38,
                                     height: 38,
                                     fit: BoxFit.cover,
@@ -365,13 +391,15 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                 Radius.circular(15),
                               ),
                             ),
-                            child: Obx(() => Text(
-                              "在一起${controller.loveDays.value}天",
-                              style: TextStyle(
-                                color: Color(0xff666666),
-                                fontSize: 12,
+                            child: Obx(
+                              () => Text(
+                                "在一起${controller.loveDays.value}天",
+                                style: TextStyle(
+                                  color: Color(0xff666666),
+                                  fontSize: 12,
+                                ),
                               ),
-                            )),
+                            ),
                           ),
                         )
                       : Transform.translate(
@@ -462,10 +490,12 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                                     errorBuilder: (context, error, stackTrace) {
                                       return const SizedBox.shrink();
                                     },
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return const SizedBox.shrink();
-                                    },
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return const SizedBox.shrink();
+                                        },
                                   ),
                                 ),
                               ],
@@ -503,20 +533,22 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
           ),
 
           // 引导层覆盖层
-          Obx(() => GuideOverlayWidget(
-            isVisible: controller.showGuideOverlay.value,
-            guideType: controller.currentGuideType.value, // 根据当前状态显示对应引导图
-            onDismiss: () {
-              if (controller.currentGuideType.value == GuideType.swipe) {
-                // 引导图1关闭，执行其他逻辑
-                controller.onGuide1Dismissed();
-              } else {
-                // 引导图2关闭，执行后续逻辑
-                controller.onGuide2Dismissed();
-              }
-            },
-            dismissible: true, // 允许点击背景关闭
-          )),
+          Obx(
+            () => GuideOverlayWidget(
+              isVisible: controller.showGuideOverlay.value,
+              guideType: controller.currentGuideType.value, // 根据当前状态显示对应引导图
+              onDismiss: () {
+                if (controller.currentGuideType.value == GuideType.swipe) {
+                  // 引导图1关闭，执行其他逻辑
+                  controller.onGuide1Dismissed();
+                } else {
+                  // 引导图2关闭，执行后续逻辑
+                  controller.onGuide2Dismissed();
+                }
+              },
+              dismissible: true, // 允许点击背景关闭
+            ),
+          ),
         ],
       ),
     );
@@ -543,7 +575,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                     // 获取当前用户的 VIP 状态
                     final isVip = UserManager.isVip;
                     final userAvatarUrl = controller.userAvatar.value;
-                    
+
                     // index == 0: 定位 banner
                     // index == 1: 足迹 banner
                     // index == 2: 天气 banner
@@ -552,6 +584,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         isBound: false,
                         isVip: isVip,
                         userAvatarUrl: userAvatarUrl,
+                        travelTool: controller.travelTool.value,
                         width: 302,
                         height: 83,
                       );
@@ -593,7 +626,10 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
         const SizedBox(height: 8),
         // 外置的指示器
         Obx(
-          () => _buildCustomIndicator(controller.currentSwiperIndex.value, 3), // 3 个点
+          () => _buildCustomIndicator(
+            controller.currentSwiperIndex.value,
+            3,
+          ), // 3 个点
         ),
       ],
     );
@@ -624,7 +660,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                     final isVip = UserManager.isVip;
                     final userAvatarUrl = controller.userAvatar.value;
                     final partnerAvatarUrl = controller.partnerAvatar.value;
-                    
+
                     // index == 0: 定位 banner
                     // index == 1: 足迹 banner
                     // index == 2: 天气 banner
@@ -635,6 +671,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         userAvatarUrl: userAvatarUrl,
                         partnerAvatarUrl: partnerAvatarUrl,
                         distance: controller.distance.value,
+                        travelTool: controller.travelTool.value,
                         width: 302,
                         height: 83,
                       );
@@ -644,7 +681,7 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
                         isVip: isVip,
                         userAvatarUrl: userAvatarUrl,
                         partnerAvatarUrl: partnerAvatarUrl,
-                        footprintCount: 0, // TODO: 添加实际的足迹数量
+                        footprintCount: controller.stayCount.value, // 显示实际的足迹数量
                         width: 302,
                         height: 83,
                       );
@@ -678,15 +715,19 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
         const SizedBox(height: 8),
         // 外置的指示器
         Obx(
-          () => _buildCustomIndicator(controller.currentSwiperIndex.value, 3), // 3 个点
+          () => _buildCustomIndicator(
+            controller.currentSwiperIndex.value,
+            3,
+          ), // 3 个点
         ),
       ],
     );
   }
+
   //照片墙
   void _onRedContainerTap() {
     ImageDialogUtil.showImageDialog(
-      context: context, 
+      context: context,
       imagePath: "assets/3.0/kissu3_picture_wall.webp",
       currentPhotoWallUrl: controller.photoWallUrl.value, // 传入当前照片墙的URL
       onUploadSuccess: () {
@@ -725,7 +766,8 @@ class _KissuHomePageState extends State<KissuHomePage> with WidgetsBindingObserv
 class _AnimatedIslandView extends StatefulWidget {
   final HomeController controller;
 
-  const _AnimatedIslandView({Key? key, required this.controller}) : super(key: key);
+  const _AnimatedIslandView({Key? key, required this.controller})
+    : super(key: key);
 
   @override
   _AnimatedIslandViewState createState() => _AnimatedIslandViewState();
@@ -776,25 +818,27 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
             final controller = widget.controller;
             final isVip = UserManager.isVip;
             final isBound = controller.isBound.value;
-            
+
             // 根据VIP和绑定状态决定是否显示真实数据
             final shouldMaskData = isBound && !isVip;
-            
+
             // 停留点显示文本
-            final stayCountText = shouldMaskData 
-                ? '* 个停留点' 
+            final stayCountText = shouldMaskData
+                ? '* 个停留点'
                 : '${controller.stayCount.value}个停留点';
-            
+
             // 距离显示文本
-            final distanceText = shouldMaskData 
-                ? '* KM' 
+            final distanceText = shouldMaskData
+                ? '* KM'
                 : controller.distance.value;
-            
+
             // 天气显示文本（天气始终显示真实数据）
-            final weatherText = controller.currentTemp.value != null && controller.weather.value != null
+            final weatherText =
+                controller.currentTemp.value != null &&
+                    controller.weather.value != null
                 ? '${controller.currentTemp.value}°${controller.weather.value}'
                 : '';
-            
+
             return Column(
               children: [
                 // 足迹按钮

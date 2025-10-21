@@ -301,8 +301,8 @@ class LoginController extends GetxController {
         print('跳转到用户协议页面');
         AgreementUtils.toUserAgreement();
         break;
-      case '隐私政策':
-        print('跳转到隐私政策页面');
+      case '隐私协议':
+        print('跳转到隐私协议页面');
         AgreementUtils.toPrivacyAgreement();
         break;
       default:

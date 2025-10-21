@@ -68,19 +68,19 @@ class InfoSettingPage extends StatelessWidget {
 
                   // 头像部分
                   Center(
-                    child: GestureDetector(
-                      onTap: controller.pickImage,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // 头像背景
-                          Image.asset(
-                            'assets/kissu_info_setting_headerbg.webp',
-                            width: 90,
-                            height: 90,
-                          ),
-                          // 用户头像
-                          Obx(() {
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 头像背景
+                        Image.asset(
+                          'assets/kissu_info_setting_headerbg.webp',
+                          width: 90,
+                          height: 90,
+                        ),
+                        // 用户头像 - 可点击预览
+                        GestureDetector(
+                          onTap: controller.previewAvatar,
+                          child: Obx(() {
                             return ClipOval(
                               child:
                                   controller.avatarUrl.value.startsWith('assets/')
@@ -106,18 +106,21 @@ class InfoSettingPage extends StatelessWidget {
                                     ),
                             );
                           }),
-                          // 相机图标 - 放在右下角
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
+                        ),
+                        // 相机图标 - 放在右下角，可点击上传
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: controller.pickImage,
                             child: Image.asset(
                               'assets/kissu_info_setting_camera.webp',
                               width: 30,
                               height: 30,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   SizedBox(height: 24),

@@ -11,9 +11,9 @@ class LocationReportApi {
     List<LocationReportModel> locations,
   ) async {
     try {
-      // 过滤无效的位置数据
+      // 过滤无效的位置数据（使用宽松验证，与Android原生策略保持一致）
       final validLocations = locations
-          .where((loc) => loc.isFullyValid)
+          .where((loc) => loc.isBasicValid) // 🔧 改为使用宽松验证
           .toList();
 
       if (validLocations.isEmpty) {

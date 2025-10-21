@@ -69,8 +69,9 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
                     }
                     BaseResp.ErrCode.ERR_USER_CANCEL -> {
                         Log.d(TAG, "⚠️ 微信支付取消 (errCode=-2)")
-                        // 通知Flutter层支付取消
+                        // 通知Flutter层支付取消 - 增强处理
                         notifyFlutterPaymentResult(false, "用户取消支付")
+                        Log.d(TAG, "📢 用户取消支付通知已发送")
                     }
                     BaseResp.ErrCode.ERR_COMM -> {
                         Log.d(TAG, "❌ 微信支付错误 (errCode=-1)")
@@ -85,6 +86,10 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
             }
             else -> {
                 Log.d(TAG, "⚠️ 非微信支付回调: type=${resp?.type}")
+                // 如果不是微信支付回调，但我们正在等待支付结果，可能是异常情况
+                // 为了保险起见，也发送一个取消通知
+                Log.d(TAG, "⚠️ 非预期的回调类型，发送取消通知以防状态卡住")
+                notifyFlutterPaymentResult(false, "支付流程异常")
             }
         }
         
@@ -106,10 +111,30 @@ class WXPayEntryActivity : Activity(), IWXAPIEventHandler {
             val intent = android.content.Intent("kissu.payment.result").apply {
                 putExtra("success", success)
                 putExtra("message", message)
+                putExtra("timestamp", System.currentTimeMillis()) // 添加时间戳
                 setPackage(packageName)
             }
             sendBroadcast(intent)
             Log.d(TAG, "✅ 支付结果广播已发送: success=$success, message=$message")
+            
+            // 增强：延迟再发送一次，确保广播能被接收到
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    Log.d(TAG, "🔄 延迟重发支付结果广播: success=$success")
+                    val retryIntent = android.content.Intent("kissu.payment.result").apply {
+                        putExtra("success", success)
+                        putExtra("message", message)
+                        putExtra("timestamp", System.currentTimeMillis())
+                        putExtra("retry", true) // 标记为重试
+                        setPackage(packageName)
+                    }
+                    sendBroadcast(retryIntent)
+                    Log.d(TAG, "✅ 重试广播已发送")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ 重试广播失败", e)
+                }
+            }, 500) // 延迟500ms
+            
         } catch (e: Exception) {
             Log.e(TAG, "❌ 发送支付结果广播失败", e)
         }

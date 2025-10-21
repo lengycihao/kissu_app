@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/models/location_anomaly_model.dart';
-import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart'; 
+import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
+import 'package:kissu_app/widgets/safe_amap_widget.dart'; 
 
 /// 定位/足迹异常详情页面
 /// 显示全屏地图
@@ -51,7 +52,7 @@ class _LocationAnomalyDetailPageState extends State<LocationAnomalyDetailPage> {
       body: Stack(
         children: [
           // 全屏地图
-          AMapWidget(
+          SafeAMapWidget(
             onMapCreated: (AMapController controller) {
               controller.moveCamera(
                 CameraUpdate.newCameraPosition(

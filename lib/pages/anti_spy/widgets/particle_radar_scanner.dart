@@ -94,6 +94,8 @@ class _ParticleRadarScannerState extends State<ParticleRadarScanner>
   }
   
   void _updateParticles() {
+    if (!mounted) return; // 安全检查
+    
     setState(() {
       // 更新现有粒子
       for (var particle in _particles) {
@@ -103,9 +105,9 @@ class _ParticleRadarScannerState extends State<ParticleRadarScanner>
       // 移除死亡的粒子
       _particles.removeWhere((particle) => particle.isDead);
       
-      // 添加新粒子（在扫描时）
-      final controller = Get.find<AntiSpyController>();
-      if (controller.scanState.value == ScanState.scanning && _particles.length < 50) {
+      // 🎯 添加新粒子（在动画运行时），不依赖controller状态
+      // 只要动画控制器在运行，就生成粒子，让动画更流畅独立
+      if (_rotationController.isAnimating && _particles.length < 50) {
         _addNewParticles();
       }
     });
@@ -221,19 +223,22 @@ class _ParticleRadarScannerState extends State<ParticleRadarScanner>
   }
   
   Widget _buildScanLine(AntiSpyController controller) {
-    return AnimatedBuilder(
-      animation: _rotationAnimation,
-      builder: (context, child) {
-        return Transform.rotate(
-          angle: _rotationAnimation.value * 2 * math.pi,
-          child: CustomPaint(
-            size: Size(widget.size, widget.size),
-            painter: ParticleScanLinePainter(
-              color: _getRadarColor(controller.scanState.value),
+    // 🎯 使用RepaintBoundary隔离重绘区域
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _rotationAnimation,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: _rotationAnimation.value * 2 * math.pi,
+            child: CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: ParticleScanLinePainter(
+                color: _getRadarColor(controller.scanState.value),
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
   

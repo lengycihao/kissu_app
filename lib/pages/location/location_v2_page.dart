@@ -43,6 +43,12 @@ class _LocationPageContentState extends State<_LocationPageContent>
   late double minHeight;
   late double maxHeight;
   late double mapHeight;
+  
+  /// 下半屏拖拽控制器
+  late DraggableScrollableController _draggableController;
+  
+  /// ScrollView控制器（由DraggableScrollableSheet提供）
+  ScrollController? _scrollController;
 
   @override
   void initState() {
@@ -85,6 +91,10 @@ class _LocationPageContentState extends State<_LocationPageContent>
     // 最大位置：顶部距离屏幕顶部100px
     maxHeight = screenHeight - 100;
     mapHeight = screenHeight - initialHeight + 90;
+
+    // 初始化底部面板控制器
+    _draggableController = DraggableScrollableController();
+    widget.controller.setDraggableController(_draggableController);
   }
 
   @override
@@ -160,6 +170,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                   screenHeight); // 未绑定：稍微往上偏移42px（设备模块高度差）+ 35
 
                     return DraggableScrollableSheet(
+                      controller: _draggableController,
                       initialChildSize: initialHeight / screenHeight,
                       minChildSize: shouldLimitDrag
                           ? initialHeight / screenHeight
@@ -177,6 +188,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
                             ],
                       snapAnimationDuration: const Duration(milliseconds: 200), // 🎯 优化滑动体验：缩短吸附动画时间
                       builder: (context, scrollController) {
+                        // 保存scrollController以便在返回按钮点击时使用
+                        _scrollController = scrollController;
                         return Column(
                           children: [
                             Expanded(
@@ -542,7 +555,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
               ),
             ),
 
-            // 顶部返回按钮
+            // 顶部返回按钮（带旋转动画）
             Positioned(
               top: MediaQuery.of(context).padding.top + 16,
               left: 20,
@@ -559,11 +572,19 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   ],
                 ),
                 child: GestureDetector(
-                  onTap: () => Get.back(),
-                  child: Image.asset(
-                    'assets/kissu_mine_back.webp',
-                    width: 24,
-                    height: 24,
+                  onTap: () => widget.controller.handleBackButtonTap(_scrollController),
+                  child: AnimatedBuilder(
+                    animation: widget.controller.backButtonRotationAnimation,
+                    builder: (context, child) {
+                      return Transform.rotate(
+                        angle: widget.controller.backButtonRotationAnimation.value * 2 * 3.14159, // 转换为弧度
+                        child: Image.asset(
+                          'assets/kissu_mine_back.webp',
+                          width: 24,
+                          height: 24,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -585,8 +606,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
 }
 
 
-// 全屏渐变背景遮罩 - 从中间滑到顶部时显示
-class _GradientBackgroundOverlay extends StatelessWidget {
+// 全屏渐变背景遮罩 - 从中间滑到顶部时显示（优化版）
+class _GradientBackgroundOverlay extends StatefulWidget {
   final LocationV2Controller controller;
   final double screenHeight;
   final double initialHeight;
@@ -600,45 +621,66 @@ class _GradientBackgroundOverlay extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // 计算中间位置（屏幕中间）
-      final middlePosition = 0.5; // 屏幕中间位置
-      final maxPosition = maxHeight / screenHeight;
-      final currentPercent = controller.sheetPercent.value;
+  State<_GradientBackgroundOverlay> createState() => _GradientBackgroundOverlayState();
+}
 
-      // 只在从中间位置滑到顶部时显示渐变背景
-      // 当 currentPercent > middlePosition 时开始显示
-      double opacity = 0.0;
-      if (currentPercent > middlePosition) {
-        // 从中间到顶部的进度：0 到 1
-        final progress =
-            (currentPercent - middlePosition) / (maxPosition - middlePosition);
-        opacity = progress.clamp(0.0, 1.0);
+class _GradientBackgroundOverlayState extends State<_GradientBackgroundOverlay> {
+  double _opacity = 0.0;
+  double _lastPercent = 0.0;
+  
+  @override
+  void initState() {
+    super.initState();
+    // 使用防抖来减少更新频率
+    widget.controller.sheetPercent.listen((percent) {
+      // 只有当变化超过阈值时才更新
+      if ((percent - _lastPercent).abs() > 0.02) {
+        _lastPercent = percent;
+        _updateOpacity(percent);
       }
+    });
+  }
+  
+  void _updateOpacity(double currentPercent) {
+    final middlePosition = 0.5;
+    final maxPosition = widget.maxHeight / widget.screenHeight;
+    
+    double newOpacity = 0.0;
+    if (currentPercent > middlePosition) {
+      final progress = (currentPercent - middlePosition) / (maxPosition - middlePosition);
+      newOpacity = progress.clamp(0.0, 1.0);
+    }
+    
+    if (mounted && newOpacity != _opacity) {
+      setState(() {
+        _opacity = newOpacity;
+      });
+    }
+  }
 
-      return Positioned.fill(
-        child: IgnorePointer(
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: opacity,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFFEF6F0), // 顶部颜色
-                    Color(0xFFFFFFFF), // 中间颜色
-                    Color(0xFFF6F6F6), // 底部颜色
-                  ],
-                ),
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: _opacity,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFFEF6F0), // 顶部颜色
+                  Color(0xFFFFFFFF), // 中间颜色
+                  Color(0xFFF6F6F6), // 底部颜色
+                ],
               ),
             ),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 }
 
@@ -892,50 +934,46 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
       // 使用ListView.builder优化大列表性能
       if (records.length > 10) {
         // 数据太多，不显示背景图片
-        return SizedBox(
-          height: 400, // 限制高度，启用滚动
-          child: Column(
-            children: [
-              Obx(() {
-                final recordCount = controller.locationRecords.length;
-                return Row(
-                  children: [
-                    Text(
-                      "今日停留$recordCount个地方",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF000000),
-                        fontWeight: FontWeight.w600,
-                      ),
+        return Column(
+          children: [
+            Obx(() {
+              final recordCount = controller.locationRecords.length;
+              return Row(
+                children: [
+                  Text(
+                    "今日停留$recordCount个地方",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF000000),
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 8),
-                    Image.asset(
-                      'assets/kissu_love_yellow.webp',
-                      width: 23,
-                      height: 23,
-                    ),
-                  ],
+                  ),
+                  const SizedBox(width: 8),
+                  Image.asset(
+                    'assets/kissu_love_yellow.webp',
+                    width: 23,
+                    height: 23,
+                  ),
+                ],
+              );
+            }),
+            SizedBox(height: 16),
+            // 停留记录列表 - 使用与轨迹页面相同的方式
+            if (records.isNotEmpty) ...[
+              ...records.asMap().entries.map((entry) {
+                final index = entry.key;
+                final record = entry.value;
+                final isLast = index == records.length - 1;
+                return RepaintBoundary(
+                  child: _LocationRecordItem(
+                    record: record,
+                    index: index,
+                    isLast: isLast,
+                  ),
                 );
               }),
-              SizedBox(height: 16),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: records.length,
-                itemBuilder: (context, index) {
-                  final record = records[index];
-                  final isLast = index == records.length - 1;
-                  return RepaintBoundary(
-                    child: _LocationRecordItem(
-                      record: record,
-                      index: index,
-                      isLast: isLast,
-                    ),
-                  );
-                },
-              ),
             ],
-          ),
+          ],
         );
       } else {
         // 少量数据时使用Column，并显示背景图片
@@ -984,8 +1022,8 @@ class _LocationListWithBackground extends StatelessWidget {
 
       return Stack(
         children: [
-          Column(
-            children: [
+            Column(
+              children: [
               Row(
                 children: [
                   Text(

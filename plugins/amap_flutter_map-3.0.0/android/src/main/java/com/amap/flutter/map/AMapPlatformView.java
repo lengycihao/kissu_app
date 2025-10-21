@@ -74,6 +74,8 @@ public class AMapPlatformView
             polylinesController = new PolylinesController(methodChannel, amap);
             polygonsController = new PolygonsController(methodChannel, amap);
             circlesController = new CirclesController(methodChannel, amap);
+            // 设置 MarkersController 到 MapController，用于控制 InfoWindow
+            mapController.setMarkersController(markersController);
             initMyMethodCallHandlerMap();
             lifecycleProvider.getLifecycle().addObserver(this);
         } catch (Throwable e) {

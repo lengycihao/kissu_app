@@ -58,14 +58,7 @@ android {
         
         // OpenInstall配置
         manifestPlaceholders["OPENINSTALL_APPKEY"] = "eb24o3"
-        
-        // 只打 arm 架构，去掉 x86_64
-        // 使用 ndk.abiFilters 而不是 splits，因为 Flutter 插件会自动设置 abiFilters
-        ndk {
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
-        }
     }
-
 
 
     signingConfigs {

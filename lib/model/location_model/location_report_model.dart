@@ -1,12 +1,12 @@
 /// 位置上报数据模型
 class LocationReportModel {
-  final String longitude;  // 经度
-  final String latitude;   // 纬度
+  final String longitude; // 经度
+  final String latitude; // 纬度
   final String locationTime; // 定位时间（时间戳）
-  final String speed;      // 时速
-  final String altitude;   // 海拔
+  final String speed; // 时速
+  final String altitude; // 海拔
   final String locationName; // 地点
-  final String accuracy;   // 精度
+  final String accuracy; // 精度
 
   LocationReportModel({
     required this.longitude,
@@ -32,14 +32,13 @@ class LocationReportModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'longitude': longitude.toString(),      // 🎯 确保输出字符串
-      'latitude': latitude.toString(),        // 🎯 确保输出字符串
+      'longitude': longitude.toString(), // 🎯 确保输出字符串
+      'latitude': latitude.toString(), // 🎯 确保输出字符串
       'location_time': locationTime.toString(), // 🎯 确保输出字符串
-      'speed': speed.toString(),              // 🎯 确保输出字符串
-      'altitude': altitude.toString(),        // 🎯 确保输出字符串
+      'speed': speed.toString(), // 🎯 确保输出字符串
+      'altitude': altitude.toString(), // 🎯 确保输出字符串
       'location_name': locationName.toString(), // 🎯 确保输出字符串
-      // 🔧 修复：移除accuracy字段，与iOS原生版本和服务器API保持一致
-      'accuracy': accuracy.toString(),     // ❌ 服务器不需要此字段
+      'accuracy': accuracy.toString(),
     };
   }
 
@@ -55,27 +54,27 @@ class LocationReportModel {
       if (latitude.isEmpty || longitude.isEmpty) {
         return false;
       }
-      
+
       // 尝试解析为数字
       final lat = double.tryParse(latitude);
       final lng = double.tryParse(longitude);
-      
+
       if (lat == null || lng == null) {
         return false;
       }
-      
+
       // 检查经纬度范围
       // 纬度范围：-90 到 90
       // 经度范围：-180 到 180
       if (lat.abs() > 90 || lng.abs() > 180) {
         return false;
       }
-      
+
       // 检查是否为0,0（无效坐标）
       if (lat == 0.0 && lng == 0.0) {
         return false;
       }
-      
+
       return true;
     } catch (e) {
       return false;
@@ -84,47 +83,43 @@ class LocationReportModel {
 
   /// ✅ 精度检查：是否为高质量定位
   bool get hasGoodAccuracy {
-    try {
-      final acc = double.tryParse(accuracy);
-      return acc != null && acc > 0 && acc <= 100.0;
-    } catch (e) {
-      return false;
-    }
+    // 不再检查精度，始终视为通过
+    return true;
   }
 
   /// ✅ 精度检查：是否为高精度定位（20米内）
-  bool get hasHighAccuracy {
-    try {
-      final acc = double.tryParse(accuracy);
-      return acc != null && acc > 0 && acc <= 20.0;
-    } catch (e) {
-      return false;
-    }
-  }
+  // bool get hasHighAccuracy {
+  //   try {
+  //     final acc = double.tryParse(accuracy);
+  //     return acc != null && acc > 0 && acc <= 20.0;
+  //   } catch (e) {
+  //     return false;
+  //   }
+  // }
 
-  /// ✅ 速度检查：是否在合理范围内（< 200 km/h）
-  bool get hasReasonableSpeed {
-    try {
-      final spd = double.tryParse(speed);
-      if (spd == null) return true; // 速度为空时不过滤
-      // 速度单位是m/s，200km/h ≈ 55.6m/s
-      return spd >= 0 && spd <= 55.6;
-    } catch (e) {
-      return true;
-    }
-  }
+  // /// ✅ 速度检查：是否在合理范围内（< 200 km/h）
+  // bool get hasReasonableSpeed {
+  //   try {
+  //     final spd = double.tryParse(speed);
+  //     if (spd == null) return true; // 速度为空时不过滤
+  //     // 速度单位是m/s，200km/h ≈ 55.6m/s
+  //     return spd >= 0 && spd <= 55.6;
+  //   } catch (e) {
+  //     return true;
+  //   }
+  // }
 
   /// ✅ 时间戳检查：是否为合理的时间戳
   bool get hasValidTimestamp {
     try {
       final timestamp = int.tryParse(locationTime);
       if (timestamp == null) return false;
-      
+
       // 检查时间戳是否在合理范围内（10位秒时间戳）
       // 2020-01-01 到 2100-01-01
       final minTimestamp = 1577836800; // 2020-01-01 (10位秒)
       final maxTimestamp = 4102444800; // 2100-01-01 (10位秒)
-      
+
       return timestamp >= minTimestamp && timestamp <= maxTimestamp;
     } catch (e) {
       return false;
@@ -133,10 +128,13 @@ class LocationReportModel {
 
   /// ✅ 综合验证：所有检查都通过
   bool get isFullyValid {
-    return isValid && 
-           hasGoodAccuracy && 
-           hasReasonableSpeed && 
-           hasValidTimestamp;
+    return isValid && hasValidTimestamp;
+  }
+
+  /// ✅ 宽松验证：适用于Android原生上报策略（只检查基础有效性）
+  bool get isBasicValid {
+    return isValid && hasValidTimestamp;
+    // 注意：不检查精度，与Android原生策略保持一致
   }
 }
 
@@ -144,24 +142,20 @@ class LocationReportModel {
 class LocationReportRequest {
   final List<LocationReportModel> locations;
 
-  LocationReportRequest({
-    required this.locations,
-  });
+  LocationReportRequest({required this.locations});
 
   factory LocationReportRequest.fromJson(Map<String, dynamic> json) {
     return LocationReportRequest(
       locations: json['locations'] != null
           ? (json['locations'] as List)
-              .map((i) => LocationReportModel.fromJson(i))
-              .toList()
+                .map((i) => LocationReportModel.fromJson(i))
+                .toList()
           : [],
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'locations': locations.map((e) => e.toJson()).toList(),
-    };
+    return {'locations': locations.map((e) => e.toJson()).toList()};
   }
 
   @override
@@ -176,11 +170,7 @@ class LocationReportResponse {
   final String? message;
   final dynamic data;
 
-  LocationReportResponse({
-    required this.success,
-    this.message,
-    this.data,
-  });
+  LocationReportResponse({required this.success, this.message, this.data});
 
   factory LocationReportResponse.fromJson(Map<String, dynamic> json) {
     return LocationReportResponse(
@@ -191,10 +181,6 @@ class LocationReportResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'success': success,
-      'message': message,
-      'data': data,
-    };
+    return {'success': success, 'message': message, 'data': data};
   }
 }

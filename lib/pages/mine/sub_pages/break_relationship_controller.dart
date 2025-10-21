@@ -42,10 +42,8 @@ class BreakRelationshipController extends GetxController {
   }
 
   void _calculateLoveDays(user) {
-    // 优先使用LoverInfo中的天数数据
-    if (user.loverInfo != null &&
-        user.loverInfo!.loveDays != null &&
-        user.loverInfo!.loveDays! > 0) {
+    // 优先使用LoverInfo中的天数数据（包括0）
+    if (user.loverInfo != null && user.loverInfo!.loveDays != null) {
       loveDays.value = user.loverInfo!.loveDays!;
       return;
     }

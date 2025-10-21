@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:kissu_app/constants/agreement_constants.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
+import 'package:kissu_app/network/tools/config/app_configN.dart';
 
 /// 协议跳转工具类
 class AgreementUtils {
@@ -33,6 +34,19 @@ class AgreementUtils {
     Get.to(() => AgreementWebViewPage(
       title: AgreementConstants.privacySecurityTitle,
       url: AgreementConstants.privacySecurity,
+    ));
+  }
+
+  /// 跳转到位置须知
+  static void toLocationNotice() {
+    // 根据环境选择对应的URL
+    final url = AppConfigN.serverEnvironmentTest
+        ? AgreementConstants.locationNoticeTest
+        : AgreementConstants.locationNotice;
+    
+    Get.to(() => AgreementWebViewPage(
+      title: AgreementConstants.locationNoticeTitle,
+      url: url,
     ));
   }
 }

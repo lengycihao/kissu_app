@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'usage_settings_controller.dart';
+import 'package:kissu_app/widgets/dialogs/location_state_delete_dialog.dart';
 
 class UsageSettingsPage extends StatelessWidget {
   const UsageSettingsPage({super.key});
@@ -9,12 +10,23 @@ class UsageSettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(UsageSettingsController());
     
-    return Scaffold(
-      body: Stack(
-        children: [
-          _buildBackground(),
-          SafeArea(child: _buildMainContent(controller)),
-        ],
+    // 设置返回确认弹窗的回调
+    controller.onShowBackDialog = () => _showBackConfirmDialog(context, controller);
+    
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          controller.handleBack();
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            _buildBackground(),
+            SafeArea(child: _buildMainContent(controller)),
+          ],
+        ),
       ),
     );
   }
@@ -35,7 +47,7 @@ class UsageSettingsPage extends StatelessWidget {
   Widget _buildMainContent(UsageSettingsController controller) {
     return Column(
       children: [
-        _buildHeader(),
+        _buildHeader(controller),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -53,23 +65,30 @@ class UsageSettingsPage extends StatelessWidget {
                 _buildSectionTitle('手机状态消息'),
                 const SizedBox(height: 16),
                 _buildPhoneStatusSection(controller),
+                
+                const SizedBox(height: 100), // 为底部保存按钮留出空间
               ],
             ),
           ),
         ),
+        
+        // 保存按钮区域
+        _buildSaveButtonArea(controller),
       ],
     );
   }
 
   // 构建头部
-  Widget _buildHeader() {
+  Widget _buildHeader(UsageSettingsController controller) {
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Get.back(),
+            onTap: () {
+              controller.handleBack();
+            },
             child: Image.asset(
               'assets/kissu_mine_back.webp',
               width: 24,
@@ -126,7 +145,7 @@ class UsageSettingsPage extends StatelessWidget {
           );
         }
 
-        if (controller.notificationList.isEmpty) {
+        if (controller.tempNotificationList.isEmpty) {
           return const Center(
             child: Text(
               '暂无通知设置',
@@ -139,7 +158,7 @@ class UsageSettingsPage extends StatelessWidget {
         }
 
         // 动态构建两列布局
-        final items = controller.notificationList;
+        final items = controller.tempNotificationList;
         final leftItems = <Widget>[];
         final rightItems = <Widget>[];
 
@@ -226,6 +245,102 @@ class UsageSettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建保存按钮区域
+  Widget _buildSaveButtonArea(UsageSettingsController controller) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
+      child: SafeArea(
+        child: Obx(() {
+          final hasChanges = controller.hasUnsavedChanges;
+          final isSaving = controller.isSaving.value;
+          
+          return Row(
+            children: [
+              // 重置按钮
+              if (hasChanges)
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    height: 44,
+                    margin: const EdgeInsets.only(right: 8),
+                    child: OutlinedButton(
+                      onPressed: isSaving ? null : controller.resetSettings,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFFF87D1)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                      child: const Text(
+                        '重置',
+                        style: TextStyle(
+                          color: Color(0xFFFF87D1),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              
+              // 保存按钮
+              Expanded(
+                flex: hasChanges ? 2 : 1,
+                child: Container(
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: (hasChanges && !isSaving) ? controller.saveSettings : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasChanges ? const Color(0xFFFF87D1) : const Color(0xFFE0E0E0),
+                      foregroundColor: hasChanges ? Colors.white : const Color(0xFF999999),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            hasChanges ? '保存设置' : '暂无更改',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+  
+  /// 显示返回确认弹窗
+  void _showBackConfirmDialog(BuildContext context, UsageSettingsController controller) {
+    LocationStateDeleteDialog.show(
+      context: context,
+      title: '确定要放弃当前更改吗？',
+      onConfirm: () {
+        controller.confirmBack();
+      },
+      onCancel: () {
+        controller.cancelBack();
+      },
     );
   }
 }

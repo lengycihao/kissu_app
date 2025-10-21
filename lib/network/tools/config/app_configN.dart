@@ -3,7 +3,7 @@ class AppConfigN {
   /// 服务环境
   /// 测试环境:true
   /// 生产环境:false
-  static const serverEnvironmentTest = true;
+  static const serverEnvironmentTest = false;
 
   /// api 加密开关
   /// 仅测试渠道可关闭api加密

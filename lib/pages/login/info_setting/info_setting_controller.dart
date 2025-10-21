@@ -99,6 +99,96 @@ class InfoSettingController extends GetxController {
     }
   }
 
+  /// 预览头像
+  void previewAvatar() {
+    // 如果头像是默认头像（assets路径），不进行预览
+    if (avatarUrl.value.startsWith('assets/')) {
+      print('❌ 头像预览: 默认头像，无法预览');
+      return;
+    }
+    
+    // 如果有网络头像URL，进行预览
+    if (avatarUrl.value.isNotEmpty && avatarUrl.value.startsWith('http')) {
+      _showImagePreview(
+        Get.context!,
+        imageUrl: avatarUrl.value,
+      );
+    } else {
+      print('❌ 头像预览: 无有效头像可预览');
+    }
+  }
+
+  /// 显示图片预览对话框
+  void _showImagePreview(
+    BuildContext context, {
+    required String imageUrl,
+  }) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (BuildContext context) {
+        return GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.zero,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              child: Stack(
+                children: [
+                  // 图片内容
+                  Center(
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Text(
+                              '图片加载失败',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  // 关闭按钮
+                  Positioned(
+                    top: 40,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// 选择头像
   Future<void> pickImage() async {
     try {

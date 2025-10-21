@@ -132,23 +132,13 @@ class ScreenshotFeedbackButton extends StatelessWidget {
   
   /// 处理反馈按钮点击
   void _handleFeedbackTap(ScreenshotFeedbackButtonController controller) {
-    final screenshotPath = controller.currentScreenshotPath;
-    
-    if (screenshotPath == null || screenshotPath.isEmpty) {
-      print('❌ 截屏反馈按钮: 截图路径为空');
-      return;
-    }
-    
     // 隐藏按钮
     controller.hide();
     
-    // 跳转到意见反馈页面，传递截图路径
-    Get.toNamed(
-      KissuRoutePath.feedback,
-      arguments: {'screenshotPath': screenshotPath},
-    );
+    // 跳转到意见反馈页面，不再传递截图路径
+    Get.toNamed(KissuRoutePath.feedback);
     
-    print('✅ 截屏反馈按钮: 跳转到意见反馈页面');
+    print('✅ 截屏反馈按钮: 跳转到意见反馈页面（不传递截图）');
   }
 }
 

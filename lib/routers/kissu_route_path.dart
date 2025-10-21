@@ -30,4 +30,5 @@ class KissuRoutePath {
   static const messageDetail = '/kisssu_app/message_detail';
   static const interactionMessage = '/kisssu_app/interaction_message';
   static const track = '/kisssu_app/track';
+  static const trackPlayTest = '/kisssu_app/track_play_test';
 }

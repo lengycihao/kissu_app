@@ -63,11 +63,22 @@ class AntiSpyPage extends GetView<AntiSpyController> {
               ),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
-              child: Text(
-                "防偷拍检测",
-                style: TextStyle(fontSize: 18, color: Color(0xFF333333)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "防偷拍检测",
+                    style: TextStyle(fontSize: 18, color: Color(0xFF333333)),
+                  ),
+                  Image.asset(
+                    "assets/3.0/kissu3_ftp_info_tip.webp",
+                    width: 75,
+                    height: 18,
+                  ),
+                ],
               ),
             ),
           ),
@@ -140,10 +151,7 @@ class AntiSpyPage extends GetView<AntiSpyController> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-          
-      ),
+      decoration: BoxDecoration(color: Colors.white),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -166,7 +174,7 @@ class AntiSpyPage extends GetView<AntiSpyController> {
             style: TextStyle(fontSize: 16, color: Color(0xFF333333)),
           ),
           const SizedBox(height: 10),
-          
+
           // 根据WiFi连接状态显示不同内容
           if (controller.isWifiConnected.value) ...[
             // 已连接WiFi
@@ -179,7 +187,10 @@ class AntiSpyPage extends GetView<AntiSpyController> {
                 ),
                 Text(
                   controller.currentWifiName.value,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF999999),
+                  ),
                 ),
               ],
             ),
@@ -205,7 +216,7 @@ class AntiSpyPage extends GetView<AntiSpyController> {
               ],
             ),
           ],
-          
+
           const SizedBox(height: 25),
           _buildActionButton(),
           const SizedBox(height: 10),
@@ -461,7 +472,7 @@ class AntiSpyPage extends GetView<AntiSpyController> {
 
           // 显示所有发现的设备
           if (controller.discoveredDevices.isNotEmpty) ...[
-              Text(
+            Text(
               "所有发现的设备（${controller.discoveredDevices.length}个）:",
               style: TextStyle(
                 fontSize: 14,
@@ -687,7 +698,9 @@ class AntiSpyPage extends GetView<AntiSpyController> {
                 buttonText,
                 style: TextStyle(
                   fontSize: 16,
-                  color: onPressed == null ? const Color(0xFF999999) : Colors.white,
+                  color: onPressed == null
+                      ? const Color(0xFF999999)
+                      : Colors.white,
                 ),
               ),
             ),

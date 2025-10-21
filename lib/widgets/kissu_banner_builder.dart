@@ -32,6 +32,23 @@ class KissuBannerBuilder {
   static const String _transportGo = 'assets/3.0/kissu3_banner_go_icon.webp';
   static const double _transportIconSize = 38.0;
 
+  /// 根据出行工具类型获取对应图标
+  /// - 1: 行走 (_transportGo)
+  /// - 2: 骑车 (_transportBike)
+  /// - 3: 坐车 (_transportCar)
+  static String getTravelToolIcon(int travelTool) {
+    switch (travelTool) {
+      case 1:
+        return _transportGo; // 行走
+      case 2:
+        return _transportBike; // 骑车
+      case 3:
+        return _transportCar; // 坐车
+      default:
+        return _transportGo; // 默认行走
+    }
+  }
+
   // 定位图标常量（足迹Banner专用）
   static const String _locationIcon = 'assets/3.0/kissu3_banner_location_icon.webp';
   static const double _locationIconSize = 33.0;
@@ -108,7 +125,7 @@ class KissuBannerBuilder {
   }
 
   /// 5. 绑定未开通VIP时的定位banner图
-  static List<String> buildLocationBannerForBoundNonVip([String? userAvatarUrl, String? partnerAvatarUrl]) {
+  static List<String> buildLocationBannerForBoundNonVip([String? userAvatarUrl, String? partnerAvatarUrl, int travelTool = 1]) {
     // 背景图：kissu_banner_bangding_unvip_location.webp
     // 自己的头像：坐标 (80, 27) - 使用原始头像背景大小 32×38
     // 另一半的头像背景：坐标 (249, 14)，大小 36×42
@@ -116,7 +133,7 @@ class KissuBannerBuilder {
     // 出行工具：坐标 (21, 30)，大小 38×38
     List<String> bannerImages = [
       _bgBoundNonVipLocation, // 背景图
-      _transportBike,         // 出行工具（先用自行车图标）
+      getTravelToolIcon(travelTool), // 出行工具图标（根据travelTool动态选择）
       _avatarBg,             // 自己的头像背景
     ];
     
@@ -156,7 +173,7 @@ class KissuBannerBuilder {
   }
 
   /// 7. 绑定开通VIP时的定位banner图
-  static List<String> buildLocationBannerForBoundVip([String? userAvatarUrl, String? partnerAvatarUrl]) {
+  static List<String> buildLocationBannerForBoundVip([String? userAvatarUrl, String? partnerAvatarUrl, int travelTool = 1]) {
     // 背景图：kissu3_banner_bangding_location_vip.webp
     // 出行工具：坐标 (21, 30)，大小 38×38
     // 自己的头像：坐标 (80, 28) - 使用原始头像背景大小 32×38
@@ -164,7 +181,7 @@ class KissuBannerBuilder {
     // 另一半的头像：大小 30×30，在头像背景上居中，上边距 2px
     List<String> bannerImages = [
       _bgBoundVipLocation, // 背景图
-      _transportBike,      // 出行工具（先用自行车图标）
+      getTravelToolIcon(travelTool), // 出行工具图标（根据travelTool动态选择）
       _avatarBg,          // 自己的头像背景
     ];
     
@@ -217,15 +234,16 @@ class KissuBannerBuilder {
     required bool isVip,
     String? userAvatarUrl,
     String? partnerAvatarUrl,
+    int travelTool = 1,
   }) {
     if (!isBound && !isVip) {
       return buildLocationBannerForUnboundNonVip(userAvatarUrl);
     } else if (!isBound && isVip) {
       return buildLocationBannerForUnboundVip(userAvatarUrl);
     } else if (isBound && !isVip) {
-      return buildLocationBannerForBoundNonVip(userAvatarUrl, partnerAvatarUrl);
+      return buildLocationBannerForBoundNonVip(userAvatarUrl, partnerAvatarUrl, travelTool);
     } else {
-      return buildLocationBannerForBoundVip(userAvatarUrl, partnerAvatarUrl);
+      return buildLocationBannerForBoundVip(userAvatarUrl, partnerAvatarUrl, travelTool);
     }
   }
 
@@ -275,6 +293,7 @@ class KissuBannerBuilder {
     String? userAvatarUrl,
     String? partnerAvatarUrl,
     String? distance,
+    int travelTool = 1,
     double width = 302,
     double height = 83,
   }) {
@@ -289,6 +308,7 @@ class KissuBannerBuilder {
             isVip: isVip,
             userAvatarUrl: userAvatarUrl,
             partnerAvatarUrl: partnerAvatarUrl,
+            travelTool: travelTool,
           )[0], width, height),
           
           // 如果需要显示头像（未绑定状态）
@@ -321,7 +341,7 @@ class KissuBannerBuilder {
               left: 21,
               top: 30,
               child: Image.asset(
-                _transportBike,
+                getTravelToolIcon(travelTool),
                 width: _transportIconSize,
                 height: _transportIconSize,
                 fit: BoxFit.fill,
@@ -392,6 +412,7 @@ class KissuBannerBuilder {
                 isVip: isVip,
                 userAvatarUrl: userAvatarUrl,
                 partnerAvatarUrl: partnerAvatarUrl,
+                travelTool: travelTool,
               );
               
               List<Widget> widgets = [];
@@ -591,7 +612,7 @@ class KissuBannerBuilder {
             ),
             
             // 计数文字："n个" 在定位图标右边，间距1px，字体14pt，颜色#7C6DFF，两者垂直居中
-            if (footprintCount != null && footprintCount > 0)
+            if (footprintCount != null)
               Positioned(
                 left: 21 + _locationIconSize + 1, // 定位图标右边，间距1px
                 top: 30 + (_locationIconSize - 14) / 2, // 垂直居中（14pt字体高度估算）

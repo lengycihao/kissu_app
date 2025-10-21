@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/sensitive_data_api.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
@@ -62,6 +63,17 @@ class SensitiveDataService extends GetxService {
     
     _startNetworkMonitoring();
     _startBatteryMonitoring();
+    
+    // 启动锁屏/解锁事件监听（在隐私合规且已登录后）
+    try {
+      if (!Get.isRegistered<ScreenLockService>()) {
+        Get.put(ScreenLockService());
+      }
+      ScreenLockService.instance.startListening();
+      DebugUtil.success('锁屏/解锁事件监听已启动');
+    } catch (e) {
+      DebugUtil.error('启动锁屏/解锁监听失败: $e');
+    }
     DebugUtil.success('敏感数据监听已启动（用户已同意隐私政策）');
   }
   

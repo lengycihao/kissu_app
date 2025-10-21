@@ -81,6 +81,7 @@ class FloatingTipsWidget extends StatelessWidget {
         text: '对方未开启定位，赶快提醒对方哦~',
         hasCloseButton: true,
         onClose: tipsManager.onPartnerLocationTipClose,
+        hasArrow: false, // 这个提示不显示箭头
       ));
     }
     
@@ -110,6 +111,7 @@ class FloatingTipsWidget extends StatelessWidget {
     required String text,
     required bool hasCloseButton,
     VoidCallback? onClose,
+    bool hasArrow = true, // 默认显示箭头
   }) {
     return Stack(
       clipBehavior: Clip.none,
@@ -134,13 +136,16 @@ class FloatingTipsWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              // 箭头图标
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Color(0xFFAD6D48), // #AD6D48
-              ),
-              const SizedBox(width: 11),
+              // 箭头图标（可控显示）
+              if (hasArrow) ...[
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Color(0xFFAD6D48), // #AD6D48
+                ),
+                const SizedBox(width: 11),
+              ] else
+                const SizedBox(width: 16), // 没有箭头时保持右边距
             ],
           ),
         ),

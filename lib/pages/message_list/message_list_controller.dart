@@ -71,11 +71,6 @@ class MessageListController extends GetxController {
     Get.back();
   }
 
-  /// 清空未读消息
-  void clearUnreadMessages() {
-    // TODO: 实现清空未读消息的逻辑
-    debugPrint('清空未读消息');
-  }
 
   /// 进入系统消息详情
   void goToSystemMessage() {

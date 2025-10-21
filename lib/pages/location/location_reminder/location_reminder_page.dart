@@ -5,6 +5,7 @@ import 'package:kissu_app/pages/location/location_reminder/location_picker/locat
 import 'package:kissu_app/widgets/location_map_snapshot.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/agreement_utils.dart';
 
 /// 位置提醒页面
 /// 
@@ -54,7 +55,8 @@ class LocationReminderPage extends GetView<LocationReminderController> {
         actions: [
           GestureDetector(
             onTap: () {
-               
+              // 跳转到位置须知页面
+              AgreementUtils.toLocationNotice();
             },
             child: Container(
               margin: const EdgeInsets.only(right: 16),

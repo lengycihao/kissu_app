@@ -225,17 +225,17 @@ class _AllRecordsPageState extends State<AllRecordsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 64,
-            color: Colors.grey[300],
+          Image.asset(
+            'assets/phone_history/kissu_phone_list_empty.webp',
+            width: 128,
+            height: 128,
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             '暂无记录',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[400],
+              color: Color(0xFF999999),
             ),
           ),
         ],

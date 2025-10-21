@@ -424,68 +424,79 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(height: 20),
-                  Stack(
-                    clipBehavior: Clip.none, // 允许子元素超出容器
-                    children: [
-                      GestureDetector(
-                        onTap: _previewImage,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Color(0xffFBCDFF),
-                              width: 3,
+                  // 使用Container包装Stack，确保超出部分可点击
+                  Container(
+                    width: 160, // 扩大容器宽度以容纳超出的按钮
+                    height: 140, // 扩大容器高度以容纳超出的按钮
+                    child: Stack(
+                      clipBehavior: Clip.none, // 允许子元素超出容器
+                      alignment: Alignment.center,
+                      children: [
+                        // 头像容器
+                        GestureDetector(
+                          onTap: _previewImage,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: Color(0xffFBCDFF),
+                                width: 3,
+                              ),
                             ),
+                            child: _buildAvatarDisplay(),
                           ),
-                          child: _buildAvatarDisplay(),
                         ),
-                      ),
                       // 上传按钮（右下角，超出容器右边20px，下边8px）
                       Positioned(
-                        right: -20, // 超出右边20px
-                        bottom: -8, // 超出下边8px
+                        right: 0, // 扩大点击区域，超出右边30px
+                        bottom: 0, // 扩大点击区域，超出下边18px
                         child: GestureDetector(
                           onTap: _isUploading ? null : _pickAvatar,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Image.asset(
-                                "assets/3.0/kissu3_upload_logo.webp",
-                                width: 46,
-                                height: 24,
-                              ),
-                              // 上传文字
-                              Text(
-                                "上传",
-                                style: TextStyle(
-                                  color: Color(0xFFFF78E2),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
+                          // 扩大点击区域：添加10px的padding，让点击区域从46x24变为66x44
+                          child: Container(
+                            padding: EdgeInsets.all(10),
+                            color: Colors.transparent,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset(
+                                  "assets/3.0/kissu3_upload_logo.webp",
+                                  width: 46,
+                                  height: 24,
                                 ),
-                              ),
-                            ],
+                                // 上传文字
+                                Text(
+                                  "上传",
+                                  style: TextStyle(
+                                    color: Color(0xFFFF78E2),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                        ),
+                      )],
+                    ),
+                  ),
+                  // 上传中的加载指示器
+                  if (_isUploading)
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       ),
-                      // 上传中的加载指示器
-                      if (_isUploading)
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
                   SizedBox(height: 33),
                   GestureDetector(
                     onTap: _isUploading ? null : () async {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/routers/kissu_route.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 class InteractionMessageController extends GetxController {
   // 消息列表数据
@@ -60,8 +62,9 @@ class InteractionMessageController extends GetxController {
   /// 查看消息详情
   void onViewMessage(InteractionMessageItem message) {
     debugPrint('查看消息: ${message.title}');
-    // TODO: 根据消息类型跳转到不同的页面
-    // 这里可以根据 title 或者添加 type 字段来判断跳转到哪个页面
+    if (message.eventType == 2) {
+      Get.toNamed(KissuRoutePath.location);
+    }
   }
 }
 
@@ -91,12 +94,14 @@ class InteractionMessageItem {
   final String title;
   final String content;
   final String date;
+  final int eventType;
 
   InteractionMessageItem({
     required this.id,
     required this.title,
     required this.content,
     required this.date,
+    required this.eventType,
   });
 
   factory InteractionMessageItem.fromJson(Map<String, dynamic> json) {
@@ -104,11 +109,11 @@ class InteractionMessageItem {
       id: json['id'] ?? '',
       title: json['title'] ?? '',
       content: json['content'] ?? '',
-      date: json['date'] ?? '',
+      date: json['date'] ?? '', eventType: json['event_type'] ?? 0,
     );
   }
 
   /// 判断是否是"Ta的消息"类型（需要显示查看按钮）
-  bool get isTaMessage => title.contains('Ta的消息');
+  bool get isTaMessage => eventType == 2;
 }
 

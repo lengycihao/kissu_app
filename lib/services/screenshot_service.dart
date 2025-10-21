@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 /// 截屏监听服务
 /// 用于监听用户截屏行为,并触发相应的UI反馈
@@ -89,13 +90,34 @@ class ScreenshotService extends GetxService {
     }
   }
   
+  // 权限状态缓存，避免重复检查
+  bool? _cachedPermissionStatus;
+  
   /// 【新增】只检查权限，不请求（避免启动时弹窗）
   Future<bool> _checkMediaPermission() async {
     try {
+      // 如果有缓存的权限状态，直接返回
+      if (_cachedPermissionStatus != null) {
+        print('📸 使用缓存的媒体库权限状态: $_cachedPermissionStatus');
+        return _cachedPermissionStatus!;
+      }
+      
+      // Android 13+ 使用系统 Photo Picker，不需要读取媒体权限
+      if (Platform.isAndroid) {
+        final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
+        if (isAndroid13OrAbove) {
+          print('📸 Android 13+ 使用系统Photo Picker，无需媒体库权限');
+          _cachedPermissionStatus = true;
+          return true;
+        }
+      }
+      
       final permission = _getPhotosPermission();
       final status = await permission.status;
       print('📸 媒体库权限状态: $status');
-      return status.isGranted;
+      final result = status.isGranted;
+      _cachedPermissionStatus = result;
+      return result;
     } catch (e) {
       print('❌ 检查媒体库权限失败: $e');
       return false;
@@ -105,6 +127,16 @@ class ScreenshotService extends GetxService {
   /// 请求读取媒体库权限（用于监听截屏）
   Future<bool> _requestMediaPermission() async {
     try {
+      // Android 13+ 使用系统 Photo Picker，不需要请求读取媒体权限
+      if (Platform.isAndroid) {
+        final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
+        if (isAndroid13OrAbove) {
+          print('📸 Android 13+ 使用系统Photo Picker，无需申请媒体库权限');
+          _cachedPermissionStatus = true;
+          return true;
+        }
+      }
+      
       final permission = _getPhotosPermission();
       
       // 检查权限状态
@@ -112,6 +144,7 @@ class ScreenshotService extends GetxService {
       print('📸 媒体库权限状态: $status');
       
       if (status.isGranted) {
+        _cachedPermissionStatus = true;
         return true;
       }
       
@@ -120,30 +153,60 @@ class ScreenshotService extends GetxService {
         print('📸 请求媒体库权限...');
         status = await permission.request();
         print('📸 权限请求结果: $status');
-        return status.isGranted;
+        final result = status.isGranted;
+        _cachedPermissionStatus = result;
+        return result;
       }
       
       if (status.isPermanentlyDenied) {
         print('⚠️ 媒体库权限被永久拒绝');
+        _cachedPermissionStatus = false;
         // 可以在这里引导用户到设置页面
         return false;
       }
       
-      return status.isGranted;
+      final result = status.isGranted;
+      _cachedPermissionStatus = result;
+      return result;
     } catch (e) {
       print('❌ 请求媒体库权限失败: $e');
       return false;
     }
   }
   
+  /// 判断是否为 Android 13 及以上（SDK >= 33）
+  Future<bool> _isAndroid13OrAbove() async {
+    try {
+      if (!Platform.isAndroid) return false;
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final int sdkInt = androidInfo.version.sdkInt;
+      print('📸 Android SDK版本: $sdkInt');
+      return sdkInt >= 33;
+    } catch (e) {
+      // 获取设备信息失败时，保守返回 false，保持旧逻辑
+      print("获取Android版本信息失败: $e");
+      return false;
+    }
+  }
+  
   /// 根据平台获取相册权限（和 PermissionService 保持一致）
   Permission _getPhotosPermission() {
-    // Android 和 iOS 都使用 photos 权限
-    // permission_handler 会自动根据系统版本选择合适的权限：
-    // - Android 13+ 会映射到 READ_MEDIA_IMAGES
-    // - Android 13- 会映射到 READ_EXTERNAL_STORAGE
-    // - iOS 会映射到 Photos 权限
-    return Permission.photos;
+    if (Platform.isAndroid) {
+      // Android 使用 storage 权限来访问相册
+      // permission_handler 会自动根据系统版本选择合适的权限：
+      // - Android 13+ 会映射到 READ_MEDIA_IMAGES
+      // - Android 13- 会映射到 READ_EXTERNAL_STORAGE
+      return Permission.storage;
+    } else {
+      // iOS 使用 photos 权限
+      return Permission.photos;
+    }
+  }
+  
+  /// 清除权限缓存（当权限状态可能发生变化时调用）
+  void _clearPermissionCache() {
+    _cachedPermissionStatus = null;
   }
   
   /// 停止监听截屏
@@ -159,6 +222,7 @@ class ScreenshotService extends GetxService {
       final result = await _channel.invokeMethod('stopListening');
       if (result == true) {
         _isListening = false;
+        _clearPermissionCache(); // 停止监听时清除权限缓存
         print('✅ 截屏监听: 已停止');
       }
     } catch (e) {
@@ -202,6 +266,7 @@ class ScreenshotService extends GetxService {
   void onClose() {
     stopListening();
     _listeners.clear();
+    _clearPermissionCache();
     super.onClose();
   }
 }

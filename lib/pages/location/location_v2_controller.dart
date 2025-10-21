@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -20,7 +20,7 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'widgets/location_tips_manager.dart';
 
-class LocationV2Controller extends GetxController {
+class LocationV2Controller extends GetxController with GetTickerProviderStateMixin {
   /// 当前查看的用户类型 (1: 自己, 0: 另一半)
   final isOneself = 0.obs; // 🎯 默认显示另一半
   
@@ -46,6 +46,16 @@ class LocationV2Controller extends GetxController {
   final partnerLocation = Rx<LatLng?>(null);
   final actualMyLocation = Rx<LatLng?>(null);
   final actualPartnerLocation = Rx<LatLng?>(null);
+  
+  /// 返回按钮旋转状态
+  final isBackButtonRotated = false.obs;
+  
+  /// 返回按钮动画控制器
+  late AnimationController backButtonAnimationController;
+  late Animation<double> backButtonRotationAnimation;
+  
+  /// 下半屏拖拽控制器
+  DraggableScrollableController? _draggableController;
   
   /// 距离信息
   final distance = "".obs;
@@ -80,6 +90,22 @@ class LocationV2Controller extends GetxController {
   
   /// 地图控制器
   AMapController? mapController;
+  
+  /// 摇摆动画相关
+  Timer? _swingTimer;
+  final swingAngle = 0.0.obs;
+  
+  /// 缓存的标记图标
+  BitmapDescriptor? _cachedMyIcon;
+  BitmapDescriptor? _cachedPartnerIcon;
+  String? _cachedMyAvatar;
+  String? _cachedPartnerAvatar;
+  Face? _cachedMyFace;
+  Face? _cachedPartnerFace;
+  bool? _cachedIsBindPartner;
+  
+  /// 图片缓存
+  final Map<String, ui.Image> _imageCache = {};
   
   /// 加载状态
   final isLoading = false.obs;
@@ -137,6 +163,16 @@ class LocationV2Controller extends GetxController {
       tipsManager.onInit();
       DebugUtil.info(' 提示管理器初始化完成');
       
+      // 初始化返回按钮动画控制器
+      DebugUtil.info(' 开始初始化返回按钮动画...');
+      _initBackButtonAnimation();
+      DebugUtil.info(' 返回按钮动画初始化完成');
+      
+      // 监听下半屏滑动位置变化
+      DebugUtil.info(' 开始监听下半屏滑动...');
+      _listenToSheetChanges();
+      DebugUtil.info(' 下半屏滑动监听设置完成');
+      
       // 统一的异步初始化入口
       DebugUtil.info(' 启动异步初始化流程');
       _initializePageAsync();
@@ -154,6 +190,77 @@ class LocationV2Controller extends GetxController {
     DebugUtil.info(' LocationController onReady 完成');
     // onReady 不再执行额外逻辑，避免与 onInit 中的异步初始化冲突
     // 所有初始化逻辑已在 _initializePageAsync 中统一处理
+  }
+  
+  /// 初始化返回按钮动画控制器
+  void _initBackButtonAnimation() {
+    backButtonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    backButtonRotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: -0.25, // -90度 (逆时针旋转90度)
+    ).animate(CurvedAnimation(
+      parent: backButtonAnimationController,
+      curve: Curves.easeInOut,
+    ));
+  }
+  
+  /// 监听下半屏滑动位置变化
+  void _listenToSheetChanges() {
+    sheetPercent.listen((percent) {
+      // 当滑动到顶部吸顶位置时（约0.85以上），触发按钮旋转
+      final topThreshold = 0.85;
+      
+      if (percent >= topThreshold && !isBackButtonRotated.value) {
+        // 滑动到顶部，按钮逆时针旋转90度
+        isBackButtonRotated.value = true;
+        backButtonAnimationController.forward();
+      } else if (percent < topThreshold && isBackButtonRotated.value) {
+        // 滑动离开顶部，按钮顺时针旋转回原位
+        isBackButtonRotated.value = false;
+        backButtonAnimationController.reverse();
+      }
+    });
+  }
+  
+  /// 处理旋转状态下的返回按钮点击
+  void handleBackButtonTap([ScrollController? scrollController]) {
+    if (isBackButtonRotated.value) {
+      // 如果按钮已旋转，将下半屏回滚到底部，并重置ScrollView
+      _scrollToBottom(scrollController);
+    } else {
+      // 正常返回
+      Get.back();
+    }
+  }
+  
+  /// 设置下半屏拖拽控制器
+  void setDraggableController(DraggableScrollableController controller) {
+    _draggableController = controller;
+  }
+  
+  /// 将下半屏滚动到底部
+  void _scrollToBottom([ScrollController? scrollController]) {
+    // 先将下半屏回滚到底部
+    if (_draggableController != null) {
+      _draggableController!.animateTo(
+        0.3, // 回到初始位置
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ).then((_) {
+        // 下半屏回滚完成后，再重置ScrollView到顶部
+        if (scrollController != null && scrollController.hasClients) {
+          scrollController.animateTo(
+            0.0, // 滚动到顶部
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    }
   }
   
   /// 统一的异步初始化流程（避免并发请求冲突）
@@ -407,25 +514,20 @@ class LocationV2Controller extends GetxController {
       
       // 绘制头像边框
       final borderPaint = Paint()
-        ..color = const Color(0xFFE8B4CB)
+        ..color = const Color(0xFFFF9AD8)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.75; // 边框宽度
+        ..strokeWidth = 20; // 边框宽度
       canvas.drawCircle(avatarCenter, avatarSize / 2, borderPaint);
       
-      // 加载并绘制头像
+      // 加载并绘制头像（优化版：使用缓存）
       ui.Image? avatarImage;
       if (avatarUrl.isNotEmpty) {
         try {
           if (avatarUrl.startsWith('http')) {
-            // 网络图片
-            final response = await http.get(Uri.parse(avatarUrl));
-            if (response.statusCode == 200) {
-              final codec = await ui.instantiateImageCodec(response.bodyBytes);
-              final frame = await codec.getNextFrame();
-              avatarImage = frame.image;
-            }
+            // 网络图片 - 使用缓存方法
+            avatarImage = await _loadImageFromNetwork(avatarUrl);
           } else {
-            // 本地资源图片
+            // 本地资源图片 - 使用缓存方法
             avatarImage = await _loadImageFromAsset(avatarUrl);
           }
         } catch (e) {
@@ -567,35 +669,40 @@ class LocationV2Controller extends GetxController {
       final pedestalScale = 0.8; // 底座缩放
       final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
       final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
+      final avatarBorderWidth = 20.0; // 头像边框宽度
       
       // 表情背景尺寸（如果有表情）
       final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0; // 表情背景高度
       final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0; // 表情背景与头像的间距
       
+      // 头像顶部需要的额外空间（用于容纳边框，避免被裁剪）
+      final avatarTopPadding = (face != null && face.isValid) ? 0.0 : avatarBorderWidth + 10; // 没有表情时需要额外空间
+      
       // 🖼️ 计算画布尺寸：确保能容纳表情背景、头像和底座
       final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20; // 左右各留10px边距
-      final canvasHeight = emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10; // 表情背景 + 间距 + 头像高度 + 底座下半部分 + 底部边距
+      final canvasHeight = avatarTopPadding + emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10; // 头像顶部边距 + 表情背景 + 间距 + 头像高度 + 底座下半部分 + 底部边距
       final size = Size(canvasWidth, canvasHeight);
       
       // 🎨 创建画布
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       
-      // 📍 关键坐标计算
-      // 底座底部 = 画布底部（留10px边距）
-      final pedestalBottom = size.height - 10;
-      final pedestalTop = pedestalBottom - pedestalHeight;
-      final pedestalLeft = (size.width - pedestalWidth) / 2; // 底座水平居中
+      // 📍 关键坐标计算（从顶部开始布局，确保头像不被裁剪）
+      // 表情背景位置（如果有表情）- 从顶部开始
+      final emojiBgTop = avatarTopPadding; // 从顶部留出的边距开始
+      final emojiBgLeft = (size.width - avatarSize) / 2; // 与头像宽度一致，居中对齐
       
-      // 头像底部 = 底座中心（视觉上头像"站在"底座上）
-      final avatarBottom = pedestalTop + pedestalHeight / 2;
-      final avatarTop = avatarBottom - avatarSize;
+      // 头像顶部位置
+      final avatarTop = (face != null && face.isValid) 
+          ? emojiBgTop + emojiBgHeight + emojiBgMargin 
+          : avatarTopPadding;
       final avatarCenterX = size.width / 2; // 头像水平居中
       final avatarCenterY = avatarTop + avatarSize / 2;
       
-      // 表情背景位置（如果有表情）
-      final emojiBgTop = avatarTop - emojiBgMargin - emojiBgHeight;
-      final emojiBgLeft = (size.width - avatarSize) / 2; // 与头像宽度一致，居中对齐
+      // 底座位置 - 底部对齐头像底部中心
+      final avatarBottom = avatarTop + avatarSize;
+      final pedestalTop = avatarBottom - pedestalHeight / 2;
+      final pedestalLeft = (size.width - pedestalWidth) / 2; // 底座水平居中
       
       // 🖼️ 绘制底座
       final srcRect = Rect.fromLTWH(0, 0, pedestal.width.toDouble(), pedestal.height.toDouble());
@@ -625,25 +732,20 @@ class LocationV2Controller extends GetxController {
       
       // 绘制头像边框
       final borderPaint = Paint()
-        ..color = const Color(0xFFE8B4CB)
+        ..color = const Color(0xFFFF9AD8)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.75; // 边框宽度
+        ..strokeWidth = 20; // 边框宽度
       canvas.drawCircle(avatarCenter, avatarSize / 2, borderPaint);
       
-      // 加载并绘制头像
+      // 加载并绘制头像（优化版：使用缓存）
       ui.Image? avatarImage;
       if (avatarUrl.isNotEmpty) {
         try {
           if (avatarUrl.startsWith('http')) {
-            // 网络图片
-            final response = await http.get(Uri.parse(avatarUrl));
-            if (response.statusCode == 200) {
-              final codec = await ui.instantiateImageCodec(response.bodyBytes);
-              final frame = await codec.getNextFrame();
-              avatarImage = frame.image;
-            }
+            // 网络图片 - 使用缓存方法
+            avatarImage = await _loadImageFromNetwork(avatarUrl);
           } else {
-            // 本地资源图片
+            // 本地资源图片 - 使用缓存方法
             avatarImage = await _loadImageFromAsset(avatarUrl);
           }
         } catch (e) {
@@ -795,15 +897,23 @@ class LocationV2Controller extends GetxController {
     }
   }
   
-  /// 从网络加载图片
+  /// 从网络加载图片（带缓存）
   Future<ui.Image?> _loadImageFromNetwork(String url) async {
+    // 检查缓存
+    if (_imageCache.containsKey(url)) {
+      return _imageCache[url];
+    }
+    
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
         final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
-        return frame.image;
+        final image = frame.image;
+        // 存入缓存
+        _imageCache[url] = image;
+        return image;
       }
     } catch (e) {
       DebugUtil.error('从网络加载图片失败: $e');
@@ -811,14 +921,22 @@ class LocationV2Controller extends GetxController {
     return null;
   }
 
-  /// 从资源加载图片
+  /// 从资源加载图片（带缓存）
   Future<ui.Image?> _loadImageFromAsset(String assetPath) async {
+    // 检查缓存
+    if (_imageCache.containsKey(assetPath)) {
+      return _imageCache[assetPath];
+    }
+    
     try {
       final ByteData data = await rootBundle.load(assetPath);
       final Uint8List bytes = data.buffer.asUint8List();
       final ui.Codec codec = await ui.instantiateImageCodec(bytes);
       final ui.FrameInfo frame = await codec.getNextFrame();
-      return frame.image;
+      final image = frame.image;
+      // 存入缓存
+      _imageCache[assetPath] = image;
+      return image;
     } catch (e) {
       DebugUtil.error(' 加载资源图片失败: $assetPath, $e');
       return null;
@@ -837,6 +955,12 @@ class LocationV2Controller extends GetxController {
     // 清空现有标记
     _trackStartEndMarkers.clear();
     
+    // 检查是否需要更新图标缓存
+    if (_needsUpdateIconCache()) {
+      DebugUtil.info(' 检测到图标数据变化，更新缓存...');
+      await _updateIconCache();
+    }
+    
     try {
       final List<Marker> tempMarkers = [];
       
@@ -844,17 +968,9 @@ class LocationV2Controller extends GetxController {
       final LatLng? myPos = actualMyLocation.value ?? myLocation.value;
       if (myPos != null) {
         try {
-          // 头像始终使用自己的头像
-          final String correctMyAvatar = myAvatar.value;
-          
-          // 根据绑定状态选择标记类型（自己从不显示"虚拟TA"标签）
-          late final myIcon;
-          myIcon = await _createAvatarMarker(
-            correctMyAvatar,
-            defaultAsset: 'assets/kissu3_love_avater.webp',
-            baseAsset: 'assets/3.0/kissu3_location_she.webp',
-            face: myFace.value,
-          );
+          // 使用缓存的图标，如果没有缓存则使用默认图标
+          final BitmapDescriptor myIcon = _cachedMyIcon ?? 
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
           
           final myMarker = Marker(
             position: myPos,
@@ -865,27 +981,12 @@ class LocationV2Controller extends GetxController {
               _moveMapToLocation(myPos);
             },
           );
+          myMarker.setIdForCopy('my_marker');
           
           tempMarkers.add(myMarker);
           DebugUtil.success(' 我的位置标记创建成功: ${myLocation.value}');
         } catch (e) {
-          DebugUtil.error(' 创建我的位置标记失败: $e，使用默认标记');
-          // 降级方案：使用蓝色默认标记
-          try {
-            final fallbackMyMarker = Marker(
-              position: myLocation.value!,
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-              anchor: const Offset(0.5, 1.0),
-              onTap: (String markerId) {
-                DebugUtil.info('点击了我的位置');
-                _moveMapToLocation(myLocation.value!);
-              },
-            );
-            tempMarkers.add(fallbackMyMarker);
-            DebugUtil.success(' 我的位置降级标记创建成功');
-          } catch (fallbackError) {
-            DebugUtil.error(' 我的位置降级标记也失败: $fallbackError');
-          }
+          DebugUtil.error(' 创建我的位置标记失败: $e');
         }
       }
       
@@ -893,29 +994,9 @@ class LocationV2Controller extends GetxController {
       final LatLng? partnerPos = actualPartnerLocation.value ?? partnerLocation.value;
       if (partnerPos != null) {
         try {
-          // 头像始终使用另一半的头像
-          final String correctPartnerAvatar = partnerAvatar.value;
-          
-          // 根据绑定状态选择标记类型（未绑定时显示“虚拟TA”标签）
-          late final partnerIcon;
-          if (isBindPartner.value) {
-            // 已绑定状态：使用真实的伴侣头像
-            DebugUtil.info(' 🔗 已绑定状态 - 使用伴侣头像: $correctPartnerAvatar');
-            partnerIcon = await _createAvatarMarker(
-              correctPartnerAvatar,
-              defaultAsset: 'assets/kissu3_love_avater.webp',
-              baseAsset: 'assets/3.0/kissu3_location_she.webp',
-              face: partnerFace.value,
-            );
-          } else {
-            // 未绑定：另一半显示虚拟TA标签
-            partnerIcon = await _createAvatarMarkerWithVirtualLabel(
-              correctPartnerAvatar,
-              defaultAsset: 'assets/kissu3_love_avater.webp',
-              baseAsset: 'assets/3.0/kissu3_location_she.webp',
-              face: partnerFace.value,
-            );
-          }
+          // 使用缓存的图标，如果没有缓存则使用默认图标
+          final BitmapDescriptor partnerIcon = _cachedPartnerIcon ?? 
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
           
           final partnerMarker = Marker(
             position: partnerPos,
@@ -926,27 +1007,12 @@ class LocationV2Controller extends GetxController {
               _moveMapToLocation(partnerPos);
             },
           );
+          partnerMarker.setIdForCopy('partner_marker');
           
           tempMarkers.add(partnerMarker);
           DebugUtil.success(' 伴侣位置标记创建成功: ${partnerLocation.value}');
         } catch (e) {
-          DebugUtil.error(' 创建伴侣位置标记失败: $e，使用默认标记');
-          // 降级方案：使用红色默认标记
-          try {
-            final fallbackPartnerMarker = Marker(
-              position: partnerLocation.value!,
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-              anchor: const Offset(0.5, 1.0),
-              onTap: (String markerId) {
-                DebugUtil.info('点击了伴侣位置');
-                _moveMapToLocation(partnerLocation.value!);
-              },
-            );
-            tempMarkers.add(fallbackPartnerMarker);
-            DebugUtil.success(' 伴侣位置降级标记创建成功');
-          } catch (fallbackError) {
-            DebugUtil.error(' 伴侣位置降级标记也失败: $fallbackError');
-          }
+          DebugUtil.error(' 创建伴侣位置标记失败: $e');
         }
       }
       
@@ -955,6 +1021,9 @@ class LocationV2Controller extends GetxController {
         _trackStartEndMarkers.value = tempMarkers;
         DebugUtil.success(' 用户位置标记更新成功: ${_trackStartEndMarkers.length}个');
         DebugUtil.info(' 标记详情: ${tempMarkers.map((m) => '标记: ${m.position}').join(', ')}');
+        
+        // 启动摇摆动画
+        _startSwingAnimation();
       } else {
         DebugUtil.error(' 没有成功创建任何用户位置标记');
         _trackStartEndMarkers.clear();
@@ -1093,15 +1162,14 @@ class LocationV2Controller extends GetxController {
     // });
     
     // 地图创建完成后，延迟执行地图动画，避免主线程阻塞
-    // 使用异步方式执行，减少对主线程的影响
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 500), () async {
-        if (mapController != null) {
-          await _animateMapToShowBothUsersAsync();
-        } else {
-          DebugUtil.warning('⚠️ 延迟执行时地图控制器为空');
-        }
-      });
+    // 使用更优化的方式执行动画
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mapController != null && isClosed == false) {
+        // 不等待动画完成，让它在后台执行
+        _animateMapToShowBothUsersAsync();
+      } else {
+        DebugUtil.warning('⚠️ 延迟执行时地图控制器为空或页面已销毁');
+      }
     });
   }
   
@@ -1132,7 +1200,9 @@ class LocationV2Controller extends GetxController {
       DebugUtil.warning('⚠️ 地图控制器为空，跳过地图动画');
       return;
     }
-    await _animateMapToShowBothUsersSync();
+    
+    // 使用Future.microtask确保动画在下一个微任务中执行
+    await Future.microtask(() => _animateMapToShowBothUsersSync());
   }
 
   /// 同步执行地图动画的核心逻辑
@@ -1256,10 +1326,10 @@ class LocationV2Controller extends GetxController {
     // 移动到目标位置并放大到最大等级（20级）
     final maxZoomPosition = CameraPosition(
       target: targetLocation,
-      zoom: 20.0, // 最大缩放级别
+      zoom: 18.0, // 最大缩放级别
     );
     
-    DebugUtil.info(' 头像点击：移动地图到$userName并放大到最大级别(20.0)');
+    DebugUtil.info(' 头像点击：移动地图到$userName并放大到最大级别(18.0)');
     
     try {
       // 异步执行地图动画，避免阻塞主线程
@@ -1934,6 +2004,166 @@ class LocationV2Controller extends GetxController {
 
 
 
+  /// 启动摇摆动画（细化版：更流畅的动画效果）
+  void _startSwingAnimation() {
+    _stopSwingAnimation(); // 先停止之前的动画
+    
+    // 检查是否有缓存的图标
+    if (_cachedMyIcon == null && _cachedPartnerIcon == null) {
+      DebugUtil.warning('🎯 没有缓存的标记图标，跳过摇摆动画');
+      return;
+    }
+    
+    int timeStep = 0;
+    // 提高动画帧率到每60ms一帧（约16fps），使动画更流畅细腻
+    _swingTimer = Timer.periodic(const Duration(milliseconds: 60), (timer) {
+      // 使用三角波实现匀速摆动（而非sin函数的变速摆动）
+      final time = timeStep * 0.08;
+      
+      // 三角波实现：匀速左右摆动，幅度为12度
+      // 周期为 2*PI，在这个周期内匀速从 -12° -> 12° -> -12°
+      final period = 2 * math.pi;
+      final normalizedTime = (time % period) / period; // [0, 1]
+      
+      // 三角波公式：
+      // 0 -> 0.5: 从-12到12（匀速向右）
+      // 0.5 -> 1: 从12到-12（匀速向左）
+      final angle = (normalizedTime < 0.5) 
+          ? (-12.0 + normalizedTime * 48.0)  // -12 + t * 48
+          : (36.0 - normalizedTime * 48.0);   // 36 - t * 48
+      
+      swingAngle.value = angle;
+      // 异步更新，避免阻塞主线程
+      Future.microtask(() => _updateMarkersRotation());
+      timeStep++;
+    });
+    
+    DebugUtil.info('🎯 摇摆动画已启动（细化版：更流畅的动画）');
+  }
+  
+  /// 停止摇摆动画（优化版：平滑过渡到静止状态）
+  void _stopSwingAnimation() {
+    if (_swingTimer == null) return; // 如果没有运行动画，直接返回
+    
+    _swingTimer?.cancel();
+    _swingTimer = null;
+    
+    // 平滑过渡到静止状态
+    final currentAngle = swingAngle.value;
+    if (currentAngle.abs() > 0.5) { // 如果当前角度较大，使用过渡动画
+      int steps = 0;
+      const maxSteps = 8; // 过渡步数
+      Timer.periodic(const Duration(milliseconds: 30), (timer) {
+        steps++;
+        // 使用ease-out缓动函数平滑过渡到0
+        final progress = steps / maxSteps;
+        final easeOut = 1 - math.pow(1 - progress, 3);
+        swingAngle.value = currentAngle * (1 - easeOut);
+        
+        Future.microtask(() => _updateMarkersRotation());
+        
+        if (steps >= maxSteps) {
+          timer.cancel();
+          swingAngle.value = 0.0;
+          _updateMarkersRotation();
+          DebugUtil.info('🎯 摇摆动画已平滑停止');
+        }
+      });
+    } else {
+      // 角度很小，直接停止
+      swingAngle.value = 0.0;
+      _updateMarkersRotation();
+      DebugUtil.info('🎯 摇摆动画已停止');
+    }
+  }
+  
+  /// 更新marker的旋转角度（优化版：使用缓存的图标）
+  void _updateMarkersRotation() async {
+    if (mapController == null) return;
+    
+    try {
+      // 更新我的位置marker
+      if (actualMyLocation.value != null && _cachedMyIcon != null) {
+        final myMarker = Marker(
+          position: actualMyLocation.value!,
+          rotation: swingAngle.value,
+          icon: _cachedMyIcon!,
+          anchor: const Offset(0.5, 1.0),
+        );
+        myMarker.setIdForCopy('my_marker');
+        
+        // 使用地图源码的updateMarker方法
+        await mapController!.updateMarker(myMarker);
+      }
+      
+      // 更新伴侣位置marker
+      if (actualPartnerLocation.value != null && _cachedPartnerIcon != null) {
+        final partnerMarker = Marker(
+          position: actualPartnerLocation.value!,
+          rotation: -swingAngle.value, // 使用负角度实现相反摇摆
+          icon: _cachedPartnerIcon!,
+          anchor: const Offset(0.5, 1.0),
+        );
+        partnerMarker.setIdForCopy('partner_marker');
+        
+        // 使用地图源码的updateMarker方法
+        await mapController!.updateMarker(partnerMarker);
+      }
+    } catch (e) {
+      DebugUtil.error('更新marker旋转失败: $e');
+    }
+  }
+  
+  /// 检查是否需要更新缓存的图标
+  bool _needsUpdateIconCache() {
+    return _cachedMyAvatar != myAvatar.value ||
+           _cachedPartnerAvatar != partnerAvatar.value ||
+           _cachedMyFace != myFace.value ||
+           _cachedPartnerFace != partnerFace.value ||
+           _cachedIsBindPartner != isBindPartner.value;
+  }
+  
+  /// 更新缓存的图标
+  Future<void> _updateIconCache() async {
+    try {
+      // 缓存我的图标
+      if (myAvatar.value.isNotEmpty) {
+        _cachedMyIcon = await _createAvatarMarker(
+          myAvatar.value,
+          defaultAsset: 'assets/kissu3_love_avater.webp',
+          baseAsset: 'assets/3.0/kissu3_location_she.webp',
+          face: myFace.value,
+        );
+        _cachedMyAvatar = myAvatar.value;
+        _cachedMyFace = myFace.value;
+      }
+      
+      // 缓存伴侣图标
+      if (partnerAvatar.value.isNotEmpty) {
+        if (isBindPartner.value) {
+          _cachedPartnerIcon = await _createAvatarMarker(
+            partnerAvatar.value,
+            defaultAsset: 'assets/kissu3_love_avater.webp',
+            baseAsset: 'assets/3.0/kissu3_location_she.webp',
+            face: partnerFace.value,
+          );
+        } else {
+          _cachedPartnerIcon = await _createAvatarMarkerWithVirtualLabel(
+            partnerAvatar.value,
+            defaultAsset: 'assets/kissu3_love_avater.webp',
+            baseAsset: 'assets/3.0/kissu3_location_she.webp',
+            face: partnerFace.value,
+          );
+        }
+        _cachedPartnerAvatar = partnerAvatar.value;
+        _cachedPartnerFace = partnerFace.value;
+        _cachedIsBindPartner = isBindPartner.value;
+      }
+    } catch (e) {
+      DebugUtil.error('更新图标缓存失败: $e');
+    }
+  }
+
   @override
   void onClose() {
     // 确保清理所有资源
@@ -1949,6 +2179,26 @@ class LocationV2Controller extends GetxController {
     } catch (e) {
       debugPrint('清理提示管理器时出错: $e');
     }
+    
+    // 停止摇摆动画
+    _stopSwingAnimation();
+    
+    // 清理返回按钮动画控制器
+    try {
+      backButtonAnimationController.dispose();
+    } catch (e) {
+      debugPrint('清理backButtonAnimationController时出错: $e');
+    }
+    
+    // 清理图片缓存
+    _imageCache.clear();
+    _cachedMyIcon = null;
+    _cachedPartnerIcon = null;
+    _cachedMyAvatar = null;
+    _cachedPartnerAvatar = null;
+    _cachedMyFace = null;
+    _cachedPartnerFace = null;
+    _cachedIsBindPartner = null;
     
     // AMapController 无需手动dispose
     super.onClose();

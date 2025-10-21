@@ -66,6 +66,8 @@ class _CachedMapWidgetState extends State<CachedMapWidget> {
           rotateGesturesEnabled: true,
           tiltGesturesEnabled: true,
           mapType: mapType,
+          buildingsEnabled: false, // 隐藏3D建筑物
+          // labelsEnabled: false, // 隐藏底图文字标注
         ),
       );
     });

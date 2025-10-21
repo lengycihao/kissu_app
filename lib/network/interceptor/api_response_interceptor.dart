@@ -95,20 +95,21 @@ class ApiResponseInterceptor extends Interceptor {
             // 检查错误消息中是否包含token过期关键词
             final msg = processedResponse.msg?.toLowerCase() ?? '';
             final tokenExpiredKeywords = [
-              'token',
+              // 'token',  // ❌ 移除：太宽泛，会误触发退出登录
               'unauthorized',
               'unauthenticated',
               'invalid token',
               'expired token',
               'token expired',
+              'token失效',
+              'token无效',
+              'token过期',
               'login expired',
               'session expired',
               '未授权',
               '登录失效',
               '登录过期',
               '会话过期',
-              'token无效',
-              'token过期',
               '用户未登录',
               '请重新登录',
               '登录状态异常',
@@ -181,9 +182,9 @@ class ApiResponseInterceptor extends Interceptor {
       return;
     }
     
-    // 检查距离上次处理是否太近（3秒内不重复处理）
+    // 检查距离上次处理是否太近（10秒内不重复处理，防止并发请求重复触发）
     if (_lastUnauthorizedTime != null && 
-        now.difference(_lastUnauthorizedTime!) < const Duration(seconds: 3)) {
+        now.difference(_lastUnauthorizedTime!) < const Duration(seconds: 10)) {
       final timeDiff = now.difference(_lastUnauthorizedTime!).inSeconds;
       print('⏸️ 距离上次token失效处理太近（${timeDiff}秒），跳过重复处理');
       return;

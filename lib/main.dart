@@ -28,6 +28,7 @@ import 'package:kissu_app/widgets/screenshot_feedback_button.dart';
 import 'package:kissu_app/network/utils/dir_util.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/lottie_preload_service.dart';
+import 'package:kissu_app/utils/map_style_loader.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
@@ -179,6 +180,13 @@ void main() async {
       DebugUtil.success('VIP页面Lottie动画预加载完成');
     }).catchError((e) {
       DebugUtil.error('VIP页面Lottie动画预加载失败: $e');
+    });
+    
+    // 步骤15.2: 🗺️ 预加载地图自定义样式（非阻塞，后台执行）
+    MapStyleLoader.preloadMapStyle().then((_) {
+      DebugUtil.success('地图自定义样式预加载完成');
+    }).catchError((e) {
+      DebugUtil.error('地图自定义样式预加载失败: $e');
     });
     
     // ========== 第三阶段：隐私合规管理器初始化 ==========

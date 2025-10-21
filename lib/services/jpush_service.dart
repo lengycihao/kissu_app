@@ -38,8 +38,8 @@ class JPushService extends GetxService {
       _jpush.setup(
         appKey: "4ee497251fc479522e1e6b7d",
         channel: "developer-default",
-        production: false, // 开发环境设为false，生产环境设为true
-        debug: true,
+        production: true, // 开发环境设为false，生产环境设为true
+        debug: false,
       );
       
       // 注意：极光推送在后台时默认会显示通知，不需要额外设置

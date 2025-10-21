@@ -43,15 +43,8 @@ class MessageListPage extends GetView<MessageListController> {
                   color: Color(0xFF333333),
                 ),
               ),
-              // 清空未读消息按钮
-              GestureDetector(
-                onTap: controller.clearUnreadMessages,
-                child: Image.asset(
-                  'assets/3.0/kissu3_noti_clear.webp',
-                  width: 24,
-                  height: 24,
-                ),
-              ),
+              // 占位空间，保持布局平衡
+              const SizedBox(width: 24),
             ],
           ),
         ),

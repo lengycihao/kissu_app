@@ -373,6 +373,9 @@ class LocationStateController extends GetxController {
         
         DebugUtil.info('✅ 删除状态成功');
         OKToastUtil.show('状态已删除');
+        
+        // 返回定位页面并刷新数据
+        _returnToLocationPageAndRefresh();
       } else {
         DebugUtil.warning('⚠️ 删除状态失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '删除失败');

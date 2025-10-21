@@ -60,11 +60,15 @@ class _UnlockRecordDetailPageState extends State<UnlockRecordDetailPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_open, size: 64, color: Colors.grey[400]),
+                    Image.asset(
+                      'assets/phone_history/kissu_phone_list_empty.webp',
+                      width: 128,
+                      height: 128,
+                    ),
                     const SizedBox(height: 16),
-                    Text(
+                    const Text(
                       '暂无解锁记录',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
                     ),
                   ],
                 ),
@@ -103,20 +107,17 @@ class _UnlockRecordDetailPageState extends State<UnlockRecordDetailPage> {
   }
 
 
-  /// 获取所有解锁相关的记录（14、15、19类型）
+  /// 获取所有解锁相关的记录
   List<dynamic> _getAllUnlockRecords() {
     final allRecords = <dynamic>[];
     
-    // 从全部记录中获取14、15类型的RecordItem
-    final allRecordData = _controller.allRecordData.value;
-    if (allRecordData != null) {
-      final unlockRelatedRecords = allRecordData.data.where((record) => 
-        record.eventType == 14 || record.eventType == 15 || record.eventType == 19
-      ).toList();
-      
+    // 直接使用转换好的解锁记录数据
+    final unlockData = _controller.unlockRecordData.value;
+    if (unlockData != null && unlockData.records.isNotEmpty) {
       // 按时间排序（最新的在前）
-      unlockRelatedRecords.sort((a, b) => b.createTime.compareTo(a.createTime));
-      allRecords.addAll(unlockRelatedRecords);
+      final sortedRecords = List<UnlockRecordItem>.from(unlockData.records);
+      sortedRecords.sort((a, b) => b.time.compareTo(a.time));
+      allRecords.addAll(sortedRecords);
     }
     
     return allRecords;
@@ -157,104 +158,26 @@ class _UnlockRecordDetailPageState extends State<UnlockRecordDetailPage> {
   
   /// 构建混合记录项（根据类型选择不同组件）
   Widget _buildMixedRecordItem(dynamic record) {
-    if (record is RecordItem) {
-      // 14、15类型使用GenericRecordItemWidget（参考其他类型的样式）
-      if (record.eventType == 14 || record.eventType == 15) {
-        return GenericRecordItemWidget(
-          record: record,
-          showTimeLabel: false, // 解锁记录页面不显示时间标签
-          onVipStatusChanged: () {
-            // 解锁记录页面需要刷新混合记录数据
-            // 这里可以通过回调通知父页面刷新
-          },
-        );
-      }
-      
-      // 19类型转换为UnlockRecordItem并使用Type19组件
-      if (record.eventType == 19) {
-        final unlockRecord = _convertToUnlockRecord(record);
-        return Type19UnlockRecordItemWidget(
-          record: unlockRecord,
-          showTimeLabel: false, // 解锁记录页面不显示时间标签
-          onVipStatusChanged: () {
-            // 解锁记录页面需要刷新混合记录数据
-            // 这里可以通过回调通知父页面刷新
-          },
-        );
-      }
-    }
-    
-    // 兜底：如果是UnlockRecordItem，使用原来的逻辑
+    // 现在主要处理UnlockRecordItem类型
     if (record is UnlockRecordItem) {
       return _buildRecordItem(record);
+    }
+    
+    // 兜底：如果是RecordItem，使用通用组件
+    if (record is RecordItem) {
+      return GenericRecordItemWidget(
+        record: record,
+        showTimeLabel: false, // 解锁记录页面不显示时间标签
+        onVipStatusChanged: () {
+          // 解锁记录页面需要刷新混合记录数据
+          // 这里可以通过回调通知父页面刷新
+        },
+      );
     }
     
     return const SizedBox.shrink();
   }
   
-  /// 将RecordItem转换为UnlockRecordItem（用于19类型）
-  UnlockRecordItem _convertToUnlockRecord(RecordItem record) {
-    // 解析时间
-    final time = DateTime.tryParse(record.createTime) ?? DateTime.now();
-    
-    // 解析ext字段中的数据
-    final unlockTimeStr = record.ext['unlock_time'] as String?;
-    final lockTimeStr = record.ext['lock_time'] as String?;
-    final moveDistanceStr = record.ext['move_distance'] as String?;
-    final stayNumberStr = record.ext['stay_number'] as String?;
-    
-    // 解析解锁时间和锁定时间
-    DateTime? unlockTime;
-    DateTime? lockTime;
-    
-    if (unlockTimeStr != null) {
-      // 如果ext中的时间是HH:mm格式，需要结合当前日期
-      if (unlockTimeStr.contains(':') && !unlockTimeStr.contains('-')) {
-        final timeParts = unlockTimeStr.split(':');
-        if (timeParts.length == 2) {
-          final hour = int.tryParse(timeParts[0]) ?? 0;
-          final minute = int.tryParse(timeParts[1]) ?? 0;
-          unlockTime = DateTime(time.year, time.month, time.day, hour, minute);
-        }
-      } else {
-        unlockTime = DateTime.tryParse(unlockTimeStr);
-      }
-    }
-    
-    if (lockTimeStr != null) {
-      // 如果ext中的时间是HH:mm格式，需要结合当前日期
-      if (lockTimeStr.contains(':') && !lockTimeStr.contains('-')) {
-        final timeParts = lockTimeStr.split(':');
-        if (timeParts.length == 2) {
-          final hour = int.tryParse(timeParts[0]) ?? 0;
-          final minute = int.tryParse(timeParts[1]) ?? 0;
-          lockTime = DateTime(time.year, time.month, time.day, hour, minute);
-        }
-      } else {
-        lockTime = DateTime.tryParse(lockTimeStr);
-      }
-    }
-    
-    // 解析移动距离（去除单位"m"或"米"）
-    double? moveDistance;
-    if (moveDistanceStr != null) {
-      final distanceNum = moveDistanceStr.replaceAll(RegExp(r'[^\d.]'), '');
-      moveDistance = double.tryParse(distanceNum);
-    }
-    
-    // 解析停留点数量
-    final stayNumber = stayNumberStr != null ? int.tryParse(stayNumberStr) : null;
-    
-    return UnlockRecordItem(
-      time: unlockTime ?? time,
-      action: UnlockActionType.unlock,
-      endTime: lockTime,
-      movementDistance: moveDistance,
-      stayPointCount: stayNumber,
-      icon: record.icon,
-      eventType: record.eventType,
-    );
-  }
 
   /// 构建记录项（根据eventType选择组件）
   Widget _buildRecordItem(UnlockRecordItem record) {

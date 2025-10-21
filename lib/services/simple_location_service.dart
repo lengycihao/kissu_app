@@ -58,12 +58,7 @@ class LocationPoint {
     return timestamp.difference(other.timestamp).inMilliseconds.abs() / 1000.0;
   }
   
-  // 计算速度（基于两点间移动）
-  double calculateSpeedTo(LocationPoint other) {
-    final distance = distanceTo(other);
-    final timeDiff = timeDifferenceInSeconds(other);
-    return timeDiff > 0 ? distance / timeDiff : 0.0;
-  }
+  
 }
 
 /// 基于高德定位的简化版定位服务类
@@ -161,9 +156,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   static const Duration _reportInterval = Duration(minutes: 1); // 1分钟上报间隔
   static const double _collectionDistance = 50.0; // 50米收集一个点位（不立即上报）
   // ⚠️ 关键修复：取消distanceFilter，让定位层保证数据完整性，距离过滤在上报层处理
-  static const double _distanceFilter = 0.0; // 不做距离过滤（原50米），改由上报层过滤
+  static const double _distanceFilter = -1; // 不做距离过滤（原50米），改由上报层过滤
   static const int _locationInterval = 5000; // 5秒定位间隔（提高响应性）
-  static const double _desiredAccuracy = 15.0; // 期望精度15米（平衡精度与功耗）
+  // static const double _desiredAccuracy = 15.0; // 期望精度15米（平衡精度与功耗）
   static const int _maxCollectionBufferSize = 12; // 最大收集缓冲区大小（1分钟内最多12个点，5秒一个）
   static const int _maxHistorySize = 200; // 最大历史记录数
   
@@ -227,8 +222,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   
   /// 隐私合规启动方法 - 只有在用户同意隐私政策后才调用
   void startPrivacyCompliantService() {
-    debugPrint('🔒 启动隐私合规定位服务');
-    
+     
     // 初始化API Key和隐私合规
     init();
     // 设置全局唯一的监听器
@@ -242,8 +236,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       _startGpsStatusMonitoring();
     }
     
-    debugPrint('✅ 隐私合规定位服务启动完成');
-  }
+   }
 
   /// 设置高德地图隐私合规和API Key
   /// 初始化定位服务（隐私合规版本）
@@ -258,8 +251,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 设置API Key - 确保在任何定位操作前执行
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
 
-      debugPrint('✅ 高德定位服务初始化完成（隐私授权由PrivacyComplianceManager管理）');
-    } catch (e) {
+     } catch (e) {
       debugPrint('❌ 初始化高德定位服务失败: $e');
     }
   }
@@ -279,8 +271,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 重新设置API Key（确保在定位前生效）
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
 
-      debugPrint('🔧 高德定位隐私合规和API Key设置完成（隐私授权: ${isPrivacyAgreed ? "已同意" : "已拒绝"}）');
-    } catch (e) {
+     } catch (e) {
       debugPrint('❌ 设置高德定位隐私合规失败: $e');
     }
   }
@@ -288,13 +279,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 设置全局唯一的定位监听器（基于高德插件内部机制优化）
   void _setupGlobalLocationListener() {
     if (_isGlobalListenerSetup) {
-      debugPrint('✅ 全局定位监听器已设置，复用现有监听器');
-      return;
+       return;
     }
 
     try {
-      debugPrint('🔧 设置全局定位监听器...');
-
+ 
       // 基于高德插件源码分析：
       // 插件内部使用 _receiveStream 判断是否已创建 StreamController
       // 只要不重复调用 onLocationChanged()，就不会有冲突
@@ -318,9 +307,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
     } catch (e) {
       debugPrint('❌ 设置全局定位监听器失败: $e');
-      if (e.toString().contains('Stream has already been listened to')) {
-        debugPrint('⚠️ 检测到Stream冲突，这可能是热重载导致的');
-        debugPrint('💡 请完全重启应用以清理Stream状态');
+      if (e.toString().contains('Stream has already been listened to')) { 
         _isGlobalListenerSetup = true; // 标记为已设置，避免重复尝试
       }
     }
@@ -336,11 +323,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       bool hasPermission = await permissionManager.requestLocationPermission();
 
       if (hasPermission) {
-        debugPrint('✅ 定位权限申请成功，检查后台定位权限状态...');
+       // debugPrint('✅ 定位权限申请成功，检查后台定位权限状态...');
 
         // 检查后台定位权限状态，但不主动请求（避免重复弹窗）
         var backgroundLocationStatus = await Permission.locationAlways.status;
-        debugPrint('🔐 后台定位权限状态: $backgroundLocationStatus');
+       // debugPrint('🔐 后台定位权限状态: $backgroundLocationStatus');
 
         // 只在后台权限被明确拒绝时才提示用户
         if (backgroundLocationStatus.isPermanentlyDenied) {
@@ -356,7 +343,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         }
       }
 
-      debugPrint('✅ 定位权限申请完成');
+     // debugPrint('✅ 定位权限申请完成');
       return hasPermission;
     } catch (e) {
       debugPrint('❌ 请求定位权限失败: $e');
@@ -371,10 +358,10 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 1. 首先确保有前台定位权限
       var locationStatus = await Permission.location.status;
-      debugPrint('🔐 前台定位权限状态: $locationStatus');
+     // debugPrint('🔐 前台定位权限状态: $locationStatus');
 
       if (!locationStatus.isGranted) {
-        debugPrint('🔐 先申请前台定位权限...');
+       // debugPrint('🔐 先申请前台定位权限...');
         locationStatus = await Permission.location.request();
         debugPrint('🔐 申请前台定位权限结果: $locationStatus');
 
@@ -393,27 +380,27 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       debugPrint('🔐 后台定位权限状态: $backgroundLocationStatus');
 
       if (backgroundLocationStatus.isDenied) {
-        debugPrint('🔐 申请后台定位权限...');
+       // debugPrint('🔐 申请后台定位权限...');
         backgroundLocationStatus = await Permission.locationAlways.request();
         debugPrint('🔐 申请后台定位权限结果: $backgroundLocationStatus');
 
         if (backgroundLocationStatus.isGranted) {
-          debugPrint('✅ 后台定位权限获取成功');
+         // debugPrint('✅ 后台定位权限获取成功');
           return true;
         } else if (backgroundLocationStatus.isPermanentlyDenied) {
-          debugPrint('❌ 后台定位权限被永久拒绝，直接跳转到设置');
+        //  debugPrint('❌ 后台定位权限被永久拒绝，直接跳转到设置');
           await _openLocationSettingsDirectly();
           return false;
         } else {
-          debugPrint('⚠️ 后台定位权限被拒绝，直接跳转到设置');
+         // debugPrint('⚠️ 后台定位权限被拒绝，直接跳转到设置');
           await _openLocationSettingsDirectly();
           return false;
         }
       } else if (backgroundLocationStatus.isGranted) {
-        debugPrint('✅ 后台定位权限已授予');
+       // debugPrint('✅ 后台定位权限已授予');
         return true;
       } else if (backgroundLocationStatus.isPermanentlyDenied) {
-        debugPrint('❌ 后台定位权限被永久拒绝，直接跳转到设置');
+       // debugPrint('❌ 后台定位权限被永久拒绝，直接跳转到设置');
         await _openLocationSettingsDirectly();
         return false;
       }
@@ -428,7 +415,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 开始定位
   Future<bool> startLocation() async {
     try {
-      debugPrint('🚀 SimpleLocationService.startLocation() 开始执行');
+     // debugPrint('🚀 SimpleLocationService.startLocation() 开始执行');
 
       // 🔑 关键修复：检查隐私政策同意状态
       final privacyManager = Get.find<PrivacyComplianceManager>();
@@ -447,7 +434,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       
       // 检查权限状态，但不重复请求
       var locationStatus = await Permission.location.status;
-      debugPrint('🔧 定位权限状态: $locationStatus');
+     // debugPrint('🔧 定位权限状态: $locationStatus');
       if (!locationStatus.isGranted) {
         debugPrint('❌ 定位权限检查失败，无法启动定位服务');
         return false;
@@ -461,12 +448,12 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         await Future.delayed(Duration(milliseconds: 500));
       }
 
-      debugPrint('🚀 高德定位服务启动中...');
+     // debugPrint('🚀 高德定位服务启动中...');
       
       // 检查插件是否已正确初始化
       try {
         // 获取当前定位设置状态（这会触发插件检查）
-        debugPrint('🔧 检查高德定位插件状态...');
+       // debugPrint('🔧 检查高德定位插件状态...');
         // 简单调用来检查插件是否正常
         _locationPlugin.stopLocation(); // 安全的检查调用
         debugPrint('✅ 高德定位插件状态正常');
@@ -492,7 +479,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       }
       
       // 设置高德定位参数 - 参考iOS版本的高精度配置 + 后台定位优化
-      debugPrint('🔧 开始设置高德定位参数（参考iOS版本 + 后台定位优化）...');
+     // debugPrint('🔧 开始设置高德定位参数（参考iOS版本 + 后台定位优化）...');
       AMapLocationOption locationOption = AMapLocationOption();
       
       // 设置定位模式 - 使用Hight_Accuracy模式（最关键的配置）
@@ -500,8 +487,8 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 这是Android系统的限制，无法通过配置完全避免
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy; // 高精度模式，包含GPS
       
-      debugPrint('   - 定位模式: 高精度模式（GPS+网络+WIFI）- 参考iOS的kCLLocationAccuracyBest');
-      debugPrint('   - 🚀 高精度模式已启用');
+      debugPrint('   - 定位模式: 高精度模式（GPS+网络+WIFI）');
+     // debugPrint('   - 🚀 高精度模式已启用');
       debugPrint('   - ⚠️  息屏后限制：Android系统会限制GPS访问，自动降级为基站+WIFI定位');
       
       // 设置定位间隔（参考iOS版本）
@@ -510,31 +497,18 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       debugPrint('   - 定位间隔: ${_locationInterval}ms（平衡响应性与耗电）');
       
       // ✅ 关键修复：取消距离过滤，让定位层保证数据完整性
-      // 高德SDK规则：locationInterval和distanceFilter同时设置时需同时满足才触发
-      // 这会导致静止状态下即使过了时间间隔也不会触发定位回调
-      // 解决方案：在定位层取消距离过滤，改由上报层进行距离过滤
-      locationOption.distanceFilter = _distanceFilter; // 设为0，不做距离过滤
-      debugPrint('   - 距离过滤: ${_distanceFilter}米（设为0以避免与时间间隔冲突）');
+      locationOption.distanceFilter = -1;
+     // debugPrint('   - 距离过滤: ${_distanceFilter}米（设为0以避免与时间间隔冲突）');
       
-      // 设置地址信息（参考iOS的locatingWithReGeocode）
+      // 设置地址信息
       locationOption.needAddress = true;
-      debugPrint('   - 需要地址: true（参考iOS的locatingWithReGeocode）');
-      
-      // 设置持续定位（参考iOS的allowsBackgroundLocationUpdates）
+       
+      // 设置持续定位
       locationOption.onceLocation = false;
-      debugPrint('   - 持续定位: true（参考iOS的allowsBackgroundLocationUpdates）');
+       
+     
       
-      // 🔥 关键配置：设置传感器使能（可能有助于后台定位）
-      // locationOption.sensorEnable = true; // 启用传感器辅助定位（如果SDK支持）
-      
-      // 注意：某些配置在当前版本的高德插件中可能不支持
-      // locationOption.mockEnable = true;
-      // locationOption.gpsFirst = false;
-      debugPrint('   - 期望精度: ${_desiredAccuracy}米（参考iOS配置）');
-      
-      // 注意：高德定位插件可能不支持httpTimeOut属性
-      // locationOption.httpTimeOut = 30000; // 30秒超时
-      debugPrint('   - 使用默认超时设置（参考iOS的10秒超时）');
+    
       
       try {
         _locationPlugin.setLocationOption(locationOption);
@@ -548,39 +522,27 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       if (!_isGlobalListenerSetup) {
         _setupGlobalLocationListener();
       } else {
-        debugPrint('✅ 全局监听器已激活，直接启动定位');
+        // debugPrint('✅ 全局监听器已激活，直接启动定位');
       }
-
-      // 启动定位（高德定位插件3.0.0版本的startLocation()方法返回void）
-      debugPrint('🔧 调用高德定位插件启动定位');
+ 
       try {
         _locationPlugin.startLocation();
         debugPrint('✅ 高德定位启动请求已发送');
         
-        // 额外添加一个延迟检查，看是否有定位权限问题
-        Timer(Duration(seconds: 3), () {
-          debugPrint('🔧 3秒后检查定位状态...');
-          if (currentLocation.value == null) {
-            debugPrint('⚠️ 3秒后仍无定位数据，可能的原因:');
-            debugPrint('   1. GPS信号弱或无GPS信号');
-            debugPrint('   2. 定位权限未正确授予');
-            debugPrint('   3. 高德API Key配置问题');
-            debugPrint('   4. 网络连接问题');
-          }
-        });
+     
         
       } catch (e) {
         debugPrint('❌ 启动高德定位失败: $e');
         throw e;
       }
       
-      // 延迟启动定时单次定位（给持续定位一些时间先工作）
-      Timer(Duration(seconds: 60), () {
-        if (isLocationEnabled.value) {
-          debugPrint('🔄 启动定时单次定位作为备用方案');
-          _startPeriodicSingleLocation();
-        }
-      });
+      // // 延迟启动定时单次定位（给持续定位一些时间先工作）
+      // Timer(Duration(seconds: 60), () {
+      //   if (isLocationEnabled.value) {
+      //     debugPrint('🔄 启动定时单次定位作为备用方案');
+      //     _startPeriodicSingleLocation();
+      //   }
+      // });
       
       // 添加延迟检查
       Future.delayed(Duration(seconds: 5), () {
@@ -591,12 +553,12 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         }
       });
       
-      Future.delayed(Duration(seconds: 10), () {
-        debugPrint('⏰ 10秒后检查：定位是否有数据回调...');
-        if (currentLocation.value == null) {
-          debugPrint('⚠️ 10秒后仍未收到定位数据，可能存在问题');
-        }
-      });
+      // Future.delayed(Duration(seconds: 10), () {
+      //   debugPrint('⏰ 10秒后检查：定位是否有数据回调...');
+      //   if (currentLocation.value == null) {
+      //     debugPrint('⚠️ 10秒后仍未收到定位数据，可能存在问题');
+      //   }
+      // });
       
       // 新策略：不再需要定时器，改为实时上报
       
@@ -626,8 +588,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 处理位置更新
   void _onLocationUpdate(Map<String, Object> result) {
     try {
-      debugPrint('📍 _onLocationUpdate 被调用');
-      debugPrint('📍 完整定位数据: ${result.toString()}');
+       debugPrint('📍 完整定位数据: ${result.toString()}');
       
       // 检查高德定位错误码
       int? errorCode = int.tryParse(result['errorCode']?.toString() ?? '0');
@@ -659,9 +620,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
                 _locationPlugin.stopLocation();
                 final gpsOnly = AMapLocationOption();
                 gpsOnly.locationMode = AMapLocationMode.Device_Sensors;
-                gpsOnly.locationInterval = 20000;
+                gpsOnly.locationInterval = SimpleLocationService._locationInterval;
                 gpsOnly.distanceFilter = SimpleLocationService._distanceFilter;
-                gpsOnly.needAddress = false;
+                gpsOnly.needAddress = true;
                 gpsOnly.onceLocation = false;
                 _locationPlugin.setLocationOption(gpsOnly);
                 _locationPlugin.startLocation();
@@ -743,13 +704,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       String? address = result['address']?.toString();
       int? timestamp = int.tryParse(result['timestamp']?.toString() ?? '');
       
-      // 详细调试速度数据
-      debugPrint('🚗 速度调试信息:');
-      debugPrint('   原始速度字符串: "${result['speed']?.toString()}"');
-      debugPrint('   解析后速度值: $speed m/s');
-      debugPrint('   定位类型: ${result['locationType']?.toString()}');
-      debugPrint('   卫星数量: ${result['satellites']?.toString()}');
-      debugPrint('   GPS状态: ${result['gpsAccuracyStatus']?.toString()}');
+     
       
       if (latitude == null || longitude == null) {
         debugPrint('高德定位数据无效: $result');
@@ -957,8 +912,8 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       debugPrint('🔄 重新设置持续定位参数...');
       AMapLocationOption locationOption = AMapLocationOption();
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
-      locationOption.locationInterval = _locationInterval; // 2秒间隔（平衡性能）
-      locationOption.distanceFilter = _distanceFilter; // 50米距离过滤（与iOS一致）
+      locationOption.locationInterval = _locationInterval; // 5秒间隔（平衡性能）
+      locationOption.distanceFilter = _distanceFilter; //  
       // 优化已实现
       locationOption.needAddress = true;
       locationOption.onceLocation = false; // 持续定位
@@ -1033,7 +988,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 设置高精度定位参数
       AMapLocationOption locationOption = AMapLocationOption();
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
-      locationOption.locationInterval = 2000; // 减少间隔到2秒
+      locationOption.locationInterval = 5000; // 减少间隔到2秒
       locationOption.distanceFilter = _distanceFilter; // 保持50米距离过滤（与iOS一致）
       // 优化已实现
       locationOption.needAddress = true;
@@ -1103,121 +1058,121 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     }
   }
   
-  /// 启动定时单次定位（备用方案）- 智能调度
-  void _startPeriodicSingleLocation() {
-    debugPrint('🔄 启动定时单次定位作为备用方案...');
+  // /// 启动定时单次定位（备用方案）- 智能调度
+  // void _startPeriodicSingleLocation() {
+  //   debugPrint('🔄 启动定时单次定位作为备用方案...');
     
-    // 每30秒进行一次单次定位，确保有数据回调
-    _periodicLocationTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
-      // 🔥 检查应用状态，前台时降低频率
-      try {
-        final appLifecycle = AppLifecycleService.instance;
-        if (appLifecycle.isInForeground) {
-          // 前台时，如果持续定位正常工作，则跳过更多次数
-          if (currentLocation.value != null) {
-            final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
-            if (lastUpdateTime != null) {
-              final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-              if (now - lastUpdateTime < 60) { // 前台时放宽到60秒
-                debugPrint('🔄 前台持续定位正常，跳过定时单次定位');
-                return;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('❌ 定时单次定位状态检查失败: $e');
-      }
+  //   // 每30秒进行一次单次定位，确保有数据回调
+  //   _periodicLocationTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
+  //     // 🔥 检查应用状态，前台时降低频率
+  //     try {
+  //       final appLifecycle = AppLifecycleService.instance;
+  //       if (appLifecycle.isInForeground) {
+  //         // 前台时，如果持续定位正常工作，则跳过更多次数
+  //         if (currentLocation.value != null) {
+  //           final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
+  //           if (lastUpdateTime != null) {
+  //             final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  //             if (now - lastUpdateTime < 60) { // 前台时放宽到60秒
+  //               debugPrint('🔄 前台持续定位正常，跳过定时单次定位');
+  //               return;
+  //             }
+  //           }
+  //         }
+  //       }
+  //     } catch (e) {
+  //       debugPrint('❌ 定时单次定位状态检查失败: $e');
+  //     }
       
-      // 如果正常的持续定位工作正常（最近30秒内有数据），则跳过单次定位
-      if (currentLocation.value != null) {
-        final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
-        if (lastUpdateTime != null) {
-          final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          if (now - lastUpdateTime < 45) { // 45秒内有数据，说明持续定位正常
-            debugPrint('🔄 持续定位正常工作，跳过定时单次定位');
-            return;
-          }
-        }
-      }
+  //     // 如果正常的持续定位工作正常（最近30秒内有数据），则跳过单次定位
+  //     if (currentLocation.value != null) {
+  //       final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
+  //       if (lastUpdateTime != null) {
+  //         final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  //         if (now - lastUpdateTime < 45) { // 45秒内有数据，说明持续定位正常
+  //           debugPrint('🔄 持续定位正常工作，跳过定时单次定位');
+  //           return;
+  //         }
+  //       }
+  //     }
       
-      debugPrint('🔄 执行定时单次定位（持续定位可能无响应）...');
-      await _executePeriodicSingleLocation();
-    });
-  }
+  //     debugPrint('🔄 执行定时单次定位（持续定位可能无响应）...');
+  //     await _executePeriodicSingleLocation();
+  //   });
+  // }
   
   /// 执行定时单次定位
-  Future<void> _executePeriodicSingleLocation() async {
-    try {
-      // 如果已经在进行单次定位，跳过
-      if (_isSingleLocationInProgress) {
-        debugPrint('⚠️ 单次定位进行中，跳过定时单次定位');
-        return;
-      }
+  // Future<void> _executePeriodicSingleLocation() async {
+  //   try {
+  //     // 如果已经在进行单次定位，跳过
+  //     if (_isSingleLocationInProgress) {
+  //       debugPrint('⚠️ 单次定位进行中，跳过定时单次定位');
+  //       return;
+  //     }
       
-      _isSingleLocationInProgress = true;
+  //     _isSingleLocationInProgress = true;
       
-      // 临时切换到单次定位模式
-      AMapLocationOption singleOption = AMapLocationOption();
-      singleOption.locationMode = AMapLocationMode.Hight_Accuracy;
-      singleOption.onceLocation = true;
-      singleOption.needAddress = true;
-      // 优化已实现
+  //     // 临时切换到单次定位模式
+  //     AMapLocationOption singleOption = AMapLocationOption();
+  //     singleOption.locationMode = AMapLocationMode.Hight_Accuracy;
+  //     singleOption.onceLocation = true;
+  //     singleOption.needAddress = true;
+  //     // 优化已实现
       
-      _locationPlugin.setLocationOption(singleOption);
-      _locationPlugin.startLocation();
+  //     _locationPlugin.setLocationOption(singleOption);
+  //     _locationPlugin.startLocation();
       
-      debugPrint('🔄 定时单次定位请求已发送');
+  //     debugPrint('🔄 定时单次定位请求已发送');
       
-      // 3秒后恢复持续定位模式
-      Timer(Duration(seconds: 3), () {
-        _isSingleLocationInProgress = false;
-        _setupContinuousLocation();
-        _locationPlugin.startLocation();  // 只重启定位，不重新设置监听器
-        debugPrint('🔄 恢复持续定位模式');
-      });
+  //     // 3秒后恢复持续定位模式
+  //     Timer(Duration(seconds: 3), () {
+  //       _isSingleLocationInProgress = false;
+  //       _setupContinuousLocation();
+  //       _locationPlugin.startLocation();  // 只重启定位，不重新设置监听器
+  //       debugPrint('🔄 恢复持续定位模式');
+  //     });
       
-    } catch (e) {
-      debugPrint('❌ 定时单次定位失败: $e');
-      _isSingleLocationInProgress = false;
-    }
-  }
+  //   } catch (e) {
+  //     debugPrint('❌ 定时单次定位失败: $e');
+  //     _isSingleLocationInProgress = false;
+  //   }
+  // }
   
   /// 检查服务状态（用于测试）
   bool get isServiceRunning => isLocationEnabled.value;
   
-  /// 获取当前定位策略信息
-  Map<String, dynamic> getLocationStrategyInfo() {
-    return {
-      'strategy': 'iOS全量收集',
-      'reportInterval': _reportInterval.inMinutes,
-      'locationHistorySize': locationHistory.length,
-      'description': '收集所有位置更新',
-    };
-  }
+  // /// 获取当前定位策略信息
+  // Map<String, dynamic> getLocationStrategyInfo() {
+  //   return {
+  //     'strategy': 'iOS全量收集',
+  //     'reportInterval': _reportInterval.inMinutes,
+  //     'locationHistorySize': locationHistory.length,
+  //     'description': '收集所有位置更新',
+  //   };
+  // }
   
-  /// 调试速度数据的专用方法
-  void debugSpeedInfo() {
-    if (currentLocation.value != null) {
-      final location = currentLocation.value!;
-      debugPrint('🚗 当前速度调试信息:');
-      debugPrint('   速度值: ${location.speed} m/s');
-      debugPrint('   换算: ${(double.parse(location.speed) * 3.6).toStringAsFixed(2)} km/h');
-      debugPrint('   纬度: ${location.latitude}');
-      debugPrint('   经度: ${location.longitude}');
-      debugPrint('   精度: ${location.accuracy} 米');
-      debugPrint('   定位时间: ${location.locationTime}');
-      debugPrint('   位置名称: ${location.locationName}');
-    } else {
-      debugPrint('🚗 当前无定位数据');
-    }
-  }
+  // /// 调试速度数据的专用方法
+  // void debugSpeedInfo() {
+  //   if (currentLocation.value != null) {
+  //     final location = currentLocation.value!;
+  //     debugPrint('🚗 当前速度调试信息:');
+  //     debugPrint('   速度值: ${location.speed} m/s');
+  //     debugPrint('   换算: ${(double.parse(location.speed) * 3.6).toStringAsFixed(2)} km/h');
+  //     debugPrint('   纬度: ${location.latitude}');
+  //     debugPrint('   经度: ${location.longitude}');
+  //     debugPrint('   精度: ${location.accuracy} 米');
+  //     debugPrint('   定位时间: ${location.locationTime}');
+  //     debugPrint('   位置名称: ${location.locationName}');
+  //   } else {
+  //     debugPrint('🚗 当前无定位数据');
+  //   }
+  // }
   
-  /// 手动触发单次定位（用于调试）
-  Future<void> requestTestLocation() async {
-    debugPrint('🧪 手动触发测试定位...');
-    await _requestSingleLocation();
-  }
+  // /// 手动触发单次定位（用于调试）
+  // Future<void> requestTestLocation() async {
+  //   debugPrint('🧪 手动触发测试定位...');
+  //   await _requestSingleLocation();
+  // }
   
   /// 尝试纯网络定位（不依赖GPS）
   Future<void> tryNetworkLocationOnly() async {
@@ -1231,8 +1186,8 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 配置纯网络定位
       AMapLocationOption locationOption = AMapLocationOption();
       locationOption.locationMode = AMapLocationMode.Battery_Saving; // 省电模式主要使用网络定位
-      locationOption.locationInterval = 5000; // 5秒间隔
-      locationOption.distanceFilter = _distanceFilter; // 50米距离过滤（与iOS一致）
+      locationOption.locationInterval = SimpleLocationService._locationInterval; // 5秒间隔
+      locationOption.distanceFilter = _distanceFilter; //  
       locationOption.needAddress = true;
       locationOption.onceLocation = false;
       // locationOption.mockEnable = true;
@@ -1339,8 +1294,8 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         // 设置新模式
         AMapLocationOption locationOption = AMapLocationOption();
         locationOption.locationMode = modeInfo['mode'] as AMapLocationMode;
-        locationOption.locationInterval = 3000;
-        locationOption.distanceFilter = _distanceFilter; // 50米距离过滤（与iOS一致）
+        locationOption.locationInterval = SimpleLocationService._locationInterval;
+        locationOption.distanceFilter = _distanceFilter; // 
         // 优化已实现
         locationOption.needAddress = true;
         locationOption.onceLocation = false;
@@ -1485,96 +1440,96 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     }
   }
   
-  /// 测试单次定位（用于调试） - 使用独立插件实例避免Stream冲突
-  Future<Map<String, Object>?> testSingleLocation() async {
-    // 创建独立的插件实例避免Stream冲突
-    AMapFlutterLocation testLocationPlugin = AMapFlutterLocation();
+  // /// 测试单次定位（用于调试） - 使用独立插件实例避免Stream冲突
+  // Future<Map<String, Object>?> testSingleLocation() async {
+  //   // 创建独立的插件实例避免Stream冲突
+  //   AMapFlutterLocation testLocationPlugin = AMapFlutterLocation();
     
-    try {
-      debugPrint('🧪 开始测试单次定位...');
+  //   try {
+  //     debugPrint('🧪 开始测试单次定位...');
       
-      // 设置隐私合规和API Key
-      await _setupPrivacyCompliance();
+  //     // 设置隐私合规和API Key
+  //     await _setupPrivacyCompliance();
       
-      // 检查权限
-      bool hasPermission = await requestLocationPermission();
-      if (!hasPermission) {
-        debugPrint('❌ 定位权限检查失败');
-        return null;
-      }
+  //     // 检查权限
+  //     bool hasPermission = await requestLocationPermission();
+  //     if (!hasPermission) {
+  //       debugPrint('❌ 定位权限检查失败');
+  //       return null;
+  //     }
       
-      debugPrint('🔧 准备启动单次定位（使用独立插件实例）');
+  //     debugPrint('🔧 准备启动单次定位（使用独立插件实例）');
       
-      // 设置单次定位参数
-      AMapLocationOption locationOption = AMapLocationOption();
-      locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
-      locationOption.locationInterval = 2000;
-      locationOption.distanceFilter = _distanceFilter; // 50米距离过滤（与iOS一致）
-      // 优化已实现
-      locationOption.needAddress = true;
-      locationOption.onceLocation = true; // 单次定位
+  //     // 设置单次定位参数
+  //     AMapLocationOption locationOption = AMapLocationOption();
+  //     locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
+  //     locationOption.locationInterval = 2000;
+  //     locationOption.distanceFilter = _distanceFilter; // 50米距离过滤（与iOS一致）
+  //     // 优化已实现
+  //     locationOption.needAddress = true;
+  //     locationOption.onceLocation = true; // 单次定位
       
-      testLocationPlugin.setLocationOption(locationOption);
-      debugPrint('🔧 单次定位参数设置完成');
+  //     testLocationPlugin.setLocationOption(locationOption);
+  //     debugPrint('🔧 单次定位参数设置完成');
       
-      // 创建一个Completer来等待定位结果
-      Completer<Map<String, Object>?> completer = Completer<Map<String, Object>?>();
+  //     // 创建一个Completer来等待定位结果
+  //     Completer<Map<String, Object>?> completer = Completer<Map<String, Object>?>();
       
-      // 设置超时
-      Timer timeoutTimer = Timer(Duration(seconds: 30), () {
-        if (!completer.isCompleted) {
-          debugPrint('❌ 单次定位超时（30秒）');
-          completer.complete(null);
-        }
-      });
+  //     // 设置超时
+  //     Timer timeoutTimer = Timer(Duration(seconds: 30), () {
+  //       if (!completer.isCompleted) {
+  //         debugPrint('❌ 单次定位超时（30秒）');
+  //         completer.complete(null);
+  //       }
+  //     });
       
-      // 监听定位结果 - 使用独立插件实例的Stream
-      StreamSubscription<Map<String, Object>>? testSub;
-      testSub = testLocationPlugin.onLocationChanged().listen(
-        (Map<String, Object> result) {
-          debugPrint('🧪 收到单次定位结果: $result');
-          timeoutTimer.cancel();
-          testSub?.cancel();
+  //     // 监听定位结果 - 使用独立插件实例的Stream
+  //     StreamSubscription<Map<String, Object>>? testSub;
+  //     testSub = testLocationPlugin.onLocationChanged().listen(
+  //       (Map<String, Object> result) {
+  //         debugPrint('🧪 收到单次定位结果: $result');
+  //         timeoutTimer.cancel();
+  //         testSub?.cancel();
           
-          // 检查错误码
-          int? errorCode = int.tryParse(result['errorCode']?.toString() ?? '0');
-          if (errorCode != null && errorCode != 0) {
-            debugPrint('❌ 单次定位失败 - 错误码: $errorCode');
-            completer.complete(null);
-          } else {
-            completer.complete(result);
-          }
-        },
-        onError: (error) {
-          debugPrint('❌ 单次定位错误: $error');
-          timeoutTimer.cancel();
-          testSub?.cancel();
-          completer.complete(null);
-        },
-      );
+  //         // 检查错误码
+  //         int? errorCode = int.tryParse(result['errorCode']?.toString() ?? '0');
+  //         if (errorCode != null && errorCode != 0) {
+  //           debugPrint('❌ 单次定位失败 - 错误码: $errorCode');
+  //           completer.complete(null);
+  //         } else {
+  //           completer.complete(result);
+  //         }
+  //       },
+  //       onError: (error) {
+  //         debugPrint('❌ 单次定位错误: $error');
+  //         timeoutTimer.cancel();
+  //         testSub?.cancel();
+  //         completer.complete(null);
+  //       },
+  //     );
       
-      // 启动定位
-      testLocationPlugin.startLocation();
-      debugPrint('🔧 单次定位启动请求已发送');
+  //     // 启动定位
+  //     testLocationPlugin.startLocation();
+  //     debugPrint('🔧 单次定位启动请求已发送');
       
-      // 等待结果
-      Map<String, Object>? result = await completer.future;
+  //     // 等待结果
+  //     Map<String, Object>? result = await completer.future;
       
-      // 停止定位并清理
-      testLocationPlugin.stopLocation();
-      await testSub.cancel();
-      debugPrint('🔧 单次定位测试完成');
+  //     // 停止定位并清理
+  //     testLocationPlugin.stopLocation();
+  //     await testSub.cancel();
+  //     debugPrint('🔧 单次定位测试完成');
       
-      return result;
-    } catch (e) {
-      debugPrint('❌ 单次定位测试异常: $e');
-      // 确保清理
-      try {
-        testLocationPlugin.stopLocation();
-      } catch (_) {}
-      return null;
-    }
-  }
+  //     return result;
+  //   } catch (e) {
+  //     debugPrint('❌ 单次定位测试异常: $e');
+  //     // 确保清理
+  //     try {
+  //       testLocationPlugin.stopLocation();
+  //     } catch (_) {}
+  //     return null;
+  //   }
+  // }
 
   // 调试方法已删除
 
@@ -1600,33 +1555,33 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   
   
   
-  /// 手动上报当前位置
-  Future<bool> reportCurrentLocation() async {
-    if (currentLocation.value == null) {
-      debugPrint('没有当前位置数据');
-      return false;
-    }
+  // /// 手动上报当前位置
+  // Future<bool> reportCurrentLocation() async {
+  //   if (currentLocation.value == null) {
+  //     debugPrint('没有当前位置数据');
+  //     return false;
+  //   }
     
-    try {
-      isReporting.value = true;
+  //   try {
+  //     isReporting.value = true;
       
-      final api = LocationReportApi();
-      final result = await api.reportLocation([currentLocation.value!]);
+  //     final api = LocationReportApi();
+  //     final result = await api.reportLocation([currentLocation.value!]);
       
-      if (result.isSuccess) {
-        debugPrint('当前位置上报成功');
-        return true;
-      } else {
-        debugPrint('当前位置上报失败: ${result.msg}');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('上报当前位置异常: $e');
-      return false;
-    } finally {
-      isReporting.value = false;
-    }
-  }
+  //     if (result.isSuccess) {
+  //       debugPrint('当前位置上报成功');
+  //       return true;
+  //     } else {
+  //       debugPrint('当前位置上报失败: ${result.msg}');
+  //       return false;
+  //     }
+  //   } catch (e) {
+  //     debugPrint('上报当前位置异常: $e');
+  //     return false;
+  //   } finally {
+  //     isReporting.value = false;
+  //   }
+  // }
   
   /// 获取位置历史记录数量
   int get historyCount => locationHistory.length;
@@ -1642,73 +1597,73 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   String get currentAccuracy => currentLocation.value?.accuracy ?? '0.0';
   
   /// 获取服务状态信息
-  Map<String, dynamic> get serviceStatus => {
-    'isLocationEnabled': isLocationEnabled.value,
-    'isReporting': isReporting.value,
-    'hasInitialReport': hasInitialReport.value,
-    'hasLocation': hasLocation,
-    'historyCount': historyCount,
-    'pendingReportCount': pendingReportCount,
-    'currentAccuracy': currentAccuracy,
-  };
+  // Map<String, dynamic> get serviceStatus => {
+  //   'isLocationEnabled': isLocationEnabled.value,
+  //   'isReporting': isReporting.value,
+  //   'hasInitialReport': hasInitialReport.value,
+  //   'hasLocation': hasLocation,
+  //   'historyCount': historyCount,
+  //   'pendingReportCount': pendingReportCount,
+  //   'currentAccuracy': currentAccuracy,
+  // };
   
   /// 获取增强后的服务状态信息（参考iOS版本）
-  Map<String, dynamic> getEnhancedServiceStatus() {
-    final permissionStatus = getCurrentPermissionStatusDescription();
-    return {
-      'basic': serviceStatus,
-      'permissions': permissionStatus,
-      'backgroundTask': _backgroundTaskId != null ? 'active' : 'inactive',
-      'keepAliveTimer': _backgroundKeepAliveTimer?.isActive ?? false,
-      'batteryOptimization': {
-        'isLowPowerMode': _isInLowPowerMode,
-        'consecutiveSuccessCount': _consecutiveSuccessCount,
-        'consecutiveFailureCount': _consecutiveFailureCount,
-        'lowPowerModeStartTime': _lowPowerModeStartTime?.toIso8601String(),
-        'backgroundNotificationShown': _isBackgroundNotificationShown,
-      },
-      'configuration': {
-        'distanceFilter': _distanceFilter,
-        'locationInterval': _locationInterval,
-        'desiredAccuracy': _desiredAccuracy,
-        'reportInterval': _reportInterval.inMinutes,
-        'maxHistorySize': _maxHistorySize,
-      },
-      'strategy': '参考iOS全量收集策略',
-      'retryCount': _locationRetryCount,
-    };
-  }
+  // Map<String, dynamic> getEnhancedServiceStatus() {
+  //   final permissionStatus = getCurrentPermissionStatusDescription();
+  //   return {
+  //     'basic': serviceStatus,
+  //     'permissions': permissionStatus,
+  //     'backgroundTask': _backgroundTaskId != null ? 'active' : 'inactive',
+  //     'keepAliveTimer': _backgroundKeepAliveTimer?.isActive ?? false,
+  //     'batteryOptimization': {
+  //       'isLowPowerMode': _isInLowPowerMode,
+  //       'consecutiveSuccessCount': _consecutiveSuccessCount,
+  //       'consecutiveFailureCount': _consecutiveFailureCount,
+  //       'lowPowerModeStartTime': _lowPowerModeStartTime?.toIso8601String(),
+  //       'backgroundNotificationShown': _isBackgroundNotificationShown,
+  //     },
+  //     'configuration': {
+  //       'distanceFilter': _distanceFilter,
+  //       'locationInterval': _locationInterval,
+  //       'desiredAccuracy': _desiredAccuracy,
+  //       'reportInterval': _reportInterval.inMinutes,
+  //       'maxHistorySize': _maxHistorySize,
+  //     },
+  //     'strategy': '参考iOS全量收集策略',
+  //     'retryCount': _locationRetryCount,
+  //   };
+  // }
   
-  /// 强制上报当前位置（新策略：实时上报，无批量数据）
-  Future<bool> forceReportAllPending() async {
-    if (currentLocation.value == null) {
-      debugPrint('没有当前位置数据');
-      return true;
-    }
+  // /// 强制上报当前位置（新策略：实时上报，无批量数据）
+  // Future<bool> forceReportAllPending() async {
+  //   if (currentLocation.value == null) {
+  //     debugPrint('没有当前位置数据');
+  //     return true;
+  //   }
     
-    debugPrint('强制上报当前位置');
-    return await reportCurrentLocation();
-  }
+  //   debugPrint('强制上报当前位置');
+  //   return await reportCurrentLocation();
+  // }
   
   /// 清空所有历史数据
-  void clearAllData() {
-    locationHistory.clear();
-    currentLocation.value = null;
-    hasInitialReport.value = false;
-    _lastReportedLocation = null;
-    // _lastMinuteReportTime = null; // 已移除
-    debugPrint('已清空所有位置数据');
-  }
+  // void clearAllData() {
+  //   locationHistory.clear();
+  //   currentLocation.value = null;
+  //   hasInitialReport.value = false;
+  //   _lastReportedLocation = null;
+  //   // _lastMinuteReportTime = null; // 已移除
+  //   debugPrint('已清空所有位置数据');
+  // }
   
-  /// 获取位置历史记录（用于调试）
-  List<Map<String, dynamic>> getLocationHistoryForDebug() {
-    return locationHistory.map((location) => location.toJson()).toList();
-  }
+  // /// 获取位置历史记录（用于调试）
+  // List<Map<String, dynamic>> getLocationHistoryForDebug() {
+  //   return locationHistory.map((location) => location.toJson()).toList();
+  // }
   
   /// 获取待上报数据（用于调试）- 新策略不再使用批量收集
-  List<Map<String, dynamic>> getPendingReportsForDebug() {
-    return []; // 新策略：实时上报，无待上报数据
-  }
+  // List<Map<String, dynamic>> getPendingReportsForDebug() {
+  //   return []; // 新策略：实时上报，无待上报数据
+  // }
   
   /// 外部接口：确保后台策略激活
   void ensureBackgroundStrategyActive() {
@@ -1764,33 +1719,31 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   }
   
   /// 获取实时定位点收集统计信息
-  Map<String, dynamic> getLocationCollectionStats() {
-    return {
-      'isLocationEnabled': isLocationEnabled.value,
-      'totalLocationPoints': 0, // 已简化
-      'hasInitialReport': hasInitialReport.value,
-      'currentLocation': currentLocation.value?.toJson(),
-      'reportInterval': _reportInterval.inMinutes,
-      'maxHistorySize': _maxHistorySize,
-      'lastLocationTime': currentLocation.value?.locationTime,
-    };
-  }
+  // Map<String, dynamic> getLocationCollectionStats() {
+  //   return {
+  //     'isLocationEnabled': isLocationEnabled.value,
+  //     'totalLocationPoints': 0, // 已简化
+  //     'hasInitialReport': hasInitialReport.value,
+  //     'currentLocation': currentLocation.value?.toJson(),
+  //     'reportInterval': _reportInterval.inMinutes,
+  //     'maxHistorySize': _maxHistorySize,
+  //     'lastLocationTime': currentLocation.value?.locationTime,
+  //   };
+  // }
   
   /// 打印实时定位点收集状态
-  void printLocationCollectionStatus() {
-    final stats = getLocationCollectionStats();
-    debugPrint('📊 实时定位点收集状态:');
-    debugPrint('   定位服务状态: ${stats['isLocationEnabled'] ? '运行中' : '已停止'}');
-    debugPrint('   已简化: 不再统计采样点数');
-    debugPrint('   待上报点数: ${stats['pendingReportPoints']}');
-    debugPrint('   收集策略: 参考iOS全量收集模式');
-    debugPrint('   上报间隔: ${stats['reportInterval']}分钟');
-    debugPrint('   当前位置: ${stats['currentLocation'] != null ? '已获取' : '未获取'}');
-    if (stats['currentLocation'] != null) {
-      final loc = stats['currentLocation'] as Map<String, dynamic>;
-      debugPrint('   最新位置: ${loc['latitude']}, ${loc['longitude']} (精度: ${loc['accuracy']}米)');
-    }
-  }
+  // void printLocationCollectionStatus() {
+  //   final stats = getLocationCollectionStats();
+  //   debugPrint('📊 实时定位点收集状态:');
+  //   debugPrint('   定位服务状态: ${stats['isLocationEnabled'] ? '运行中' : '已停止'}');
+  //    debugPrint('   待上报点数: ${stats['pendingReportPoints']}');
+  //    debugPrint('   上报间隔: ${stats['reportInterval']}分钟');
+  //   debugPrint('   当前位置: ${stats['currentLocation'] != null ? '已获取' : '未获取'}');
+  //   if (stats['currentLocation'] != null) {
+  //     final loc = stats['currentLocation'] as Map<String, dynamic>;
+  //     debugPrint('   最新位置: ${loc['latitude']}, ${loc['longitude']} (精度: ${loc['accuracy']}米)');
+  //   }
+  // }
 }
 
 // MARK: - 应用生命周期监听扩展（优化版本）
@@ -1897,9 +1850,9 @@ extension AppLifecycleExtension on SimpleLocationService {
 
         final gpsOnly = AMapLocationOption();
         gpsOnly.locationMode = AMapLocationMode.Device_Sensors; // 仅设备传感器（GPS）
-        gpsOnly.locationInterval = 20000; // 降低频率，节能且避免频繁失败
+        gpsOnly.locationInterval = SimpleLocationService._locationInterval; // 降低频率，节能且避免频繁失败
         gpsOnly.distanceFilter = SimpleLocationService._distanceFilter;
-        gpsOnly.needAddress = false; // 纯GPS不解析地址，避免网络依赖
+        gpsOnly.needAddress = true; // 纯GPS不解析地址，避免网络依赖
         gpsOnly.onceLocation = false;
 
         _locationPlugin.setLocationOption(gpsOnly);
@@ -1914,7 +1867,7 @@ extension AppLifecycleExtension on SimpleLocationService {
       // 首选高精度模式，系统会在息屏/后台时自动降级为网络定位
       final option = AMapLocationOption();
       option.locationMode = AMapLocationMode.Hight_Accuracy;
-      option.locationInterval = 15000; // 后台15秒一次，降低功耗
+      option.locationInterval = SimpleLocationService._locationInterval; // 后台15秒一次，降低功耗
       option.distanceFilter = SimpleLocationService._distanceFilter; // 与前台保持一致的距离过滤
       option.needAddress = true;
       option.onceLocation = false;

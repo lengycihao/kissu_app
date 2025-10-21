@@ -209,7 +209,7 @@ class ShareBottomSheet extends StatelessWidget {
     const appLink = 'https://www.kissu.app/download'; // 替换为实际的下载链接
     
     Clipboard.setData(const ClipboardData(text: appLink)).then((_) {
-      // OKToastUtil.show('链接已复制到剪贴板');
+       OKToastUtil.show('复制成功');
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');
     });
@@ -301,7 +301,7 @@ class ShareBottomSheet extends StatelessWidget {
     }
     
     Clipboard.setData(ClipboardData(text: appLink)).then((_) {
-      // OKToastUtil.show('链接已复制到剪贴板');
+      OKToastUtil.show('复制成功');
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');
     });

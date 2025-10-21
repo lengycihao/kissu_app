@@ -87,72 +87,76 @@ class ScreenLockService extends GetxService {
   
   /// 处理锁屏/解锁事件
   void _handleScreenEvent(dynamic event) {
-    try {
-      DebugUtil.info('🔍 原始锁屏事件数据: $event');
-      DebugUtil.info('🔍 数据类型: ${event.runtimeType}');
+  try {
+    DebugUtil.info('🔍 原始锁屏事件数据: $event');
+    DebugUtil.info('🔍 数据类型: ${event.runtimeType}');
+    
+    // ✅ 统一转换 Map 类型，确保类型安全
+    if (event is Map) {
+      final eventMap = Map<String, dynamic>.from(event);
+      DebugUtil.info('✅ 数据类型验证通过: Map<String, dynamic>');
       
-      if (event is Map<String, dynamic>) {
-        DebugUtil.info('✅ 数据类型验证通过: Map<String, dynamic>');
-        
-        // 打印所有键值对
-        event.forEach((key, value) {
-          DebugUtil.info('🔍 键值对: $key => $value (${value.runtimeType})');
-        });
-        
-        // 尝试提取字段
-        dynamic rawEventType = event['event_type'];
-        dynamic rawTimestamp = event['timestamp'];
-        
-        DebugUtil.info('🔍 原始event_type: $rawEventType (${rawEventType.runtimeType})');
-        DebugUtil.info('🔍 原始timestamp: $rawTimestamp (${rawTimestamp.runtimeType})');
-        
-        // 安全类型转换
-        String? eventType;
-        int? timestamp;
-        
-        try {
-          eventType = rawEventType as String?;
-          DebugUtil.info('✅ event_type转换成功: $eventType');
-        } catch (e) {
-          DebugUtil.error('❌ event_type转换失败: $e');
-        }
-        
-        try {
-          timestamp = rawTimestamp as int?;
-          DebugUtil.info('✅ timestamp转换成功: $timestamp');
-        } catch (e) {
-          DebugUtil.error('❌ timestamp转换失败: $e');
-        }
-        
-        // 验证必要字段
-        if (eventType == null || timestamp == null) {
-          DebugUtil.warning('❌ 锁屏事件数据缺少必要字段 - eventType: $eventType, timestamp: $timestamp');
-          return;
-        }
-        
-        DebugUtil.success('✅ 收到有效锁屏事件: $eventType, 时间戳: $timestamp');
-        
-        // 根据事件类型触发相应的上报
-        switch (eventType) {
-          case 'unlock':
-            DebugUtil.info('🔓 处理解锁事件');
-            _handleUnlockEvent();
-            break;
-          case 'lock':
-            DebugUtil.info('🔒 处理锁屏事件');
-            _handleLockEvent();
-            break;
-          default:
-            DebugUtil.warning('❌ 未知的锁屏事件类型: $eventType');
-        }
-      } else {
-        DebugUtil.warning('❌ 收到无效的锁屏事件数据类型: ${event.runtimeType}, 数据: $event');
+      // 打印所有键值对
+      eventMap.forEach((key, value) {
+        DebugUtil.info('🔍 键值对: $key => $value (${value.runtimeType})');
+      });
+      
+      // 尝试提取字段
+      dynamic rawEventType = eventMap['event_type'];
+      dynamic rawTimestamp = eventMap['timestamp'];
+      
+      DebugUtil.info('🔍 原始event_type: $rawEventType (${rawEventType.runtimeType})');
+      DebugUtil.info('🔍 原始timestamp: $rawTimestamp (${rawTimestamp.runtimeType})');
+      
+      // 安全类型转换
+      String? eventType;
+      int? timestamp;
+      
+      try {
+        eventType = rawEventType as String?;
+        DebugUtil.info('✅ event_type转换成功: $eventType');
+      } catch (e) {
+        DebugUtil.error('❌ event_type转换失败: $e');
       }
-    } catch (e, stackTrace) {
-      DebugUtil.error('❌ 处理锁屏事件时发生异常: $e');
-      DebugUtil.error('❌ 异常堆栈: $stackTrace');
+      
+      try {
+        // 注意 timestamp 可能是 double 或 num，最好统一成 int
+        timestamp = (rawTimestamp is num) ? rawTimestamp.toInt() : null;
+        DebugUtil.info('✅ timestamp转换成功: $timestamp');
+      } catch (e) {
+        DebugUtil.error('❌ timestamp转换失败: $e');
+      }
+      
+      // 验证必要字段
+      if (eventType == null || timestamp == null) {
+        DebugUtil.warning('❌ 锁屏事件数据缺少必要字段 - eventType: $eventType, timestamp: $timestamp');
+        return;
+      }
+      
+      DebugUtil.success('✅ 收到有效锁屏事件: $eventType, 时间戳: $timestamp');
+      
+      // 根据事件类型触发相应的上报
+      switch (eventType) {
+        case 'unlock':
+          DebugUtil.info('🔓 处理解锁事件');
+          _handleUnlockEvent();
+          break;
+        case 'lock':
+          DebugUtil.info('🔒 处理锁屏事件');
+          _handleLockEvent();
+          break;
+        default:
+          DebugUtil.warning('❌ 未知的锁屏事件类型: $eventType');
+      }
+    } else {
+      DebugUtil.warning('❌ 收到无效的锁屏事件数据类型: ${event.runtimeType}, 数据: $event');
     }
+  } catch (e, stackTrace) {
+    DebugUtil.error('❌ 处理锁屏事件时发生异常: $e');
+    DebugUtil.error('❌ 异常堆栈: $stackTrace');
   }
+}
+
   
   /// 处理解锁事件
   void _handleUnlockEvent() {

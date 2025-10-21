@@ -73,32 +73,35 @@ class _RadarScannerState extends State<RadarScanner> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 背景圆圈
+          // 🎯 背景圆圈 - 静态，不需要重建
           _buildBackgroundCircles(),
           
-          // 扫描雷达线
-          Obx(() {
-            final radarColor = _getRadarColor(controller.scanState.value);
-            return AnimatedBuilder(
+          // 🎯 扫描雷达线 - 直接使用AnimatedBuilder，避免Obx导致的重建卡顿
+          RepaintBoundary(
+            child: AnimatedBuilder(
               animation: controller.radarAnimation,
               builder: (context, child) {
-                return Transform.rotate(
-                  angle: controller.radarAnimation.value * 2 * math.pi,
-                  child: CustomPaint(
-                    size: Size(widget.size, widget.size),
-                    painter: RadarLinePainter(
-                      color: radarColor,
+                // 🎯 使用Obx单独监听颜色变化，不影响动画连续性
+                return Obx(() {
+                  final radarColor = _getRadarColor(controller.scanState.value);
+                  return Transform.rotate(
+                    angle: controller.radarAnimation.value * 2 * math.pi,
+                    child: CustomPaint(
+                      size: Size(widget.size, widget.size),
+                      painter: RadarLinePainter(
+                        color: radarColor,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                });
               },
-            );
-          }),
+            ),
+          ),
           
-          // 扫描到的设备点
+          // 🎯 扫描到的设备点 - 只在设备列表变化时重建
           Obx(() => _buildDevicePoints(controller)),
           
-          // 中心图标
+          // 🎯 中心图标 - 只在状态变化时重建
           Obx(() => _buildCenterIcon(controller)),
         ],
       ),
