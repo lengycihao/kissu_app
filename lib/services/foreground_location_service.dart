@@ -76,13 +76,13 @@ class ForegroundLocationService extends GetxService {
         'channelName': _channelName,
         'channelDescription': _channelDescription,
         'notificationId': _notificationId,
-        'title': 'Kissu - 情侣定位',
-        'content': '正在为您提供位置定位服务',
+        'title': 'Kissu',
+        'content': '请不要关掉Kisssu后台进程\n当前正在为对方共享您的信息，请勿关闭', // 静默通知，不显示内容
         'icon': 'ic_launcher',
         'enableVibration': false,
         'enableSound': false,
-        'priority': 'high',
-        'importance': 'high',
+        'priority': 'min', // 🔧 最低优先级，通知栏不可见
+        'importance': 'min', // 🔧 最低重要性
         'ongoing': true,
         'autoCancel': false,
       });

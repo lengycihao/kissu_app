@@ -32,11 +32,7 @@ class ApiResponseInterceptor extends Interceptor {
       print('🔍 原始响应Body: ${response.data}');
       print('🔍 原始响应Body类型: ${response.data.runtimeType}');
       
-      // 处理401未授权
-      if (response.statusCode == 401) {
-        _handleTokenExpired('登录已过期，请重新登录');
-        return;
-      }
+      // 移除HTTP状态码401的特殊处理，只通过业务错误码43000来判断token失效
 
       // 转换响应为统一格式
       final processedResponse = _processApiResponse(response);
@@ -72,63 +68,7 @@ class ApiResponseInterceptor extends Interceptor {
             break;
 
           default:
-            // 检查是否是其他常见的token过期错误码
-            final tokenExpiredCodes = [
-              401,   // Unauthorized
-              403,   // Forbidden  
-              1001,  // token无效
-              1002,  // token过期
-              10001, // 登录失效
-              40001, // token异常
-              40002, // 用户未登录
-              40003, // 登录过期
-              42000, // 认证失败
-              43000, // token失效或账号异常
-            ];
-            if (tokenExpiredCodes.contains(processedResponse.code)) {
-              print('🔍 检测到业务层面token过期，错误码: ${processedResponse.code}, 错误消息: ${processedResponse.msg}');
-              final message = processedResponse.msg ?? '登录已过期，请重新登录';
-              _handleTokenExpired(message);
-              return;
-            }
-
-            // 检查错误消息中是否包含token过期关键词
-            final msg = processedResponse.msg?.toLowerCase() ?? '';
-            final tokenExpiredKeywords = [
-              // 'token',  // ❌ 移除：太宽泛，会误触发退出登录
-              'unauthorized',
-              'unauthenticated',
-              'invalid token',
-              'expired token',
-              'token expired',
-              'token失效',
-              'token无效',
-              'token过期',
-              'login expired',
-              'session expired',
-              '未授权',
-              '登录失效',
-              '登录过期',
-              '会话过期',
-              '用户未登录',
-              '请重新登录',
-              '登录状态异常',
-              '账号异常',
-              '认证失败',
-              '身份验证失败',
-            ];
-            
-            final foundKeyword = tokenExpiredKeywords.firstWhere(
-              (keyword) => msg.contains(keyword),
-              orElse: () => '',
-            );
-            
-            if (foundKeyword.isNotEmpty) {
-              print('🔍 检测到错误消息中包含token过期关键词: "$foundKeyword", 完整消息: ${processedResponse.msg}');
-              final message = processedResponse.msg ?? '登录已过期，请重新登录';
-              _handleTokenExpired(message);
-              return;
-            }
+            // 其他错误码不做特殊处理，让上层业务处理
             break;
         }
       }
@@ -149,13 +89,8 @@ class ApiResponseInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    // 处理401错误
-    if (err.response?.statusCode == 401) {
-      _handleTokenExpired('登录已过期，请重新登录');
-      return;
-    }
-
-    // 将网络错误转换为统一格式
+    // 将网络错误转换为统一格式，不再处理401等HTTP状态码的特殊逻辑
+    // 只有业务层面的43000错误码才会触发退出登录
     final errorResult = _handleDioError(err);
     final errorResponse = Response(
       statusCode: err.response?.statusCode ?? -1,

@@ -53,8 +53,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val FOREGROUND_SERVICE_CHANNEL = "kissu_app/foreground_service"
     private val SHARE_CHANNEL = "app.share/invoke"
     private val UMSHARE_CHANNEL = "umshare"
+    private val UMENG_ANALYTICS_CHANNEL = "umeng_analytics"
     private val PAYMENT_CHANNEL = "kissu_payment"
-    private val SCREENSHOT_CHANNEL = "kissu_app/screenshot"
     private val APP_INFO_CHANNEL = "kissu_app/app_info"
     private val WHITELIST_CHANNEL = "kissu_app/whitelist"
     private val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
@@ -63,9 +63,6 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     // 微信支付API
     private var wxApi: IWXAPI? = null
     
-    // 截屏监听器
-    private var screenshotObserver: ScreenshotObserver? = null
-    private var screenshotMethodChannel: MethodChannel? = null
     private var paymentMethodChannel: MethodChannel? = null
     
     // GPS状态监听器
@@ -223,31 +220,6 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         }
         */
 
-        // 截屏监听通道
-        Log.d("MainActivity", "🔧 开始注册截屏通道...")
-        screenshotMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SCREENSHOT_CHANNEL)
-        Log.d("MainActivity", "📸 截屏通道已注册: $SCREENSHOT_CHANNEL")
-        screenshotMethodChannel?.setMethodCallHandler { call, result ->
-            Log.d("MainActivity", "📸 收到截屏方法调用: ${call.method}")
-            when (call.method) {
-                "startListening" -> {
-                    Log.d("MainActivity", "📸 开始启动截屏监听...")
-                    startScreenshotListening()
-                    result.success(true)
-                }
-                "stopListening" -> {
-                    Log.d("MainActivity", "📸 停止截屏监听...")
-                    stopScreenshotListening()
-                    result.success(true)
-                }
-                else -> {
-                    Log.d("MainActivity", "📸 未实现的方法: ${call.method}")
-                    result.notImplemented()
-                }
-            }
-        }
-        Log.d("MainActivity", "✅ 截屏通道方法处理器设置完成")
-        
         // GPS状态监听通道（EventChannel）
         Log.d("MainActivity", "🔧 开始注册GPS状态通道...")
         val gpsEventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, GPS_STATUS_CHANNEL)
@@ -466,6 +438,151 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     val weburl = call.argument<String>("weburl") ?: ""
                     val sharemedia = call.argument<Int>("sharemedia") ?: 0
                     umengShare(title, text, img, weburl, sharemedia, result)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // 友盟统计通道
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UMENG_ANALYTICS_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "umeng_init" -> {
+                    val appKey = call.argument<String>("appKey") ?: "6879fbe579267e0210b67be9"
+                    val channel = call.argument<String>("channel") ?: "Umeng"
+                    val logEnabled = call.argument<Boolean>("logEnabled") ?: false
+                    try {
+                        // 初始化友盟统计
+                        UMConfigure.init(this, appKey, channel, UMConfigure.DEVICE_TYPE_PHONE, null)
+                        if (logEnabled) {
+                            UMConfigure.setLogEnabled(true)
+                        }
+                        Log.d("MainActivity", "友盟统计初始化成功: appKey=$appKey, channel=$channel")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "友盟统计初始化失败", e)
+                        result.error("INIT_ERROR", e.message, null)
+                    }
+                }
+                "umeng_setSessionContinue" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: true
+                    try {
+                        MobclickAgent.setSessionContinueMillis(if (enabled) 30000 else 0)
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_pageStart" -> {
+                    val pageName = call.argument<String>("pageName") ?: ""
+                    try {
+                        MobclickAgent.onPageStart(pageName)
+                        Log.d("UmengAnalytics", "页面开始: $pageName")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_pageEnd" -> {
+                    val pageName = call.argument<String>("pageName") ?: ""
+                    try {
+                        MobclickAgent.onPageEnd(pageName)
+                        Log.d("UmengAnalytics", "页面结束: $pageName")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_logEvent" -> {
+                    val eventId = call.argument<String>("eventId") ?: ""
+                    try {
+                        MobclickAgent.onEvent(this, eventId)
+                        Log.d("UmengAnalytics", "事件: $eventId")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_logEventWithParams" -> {
+                    val eventId = call.argument<String>("eventId") ?: ""
+                    val params = call.argument<Map<String, String>>("params") ?: mapOf()
+                    try {
+                        MobclickAgent.onEvent(this, eventId, params)
+                        Log.d("UmengAnalytics", "事件(带参数): $eventId, params=$params")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_logEventWithValue" -> {
+                    val eventId = call.argument<String>("eventId") ?: ""
+                    val value = call.argument<Int>("value") ?: 0
+                    try {
+                        val params = mapOf("value" to value.toString())
+                        MobclickAgent.onEventValue(this, eventId, params, value)
+                        Log.d("UmengAnalytics", "事件(带数值): $eventId, value=$value")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_logEventWithParamsAndValue" -> {
+                    val eventId = call.argument<String>("eventId") ?: ""
+                    val params = call.argument<Map<String, String>>("params") ?: mapOf()
+                    val value = call.argument<Int>("value") ?: 0
+                    try {
+                        MobclickAgent.onEventValue(this, eventId, params, value)
+                        Log.d("UmengAnalytics", "事件(带参数和数值): $eventId, params=$params, value=$value")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_setUserId" -> {
+                    val userId = call.argument<String>("userId") ?: ""
+                    try {
+                        MobclickAgent.onProfileSignIn(userId)
+                        Log.d("UmengAnalytics", "设置用户ID: $userId")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_clearUserId" -> {
+                    try {
+                        MobclickAgent.onProfileSignOff()
+                        Log.d("UmengAnalytics", "清除用户ID")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_setUserProfile" -> {
+                    // 注意：友盟统计 Android SDK 不支持直接设置自定义用户属性
+                    // 如需记录用户属性，建议通过事件参数的方式上报
+                    // 例如：MobclickAgent.onEvent(context, "user_profile_update", properties)
+                    Log.d("UmengAnalytics", "友盟不支持setUserProfile，改用事件方式记录用户属性")
+                    result.success(null)
+                }
+                "umeng_flush" -> {
+                    try {
+                        // 友盟会自动上报，这里只是触发一次刷新
+                        Log.d("UmengAnalytics", "手动上报数据")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "umeng_setScenarioType" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    try {
+                        // 设置场景类型（普通统计模式 vs 游戏统计模式）
+                        // 普通应用使用 E_UM_NORMAL
+                        MobclickAgent.setScenarioType(this, if (enabled) MobclickAgent.EScenarioType.E_UM_GAME else MobclickAgent.EScenarioType.E_UM_NORMAL)
+                        Log.d("UmengAnalytics", "设置场景类型: ${if (enabled) "游戏模式" else "普通模式"}")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -1744,34 +1861,4 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         }
     }
 
-    /**
-     * 开始截屏监听
-     */
-    private fun startScreenshotListening() {
-        Log.d("MainActivity", "📸 startScreenshotListening 被调用")
-        if (screenshotObserver == null) {
-            Log.d("MainActivity", "📸 创建新的 ScreenshotObserver...")
-            screenshotObserver = ScreenshotObserver(this) { screenshotPath ->
-                Log.d("MainActivity", "📸 截屏回调触发！路径: $screenshotPath")
-                // 截屏回调，通知Flutter层
-                Handler(Looper.getMainLooper()).post {
-                    Log.d("MainActivity", "📸 通知Flutter层: $screenshotPath")
-                    screenshotMethodChannel?.invokeMethod("onScreenshotCaptured", screenshotPath)
-                }
-            }
-            screenshotObserver?.startObserving()
-            Log.d("MainActivity", "✅ 截屏监听已启动")
-        } else {
-            Log.d("MainActivity", "⚠️ 截屏监听已经在运行中")
-        }
-    }
-
-    /**
-     * 停止截屏监听
-     */
-    private fun stopScreenshotListening() {
-        screenshotObserver?.stopObserving()
-        screenshotObserver = null
-        Log.d("MainActivity", "截屏监听已停止")
-    }
 }

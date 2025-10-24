@@ -8,9 +8,9 @@ import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
-import 'package:kissu_app/services/screenshot_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/umeng_analytics_util.dart';
 
 /// 安全的隐私合规管理器
 /// 采用渐进式初始化策略，确保第三方SDK功能不受影响
@@ -203,14 +203,14 @@ class PrivacyComplianceManager extends GetxService {
       // 3. 启用友盟分享的隐私授权
       await _enableShareServicePrivacy();
       
-      // 4. 启用OpenInstall的剪贴板功能（如果需要）
+      // 4. 启用友盟统计初始化
+      await _enableUmengAnalytics();
+      
+      // 5. 启用OpenInstall的剪贴板功能（如果需要）
       await _enableOpenInstallClipboard();
       
-      // 5. 启用敏感数据收集
+      // 6. 启用敏感数据收集
       await _enableSensitiveDataCollection();
-      
-      // 6. 启用截屏监听服务
-      await _enableScreenshotService();
       
       // 7. 通知其他服务隐私政策已同意
       _notifyPrivacyAgreement();
@@ -277,6 +277,21 @@ class PrivacyComplianceManager extends GetxService {
     }
   }
   
+  /// 启用友盟统计初始化
+  Future<void> _enableUmengAnalytics() async {
+    try {
+      // 初始化友盟统计
+      await UmengAnalytics.init();
+      if (kDebugMode) {
+        DebugUtil.success('友盟统计已初始化');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('初始化友盟统计失败: $e');
+      }
+    }
+  }
+  
   /// 初始化OpenInstall服务（隐私合规版本）
   Future<void> _enableOpenInstallClipboard() async {
     try {
@@ -307,22 +322,6 @@ class PrivacyComplianceManager extends GetxService {
     }
   }
   
-  /// 启用截屏监听服务
-  Future<void> _enableScreenshotService() async {
-    try {
-      if (Get.isRegistered<ScreenshotService>()) {
-        final screenshotService = Get.find<ScreenshotService>();
-        await screenshotService.startListening();
-        if (kDebugMode) {
-          DebugUtil.success('截屏监听服务已启动');
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        DebugUtil.error('启动截屏监听服务失败: $e');
-      }
-    }
-  }
   
   /// 启用敏感数据收集
   Future<void> _enableSensitiveDataCollection() async {

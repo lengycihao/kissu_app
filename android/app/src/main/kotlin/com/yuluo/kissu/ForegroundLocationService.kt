@@ -379,7 +379,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             .setShowWhen(true)
             .setWhen(System.currentTimeMillis())
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET) // 🔧 最低可见性，锁屏不显示
         
         // 设置震动和声音
         if (!enableVibration) {
@@ -601,26 +601,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     
     /**
      * 更新定位通知内容
+     * 🔧 已禁用：保持静默，不更新通知
      */
     private fun updateLocationNotification(location: AMapLocation) {
-        try {
-            val locationInfo = if (location.errorCode == 0) {
-                "最新位置: ${location.address ?: "未知地址"}"
-            } else {
-                "定位失败: ${location.errorInfo}"
-            }
-            
-            val intent = Intent(this, ForegroundLocationService::class.java).apply {
-                action = ACTION_UPDATE_NOTIFICATION
-                putExtra(EXTRA_TITLE, "Kissu - 情侣定位")
-                putExtra(EXTRA_CONTENT, "正在为您提供位置定位服务")
-                putExtra(EXTRA_BIG_TEXT, locationInfo)
-            }
-            
-            startService(intent)
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "更新定位通知失败", e)
-        }
+        // 🔧 移除通知更新，保持静默
+        // 不在定位成功后更新通知内容，避免频繁弹出通知
+        Log.d(TAG, "定位成功，静默模式（不更新通知）")
     }
 }

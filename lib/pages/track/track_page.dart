@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
@@ -21,6 +21,7 @@ class TrackPage extends StatelessWidget {
   final String? initialStartTime;
   final String? initialEndTime;
   final bool autoShowInfoWindow; // 🎯 新增：是否自动显示InfoWindow
+  final int? targetUserType; // 目标用户类型 (1: 自己, 0: 另一半)
 
   const TrackPage({
     super.key,
@@ -31,6 +32,7 @@ class TrackPage extends StatelessWidget {
     this.initialStartTime,
     this.initialEndTime,
     this.autoShowInfoWindow = false, // 默认不自动显示
+    this.targetUserType,
   });
 
   @override
@@ -50,7 +52,7 @@ class TrackPage extends StatelessWidget {
         duration: initialDuration,
         startTime: initialStartTime,
         endTime: initialEndTime,
-        autoShowInfoWindow: autoShowInfoWindow, // 🎯 传递自动显示InfoWindow参数
+        targetUserType: targetUserType,
       );
     }
 
@@ -111,16 +113,14 @@ class _TrackPageContentState extends State<_TrackPageContent>
     super.didChangeDependencies();
     // 在这里计算屏幕尺寸相关参数
     screenHeight = MediaQuery.of(context).size.height;
-    initialHeight = 190; // 与定位页面保持一致：固定190px
-    minHeight = 190; // 与定位页面保持一致
-    maxHeight = screenHeight - 100; // 与定位页面保持一致
+    initialHeight = 190;
+    minHeight = 190;
+    maxHeight = screenHeight - 100;
     mapHeight = screenHeight - initialHeight + 90;
 
     // 初始化底部面板控制器
     _draggableController = DraggableScrollableController();
     widget.controller.setDraggableController(_draggableController);
-
-    // InfoWindow现在通过标记的customInfoWindowBuilder自动显示，无需设置回调
   }
 
 
@@ -154,15 +154,10 @@ class _TrackPageContentState extends State<_TrackPageContent>
           // 左侧浮动按钮组（刷新 + 切换地图）
           _LeftFloatingButtons(controller: widget.controller),
 
-          // 右侧浮动按钮组已移除，播放条会自动显示
-
           // 下半屏 DraggableScrollableSheet，扩大可拖动区域
           NotificationListener<DraggableScrollableNotification>(
             onNotification: (notification) {
               widget.controller.sheetPercent.value = notification.extent;
-
-              // InfoWindow现在通过Marker的customInfoWindowBuilder自动管理，无需手动隐藏
-
               return true;
             },
             child: Obx(() {
@@ -189,6 +184,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                 builder: (context, scrollController) {
                   // 将scrollController保存到实例变量中，以便在返回按钮点击时使用
                   _scrollController = scrollController;
+                  // 将scrollController传递给控制器，用于停留点点击时归位
+                  widget.controller.setListScrollController(scrollController);
                   return Column(
                     children: [
                       Expanded(
@@ -203,16 +200,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                             children: [
                               NotificationListener<ScrollNotification>(
                                 onNotification: (notification) {
-                                  // 🔓 用户开始滑动时释放动画锁，防止自动展开与用户操作冲突
                                   if (notification is ScrollStartNotification) {
                                     widget.controller.setAnimationLock(false);
-                                  }
-                                  
-                                  // 使用智能滚动检测，特别处理边界反弹
-                                  if (notification
-                                      is ScrollUpdateNotification) {
-                                    // InfoWindow现在通过Marker的customInfoWindowBuilder自动管理
-                                    return true;
                                   }
                                   return false;
                                 },
@@ -577,7 +566,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
       // 未绑定时显示带背景图的绑定模块
       return Container(
         margin: EdgeInsets.symmetric(horizontal: 14),
-        height: 125, // 增加高度
+        height: 125,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           image: DecorationImage(
@@ -587,7 +576,6 @@ class _TrackPageContentState extends State<_TrackPageContent>
         ),
         child: Stack(
           children: [
-            // 日期选择器
             Positioned(
               left: 0,
               right: 0,
@@ -612,20 +600,6 @@ class _TrackPageContentState extends State<_TrackPageContent>
                 ),
               ),
             ),
-            // 绑定按钮 - 右上角
-            Positioned(
-              right: 14,
-              top: 8,
-              child: GestureDetector(
-                onTap: () => widget.controller.performBindAction(),
-                child: Container(
-                  width: 65,
-                  height: 24,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.transparent),
-                ),
-              ),
-            ),
           ],
         ),
       );
@@ -644,9 +618,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
       child: _buildStatisticsRow(),
     );
   }
-}
-
-// 优化的遮罩层Widget - 减少重建频率
+}// 优化的遮罩层Widget - 减少重建频率
 class _OptimizedOverlayWidget extends StatelessWidget {
   final TrackController controller;
   final double mapHeight;
@@ -695,38 +667,29 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
   // 缓存地图元素，避免频繁重建
   Set<Marker> _cachedMarkers = {};
   Set<Polyline> _cachedPolylines = {};
-  // 🎯 已移除圆圈缓存，现在使用原生地图API管理围栏圆圈
-
-  // 数据变化检测，只在数据真正变化时更新
   int _markersVersion = -1;
   int _polylinesVersion = -1;
-  // 🎯 已移除圆圈版本号，现在使用原生地图API管理围栏圆圈
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      bool needsUpdate = false;
-
       // 检查标记是否需要更新
-      // 🎯 优化版本号计算：将位置哈希值纳入版本号，确保位置变化时一定更新
       final replayMarkerHash = widget.controller.replayAvatarMarker.value != null
           ? (widget.controller.replayAvatarMarker.value!.position.latitude * 1000000).round() +
             (widget.controller.replayAvatarMarker.value!.position.longitude * 1000000).round()
           : 0;
       
       final currentMarkersVersion =
-          widget.controller.stayMarkers.length +
+          widget.controller.stopMarkers.length +
           widget.controller.trackStartEndMarkers.length +
-          (widget.controller.replayAvatarMarker.value != null ? 
-            1000 + replayMarkerHash : 0) + // 播放头像标记 + 位置哈希值
+          (widget.controller.replayAvatarMarker.value != null ? 1000 + replayMarkerHash : 0) +
           (widget.controller.replayAvatarMarker.value == null && 
            widget.controller.currentPosition.value != null && 
-           !widget.controller.isReplaying.value ? 1 : 0) + // 橙色标记（仅非播放时）
+           !widget.controller.isReplaying.value ? 1 : 0) +
           (widget.controller.tempInfoWindowMarker != null ? 10000 : 0); // 检测临时标记变化
       if (currentMarkersVersion != _markersVersion) {
         _updateMarkers();
         _markersVersion = currentMarkersVersion;
-        needsUpdate = true;
       }
 
       // 检查轨迹线是否需要更新
@@ -736,14 +699,6 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
       if (currentPolylinesVersion != _polylinesVersion) {
         _updatePolylines();
         _polylinesVersion = currentPolylinesVersion;
-        needsUpdate = true;
-      }
-
-      // 🎯 已移除圆圈更新逻辑，现在使用原生地图API管理围栏圆圈
-
-      // 只有在数据真正变化时才记录日志
-      if (needsUpdate) {
-        DebugUtil.info('地图数据变化，更新缓存');
       }
 
       return SafeAMapWidget(
@@ -751,7 +706,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
         onMapCreated: widget.controller.onMapCreated,
         markers: _cachedMarkers,
         polylines: _cachedPolylines,
-        circles: {}, // 🎯 空集合，围栏圆圈由原生地图API管理
+        circles: widget.controller.highlightCircles.toSet(),
         mapType: widget.controller.mapType.value == 1
             ? MapType.normal
             : MapType.satellite,
@@ -762,14 +717,10 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
         scrollGesturesEnabled: true,
         rotateGesturesEnabled: true,
         tiltGesturesEnabled: true,
-        // 添加地图点击监听，点击地图时清除高亮圆圈和InfoWindow
         onTap: (LatLng position) {
-          // 🎯 点击地图时统一清除：InfoWindow + 围栏圆圈
           widget.controller.clearMapHighlights();
         },
-        // 添加InfoWindow关闭事件监听
         onInfoWindowClose: () {
-          // 🎯 InfoWindow关闭时同步清除围栏圆圈
           widget.controller.clearAllHighlightCircles();
         },
       );
@@ -780,51 +731,30 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
   void _updateMarkers() {
     final newMarkers = <Marker>{};
 
-    // 安全地添加停留点标记
     try {
-      newMarkers.addAll(widget.controller.stayMarkers);
-    } catch (e) {
-      DebugUtil.error('添加停留点标记失败: $e');
-    }
-
-    // 安全地添加轨迹起点和终点标记（始终显示）
-    try {
+      newMarkers.addAll(widget.controller.stopMarkers);
       newMarkers.addAll(widget.controller.trackStartEndMarkers);
     } catch (e) {
-      DebugUtil.error('添加轨迹起终点标记失败: $e');
+      DebugUtil.error('添加标记失败: $e');
     }
 
-    // 添加播放头像标记（如果存在）
     if (widget.controller.replayAvatarMarker.value != null) {
-      try {
-        final marker = widget.controller.replayAvatarMarker.value!;
-        newMarkers.add(marker);
-        DebugUtil.info('✅ 已添加播放头像标记到地图缓存，位置: ${marker.position.latitude.toStringAsFixed(6)}, ${marker.position.longitude.toStringAsFixed(6)}');
-      } catch (e) {
-        DebugUtil.error('添加播放头像标记失败: $e');
-      }
+      newMarkers.add(widget.controller.replayAvatarMarker.value!);
     }
 
-    // 只在非播放状态且没有头像标记时，添加橙色当前位置标记
     if (widget.controller.replayAvatarMarker.value == null && 
         widget.controller.currentPosition.value != null && 
         !widget.controller.isReplaying.value) {
-      try {
-        newMarkers.add(
-          Marker(
-            position: widget.controller.currentPosition.value!,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueOrange,
-            ),
-            anchor: const Offset(0.5, 0.5),
-            infoWindow: const InfoWindow(title: '当前位置', snippet: '轨迹回放中'),
-          ),
-        );
-      } catch (e) {
-        DebugUtil.error('添加当前位置标记失败: $e');
-      }
+      newMarkers.add(
+        Marker(
+          position: widget.controller.currentPosition.value!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: const InfoWindow(title: '当前位置', snippet: '轨迹回放中'),
+        ),
+      );
     }
-
+    
     // 添加临时 InfoWindow 标记（如果存在）
     if (widget.controller.tempInfoWindowMarker != null) {
       try {
@@ -838,26 +768,17 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
     _cachedMarkers = newMarkers;
   }
 
-  /// 🚀 动态渲染轨迹线 - 分批渲染避免卡顿
   void _updatePolylines() {
     final newPolylines = <Polyline>{};
 
     try {
-      // 创建轨迹点的本地副本以避免竞态条件
       final trackPoints = widget.controller.trackPoints.toList();
       
-      // ⚠️ 严格检查：必须至少有2个点才能画线
       if (widget.controller.hasValidTrackData.value &&
-          trackPoints.isNotEmpty &&
           trackPoints.length >= 2) {
-        
-        DebugUtil.info('📈 [Polyline] 创建轨迹线，点数=${trackPoints.length}');
-        
-        // 🚀 性能优化：当轨迹点过多时，分段渲染避免卡顿
-        const int maxPointsPerSegment = 100; // 每段最多100个点
+        const int maxPointsPerSegment = 100;
         
         if (trackPoints.length <= maxPointsPerSegment) {
-          // 点数较少，直接渲染
           newPolylines.add(
             Polyline(
               points: trackPoints,
@@ -866,9 +787,6 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
             ),
           );
         } else {
-          // 点数较多，分段渲染
-          DebugUtil.info('🔄 [Polyline] 轨迹点过多(${trackPoints.length})，启用分段渲染');
-          
           for (int i = 0; i < trackPoints.length - 1; i += maxPointsPerSegment - 1) {
             final endIndex = (i + maxPointsPerSegment).clamp(0, trackPoints.length);
             final segmentPoints = trackPoints.sublist(i, endIndex);
@@ -883,25 +801,14 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
               );
             }
           }
-          
-          DebugUtil.info('✅ [Polyline] 分段渲染完成，共${newPolylines.length}段');
         }
-        
-        DebugUtil.success('✅ [Polyline] 轨迹线创建成功');
-      } else {
-        DebugUtil.info('⏭️ [Polyline] 跳过创建轨迹线: hasValidData=${widget.controller.hasValidTrackData.value}, points=${trackPoints.length}');
       }
-    } catch (e, stackTrace) {
-      DebugUtil.error('❌ [Polyline] 创建轨迹线失败: $e');
-      DebugUtil.error('Stack trace: $stackTrace');
-      // 出错时确保返回空集合，避免使用旧的缓存
+    } catch (e) {
+      DebugUtil.error('创建轨迹线失败: $e');
     }
 
     _cachedPolylines = newPolylines;
   }
-
-  /// 🎯 已移除圆圈更新方法，现在使用原生地图API管理围栏圆圈
-  /// 参见: TrackController.drawHighlightCircle() 和 clearAllHighlightCircles()
 }
 
 // 优化的头像行Widget
@@ -1059,7 +966,6 @@ class _AvatarButtonState extends State<_AvatarButton> {
     });
   }
 }
-
 // 带背景图片渐隐渐现效果的停留记录列表Widget
 class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
   final TrackController controller;
@@ -1073,27 +979,42 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
     );
   }
 
-  /// 构建单个 Shimmer 占位项
+  /// 构建单个 Shimmer 占位项（模拟 StopListItem 的布局）
   Widget _buildShimmerItem() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       child: Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
+        baseColor: const Color(0xFFE0E0E0),
+        highlightColor: const Color(0xFFF5F5F5),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 左侧序号圆圈
+            // 左边时间部分
             Container(
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 12,
               decoration: BoxDecoration(
                 color: Colors.white,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
-            const SizedBox(width: 12),
-            // 右侧内容
+            // 时间轴圆点
+            Container(
+              width: 20,
+              margin: const EdgeInsets.symmetric(horizontal: 0),
+              child: Center(
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            // 内容部分
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1101,34 +1022,44 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
                   // 地点名称
                   Container(
                     width: double.infinity,
-                    height: 16,
+                    height: 14,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  // 时间和时长
-                  Row(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
+                  const SizedBox(height: 11),
+                  // 粉色渐变卡片
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 停留时长
+                        Container(
+                          width: 100,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 80,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
+                        const SizedBox(height: 6),
+                        // 时间范围
+                        Container(
+                          width: 140,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1226,7 +1157,6 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
     });
   }
 }
-
 // 全屏渐变背景遮罩 - 从中间滑到顶部时显示
 class _GradientBackgroundOverlay extends StatelessWidget {
   final TrackController controller;
@@ -1642,3 +1572,7 @@ class _ReplayProgressBar extends StatelessWidget {
     );
   }
 }
+
+
+
+

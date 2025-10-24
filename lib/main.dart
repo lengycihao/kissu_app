@@ -23,8 +23,6 @@ import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
-import 'package:kissu_app/services/screenshot_service.dart';
-import 'package:kissu_app/widgets/screenshot_feedback_button.dart';
 import 'package:kissu_app/network/utils/dir_util.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/lottie_preload_service.dart';
@@ -197,22 +195,6 @@ void main() async {
     
     // 步骤17: 初始化截屏服务和按钮控制器
     // 🔒 隐私合规：只注册服务，不启动监听（等待隐私政策同意后启动）
-    print('🔧 开始注册截屏服务...');
-    final screenshotService = Get.put(ScreenshotService(), permanent: true);
-    print('🔧 ScreenshotService 已注册到GetX');
-    
-    final buttonController = Get.put(ScreenshotFeedbackButtonController(), permanent: true);
-    print('🔧 ScreenshotFeedbackButtonController 已注册到GetX');
-    
-    // 添加截屏回调
-    screenshotService.addListener((screenshotPath) {
-      print('🔧 截屏监听回调被触发: $screenshotPath');
-      buttonController.show(screenshotPath);
-    });
-    print('🔧 截屏监听器已添加');
-    
-    // ⚠️ 不在这里启动监听！等待隐私政策同意后由 PrivacyComplianceManager 启动
-    DebugUtil.info('截屏监听服务已注册（等待隐私授权后启动）');
 
     DebugUtil.success('应用基础初始化完成，等待用户隐私政策确认后启用完整功能');
   } catch (e) {
@@ -259,7 +241,6 @@ class MyApp extends StatelessWidget {
           children: [
             child ?? const SizedBox.shrink(),
             // 全局截图反馈浮动按钮
-            const ScreenshotFeedbackButton(),
           ],
         );
       },

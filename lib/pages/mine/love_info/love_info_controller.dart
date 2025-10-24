@@ -9,6 +9,7 @@ import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/pages/mine/sub_pages/break_relationship_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
@@ -1080,28 +1081,49 @@ class LoveInfoController extends GetxController {
       final result = await authApi.updateUserInfo(loveTime: loveTimeStr);
 
       if (result.isSuccess) {
-        // 重新获取用户信息，使用服务器返回的最新数据
-        _loadUserInfo();
+        // 🔄 先从服务器刷新用户信息，获取最新的恋爱天数
+        DebugUtil.info('相恋时间更新成功，开始刷新用户信息...');
+        final refreshSuccess = await UserManager.refreshUserInfo();
+        
+        if (refreshSuccess) {
+          DebugUtil.success('用户信息刷新成功，开始更新各页面显示');
+          
+          // 重新加载本页面的用户信息
+          _loadUserInfo();
 
-        // 通知我的页面刷新
-        try {
-          final mineController = Get.find<MineController>();
-          mineController.loadUserInfo();
-          DebugUtil.success('Love time updated, mine page refreshed');
-        } catch (e) {
-          DebugUtil.error('Mine page not found: $e');
+          // 通知我的页面刷新
+          try {
+            final mineController = Get.find<MineController>();
+            mineController.loadUserInfo();
+            DebugUtil.success('Love time updated, mine page refreshed');
+          } catch (e) {
+            DebugUtil.error('Mine page not found: $e');
+          }
+
+          // 通知首页刷新（首页会调用loadIndexData，会获取最新的恋爱天数）
+          try {
+            final homeController = Get.find<HomeController>();
+            await homeController.loadIndexData(shouldCheckGuide: false);
+            DebugUtil.success('Love time updated, home page refreshed');
+          } catch (e) {
+            DebugUtil.error('Home controller not found: $e');
+          }
+          
+          // 通知解除关系页面刷新（如果存在）
+          try {
+            final breakController = Get.find<BreakRelationshipController>();
+            breakController.loadUserData();
+            DebugUtil.success('Love time updated, break relationship page refreshed');
+          } catch (e) {
+            DebugUtil.info('Break relationship controller not found: $e');
+          }
+
+          CustomToast.show(Get.context!, '相恋时间更新成功');
+        } else {
+          DebugUtil.warning('用户信息刷新失败，但仍更新本地显示');
+          _loadUserInfo();
+          CustomToast.show(Get.context!, '相恋时间更新成功');
         }
-
-        // 通知首页刷新
-        try {
-          final homeController = Get.find<HomeController>();
-          homeController.loadUserInfo();
-          DebugUtil.success('Love time updated, home page refreshed');
-        } catch (e) {
-          DebugUtil.error('Home controller not found: $e');
-        }
-
-        CustomToast.show(Get.context!, '相恋时间更新成功');
       } else {
         CustomToast.show(Get.context!, result.msg ?? '相恋时间更新失败');
       }

@@ -165,14 +165,16 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
     // 这避免了在Flutter渲染树未稳定时创建Platform View，减少花屏
     if (!_shouldRender) {
       return Container(
-        color: Colors.white,
+        color: const Color(0xFFFFF6EF), // 与页面背景色一致
         child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)), // 粉色loading
+              ),
               SizedBox(height: 16),
-              Text('准备地图...', style: TextStyle(fontSize: 14, color: Colors.grey)),
+              Text('准备地图...', style: TextStyle(fontSize: 14, color: Color(0xFF999999))),
             ],
           ),
         ),
@@ -192,14 +194,16 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
               ),
               // 显示加载遮罩
               Container(
-                color: Colors.grey.withOpacity(0.1),
+                color: const Color(0xFFFFF6EF).withOpacity(0.9), // 与页面背景色一致，微透明
                 child: const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(),
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)), // 粉色loading
+                      ),
                       SizedBox(height: 16),
-                      Text('地图加载中...', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                      Text('地图加载中...', style: TextStyle(fontSize: 14, color: Color(0xFF999999))),
                     ],
                   ),
                 ),

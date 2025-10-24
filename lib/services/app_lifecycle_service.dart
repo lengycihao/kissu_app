@@ -180,18 +180,10 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   void _onAppHidden() {
     debugPrint('👁️ 应用被隐藏');
     
-    // 继续使用SimpleLocationService进行后台定位
-    try {
-      final simpleLocationService = SimpleLocationService.instance;
-      if (!simpleLocationService.isLocationEnabled.value) {
-        simpleLocationService.startLocation();
-        debugPrint('✅ 启动隐藏状态定位服务');
-      } else {
-        debugPrint('ℹ️ 隐藏状态定位服务已在运行，继续定位');
-      }
-    } catch (e) {
-      debugPrint('❌ 启动隐藏状态定位失败: $e');
-    }
+    // 🔧 修复：hidden状态下不重复启动后台策略
+    // 因为 paused 状态已经启动了后台策略
+    // 避免重复调用导致通知频繁弹出
+    debugPrint('ℹ️ 应用已隐藏，后台策略应该已在paused状态启动');
   }
   
   /// 获取当前应用状态

@@ -51,7 +51,7 @@ android {
         versionName = flutter.versionName
 
         // 友盟分享配置
-        manifestPlaceholders["UMENG_APPKEY"] = "6879fbe579267e0210b67be9"
+        manifestPlaceholders["UMENG_APPKEY"] = "6879fbe579267e0210b67be"
         manifestPlaceholders["UMENG_CHANNEL"] = "Umeng"
         manifestPlaceholders["WECHAT_APPID"] = "wxca15128b8c388c13"
         manifestPlaceholders["qqappid"] = "102797447"

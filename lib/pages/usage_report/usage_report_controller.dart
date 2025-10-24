@@ -73,6 +73,12 @@ class UsageReportController extends GetxController {
   // 用户绑定状态（响应式）
   final isUserBound = false.obs;
 
+  // Tooltip相关
+  OverlayEntry? _overlayEntry;
+
+  // 页面Context（用于Overlay）
+  late BuildContext pageContext;
+
   // 动态标签列表（根据筛选状态计算）
   List<String> get visibleTabs {
     final tabs = <String>[];
@@ -281,6 +287,7 @@ class UsageReportController extends GetxController {
 
   @override
   void onClose() {
+    hideTooltip();
     pageController.dispose();
     tabScrollController.dispose();
     debugPrint('📊 UsageReportController 销毁');
@@ -805,6 +812,135 @@ class UsageReportController extends GetxController {
     } else {
       debugPrint('❌ 无法获取Context，跳过显示绑定弹窗');
     }
+  }
+
+  /// 获取设备详细信息
+  String _getDeviceDetailInfo(String componentText) {
+    final device = deviceInfo.value;
+    if (device == null) return componentText;
+
+    final mobileModel = device.mobileModel;
+    final power = device.power;
+    final networkName = device.networkName;
+    final isWifi = device.isWifi == '1';
+
+    if (componentText.contains(mobileModel) || componentText == mobileModel) {
+      return "设备型号：$mobileModel";
+    } else if (componentText.contains(power) || componentText == power) {
+      return "当前电量：$power";
+    } else if (componentText.contains(networkName) || componentText == networkName || componentText == '移动网络') {
+      // 处理 WiFi 和移动网络两种情况
+      if (isWifi && networkName.isNotEmpty) {
+        return "网络名称：$networkName";
+      } else {
+        return "网络类型：移动网络";
+      }
+    }
+    return componentText;
+  }
+
+  /// 显示设备信息详情tip
+  void showTooltip(String text, Offset position) {
+    hideTooltip();
+
+    final detailText = _getDeviceDetailInfo(text);
+    final screenSize = MediaQuery.of(pageContext).size;
+    const padding = 12.0;
+    final maxWidth = screenSize.width * 0.75;
+    final estimatedHeight = 120.0;
+
+    double left = position.dx;
+    double top = position.dy;
+
+    if (left + maxWidth + padding > screenSize.width) {
+      left = screenSize.width - maxWidth - padding;
+    }
+
+    if (top + estimatedHeight + padding > screenSize.height) {
+      top = screenSize.height - estimatedHeight - padding;
+    }
+
+    _overlayEntry = OverlayEntry(
+      builder: (_) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: hideTooltip,
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            Positioned(
+              left: left,
+              top: top,
+              child: Material(
+                color: Colors.transparent,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        detailText,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF333333),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: -8,
+                      right: -8,
+                      child: GestureDetector(
+                        onTap: hideTooltip,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    Overlay.of(pageContext, rootOverlay: true).insert(_overlayEntry!);
+  }
+
+  /// 隐藏设备信息详情tip
+  void hideTooltip() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 }
 

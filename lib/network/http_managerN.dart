@@ -542,12 +542,27 @@ class HttpManagerN {
         return response.data as HttpResultN;
       } else {
         // Fallback in case ApiInterceptor is disabled
+        
+        // Safely handle null or invalid response data
+        if (response.data == null) {
+          return HttpResultN(
+            isSuccess: false,
+            code: response.statusCode ?? -1,
+            msg: 'Empty response data',
+          );
+        }
+        
+        // Try to access data field safely
+        dynamic dataField;
+        if (response.data is Map) {
+          dataField = response.data["data"];
+        }
 
         return HttpResultN(
           isSuccess: true,
           code: response.statusCode ?? 200,
           msg: 'Success',
-          dataJson: response.data["data"],
+          dataJson: dataField,
         );
       }
     } catch (e) {

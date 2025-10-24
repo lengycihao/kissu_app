@@ -13,6 +13,7 @@ import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
+import 'package:kissu_app/utils/umeng_analytics_util.dart';
 
 class LoginController extends GetxController {
   var isChecked = false.obs;
@@ -252,6 +253,12 @@ class LoginController extends GetxController {
       );
 
       if (result.isSuccess) {
+        // 📊 友盟埋点：登录成功（异步执行，不阻塞）
+        UmengAnalytics.trackLoginButton(
+          isSuccess: true,
+          userId: result.data?.id?.toString(),
+        );
+
         // 登录成功，保存协议同意状态
         await _saveAgreementStatus(true);
 
@@ -278,9 +285,15 @@ class LoginController extends GetxController {
           Get.offAllNamed(KissuRoutePath.home);
         }
       } else {
+        // 📊 友盟埋点：登录失败（异步执行，不阻塞）
+        UmengAnalytics.trackLoginButton(isSuccess: false);
+        
         OKToastUtil.show(result.msg ?? '登录失败');
       }
     } catch (e) {
+        // 📊 友盟埋点：登录异常（异步执行，不阻塞）
+        UmengAnalytics.trackLoginButton(isSuccess: false);
+        
         OKToastUtil.show("登录失败");
     } finally {
       // 结束加载状态

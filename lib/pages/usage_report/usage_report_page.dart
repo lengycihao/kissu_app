@@ -13,6 +13,9 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   @override
   Widget build(BuildContext context) {
+    // 保存context到controller，用于Overlay
+    controller.pageContext = context;
+    
     return Scaffold(
       body: Stack(
         children: [
@@ -637,82 +640,87 @@ class UsageReportPage extends GetView<UsageReportController> {
       final power = deviceInfo?.power ?? '未知';
       final isWifi = deviceInfo?.isConnectedToWifi ?? false;
 
-      return InkWell(
-        onTap: () {
-          // TODO: 点击查看设备信息
-          debugPrint('点击设备信息');
-        },
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xffFCFCFD),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Color(0xFFF4E6FF), width: 1),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 手机型号
-              if (mobileModel.isNotEmpty) ...[
-                Image.asset(
-                  'assets/phone_history/kissu_phone_type.webp',
-                  width: 16,
-                  height: 16,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    mobileModel.length > 4 ? '${mobileModel.substring(0, 4)}...' : mobileModel,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF333333),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-                const Spacer(),
-              ],
-              // 网络信息
-              Image.asset(
-                'assets/phone_history/kissu_phone_wifi.webp',
-                width: 16,
-                height: 16,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  () {
-                    final displayName = isWifi && networkName.isNotEmpty ? networkName : '移动网络';
-                    return displayName.length > 4 ? '${displayName.substring(0, 4)}...' : displayName;
-                  }(),
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
+      return Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xffFCFCFD),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Color(0xFFF4E6FF), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 手机型号
+            if (mobileModel.isNotEmpty) ...[
+              _buildDeviceInfoItem(
+                icon: 'assets/phone_history/kissu_phone_type.webp',
+                text: mobileModel,
+                maxLength: 4,
               ),
               const Spacer(),
-              // 电量信息
-              if (power.isNotEmpty) ...[
-                Image.asset(
-                  'assets/phone_history/kissu_phone_barry.webp',
-                  width: 16,
-                  height: 16,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  power,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-              ],
             ],
-          ),
+            // 网络信息
+            _buildDeviceInfoItem(
+              icon: 'assets/phone_history/kissu_phone_wifi.webp',
+              text: isWifi && networkName.isNotEmpty ? networkName : '移动网络',
+              maxLength: 4,
+            ),
+            const Spacer(),
+            // 电量信息
+            if (power.isNotEmpty) ...[
+              _buildDeviceInfoItem(
+                icon: 'assets/phone_history/kissu_phone_barry.webp',
+                text: power,
+                maxLength: null, // 电量不截断
+              ),
+            ],
+          ],
         ),
       );
     });
+  }
+
+  /// 构建设备信息项（带长按显示详情）
+  Widget _buildDeviceInfoItem({
+    required String icon,
+    required String text,
+    int? maxLength,
+  }) {
+    final displayText = maxLength != null && text.length > maxLength
+        ? '${text.substring(0, maxLength)}...'
+        : text;
+
+    return GestureDetector(
+      onLongPressStart: (details) {
+        // 使用 globalPosition 直接获取触摸位置，向上偏移一点避免遮挡手指
+        controller.showTooltip(text, details.globalPosition + const Offset(0, -40));
+      },
+      child: Container(
+        color: Colors.transparent, // 确保整个区域可以响应手势
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              icon,
+              width: 16,
+              height: 16,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                displayText,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF333333),
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

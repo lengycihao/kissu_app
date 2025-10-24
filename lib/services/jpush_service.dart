@@ -3,6 +3,8 @@ import 'package:jpush_flutter/jpush_flutter.dart';
 import 'package:jpush_flutter/jpush_interface.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/network/public/service_locator.dart';
 
 class JPushService extends GetxService {
   static JPushService get to => Get.find();
@@ -89,13 +91,22 @@ class JPushService extends GetxService {
     debugPrint('接收到通知: $message');
     _lastNotification.value = message;
     
-    // 可以在这里处理接收到通知的逻辑
-    String? title = message['title'];
-    String? alert = message['alert'];
-    
-    if (title != null && alert != null) {
-      // 显示应用内通知
-      _showInAppNotification(title, alert);
+    // 🔥 前台推送不显示Toast，只在后台显示系统通知
+    // 检查用户登录状态
+    try {
+      final authService = getIt<AuthService>();
+      final isLoggedIn = authService.isLoggedIn;
+      
+      debugPrint('接收推送通知 - 用户登录状态: $isLoggedIn');
+      
+      // ❌ 不在前台显示Toast
+      // 前台时推送消息应该静默处理或通过其他方式展示（如消息中心红点）
+      // 后台时由系统通知栏显示
+      
+      // 可以在这里更新消息中心的未读数等
+      
+    } catch (e) {
+      debugPrint('处理推送通知时出错: $e');
     }
   }
   
@@ -118,14 +129,12 @@ class JPushService extends GetxService {
   }
   
   
-  /// 显示应用内通知
+  /// 显示应用内通知（已废弃，前台不再显示Toast）
+  @Deprecated('前台推送不再显示Toast，改为静默处理')
   void _showInAppNotification(String title, String content) {
-    if (Get.context != null) {
-      CustomToast.show(
-        Get.context!,
-        content,
-      );
-    }
+    // 🔥 前台推送不显示Toast
+    // 如果需要提示用户，应该通过消息中心红点或其他非侵入方式
+    debugPrint('收到推送但不显示Toast - 标题: $title, 内容: $content');
   }
   
   /// 处理通知点击

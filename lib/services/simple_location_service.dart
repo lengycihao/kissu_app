@@ -1987,14 +1987,21 @@ extension AppLifecycleExtension on SimpleLocationService {
   Future<void> _enableForegroundServiceIfNeeded() async {
     try {
       final foregroundService = ForegroundLocationService.instance;
+      
+      // 🔧 修复：检查服务是否已在运行，避免重复启动和通知更新
+      if (foregroundService.isServiceRunning) {
+        debugPrint('ℹ️ 前台服务已在运行，跳过启动和通知更新');
+        return;
+      }
+      
       final success = await foregroundService.startForegroundService();
       
       if (success) {
-        debugPrint('✅ 前台服务启动成功');
-        // 更新前台服务通知状态
-        await foregroundService.updateForegroundServiceNotification(
-          content: '正在后台为您提供位置定位服务',
-        );
+        debugPrint('✅ 前台服务启动成功（静默模式）');
+        // 🔧 移除通知更新，保持静默
+        // await foregroundService.updateForegroundServiceNotification(
+        //   content: '正在后台为您提供位置定位服务',
+        // );
       } else {
         debugPrint('❌ 前台服务启动失败');
       }

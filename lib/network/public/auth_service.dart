@@ -157,7 +157,7 @@ class AuthService {
     // Get.offAll(() => ScreenNavPage());
   }
   
-  /// 设置极光推送别名
+  /// 设置极光推送别名并恢复推送服务
   void _setJPushAlias(LoginModel user) {
     try {
       // 检查极光推送服务是否已注册
@@ -166,8 +166,13 @@ class AuthService {
         // 使用用户的unique_id作为别名
         String alias = user.uniqueId ?? 'user_${user.id}';
         
-        // 在后台设置别名，不阻塞登录流程
+        // 在后台设置别名并恢复推送服务，不阻塞登录流程
         Future.microtask(() async {
+          // 1. 恢复推送服务（确保能接收推送）
+          await jpushService.resumePush();
+          logger.info('极光推送服务已恢复');
+          
+          // 2. 设置别名（用于精准推送）
           bool success = await jpushService.setAlias(alias);
           if (success) {
             logger.info('极光推送别名设置成功: $alias');
@@ -176,16 +181,16 @@ class AuthService {
           }
         });
         
-        logger.info('开始设置极光推送别名: $alias');
+        logger.info('开始恢复推送服务并设置别名: $alias');
       } else {
         logger.w('极光推送服务未注册，跳过别名设置');
       }
     } catch (e) {
-      logger.e('设置极光推送别名失败: $e');
+      logger.e('设置极光推送配置失败: $e');
     }
   }
 
-  /// 清除极光推送别名
+  /// 清除极光推送别名（仅清除定向推送，保留广播推送能力）
   void _clearJPushAlias() {
     try {
       // 检查极光推送服务是否已注册
@@ -194,20 +199,27 @@ class AuthService {
         
         // 在后台清除别名，不阻塞退出流程
         Future.microtask(() async {
-          bool success = await jpushService.deleteAlias();
-          if (success) {
-            logger.info('极光推送别名清除成功');
+          // 只删除别名（清除针对该用户的定向推送）
+          // ✅ 删除别名：不再收到通过别名发送的定向推送
+          // ✅ 保留 RegistrationId：设备ID不变
+          // ✅ 保留推送服务：仍可接收广播推送
+          bool aliasSuccess = await jpushService.deleteAlias();
+          if (aliasSuccess) {
+            logger.info('极光推送别名清除成功（保留广播推送能力）');
           } else {
             logger.w('极光推送别名清除失败');
           }
+          
+          // ❌ 不调用 stopPush()
+          // 原因：退出登录后仍需要接收广播推送（如系统公告等）
         });
         
-        logger.info('开始清除极光推送别名');
+        logger.info('开始清除极光推送别名（保留 RegistrationId 和广播推送）');
       } else {
         logger.w('极光推送服务未注册，跳过别名清除');
       }
     } catch (e) {
-      logger.e('清除极光推送别名失败: $e');
+      logger.e('清除极光推送配置失败: $e');
     }
   }
 
@@ -348,6 +360,9 @@ class AuthService {
         tag: 'AuthService',
         extra: {'userId': _currentUser!.id},
       );
+      
+      // 清除极光推送别名（保留广播推送能力）
+      _clearJPushAlias();
     }
 
     // 只清除本地数据

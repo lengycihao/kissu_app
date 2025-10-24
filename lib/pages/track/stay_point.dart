@@ -6,12 +6,14 @@ class StayPoint {
   final String title;
   final String duration;
   final int index;
+  final String serialNumber; // 序列号（从API获取，用于显示数字标记）
 
   const StayPoint({
     required this.position,
     required this.title,
     required this.duration,
     required this.index,
+    required this.serialNumber,
   });
 }
 
@@ -21,31 +23,36 @@ const List<StayPoint> stayPoints = [
     position: LatLng(30.2641, 120.1651),
     title: "中豪五福天地",
     duration: "停留 45分钟",
-    index: 1,
+    index: 0,
+    serialNumber: "1",
   ),
   StayPoint(
     position: LatLng(30.2521, 120.1771),
     title: "钱塘府",
     duration: "停留 30分钟",
-    index: 2,
+    index: 1,
+    serialNumber: "2",
   ),
   StayPoint(
     position: LatLng(30.2741, 120.1551),
     title: "杭州东站",
     duration: "停留 20分钟",
-    index: 3,
+    index: 2,
+    serialNumber: "3",
   ),
   StayPoint(
     position: LatLng(30.2581, 120.1711),
     title: "元宝塘",
     duration: "停留 1小时15分钟",
-    index: 4,
+    index: 3,
+    serialNumber: "4",
   ),
   StayPoint(
     position: LatLng(30.2401, 120.1891),
     title: "星花庭路",
     duration: "停留 1小时5分钟",
-    index: 5,
+    index: 4,
+    serialNumber: "5",
   ),
 ];
 
