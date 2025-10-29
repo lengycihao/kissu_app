@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
@@ -7,6 +8,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';
 import 'package:kissu_app/widgets/dialogs/base_dialog.dart';
@@ -242,8 +244,61 @@ class _SplashPageState extends State<SplashPage> {
       final privacyManager = Get.find<PrivacyComplianceManager>();
       await privacyManager.agreeToPrivacyPolicy();
       DebugUtil.success('✅ 隐私政策同意完成，所有功能已启用');
+      
+      // 🔥 新增：用户同意隐私政策后立即申请关键权限
+      await _requestEssentialPermissionsAfterAgreement();
+      
     } catch (e) {
       DebugUtil.error('❌ 启用隐私功能失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：用户同意隐私政策后立即申请关键权限（网络权限 + 通知权限）
+  Future<void> _requestEssentialPermissionsAfterAgreement() async {
+    DebugUtil.info('🔐 开始申请关键权限（网络 + 通知）...');
+    
+    try {
+      // 先检查当前通知权限状态
+      final jpushService = Get.find<JPushService>();
+      bool currentStatus = await jpushService.isNotificationEnabled();
+      DebugUtil.info('📱 当前通知权限状态: $currentStatus');
+      
+      if (!currentStatus) {
+        // 如果通知权限未开启，使用 permission_handler 直接申请系统权限
+        DebugUtil.info('🔔 通知权限未开启，开始申请系统权限...');
+        
+        // 导入 permission_handler 包中的 Permission
+        final permissionStatus = await Permission.notification.request();
+        
+        if (permissionStatus.isGranted) {
+          DebugUtil.success('✅ 通知权限申请成功');
+          
+          // 权限申请成功后，再调用极光推送的方法确保推送服务正常
+          await jpushService.requestNotificationPermission();
+          
+        } else if (permissionStatus.isDenied) {
+          DebugUtil.warning('⚠️ 用户拒绝了通知权限');
+        } else if (permissionStatus.isPermanentlyDenied) {
+          DebugUtil.warning('⚠️ 用户永久拒绝了通知权限，需要手动到设置中开启');
+        } else {
+          DebugUtil.warning('⚠️ 通知权限申请状态: $permissionStatus');
+        }
+        
+        // 再次检查权限状态
+        bool finalStatus = await jpushService.isNotificationEnabled();
+        DebugUtil.info('📱 最终通知权限状态: $finalStatus');
+        
+      } else {
+        DebugUtil.success('✅ 通知权限已经开启，无需申请');
+      }
+      
+      // 注意：网络权限（INTERNET）在Android中是普通权限，不需要运行时申请
+      // 已在 AndroidManifest.xml 中声明，应用安装时自动授予
+      DebugUtil.success('✅ 网络权限已通过Manifest声明（无需运行时申请）');
+      
+    } catch (e) {
+      DebugUtil.error('❌ 申请关键权限失败: $e');
+      // 即使权限申请失败，也不阻塞应用启动流程
     }
   }
 

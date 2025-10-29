@@ -70,7 +70,6 @@ class SafeAMapWidget extends StatefulWidget {
 }
 
 class _SafeAMapWidgetState extends State<SafeAMapWidget> {
-  bool _isMapReady = false;
   bool _shouldRender = false;
   final Completer<void> _mapReadyCompleter = Completer<void>();
   CustomStyleOptions? _customStyleOptions;
@@ -85,9 +84,10 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
     
     // 延迟渲染，等待Flutter渲染树稳定后再显示地图
     // 这可以避免初始化时Flutter渲染引擎与原生地图渲染引擎的冲突，减少花屏
+    // 优化：减少延迟时间从50ms到16ms（一帧的时间）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        Future.delayed(const Duration(milliseconds: 50), () {
+        Future.delayed(const Duration(milliseconds: 16), () {
           if (mounted) {
             setState(() {
               _shouldRender = true;
@@ -124,126 +124,43 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
   void _onMapCreated(AMapController controller) async {
     print('🗺️ SafeAMapWidget 地图创建成功');
     
-    try {
-      // 等待地图完全初始化并稳定渲染
-      // 延长等待时间以确保原生地图和Flutter渲染引擎同步
-      await Future.delayed(const Duration(milliseconds: 200));
-      
+    // 立即完成地图就绪状态
+    if (!_mapReadyCompleter.isCompleted) {
+      _mapReadyCompleter.complete();
+    }
+    
+    // 立即调用用户的回调，让页面可以开始加载数据
+    widget.onMapCreated?.call(controller);
+    
+    print('🗺️ SafeAMapWidget 地图就绪完成');
+    
+    // 后台异步设置渲染帧率，不阻塞主流程
+    Future.delayed(const Duration(milliseconds: 100)).then((_) async {
       if (mounted) {
-        // 限制地图渲染帧率，降低渲染压力，减少花屏概率
         try {
           await controller.setRenderFps(30);
           print('🗺️ SafeAMapWidget 已设置渲染帧率: 30fps');
         } catch (e) {
           print('🗺️ SafeAMapWidget 设置帧率失败: $e');
         }
-        
-        setState(() {
-          _isMapReady = true;
-        });
-        
-        if (!_mapReadyCompleter.isCompleted) {
-          _mapReadyCompleter.complete();
-        }
-        
-        // 调用用户的回调
-        widget.onMapCreated?.call(controller);
-        
-        print('🗺️ SafeAMapWidget 地图就绪完成');
       }
-    } catch (e) {
-      print('🗺️ SafeAMapWidget 地图创建错误: $e');
-      if (!_mapReadyCompleter.isCompleted) {
-        _mapReadyCompleter.completeError(e);
-      }
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // 如果尚未准备好渲染，显示占位符
+    // 如果尚未准备好渲染，显示占位符（只在第一帧显示，避免闪烁）
     // 这避免了在Flutter渲染树未稳定时创建Platform View，减少花屏
     if (!_shouldRender) {
       return Container(
         color: const Color(0xFFFFF6EF), // 与页面背景色一致
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)), // 粉色loading
-              ),
-              SizedBox(height: 16),
-              Text('准备地图...', style: TextStyle(fontSize: 14, color: Color(0xFF999999))),
-            ],
-          ),
-        ),
       );
     }
     
-    return FutureBuilder<void>(
-      future: _mapReadyCompleter.future,
-      builder: (context, snapshot) {
-        // 显示加载状态
-        if (snapshot.connectionState == ConnectionState.waiting && !_isMapReady) {
-          return Stack(
-            children: [
-              // 使用RepaintBoundary隔离地图渲染层，避免与其他Widget的渲染冲突
-              RepaintBoundary(
-                child: _buildAMapWidget(),
-              ),
-              // 显示加载遮罩
-              Container(
-                color: const Color(0xFFFFF6EF).withOpacity(0.9), // 与页面背景色一致，微透明
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B9D)), // 粉色loading
-                      ),
-                      SizedBox(height: 16),
-                      Text('地图加载中...', style: TextStyle(fontSize: 14, color: Color(0xFF999999))),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        // 地图加载错误
-        if (snapshot.hasError) {
-          return Container(
-            color: Colors.grey[100],
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text('地图加载失败: ${snapshot.error}', 
-                       style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        // 重新加载
-                      });
-                    },
-                    child: const Text('重新加载'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        // 地图正常显示，使用RepaintBoundary隔离渲染层
-        return RepaintBoundary(
-          child: _buildAMapWidget(),
-        );
-      },
+    // 地图就绪后直接显示，不显示loading遮罩
+    // 数据将在后台静默加载并更新到地图上
+    return RepaintBoundary(
+      child: _buildAMapWidget(),
     );
   }
 

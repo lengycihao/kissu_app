@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'dart:math';
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:get/get.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
@@ -10,7 +9,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 /// 轨迹页面回放管理器
 /// 负责轨迹回放的所有功能，包括播放控制、进度管理、速度控制等
-class TrackReplayManager extends GetxController with GetTickerProviderStateMixin {
+class TrackReplayManager extends GetxController {
   /// 播放控制器UI状态 - true显示完整播放器，false显示简单按钮
   final showFullPlayer = false.obs;
   
@@ -31,21 +30,29 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
   final isReplaying = false.obs;
   final replaySpeed = 1.0.obs; // 播放速度倍数
   
+  /// 🎯 相机跟随控制 - 是否在回放时跟随播放头像移动相机视角
+  final enableCameraFollow = false.obs; // 默认关闭相机跟随
+  
   /// 播放头像标记
   final Rx<Marker?> replayAvatarMarker = Rx<Marker?>(null);
   
   /// 当前位置标记
   final Rx<LatLng?> currentPosition = Rx<LatLng?>(null);
   
-  /// 动画控制器 - 替代Timer的更好方案
-  AnimationController? _replayAnimationController;
-  Animation<double>? _replayAnimation;
+  /// 🎯 兼容性属性 - 为了保持与现有代码的兼容性
+  RxDouble get animationProgress => replayProgress;
   
-  /// 动画进度 - 用于实时更新进度条
-  final animationProgress = 0.0.obs;
+  /// 🎯 高精度定时器替代AnimationController，确保60fps流畅播放
+  Timer? _replayTimer;
   
-  /// 播放相关参数
-  static const Duration _minReplayDuration = Duration(seconds: 3); // 最短播放时长
+  /// 播放相关参数 - 基于距离的匀速移动
+  static const Duration _frameInterval = Duration(milliseconds: 16); // 60fps (1000/60≈16ms) - 流畅播放
+  
+  /// 🎯 匀速移动参数
+  DateTime? _playbackStartTime;
+  Duration? _totalPlaybackDuration;
+  double _uniformSpeed = 0.0; // 匀速移动速度（米/秒）
+  double _totalDistance = 0.0; // 轨迹总距离（米）
   
   /// 播放时间跟踪
   DateTime? _replayStartTime;
@@ -85,13 +92,17 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
   /// 重置播放状态
   void resetReplayState() {
     // 停止当前播放
-    _replayAnimationController?.stop();
-    _replayAnimationController?.reset();
+    _replayTimer?.cancel();
+    _replayTimer = null;
     isReplaying.value = false;
     currentReplayIndex.value = 0;
     replaySpeed.value = 1.0;
     currentPosition.value = null;
-    animationProgress.value = 0.0;
+    replayProgress.value = 0.0;
+    
+    // 🎯 重置播放状态
+    _playbackStartTime = null;
+    _totalPlaybackDuration = null;
     
     // 🎭 清除播放头像标记
     if (replayAvatarMarker.value != null) {
@@ -118,6 +129,7 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
         position: position,
         icon: avatarIcon,
         infoWindow: const InfoWindow(title: '', snippet: ''),
+        zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
       );
       
       DebugUtil.success('✅ 播放头像标记创建成功');
@@ -136,11 +148,12 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
       try {
         // 同步更新现有标记的位置
         final currentMarker = replayAvatarMarker.value!;
-        replayAvatarMarker.value = Marker(
-          position: position,
-          icon: currentMarker.icon,
-          infoWindow: currentMarker.infoWindow,
-        );
+      replayAvatarMarker.value = Marker(
+        position: position,
+        icon: currentMarker.icon,
+        infoWindow: currentMarker.infoWindow,
+        zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
+      );
         // 添加调试信息，但降低频率避免日志过多
         if ((currentReplayIndex.value % 20) == 0) {
           DebugUtil.info('🎯 平滑更新头像位置: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}');
@@ -151,55 +164,30 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
     }
   }
   
-  /// 平滑标记更新方法 - 无阈值检查，每帧都更新
-  void _updateReplayAvatarMarkerSmooth(LatLng position) {
-    if (replayAvatarMarker.value == null) {
-      // 如果标记不存在，创建新标记
-      _createReplayAvatarMarker(position);
-      return;
-    }
-
-    try {
-      final currentMarker = replayAvatarMarker.value!;
-      
-      // 计算旋转角度（如果需要方向指示）
-      final rotation = _getRotationAngle();
-      
-      // 使用原有图标，只更新位置和旋转
-      replayAvatarMarker.value = Marker(
-        position: position,
-        icon: currentMarker.icon,
-        infoWindow: currentMarker.infoWindow,
-        rotation: rotation,
-      );
-      
-      // 降低日志频率（每100帧记录一次）
-      if ((currentReplayIndex.value % 100) == 0) {
-        DebugUtil.info('🎯 平滑更新头像: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}, 角度: ${(rotation * 180 / pi).toStringAsFixed(1)}°');
-      }
-    } catch (e) {
-      DebugUtil.error('❌ 平滑标记更新失败: $e');
-      // 降级到基础更新方法
-      _updateReplayAvatarMarkerSync(position);
-    }
-  }
   
-  /// 计算小人的朝向角度
+  /// 🎯 基于插值位置计算小人的朝向角度（iOS方案）
   double _getRotationAngle() {
-    if (trackPoints.length < 2 || currentReplayIndex.value >= trackPoints.length - 1) return 0;
-
-    // 确保索引在有效范围内
-    final currentIndex = currentReplayIndex.value.clamp(0, trackPoints.length - 2);
-    final current = trackPoints[currentIndex];
-    final next = trackPoints[currentIndex + 1];
-
-    // 计算角度（弧度）
-    final dx = next.longitude - current.longitude;
-    final dy = next.latitude - current.latitude;
-    final angle = atan2(dy, dx);
-
+    if (trackPoints.length < 2) return 0;
+    
+    // 🎯 获取当前插值位置和下一个预测位置来计算朝向
+    final currentProgress = replayProgress.value;
+    final nextProgress = (currentProgress + 0.01).clamp(0.0, 1.0); // 向前预测一小步
+    
+    final currentPos = _calculateTimeBasedInterpolatedPosition(currentProgress);
+    final nextPos = _calculateTimeBasedInterpolatedPosition(nextProgress);
+    
+    if (currentPos == null || nextPos == null) return 0;
+    
+    // 计算移动方向角度（弧度）
+    final dx = nextPos.longitude - currentPos.longitude;
+    final dy = nextPos.latitude - currentPos.latitude;
+    
+    if (dx == 0 && dy == 0) return 0; // 没有移动
+    
+    final angle = math.atan2(dy, dx);
+    
     // 返回角度（顺时针旋转，初始朝向北）
-    return angle + pi / 2;
+    return angle + math.pi / 2;
   }
   
   /// 公开的获取旋转角度方法
@@ -210,14 +198,14 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
   /// 计算两点间距离（米）
   double _calculateDistance(LatLng point1, LatLng point2) {
     const double earthRadius = 6371000; // 地球半径（米）
-    final lat1Rad = point1.latitude * pi / 180;
-    final lat2Rad = point2.latitude * pi / 180;
-    final deltaLat = (point2.latitude - point1.latitude) * pi / 180;
-    final deltaLng = (point2.longitude - point1.longitude) * pi / 180;
+    final lat1Rad = point1.latitude * math.pi / 180;
+    final lat2Rad = point2.latitude * math.pi / 180;
+    final deltaLat = (point2.latitude - point1.latitude) * math.pi / 180;
+    final deltaLng = (point2.longitude - point1.longitude) * math.pi / 180;
 
-    final a = sin(deltaLat / 2) * sin(deltaLat / 2) +
-        cos(lat1Rad) * cos(lat2Rad) * sin(deltaLng / 2) * sin(deltaLng / 2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    final a = math.sin(deltaLat / 2) * math.sin(deltaLat / 2) +
+        math.cos(lat1Rad) * math.cos(lat2Rad) * math.sin(deltaLng / 2) * math.sin(deltaLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 
     return earthRadius * c;
   }
@@ -239,36 +227,56 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
     return _calculateCumulativeDistance(0, trackPoints.length - 1);
   }
   
+  /// 🎯 计算匀速移动参数（基于距离的匀速播放）
+  void _calculatePlaybackDuration() {
+    if (trackPoints.isEmpty) {
+      DebugUtil.warning('⚠️ 轨迹点为空，无法计算播放时长');
+      _totalDistance = 0.0;
+      _uniformSpeed = 130.0;
+      _totalPlaybackDuration = Duration(seconds: 10);
+      return;
+    }
+    
+    // 🎯 计算轨迹总距离
+    _totalDistance = _calculateTotalTrackDistance();
+    
+    // 🎯 计算自适应匀速（参考iOS算法）
+    _uniformSpeed = _calculateAdaptiveSpeed(_totalDistance);
+    
+    // 🎯 基于距离和匀速计算播放时长
+    final calculatedSeconds = _totalDistance / _uniformSpeed;
+    _totalPlaybackDuration = Duration(
+      milliseconds: (calculatedSeconds * 1000).round()
+    );
+    
+    // 应用播放速度
+    final actualDuration = _totalPlaybackDuration!.inSeconds / replaySpeed.value;
+    
+    DebugUtil.info('🎬 匀速移动参数: 总距离=${(_totalDistance/1000).toStringAsFixed(2)}km, 匀速=${_uniformSpeed.toStringAsFixed(1)}m/s, 播放时长=${actualDuration.toStringAsFixed(1)}秒');
+  }
+  
+  /// 🎯 计算自适应匀速（参考iOS算法）
+  /// 算法：基于1000米为单位，基础速度130米/秒，按距离倍数线性增长
+  double _calculateAdaptiveSpeed(double totalDistance) {
+    if (totalDistance <= 0) return 130.0;
+    
+    // 基础速度：130米/秒
+    const double baseSpeed = 130.0;
+    
+    // 最小单位：1000米
+    const double unitDistance = 1000.0;
+    
+    // 计算倍数（向上取整，确保最小为1倍）
+    final multiplier = math.max(1, (totalDistance / unitDistance).ceil());
+    
+    // 返回速度：130 × 倍数
+    return baseSpeed * multiplier;
+  }
+  
+  
   /// 根据轨迹长度动态计算播放时间
   Duration _calculateOptimalReplayDuration() {
-    if (trackPoints.isEmpty) return _minReplayDuration;
-    
-    // 计算轨迹总距离（公里）
-    final totalDistanceKm = _calculateTotalTrackDistance() / 1000.0;
-    
-    // 🎯 优化播放时长计算，确保有足够的时间进行平滑插值
-    // 根据轨迹点数量和距离综合计算
-    final pointCount = trackPoints.length;
-    
-    // 基础时长：确保每个点至少有40ms的时间进行插值
-    final baseSeconds = pointCount * 0.04;
-    
-    // 距离因子：每公里增加1秒
-    final distanceSeconds = totalDistanceKm * 1.0;
-    
-    // 综合计算，取较大值确保平滑
-    final totalSeconds = baseSeconds > distanceSeconds ? baseSeconds : distanceSeconds;
-    
-    // 限制在合理范围内：最短3秒，最长60秒
-    final clampedSeconds = totalSeconds.clamp(3.0, 60.0);
-    
-    // 应用播放速度倍数
-    final adjustedSeconds = clampedSeconds / replaySpeed.value;
-    
-    DebugUtil.info('📏 播放时长计算: 点数=$pointCount, 距离=${totalDistanceKm.toStringAsFixed(2)}km, '
-        '基础时长=${baseSeconds.toStringAsFixed(1)}s, 最终时长=${adjustedSeconds.toStringAsFixed(1)}s');
-    
-    return Duration(milliseconds: (adjustedSeconds * 1000).round());
+    return _totalPlaybackDuration ?? Duration(seconds: 10);
   }
   
   /// 更新播放状态（距离、时间、速度，但不更新进度因为已实时更新）
@@ -291,14 +299,17 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
     // 🎯 不再在这里更新播放进度，因为已经在定时器中实时更新以保持平滑
     // 只在 seekToIndex 时才需要更新进度
     
-    // 更新当前速度（计算最近两个点之间的速度）
-    if (trackPoints.length > 1 && currentReplayIndex.value > 0 && currentReplayIndex.value < trackPoints.length) {
-      final prevPoint = trackPoints[currentReplayIndex.value - 1];
-      final currentPoint = trackPoints[currentReplayIndex.value];
-      final distance = _calculateDistance(prevPoint, currentPoint);
-      // 假设每个点之间的时间间隔约为1秒
-      final speedKmh = (distance / 1000) * 3600; // 转换为公里/小时
-      currentSpeed.value = "${speedKmh.toStringAsFixed(1)}km/h";
+    // 🎯 基于实际播放速度更新速度显示（iOS方案）
+    if (trackPoints.isNotEmpty && _totalPlaybackDuration != null) {
+      final totalDistanceKm = _calculateTotalTrackDistance() / 1000; // 转换为公里
+      final actualDurationHours = (_totalPlaybackDuration!.inSeconds / replaySpeed.value) / 3600; // 考虑播放倍速
+      
+      if (actualDurationHours > 0) {
+        final speedKmh = totalDistanceKm / actualDurationHours;
+        currentSpeed.value = "${speedKmh.toStringAsFixed(1)}km/h";
+      } else {
+        currentSpeed.value = "0.0km/h";
+      }
     }
   }
   
@@ -336,206 +347,193 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
     _updateReplayStatus();
   }
   
-  /// 开始回放
+  /// 🎯 开始高精度60fps轨迹回放
   void startReplay() {
     if (trackPoints.isEmpty) {
       CustomToast.show(Get.context!, '暂无轨迹数据可回放');
       return;
     }
 
-    // 如果当前已经播放完成，重置到开始
-    if (currentReplayIndex.value >= trackPoints.length - 1) {
-      currentReplayIndex.value = 0;
-      _cumulativeDistance = 0.0;
-      replayProgress.value = 0.0;
-      animationProgress.value = 0.0;
+    DebugUtil.info('🎬 开始播放回放...');
+    
+    // 停止之前的播放
+    _replayTimer?.cancel();
+    
+    // 🎯 计算播放参数（基于距离的匀速播放）
+    _calculatePlaybackDuration();
+    
+    if (trackPoints.isEmpty) {
+      DebugUtil.error('❌ 轨迹点为空，无法播放');
+      return;
     }
     
-    print('🎬 开始播放回放...');
-    
-    // 停止之前的动画
-    _replayAnimationController?.dispose();
-    
+    // 设置播放状态
     isReplaying.value = true;
-    showFullPlayer.value = true; // 显示完整播放器
-    print('🎬 showFullPlayer = ${showFullPlayer.value}');
+    showFullPlayer.value = true;
+    _playbackStartTime = DateTime.now();
+    _replayStartTime = DateTime.now();
+    _cumulativeDistance = 0.0;
+    replayProgress.value = 0.0;
 
-    // 确保currentReplayIndex在有效范围内
-    currentReplayIndex.value = currentReplayIndex.value.clamp(0, trackPoints.length - 1);
-
-    // 🎯 新增：调整地图视角以显示完整轨迹
+    // 🎯 调整地图视角以显示完整轨迹
     DebugUtil.info('🗺️ 调整地图视角以显示完整轨迹');
     onFitMapToTrack?.call(trackPoints);
 
-    // 设置初始位置
-    if (currentPosition.value == null && trackPoints.isNotEmpty) {
-      currentPosition.value = trackPoints[currentReplayIndex.value];
-    }
-    
     // 创建播放头像标记
-    if (currentPosition.value != null) {
-      _createReplayAvatarMarker(currentPosition.value!);
-    }
+    currentPosition.value = trackPoints[0];
+    _createReplayAvatarMarker(currentPosition.value!);
     
-    // 初始化播放时间跟踪
-    _replayStartTime = DateTime.now();
-    _cumulativeDistance = _calculateCumulativeDistance(0, currentReplayIndex.value);
     _updateReplayStatus();
 
-    // 🎯 创建动画控制器，根据轨迹长度动态计算播放时间
-    final optimalDuration = _calculateOptimalReplayDuration();
-    _replayAnimationController = AnimationController(
-      duration: optimalDuration,
-      vsync: this,
+    // 🎯 启动播放定时器，简单直接按轨迹点播放（参考iOS方案）
+    _replayTimer = Timer.periodic(_frameInterval, _onReplayTimerUpdate);
+    
+    DebugUtil.success('🎬 轨迹回放已启动');
+    DebugUtil.info('📊 播放参数: 总时长=${_totalPlaybackDuration!.inSeconds}秒, 轨迹点=${trackPoints.length}个, 播放速度=${replaySpeed.value}x');
+    DebugUtil.info('📊 实际播放时长=${(_totalPlaybackDuration!.inSeconds / replaySpeed.value).toStringAsFixed(1)}秒');
+    DebugUtil.info('📊 总距离=${(_calculateTotalTrackDistance() / 1000).toStringAsFixed(2)}公里');
+  }
+  
+  /// 🎯 基于时间的平滑插值播放定时器回调（真正的iOS方案）
+  void _onReplayTimerUpdate(Timer timer) {
+    if (!isReplaying.value) {
+      timer.cancel();
+      return;
+    }
+    
+    if (trackPoints.isEmpty || _playbackStartTime == null) {
+      timer.cancel();
+      return;
+    }
+    
+    final now = DateTime.now();
+    final elapsed = now.difference(_playbackStartTime!);
+    
+    // 🎯 考虑播放速度的实际播放时长
+    final actualDuration = Duration(
+      milliseconds: (_totalPlaybackDuration!.inMilliseconds / replaySpeed.value).round()
     );
-
-    // 创建动画，从当前进度到1.0
-    final startProgress = currentReplayIndex.value / (trackPoints.length - 1).clamp(1, trackPoints.length);
-    _replayAnimation = Tween<double>(
-      begin: startProgress,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _replayAnimationController!,
-      curve: Curves.linear, // 保持线性播放，平滑处理在插值函数中进行
-    ));
-
-    // 初始化动画进度
-    animationProgress.value = startProgress;
-    DebugUtil.info('🎯 动画初始进度: ${animationProgress.value}');
-
-    // 监听动画值变化
-    _replayAnimation!.addListener(_onReplayAnimationUpdate);
     
-    // 监听动画完成
-    _replayAnimation!.addStatusListener(_onReplayAnimationStatus);
-
-    // 开始动画
-    _replayAnimationController!.forward();
-    DebugUtil.success('🎬 轨迹回放已启动，总时长: ${optimalDuration.inSeconds}秒');
-  }
-  
-  /// 动画更新回调
-  void _onReplayAnimationUpdate() {
-    if (_replayAnimation == null || trackPoints.isEmpty) return;
+    // 计算播放进度（0-1）
+    final progress = (elapsed.inMilliseconds / actualDuration.inMilliseconds).clamp(0.0, 1.0);
     
-    // 获取当前动画进度（0-1）
-    final rawProgress = _replayAnimation!.value;
-    
-    // 🎯 应用多级平滑处理
-    final smoothProgress = _applyMultiLevelSmoothing(rawProgress);
-    
-    // 更新实时进度（用于进度条显示）
-    animationProgress.value = smoothProgress;
-    replayProgress.value = smoothProgress;
-    
-    // 计算当前应该在哪个点（支持小数索引）
-    final floatIndex = smoothProgress * (trackPoints.length - 1);
-    final currentIdx = floatIndex.floor();
-    final nextIdx = (currentIdx + 1).clamp(0, trackPoints.length - 1);
-    
-    // 更新整数索引（用于停留点检测等）
-    if (currentIdx != currentReplayIndex.value) {
-      currentReplayIndex.value = currentIdx;
-      _checkPassingStopPoint(currentIdx);
+    // 检查播放完成
+    if (progress >= 1.0) {
+      timer.cancel();
+      _onPlaybackComplete();
+      return;
     }
     
-    // 🎯 插值计算平滑位置
-    if (currentIdx < trackPoints.length - 1) {
-      final t = floatIndex - currentIdx; // 插值参数（0-1）
-      final currentPoint = trackPoints[currentIdx];
-      final nextPoint = trackPoints[nextIdx];
-      
-      // 使用线性插值计算中间位置
-      final interpolatedLat = currentPoint.latitude + (nextPoint.latitude - currentPoint.latitude) * t;
-      final interpolatedLng = currentPoint.longitude + (nextPoint.longitude - currentPoint.longitude) * t;
-      final interpolatedPosition = LatLng(interpolatedLat, interpolatedLng);
-      
-      // 更新当前位置
-      currentPosition.value = interpolatedPosition;
-      
-      // 🎯 移除相机跟随，保持固定视角显示完整轨迹
-      // onMapMoveSmooth?.call(interpolatedPosition); // 已禁用
-      
-      // 🎯 平滑更新播放头像位置
-      _updateReplayAvatarMarkerSmooth(interpolatedPosition);
-    } else {
-      // 最后一个点
-      currentPosition.value = trackPoints.last;
-      // onMapMove?.call(trackPoints.last); // 已禁用
-      _updateReplayAvatarMarkerSync(trackPoints.last);
+    // 🎯 基于时间的平滑插值计算当前位置
+    final interpolatedPosition = _calculateTimeBasedInterpolatedPosition(progress);
+    if (interpolatedPosition == null) {
+      return;
     }
     
-    // 更新累计距离（基于实际索引）
-    _cumulativeDistance = _calculateCumulativeDistance(0, currentIdx) +
-        (currentIdx < trackPoints.length - 1 
-            ? _calculateDistance(trackPoints[currentIdx], currentPosition.value!) * (floatIndex - currentIdx)
-            : 0);
+    // 更新当前位置为插值计算的平滑位置
+    currentPosition.value = interpolatedPosition;
     
-    // 更新状态显示
-    _updateReplayStatus();
-  }
-  
-  /// 动画状态监听
-  void _onReplayAnimationStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      // 播放完成
-      DebugUtil.info('🎯 轨迹回放完成');
-      isReplaying.value = false;
-      _showReplayCompleteMessage();
-      
-      // 确保进度为100%
-      replayProgress.value = 1.0;
-      animationProgress.value = 1.0;
-      currentReplayIndex.value = trackPoints.length - 1;
-      
-      // 确保最后位置正确
-      if (trackPoints.isNotEmpty) {
-        currentPosition.value = trackPoints.last;
-        _updateReplayAvatarMarkerSync(trackPoints.last);
-      }
-      
+    // 🎯 更新播放头像位置
+    _updateReplayAvatarMarkerSync(interpolatedPosition);
+    
+    // 🎯 根据设置决定是否移动地图视角
+    if (enableCameraFollow.value) {
+      onMapMoveSmooth?.call(interpolatedPosition);
+    }
+    
+    // 更新进度条
+    replayProgress.value = progress;
+    
+    // 🎯 计算当前轨迹点索引用于停留点检查
+    final currentIndex = _calculateCurrentTrackPointIndex(progress);
+    if (currentIndex != currentReplayIndex.value) {
+      currentReplayIndex.value = currentIndex;
+      _checkPassingStopPoint(currentIndex);
+    }
+    
+    // 更新累计距离
+    _cumulativeDistance = _calculateCumulativeDistance(0, currentIndex);
+    
+    // 更新状态显示（降低频率避免过于频繁）
+    if ((elapsed.inMilliseconds / 100) % 3 == 0) { // 每300ms更新一次状态
       _updateReplayStatus();
     }
   }
   
-  /// 应用高级平滑处理，减少闪现效果
-  double _applyAdvancedSmoothing(double t) {
-    // 使用五次Hermite插值，提供更平滑的过渡
-    final t2 = t * t;
-    final t3 = t2 * t;
-    return 6 * t3 * t2 - 15 * t2 * t2 + 10 * t3;
+  
+  /// 🎯 基于距离权重的平滑插值位置计算（真正的iOS方案）
+  LatLng? _calculateTimeBasedInterpolatedPosition(double progress) {
+    if (trackPoints.isEmpty) return null;
+    if (progress <= 0.0) return trackPoints.first;
+    if (progress >= 1.0) return trackPoints.last;
+    
+    // 🎯 iOS方案：基于累计距离而不是轨迹点数量进行插值
+    final totalDistance = _calculateTotalTrackDistance();
+    if (totalDistance <= 0) return trackPoints.first;
+    
+    final targetDistance = progress * totalDistance;
+    
+    // 找到目标距离所在的轨迹段
+    double cumulativeDistance = 0.0;
+    for (int i = 0; i < trackPoints.length - 1; i++) {
+      final segmentDistance = _calculateDistance(trackPoints[i], trackPoints[i + 1]);
+      
+      if (cumulativeDistance + segmentDistance >= targetDistance) {
+        // 找到了目标段，计算段内插值
+        final remainingDistance = targetDistance - cumulativeDistance;
+        final segmentProgress = segmentDistance > 0 ? remainingDistance / segmentDistance : 0.0;
+        
+        // 在两个轨迹点之间进行线性插值
+        final startPoint = trackPoints[i];
+        final endPoint = trackPoints[i + 1];
+        
+        final interpolatedLat = startPoint.latitude + 
+            (endPoint.latitude - startPoint.latitude) * segmentProgress;
+        final interpolatedLng = startPoint.longitude + 
+            (endPoint.longitude - startPoint.longitude) * segmentProgress;
+        
+        return LatLng(interpolatedLat, interpolatedLng);
+      }
+      
+      cumulativeDistance += segmentDistance;
+    }
+    
+    // 如果没找到（理论上不应该发生），返回最后一个点
+    return trackPoints.last;
   }
   
-  /// 应用贝塞尔曲线平滑处理
-  double _applyCubicBezierSmoothing(double t) {
-    // 使用三次贝塞尔曲线 (0.25, 0.1, 0.25, 1.0) 提供自然的缓动效果
-    if (t <= 0) return 0;
-    if (t >= 1) return 1;
+  /// 🎯 计算当前轨迹点索引（用于停留点检查）
+  int _calculateCurrentTrackPointIndex(double progress) {
+    if (trackPoints.isEmpty) return 0;
+    if (progress <= 0.0) return 0;
+    if (progress >= 1.0) return trackPoints.length - 1;
     
-    // 简化的三次贝塞尔计算
-    final p0 = 0.0;
-    final p1 = 0.25;
-    final p2 = 0.75;
-    final p3 = 1.0;
+    final totalSegments = trackPoints.length - 1;
+    final exactPosition = progress * totalSegments;
+    return exactPosition.round().clamp(0, trackPoints.length - 1);
+  }
+
+  /// 🎯 播放完成处理
+  void _onPlaybackComplete() {
+    DebugUtil.info('🎯 轨迹回放完成');
+    isReplaying.value = false;
+    _replayTimer?.cancel();
+    _replayTimer = null;
     
-    final t2 = t * t;
-    final t3 = t2 * t;
-    final mt = 1 - t;
-    final mt2 = mt * mt;
-    final mt3 = mt2 * mt;
+    // 确保进度为100%
+    replayProgress.value = 1.0;
+    currentReplayIndex.value = trackPoints.length - 1;
     
-    return mt3 * p0 + 3 * mt2 * t * p1 + 3 * mt * t2 * p2 + t3 * p3;
+    // 确保最后位置正确
+    if (trackPoints.isNotEmpty) {
+      currentPosition.value = trackPoints.last;
+      _updateReplayAvatarMarkerSync(trackPoints.last);
+    }
+    
+    _updateReplayStatus();
+    _showReplayCompleteMessage();
   }
   
-  /// 多级平滑处理 - 结合多种算法
-  double _applyMultiLevelSmoothing(double t) {
-    // 第一级：五次Hermite插值
-    final smooth1 = _applyAdvancedSmoothing(t);
-    // 第二级：贝塞尔曲线
-    final smooth2 = _applyCubicBezierSmoothing(smooth1);
-    // 混合原始值和平滑值，保持一定的响应性
-    return t * 0.3 + smooth2 * 0.7;
-  }
   
   /// 检查是否经过停留点
   void _checkPassingStopPoint(int currentIndex) {
@@ -545,16 +543,53 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
     
     // 检查是否接近任何停留点
     for (final stopPoint in stopPoints) {
-      final distance = _calculateDistance(
-        currentPoint,
-        LatLng(stopPoint.lat, stopPoint.lng),
-      );
-      
-      // 如果距离小于50米，认为经过了停留点
-      if (distance < 50) {
-        // 可以在这里添加经过停留点的效果
-        DebugUtil.info('经过停留点: ${stopPoint.address}');
-        break;
+      try {
+        LatLng? stopPointPosition;
+        String? stopPointName;
+        
+        // 🎯 兼容不同类型的停留点对象
+        if (stopPoint is Map<String, dynamic>) {
+          // JSON格式的停留点
+          final lat = double.tryParse(stopPoint['lat']?.toString() ?? '0');
+          final lng = double.tryParse(stopPoint['lng']?.toString() ?? '0');
+          if (lat != null && lng != null) {
+            stopPointPosition = LatLng(lat, lng);
+            stopPointName = stopPoint['address']?.toString() ?? stopPoint['locationName']?.toString() ?? '未知位置';
+          }
+        } else if (stopPoint.runtimeType.toString().contains('StayPoint')) {
+          // StayPoint类型 - 使用position属性
+          final position = stopPoint.position;
+          if (position != null) {
+            stopPointPosition = position;
+            stopPointName = stopPoint.title ?? '未知位置';
+          }
+        } else {
+          // TrackStopPoint类型 - 使用lat/lng属性
+          try {
+            final lat = (stopPoint as dynamic).lat;
+            final lng = (stopPoint as dynamic).lng;
+            if (lat != null && lng != null) {
+              stopPointPosition = LatLng(lat.toDouble(), lng.toDouble());
+              stopPointName = (stopPoint as dynamic).locationName ?? '未知位置';
+            }
+          } catch (e) {
+            DebugUtil.warning('⚠️ 无法解析停留点坐标: $e');
+            continue;
+          }
+        }
+        
+        if (stopPointPosition != null) {
+          final distance = _calculateDistance(currentPoint, stopPointPosition);
+          
+          // 如果距离小于50米，认为经过了停留点
+          if (distance < 50) {
+            DebugUtil.info('🎯 经过停留点: $stopPointName (距离: ${distance.toStringAsFixed(1)}m)');
+            break;
+          }
+        }
+      } catch (e) {
+        DebugUtil.warning('⚠️ 检查停留点时发生错误: $e');
+        continue;
       }
     }
   }
@@ -570,20 +605,20 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
   /// 暂停
   void pauseReplay() {
     isReplaying.value = false;
-    _replayAnimationController?.stop();
+    _replayTimer?.cancel();
+    _replayTimer = null;
     DebugUtil.info('轨迹回放已暂停');
   }
   
   /// 停止并重置
   void stopReplay() {
     isReplaying.value = false;
-    _replayAnimationController?.stop();
-    _replayAnimationController?.reset();
+    _replayTimer?.cancel();
+    _replayTimer = null;
     
     // 重置到起点
     currentReplayIndex.value = 0;
     replayProgress.value = 0.0;
-    animationProgress.value = 0.0;
     _cumulativeDistance = 0.0;
     replayTime.value = "00:00:00";
     replayDistance.value = "0米";
@@ -600,6 +635,7 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
     }
     
     _replayStartTime = null;
+    _playbackStartTime = null;
     DebugUtil.info('轨迹回放已停止并重置');
   }
   
@@ -630,16 +666,17 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
       replaySpeed.value = 1.0;
     }
     
-    // 如果正在播放，重新计算动画时长
-    if (isReplaying.value && _replayAnimationController != null) {
-      final remainingProgress = 1.0 - animationProgress.value;
-      final optimalDuration = _calculateOptimalReplayDuration();
-      final remainingDuration = Duration(
-        milliseconds: (optimalDuration.inMilliseconds * remainingProgress).round(),
-      );
+    // 🎯 如果正在播放，重新开始播放以应用新的速度
+    if (isReplaying.value) {
+      final currentProgress = replayProgress.value;
+      stopReplay();
       
-      // 更新动画控制器的时长
-      _replayAnimationController!.duration = remainingDuration;
+      // 重新预计算路径（应用新速度）
+      _calculatePlaybackDuration();
+      
+      // 从当前进度继续播放
+      startReplay();
+      seekReplay(currentProgress);
     }
     
     DebugUtil.info('播放速度切换为: ${replaySpeed.value}x');
@@ -649,18 +686,50 @@ class TrackReplayManager extends GetxController with GetTickerProviderStateMixin
   void seekReplay(double progress) {
     if (trackPoints.isEmpty) return;
     
-    final targetIndex = (progress * (trackPoints.length - 1)).round();
-    seekToIndex(targetIndex);
+    final safeProgress = progress.clamp(0.0, 1.0);
     
-    // 如果正在播放，更新动画
-    if (isReplaying.value && _replayAnimationController != null) {
-      _replayAnimationController!.value = progress;
+    // 🎯 直接跳转到对应轨迹点位置
+    final targetIndex = (safeProgress * (trackPoints.length - 1)).round();
+    final currentIndex = targetIndex.clamp(0, trackPoints.length - 1);
+    
+    currentPosition.value = trackPoints[currentIndex];
+    if (replayAvatarMarker.value != null) {
+      _updateReplayAvatarMarkerSync(currentPosition.value!);
     }
+    
+    // 更新原始索引
+    currentReplayIndex.value = currentIndex;
+    
+    // 更新进度
+    replayProgress.value = safeProgress;
+    
+    // 🎯 如果正在播放，调整播放开始时间以匹配新进度
+    if (isReplaying.value && _playbackStartTime != null && _totalPlaybackDuration != null) {
+      final elapsedTime = Duration(milliseconds: (safeProgress * _totalPlaybackDuration!.inMilliseconds).round());
+      _playbackStartTime = DateTime.now().subtract(elapsedTime);
+    }
+    
+    // 更新累计距离和状态
+    _cumulativeDistance = _calculateCumulativeDistance(0, currentReplayIndex.value);
+    _updateReplayStatus();
+  }
+  
+  /// 🎯 切换相机跟随模式（已禁用）
+  void toggleCameraFollow() {
+    // 相机跟随功能已禁用，不执行任何操作
+    DebugUtil.info('🎯 相机跟随功能已禁用');
+  }
+  
+  /// 🎯 设置相机跟随模式（已禁用）
+  void setCameraFollow(bool enabled) {
+    // 相机跟随功能已禁用，强制保持关闭状态
+    enableCameraFollow.value = false;
+    DebugUtil.info('🎯 相机跟随功能已禁用，忽略设置请求');
   }
   
   @override
   void onClose() {
-    _replayAnimationController?.dispose();
+    _replayTimer?.cancel();
     super.onClose();
   }
 }

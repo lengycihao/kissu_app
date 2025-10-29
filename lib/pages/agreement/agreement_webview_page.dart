@@ -142,23 +142,12 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
           elevation: 0,
           leading: GestureDetector(
             onTap: _handleBack,
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Color(0xFF333333),
-                size: 20,
+            child: Center(
+              child: Image.asset(
+                "assets/kissu_mine_back.webp",
+                width: 22,
+                height: 22,
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -179,17 +168,17 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
                     child: Container(
                       margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
+                      // decoration: BoxDecoration(
+                      //   color: Colors.white,
+                      //   borderRadius: BorderRadius.circular(50),
+                      //   // boxShadow: [
+                      //   //   BoxShadow(
+                      //   //     color: Colors.black.withOpacity(0.1),
+                      //   //     blurRadius: 4,
+                      //   //     offset: const Offset(0, 2),
+                      //   //   ),
+                      //   // ],
+                      // ),
                       child: const Center(
                         child: Icon(
                           Icons.close,

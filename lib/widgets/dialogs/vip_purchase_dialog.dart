@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'base_dialog.dart';
+import '../../services/tracking_service.dart';
 
 /// 开通VIP弹窗
 class VipPurchaseDialog extends BaseDialog {
@@ -29,7 +30,9 @@ class VipPurchaseDialog extends BaseDialog {
             top: 15,
             right: 16,
             child: GestureDetector(
-              onTap: () {
+              onTap: () async {
+                // 埋点：关闭按钮点击
+                await TrackingService.trackVipAlertClose();
                 Navigator.of(context).pop();
               },
               child: Container(
@@ -144,7 +147,9 @@ class VipPurchaseDialog extends BaseDialog {
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 24, right: 24),
       child: GestureDetector(
-        onTap: () {
+        onTap: () async {
+          // 埋点：立即查看按钮点击
+          await TrackingService.trackVipAlertOpen();
           Navigator.of(context).pop();
           onConfirm?.call();
         },
@@ -175,8 +180,8 @@ class VipPurchaseDialog extends BaseDialog {
     required BuildContext context,
     VoidCallback? onConfirm,
     bool barrierDismissible = true,
-  }) {
-    return showGeneralDialog(
+  }) async {
+    await showGeneralDialog(
       context: context,
       barrierDismissible: barrierDismissible,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
@@ -189,22 +194,39 @@ class VipPurchaseDialog extends BaseDialog {
             padding: const EdgeInsets.only(bottom: 40),
             child: Material(
               color: Colors.transparent,
-              child: VipPurchaseDialog(
-                onConfirm: onConfirm,
-              ).buildContent(context),
+              child: GestureDetector(
+                // 阻止点击弹窗内容区域时关闭
+                onTap: () {},
+                child: VipPurchaseDialog(
+                  onConfirm: onConfirm,
+                ).buildContent(context),
+              ),
             ),
           ),
         );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-              .animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
-          child: child,
+        return GestureDetector(
+          // 点击屏幕其他区域（背景）关闭弹窗
+          onTap: barrierDismissible ? () async {
+            // 埋点：点击屏幕关闭
+            await TrackingService.trackVipAlertClose();
+            Navigator.of(context).pop();
+          } : null,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+                ),
+            child: child,
+          ),
         );
       },
     );
+    
+    // 埋点说明：
+    // 1. 点击关闭按钮（右上角 X）会触发 trackVipAlertClose
+    // 2. 点击立即查看按钮会触发 trackVipAlertOpen
+    // 3. 点击屏幕背景会触发 trackVipAlertClose
   }
 }

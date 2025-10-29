@@ -64,6 +64,7 @@ class _QuestionPageState extends State<QuestionPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.to(
           () => QuestionPageInfo(question: targetQuestion),
+          transition: Transition.rightToLeft,
         );
       });
     } else {
@@ -153,6 +154,7 @@ class _QuestionPageState extends State<QuestionPage> {
                                 () => QuestionPageInfo(
                                   question: questions[index],
                                 ),
+                                transition: Transition.rightToLeft,
                               );
                             },
                             child: Container(

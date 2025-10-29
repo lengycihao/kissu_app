@@ -8,13 +8,14 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 // 导入各个管理器
 import 'package:kissu_app/pages/track/managers/track_map_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_user_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_data_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_ui_manager.dart';
-import 'package:kissu_app/pages/track/managers/track_replay_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_marker_manager.dart';
 
 // 导出初始坐标信息类，供外部使用
@@ -28,11 +29,13 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   late final TrackUserManager _userManager;
   late final TrackDataManager _dataManager;
   late final TrackUIManager _uiManager;
-  late final TrackReplayManager _replayManager;
   late final TrackMarkerManager _markerManager;
   
   /// 数据版本控制，确保异步操作的一致性
   int _dataVersion = 0;
+  
+  /// 页面进入时间，用于计算停留时长
+  DateTime? _pageEnterTime;
   
   /// 构造函数
   TrackController() {
@@ -41,7 +44,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     _userManager = TrackUserManager();
     _dataManager = TrackDataManager();
     _uiManager = TrackUIManager();
-    _replayManager = TrackReplayManager();
     _markerManager = TrackMarkerManager();
   }
   
@@ -80,18 +82,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   RxInt get selectedDayIndex => _uiManager.selectedDayIndex;
   RxDouble get sheetPercent => _uiManager.sheetPercent;
   
-  // 来自 ReplayManager
-  RxBool get showFullPlayer => _replayManager.showFullPlayer;
-  RxString get replayDistance => _replayManager.replayDistance;
-  RxString get replayTime => _replayManager.replayTime;
-  RxDouble get replayProgress => _replayManager.replayProgress;
-  RxString get currentSpeed => _replayManager.currentSpeed;
-  RxInt get currentReplayIndex => _replayManager.currentReplayIndex;
-  RxBool get isReplaying => _replayManager.isReplaying;
-  RxDouble get replaySpeed => _replayManager.replaySpeed;
-  Rx<Marker?> get replayAvatarMarker => _replayManager.replayAvatarMarker;
-  Rx<LatLng?> get currentPosition => _replayManager.currentPosition;
-  RxDouble get animationProgress => _replayManager.animationProgress;
   
   // 来自 MarkerManager
   RxList<Marker> get stopMarkers => _markerManager.stopMarkers;
@@ -104,10 +94,12 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   void onInit() {
     super.onInit();
     
+    // 记录页面进入时间
+    _pageEnterTime = DateTime.now();
+    
     // 手动调用继承 GetxController 的管理器的 onInit() 方法
     // 因为它们是通过构造函数创建的，不会自动调用 onInit()
     _uiManager.onInit();
-    _replayManager.onInit();
     
     // 初始化各管理器的依赖关系
     _setupManagerDependencies();
@@ -121,11 +113,42 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 初始化日期选择器索引（默认选择今天，索引为6）
     selectedDateIndex.value = 6;
     
-    // 加载用户信息
+    // 加载用户信息（先用本地数据）
     _userManager.loadUserInfo();
+    
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
     
     // 请求定位权限并加载初始数据
     _requestLocationPermissionAndLoadData();
+  }
+  
+  @override
+  void onReady() {
+    super.onReady();
+    // 页面准备就绪时，确保已经静默刷新
+  }
+  
+  /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  void onPageResumed() {
+    DebugUtil.info('🗺️ 足迹页面重新获得焦点，静默刷新用户信息');
+    // 先用本地数据（已经在onInit中加载）
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  /// 静默刷新用户信息（不阻塞UI）
+  Future<void> _silentRefreshUserInfo() async {
+    try {
+      DebugUtil.info('🔄 足迹页面：静默刷新用户信息');
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        // 刷新成功后重新加载本地数据到UI
+        _userManager.loadUserInfo();
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 足迹页面：静默刷新用户信息失败: $e');
+    }
   }
   
   /// 设置管理器之间的依赖关系
@@ -133,15 +156,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 设置 MapManager 的依赖
     // MapManager 相对独立，不需要其他依赖
     
-    // 设置 ReplayManager 的依赖
-    _replayManager.setDependencies(
-      onMapMove: _mapManager.moveMapToLocation,
-      onMapMoveSmooth: _mapManager.moveMapToLocationSmooth,
-      onFitMapToTrack: _mapManager.fitMapToTrack, // 新增：调整地图视角以显示完整轨迹
-      getCurrentUserAvatar: () => _userManager.getUserAvatar(_dataManager.currentUserType.value),
-      getTrackPoints: () => _dataManager.trackPoints,
-      getStopPoints: () => _dataManager.stopPoints,
-    );
     
     // 设置 MarkerManager 的依赖
     _markerManager.setDependencies(
@@ -255,11 +269,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   void onAvatarTapped(bool isMyself) {
     DebugUtil.info('🎯 头像点击开始 - isMyself: $isMyself');
     
-    // 🎬 切换头像时重置轨迹播放状态
-    if (isReplaying.value) {
-      DebugUtil.info('🛑 检测到正在播放轨迹，切换头像时重置播放状态');
-      _replayManager.resetReplayState();
-    }
     
     // 计算目标用户类型
     final targetUserType = isMyself ? 1 : 0;
@@ -269,6 +278,10 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       DebugUtil.info('点击的是当前用户头像，不切换');
       return;
     }
+    
+    // 📱 每次切换头像时，将下半屏恢复到底部吸顶位置
+    DebugUtil.info('💡 切换头像，恢复下半屏到底部吸顶位置');
+    _uiManager.collapseToBottomPosition();
     
     // 执行用户切换
     DebugUtil.info('🔄 切换到${isMyself ? "自己" : "另一半"}');
@@ -359,45 +372,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   
   /// ===== 轨迹回放相关方法 =====
   
-  /// 开始回放
-  void startReplay() {
-    _replayManager.startReplay();
-  }
-  
-  /// 暂停
-  void pauseReplay() {
-    _replayManager.pauseReplay();
-  }
-  
-  /// 停止并重置
-  void stopReplay() {
-    _replayManager.stopReplay();
-  }
-  
-  /// 关闭播放器并重置动画
-  void closePlayer() {
-    _replayManager.closePlayer();
-  }
-  
-  /// 切换播放速度（快进）
-  void toggleSpeed() {
-    _replayManager.toggleSpeed();
-  }
-  
-  /// 根据进度跳转（用于进度条拖动）
-  void seekReplay(double progress) {
-    _replayManager.seekReplay(progress);
-  }
-  
-  /// 跳转到指定索引（用于进度条拖动）
-  void seekToIndex(int newIndex) {
-    _replayManager.seekToIndex(newIndex);
-  }
-  
-  /// 获取旋转角度
-  double getRotationAngle() {
-    return _replayManager.getRotationAngle();
-  }
   
   /// ===== 标记相关方法 =====
   
@@ -447,9 +421,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     
     try {
       // 使用 MarkerManager 获取所有标记
-      markers.addAll(_markerManager.getAllMarkers(
-        replayAvatarMarker: replayAvatarMarker.value,
-      ));
+      markers.addAll(_markerManager.getAllMarkers());
       
       DebugUtil.info('标记总数: ${markers.length}');
       } catch (e) {
@@ -486,7 +458,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 异步加载位置数据
   Future<void> _loadDataAsync() async {
     DebugUtil.info('📍 开始加载数据，当前 isLoading = ${isLoading.value}');
-    _replayManager.resetReplayState();
     
     // 增加数据版本号，确保数据一致性
     _dataVersion++;
@@ -565,16 +536,22 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 创建所有标记
   Future<void> _createMarkers() async {
     try {
-      // 创建停留点标记
+      // 获取起点终点坐标
+      final startPoint = _dataManager.getStartPoint();
+      final endPoint = _dataManager.getEndPoint();
+      
+      // 创建停留点标记（排除与起终点重复的位置）
       await _markerManager.createStopMarkers(
         stopPoints: stopPoints,
         onStopPointTap: _markerManager.handleStopPointTap,
+        startPoint: startPoint,
+        endPoint: endPoint,
       );
       
       // 创建起终点标记
       await _markerManager.createTrackStartEndMarkers(
-        startPoint: _dataManager.getStartPoint(),
-        endPoint: _dataManager.getEndPoint(),
+        startPoint: startPoint,
+        endPoint: endPoint,
       );
       
       // 更新停留记录列表
@@ -594,7 +571,6 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     _markerManager.clearMapImmediately();
     
     // 重置播放状态
-    _replayManager.resetReplayState();
     
     // 清空数据
     _dataManager.clearAllData();
@@ -737,6 +713,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   void onClose() {
     DebugUtil.info('🧹 开始清理轨迹页面资源和缓存...');
     
+    // 上报页面浏览埋点
+    _trackPageView();
+    
     // 清理各管理器资源
     _mapManager.dispose();
     _dataManager.clearCache();
@@ -744,9 +723,41 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     
     // 手动调用继承 GetxController 的管理器的 onClose() 方法
     _uiManager.onClose();
-    _replayManager.onClose();
     
     DebugUtil.success('✅ 轨迹页面资源清理完成');
     super.onClose();
+  }
+  
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 获取用户信息
+      final user = UserManager.currentUser;
+      final isBind = _userManager.isBindPartner.value;
+      // 检查 VIP 状态：isVip == 1 表示是会员
+      final isVip = user?.isVip == 1;
+      
+      // 获取位置权限状态
+      final canLocation = await LocationPermissionManager.instance.checkLocationPermissionSilently();
+      
+      // 上报埋点
+      await TrackingService.trackFootprintPageView(
+        stayDuration: stayDuration,
+        isBind: isBind,
+        isVip: isVip,
+        canLocation: canLocation,
+      );
+      
+      DebugUtil.info('✅ 足迹页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定=$isBind, VIP=$isVip, 位置权限=$canLocation');
+    } catch (e) {
+      DebugUtil.error('❌ 足迹页面浏览埋点上报失败: $e');
+    }
   }
 }

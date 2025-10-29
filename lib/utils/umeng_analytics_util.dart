@@ -38,6 +38,14 @@ class UmengAnalytics {
   /// 虚拟用户ID实例（缓存）
   static String? _cachedVirtualUserId;
   
+  /// 事件计时器映射表：记录所有进行中的事件
+  /// key: 事件ID, value: 开始时间
+  static final Map<String, DateTime> _eventTimers = {};
+  
+  /// 事件计时最大时长（毫秒），超过此时长会自动结束并警告
+  /// 默认 30 分钟，防止忘记调用 eventEnd 导致内存泄漏
+  static const int _maxEventDurationMs = 30 * 60 * 1000;
+  
   /// 初始化友盟统计
   /// 
   /// [appKey] 友盟AppKey，如果不传则使用项目配置的key
@@ -434,44 +442,198 @@ class UmengAnalytics {
     }
   }
 
-  // ==================== 业务埋点方法 ====================
+  // ==================== 事件计时方法（带安全销毁机制） ====================
   
-  /// 登录按钮点击事件
+  /// 开始计时事件
   /// 
-  /// 参数说明：
-  /// - [isSuccess] 是否登录成功（根据后台返回的状态判断）
-  /// - [userId] 用户ID（登录成功后的真实用户ID，可选）
-  static Future<void> trackLoginButton({
-    required bool isSuccess,
-    String? userId,
-  }) async {
+  /// 用于记录事件的开始时间，配合 [eventEnd] 使用可自动计算事件时长
+  /// 
+  /// ⚠️ 安全机制：
+  /// - 同一事件ID只能有一个计时器，重复调用会覆盖之前的计时器并警告
+  /// - 自动检测超时事件（默认30分钟），超时会自动结束并警告
+  /// - 建议在页面销毁时调用 [endAllEvents] 清理所有未结束的事件
+  /// 
+  /// [eventId] 事件ID，建议使用英文或拼音
+  /// [params] 可选参数，会在 eventEnd 时一起上报
+  /// 
+  /// 使用示例：
+  /// ```dart
+  /// // 1. 基础用法
+  /// await UmengAnalytics.eventBegin('video_play');
+  /// // ... 用户观看视频 ...
+  /// await UmengAnalytics.eventEnd('video_play');
+  /// 
+  /// // 2. 带参数
+  /// await UmengAnalytics.eventBegin('video_play', params: {'video_id': '123'});
+  /// await UmengAnalytics.eventEnd('video_play', params: {'video_id': '123'});
+  /// 
+  /// // 3. 在页面销毁时清理（防止内存泄漏）
+  /// @override
+  /// void onClose() {
+  ///   UmengAnalytics.endAllEvents(); // 自动结束所有未结束的事件
+  ///   super.onClose();
+  /// }
+  /// ```
+  static Future<void> eventBegin(String eventId, {Map<String, String>? params}) async {
+    if (!_isInitialized) {
+      DebugUtil.warning('友盟统计未初始化，请先调用init()');
+      return;
+    }
+    
+    // 检查是否已存在相同事件ID的计时器
+    if (_eventTimers.containsKey(eventId)) {
+      DebugUtil.warning('友盟统计-事件计时警告: 事件 "$eventId" 已经在计时中，将覆盖之前的计时器');
+      // 先结束之前的事件
+      await eventEnd(eventId, params: params, isAutoEnd: true);
+    }
+    
     try {
-      // 获取虚拟用户ID
-      final virtualUserId = await getOrCreateVirtualUserId();
-
-      // 获取当前时间，格式：年/月/日 时:分:秒
-      final now = DateTime.now();
-      final clickTime = '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')} '
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
-
-      // 构建事件参数
-      final params = <String, String>{
-        'device_id': virtualUserId,           // 虚拟用户ID
-        'click_time': clickTime,              // 点击时间
-        'is_success': isSuccess ? '是' : '否', // 是否登录成功
-      };
-
-      // 如果登录成功且提供了用户ID，则添加用户ID参数
-      if (userId != null && userId.isNotEmpty) {
-        params['user_id'] = userId;
-      }
-
-      // 发送点击事件
-      await logEventWithParams('login_button', params);
+      // 记录开始时间（只在 Dart 层面记录，不调用原生方法）
+      _eventTimers[eventId] = DateTime.now();
       
-      DebugUtil.info('友盟统计: 登录按钮点击事件已发送 - 是否成功: ${isSuccess ? "是" : "否"}, 用户ID: ${userId ?? "未提供"}');
+      DebugUtil.info('友盟统计-事件计时开始: $eventId${params != null ? ", params: $params" : ""}');
     } catch (e) {
-      DebugUtil.error('友盟统计: 发送登录按钮点击事件失败 - $e');
+      // 失败时清理本地记录
+      _eventTimers.remove(eventId);
+      DebugUtil.error('友盟统计事件计时开始失败: $e');
+    }
+  }
+  
+  /// 结束计时事件
+  /// 
+  /// 结束由 [eventBegin] 开始的事件计时，自动计算并上报时长
+  /// 
+  /// [eventId] 事件ID，必须与 eventBegin 中的 ID 一致
+  /// [params] 可选参数，会覆盖 eventBegin 时的参数
+  /// [isAutoEnd] 内部参数，标记是否为自动结束（用于日志区分）
+  /// 
+  /// 注意：
+  /// - 如果事件未开始就调用 eventEnd，会记录警告但不会报错
+  /// - 建议在 finally 块中调用 eventEnd 确保一定会执行
+  static Future<void> eventEnd(String eventId, {Map<String, String>? params, bool isAutoEnd = false}) async {
+    if (!_isInitialized) {
+      DebugUtil.warning('友盟统计未初始化，请先调用init()');
+      return;
+    }
+    
+    // 检查事件是否已开始
+    final startTime = _eventTimers[eventId];
+    if (startTime == null) {
+      DebugUtil.warning('友盟统计-事件计时警告: 事件 "$eventId" 未开始计时就调用了 eventEnd');
+      return;
+    }
+    
+    try {
+      // 计算时长
+      final duration = DateTime.now().difference(startTime);
+      final durationMs = duration.inMilliseconds;
+      
+      // 检查是否超时
+      if (durationMs > _maxEventDurationMs) {
+        DebugUtil.warning(
+          '友盟统计-事件计时警告: 事件 "$eventId" 计时时长过长 (${duration.inMinutes}分钟)，'
+          '可能忘记调用 eventEnd，建议检查代码'
+        );
+      }
+      
+      // 清理本地记录
+      _eventTimers.remove(eventId);
+      
+      // 使用普通的 logEventWithParams 方法上报，附带时长参数
+      final eventParams = <String, String>{
+        'duration_ms': durationMs.toString(),
+        'duration_seconds': duration.inSeconds.toString(),
+        if (params != null) ...params,
+      };
+      
+      await logEventWithParams(eventId, eventParams);
+      
+      final logPrefix = isAutoEnd ? '友盟统计-事件计时自动结束' : '友盟统计-事件计时结束';
+      DebugUtil.info('$logPrefix: $eventId, 时长: ${duration.inSeconds}秒${params != null ? ", params: $params" : ""}');
+    } catch (e) {
+      // 即使失败也清理本地记录，防止内存泄漏
+      _eventTimers.remove(eventId);
+      DebugUtil.error('友盟统计事件计时结束失败: $e');
+    }
+  }
+  
+  /// 结束所有进行中的事件
+  /// 
+  /// 自动结束所有通过 [eventBegin] 开始但未调用 [eventEnd] 的事件
+  /// 
+  /// ⚠️ 强烈建议在以下场景调用此方法：
+  /// - 页面/组件销毁时（onClose、dispose）
+  /// - 应用进入后台时
+  /// - 用户退出登录时
+  /// 
+  /// 使用示例：
+  /// ```dart
+  /// @override
+  /// void onClose() {
+  ///   UmengAnalytics.endAllEvents();
+  ///   super.onClose();
+  /// }
+  /// 
+  /// @override
+  /// void dispose() {
+  ///   UmengAnalytics.endAllEvents();
+  ///   super.dispose();
+  /// }
+  /// ```
+  static Future<void> endAllEvents() async {
+    if (_eventTimers.isEmpty) {
+      return;
+    }
+    
+    final eventIds = _eventTimers.keys.toList();
+    DebugUtil.info('友盟统计-批量结束未完成的事件: ${eventIds.join(", ")} (共${eventIds.length}个)');
+    
+    // 逐个结束所有事件
+    for (final eventId in eventIds) {
+      await eventEnd(eventId, isAutoEnd: true);
+    }
+  }
+  
+  /// 获取当前进行中的事件列表
+  /// 
+  /// 用于调试，查看哪些事件还在计时中
+  /// 
+  /// 返回：事件ID列表
+  static List<String> getActiveEvents() {
+    return _eventTimers.keys.toList();
+  }
+  
+  /// 检查指定事件是否正在计时
+  /// 
+  /// [eventId] 事件ID
+  /// 
+  /// 返回：true 表示正在计时，false 表示未计时
+  static bool isEventActive(String eventId) {
+    return _eventTimers.containsKey(eventId);
+  }
+  
+  /// 清理超时的事件（内部方法）
+  /// 
+  /// 自动检测并结束所有超过最大时长的事件
+  /// 可以在应用生命周期的某些节点定期调用此方法
+  static Future<void> cleanupTimeoutEvents() async {
+    final now = DateTime.now();
+    final timeoutEvents = <String>[];
+    
+    // 查找所有超时的事件
+    _eventTimers.forEach((eventId, startTime) {
+      final duration = now.difference(startTime);
+      if (duration.inMilliseconds > _maxEventDurationMs) {
+        timeoutEvents.add(eventId);
+      }
+    });
+    
+    // 结束超时事件
+    if (timeoutEvents.isNotEmpty) {
+      DebugUtil.warning('友盟统计-发现${timeoutEvents.length}个超时事件，自动结束: ${timeoutEvents.join(", ")}');
+      for (final eventId in timeoutEvents) {
+        await eventEnd(eventId, isAutoEnd: true);
+      }
     }
   }
 }

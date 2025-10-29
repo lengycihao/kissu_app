@@ -8,6 +8,7 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -524,6 +525,8 @@ class TrackMarkerManager {
   Future<List<Marker>> createStopMarkers({
     required List<dynamic> stopPoints,
     required Function(dynamic) onStopPointTap,
+    LatLng? startPoint,
+    LatLng? endPoint,
   }) async {
     if (stopPoints.isEmpty) return [];
     
@@ -535,6 +538,26 @@ class TrackMarkerManager {
         final point = stopPoints[i];
         
         try {
+          // 检查是否与起点或终点重复（距离小于30米则认为重复）
+          bool isNearStartPoint = false;
+          bool isNearEndPoint = false;
+          
+          if (startPoint != null) {
+            final distanceToStart = _calculateDistance(point.position, startPoint);
+            isNearStartPoint = distanceToStart < 30;
+          }
+          
+          if (endPoint != null) {
+            final distanceToEnd = _calculateDistance(point.position, endPoint);
+            isNearEndPoint = distanceToEnd < 30;
+          }
+          
+          // 如果停留点与起点或终点过近，则跳过创建停留点标记
+          if (isNearStartPoint || isNearEndPoint) {
+            DebugUtil.info('🚫 跳过停留点 $i：与起点/终点距离过近 (起点距离: ${isNearStartPoint ? _calculateDistance(point.position, startPoint!).toStringAsFixed(1) : "无"}, 终点距离: ${isNearEndPoint ? _calculateDistance(point.position, endPoint!).toStringAsFixed(1) : "无"})');
+            continue;
+          }
+          
           // 🎯 使用停留点的 serialNumber 作为显示编号（与列表保持一致）
           final displayNumber = point.serialNumber;
           
@@ -553,6 +576,7 @@ class TrackMarkerManager {
             isTrackStyle: true, // 使用轨迹样式 InfoWindow
             stayDuration: stopInfo['stayDuration'], // 停留时长
             stayTime: stopInfo['stayTime'], // 停留时间
+            zIndex: 1.0, // 🎯 设置较低的层级，确保播放头像marker在停留点之上显示
             infoWindow: InfoWindow(
               title: stopInfo['locationName']!,
               snippet: stopInfo['stayDuration']!,
@@ -686,6 +710,7 @@ class TrackMarkerManager {
             icon: startIcon,
             anchor: const Offset(0.41, 0.83), // 设置锚点为图片的 (18, 38) 位置
             infoWindow: const InfoWindow(title: '', snippet: ''),
+            zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在起点标记之上显示
             onTap: (_) {
               DebugUtil.info('点击了轨迹起点');
               _moveMapToLocation(startPoint);
@@ -696,15 +721,16 @@ class TrackMarkerManager {
           DebugUtil.error('❌ 创建起点标记失败: $e，使用降级方案');
           // 降级方案：使用绿色圆点
           final fallbackIcon = await _createColoredCircleIcon(Colors.green, 24);
-          markers.add(Marker(
-            position: startPoint,
-            icon: fallbackIcon,
-            infoWindow: const InfoWindow(title: '', snippet: ''),
-            onTap: (_) {
-              DebugUtil.info('点击了轨迹起点');
-              _moveMapToLocation(startPoint);
-            },
-          ));
+            markers.add(Marker(
+              position: startPoint,
+              icon: fallbackIcon,
+              infoWindow: const InfoWindow(title: '', snippet: ''),
+              zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在起点标记之上显示
+              onTap: (_) {
+                DebugUtil.info('点击了轨迹起点');
+                _moveMapToLocation(startPoint);
+              },
+            ));
         }
       }
       
@@ -725,6 +751,7 @@ class TrackMarkerManager {
               icon: endIcon,
               anchor: const Offset(0.59, 0.83), // 设置锚点为图片的 (26, 38) 位置
               infoWindow: const InfoWindow(title: '', snippet: ''),
+              zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在终点标记之上显示
               onTap: (_) {
                 DebugUtil.info('点击了轨迹终点');
                 _moveMapToLocation(endPoint);
@@ -739,6 +766,7 @@ class TrackMarkerManager {
               position: endPoint,
               icon: fallbackIcon,
               infoWindow: const InfoWindow(title: '', snippet: ''),
+              zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在终点标记之上显示
               onTap: (_) {
                 DebugUtil.info('点击了轨迹终点');
                 _moveMapToLocation(endPoint);
@@ -809,6 +837,7 @@ class TrackMarkerManager {
         position: currentPosition.value!,
         icon: avatarIcon,
         infoWindow: const InfoWindow(title: '当前位置', snippet: ''),
+        zIndex: 100.0, // 🎯 设置中等层级，高于停留点但低于播放头像
       );
     } catch (e) {
       DebugUtil.error('创建当前位置标记失败: $e');
@@ -856,6 +885,9 @@ class TrackMarkerManager {
   void handleStopPointTap(dynamic stopPoint) {
     DebugUtil.info('停留点被点击: ${stopPoint.title}');
     
+    // 上报停留点点击埋点
+    _trackStopPointClick();
+    
     // 先清除之前的高亮（InfoWindow + 圆圈）
     clearMapHighlights();
     
@@ -882,6 +914,16 @@ class TrackMarkerManager {
         });
       });
     });
+  }
+  
+  /// 上报停留点点击埋点
+  Future<void> _trackStopPointClick() async {
+    try {
+      await TrackingService.trackFootprintStayButton();
+      DebugUtil.info('✅ 足迹页面-停留点点击埋点上报成功');
+    } catch (e) {
+      DebugUtil.error('❌ 足迹页面-停留点点击埋点上报失败: $e');
+    }
   }
   
   /// 清理所有标记和高亮

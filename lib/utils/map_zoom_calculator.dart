@@ -15,7 +15,7 @@ class MapZoomCalculator {
   static CameraPosition calculateOptimalCameraPosition({
     required LatLng point1,
     LatLng? point2,
-    double defaultZoom = 16.0,
+    double defaultZoom = 18.0,
   }) {
     // 如果只有一个点，使用默认缩放级别
     if (point2 == null) {
@@ -52,27 +52,27 @@ class MapZoomCalculator {
     // 根据距离计算缩放级别 - 支持超远距离
     double zoom;
     if (maxDiff < 0.001) {
-      zoom = 18.0; // 非常小的区域 (< 100米)
+      zoom = 19.0; // 非常小的区域 (< 100米)
     } else if (maxDiff < 0.01) {
-      zoom = 16.0; // 小区域 (< 1公里)
+      zoom = 18.0; // 小区域 (< 1公里)
     } else if (maxDiff < 0.05) {
-      zoom = 14.0; // 中小区域 (< 5公里)
+      zoom = 16.0; // 中小区域 (< 5公里)
     } else if (maxDiff < 0.1) {
       zoom = 13.0; // 中等区域 (< 10公里)
     } else if (maxDiff < 0.2) {
-      zoom = 12.0; // 中大区域 (< 20公里)
+      zoom = 11.0; // 中大区域 (< 20公里)
     } else if (maxDiff < 0.5) {
-      zoom = 11.0; // 大区域 (< 50公里)
+      zoom = 10.0; // 大区域 (< 50公里)
     } else if (maxDiff < 1.0) {
-      zoom = 10.0; // 很大区域 (< 100公里)
+      zoom = 9.0; // 很大区域 (< 100公里)
     } else if (maxDiff < 2.0) {
-      zoom = 9.0; // 超大区域 (< 200公里)
+      zoom = 8.0; // 超大区域 (< 200公里)
     } else if (maxDiff < 5.0) {
-      zoom = 7.0; // 极大区域 (< 500公里)
+      zoom = 6.0; // 极大区域 (< 500公里)
     } else if (maxDiff < 10.0) {
-      zoom = 5.0; // 超极大区域 (< 1000公里)
+      zoom = 4.0; // 超极大区域 (< 1000公里)
     } else if (maxDiff < 20.0) {
-      zoom = 4.0; // 洲际区域 (< 2000公里)
+      zoom =3.0; // 洲际区域 (< 2000公里)
     } else {
       zoom = 3.0; // 全球区域 (> 2000公里)
     }
@@ -95,7 +95,7 @@ class MapZoomCalculator {
   /// 返回包含目标位置和缩放级别的CameraPosition
   static CameraPosition calculateOptimalCameraPositionForMultiplePoints({
     required List<LatLng> points,
-    double defaultZoom = 16.0,
+    double defaultZoom = 18.0,
     LatLng defaultCenter = const LatLng(30.2741, 120.2206), // 杭州默认坐标
   }) {
     if (points.isEmpty) {
@@ -146,21 +146,21 @@ class MapZoomCalculator {
     // 根据距离计算缩放级别 - 支持超远距离
     double zoom;
     if (maxDiff < 0.001) {
-      zoom = 18.0; // 非常小的区域 (< 100米)
+      zoom = 19.0; // 非常小的区域 (< 100米)
     } else if (maxDiff < 0.01) {
-      zoom = 16.0; // 小区域 (< 1公里)
+      zoom = 17.0; // 小区域 (< 1公里)
     } else if (maxDiff < 0.05) {
-      zoom = 14.0; // 中小区域 (< 5公里)
+      zoom = 15.0; // 中小区域 (< 5公里)
     } else if (maxDiff < 0.1) {
-      zoom = 13.0; // 中等区域 (< 10公里)
+      zoom = 14.0; // 中等区域 (< 10公里)
     } else if (maxDiff < 0.2) {
-      zoom = 12.0; // 中大区域 (< 20公里)
+      zoom = 15.0; // 中大区域 (< 20公里) - 提高缩放级别以便看清具体位置
     } else if (maxDiff < 0.5) {
-      zoom = 11.0; // 大区域 (< 50公里)
+      zoom = 12.0; // 大区域 (< 50公里)
     } else if (maxDiff < 1.0) {
-      zoom = 10.0; // 很大区域 (< 100公里)
+      zoom = 11.0; // 很大区域 (< 100公里)
     } else if (maxDiff < 2.0) {
-      zoom = 9.0; // 超大区域 (< 200公里)
+      zoom = 10.0; // 超大区域 (< 200公里)
     } else if (maxDiff < 5.0) {
       zoom = 7.0; // 极大区域 (< 500公里)
     } else if (maxDiff < 10.0) {

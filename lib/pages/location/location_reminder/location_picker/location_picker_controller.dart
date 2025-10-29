@@ -9,6 +9,7 @@ import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/models/poi_model.dart';
 import 'package:kissu_app/models/city_model.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 /// 地图选点Controller
 class LocationPickerController extends GetxController {
@@ -74,6 +75,9 @@ class LocationPickerController extends GetxController {
   // 文本输入控制器
   final TextEditingController noteController = TextEditingController();
   
+  // 页面埋点相关
+  DateTime? _pageEnterTime; // 页面进入时间
+  
   LocationPickerController({
     this.initialLatitude,
     this.initialLongitude,
@@ -84,6 +88,9 @@ class LocationPickerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    // 记录页面进入时间
+    _pageEnterTime = DateTime.now();
     
     // 监听备注文本变化
     noteController.addListener(() {
@@ -183,8 +190,31 @@ class LocationPickerController extends GetxController {
   
   @override
   void onClose() {
+    // 上报页面浏览埋点
+    _trackPageView();
     noteController.dispose();
     super.onClose();
+  }
+  
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 上报埋点
+      await TrackingService.trackLocationKnockAddressAddPageView(
+        stayDuration: stayDuration,
+      );
+      
+      DebugUtil.info('✅ 添加地点页面浏览埋点上报成功: 停留时长=$stayDuration');
+    } catch (e) {
+      DebugUtil.error('❌ 添加地点页面浏览埋点上报失败: $e');
+    }
   }
   
   /// 地图创建完成回调

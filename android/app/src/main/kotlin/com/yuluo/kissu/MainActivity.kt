@@ -584,6 +584,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                         result.error("ERROR", e.message, null)
                     }
                 }
+                // 注意：umeng_eventBegin 和 umeng_eventEnd 已废弃
+                // 现在在 Dart 层面计算时长，然后使用普通的 trackEvent 上报
                 else -> result.notImplemented()
             }
         }
@@ -1604,9 +1606,30 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 return
             }
             
-            if (wxApi?.isWXAppInstalled != true) {
-                Log.e("MainActivity", "微信未安装")
+            // 🔧 增强微信安装检测：同时使用SDK检测和包名检测
+            val sdkDetected = wxApi?.isWXAppInstalled == true
+            val pkgDetected = isAppInstalled("com.tencent.mm")
+            val isWechatInstalled = sdkDetected || pkgDetected
+            
+            Log.d("MainActivity", "=== 微信安装检测 ===")
+            Log.d("MainActivity", "SDK检测结果: $sdkDetected")
+            Log.d("MainActivity", "包名检测结果: $pkgDetected")
+            Log.d("MainActivity", "综合判定: $isWechatInstalled")
+            
+            if (!isWechatInstalled) {
+                Log.e("MainActivity", "❌ 微信未安装（双重检测均未通过）")
                 result.success(mapOf("success" to false, "message" to "请先安装微信"))
+                return
+            }
+            
+            // 🔧 检查微信版本是否支持支付功能
+            val wxAppSupportApi = wxApi?.wxAppSupportAPI ?: 0
+            val minSupportVersion = 0x21020001  // 微信 5.0 (支持支付的最低版本)
+            Log.d("MainActivity", "微信SDK版本: 0x${wxAppSupportApi.toString(16)}, 最低要求: 0x${minSupportVersion.toString(16)}")
+            
+            if (wxAppSupportApi < minSupportVersion) {
+                Log.e("MainActivity", "❌ 微信版本过低，不支持支付功能")
+                result.success(mapOf("success" to false, "message" to "请升级微信到最新版本"))
                 return
             }
             

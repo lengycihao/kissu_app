@@ -5,16 +5,17 @@ import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
-import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/widgets/kissu_banner_builder.dart';
 import 'package:kissu_app/widgets/island_view_button.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 class KissuHomePage extends StatefulWidget {
   const KissuHomePage({super.key});
@@ -303,10 +304,13 @@ class _KissuHomePageState extends State<KissuHomePage>
                             onTap: () {
                               if (controller.isBound.value) {
                                 // 已绑定状态下点击头像跳转到恋爱信息页
-                                Get.to(() => const LoveInfoPage());
+                                controller.navigateToLoveInfoPage();
                               } else {
                                 // 未绑定状态下显示绑定弹窗
-                                CustomBottomDialog.show(context: context);
+                                CustomBottomDialog.show(
+                                  context: context,
+                                  caller: BindingDialogCaller.home,
+                                );
                               }
                             },
                             child:
@@ -337,8 +341,10 @@ class _KissuHomePageState extends State<KissuHomePage>
                           child: controller.isBound.value
                               ? GestureDetector(
                                   onTap: () {
+                                    // 埋点：点击另一半头像（已绑定状态）
+                                    TrackingService.trackPartnerAvatarClick();
                                     // 已绑定状态下点击头像跳转到恋爱信息页
-                                    Get.to(() => const LoveInfoPage());
+                                    controller.navigateToLoveInfoPage();
                                   },
                                   child: NoPlaceholderImage(
                                     imageUrl: controller.partnerAvatar.value,
@@ -352,8 +358,13 @@ class _KissuHomePageState extends State<KissuHomePage>
                                 )
                               : GestureDetector(
                                   onTap: () {
+                                    // 埋点：点击另一半头像（未绑定状态）
+                                    TrackingService.trackPartnerAvatarClick();
                                     // 显示绑定弹窗
-                                    CustomBottomDialog.show(context: context);
+                                    CustomBottomDialog.show(
+                                      context: context,
+                                      caller: BindingDialogCaller.home,
+                                    );
                                   },
                                   child: Container(
                                     width: 38,
@@ -561,14 +572,33 @@ class _KissuHomePageState extends State<KissuHomePage>
       children: [
         SizedBox(
           height: 83,
-          child: Swiper(
-            itemBuilder: (BuildContext context, int index) {
+          child: Listener(
+            onPointerDown: (_) {
+              // 用户触摸了 banner，标记为手动滑动
+              controller.isBannerManuallyDragged.value = true;
+            },
+            child: Swiper(
+              itemBuilder: (BuildContext context, int index) {
               return Center(
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     // 前两张 banner 点击显示绑定弹窗，天气 banner 不需要点击事件
                     if (index < 2) {
-                      CustomBottomDialog.show(context: context);
+                      // 获取点击类型
+                      final clickType = index == 0 ? '定位' : '足迹';
+                      
+                      // 上报埋点：屏视图 Banner 点击
+                      await TrackingService.trackHomeBannerClick(
+                        isDrag: controller.isBannerManuallyDragged.value,
+                        clickType: clickType,
+                        isVip: UserManager.isVip,
+                        isBind: false, // 未绑定状态
+                      );
+                      
+                      CustomBottomDialog.show(
+                        context: context,
+                        caller: BindingDialogCaller.home,
+                      );
                     }
                   },
                   child: Obx(() {
@@ -620,7 +650,13 @@ class _KissuHomePageState extends State<KissuHomePage>
             // 移除内置的pagination
             onIndexChanged: (index) {
               controller.currentSwiperIndex.value = index;
+              // 索引变化后，重置手动滑动标记为 false（自动播放）
+              // 如果是手动滑动，会在 onTap 之前被 GestureDetector 的 onPanDown 捕获
+              Future.delayed(const Duration(milliseconds: 100), () {
+                controller.isBannerManuallyDragged.value = false;
+              });
             },
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -642,16 +678,43 @@ class _KissuHomePageState extends State<KissuHomePage>
       children: [
         SizedBox(
           height: 83,
-          child: Swiper(
-            itemBuilder: (BuildContext context, int index) {
+          child: Listener(
+            onPointerDown: (_) {
+              // 用户触摸了 banner，标记为手动滑动
+              controller.isBannerManuallyDragged.value = true;
+            },
+            child: Swiper(
+              itemBuilder: (BuildContext context, int index) {
               return Center(
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     // 前两张 banner 点击跳转到对应页面，天气 banner 不需要点击事件
                     if (index == 0) {
+                      // 获取点击类型
+                      final clickType = '定位';
+                      
+                      // 上报埋点：屏视图 Banner 点击
+                      await TrackingService.trackHomeBannerClick(
+                        isDrag: controller.isBannerManuallyDragged.value,
+                        clickType: clickType,
+                        isVip: UserManager.isVip,
+                        isBind: true, // 已绑定状态
+                      );
+                      
                       // 定位banner - 添加会员检查
                       VipNavigationHelper.navigateToLocationWithVipCheck();
                     } else if (index == 1) {
+                      // 获取点击类型
+                      final clickType = '足迹';
+                      
+                      // 上报埋点：屏视图 Banner 点击
+                      await TrackingService.trackHomeBannerClick(
+                        isDrag: controller.isBannerManuallyDragged.value,
+                        clickType: clickType,
+                        isVip: UserManager.isVip,
+                        isBind: true, // 已绑定状态
+                      );
+                      
                       Get.to(() => TrackPage(), binding: TrackBinding());
                     }
                   },
@@ -709,7 +772,13 @@ class _KissuHomePageState extends State<KissuHomePage>
             // 移除内置的pagination
             onIndexChanged: (index) {
               controller.currentSwiperIndex.value = index;
+              // 索引变化后，重置手动滑动标记为 false（自动播放）
+              // 如果是手动滑动，会在 onTap 之前被 GestureDetector 的 onPanDown 捕获
+              Future.delayed(const Duration(milliseconds: 100), () {
+                controller.isBannerManuallyDragged.value = false;
+              });
             },
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -847,7 +916,14 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                   title: "TA的足迹",
                   value: stayCountText,
                   valueColor: Color(0xffFF6591),
-                  onTap: () {
+                  onTap: () async {
+                    // 上报埋点：岛视图按钮点击
+                    await TrackingService.trackHomeIslandClick(
+                      clickType: '足迹',
+                      isVip: UserManager.isVip,
+                      isBind: controller.isBound.value,
+                    );
+                    
                     Get.to(() => TrackPage(), binding: TrackBinding());
                   },
                 ),
@@ -858,7 +934,14 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                   title: "我们相距",
                   value: distanceText,
                   valueColor: Color(0xff6D5DFF),
-                  onTap: () {
+                  onTap: () async {
+                    // 上报埋点：岛视图按钮点击
+                    await TrackingService.trackHomeIslandClick(
+                      clickType: '定位',
+                      isVip: UserManager.isVip,
+                      isBind: controller.isBound.value,
+                    );
+                    
                     // 距离按钮 - 添加会员检查
                     VipNavigationHelper.navigateToLocationWithVipCheck();
                   },

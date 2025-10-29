@@ -27,6 +27,7 @@ import 'package:kissu_app/network/utils/dir_util.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/lottie_preload_service.dart';
 import 'package:kissu_app/utils/map_style_loader.dart';
+import 'package:kissu_app/services/map_preload_service.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
@@ -185,6 +186,13 @@ void main() async {
       DebugUtil.success('地图自定义样式预加载完成');
     }).catchError((e) {
       DebugUtil.error('地图自定义样式预加载失败: $e');
+    });
+    
+    // 步骤15.3: 🗺️ 预加载地图资源（Marker图片等，非阻塞，后台执行）
+    MapPreloadService.instance.preloadMapResources().then((_) {
+      DebugUtil.success('地图Marker资源预加载完成');
+    }).catchError((e) {
+      DebugUtil.error('地图Marker资源预加载失败: $e');
     });
     
     // ========== 第三阶段：隐私合规管理器初始化 ==========

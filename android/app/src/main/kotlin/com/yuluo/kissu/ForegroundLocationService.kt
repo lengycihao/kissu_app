@@ -114,6 +114,43 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "前台定位服务创建")
+        // ⚡ 关键修复：onCreate 中不做任何耗时操作，避免5秒超时
+        // 所有初始化将在 onStartCommand 中的 startForeground() 之后进行
+    }
+    
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_START_FOREGROUND_SERVICE -> {
+                // 🔥 关键修复：第一时间调用 startForeground()，避免5秒超时崩溃
+                createBasicForegroundNotification(intent)
+                
+                // ✅ 在 startForeground() 之后才进行其他初始化
+                initializeServiceComponents()
+                
+                // 异步执行完整的通知更新和定位启动
+                startLocationForegroundService(intent)
+            }
+            ACTION_STOP_FOREGROUND_SERVICE -> {
+                stopForegroundService()
+            }
+            ACTION_UPDATE_NOTIFICATION -> {
+                updateNotification(intent)
+            }
+        }
+        
+        // 返回START_STICKY确保服务被系统杀死后会重启
+        return START_STICKY
+    }
+    
+    /**
+     * 初始化服务组件（在 startForeground() 之后调用）
+     */
+    private fun initializeServiceComponents() {
+        // 如果已经初始化过，跳过
+        if (locationClient != null) {
+            Log.d(TAG, "服务组件已初始化，跳过")
+            return
+        }
         
         // 🔥 获取 WAKE_LOCK，确保息屏时定位仍然活跃
         try {
@@ -140,23 +177,6 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         
         // 🔥 初始化原生定位客户端
         initLocationClient()
-    }
-    
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_START_FOREGROUND_SERVICE -> {
-                startLocationForegroundService(intent)
-            }
-            ACTION_STOP_FOREGROUND_SERVICE -> {
-                stopForegroundService()
-            }
-            ACTION_UPDATE_NOTIFICATION -> {
-                updateNotification(intent)
-            }
-        }
-        
-        // 返回START_STICKY确保服务被系统杀死后会重启
-        return START_STICKY
     }
     
     override fun onBind(intent: Intent?): IBinder? {
@@ -187,15 +207,98 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     }
     
     /**
-     * 启动前台服务
+     * 🔥 立即创建基本前台通知，避免5秒超时
+     * 必须在 onStartCommand 中第一时间调用
+     * ⚡ 性能优化：只使用最快的操作，避免任何耗时调用
+     */
+    private fun createBasicForegroundNotification(intent: Intent) {
+        try {
+            // 提取基本参数
+            channelId = intent.getStringExtra(EXTRA_CHANNEL_ID) ?: DEFAULT_CHANNEL_ID
+            notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, DEFAULT_NOTIFICATION_ID)
+            val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: "定位服务"
+            val title = intent.getStringExtra(EXTRA_TITLE) ?: "Kissu - 情侣定位"
+            val content = intent.getStringExtra(EXTRA_CONTENT) ?: "正在为您提供位置定位服务"
+            
+            // 快速创建通知渠道（如果不存在）
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    channelName,
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    enableLights(false)
+                    enableVibration(false)
+                    setShowBadge(false)
+                    setSound(null, null)
+                }
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.createNotificationChannel(channel)
+            }
+            
+            // ⚡ 快速构建基本通知 - 直接使用系统图标，避免资源查找耗时
+            val notification = NotificationCompat.Builder(this, channelId)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setSmallIcon(android.R.drawable.ic_dialog_info) // 直接使用系统图标
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setShowWhen(false)
+                .setSound(null)
+                .setVibrate(null)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .build()
+            
+            // 🔥 关键：立即启动前台服务（必须在5秒内）
+            startForeground(notificationId, notification)
+            isServiceRunning = true
+            
+            Log.d(TAG, "⚡ 前台服务已立即启动（避免5秒超时）")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "创建基本前台通知失败", e)
+            // 即使失败也尝试用最简单的通知启动
+            try {
+                // 使用最基本的通知配置
+                val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    // 创建默认渠道
+                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    val defaultChannel = NotificationChannel(
+                        DEFAULT_CHANNEL_ID,
+                        "定位服务",
+                        NotificationManager.IMPORTANCE_LOW
+                    )
+                    nm.createNotificationChannel(defaultChannel)
+                    NotificationCompat.Builder(this, DEFAULT_CHANNEL_ID)
+                } else {
+                    NotificationCompat.Builder(this)
+                }
+                
+                val defaultNotification = builder
+                    .setContentTitle("定位服务")
+                    .setContentText("运行中")
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .build()
+                    
+                startForeground(DEFAULT_NOTIFICATION_ID, defaultNotification)
+                isServiceRunning = true
+                Log.d(TAG, "⚡ 使用默认通知启动前台服务")
+            } catch (e2: Exception) {
+                Log.e(TAG, "创建默认前台通知也失败", e2)
+                throw e2 // 抛出异常让系统知道失败了
+            }
+        }
+    }
+    
+    /**
+     * 启动前台服务（延迟执行的完整初始化）
      */
     private fun startLocationForegroundService(intent: Intent) {
         try {
             // 提取配置参数
-            channelId = intent.getStringExtra(EXTRA_CHANNEL_ID) ?: DEFAULT_CHANNEL_ID
             val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: "定位服务"
             val channelDescription = intent.getStringExtra(EXTRA_CHANNEL_DESCRIPTION) ?: "为您提供位置定位服务"
-            notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, DEFAULT_NOTIFICATION_ID)
             
             val title = intent.getStringExtra(EXTRA_TITLE) ?: "Kissu - 情侣定位"
             val content = intent.getStringExtra(EXTRA_CONTENT) ?: "正在为您提供位置定位服务"
@@ -207,17 +310,17 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val enableVibration = intent.getBooleanExtra(EXTRA_ENABLE_VIBRATION, false)
             val enableSound = intent.getBooleanExtra(EXTRA_ENABLE_SOUND, false)
             
-            // 创建通知渠道
+            // 完整创建通知渠道
             createNotificationChannel(channelId, channelName, channelDescription, importance)
             
-            // 构建通知
+            // 构建完整通知
             val notification = buildNotification(
                 title, content, iconName, priority, ongoing, autoCancel, enableVibration, enableSound
             )
             
-            // 启动前台服务
-            startForeground(notificationId, notification)
-            isServiceRunning = true
+            // 更新前台服务通知（不是第一次启动）
+            val notificationManager = NotificationManagerCompat.from(this)
+            notificationManager.notify(notificationId, notification)
             
             // 🔥 获取 WAKE_LOCK，确保息屏时仍能定位
             try {

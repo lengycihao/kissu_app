@@ -102,11 +102,10 @@ class PermissionService {
   /// 根据平台获取相册权限
   Permission _getPhotosPermission() {
     if (Platform.isAndroid) {
-      // Android 使用 storage 权限来访问相册
-      // permission_handler 会自动根据系统版本选择合适的权限：
-      // - Android 13+ 会映射到 READ_MEDIA_IMAGES
-      // - Android 13- 会映射到 READ_EXTERNAL_STORAGE
-      return Permission.storage;
+      // Android 使用 photos 权限来访问相册
+      // 直接使用 Permission.photos 确保获得全部照片访问权限
+      // 避免使用 Permission.storage 可能映射到 READ_MEDIA_VISUAL_USER_SELECTED
+      return Permission.photos;
     } else {
       // iOS 使用 photos 权限
       return Permission.photos;

@@ -30,6 +30,7 @@ class BusinessHeaderInterceptor extends Interceptor {
   // 缓存网络和电池信息
   static String? _cachedNetworkName;
   static String? _cachedPower;
+  static DateTime? _cachedPowerTime; // 电量缓存时间
 
   BusinessHeaderInterceptor(this._authService);
 
@@ -271,10 +272,18 @@ class BusinessHeaderInterceptor extends Interceptor {
     try {
       // 🔒 电池电量是敏感信息，需要隐私合规检查
       if (_canCollectSensitiveData()) {
-        if (_cachedPower == null) {
+        // 🔧 修复：检查电量缓存是否过期（5分钟超时）
+        final now = DateTime.now();
+        final shouldRefresh = _cachedPower == null || 
+            _cachedPowerTime == null || 
+            now.difference(_cachedPowerTime!).inMinutes >= 5;
+            
+        if (shouldRefresh) {
           final battery = Battery();
           final batteryLevel = await battery.batteryLevel;
           _cachedPower = batteryLevel.toString();
+          _cachedPowerTime = now;
+          DebugUtil.info('电量缓存已更新: $_cachedPower%');
         }
         options.headers[HttpHeaderKey.power] = _cachedPower;
       } else {
@@ -321,6 +330,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     _cachedPkg = null;
     _cachedNetworkName = null;
     _cachedPower = null;
+    _cachedPowerTime = null;
     _packageInfo = null;
   }
   
@@ -333,5 +343,7 @@ class BusinessHeaderInterceptor extends Interceptor {
   /// 🔧 新增：仅清除电池信息缓存
   static void clearBatteryCache() {
     _cachedPower = null;
+    _cachedPowerTime = null;
+    DebugUtil.info('电量缓存已清除');
   }
 }

@@ -7,6 +7,8 @@ import 'package:kissu_app/services/geofence_monitoring_service.dart';
 import 'package:kissu_app/network/public/geofence_api.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart';
+import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 
 /// 位置提醒Controller
 class LocationReminderController extends GetxController {
@@ -21,9 +23,15 @@ class LocationReminderController extends GetxController {
   // 加载状态
   final RxBool isLoading = false.obs;
   
+  // 页面埋点相关
+  DateTime? _pageEnterTime; // 页面进入时间
+  int _scrollCount = 0; // 页面滑动次数
+  
   @override
   void onInit() {
     super.onInit();
+    // 记录页面进入时间
+    _pageEnterTime = DateTime.now();
     // 从服务端加载位置提醒
     loadRemindersFromServer();
     // 启动围栏监测
@@ -61,9 +69,38 @@ class LocationReminderController extends GetxController {
   
   @override
   void onClose() {
+    // 上报页面浏览埋点
+    _trackPageView();
     // 停止围栏监测
     _stopGeofenceMonitoring();
     super.onClose();
+  }
+  
+  /// 增加滑动次数计数
+  void incrementScrollCount() {
+    _scrollCount++;
+  }
+  
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 上报埋点
+      await TrackingService.trackLocationKnockListPageView(
+        stayDuration: stayDuration,
+        scrollTimes: _scrollCount,
+      );
+      
+      DebugUtil.info('✅ 位置提醒列表页面浏览埋点上报成功');
+    } catch (e) {
+      DebugUtil.error('❌ 位置提醒列表页面浏览埋点上报失败: $e');
+    }
   }
   
   /// 启动围栏监测

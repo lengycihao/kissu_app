@@ -791,6 +791,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 🆕 清空当前位置数据，避免关闭定位后仍然使用旧位置
       currentLocation.value = null;
 
+      // 🔥 停止前台服务（在这里才真正停止）
+      _disableForegroundServiceIfNeeded();
+
       debugPrint('🛑 高德定位服务已停止（全局监听器保持激活）');
       debugPrint('🧹 收集缓冲区和智能状态已清理');
     } catch (e) {
@@ -1823,8 +1826,10 @@ extension AppLifecycleExtension on SimpleLocationService {
   
   /// 停止增强的后台策略
   void _stopEnhancedBackgroundStrategy() {
-    // 禁用前台服务模式（Android）
-    _disableForegroundServiceIfNeeded();
+    // 🔥 修复：不停止前台服务！前台服务应该在定位开启时一直运行
+    // 前台服务只在 stopLocation() 时才停止
+    // _disableForegroundServiceIfNeeded();  // ← 已移除
+    
     // 1. 停止后台保活
     _stopBackgroundKeepAlive();
     

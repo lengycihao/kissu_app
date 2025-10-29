@@ -168,6 +168,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           onCropComplete: _onCropComplete,
           customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp', // 自定义裁剪框
         ),
+        transition: Transition.rightToLeft,
         fullscreenDialog: true,
       );
     } catch (e) {

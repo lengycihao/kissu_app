@@ -84,6 +84,7 @@ class TrackDataManager {
   
   /// 停留点列表（从当前数据实时计算）
   List<StayPoint> get stopPoints {
+    
     if (currentData == null || currentData!.trace?.stops == null) return [];
     
     int index = 0;
@@ -244,19 +245,19 @@ class TrackDataManager {
     // 如果有起点，使用起点
     final startPoint = getStartPoint();
     if (startPoint != null) {
-      return CameraPosition(target: startPoint, zoom: 16.0);
+      return CameraPosition(target: startPoint, zoom: 18.0);
     }
     
     // 如果有终点，使用终点
     final endPoint = getEndPoint();
     if (endPoint != null) {
-      return CameraPosition(target: endPoint, zoom: 16.0);
+      return CameraPosition(target: endPoint, zoom: 18.0);
     }
     
     // 默认杭州坐标
     return const CameraPosition(
       target: LatLng(30.2741, 120.2206),
-      zoom: 16.0,
+      zoom: 18.0,
     );
   }
 }

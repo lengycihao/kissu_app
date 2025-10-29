@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'base_dialog.dart';
+import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:intl/intl.dart';
 
 /// 性别选择弹窗
 class GenderSelectDialog extends BaseDialog {
@@ -59,6 +61,28 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
     _selectedGender = widget.selectedGender;
   }
 
+  /// 上报性别选择埋点事件
+  Future<void> _trackGenderSelection(String gender) async {
+    try {
+      // 获取虚拟用户ID（设备ID）
+      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
+      
+      // 获取当前时间（格式：年/月/日 时:分:秒）
+      final clickTime = DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
+      
+      // 上报事件
+      await UmengAnalytics.logEventWithParams('gender', {
+        'device_id': deviceId,
+        'click_time': clickTime,
+        'gender': gender,
+      });
+      
+      print('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender');
+    } catch (e) {
+      print('❌ 性别选择埋点失败: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DialogContainer(
@@ -91,6 +115,8 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
                   setState(() {
                     _selectedGender = '男生';
                   });
+                  // 上报性别选择埋点
+                  _trackGenderSelection('男');
                 },
               ),
               const SizedBox(width: 18),
@@ -103,6 +129,8 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
                   setState(() {
                     _selectedGender = '女生';
                   });
+                  // 上报性别选择埋点
+                  _trackGenderSelection('女');
                 },
               ),
             ],

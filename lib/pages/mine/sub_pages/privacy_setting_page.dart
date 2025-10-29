@@ -73,7 +73,10 @@ class PrivacySettingPage extends StatelessWidget {
                   _SettingItem(
                     iconPath: "assets/kissu_setting_account_zxzh.webp",
                     title: "注销账号",
-                    onTap: () => Get.to(() => AccountCancellationPage()),
+                    onTap: () => Get.to(
+                      () => AccountCancellationPage(),
+                      transition: Transition.rightToLeft,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   _SettingItem(
@@ -131,7 +134,10 @@ class PrivacySettingPage extends StatelessWidget {
           _SettingItem(
             iconPath: "assets/kissu_setting_account_jcgx.webp",
             title: "解除关系",
-            onTap: () => Get.to(() => const BreakRelationshipPage()),
+            onTap: () => Get.to(
+              () => const BreakRelationshipPage(),
+              transition: Transition.rightToLeft,
+            ),
           ),
           const SizedBox(height: 14),
         ],
@@ -151,7 +157,10 @@ class PrivacySettingPage extends StatelessWidget {
     
     if (result == true) {
       // 用户确认更改，跳转到手机号更换页面
-      Get.to(() => PhoneChangePage());
+      Get.to(
+        () => PhoneChangePage(),
+        transition: Transition.rightToLeft,
+      );
     }
   }
 

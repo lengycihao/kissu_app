@@ -6,6 +6,8 @@ import 'package:kissu_app/widgets/location_map_snapshot.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 
 /// 位置提醒页面
 /// 
@@ -81,21 +83,30 @@ class LocationReminderPage extends GetView<LocationReminderController> {
         child: Obx(() {
           // 当达到20个时，不显示添加按钮
           final showAddButton = controller.reminders.length < 20;
-          return ListView.builder(
-            // 添加缓存extent，提升性能
-            cacheExtent: 500, // 缓存屏幕外500像素的内容
-            itemCount: controller.reminders.length + (showAddButton ? 1 : 0),
-            itemBuilder: (context, index) {
-              // 最后一个item是"添加地点"按钮
-              if (showAddButton && index == controller.reminders.length) {
-                return _buildAddLocationItem(context);
+          return NotificationListener<ScrollNotification>(
+            onNotification: (scrollNotification) {
+              // 监听滑动更新事件
+              if (scrollNotification is ScrollUpdateNotification) {
+                controller.incrementScrollCount();
               }
-
-              // 显示已保存的位置提醒
-              final reminder = controller.reminders[index];
-              // 使用 key 来优化 Widget 复用
-              return _buildLocationItem(context, reminder, index);
+              return false;
             },
+            child: ListView.builder(
+              // 添加缓存extent，提升性能
+              cacheExtent: 500, // 缓存屏幕外500像素的内容
+              itemCount: controller.reminders.length + (showAddButton ? 1 : 0),
+              itemBuilder: (context, index) {
+                // 最后一个item是"添加地点"按钮
+                if (showAddButton && index == controller.reminders.length) {
+                  return _buildAddLocationItem(context);
+                }
+
+                // 显示已保存的位置提醒
+                final reminder = controller.reminders[index];
+                // 使用 key 来优化 Widget 复用
+                return _buildLocationItem(context, reminder, index);
+              },
+            ),
           );
         }),
       ),
@@ -286,6 +297,14 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   Widget _buildAddLocationItem(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        // 上报添加地点埋点
+        try {
+          await TrackingService.trackLocationKnockAdd();
+          DebugUtil.info('✅ 位置提醒列表-添加地点埋点上报成功');
+        } catch (e) {
+          DebugUtil.error('❌ 位置提醒列表-添加地点埋点上报失败: $e');
+        }
+        
         // 🔧 新建位置提醒时不传入初始位置，让用户在地图上自由选择
         // 只在编辑已有提醒时才传入位置
         final result = await Get.to(
@@ -425,6 +444,14 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   void _showDeleteDialog(BuildContext context, String reminderId) async {
     await DeleteLocationReminderDialogUtil.show(
       onConfirm: () async {
+        // 上报删除操作埋点
+        try {
+          await TrackingService.trackLocationKnockDelete();
+          DebugUtil.info('✅ 位置提醒列表-删除操作埋点上报成功');
+        } catch (e) {
+          DebugUtil.error('❌ 位置提醒列表-删除操作埋点上报失败: $e');
+        }
+        
         // 执行原来的删除方法
         final success = await controller.removeReminder(reminderId);
         if (success) {

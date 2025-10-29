@@ -262,10 +262,18 @@ class LocationStatePage extends StatelessWidget {
             topRight: Radius.circular(20),
           ),
         ),
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          itemCount: controller.emojiCategories.length,
-          itemBuilder: (context, categoryIndex) {
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            // 监听滑动事件，当用户滑动时记录次数
+            if (notification is ScrollUpdateNotification) {
+              controller.incrementScrollCount();
+            }
+            return false;
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            itemCount: controller.emojiCategories.length,
+            itemBuilder: (context, categoryIndex) {
             final category = controller.emojiCategories[categoryIndex];
 
             return Column(
@@ -362,6 +370,7 @@ class LocationStatePage extends StatelessWidget {
               ],
             );
           },
+          ),
         ),
       );
     });

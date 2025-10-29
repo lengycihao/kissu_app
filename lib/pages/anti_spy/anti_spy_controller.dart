@@ -1439,7 +1439,10 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 打开雷达动画选择器
   void openRadarAnimationSelector() async {
-    final result = await Get.to(() => const RadarAnimationSelectorPage());
+    final result = await Get.to(
+      () => const RadarAnimationSelectorPage(),
+      transition: Transition.rightToLeft,
+    );
     if (result != null && result is RadarAnimationType) {
       radarAnimationType.value = result;
     }

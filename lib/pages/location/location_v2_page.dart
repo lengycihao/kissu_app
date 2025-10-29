@@ -6,7 +6,6 @@ import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'location_v2_controller.dart';
 import 'widgets/device_info_section.dart';
 import 'widgets/location_info_section.dart';
@@ -406,9 +405,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                 ),
                 child: GestureDetector(
                   onTap: () {
-                    Get.toNamed(KissuRoutePath.vip)?.then((_) {
-                      widget.controller.refreshUserInfo();
-                    });
+                    widget.controller.onOpenMembershipButtonTap();
                   },
                   child: Container(
                     color: Colors.transparent,
@@ -418,9 +415,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                         children: [
                           GestureDetector(
                             onTap: () {
-                              Get.toNamed(KissuRoutePath.vip)?.then((_) {
-                                widget.controller.refreshUserInfo();
-                              });
+                              widget.controller.onOpenMembershipButtonTap();
                             },
                             child: Image.asset(
                               'assets/kissu_go_bind.webp',
@@ -677,15 +672,20 @@ class _AvatarButtonState extends State<_AvatarButton> {
 
   @override
   Widget build(BuildContext context) {
-    final baseSize = 32.0;
+    // iOS风格尺寸定义
+    const selectedSize = 32.0;  // 选中时的尺寸
+    const unselectedSize = 25.0;  // 未选中时的尺寸
+    const selectedRadius = 12.0;  // 选中时的圆角
+    const unselectedRadius = 9.0;  // 未选中时的圆角
 
     return Obx(() {
       final currentIsOneselfValue = widget.controller.isOneself.value;
       final isSelected = (widget.isMyself && currentIsOneselfValue == 1) ||
           (!widget.isMyself && currentIsOneselfValue == 0);
 
-      final scale = (isSelected && _isAvatarLoaded) ? 1.2 : 0.9;
-      final actualSize = baseSize * scale;
+      // iOS风格：直接根据选中状态确定尺寸，而不是用scale
+      final actualSize = (isSelected && _isAvatarLoaded) ? selectedSize : unselectedSize;
+      final cornerRadius = (isSelected && _isAvatarLoaded) ? selectedRadius : unselectedRadius;
 
       final avatarUrl = widget.isMyself
           ? widget.controller.myAvatar.value
@@ -696,13 +696,14 @@ class _AvatarButtonState extends State<_AvatarButton> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
+            // iOS风格弹簧动画：duration 300ms, Spring curve (damping 0.7)
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut, // 使用 easeOut 避免产生负值
               width: actualSize,
               height: actualSize,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(cornerRadius),
                 border: (isSelected && _isAvatarLoaded)
                     ? Border.all(color: const Color(0xFFFF88AA), width: 1)
                     : null,
@@ -721,7 +722,7 @@ class _AvatarButtonState extends State<_AvatarButton> {
                 defaultAsset: '',
                 width: actualSize,
                 height: actualSize,
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(cornerRadius - 1),
                 fit: BoxFit.cover,
                 onImageLoaded: () {
                   setState(() {
@@ -970,9 +971,14 @@ class _LocationRecordItem extends StatelessWidget {
               targetUserType: controller.isOneself.value,
             ),
             binding: TrackBinding(),
+            transition: Transition.rightToLeft,
           );
         } else {
-          Get.to(() => TrackPage(), binding: TrackBinding());
+          Get.to(
+            () => TrackPage(),
+            binding: TrackBinding(),
+            transition: Transition.rightToLeft,
+          );
         }
       },
       child: Container(

@@ -354,17 +354,29 @@ class PaymentService extends GetxService {
         // 取消超时定时器
         timeoutTimer.cancel();
         
-        _logger.i('微信支付SDK调用完成，等待支付结果回调...');
+        _logger.i('微信支付SDK调用返回: $result');
         
-        // SDK调用成功只表示成功唤起了微信支付
-        // 实际支付结果将通过原生回调返回
-        if (result != null && result['launched'] == true) {
-          _logger.i('✅ 成功唤起微信支付，等待用户操作...');
+        // 🔧 检查原生层返回的结果
+        if (result != null && result is Map) {
+          final success = result['success'] as bool? ?? false;
+          final message = result['message'] as String? ?? '';
+          
+          if (!success) {
+            // 原生层检测失败（如：微信未安装、版本过低等）
+            _logger.e('❌ 原生层检测失败: $message');
+            _hideProgress();
+            _paymentInProgress.value = false;
+            _showError(message.isNotEmpty ? message : '支付失败');
+            return false;
+          }
+          
+          // 成功唤起微信支付，等待用户操作
+          _logger.i('✅ 成功唤起微信支付，等待支付结果回调...');
           // 返回true表示成功唤起支付，实际结果通过回调处理
           return true;
         } else {
-          String errorMsg = result?['message'] ?? '唤起微信支付失败';
-          _logger.e('唤起微信支付失败: $errorMsg');
+          String errorMsg = '唤起微信支付失败';
+          _logger.e('唤起微信支付失败，返回值异常: $result');
           _hideProgress();
           _paymentInProgress.value = false;
           _showError(errorMsg);

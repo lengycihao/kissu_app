@@ -1,11 +1,9 @@
 import 'package:get/get.dart';
-import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
-import 'package:kissu_app/pages/mine/sub_pages/banner_preview_page.dart';
 // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -20,8 +18,8 @@ import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/services/screen_usage_service.dart';
-import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/pages/debug/screen_lock_debug_page.dart';
 
 class MineController extends GetxController {
@@ -51,10 +49,18 @@ class MineController extends GetxController {
     VipNavigationHelper.navigateToLocationWithVipCheck();
   }
   void onTrackTap() {
-    Get.to(() => TrackPage(), binding: TrackBinding());
+    Get.to(
+      () => TrackPage(),
+      binding: TrackBinding(),
+      transition: Transition.rightToLeft,
+    );
   }
   void onHisstoryTap() {
-    Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
+    Get.to(
+      () => const UsageReportPage(),
+      binding: UsageReportBinding(),
+      transition: Transition.rightToLeft,
+    );
   }
 
   // 设置项
@@ -67,7 +73,38 @@ class MineController extends GetxController {
   void onInit() {
     super.onInit();
     _initSettingItems();
+    // 先加载本地用户信息（立即显示）
     loadUserInfo();
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  @override
+  void onReady() {
+    super.onReady();
+    // 页面准备就绪时，确保已经静默刷新
+  }
+  
+  /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  void onPageResumed() {
+    debugPrint('👤 我的页面重新获得焦点，静默刷新用户信息');
+    // 先用本地数据（已经在onInit中加载）
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  /// 静默刷新用户信息（不阻塞UI）
+  Future<void> _silentRefreshUserInfo() async {
+    try {
+      debugPrint('🔄 我的页面：静默刷新用户信息');
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        // 刷新成功后重新加载本地数据到UI
+        loadUserInfo();
+      }
+    } catch (e) {
+      debugPrint('❌ 我的页面：静默刷新用户信息失败: $e');
+    }
   }
 
   void loadUserInfo() {
@@ -261,7 +298,10 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",
         title: "首页视图",
-        onTap: () => Get.to(SettingHomePage()),
+        onTap: () => Get.to(
+          SettingHomePage(),
+          transition: Transition.rightToLeft,
+        ),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_xtqx.webp",
@@ -271,12 +311,18 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_gywm.webp",
         title: "关于我们",
-        onTap: () => Get.to(AboutUsPage()),
+        onTap: () => Get.to(
+          AboutUsPage(),
+          transition: Transition.rightToLeft,
+        ),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_cjwt.webp",
         title: "常见问题",
-         onTap: () => Get.to(QuestionPage()),
+         onTap: () => Get.to(
+          QuestionPage(),
+          transition: Transition.rightToLeft,
+        ),
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_lxwm.webp",
@@ -291,7 +337,10 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_ysaq.webp",
         title: "账号及隐私安全",
-        onTap: () => Get.to(PrivacySettingPage()),
+        onTap: () => Get.to(
+          PrivacySettingPage(),
+          transition: Transition.rightToLeft,
+        ),
       ),
     ];
   }
@@ -304,7 +353,10 @@ class MineController extends GetxController {
   
   /// 打开锁屏监听调试页面
   void _onScreenLockDebugTap() {
-    Get.to(() => const ScreenLockDebugPage());
+    Get.to(
+      () => const ScreenLockDebugPage(),
+      transition: Transition.rightToLeft,
+    );
   }
   
   // /// 屏幕使用测试
@@ -448,6 +500,7 @@ class MineController extends GetxController {
                 Get.to(
                   () => const UsageReportPage(),
                   binding: UsageReportBinding(),
+                  transition: Transition.rightToLeft,
                 );
               },
               child: const Text('查看详情'),
@@ -501,8 +554,13 @@ class MineController extends GetxController {
   }
 
   // 点击恋爱信息标签
-  void onLabelTap() {
-    Get.to(LoveInfoPage());
+  void onLabelTap() async {
+    await Get.to(
+      LoveInfoPage(),
+      transition: Transition.rightToLeft,
+    );
+    // 从恋爱信息页面返回时，刷新我的页面
+    onPageResumed();
   }
 
   // 下拉刷新
@@ -518,27 +576,40 @@ class MineController extends GetxController {
   }
 
   // 点击另一半头像
-  void onPartnerAvatarTap() {
+  void onPartnerAvatarTap() async {
     // 如果未绑定，显示绑定弹窗
     if (!isBound.value) {
       if (Get.context != null) {
-        CustomBottomDialog.show(context: Get.context!);
+        CustomBottomDialog.show(
+          context: Get.context!,
+          caller: BindingDialogCaller.mine,
+        );
       }
     } else {
       // 如果已绑定，跳转到恋爱信息页面
-      Get.to(LoveInfoPage());
+      await Get.to(
+        LoveInfoPage(),
+        transition: Transition.rightToLeft,
+      );
+      // 从恋爱信息页面返回时，刷新我的页面
+      onPageResumed();
     }
   }
 
   // 点击自己的头像
-  void onAvatarTap() {
+  void onAvatarTap() async {
     print('🔥 头像被点击了！');
     print('🔥 当前绑定状态: ${isBound.value}');
     
     // 如果已绑定，跳转到恋爱信息页面
     if (isBound.value) {
       print('🔥 用户已绑定，跳转到恋爱信息页面');
-      Get.to(LoveInfoPage());
+      await Get.to(
+        LoveInfoPage(),
+        transition: Transition.rightToLeft,
+      );
+      // 从恋爱信息页面返回时，刷新我的页面
+      onPageResumed();
     } else {
       print('🔥 用户未绑定，不执行跳转');
     }

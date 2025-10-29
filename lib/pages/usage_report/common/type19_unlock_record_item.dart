@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../models/unlock_record_model.dart';
+import '../../../services/tracking_service.dart';
 import '../../../utils/user_manager.dart';
 import '../../../routers/kissu_route_path.dart';
 
@@ -79,6 +80,14 @@ class Type19UnlockRecordItemWidget extends StatelessWidget {
   Widget _buildBlurOverlay() {
     return GestureDetector(
       onTap: () async {
+        // 上报会员可见按钮埋点
+        try {
+          await TrackingService.trackMembershipOnly();
+          print('✅ 会员可见按钮埋点上报成功');
+        } catch (e) {
+          print('❌ 会员可见按钮埋点上报失败: $e');
+        }
+        
         // 跳转到VIP页面
         await Get.toNamed(KissuRoutePath.vip);
         // VIP页面返回后刷新用户信息

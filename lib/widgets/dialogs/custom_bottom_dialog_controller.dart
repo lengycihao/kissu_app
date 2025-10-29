@@ -11,9 +11,22 @@ import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
+
+/// 调用绑定弹窗的页面类型
+enum BindingDialogCaller {
+  home,        // 首页
+  mine,        // 我的页面
+  loveInfo,    // 恋爱信息页面
+  track,       // 足迹页面
+  location,    // 定位页面
+  usageReport, // 用机记录页面
+}
 
 /// 自定义底部弹窗控制器
 class CustomBottomDialogController extends GetxController {
+  // 调用者页面类型
+  BindingDialogCaller? caller;
   // 匹配码输入框控制器
   late TextEditingController matchCodeController;
 
@@ -125,84 +138,96 @@ class CustomBottomDialogController extends GetxController {
     }
   }
 
-  /// 刷新当前页面数据
+  /// 刷新当前页面数据（根据调用者只刷新对应页面）
   Future<void> _refreshCurrentPageData() async {
     try {
-      print('开始刷新当前页面数据...');
+      print('开始刷新当前页面数据，调用者: $caller');
 
-      // 尝试刷新各个可能已注册的控制器
-      // 1. 尝试刷新首页控制器
-      if (Get.isRegistered<HomeController>()) {
-        try {
-          final homeController = Get.find<HomeController>();
-          // 绑定成功后需要强制刷新用户信息，重置标志位
-          // 绑定成功后强制刷新用户信息，不需要重置标志位
-          await homeController.refreshUserInfoFromServer();
-          print('首页数据刷新完成');
-        } catch (e) {
-          print('刷新首页控制器失败: $e');
-        }
+      if (caller == null) {
+        print('❌ 调用者未指定，跳过页面数据刷新');
+        return;
       }
 
-      // 2. 尝试刷新Mine页控制器
-      if (Get.isRegistered<MineController>()) {
-        try {
-          final mineController = Get.find<MineController>();
-          mineController.loadUserInfo();
-          print('Mine页数据刷新完成');
-        } catch (e) {
-          print('刷新Mine页控制器失败: $e');
-        }
+      // 根据调用者类型刷新对应的控制器
+      switch (caller!) {
+        case BindingDialogCaller.home:
+          if (Get.isRegistered<HomeController>()) {
+            try {
+              final homeController = Get.find<HomeController>();
+              await homeController.refreshUserInfoFromServer();
+              print('✅ 首页数据刷新完成');
+            } catch (e) {
+              print('❌ 刷新首页控制器失败: $e');
+            }
+          }
+          break;
+
+        case BindingDialogCaller.mine:
+          if (Get.isRegistered<MineController>()) {
+            try {
+              final mineController = Get.find<MineController>();
+              mineController.loadUserInfo();
+              print('✅ 我的页面数据刷新完成');
+            } catch (e) {
+              print('❌ 刷新我的页面控制器失败: $e');
+            }
+          }
+          break;
+
+        case BindingDialogCaller.loveInfo:
+          if (Get.isRegistered<LoveInfoController>()) {
+            try {
+              final loveInfoController = Get.find<LoveInfoController>();
+              // 延迟一下，确保UserManager的数据已经更新
+              await Future.delayed(const Duration(milliseconds: 100));
+              loveInfoController.refreshUserInfo();
+              print('✅ 恋爱信息页数据刷新完成');
+            } catch (e) {
+              print('❌ 刷新恋爱信息页控制器失败: $e');
+            }
+          }
+          break;
+
+        case BindingDialogCaller.track:
+          if (Get.isRegistered<TrackController>()) {
+            try {
+              final trackController = Get.find<TrackController>();
+              trackController.refreshCurrentUserData();
+              print('✅ 足迹页数据刷新完成');
+            } catch (e) {
+              print('❌ 刷新足迹页控制器失败: $e');
+            }
+          }
+          break;
+
+        case BindingDialogCaller.location:
+          if (Get.isRegistered<LocationV2Controller>()) {
+            try {
+              final locationController = Get.find<LocationV2Controller>();
+              locationController.refreshUserInfo();
+              print('✅ 定位页数据刷新完成');
+            } catch (e) {
+              print('❌ 刷新定位页控制器失败: $e');
+            }
+          }
+          break;
+
+        case BindingDialogCaller.usageReport:
+          if (Get.isRegistered<UsageReportController>()) {
+            try {
+              final usageReportController = Get.find<UsageReportController>();
+              await usageReportController.loadData();
+              print('✅ 用机记录页数据刷新完成');
+            } catch (e) {
+              print('❌ 刷新用机记录页控制器失败: $e');
+            }
+          }
+          break;
       }
 
-      // 3. 刷新定位页控制器（新版本）
-      if (Get.isRegistered<LocationV2Controller>()) {
-        try {
-          final locationController = Get.find<LocationV2Controller>();
-          locationController.refreshUserInfo();
-          print('定位页数据刷新完成');
-        } catch (e) {
-          print('刷新定位页控制器失败: $e');
-        }
-      }
-      
-
-      // 4. 刷新足迹页控制器
-      if (Get.isRegistered<TrackController>()) {
-        try {
-          final trackController = Get.find<TrackController>();
-          trackController.refreshCurrentUserData();
-          print('足迹页数据刷新完成');
-        } catch (e) {
-          print('刷新足迹页控制器失败: $e');
-        }
-      }
-
-      // // 5. 刷新敏感记录页控制器
-      // if (Get.isRegistered<PhoneHistoryController>()) {
-      //   try {
-      //     final phoneHistoryController = Get.find<PhoneHistoryController>();
-      //     await phoneHistoryController.refreshBindingStatus();
-      //     print('敏感记录页数据刷新完成');
-      //   } catch (e) {
-      //     print('刷新敏感记录页控制器失败: $e');
-      //   }
-      // }
-
-      // 6. 刷新使用报告页控制器
-      if (Get.isRegistered<UsageReportController>()) {
-        try {
-          final usageReportController = Get.find<UsageReportController>();
-          await usageReportController.loadData();
-          print('使用报告页数据刷新完成');
-        } catch (e) {
-          print('刷新使用报告页控制器失败: $e');
-        }
-      }
-
-      print('当前页面数据刷新完成');
+      print('✅ 当前页面数据刷新完成');
     } catch (e) {
-      print('刷新当前页面数据失败: $e');
+      print('❌ 刷新当前页面数据失败: $e');
     }
   }
 

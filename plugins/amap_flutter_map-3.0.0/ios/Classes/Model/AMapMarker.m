@@ -52,6 +52,7 @@
     self.rotation = changedMarker.rotation;
     self.visible = changedMarker.visible;
     self.zIndex = changedMarker.zIndex;
+    self.transform = changedMarker.transform;
     
     if (_annotation) {//Annotation已经被添加，则直接更新其数据
         [self _updateAnnotation];

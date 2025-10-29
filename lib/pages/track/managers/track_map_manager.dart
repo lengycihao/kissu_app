@@ -144,23 +144,23 @@ class TrackMapManager {
     // 根据距离计算缩放级别 - 支持更大范围的轨迹
     double zoom;
     if (maxDiff < 0.001) {
-      zoom = 18.0; // 非常小的区域 (< 100米)
+      zoom = 19.0; // 非常小的区域 (< 100米)
     } else if (maxDiff < 0.01) {
-      zoom = 16.0; // 小区域 (< 1公里)
+      zoom = 17.0; // 小区域 (< 1公里)
     } else if (maxDiff < 0.05) {
-      zoom = 14.0; // 中小区域 (< 5公里)
+      zoom = 15.0; // 中小区域 (< 5公里)
     } else if (maxDiff < 0.1) {
-      zoom = 13.0; // 中等区域 (< 10公里)
+      zoom = 14.0; // 中等区域 (< 10公里)
     } else if (maxDiff < 0.2) {
-      zoom = 12.0; // 中大区域 (< 20公里)
+      zoom = 13.0; // 中大区域 (< 20公里)
     } else if (maxDiff < 0.5) {
-      zoom = 11.0; // 大区域 (< 50公里)
+      zoom = 12.0; // 大区域 (< 50公里)
     } else if (maxDiff < 1.0) {
-      zoom = 10.0; // 很大区域 (< 100公里)
+      zoom = 11.0; // 很大区域 (< 100公里)
     } else if (maxDiff < 2.0) {
-      zoom = 9.0; // 超大区域 (< 200公里)
+      zoom = 10.0; // 超大区域 (< 200公里)
     } else {
-      zoom = 8.0; // 极大区域 (> 200公里)
+      zoom = 9.0; // 极大区域 (> 200公里)
     }
     
     // 打印调试信息
@@ -236,13 +236,13 @@ class TrackMapManager {
       if (locationData.trace?.startPoint.lat != 0.0 && locationData.trace?.startPoint.lng != 0.0) {
         targetPosition = CameraPosition(
           target: LatLng(locationData.trace!.startPoint.lat, locationData.trace!.startPoint.lng),
-          zoom: 16.0,
+          zoom: 18.0,
         );
         DebugUtil.info('使用起点作为地图中心');
       } else if (locationData.trace?.endPoint.lat != 0.0 && locationData.trace?.endPoint.lng != 0.0) {
         targetPosition = CameraPosition(
           target: LatLng(locationData.trace!.endPoint.lat, locationData.trace!.endPoint.lng),
-          zoom: 16.0,
+          zoom: 18.0,
         );
         DebugUtil.info('使用终点作为地图中心');
       }
@@ -253,7 +253,7 @@ class TrackMapManager {
       DebugUtil.warning('没有有效位置数据，使用默认杭州坐标');
       targetPosition = const CameraPosition(
         target: LatLng(30.2741, 120.2206),
-        zoom: 16.0,
+        zoom: 18.0,
       );
     }
     

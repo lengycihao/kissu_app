@@ -80,6 +80,14 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       debugPrint('❌ 清除网络缓存失败: $e');
     }
     
+    // 🔧 修复：App恢复前台时清除电量缓存，确保获取最新电量
+    try {
+      BusinessHeaderInterceptor.clearBatteryCache();
+      debugPrint('🔋 已清除过期的电量缓存');
+    } catch (e) {
+      debugPrint('❌ 清除电量缓存失败: $e');
+    }
+    
     // 检查通知权限变化
     _checkNotificationPermissionChange();
     

@@ -391,14 +391,16 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     double bannerHeight = 220,
     bool showBanner = true,
     bool isDismissible = true,
+    BindingDialogCaller? caller, // 调用者页面类型
   }) {
     // 删除旧的控制器实例（如果存在）
     if (Get.isRegistered<CustomBottomDialogController>()) {
       Get.delete<CustomBottomDialogController>();
     }
     
-    // 初始化新的控制器
-    Get.put(CustomBottomDialogController());
+    // 初始化新的控制器并设置调用者
+    final controller = Get.put(CustomBottomDialogController());
+    controller.caller = caller;
 
     // 使用默认轮播图图片（如果未提供）
     final defaultBannerImages = [

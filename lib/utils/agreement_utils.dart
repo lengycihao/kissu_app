@@ -7,34 +7,46 @@ import 'package:kissu_app/network/tools/config/app_configN.dart';
 class AgreementUtils {
   /// 跳转到隐私协议
   static void toPrivacyAgreement() {
-    Get.to(() => AgreementWebViewPage(
-      title: AgreementConstants.privacyAgreementTitle,
-      url: AgreementConstants.privacyAgreement,
-    ));
+    Get.to(
+      () => AgreementWebViewPage(
+        title: AgreementConstants.privacyAgreementTitle,
+        url: AgreementConstants.privacyAgreement,
+      ),
+      transition: Transition.rightToLeft,
+    );
   }
 
   /// 跳转到用户协议
   static void toUserAgreement() {
-    Get.to(() => AgreementWebViewPage(
-      title: AgreementConstants.userAgreementTitle,
-      url: AgreementConstants.userAgreement,
-    ));
+    Get.to(
+      () => AgreementWebViewPage(
+        title: AgreementConstants.userAgreementTitle,
+        url: AgreementConstants.userAgreement,
+      ),
+      transition: Transition.rightToLeft,
+    );
   }
 
   /// 跳转到会员协议
   static void toVipAgreement() {
-    Get.to(() => AgreementWebViewPage(
-      title: AgreementConstants.vipAgreementTitle,
-      url: AgreementConstants.vipAgreement,
-    ));
+    Get.to(
+      () => AgreementWebViewPage(
+        title: AgreementConstants.vipAgreementTitle,
+        url: AgreementConstants.vipAgreement,
+      ),
+      transition: Transition.rightToLeft,
+    );
   }
 
   /// 跳转到隐私安全
   static void toPrivacySecurity() {
-    Get.to(() => AgreementWebViewPage(
-      title: AgreementConstants.privacySecurityTitle,
-      url: AgreementConstants.privacySecurity,
-    ));
+    Get.to(
+      () => AgreementWebViewPage(
+        title: AgreementConstants.privacySecurityTitle,
+        url: AgreementConstants.privacySecurity,
+      ),
+      transition: Transition.rightToLeft,
+    );
   }
 
   /// 跳转到位置须知
@@ -44,9 +56,12 @@ class AgreementUtils {
         ? AgreementConstants.locationNoticeTest
         : AgreementConstants.locationNotice;
     
-    Get.to(() => AgreementWebViewPage(
-      title: AgreementConstants.locationNoticeTitle,
-      url: url,
-    ));
+    Get.to(
+      () => AgreementWebViewPage(
+        title: AgreementConstants.locationNoticeTitle,
+        url: url,
+      ),
+      transition: Transition.rightToLeft,
+    );
   }
 }

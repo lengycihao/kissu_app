@@ -166,6 +166,14 @@ class SensitiveDataService extends GetxService {
     _isCharging = state == BatteryState.charging;
     _currentBatteryState = state;
     
+    // 🔧 修复：电池状态变化时清除电量缓存，确保获取最新电量
+    try {
+      business_header_interceptor.BusinessHeaderInterceptor.clearBatteryCache();
+      DebugUtil.info('电池状态变化，已清除电量缓存');
+    } catch (e) {
+      DebugUtil.error('清除电量缓存失败: $e');
+    }
+    
     // 获取当前电量
     final batteryLevel = await _battery.batteryLevel;
     

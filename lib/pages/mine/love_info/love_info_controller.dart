@@ -21,6 +21,9 @@ import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
+import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:intl/intl.dart' as intl;
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -52,6 +55,43 @@ class LoveInfoController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 先加载本地用户信息（立即显示）
+    _loadUserInfo();
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  @override
+  void onReady() {
+    super.onReady();
+    // 页面准备就绪时，确保已经静默刷新
+  }
+  
+  /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  void onPageResumed() {
+    DebugUtil.info('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
+    // 先用本地数据（已经在onInit中加载）
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  /// 静默刷新用户信息（不阻塞UI）
+  Future<void> _silentRefreshUserInfo() async {
+    try {
+      DebugUtil.info('🔄 恋爱信息页面：静默刷新用户信息');
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        // 刷新成功后重新加载本地数据到UI
+        _loadUserInfo();
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 恋爱信息页面：静默刷新用户信息失败: $e');
+    }
+  }
+
+  /// 刷新用户信息（供外部调用，例如绑定成功后）
+  void refreshUserInfo() {
+    DebugUtil.info('🔄 刷新恋爱信息页用户数据...');
     _loadUserInfo();
   }
 
@@ -159,7 +199,10 @@ class LoveInfoController extends GetxController {
   // 显示添加伴侣对话框 - 显示绑定弹窗
   void showAddPartnerDialog(BuildContext context) {
     // 显示绑定弹窗
-    CustomBottomDialog.show(context: context);
+    CustomBottomDialog.show(
+      context: context,
+      caller: BindingDialogCaller.loveInfo,
+    );
   }
 
   /// 处理头像点击
@@ -415,6 +458,7 @@ class LoveInfoController extends GetxController {
           onCropComplete: _onCropComplete,
           customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp', // 自定义裁剪框
         ),
+        transition: Transition.rightToLeft,
         fullscreenDialog: true,
       );
     } catch (e) {
@@ -584,9 +628,35 @@ class LoveInfoController extends GetxController {
             : gender == '女生'
             ? '女'
             : '未选择';
+        
+        // 上报性别选择埋点
+        _trackGenderSelection(genderText);
+        
         _updateUserGender(genderText);
       },
     );
+  }
+  
+  /// 上报性别选择埋点事件（我的页面进入的个人信息页面）
+  Future<void> _trackGenderSelection(String gender) async {
+    try {
+      // 获取虚拟用户ID（设备ID）
+      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
+      
+      // 获取当前时间（格式：年/月/日 时:分:秒）
+      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
+      
+      // 上报事件
+      await UmengAnalytics.logEventWithParams('my_personal_info_gender', {
+        'device_id': deviceId,
+        'click_time': clickTime,
+        'gender': gender,
+      });
+      
+      print('📊 性别选择埋点（我的页面） - device_id: $deviceId, click_time: $clickTime, gender: $gender');
+    } catch (e) {
+      print('❌ 性别选择埋点失败: $e');
+    }
   }
 
   /// 处理生日点击
@@ -602,7 +672,10 @@ class LoveInfoController extends GetxController {
     ).then((result) {
       if (result == true) {
         // 跳转到手机号更换页面
-        Get.to(() => PhoneChangePage())?.then((result) {
+        Get.to(
+          () => PhoneChangePage(),
+          transition: Transition.rightToLeft,
+        )?.then((result) {
           if (result == true) {
             // 手机号更换成功，刷新信息
             _loadUserInfo();
@@ -1103,7 +1176,7 @@ class LoveInfoController extends GetxController {
           // 通知首页刷新（首页会调用loadIndexData，会获取最新的恋爱天数）
           try {
             final homeController = Get.find<HomeController>();
-            await homeController.loadIndexData(shouldCheckGuide: false);
+            await homeController.loadIndexData();
             DebugUtil.success('Love time updated, home page refreshed');
           } catch (e) {
             DebugUtil.error('Home controller not found: $e');

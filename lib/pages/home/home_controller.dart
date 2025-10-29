@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
@@ -16,8 +17,10 @@ import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
+import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
@@ -29,11 +32,19 @@ import 'dart:math';
 import 'dart:async';
 import 'package:kissu_app/services/version_service.dart';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
+import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 
 class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
   var selectedIndex = 0.obs;
+  
+  // 埋点相关 - 页面滑动次数
+  var scrollTimes = 0.obs;
+  double _lastScrollOffset = 0.0;
+  bool _isScrolling = false;
+  Timer? _scrollEndTimer;
   
   // App启动标记 - 静态变量，app被杀掉时会自动重置
   static bool _hasAppStartedThisSession = false;
@@ -56,6 +67,11 @@ class HomeController extends GetxController {
   
   // 轮播图当前索引
   var currentSwiperIndex = 0.obs;
+  
+  // Banner 手动滑动标记
+  // 用于追踪用户是否手动滑动了 banner
+  // true = 用户手动滑动，false = 自动播放
+  var isBannerManuallyDragged = false.obs;
   
   // 视图模式：true=屏视图，false=岛视图（默认屏视图）
   var isScreenView = true.obs;
@@ -130,8 +146,14 @@ class HomeController extends GetxController {
     
     debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: $_hasShownBindingDialogThisSession');
     
-    // 检查是否是app启动时首次进入
-    checkAndRefreshUserInfoOnAppStartup();
+    // 埋点：开始记录页面停留时长
+    _startPageTracking();
+    
+    // 先加载本地用户信息（立即显示）
+    loadUserInfo();
+    
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
     
     // 初始化滚动控制器，如果有预设位置则使用预设位置
     _initializeScrollController();
@@ -143,11 +165,14 @@ class HomeController extends GetxController {
     // _preloadPagAssets();
     
     _initializeLocationService();
-    loadIndexData(); // 加载首页所有数据（替代原来的分别加载）
+    loadIndexData(); // 加载首页所有数据（弹窗流程在onReady中独立触发）
     _loadViewMode(); // 加载视图模式
     _startRedDotPolling(); // 启动红点轮询
     _setupAppLifecycleListener(); // 设置应用生命周期监听
     _setupRedDotListeners(); // 设置红点监听器
+    
+    // 添加滚动监听器，统计滑动次数
+    _setupScrollListener();
   }
 
   @override
@@ -157,15 +182,27 @@ class HomeController extends GetxController {
     // 检查版本更新（在引导图和其他弹窗之前检查）
     _checkVersionUpdate();
     
-    // 注意：引导图检查将在数据加载完成后执行，确保绑定状态已获取
-    // 在 loadIndexData() 完成后会调用 _checkAndShowGuide1()
-    
-    // 注意：绑定弹窗将在所有其他弹窗之后显示，在_executeOtherLogic()中调用
+    // 立即检查定位权限并开始弹窗流程（不等待数据加载完成）
+    // 弹窗流程优先级：定位权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图
+    _checkLocationPermissionAndShowBindingDialog();
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    debugPrint('🏠 首页重新获得焦点，不需要刷新用户信息（已在onInit中处理）');
+    debugPrint('🏠 首页重新获得焦点，静默刷新用户信息');
+    // 先用本地数据（已经在onInit中加载）
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  /// 静默刷新用户信息（不阻塞UI）
+  Future<void> _silentRefreshUserInfo() async {
+    try {
+      debugPrint('🔄 首页：静默刷新用户信息');
+      await refreshUserInfoFromServer();
+    } catch (e) {
+      debugPrint('❌ 首页：静默刷新用户信息失败: $e');
+    }
   }
   
   
@@ -220,6 +257,12 @@ class HomeController extends GetxController {
   @override
   void onClose() {
     debugPrint('🧹 HomeController 销毁 - 绑定弹窗标志位: $_hasShownBindingDialogThisSession, VIP弹窗标志位: $_hasShownVipDialogThisSession（静态变量不会被清除）');
+    
+    // 埋点：结束页面停留时长记录并上报
+    _endPageTracking();
+    
+    // 清理滚动定时器
+    _scrollEndTimer?.cancel();
     
     // 安全地清理ScrollController
     try {
@@ -320,27 +363,35 @@ class HomeController extends GetxController {
   /// 处理定位权限获取成功
   Future<void> _handleLocationPermissionGranted() async {
     try {
-      debugPrint('🎯 首页用户同意定位权限，启动定位服务');
+      debugPrint('🎯 首页用户同意定位权限，立即弹出绑定弹窗');
       
-      // 启动定位服务
-      bool success = await _locationService.startLocation();
+      // 立即弹出绑定弹窗，不等待定位服务启动结果
+      await _checkAndShowBindingDialog();
       
-      if (success) {
-        isLocationServiceStarted.value = true;
-        debugPrint('✅ 首页定位服务启动成功');
+      // 绑定弹窗处理完成后，再启动定位服务（后台异步进行）
+      _locationService.startLocation().then((success) {
+        if (success) {
+          isLocationServiceStarted.value = true;
+          debugPrint('✅ 首页定位服务启动成功');
+        } else {
+          debugPrint('❌ 首页定位服务启动失败');
+        }
+      });
+      
+      // 绑定弹窗处理完成后，延迟检查VIP购买弹窗
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        await _checkAndShowVipPurchaseDialog();
         
-        // 显示成功提示
-        CustomToast.show(
-          Get.context!,
-          '定位服务已启动，开始记录您的足迹',
-        );
-      } else {
-        debugPrint('❌ 首页定位服务启动失败');
-        CustomToast.show(
-          Get.context!,
-          '定位服务启动失败，请检查定位设置',
-        );
-      }
+        // VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
+        Future.delayed(const Duration(milliseconds: 500), () async {
+          await _checkAndShowVipPromo();
+          
+          // VIP推广弹窗处理完成后，延迟检查引导图
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _checkAndShowGuide1();
+          });
+        });
+      });
     } catch (e) {
       debugPrint('处理首页定位权限同意失败: $e');
     }
@@ -349,11 +400,25 @@ class HomeController extends GetxController {
   /// 处理定位权限被拒绝
   Future<void> _handleLocationPermissionDenied() async {
     try {
-      debugPrint('❌ 首页定位权限被拒绝');
-      CustomToast.show(
-        Get.context!,
-        '需要定位权限来记录您的足迹，可在设置中开启',
-      );
+      debugPrint('❌ 首页定位权限被拒绝，立即弹出绑定弹窗');
+      
+      // 立即弹出绑定弹窗，不需要等待
+      await _checkAndShowBindingDialog();
+      
+      // 绑定弹窗处理完成后，延迟检查VIP购买弹窗
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        await _checkAndShowVipPurchaseDialog();
+        
+        // VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
+        Future.delayed(const Duration(milliseconds: 500), () async {
+          await _checkAndShowVipPromo();
+          
+          // VIP推广弹窗处理完成后，延迟检查引导图
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _checkAndShowGuide1();
+          });
+        });
+      });
     } catch (e) {
       debugPrint('处理首页定位权限拒绝失败: $e');
     }
@@ -428,10 +493,10 @@ class HomeController extends GetxController {
   }
   
   /// 加载首页所有数据（新的统一接口）
-  /// [shouldCheckGuide] 是否检查并显示引导图，默认为true。绑定后刷新时应该传false避免重复弹窗
-  Future<void> loadIndexData({bool shouldCheckGuide = true}) async {
+  /// 仅负责加载和更新首页数据，不涉及弹窗逻辑
+  Future<void> loadIndexData() async {
     try {
-      debugPrint('🏠 开始加载首页数据... (是否检查引导图: $shouldCheckGuide)');
+      debugPrint('🏠 开始加载首页数据...');
       
       final result = await IndexApi().getIndexData();
       
@@ -485,30 +550,15 @@ class HomeController extends GetxController {
         _updateWeatherData(indexData.weather);
         
         debugPrint('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
-        
-        // 数据加载完成后，检查是否需要显示引导图（确保绑定状态已获取）
-        if (shouldCheckGuide) {
-          _checkAndShowGuide1();
-        } else {
-          debugPrint('🔒 跳过引导图检查（绑定后刷新）');
-        }
       } else {
         debugPrint('❌ 首页数据加载失败: ${result.msg}');
         // 失败时回退到加载本地用户信息
         loadUserInfo();
-        // 即使失败也要检查引导图（使用本地缓存的绑定状态）
-        if (shouldCheckGuide) {
-          _checkAndShowGuide1();
-        }
       }
     } catch (e) {
       debugPrint('❌ 首页数据加载异常: $e');
       // 异常时回退到加载本地用户信息
       loadUserInfo();
-      // 异常情况下也要检查引导图（使用本地缓存的绑定状态）
-      if (shouldCheckGuide) {
-        _checkAndShowGuide1();
-      }
     }
   }
 
@@ -725,7 +775,23 @@ class HomeController extends GetxController {
       await UserManager.refreshUserInfo();
       
       // 重新加载当前页面数据，但不触发引导图检查（避免重复弹窗）
-      loadIndexData(shouldCheckGuide: false);
+      loadIndexData();
+      
+      // 绑定弹窗关闭后，检查是否需要显示VIP购买弹窗
+      debugPrint('💑 绑定弹窗关闭后，延迟检查VIP购买弹窗');
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        await _checkAndShowVipPurchaseDialog();
+        
+        // VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
+        Future.delayed(const Duration(milliseconds: 500), () async {
+          await _checkAndShowVipPromo();
+          
+          // VIP推广弹窗处理完成后，延迟检查引导图
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _checkAndShowGuide1();
+          });
+        });
+      });
       
       // 首页绑定状态已刷新
     } catch (e) {
@@ -739,17 +805,40 @@ class HomeController extends GetxController {
       print('🏠 首页收到刷新通知，正在更新用户信息...');
       // 不需要再次调用 UserManager.refreshUserInfo()，因为调用方已经刷新了
       // 外部刷新时不触发引导图检查，避免重复弹窗
-      loadIndexData(shouldCheckGuide: false);
+      loadIndexData();
       print('🏠 首页绑定状态已更新: ${isBound.value}');
     } catch (e) {
       print('🏠 首页刷新绑定状态失败: $e');
     }
   }
 
-  void onButtonTap(int index) {
+  void onButtonTap(int index) async {
     selectedIndex.value = index;
     debugPrint("🔍 底部导航按钮 $index 被点击");
 
+    // 获取底部导航名称
+    String bottomName = '';
+    switch (index) {
+      case 0:
+        bottomName = '定位';
+        break;
+      case 1:
+        bottomName = '足迹';
+        break;
+      case 2:
+        bottomName = '用机记录';
+        break;
+      case 3:
+        bottomName = '我的';
+        break;
+    }
+
+    // 埋点：底部导航点击
+    if (bottomName.isNotEmpty) {
+      await TrackingService.trackBottomNavigationClick(bottomName: bottomName);
+    }
+
+    // 执行导航逻辑
     switch (index) {
       case 0:
         // 定位（新版）- 添加会员检查
@@ -757,12 +846,24 @@ class HomeController extends GetxController {
         VipNavigationHelper.navigateToLocationWithVipCheck();
         break;
       case 1:
-        // 地图
-        Get.to(() =>  TrackPage(), binding: TrackBinding());
+        // 地图 - 返回时刷新首页数据
+        await Get.to(
+          () => TrackPage(),
+          binding: TrackBinding(),
+          transition: Transition.downToUp,
+        );
+        debugPrint('🔙 从足迹页面返回首页，刷新数据');
+        onPageResumed();
         break;
       case 2:
-        // 用机记录
-        Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
+        // 用机记录 - 返回时刷新首页数据
+        await Get.to(
+          () => const UsageReportPage(),
+          binding: UsageReportBinding(),
+          transition: Transition.downToUp,
+        );
+        debugPrint('🔙 从用机记录页面返回首页，刷新数据');
+        onPageResumed();
         break;
       case 3:
         // 我的 - 每次点击时刷新数据
@@ -776,6 +877,9 @@ class HomeController extends GetxController {
 
   // 点击通知按钮
   void onNotificationTap() {
+    // 埋点：点击消息中心按钮
+    TrackingService.trackMessageCenterClick();
+    
     // 跳转到消息列表页面（一级页面）
     // 注意：红点不在这里清除，而是在进入各个详情页时清除
     debugPrint('📭 点击消息中心按钮，进入消息列表');
@@ -920,7 +1024,7 @@ class HomeController extends GetxController {
     // 创建新的定时器，每10秒执行一次
     _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       debugPrint('🔔 定时刷新首页数据...');
-      loadIndexData(shouldCheckGuide: false); // 轮询时不触发引导图检查
+      loadIndexData();
     });
     
     debugPrint('✅ 红点轮询已启动（每10秒刷新）');
@@ -991,8 +1095,8 @@ class HomeController extends GetxController {
   void _onAppReturnedToForeground() {
     debugPrint('📱 首页：应用返回前台，先获取红点数据再启动轮询');
     
-    // 先立即获取一次首页数据，不触发引导图检查
-    loadIndexData(shouldCheckGuide: false).then((_) {
+    // 先立即获取一次首页数据
+    loadIndexData().then((_) {
       // 获取完成后再启动轮询
       _startRedDotPolling();
     });
@@ -1051,10 +1155,13 @@ class HomeController extends GetxController {
   /// 跳转到H5页面
   void navigateToH5(String url) {
     if (url.isNotEmpty) {
-      Get.to(() => AgreementWebViewPage(
-        title: activityTitle.value.isNotEmpty ? activityTitle.value : '活动详情',
-        url: url,
-      ));
+      Get.to(
+        () => AgreementWebViewPage(
+          title: activityTitle.value.isNotEmpty ? activityTitle.value : '活动详情',
+          url: url,
+        ),
+        transition: Transition.rightToLeft,
+      );
       debugPrint('跳转到H5页面: $url');
     } else {
       debugPrint('H5链接为空，无法跳转');
@@ -1069,14 +1176,40 @@ class HomeController extends GetxController {
       // 先刷新用户信息
       await refreshUserInfoFromServer();
       
-      // 然后跳转到我的页面
-      Get.to(() => MinePage(), binding: MineBinding());
-      debugPrint('✅ 用户数据刷新完成，已跳转到我的页面');
+      // 然后跳转到我的页面，并在返回时刷新首页数据
+      await Get.to(
+        () => MinePage(),
+        binding: MineBinding(),
+        transition: Transition.downToUp,
+      );
+      
+      // 从我的页面返回时，刷新首页数据
+      debugPrint('🔙 从我的页面返回首页，刷新数据');
+      onPageResumed();
     } catch (e) {
       debugPrint('❌ 跳转到我的页面时刷新数据失败: $e');
       // 即使刷新失败也要跳转，不影响用户体验
-      Get.to(() => MinePage(), binding: MineBinding());
+      await Get.to(
+        () => MinePage(),
+        binding: MineBinding(),
+        transition: Transition.downToUp,
+      );
+      // 返回时也要刷新
+      debugPrint('🔙 从我的页面返回首页（异常流程），刷新数据');
+      onPageResumed();
     }
+  }
+  
+  /// 跳转到恋爱信息页面，并在返回时刷新首页数据
+  Future<void> navigateToLoveInfoPage() async {
+    debugPrint('💕 从首页跳转到恋爱信息页面');
+    await Get.to(
+      () => const LoveInfoPage(),
+      transition: Transition.rightToLeft,
+    );
+    // 从恋爱信息页面返回时，刷新首页数据
+    debugPrint('💕 从恋爱信息页面返回首页，刷新数据');
+    onPageResumed();
   }
 
   /// 检查版本更新（首页自动检查）
@@ -1167,20 +1300,18 @@ class HomeController extends GetxController {
           _showGuide1();
         });
       } else {
-        debugPrint('ℹ️ 引导图1已显示过，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
+        debugPrint('ℹ️ 引导图1已显示过，检查是否需要显示引导图2或VIP购买弹窗 (已绑定: ${isBound.value})');
         
         // 如果已绑定，检查是否需要显示引导图2
         if (isBound.value) {
           _checkAndShowGuide2();
         } else {
-          // 未绑定状态，执行其他逻辑
-          _executeOtherLogic();
+          // 未绑定老用户，不显示任何引导图
+          debugPrint('ℹ️ 未绑定老用户，不显示引导图');
         }
       }
     } catch (e) {
       debugPrint('❌ 检查引导图1状态失败: $e');
-      // 出错时执行其他逻辑
-      _executeOtherLogic();
     }
   }
 
@@ -1227,53 +1358,56 @@ class HomeController extends GetxController {
     if (isBound.value) {
       _checkAndShowGuide2();
     } else {
-      // 未绑定状态，执行其他逻辑
-      _executeOtherLogic();
+      debugPrint('✅ 未绑定用户引导流程完成，引导图后不再弹出其他弹窗');
     }
   }
 
   /// 引导图2关闭后的回调
   void onGuide2Dismissed() {
     hideGuideOverlay();
-    debugPrint('📱 引导图2已关闭，执行后续逻辑 (已绑定: ${isBound.value})');
-    
-    // 引导图2关闭后执行其他逻辑（定位权限 -> VIP购买弹窗）
-    _executeOtherLogicAfterGuide2();
+    debugPrint('✅ 引导图2已关闭，引导流程完成，引导图后不再弹出其他弹窗');
   }
 
-  /// 执行其他逻辑（引导图1关闭后，未绑定状态）
-  void _executeOtherLogic() {
-    // 按顺序执行：定位权限 -> VIP推广 -> 绑定弹窗
-    
-    // 1. 延迟请求定位权限并启动服务
-    Future.delayed(Duration(seconds: 1), () async {
-      await _requestLocationPermissionOnHomePage();
+  /// 检查定位权限状态并显示绑定弹窗
+  Future<void> _checkLocationPermissionAndShowBindingDialog() async {
+    try {
+      debugPrint('🔍 检查定位权限状态...');
       
-      // 2. 定位权限处理完成后，延迟检查VIP推广弹窗
-      Future.delayed(Duration(milliseconds: 500), () async {
-        await _checkAndShowVipPromo();
+      // 检查定位权限状态
+      final permissionManager = LocationPermissionManager.instance;
+      bool hasLocationPermission = await permissionManager.isLocationPermissionGranted();
+      
+      if (hasLocationPermission) {
+        debugPrint('✅ 用户已有定位权限，优先级顺序：绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图');
         
-        // 3. VIP推广弹窗处理完成后，最后检查绑定弹窗
-        Future.delayed(Duration(milliseconds: 500), () {
-          _checkAndShowBindingDialog();
+        // 1. 已有定位权限，直接弹出绑定弹窗（第一优先级）
+        await _checkAndShowBindingDialog();
+        
+        // 2. 绑定弹窗处理完成后，延迟检查VIP购买弹窗
+        Future.delayed(Duration(milliseconds: 500), () async {
+          await _checkAndShowVipPurchaseDialog();
+          
+          // 3. VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
+          Future.delayed(Duration(milliseconds: 500), () async {
+            await _checkAndShowVipPromo();
+            
+            // 4. VIP推广弹窗处理完成后，延迟检查引导图（最后优先级）
+            Future.delayed(Duration(milliseconds: 500), () {
+              _checkAndShowGuide1();
+            });
+          });
         });
-      });
-    });
-  }
-
-  /// 执行其他逻辑（引导图2关闭后，已绑定状态）
-  void _executeOtherLogicAfterGuide2() {
-    // 按顺序执行：定位权限 -> VIP购买弹窗
-    
-    // 1. 延迟请求定位权限并启动服务
-    Future.delayed(Duration(seconds: 1), () async {
+      } else {
+        debugPrint('❌ 用户没有定位权限，优先级顺序：请求权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图');
+        
+        // 1. 没有定位权限，请求权限（权限回调中会立即弹出绑定弹窗）
+        await _requestLocationPermissionOnHomePage();
+      }
+    } catch (e) {
+      debugPrint('❌ 检查定位权限状态失败: $e');
+      // 出错时执行其他逻辑
       await _requestLocationPermissionOnHomePage();
-      
-      // 2. 定位权限处理完成后，延迟检查VIP购买弹窗
-      Future.delayed(Duration(milliseconds: 500), () async {
-        await _checkAndShowVipPurchaseDialog();
-      });
-    });
+    }
   }
 
   /// 检查并显示VIP购买弹窗
@@ -1359,18 +1493,16 @@ class HomeController extends GetxController {
         await prefs.setBool('has_shown_guide2', true);
         
         // 延迟显示引导图2
-        Future.delayed(const Duration(milliseconds: 1000), () {
+        Future.delayed(const Duration(milliseconds: 500), () {
           displayGuideOverlay();
         });
       } else {
-        debugPrint('ℹ️ 引导图2已显示过，执行其他逻辑');
-        // 引导图2已显示过，执行其他逻辑
-        _executeOtherLogicAfterGuide2();
+        debugPrint('ℹ️ 引导图2已显示过，检查VIP购买弹窗');
+        // 引导图2已显示过，检查VIP购买弹窗
+        await _checkAndShowVipPurchaseDialog();
       }
     } catch (e) {
       debugPrint('❌ 检查引导图2状态失败: $e');
-      // 出错时执行其他逻辑
-      _executeOtherLogic();
     }
   }
 
@@ -1407,6 +1539,7 @@ class HomeController extends GetxController {
       // 使用CustomBottomDialog显示绑定弹窗
       CustomBottomDialog.show(
         context: currentContext,
+        caller: BindingDialogCaller.home,
         onClose: () {
           debugPrint('💑 绑定弹窗已关闭');
         },
@@ -1455,6 +1588,83 @@ class HomeController extends GetxController {
       debugPrint('❌ 天气数据解析异常: $e');
       isWeatherLoading.value = false;
     }
+  }
+  
+  // ==================== 首页埋点相关方法 ====================
+  
+  /// 开始页面浏览追踪（记录页面停留时长）
+  Future<void> _startPageTracking() async {
+    try {
+      debugPrint('📊 首页埋点：开始记录页面停留时长');
+      // 使用友盟的事件计时开始方法
+      await UmengAnalytics.eventBegin('home_page');
+    } catch (e) {
+      debugPrint('❌ 首页埋点：开始记录失败 - $e');
+    }
+  }
+  
+  /// 结束页面浏览追踪并上报埋点数据
+  Future<void> _endPageTracking() async {
+    try {
+      debugPrint('📊 首页埋点：结束记录并上报数据');
+      
+      // 先结束计时
+      await UmengAnalytics.eventEnd('home_page');
+      
+      // 获取虚拟用户ID
+      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
+      
+      // 获取用户ID（如果已登录）
+      final user = UserManager.currentUser;
+      final userId = user?.id?.toString() ?? '';
+      
+      // 构建埋点参数
+      final params = <String, String>{
+        'device_id': deviceId,
+        'scroll_times': scrollTimes.value.toString(),
+      };
+      
+      // 如果有用户ID，添加到参数中
+      if (userId.isNotEmpty) {
+        params['user_id'] = userId;
+      }
+      
+      // 上报首页浏览事件
+      await UmengAnalytics.logEventWithParams('home_page', params);
+      
+      debugPrint('✅ 首页埋点上报成功: device_id=$deviceId, user_id=$userId, scroll_times=${scrollTimes.value}');
+    } catch (e) {
+      debugPrint('❌ 首页埋点：上报数据失败 - $e');
+    }
+  }
+  
+  /// 设置滚动监听器，统计页面滑动次数
+  void _setupScrollListener() {
+    scrollController.addListener(() {
+      final currentOffset = scrollController.offset;
+      
+      // 判断是否发生了显著的滚动（距离大于10像素）
+      if ((currentOffset - _lastScrollOffset).abs() > 10) {
+        if (!_isScrolling) {
+          // 开始一次新的滚动
+          _isScrolling = true;
+          scrollTimes.value++;
+          debugPrint('📊 首页埋点：记录滑动次数 = ${scrollTimes.value}');
+        }
+        _lastScrollOffset = currentOffset;
+        
+        // 取消之前的定时器
+        _scrollEndTimer?.cancel();
+        
+        // 设置新的定时器，300ms后如果没有新的滚动则认为滚动结束
+        _scrollEndTimer = Timer(const Duration(milliseconds: 300), () {
+          _isScrolling = false;
+          debugPrint('📊 首页埋点：滚动结束');
+        });
+      }
+    });
+    
+    debugPrint('📊 首页埋点：滚动监听器已设置');
   }
   
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 
@@ -723,7 +724,15 @@ class GenericRecordItemWidget extends StatelessWidget {
   }
 
   /// 跳转到VIP页面
-  void _navigateToVipPage() {
+  void _navigateToVipPage() async {
+    // 上报会员可见按钮埋点
+    try {
+      await TrackingService.trackMembershipOnly();
+      print('✅ 会员可见按钮埋点上报成功');
+    } catch (e) {
+      print('❌ 会员可见按钮埋点上报失败: $e');
+    }
+    
     Get.toNamed(KissuRoutePath.vip)?.then((_) {
       // VIP页面返回后，刷新会员状态
       _refreshVipStatus();

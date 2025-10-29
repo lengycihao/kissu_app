@@ -31,7 +31,10 @@ class AccountCancellationController extends GetxController {
 
   // 跳转到手机号验证页面
   void navigateToPhoneVerification() {
-    Get.to(() => PhoneVerificationPage());
+    Get.to(
+      () => PhoneVerificationPage(),
+      transition: Transition.rightToLeft,
+    );
   }
 
   // 返回上一页

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/screen_time_model.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import '../common/screen_time_item.dart';
@@ -146,6 +147,14 @@ class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
               bottom: 0,
               child: GestureDetector(
                 onTap: () async {
+                  // 上报会员可见按钮埋点
+                  try {
+                    await TrackingService.trackMembershipOnly();
+                    print('✅ 会员可见按钮埋点上报成功');
+                  } catch (e) {
+                    print('❌ 会员可见按钮埋点上报失败: $e');
+                  }
+                  
                   // 跳转到VIP页面
                   await Get.toNamed(KissuRoutePath.vip);
                   // VIP页面返回后刷新用户信息

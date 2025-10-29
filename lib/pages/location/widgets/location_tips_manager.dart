@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../../services/tracking_service.dart';
 import '../../../utils/user_manager.dart';
 import '../../../utils/permission_helper.dart';
 import '../location_v2_controller.dart';
@@ -181,6 +182,11 @@ class LocationTipsManager extends GetxController {
   void onPermissionTipTap() async {
     try {
       debugPrint('🔐 点击定位权限提示，跳转到设置页面');
+      
+      // 开启自己定位按钮埋点
+      // 注意：点击提示时说明当前是关闭状态，点击后希望开启
+      await TrackingService.trackEnableOwnLocation(isEnabled: true);
+      
       await PermissionHelper.openLocationSettings();
     } catch (e) {
       debugPrint('❌ 打开定位设置失败: $e');
@@ -189,6 +195,9 @@ class LocationTipsManager extends GetxController {
   
   /// 关闭另一半定位提示
   void onPartnerLocationTipClose() {
+    // 对方开启定位状态提示埋点（关闭提示时记录）
+    TrackingService.trackPartnerLocationStatusPrompt();
+    
     showPartnerLocationTip.value = false;
     debugPrint('❌ 用户手动关闭另一半定位提示');
   }

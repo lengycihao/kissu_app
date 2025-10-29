@@ -38,7 +38,11 @@ class VipNavigationHelper {
   
   /// 跳转到定位页面
   static void _navigateToLocationPage() {
-    Get.to(() => LocationV2Page(), binding: LocationV2Binding());
+    Get.to(
+      () => LocationV2Page(),
+      binding: LocationV2Binding(),
+      transition: Transition.downToUp,
+    );
   }
   
   

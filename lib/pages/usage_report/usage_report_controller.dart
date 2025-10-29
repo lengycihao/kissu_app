@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -12,12 +13,17 @@ import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
   final PhoneHistoryApi _phoneHistoryApi = PhoneHistoryApi();
+  
+  // 防抖Timer
+  Timer? _debounceTimer;
   
   // 选中的日期索引 (6对应今天，在DateSelector的recentDates数组中)
   final selectedDateIndex = 6.obs;
@@ -79,6 +85,9 @@ class UsageReportController extends GetxController {
   // 页面Context（用于Overlay）
   late BuildContext pageContext;
 
+  // 页面浏览时长统计
+  DateTime? _pageEnterTime;
+
   // 动态标签列表（根据筛选状态计算）
   List<String> get visibleTabs {
     final tabs = <String>[];
@@ -126,14 +135,48 @@ class UsageReportController extends GetxController {
     tabScrollController = ScrollController();
     debugPrint('📊 UsageReportController 初始化');
     
-    // 初始化用户绑定状态
+    // 记录页面进入时间（用于计算停留时长）
+    _pageEnterTime = DateTime.now();
+    
+    // 初始化用户绑定状态（使用本地数据）
     _updateUserBindStatus();
+    
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
     
     // 默认加载当天数据
     loadData();
     
     // // 检查并请求屏幕使用时长权限
     // _checkAndRequestPermission();
+  }
+  
+  @override
+  void onReady() {
+    super.onReady();
+    // 页面准备就绪时，确保已经静默刷新
+  }
+  
+  /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  void onPageResumed() {
+    debugPrint('📊 用机记录页面重新获得焦点，静默刷新用户信息');
+    // 先用本地数据（已经在onInit中加载）
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  /// 静默刷新用户信息（不阻塞UI）
+  Future<void> _silentRefreshUserInfo() async {
+    try {
+      debugPrint('🔄 用机记录页面：静默刷新用户信息');
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        // 刷新成功后重新加载本地数据到UI
+        _updateUserBindStatus();
+      }
+    } catch (e) {
+      debugPrint('❌ 用机记录页面：静默刷新用户信息失败: $e');
+    }
   }
   
   /// 检查并请求屏幕使用时长权限
@@ -156,7 +199,7 @@ class UsageReportController extends GetxController {
   
   // /// 显示权限引导弹窗
   // void _showPermissionDialog() {
-  //   Get.dialog(
+  //   Get.dialog( 
   //     AlertDialog(
   //       title: const Text('需要使用统计权限'),
   //       content: SingleChildScrollView(
@@ -287,11 +330,42 @@ class UsageReportController extends GetxController {
 
   @override
   void onClose() {
+    // 上报页面浏览埋点（计算停留时长）
+    _trackPageView();
+    
     hideTooltip();
+    _debounceTimer?.cancel();
     pageController.dispose();
     tabScrollController.dispose();
     debugPrint('📊 UsageReportController 销毁');
     super.onClose();
+  }
+
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 获取绑定状态和会员状态
+      final isBind = isUserBound.value;
+      final isVip = UserManager.isVip;
+      
+      // 上报埋点
+      await TrackingService.trackDeviceUsageRecordPageView(
+        stayDuration: stayDuration,
+        isBind: isBind,
+        isVip: isVip,
+      );
+      
+      debugPrint('✅ 用机记录页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定状态=${isBind ? "已绑定" : "未绑定"}, 会员状态=${isVip ? "已充值" : "未充值"}');
+    } catch (e) {
+      debugPrint('❌ 用机记录页面浏览埋点上报失败: $e');
+    }
   }
 
   /// 切换标签
@@ -564,6 +638,15 @@ class UsageReportController extends GetxController {
 
   /// 切换日期
   void changeDate(DateTime date) {
+    // 如果选择的是相同日期，直接返回
+    final newDateStr = DateFormat('yyyy-MM-dd').format(date);
+    final currentDateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    
+    if (newDateStr == currentDateStr) {
+      debugPrint('📊 相同日期，跳过切换: $newDateStr');
+      return;
+    }
+    
     selectedDate.value = date;
     
     // 切换日期时，自动切换到第一个标签页和内容页
@@ -588,10 +671,16 @@ class UsageReportController extends GetxController {
       _isProgrammaticPageChange = false;
     });
     
-    debugPrint('📊 切换日期: ${DateFormat('yyyy-MM-dd').format(date)}，重置标签页、内容页和标签栏滚动位置到第一个');
+    debugPrint('📊 切换日期: $newDateStr，重置标签页、内容页和标签栏滚动位置到第一个');
     
-    // 加载该日期的数据
-    loadData();
+    // 取消之前的防抖Timer
+    _debounceTimer?.cancel();
+    
+    // 使用防抖加载数据，避免连续点击时多次请求
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      debugPrint('📊 防抖Timer触发，开始加载数据');
+      loadData();
+    });
   }
 
   /// 加载数据
@@ -613,17 +702,38 @@ class UsageReportController extends GetxController {
         _convertApiDataToUIModels();
       } else {
         debugPrint('❌ 数据加载失败: ${result.msg}');
-        if (Get.context != null) {
-          CustomToast.show(Get.context!, result.msg ?? '数据加载失败');
-        }
+        // 使用pageContext而不是Get.context，确保有正确的Overlay
+        _showToastSafely(result.msg ?? '数据加载失败');
       }
     } catch (e) {
       debugPrint('💥 数据加载异常: $e');
-      if (Get.context != null) {
-        CustomToast.show(Get.context!, '数据加载异常: $e');
-      }
+      // 使用pageContext而不是Get.context，确保有正确的Overlay
+      _showToastSafely('数据加载异常: $e');
     } finally {
       isLoading.value = false;
+    }
+  }
+  
+  /// 安全地显示Toast
+  void _showToastSafely(String message) {
+    try {
+      // 优先使用pageContext（已在页面中保存）
+      CustomToast.show(pageContext, message);
+    } catch (e) {
+      debugPrint('⚠️ 使用pageContext显示Toast失败，尝试其他方式: $e');
+      // fallback到Get.context
+      try {
+        if (Get.context != null) {
+          CustomToast.show(Get.context!, message);
+        } else {
+          // 最终fallback：使用OKToastUtil
+          OKToastUtil.show(message);
+        }
+      } catch (e2) {
+        debugPrint('⚠️ 所有Toast显示方式都失败: $e2');
+        // 最后使用print输出
+        print('Toast消息: $message');
+      }
     }
   }
   
@@ -787,8 +897,17 @@ class UsageReportController extends GetxController {
   }
 
   /// 处理绑定按钮点击事件
-  void handleBindButtonClick() {
+  void handleBindButtonClick() async {
     debugPrint('💑 立即绑定按钮被点击');
+    
+    // 上报立即绑定按钮埋点
+    try {
+      await TrackingService.trackBindImmediately();
+      debugPrint('✅ 用机记录页面-立即绑定按钮埋点上报成功');
+    } catch (e) {
+      debugPrint('❌ 用机记录页面-立即绑定按钮埋点上报失败: $e');
+    }
+    
     showBindingDialog();
   }
 
@@ -798,6 +917,7 @@ class UsageReportController extends GetxController {
     if (currentContext != null) {
       CustomBottomDialog.show(
         context: currentContext,
+        caller: BindingDialogCaller.usageReport,
         onClose: () {
           debugPrint('💑 绑定弹窗已关闭');
         },

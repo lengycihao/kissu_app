@@ -174,7 +174,10 @@ class DialogManager {
 
   /// 显示弹窗展示页面
   static void showDialogShowcase(BuildContext context) {
-    Get.to(() => const DialogShowcasePage());
+    Get.to(
+      () => const DialogShowcasePage(),
+      transition: Transition.rightToLeft,
+    );
   }
 
   /// 显示解除关系提示弹窗

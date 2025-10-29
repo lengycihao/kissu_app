@@ -11,6 +11,7 @@ import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/pages/location/poi_search/poi_search_page.dart';
 import 'package:kissu_app/pages/location/poi_search/poi_search_controller.dart';
 import 'package:kissu_app/pages/location/city_list/city_list_page.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 /// 地图选点页面
 class LocationPickerPage extends StatelessWidget {
@@ -181,8 +182,7 @@ class LocationPickerPage extends StatelessWidget {
             }),
           ],
         ),
-      )
-    ;
+      );
   }
 
   /// 跳转到POI搜索页面
@@ -196,6 +196,7 @@ class LocationPickerPage extends StatelessWidget {
           ),
         );
       }),
+      transition: Transition.rightToLeft,
     );
     
     if (result != null) {
@@ -224,7 +225,10 @@ class LocationPickerPage extends StatelessWidget {
 
   /// 跳转到城市列表页面
   void _goToCityList() async {
-    final result = await Get.to(() => const CityListPage());
+    final result = await Get.to(
+      () => const CityListPage(),
+      transition: Transition.rightToLeft,
+    );
     if (result != null && result is CityModel) {
       // 更新当前城市
       controller.updateCurrentCity(result);
@@ -442,6 +446,14 @@ class LocationPickerPage extends StatelessWidget {
                       OKToastUtil.show('请添加备注');
                       return;
                     }
+                  }
+                  
+                  // 上报保存操作埋点
+                  try {
+                    await TrackingService.trackLocationKnockAddressSave();
+                    DebugUtil.info('✅ 添加地点页面-保存操作埋点上报成功');
+                  } catch (e) {
+                    DebugUtil.error('❌ 添加地点页面-保存操作埋点上报失败: $e');
                   }
                   
                   final reminder = await controller.saveLocation();

@@ -197,7 +197,10 @@ class PoiSearchController extends GetxController {
 
   /// 选择城市
   Future<void> selectCity() async {
-    final result = await Get.to(() => const CityListPage());
+    final result = await Get.to(
+      () => const CityListPage(),
+      transition: Transition.rightToLeft,
+    );
     if (result != null && result is CityModel) {
       selectedCity.value = result;
       cityChanged.value = true; // 标记城市已变化

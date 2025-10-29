@@ -13,7 +13,9 @@ import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:intl/intl.dart' as intl;
 
 class LoginController extends GetxController {
   var isChecked = false.obs;
@@ -33,6 +35,10 @@ class LoginController extends GetxController {
   var codeButtonText = "获取验证码".obs; // 验证码按钮文本
   var codeButtonColor = const Color(0xFFFF839E).obs; // 验证码按钮颜色
 
+  // 登录防抖
+  DateTime? _lastLoginTime;
+  static const Duration _loginDebounceDelay = Duration(milliseconds: 1000); // 1秒防抖
+
   late BuildContext context;
 
   @override
@@ -43,6 +49,9 @@ class LoginController extends GetxController {
     _loadAgreementStatus();
     // 🔑 移除登录页面的隐私弹窗检查，现在在启动页处理
     // _checkAndShowFirstAgreement();
+    
+    // 📊 上报登录页面浏览埋点
+    _trackLoginPageView();
   }
 
   /// 加载协议同意状态
@@ -130,19 +139,27 @@ class LoginController extends GetxController {
 
   // 发送验证码
   Future<void> _sendVerificationCode() async {
+    bool isSuccess = false;
     try {
       final result = await authApi.getPhoneCode(
         phone: phoneNumber.value,
         type: 'login', // 登录验证码
       );
 
-      if (result.isSuccess) {OKToastUtil.show("验证码发送成功");
-         _startCountdown(); // 启动倒计时
+      isSuccess = result.isSuccess;
+      
+      if (result.isSuccess) {
+        OKToastUtil.show("验证码发送成功");
+        _startCountdown(); // 启动倒计时
       } else {
         OKToastUtil.show(result.msg ?? '验证码发送失败');
       }
     } catch (e) {
       OKToastUtil.show('验证码发送失败: $e');
+      isSuccess = false;
+    } finally {
+      // 📊 上报获取验证码埋点（无论成功还是失败都上报）
+      await _trackGetVerificationCode(isSuccess);
     }
   }
 
@@ -200,10 +217,22 @@ class LoginController extends GetxController {
   // }
 
   void login() {
-    // 如果正在登录，防止重复点击
-    if (isLoading.value) {
+    // 防抖检查：如果距离上次点击时间小于1秒，直接返回
+    final now = DateTime.now();
+    if (_lastLoginTime != null && 
+        now.difference(_lastLoginTime!) < _loginDebounceDelay) {
+      debugPrint('⏱️ 登录按钮防抖：距离上次点击时间过短，忽略本次点击');
       return;
     }
+    
+    // 如果正在登录，防止重复点击
+    if (isLoading.value) {
+      debugPrint('⏱️ 登录按钮防抖：正在登录中，忽略本次点击');
+      return;
+    }
+
+    // 更新最后点击时间
+    _lastLoginTime = now;
 
     if (phoneNumber.value.isEmpty || verificationCode.value.isEmpty) {
        OKToastUtil.show('账号或验证码不能为空');
@@ -216,6 +245,8 @@ class LoginController extends GetxController {
         () {
           Navigator.pop(context);
           isChecked.value = true;
+          // 发送埋点：弹窗点击同意
+          trackAgreementCheckbox(true);
           _loginWithApi(name: phoneNumber.value, psw: verificationCode.value);
         },
         height: 230.0, // 传递弹窗的高度（例如：500.0）
@@ -254,7 +285,7 @@ class LoginController extends GetxController {
 
       if (result.isSuccess) {
         // 📊 友盟埋点：登录成功（异步执行，不阻塞）
-        UmengAnalytics.trackLoginButton(
+        TrackingService.trackLoginButton(
           isSuccess: true,
           userId: result.data?.id?.toString(),
         );
@@ -286,13 +317,13 @@ class LoginController extends GetxController {
         }
       } else {
         // 📊 友盟埋点：登录失败（异步执行，不阻塞）
-        UmengAnalytics.trackLoginButton(isSuccess: false);
+        TrackingService.trackLoginButton(isSuccess: false);
         
         OKToastUtil.show(result.msg ?? '登录失败');
       }
     } catch (e) {
         // 📊 友盟埋点：登录异常（异步执行，不阻塞）
-        UmengAnalytics.trackLoginButton(isSuccess: false);
+        TrackingService.trackLoginButton(isSuccess: false);
         
         OKToastUtil.show("登录失败");
     } finally {
@@ -333,5 +364,52 @@ class LoginController extends GetxController {
     } catch (e) {
       debugPrint('保存VIP推广标识失败: $e');
     }
+  }
+
+  /// 上报登录页面浏览埋点事件
+  Future<void> _trackLoginPageView() async {
+    try {
+      // 获取虚拟用户ID（设备ID）
+      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
+      
+      // 上报事件
+      await UmengAnalytics.logEventWithParams('login_page', {
+        'device_id': deviceId,
+      });
+      
+      print('📊 登录页面浏览埋点 - device_id: $deviceId');
+    } catch (e) {
+      print('❌ 登录页面浏览埋点失败: $e');
+    }
+  }
+
+  /// 上报获取验证码埋点事件
+  Future<void> _trackGetVerificationCode(bool isSuccess) async {
+    try {
+      // 获取虚拟用户ID（设备ID）
+      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
+      
+      // 获取当前时间（格式：年/月/日 时:分:秒）
+      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
+      
+      // 上报事件
+      await UmengAnalytics.logEventWithParams('get_verification_code', {
+        'device_id': deviceId,
+        'click_time': clickTime,
+        'is_success': isSuccess ? '成功' : '失败',
+      });
+      
+      print('📊 获取验证码埋点 - device_id: $deviceId, click_time: $clickTime, is_success: ${isSuccess ? "成功" : "失败"}');
+    } catch (e) {
+      print('❌ 获取验证码埋点失败: $e');
+    }
+  }
+
+  /// 协议复选框埋点
+  /// 
+  /// 当用户勾选或取消勾选协议复选框时调用
+  /// - [isAgree] true=勾选/同意，false=取消勾选/不同意
+  void trackAgreementCheckbox(bool isAgree) {
+    TrackingService.trackAgreementOperation(isAgree: isAgree);
   }
 }

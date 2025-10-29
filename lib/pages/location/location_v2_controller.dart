@@ -13,10 +13,13 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/map_zoom_calculator.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/map_preload_service.dart';
 import 'widgets/location_tips_manager.dart';
 
 class LocationV2Controller extends GetxController with GetTickerProviderStateMixin {
@@ -52,6 +55,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   final swingAngle = 0.0.obs;
   final isLoading = false.obs;
   final mapType = 1.obs;
+  
+  // 用于跟踪上一次的滑动状态，避免重复埋点
+  String _lastScrollStatus = '';
 
   late AnimationController backButtonAnimationController;
   late Animation<double> backButtonRotationAnimation;
@@ -73,6 +79,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   Face? _cachedMyFace;
   Face? _cachedPartnerFace;
   bool? _cachedIsBindPartner;
+  
+  // 🚀 持久化Marker缓存（跨页面访问复用）
+  BitmapDescriptor? _persistentMyIcon;
+  BitmapDescriptor? _persistentPartnerIcon;
+  String? _lastMyCacheKey;
+  String? _lastPartnerCacheKey;
 
   final Map<String, ui.Image> _imageCache = {};
   final RxList<Marker> _trackStartEndMarkers = <Marker>[].obs;
@@ -82,7 +94,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void onInit() {
     super.onInit();
     try {
+      // 先加载本地用户信息（立即显示）
       _loadUserInfo();
+      
+      // 然后静默刷新用户信息
+      _silentRefreshUserInfo();
+      
       _initLocationService();
       tipsManager = LocationTipsManager(this);
       tipsManager.onInit();
@@ -90,6 +107,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       _initSwitchTransitionAnimation();
       _listenToSheetChanges();
       _initializePageAsync();
+      
+      // 开始页面浏览事件计时
+      _startPageViewTracking();
     } catch (e) {
       debugPrint('LocationController onInit error: $e');
     }
@@ -98,6 +118,63 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   @override
   void onReady() {
     super.onReady();
+    // 页面准备就绪时，确保已经静默刷新
+  }
+  
+  /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  void onPageResumed() {
+    debugPrint('📍 定位页面重新获得焦点，静默刷新用户信息');
+    // 先用本地数据（已经在onInit中加载）
+    // 然后静默刷新用户信息
+    _silentRefreshUserInfo();
+  }
+  
+  /// 静默刷新用户信息（不阻塞UI）
+  Future<void> _silentRefreshUserInfo() async {
+    try {
+      debugPrint('🔄 定位页面：静默刷新用户信息');
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        // 刷新成功后重新加载本地数据到UI
+        _loadUserInfo();
+      }
+    } catch (e) {
+      debugPrint('❌ 定位页面：静默刷新用户信息失败: $e');
+    }
+  }
+  
+  /// 开始页面浏览事件计时
+  Future<void> _startPageViewTracking() async {
+    try {
+      // 获取位置权限状态
+      final locationStatus = await Permission.location.status;
+      final hasLocation = locationStatus.isGranted;
+      
+      await TrackingService.trackLocationPageBegin(
+        isBindPartner: isBindPartner.value,
+        isVip: isVip.value,
+        hasLocation: hasLocation,
+      );
+    } catch (e) {
+      debugPrint('开始页面浏览事件计时失败: $e');
+    }
+  }
+  
+  /// 结束页面浏览事件计时
+  Future<void> _endPageViewTracking() async {
+    try {
+      // 获取位置权限状态
+      final locationStatus = await Permission.location.status;
+      final hasLocation = locationStatus.isGranted;
+      
+      await TrackingService.trackLocationPageEnd(
+        isBindPartner: isBindPartner.value,
+        isVip: isVip.value,
+        hasLocation: hasLocation,
+      );
+    } catch (e) {
+      debugPrint('结束页面浏览事件计时失败: $e');
+    }
   }
 
   void _initBackButtonAnimation() {
@@ -138,8 +215,45 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         isBackButtonRotated.value = false;
         backButtonAnimationController.reverse();
       }
+      
+      // 根据百分比判断当前所处的滑动状态
+      _trackScrollStatus(percent);
     });
   }
+  
+  /// 跟踪下半屏滑动状态埋点
+  void _trackScrollStatus(double percent) {
+    String currentStatus = _getScrollStatus(percent);
+    
+    // 只有当状态发生变化时才触发埋点
+    if (currentStatus != _lastScrollStatus && currentStatus.isNotEmpty) {
+      _lastScrollStatus = currentStatus;
+      TrackingService.trackSwipeOperation(
+        isVip: isVip.value,
+        scrollStatus: currentStatus,
+      );
+    }
+  }
+  
+  /// 根据百分比获取滑动状态
+  String _getScrollStatus(double percent) {
+    // 定义三个状态的阈值范围
+    // 小屏（底部）：0.15 - 0.35
+    // 中屏（中间）：0.45 - 0.65
+    // 大屏（顶部）：0.80 - 0.95
+    
+    if (percent >= 0.15 && percent < 0.35) {
+      return '小屏';
+    } else if (percent >= 0.45 && percent < 0.65) {
+      return '中屏';
+    } else if (percent >= 0.80 && percent <= 0.95) {
+      return '大屏';
+    }
+    
+    // 处于过渡状态，不触发埋点
+    return '';
+  }
+  
 
   void handleBackButtonTap([ScrollController? scrollController]) {
     if (isBackButtonRotated.value) {
@@ -171,14 +285,47 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     }
   }
 
-  Future<void> _initializePageAsync() async {
-    try {
-      await loadLocationData();
-      await Future.delayed(const Duration(milliseconds: 100));
-      await _checkLocationPermissionOnPageEnter();
-    } catch (e, stackTrace) {
-      debugPrint('Async initialization error: $e\n$stackTrace');
+  /// 收起底部面板到底部吸顶位置（切换头像时使用）
+  void collapseToBottomPosition() {
+    if (_draggableController != null) {
+      try {
+        // 动态计算底部吸顶位置（对应 snapSizes 中的第一个位置）
+        const minHeight = 190.0;
+        final screenHeight = Get.context != null 
+            ? MediaQuery.of(Get.context!).size.height 
+            : 800.0;
+        final bottomSnapSize = minHeight / screenHeight;
+        
+        _draggableController!.animateTo(
+          bottomSnapSize, // 收起到底部吸顶位置
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        debugPrint('🎯 定位页面：收起底部面板到底部吸顶位置');
+      } catch (e) {
+        debugPrint('❌ 定位页面：收起底部面板到底部位置失败: $e');
+      }
     }
+  }
+
+  /// 统一的异步初始化流程（优化：后台静默加载，不阻塞UI）
+  void _initializePageAsync() {
+    debugPrint('🚀 地图页面异步初始化流程开始（后台静默执行）');
+    
+    // 立即启动后台数据加载，不等待结果
+    // 这样地图可以立即显示，数据到了再更新
+    loadLocationData().then((_) {
+      debugPrint('📊 位置数据加载完成');
+    }).catchError((e) {
+      debugPrint('位置数据加载失败: $e');
+    });
+    
+    // 并行检查定位权限
+    _checkLocationPermissionOnPageEnter().then((_) {
+      debugPrint('📊 定位权限检查完成');
+    }).catchError((e) {
+      debugPrint('定位权限检查失败: $e');
+    });
   }
 
   void _initLocationService() {
@@ -354,7 +501,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
               fontWeight: FontWeight.bold,
             ),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         );
         textPainter.layout();
         textPainter.paint(
@@ -395,7 +542,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
             fontWeight: FontWeight.w600,
           ),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: ui.TextDirection.ltr,
       );
       labelTextPainter.layout();
       labelTextPainter.paint(
@@ -427,6 +574,8 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     required String baseAsset,
     Face? face,
   }) async {
+    final createStartTime = DateTime.now();
+    
     try {
       final pedestal = await _loadImageFromAsset(baseAsset);
       if (pedestal == null) {
@@ -526,7 +675,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
               fontWeight: FontWeight.bold,
             ),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         );
         textPainter.layout();
         textPainter.paint(
@@ -543,6 +692,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final bytes = byteData!.buffer.asUint8List();
 
+      final createDuration = DateTime.now().difference(createStartTime);
+      debugPrint('📊 创建Marker耗时: ${createDuration.inMilliseconds}ms');
+      
       return BitmapDescriptor.fromBytes(bytes);
     } catch (e) {
       debugPrint('Create avatar marker error: $e');
@@ -586,7 +738,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
                   fontFamily: 'LiuHuanKaTongShouShu',
                 ),
               ),
-              textDirection: TextDirection.ltr,
+              textDirection: ui.TextDirection.ltr,
             );
             textPainter.layout();
           }
@@ -635,10 +787,19 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   Future<ui.Image?> _loadImageFromAsset(String assetPath) async {
+    // 🚀 优化1：先从本地缓存查找
     if (_imageCache.containsKey(assetPath)) {
       return _imageCache[assetPath];
     }
 
+    // 🚀 优化2：尝试从全局预加载服务获取
+    final preloadedImage = MapPreloadService.instance.getPreloadedImage(assetPath);
+    if (preloadedImage != null) {
+      _imageCache[assetPath] = preloadedImage;
+      return preloadedImage;
+    }
+
+    // 🚀 优化3：如果都没有，才进行加载
     try {
       final ByteData data = await rootBundle.load(assetPath);
       final Uint8List bytes = data.buffer.asUint8List();
@@ -875,6 +1036,22 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   Future<void> onAvatarTapped(bool isMyself) async {
     if (isSwitchingView.value) return;
 
+    // 计算目标用户类型
+    final targetUserType = isMyself ? 1 : 0;
+    
+    // 如果点击的是当前用户，不做任何处理
+    if (isOneself.value == targetUserType) {
+      debugPrint('🎯 定位页面：点击的是当前用户头像，不切换');
+      return;
+    }
+
+    // 人物切换按钮埋点
+    await TrackingService.trackCharacterSwitch(isMyself: isMyself);
+
+    // 📱 每次切换头像时，将下半屏恢复到底部吸顶位置
+    debugPrint('💡 定位页面：切换头像，恢复下半屏到底部吸顶位置');
+    collapseToBottomPosition();
+
     isSwitchingView.value = true;
 
     Timer? safetyTimer = Timer(const Duration(seconds: 5), () {
@@ -959,11 +1136,25 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void switchMapType(int type) {
     if (mapType.value != type) {
       mapType.value = type;
+      // 地图模式切换埋点
+      _trackMapModeSwitch(type);
     }
+  }
+  
+  /// 地图模式切换埋点
+  Future<void> _trackMapModeSwitch(int mapType) async {
+    await TrackingService.trackMapModeSwitch(mapType: mapType);
   }
 
   Future<void> refreshLocationData() async {
+    // 刷新地图按钮埋点
+    await _trackRefreshMapButton();
     await loadLocationData();
+  }
+  
+  /// 刷新地图按钮埋点
+  Future<void> _trackRefreshMapButton() async {
+    await TrackingService.trackRefreshMapButton();
   }
 
   Future<void> loadLocationData({int retryCount = 0}) async {
@@ -1186,11 +1377,19 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   void performBindAction() {
+    // 立即去绑定按钮埋点
+    _trackBindNowButton();
+    
     if (Get.context != null) {
       CustomBottomDialog.show(context: Get.context!).then((_) {
         refreshUserInfo();
       });
     }
+  }
+  
+  /// 立即去绑定按钮埋点
+  Future<void> _trackBindNowButton() async {
+    await TrackingService.trackBindNowButton();
   }
 
   String _getDeviceDetailInfo(String componentText) {
@@ -1312,13 +1511,33 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       loadLocationData();
     });
   }
+  
+  /// 开通会员按钮点击
+  Future<void> onOpenMembershipButtonTap() async {
+    // 开通会员按钮埋点
+    await TrackingService.trackOpenMembershipButton();
+    
+    // 跳转到会员页面
+    Get.toNamed(KissuRoutePath.vip)?.then((_) {
+      refreshUserInfo();
+    });
+  }
 
   void navigateToQuestionPage(int? problemId) {
+    // 离线提示"查看原因"埋点
+    TrackingService.trackLocationOfflineReason();
+    
     if (problemId == null) {
-      Get.to(() => const QuestionPage());
+      Get.to(
+        () => const QuestionPage(),
+        transition: Transition.rightToLeft,
+      );
       return;
     }
-    Get.to(() => QuestionPage(targetProblemId: problemId));
+    Get.to(
+      () => QuestionPage(targetProblemId: problemId),
+      transition: Transition.rightToLeft,
+    );
   }
 
   void _startSwingAnimation() {
@@ -1412,38 +1631,95 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   Future<void> _updateIconCache() async {
+    final markerStartTime = DateTime.now();
+    
     try {
+      // 🚀 优化：我的头像Marker（使用全局缓存）
       if (myAvatar.value.isNotEmpty) {
-        _cachedMyIcon = await _createAvatarMarker(
-          myAvatar.value,
-          defaultAsset: 'assets/kissu3_love_avater.webp',
-          baseAsset: 'assets/3.0/kissu3_location_she.webp',
-          face: myFace.value,
+        final cacheKey = MapPreloadService.generateMarkerCacheKey(
+          avatarUrl: myAvatar.value,
+          faceUrl: myFace.value?.faceUrl,
+          isVirtual: false,
         );
+        
+        // 检查是否需要重新创建
+        if (_lastMyCacheKey != cacheKey || _persistentMyIcon == null) {
+          // 先尝试从全局缓存获取
+          final globalCached = MapPreloadService.instance.getCachedMarker(cacheKey);
+          
+          if (globalCached != null) {
+            _persistentMyIcon = globalCached;
+            debugPrint('🎯 使用全局缓存的我的Marker');
+          } else {
+            // 创建新的Marker
+            _persistentMyIcon = await _createAvatarMarker(
+              myAvatar.value,
+              defaultAsset: 'assets/kissu3_love_avater.webp',
+              baseAsset: 'assets/3.0/kissu3_location_she.webp',
+              face: myFace.value,
+            );
+            
+            // 保存到全局缓存
+            MapPreloadService.instance.cacheMarker(cacheKey, _persistentMyIcon!);
+          }
+          
+          _lastMyCacheKey = cacheKey;
+        }
+        
+        _cachedMyIcon = _persistentMyIcon;
         _cachedMyAvatar = myAvatar.value;
         _cachedMyFace = myFace.value;
       }
 
+      // 🚀 优化：Ta的头像Marker（使用全局缓存）
       if (partnerAvatar.value.isNotEmpty) {
-        if (isBindPartner.value) {
-          _cachedPartnerIcon = await _createAvatarMarker(
-            partnerAvatar.value,
-            defaultAsset: 'assets/kissu3_love_avater.webp',
-            baseAsset: 'assets/3.0/kissu3_location_she.webp',
-            face: partnerFace.value,
-          );
-        } else {
-          _cachedPartnerIcon = await _createAvatarMarkerWithVirtualLabel(
-            partnerAvatar.value,
-            defaultAsset: 'assets/kissu3_love_avater.webp',
-            baseAsset: 'assets/3.0/kissu3_location_she.webp',
-            face: partnerFace.value,
-          );
+        final cacheKey = MapPreloadService.generateMarkerCacheKey(
+          avatarUrl: partnerAvatar.value,
+          faceUrl: partnerFace.value?.faceUrl,
+          isVirtual: !isBindPartner.value,
+        );
+        
+        // 检查是否需要重新创建
+        if (_lastPartnerCacheKey != cacheKey || _persistentPartnerIcon == null) {
+          // 先尝试从全局缓存获取
+          final globalCached = MapPreloadService.instance.getCachedMarker(cacheKey);
+          
+          if (globalCached != null) {
+            _persistentPartnerIcon = globalCached;
+            debugPrint('🎯 使用全局缓存的Ta的Marker');
+          } else {
+            // 创建新的Marker
+            if (isBindPartner.value) {
+              _persistentPartnerIcon = await _createAvatarMarker(
+                partnerAvatar.value,
+                defaultAsset: 'assets/kissu3_love_avater.webp',
+                baseAsset: 'assets/3.0/kissu3_location_she.webp',
+                face: partnerFace.value,
+              );
+            } else {
+              _persistentPartnerIcon = await _createAvatarMarkerWithVirtualLabel(
+                partnerAvatar.value,
+                defaultAsset: 'assets/kissu3_love_avater.webp',
+                baseAsset: 'assets/3.0/kissu3_location_she.webp',
+                face: partnerFace.value,
+              );
+            }
+            
+            // 保存到全局缓存
+            MapPreloadService.instance.cacheMarker(cacheKey, _persistentPartnerIcon!);
+          }
+          
+          _lastPartnerCacheKey = cacheKey;
         }
+        
+        _cachedPartnerIcon = _persistentPartnerIcon;
         _cachedPartnerAvatar = partnerAvatar.value;
         _cachedPartnerFace = partnerFace.value;
         _cachedIsBindPartner = isBindPartner.value;
       }
+      
+      final markerDuration = DateTime.now().difference(markerStartTime);
+      debugPrint('📊 Marker创建/缓存耗时: ${markerDuration.inMilliseconds}ms');
     } catch (e) {
       debugPrint('Update icon cache error: $e');
     }
@@ -1451,6 +1727,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
   @override
   void onClose() {
+    // 结束页面浏览事件计时
+    _endPageViewTracking();
+    
     try {
       hideTooltip();
     } catch (e) {
