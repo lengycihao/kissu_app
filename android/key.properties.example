@@ -1,0 +1,5 @@
+storePassword=111111
+keyPassword=111111
+keyAlias=kissu
+storeFile=kissu1.keystore
+

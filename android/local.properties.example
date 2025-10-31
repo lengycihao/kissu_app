@@ -1,0 +1,15 @@
+# 配置本地SDK路径
+# Windows示例：
+# sdk.dir=D:\\developDependence\\Android\\SDK
+# flutter.sdk=D:\\developDependence\\flutter
+
+# Mac/Linux示例：
+# sdk.dir=/Users/username/Library/Android/sdk
+# flutter.sdk=/Users/username/flutter
+
+sdk.dir=YOUR_ANDROID_SDK_PATH
+flutter.sdk=YOUR_FLUTTER_SDK_PATH
+flutter.buildMode=release
+flutter.versionName=1.0.5
+flutter.versionCode=5
+
