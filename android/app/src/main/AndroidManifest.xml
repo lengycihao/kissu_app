@@ -15,7 +15,7 @@
         <!-- 友盟分享配置 -->
         <meta-data
             android:name="UMENG_APPKEY"
-            android:value="6879fbe579267e0210b67be9" />
+            android:value="6879fba679267e0210b67bde" />
         <meta-data
             android:name="UMENG_CHANNEL"
             android:value="Umeng" />

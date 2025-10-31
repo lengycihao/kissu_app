@@ -244,19 +244,27 @@ class MessageCenterPage extends GetView<MessageCenterController> {
         );
       }
 
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: 20),
-        itemCount: controller.messageList.length,
-        itemBuilder: (context, index) {
-          final messageGroup = controller.messageList[index];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildDateHeader(messageGroup.date),
-              ...messageGroup.list.map((message) => _buildMessageItem(message)),
-            ],
-          );
+      return NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          controller.handleScroll(notification);
+          return false;
         },
+        child: ListView.builder(
+          controller: controller.scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 20),
+          itemCount: controller.messageList.length,
+          itemBuilder: (context, index) {
+            final messageGroup = controller.messageList[index];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildDateHeader(messageGroup.date),
+                ...messageGroup.list.map((message) => _buildMessageItem(message)),
+              ],
+            );
+          },
+        ),
       );
     });
   }

@@ -17,7 +17,7 @@ class DiscountBottomSheet extends StatefulWidget {
 }
 
 class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
-  // 选中的支付方式 (0: 支付宝, 1: 微信)
+  // 选中的支付方式 (0: 微信, 1: 支付宝)
   int selectedPaymentMethod = 0;
 
   @override
@@ -120,14 +120,14 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildPaymentOption(
-                  'assets/kissu_vip_alipay.webp',
-                  '支付宝支付',
+                  'assets/kissu_vip_wechat.webp',
+                  '微信支付',
                   selectedPaymentMethod == 0,
                   () => setState(() => selectedPaymentMethod = 0),
                 ),
                 _buildPaymentOption(
-                  'assets/kissu_vip_wechat.webp',
-                  '微信支付',
+                  'assets/kissu_vip_alipay.webp',
+                  '支付宝支付',
                   selectedPaymentMethod == 1,
                   () => setState(() => selectedPaymentMethod = 1),
                 ),

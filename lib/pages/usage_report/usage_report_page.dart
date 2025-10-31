@@ -77,81 +77,91 @@ class UsageReportPage extends GetView<UsageReportController> {
           ],
         ),
         Obx(() {
-          if (!controller.isUserBound.value) {
+          // 判断是否需要显示蒙版：未绑定 或 已绑定但未开会员
+          final shouldShowMask = !controller.isUserBound.value || 
+                                 (controller.isUserBound.value && !controller.isUserVip.value);
+          
+          if (shouldShowMask) {
             return Positioned(
-              top: 190, //
+              top: 190,
               left: 0,
               right: 0,
               bottom: 90,
               child: Container(
-              decoration: BoxDecoration(
-                color: Color(0xffffffff),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
+                decoration: BoxDecoration(
+                  color: Color(0xffffffff),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
                 ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 10,
-                    left: 0,
-                    right: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 320,
-
-                          decoration: BoxDecoration(
-                            image: DecorationImage(
-                              image: AssetImage(
-                                'assets/kissu3_history_unbind_bg.webp',
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 10,
+                      left: 0,
+                      right: 0,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 320,
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(
+                                  'assets/kissu3_history_unbind_bg.webp',
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            controller.handleBindButtonClick();
-                          },
-                          child: Container(
-                            margin: EdgeInsets.only(left: 72,top: 20),
-                            width: 135,
-                            height: 35,
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFF408D),
-                              borderRadius: BorderRadius.circular(40),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '立即绑定',
-                              style: TextStyle(fontSize: 16, color: Colors.white),
+                          // 根据状态显示不同的按钮
+                          GestureDetector(
+                            onTap: () {
+                              if (!controller.isUserBound.value) {
+                                // 未绑定：显示绑定弹窗
+                                controller.handleBindButtonClick();
+                              } else {
+                                // 已绑定但未开会员：跳转到VIP页面
+                                controller.handleVipButtonClick();
+                              }
+                            },
+                            child: Container(
+                              margin: EdgeInsets.only(left: 72, top: 20),
+                              width: 150,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(
+                                    !controller.isUserBound.value
+                                        ? 'assets/kissu3_go_bind.webp'  // 未绑定
+                                        : 'assets/kissu3_go_vip.webp',  // 已绑定未开会员
+                                  ),
+                                  fit: BoxFit.fill,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 104,
-                      height: 160,
-
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage(
-                            'assets/kissu3_history_unbind_heart.webp',
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 104,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: AssetImage(
+                              'assets/kissu3_history_unbind_heart.webp',
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             );
           } else {
             return SizedBox.shrink();

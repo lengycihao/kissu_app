@@ -23,7 +23,7 @@ import 'package:kissu_app/services/map_preload_service.dart';
 import 'widgets/location_tips_manager.dart';
 
 class LocationV2Controller extends GetxController with GetTickerProviderStateMixin {
-  final isOneself = 0.obs;
+  final isOneself = 1.obs;  // 默认看自己（未绑定时不显示虚拟数据）
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
   final myFace = Rx<Face?>(null);
@@ -378,6 +378,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
       isVip.value = UserManager.isVip;
+
+      // 未绑定时强制设置为看自己（不显示虚拟数据）
+      if (!isBindPartner.value) {
+        isOneself.value = 1;
+      }
 
       if (myAvatar.value.isEmpty) {
         myAvatar.value = user.headPortrait ?? '';
@@ -824,6 +829,49 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     try {
       final List<Marker> tempMarkers = [];
 
+      // 未绑定时只显示自己的位置
+      if (!isBindPartner.value) {
+        LatLng? myPos = actualMyLocation.value ?? myLocation.value;
+        
+        // 如果还没有位置数据，尝试从实时定位服务获取
+        if (myPos == null) {
+          try {
+            final currentLoc = _locationService.currentLocation.value;
+            if (currentLoc != null) {
+              final lat = double.tryParse(currentLoc.latitude);
+              final lng = double.tryParse(currentLoc.longitude);
+              if (lat != null && lng != null) {
+                myPos = LatLng(lat, lng);
+                debugPrint('📍 使用实时定位服务创建 marker: ($lat, $lng)');
+              }
+            }
+          } catch (e) {
+            debugPrint('获取实时位置创建 marker 失败: $e');
+          }
+        }
+        
+        if (myPos != null) {
+          try {
+            final BitmapDescriptor myIcon = _cachedMyIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+
+            final capturedPos = myPos; // 捕获非空值到局部变量
+            final myMarker = Marker(
+              position: capturedPos,
+              icon: myIcon,
+              anchor: const Offset(0.5, 1.0),
+              onTap: (String markerId) {
+                _moveMapToLocation(capturedPos);
+              },
+            );
+            myMarker.setIdForCopy('my_marker');
+            tempMarkers.add(myMarker);
+          } catch (e) {
+            debugPrint('Create my marker error: $e');
+          }
+        }
+      } else {
+        // 已绑定时显示两个人的位置
       final LatLng? myPos = actualMyLocation.value ?? myLocation.value;
       if (myPos != null) {
         try {
@@ -863,6 +911,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
           tempMarkers.add(partnerMarker);
         } catch (e) {
           debugPrint('Create partner marker error: $e');
+          }
         }
       }
 
@@ -888,6 +937,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void _updatePolylines() {
     _polylines.clear();
 
+    // 未绑定时不显示连线
+    if (!isBindPartner.value) {
+      return;
+    }
+
     if (myLocation.value != null && partnerLocation.value != null) {
       final List<LatLng> connectionPoints = [
         myLocation.value!,
@@ -912,6 +966,36 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   int get polylinesLength => _polylines.length;
 
   CameraPosition get initialCameraPosition {
+    // 未绑定时对准自己的真实位置，缩放级别18
+    if (!isBindPartner.value) {
+      // 优先使用 actualMyLocation
+      if (actualMyLocation.value != null) {
+        return CameraPosition(target: actualMyLocation.value!, zoom: 18.0);
+      }
+      
+      // 其次尝试从实时定位服务获取当前位置
+      try {
+        final currentLoc = _locationService.currentLocation.value;
+        if (currentLoc != null) {
+          final lat = double.tryParse(currentLoc.latitude);
+          final lng = double.tryParse(currentLoc.longitude);
+          if (lat != null && lng != null) {
+            debugPrint('📍 未绑定时使用实时定位服务位置: ($lat, $lng)');
+            return CameraPosition(target: LatLng(lat, lng), zoom: 18.0);
+          }
+        }
+      } catch (e) {
+        debugPrint('获取实时位置失败: $e');
+      }
+      
+      // 最后使用默认位置
+      return const CameraPosition(
+        target: LatLng(30.2741, 120.2206),
+        zoom: 18.0,
+      );
+    }
+    
+    // 已绑定时的逻辑
     if (myLocation.value != null && partnerLocation.value != null) {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
@@ -953,7 +1037,10 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void onMapCreated(AMapController controller) {
     mapController = controller;
 
-    if (myLocation.value != null || partnerLocation.value != null) {
+    // 未绑定时，立即尝试使用实时位置创建 marker
+    if (!isBindPartner.value) {
+      _initTrackStartEndMarkers();
+    } else if (myLocation.value != null || partnerLocation.value != null) {
       _initTrackStartEndMarkers();
     }
 
@@ -983,6 +1070,42 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   Future<void> _animateMapToShowBothUsersSync() async {
+    // 未绑定时对准自己的真实位置，缩放级别18
+    if (!isBindPartner.value) {
+      LatLng? targetLocation = actualMyLocation.value;
+      
+      // 如果没有位置数据，尝试从实时定位服务获取
+      if (targetLocation == null) {
+        try {
+          final currentLoc = _locationService.currentLocation.value;
+          if (currentLoc != null) {
+            final lat = double.tryParse(currentLoc.latitude);
+            final lng = double.tryParse(currentLoc.longitude);
+            if (lat != null && lng != null) {
+              targetLocation = LatLng(lat, lng);
+              debugPrint('📍 地图动画使用实时定位服务位置: ($lat, $lng)');
+            }
+          }
+        } catch (e) {
+          debugPrint('获取实时位置失败: $e');
+        }
+      }
+      
+      if (targetLocation != null) {
+        try {
+          await mapController!.moveCamera(
+            CameraUpdate.newLatLngZoom(targetLocation, 18.0),
+            animated: true,
+            duration: 500,
+          );
+        } catch (e) {
+          debugPrint('Animate map error: $e');
+        }
+      }
+      return;
+    }
+    
+    // 已绑定时的逻辑
     if (myLocation.value != null && partnerLocation.value != null) {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
@@ -1174,7 +1297,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
           _updateActualMyLocationData(locationDataResult.userLocationMobileDevice!);
         }
 
-        if (locationDataResult.halfLocationMobileDevice != null) {
+        // 未绑定时不处理对方的数据（避免加载虚拟数据）
+        if (!isBindPartner.value) {
+          // 清空对方的位置数据
+          partnerLocation.value = null;
+          actualPartnerLocation.value = null;
+        } else if (locationDataResult.halfLocationMobileDevice != null) {
           _updatePartnerAvatarData(locationDataResult.halfLocationMobileDevice!);
           _updateActualPartnerLocationData(locationDataResult.halfLocationMobileDevice!);
         }
@@ -1182,7 +1310,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         UserLocationMobileDevice? currentUser;
         UserLocationMobileDevice? partnerUser;
 
-        if (isOneself.value == 1) {
+        // 未绑定时只使用自己的数据
+        if (!isBindPartner.value) {
+          currentUser = locationDataResult.userLocationMobileDevice;
+          partnerUser = null;  // 不使用虚拟数据
+        } else if (isOneself.value == 1) {
           currentUser = locationDataResult.userLocationMobileDevice;
           partnerUser = locationDataResult.halfLocationMobileDevice;
         } else {
@@ -1392,6 +1524,29 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     await TrackingService.trackBindNowButton();
   }
 
+  /// 位置提醒按钮点击处理
+  Future<void> onLocationReminderButtonTap() async {
+    // 埋点：位置提醒按钮点击
+    await TrackingService.trackLocationReminderButton();
+    
+    // 判断绑定状态
+    if (!isBindPartner.value) {
+      // 未绑定 -> 弹出绑定弹窗
+      debugPrint('📍 位置提醒：未绑定，弹出绑定弹窗');
+      // 上报埋点：定位-立刻去绑定（位置提醒未绑定场景）
+      await TrackingService.trackLocationToBind();
+      performBindAction();
+    } else if (!isVip.value) {
+      // 已绑定但非会员 -> 跳转到开通会员页面
+      debugPrint('📍 位置提醒：已绑定但非会员，跳转到开通会员页面');
+      onOpenMembershipButtonTap();
+    } else {
+      // 已绑定且是会员 -> 跳转到位置提醒页面
+      debugPrint('📍 位置提醒：已绑定且是会员，跳转到位置提醒页面');
+      Get.toNamed(KissuRoutePath.locationReminder);
+    }
+  }
+
   String _getDeviceDetailInfo(String componentText) {
     if (componentText == myDeviceModel.value) {
       return "设备型号：${myDeviceModel.value}";
@@ -1518,7 +1673,13 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     await TrackingService.trackOpenMembershipButton();
     
     // 跳转到会员页面
-    Get.toNamed(KissuRoutePath.vip)?.then((_) {
+    Get.toNamed(
+      KissuRoutePath.vip,
+      arguments: {
+        'previousPageName': '定位页面',
+        'previousPageId': 'location_page',
+      },
+    )?.then((_) {
       refreshUserInfo();
     });
   }

@@ -22,16 +22,29 @@ class VipPage extends GetView<VipController> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final paymentComponentHeight = 44 + 10 + 50 + 15 + 20 + 10 + 25 + bottomPadding + 20; // 额外增加20px缓冲
     
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF4),
-      body: Stack(
+    return WillPopScope(
+      onWillPop: () async {
+        // 拦截物理返回键，显示挽留弹窗
+        await controller.onBackTap();
+        return false; // 阻止默认返回行为
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFFDF4),
+        body: Stack(
         children: [
           // 主要内容区域 - 添加底部padding为支付组件留出空间
-          SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: paymentComponentHeight), // 动态计算底部padding
-              child: Column(
-                children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              controller.handleScroll(notification);
+              return false;
+            },
+            child: SingleChildScrollView(
+              controller: controller.mainScrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: paymentComponentHeight), // 动态计算底部padding
+                child: Column(
+                  children: [
                   // 顶部轮播图 - 紧贴屏幕顶部，全宽度
                   _buildTopCarousel(),
 
@@ -109,7 +122,8 @@ class VipPage extends GetView<VipController> {
                       ],
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -119,7 +133,7 @@ class VipPage extends GetView<VipController> {
             left: 20,
             top: 55,
             child: GestureDetector(
-              onTap: () => Get.back(),
+              onTap: controller.onBackTap,
               child: Padding(
                 padding: EdgeInsets.all(8.0).copyWith(top: 0),
                
@@ -142,6 +156,7 @@ class VipPage extends GetView<VipController> {
             child: _buildPaymentComponent(),
           ),
         ],
+      ),
       ),
     );
   }
@@ -718,14 +733,14 @@ class VipPage extends GetView<VipController> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildPaymentOption(
-                  'assets/kissu_vip_alipay.webp',
-                  '支付宝支付',
+                  'assets/kissu_vip_wechat.webp',
+                  '微信支付',
                   controller.selectedPaymentMethod.value == 0,
                   () => controller.selectPaymentMethod(0),
                 ),
                 _buildPaymentOption(
-                  'assets/kissu_vip_wechat.webp',
-                  '微信支付',
+                  'assets/kissu_vip_alipay.webp',
+                  '支付宝支付',
                   controller.selectedPaymentMethod.value == 1,
                   () => controller.selectPaymentMethod(1),
                 ),
@@ -807,7 +822,9 @@ class VipPage extends GetView<VipController> {
           color: Color(0xFFFF839E), // 高亮蓝色
          ),
         recognizer: TapGestureRecognizer()
-          ..onTap = () {
+          ..onTap = () async {
+            // 上报服务协议点击埋点
+            await controller.onServiceAgreementTap();
             AgreementUtils.toVipAgreement();
           },
       ),

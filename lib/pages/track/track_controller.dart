@@ -116,6 +116,15 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 加载用户信息（先用本地数据）
     _userManager.loadUserInfo();
     
+    // 🎯 根据绑定状态设置默认显示用户
+    // 默认已经是显示自己（currentUserType = 1），只有已绑定时才切换到显示另一半
+    if (_userManager.isBindPartner.value) {
+      _dataManager.currentUserType.value = 0; // 显示另一半
+      DebugUtil.info('🎯 已绑定，切换到显示另一半的轨迹');
+    } else {
+      DebugUtil.info('🎯 未绑定，保持显示自己的轨迹');
+    }
+    
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
     
@@ -145,6 +154,15 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       if (success) {
         // 刷新成功后重新加载本地数据到UI
         _userManager.loadUserInfo();
+        
+        // 🎯 刷新后重新检查绑定状态，确保显示正确的用户
+        if (_userManager.isBindPartner.value && _dataManager.currentUserType.value != 0) {
+          _dataManager.currentUserType.value = 0; // 已绑定：切换到显示另一半
+          DebugUtil.info('🎯 刷新后发现已绑定，切换到显示另一半的轨迹');
+        } else if (!_userManager.isBindPartner.value && _dataManager.currentUserType.value != 1) {
+          _dataManager.currentUserType.value = 1; // 未绑定：切换到显示自己
+          DebugUtil.info('🎯 刷新后发现未绑定，切换到显示自己的轨迹');
+        }
       }
     } catch (e) {
       DebugUtil.error('❌ 足迹页面：静默刷新用户信息失败: $e');

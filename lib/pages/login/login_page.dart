@@ -343,7 +343,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
       keyboardType: isCodeField ? TextInputType.number : TextInputType.phone,
       inputFormatters: isCodeField
-          ? [FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(6),] // 验证码只能输入数字
+          ? [FilteringTextInputFormatter.digitsOnly] // 验证码只能输入数字，无位数限制
           : [
               FilteringTextInputFormatter.digitsOnly, // 手机号只能输入数字
               LengthLimitingTextInputFormatter(11), // 最多 11 位

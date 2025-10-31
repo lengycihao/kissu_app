@@ -156,7 +156,13 @@ class _ScreenTimeDetailPageState extends State<ScreenTimeDetailPage> {
                   }
                   
                   // 跳转到VIP页面
-                  await Get.toNamed(KissuRoutePath.vip);
+                  await Get.toNamed(
+                    KissuRoutePath.vip,
+                    arguments: {
+                      'previousPageName': '屏幕使用详情页',
+                      'previousPageId': 'undo', // 该页面还没有埋点
+                    },
+                  );
                   // VIP页面返回后刷新用户信息
                   await UserManager.refreshUserInfo();
                   // 刷新数据

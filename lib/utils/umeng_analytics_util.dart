@@ -51,6 +51,11 @@ class UmengAnalytics {
   /// [appKey] 友盟AppKey，如果不传则使用项目配置的key
   /// [channel] 渠道标识，默认为'Umeng'
   /// [logEnabled] 是否开启日志，默认为false
+  /// 
+  /// ⚠️ 注意：根据友盟合规要求，初始化流程如下：
+  /// 1. 调用 init() 进行预初始化（包含 preInit）
+  /// 2. 用户同意隐私政策后，调用 submitPolicyGrantResult(true)
+  /// 3. 开始正常使用统计功能
   static Future<void> init({
     String? appKey,
     String? channel,
@@ -58,7 +63,7 @@ class UmengAnalytics {
   }) async {
     try {
       await _channel.invokeMethod('umeng_init', {
-        'appKey': appKey ?? '6879fbe579267e0210b67be9',
+        'appKey': appKey ?? '6879fba679267e0210b67bde',
         'channel': channel ?? 'Umeng',
         'logEnabled': logEnabled,
       });
@@ -66,6 +71,34 @@ class UmengAnalytics {
       DebugUtil.success('友盟统计初始化成功');
     } catch (e) {
       DebugUtil.error('友盟统计初始化失败: $e');
+    }
+  }
+  
+  /// 提交隐私政策授权结果
+  /// 
+  /// [granted] 用户是否同意隐私政策，true表示同意，false表示不同意
+  /// 
+  /// ⚠️ 必须在用户明确同意隐私政策后调用此方法，传入 true
+  /// 
+  /// 使用示例：
+  /// ```dart
+  /// // 1. 先初始化友盟
+  /// await UmengAnalytics.init();
+  /// 
+  /// // 2. 用户同意隐私政策后，提交授权结果
+  /// await UmengAnalytics.submitPolicyGrantResult(true);
+  /// 
+  /// // 3. 开始使用统计功能
+  /// await UmengAnalytics.logEvent('user_login');
+  /// ```
+  static Future<void> submitPolicyGrantResult(bool granted) async {
+    try {
+      await _channel.invokeMethod('umeng_submitPolicyGrantResult', {
+        'granted': granted,
+      });
+      DebugUtil.success('友盟隐私政策授权已提交: granted=$granted');
+    } catch (e) {
+      DebugUtil.error('友盟隐私政策授权提交失败: $e');
     }
   }
   

@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/share_service.dart';
+import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/relationship_animation_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
@@ -42,6 +44,9 @@ class CustomBottomDialogController extends GetxController {
   // 输入的匹配码（用于响应式更新UI）
   var inputMatchCode = ''.obs;
 
+  // 页面浏览时长统计
+  DateTime? _pageEnterTime;
+
   @override
   void onInit() {
     super.onInit();
@@ -55,13 +60,67 @@ class CustomBottomDialogController extends GetxController {
       );
     });
 
+    // 记录页面进入时间（用于计算停留时长）
+    _pageEnterTime = DateTime.now();
+
     _loadUserInfo();
   }
 
   @override
   void onClose() {
+    // 上报页面浏览埋点
+    _trackPageView();
+    
     matchCodeController.dispose();
     super.onClose();
+  }
+
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 获取上一个页面名称和ID
+      final pageInfo = _getPreviousPageInfo();
+      
+      // 上报埋点
+      await TrackingService.trackBindPageView(
+        stayDuration: stayDuration,
+        previousName: pageInfo['name']!,
+        previousId: pageInfo['id']!,
+      );
+      
+      print('✅ 绑定页面浏览埋点上报成功: 停留时长=$stayDuration, 上一页=${pageInfo['name']}, 页面ID=${pageInfo['id']}');
+    } catch (e) {
+      print('❌ 绑定页面浏览埋点上报失败: $e');
+    }
+  }
+
+  /// 获取上一个页面信息（基于调用者类型）
+  Map<String, String> _getPreviousPageInfo() {
+    if (caller == null) {
+      return {'name': '未知页面', 'id': 'unknown'};
+    }
+    
+    switch (caller!) {
+      case BindingDialogCaller.home:
+        return {'name': '首页', 'id': 'home'};
+      case BindingDialogCaller.mine:
+        return {'name': '我的页面', 'id': 'mine'};
+      case BindingDialogCaller.loveInfo:
+        return {'name': '恋爱信息页面', 'id': 'love_info'};
+      case BindingDialogCaller.track:
+        return {'name': '足迹页面', 'id': 'track'};
+      case BindingDialogCaller.location:
+        return {'name': '定位页面', 'id': 'location'};
+      case BindingDialogCaller.usageReport:
+        return {'name': '用机记录页面', 'id': 'usage_report'};
+    }
   }
 
   /// 加载用户信息
@@ -96,13 +155,14 @@ class CustomBottomDialogController extends GetxController {
     try {
       isLoading.value = true;
 
+      // 上报绑定按钮点击埋点
+      await TrackingService.trackBindCodeButton();
+
       // 调用绑定API
       final authApi = AuthApi();
       final result = await authApi.bindPartner(friendCode: inputCode);
 
       if (result.isSuccess) {
-        OKToastUtil.show('绑定成功');
-
         // 刷新用户信息
         await _refreshUserInfo();
 
@@ -110,10 +170,33 @@ class CustomBottomDialogController extends GetxController {
         Get.back();
         print('绑定成功，关闭弹窗');
 
-        // 延迟刷新当前页面数据
-        Future.delayed(const Duration(milliseconds: 500), () {
-          _refreshCurrentPageData();
-        });
+        // 刷新当前页面数据
+        _refreshCurrentPageData();
+
+        // 播放绑定成功动画，动画完成后跳转到VIP页面
+        try {
+          final animationService = RelationshipAnimationService.instance;
+          animationService.showBindAnimation(onComplete: () {
+            print('🎯 绑定动画播放完成，准备跳转到VIP页面');
+            Get.toNamed(
+              KissuRoutePath.vip,
+              arguments: {
+                'previousPageName': '绑定弹窗',
+                'previousPageId': 'binding_dialog',
+              },
+            );
+          });
+        } catch (e) {
+          print('❌ 播放绑定动画失败: $e');
+          // 如果动画服务失败，直接跳转到VIP页面
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'previousPageName': '绑定弹窗',
+              'previousPageId': 'binding_dialog',
+            },
+          );
+        }
       } else {
         OKToastUtil.show(result.msg ?? '绑定失败');
       }
@@ -239,18 +322,27 @@ class CustomBottomDialogController extends GetxController {
 
   /// 分享到QQ
   void shareToQQ() {
+    // 上报QQ邀请埋点
+    TrackingService.trackQQInvite();
+    
     Get.back(); // 关闭弹窗
     _shareInvite(target: 'QQ');
   }
 
   /// 分享到微信
   void shareToWechat() {
+    // 上报微信邀请埋点
+    TrackingService.trackWechatInvite();
+    
     Get.back(); // 关闭弹窗
     _shareInvite(target: '微信');
   }
 
   /// 扫描二维码
   void scanQRCode() {
+    // 上报扫码按钮埋点
+    TrackingService.trackScanToBind();
+    
     Get.toNamed(KissuRoutePath.qrScanPage)?.then((value) {
       if (value is String && value.isNotEmpty) {
         // 根据扫码结果做处理

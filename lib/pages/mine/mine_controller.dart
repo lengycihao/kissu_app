@@ -19,7 +19,9 @@ import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
+import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart';
 import 'package:kissu_app/services/screen_usage_service.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/pages/debug/screen_lock_debug_page.dart';
 
 class MineController extends GetxController {
@@ -69,10 +71,25 @@ class MineController extends GetxController {
   // 下拉刷新相关
   var isRefreshing = false.obs;
 
+  // 页面浏览时长统计
+  DateTime? _pageEnterTime;
+  
+  // 滑动相关
+  late ScrollController scrollController;
+  var scrollTimes = 0.obs; // 滑动次数
+  var hasScrolled = false.obs; // 是否滑动过
+
   @override
   void onInit() {
     super.onInit();
     _initSettingItems();
+    
+    // 初始化滚动控制器
+    scrollController = ScrollController();
+    
+    // 记录页面进入时间（用于计算停留时长）
+    _pageEnterTime = DateTime.now();
+    
     // 先加载本地用户信息（立即显示）
     loadUserInfo();
     // 然后静默刷新用户信息
@@ -83,6 +100,56 @@ class MineController extends GetxController {
   void onReady() {
     super.onReady();
     // 页面准备就绪时，确保已经静默刷新
+  }
+
+  @override
+  void onClose() {
+    // 上报页面浏览埋点
+    _trackPageView();
+    
+    // 释放滚动控制器
+    scrollController.dispose();
+    
+    super.onClose();
+  }
+
+  /// 处理滑动事件
+  void handleScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      // 只要发生滚动，标记为已滑动
+      if (!hasScrolled.value) {
+        hasScrolled.value = true;
+      }
+      
+      // 滑动距离超过 10 像素时，计数一次
+      if (notification.scrollDelta!.abs() > 10) {
+        scrollTimes.value++;
+        debugPrint('📊 我的页面：滑动次数 = ${scrollTimes.value}');
+      }
+    }
+  }
+
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 上报埋点
+      await TrackingService.trackMyPageView(
+        stayDuration: stayDuration,
+        canScroll: hasScrolled.value,
+        scrollTimes: scrollTimes.value,
+      );
+      
+      debugPrint('✅ 我的页面浏览埋点上报成功: 停留时长=$stayDuration, 是否滑动=${hasScrolled.value}, 滑动次数=${scrollTimes.value}');
+    } catch (e) {
+      debugPrint('❌ 我的页面浏览埋点上报失败: $e');
+    }
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
@@ -232,7 +299,11 @@ class MineController extends GetxController {
     isVip.value = vipStatus == 1;
     isForeverVip.value = foreverVipStatus == 1;
 
-    if (isForeverVip.value) {
+    // 如果未绑定，显示"立即去绑定"
+    if (!isBound.value) {
+      vipButtonText.value = "立即去绑定";
+      vipDateText.value = "一人开通，两人均能享受六大专属权益";
+    } else if (isForeverVip.value) {
       // 终身会员
       vipButtonText.value = "查看权益";
       vipDateText.value = "终身陪伴kissu";
@@ -298,49 +369,67 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/kissu_mine_item_syst.webp",
         title: "首页视图",
-        onTap: () => Get.to(
-          SettingHomePage(),
-          transition: Transition.rightToLeft,
-        ),
+        onTap: () async {
+          await TrackingService.trackHomeView();
+          Get.to(
+            SettingHomePage(),
+            transition: Transition.rightToLeft,
+          );
+        },
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_xtqx.webp",
         title: "系统权限",
-        onTap: () => Get.toNamed(KissuRoutePath.systemPermission),
+        onTap: () async {
+          await TrackingService.trackSystemPermissions();
+          Get.toNamed(KissuRoutePath.systemPermission);
+        },
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_gywm.webp",
         title: "关于我们",
-        onTap: () => Get.to(
-          AboutUsPage(),
-          transition: Transition.rightToLeft,
-        ),
+        onTap: () async {
+          await TrackingService.trackAboutUs();
+          Get.to(
+            AboutUsPage(),
+            transition: Transition.rightToLeft,
+          );
+        },
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_cjwt.webp",
         title: "常见问题",
-         onTap: () => Get.to(
-          QuestionPage(),
-          transition: Transition.rightToLeft,
-        ),
+         onTap: () async {
+          await TrackingService.trackFaq();
+          Get.to(
+            QuestionPage(),
+            transition: Transition.rightToLeft,
+          );
+        },
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_lxwm.webp",
         title: "联系我们",
-        onTap: openContact,
+        onTap: _onContactTap,
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_yjfk.webp",
         title: "意见反馈",
-        onTap: () => Get.toNamed(KissuRoutePath.feedback),
+        onTap: () async {
+          await TrackingService.trackFeedback();
+          Get.toNamed(KissuRoutePath.feedback);
+        },
       ),
       SettingItem(
         icon: "assets/kissu_mine_item_ysaq.webp",
         title: "账号及隐私安全",
-        onTap: () => Get.to(
-          PrivacySettingPage(),
-          transition: Transition.rightToLeft,
-        ),
+        onTap: () async {
+          await TrackingService.trackAccountPrivacySecurity();
+          Get.to(
+            PrivacySettingPage(),
+            transition: Transition.rightToLeft,
+          );
+        },
       ),
     ];
   }
@@ -550,11 +639,16 @@ class MineController extends GetxController {
 
   // 顶部返回
   void onBackTap() {
+    // 上报返回按钮点击埋点
+    TrackingService.trackMyLeaveEvent();
     Get.back();
   }
 
   // 点击恋爱信息标签
   void onLabelTap() async {
+    // 上报恋爱信息入口点击埋点
+    await TrackingService.trackEditInfoPage();
+    
     await Get.to(
       LoveInfoPage(),
       transition: Transition.rightToLeft,
@@ -579,6 +673,9 @@ class MineController extends GetxController {
   void onPartnerAvatarTap() async {
     // 如果未绑定，显示绑定弹窗
     if (!isBound.value) {
+      // 上报绑定页面点击埋点
+      await TrackingService.trackMyBindPage();
+      
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
@@ -586,6 +683,9 @@ class MineController extends GetxController {
         );
       }
     } else {
+      // 上报恋爱信息入口点击埋点
+      await TrackingService.trackEditInfoPage();
+      
       // 如果已绑定，跳转到恋爱信息页面
       await Get.to(
         LoveInfoPage(),
@@ -604,6 +704,10 @@ class MineController extends GetxController {
     // 如果已绑定，跳转到恋爱信息页面
     if (isBound.value) {
       print('🔥 用户已绑定，跳转到恋爱信息页面');
+      
+      // 上报恋爱信息入口点击埋点
+      await TrackingService.trackEditInfoPage();
+      
       await Get.to(
         LoveInfoPage(),
         transition: Transition.rightToLeft,
@@ -643,18 +747,99 @@ class MineController extends GetxController {
   }
 
   // 会员续费/开通
-  void onRenewTap() {
+  void onRenewTap() async {
     print('💫 VIP按钮被点击');
+
+    // 如果未绑定，弹出绑定弹窗
+    if (!isBound.value) {
+      print('💫 用户未绑定，弹出绑定弹窗');
+      
+      // 上报绑定页面点击埋点
+      await TrackingService.trackMyBindPage();
+      
+      if (Get.context != null) {
+        CustomBottomDialog.show(
+          context: Get.context!,
+          caller: BindingDialogCaller.mine,
+          isDismissible: false,  // 禁用点击背景关闭
+          enableDrag: false,     // 禁用向下滑动关闭
+          onCloseConfirm: () async {
+            // 点击关闭按钮时，弹出二次确认弹窗
+            return await _showBindingCloseConfirmDialog();
+          },
+        ).then((_) {
+          // 绑定弹窗关闭后，刷新页面数据
+          onPageResumed();
+        });
+      }
+      return;
+    }
 
     if (isForeverVip.value) {
       // 永久会员，跳转到权益页面
       print('💫 永久会员，跳转到权益页面');
-      Get.toNamed(KissuRoutePath.foreverVip);
+      
+      // 上报开通会员点击埋点（终身会员页面）
+      await TrackingService.trackMyOpenMembership(vipPageType: '终身会员页面');
+      
+      Get.toNamed(
+        KissuRoutePath.foreverVip,
+        arguments: {
+          'previousPageName': '我的页面',
+          'previousPageId': 'my_page',
+        },
+      );
     } else {
       // 普通会员或非会员，跳转到VIP页面
       print('💫 普通会员或非会员，跳转到VIP页面');
-      Get.toNamed(KissuRoutePath.vip);
+      
+      // 上报开通会员点击埋点（会员页面）
+      await TrackingService.trackMyOpenMembership(vipPageType: '会员页面');
+      
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {
+          'previousPageName': '我的页面',
+          'previousPageId': 'my_page',
+        },
+      );
      }
+  }
+  
+  /// 显示绑定弹窗关闭确认弹窗
+  /// 返回 true 表示用户选择关闭绑定弹窗，返回 false 表示继续留在绑定弹窗
+  Future<bool> _showBindingCloseConfirmDialog() async {
+    try {
+      final currentContext = Get.context;
+      if (currentContext == null) {
+        debugPrint('❌ 无法获取Context，跳过显示关闭确认弹窗');
+        return true; // 出错时允许关闭
+      }
+
+      debugPrint('💬 显示绑定弹窗关闭确认');
+      
+      // 使用 BindingCloseConfirmDialog
+      final result = await BindingCloseConfirmDialog.show(
+        context: currentContext,
+        barrierDismissible: true,
+        onCancel: () {
+          // 点击"再想想"，关闭所有弹窗
+          debugPrint('💬 用户点击"再想想"，关闭所有弹窗');
+        },
+        onConfirm: () {
+          // 点击"立即绑定"，只关闭确认弹窗
+          debugPrint('💬 用户点击"立即绑定"，保持绑定弹窗显示');
+        },
+      );
+      
+      // result 为 true 表示点击了"再想想"，应该关闭绑定弹窗
+      // result 为 false 表示点击了"立即绑定"，不关闭绑定弹窗
+      // result 为 null 表示点击了背景或其他方式关闭，默认不关闭绑定弹窗
+      return result ?? false;
+    } catch (e) {
+      debugPrint('❌ 显示绑定弹窗关闭确认时发生错误: $e');
+      return true; // 出错时允许关闭
+    }
   }
 
   /// 退出登录功能
@@ -729,13 +914,24 @@ class MineController extends GetxController {
   }
 
   /// 分享APP点击事件
-  void _onShareAppTap() {
+  void _onShareAppTap() async {
+    // 上报分享App点击埋点
+    await TrackingService.trackMyShare();
     ShareBottomSheet.showShareApp(Get.context!);
   }
   
   /// 防偷拍检测点击事件
-  void _onAntiSpyTap() {
+  void _onAntiSpyTap() async {
+    // 上报防偷拍检查点击埋点
+    await TrackingService.trackSafeCheck();
     Get.toNamed(KissuRoutePath.antiSpy);
+  }
+
+  /// 联系我们点击事件
+  void _onContactTap() async {
+    // 上报联系我们点击埋点
+    await TrackingService.trackContactCustomerService();
+    openContact();
   }
 }
 

@@ -14,8 +14,8 @@ class CustomToastWidget extends StatefulWidget {
     Key? key,
     required this.message,
     this.duration = const Duration(seconds: 2),
-    this.backgroundColor = const Color(0xffFF7C98),
-    this.textColor = const Color(0xFFFFFFFF),
+    this.backgroundColor = const Color(0xFF000000), // 黑色背景
+    this.textColor = const Color(0xFFFFFFFF), // 白色文字
     this.fontSize = 11.0,
     this.maxWidth = 275.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
@@ -128,8 +128,8 @@ class CustomToast {
     BuildContext context,
     String message, {
     Duration duration = const Duration(seconds: 2),
-    Color backgroundColor = const Color(0xffFFF7D0),
-    Color textColor = const Color(0xFF8B4513),
+    Color backgroundColor = const Color(0xFF000000), // 黑色背景
+    Color textColor = const Color(0xFFFFFFFF), // 白色文字
     double fontSize = 13.0,
     double maxWidth = 275.0,
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 5),

@@ -17,24 +17,15 @@ class DeviceInfoSection extends StatelessWidget {
     return Stack(
       children: [
         Container(
-          height: !controller.isBindPartner.value ? 134 : 92,
-          padding: !controller.isBindPartner.value
-              ? EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ).copyWith(top: 55)
-              : EdgeInsets.symmetric(
+          height:92,
+          padding: EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 10,
                 ).copyWith(top: 15),
           margin: EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: !controller.isBindPartner.value
-                  ? AssetImage(
-                      'assets/location/kissu3_location_unbind_device_bg.webp',
-                    )
-                  : AssetImage(
+              image:AssetImage(
                       'assets/location/kissu3_location_bind_device_bg.webp',
                     ),
               fit: BoxFit.fill,

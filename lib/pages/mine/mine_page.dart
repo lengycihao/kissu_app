@@ -547,19 +547,26 @@ class MinePage extends GetView<MineController> {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: controller.onRefresh,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: 10),
-                          _buildNewUserInfo(),
-                          // const SizedBox(height: 16),
-                          _buildVipCard(),
-                          const SizedBox(height: 24),
-                          _buildSettings(),
-                          const SizedBox(height: 20),
-                        ],
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        controller.handleScroll(notification);
+                        return false;
+                      },
+                      child: SingleChildScrollView(
+                        controller: controller.scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(height: 10),
+                            _buildNewUserInfo(),
+                            // const SizedBox(height: 16),
+                            _buildVipCard(),
+                            const SizedBox(height: 24),
+                            _buildSettings(),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
                       ),
                     ),
                   ),

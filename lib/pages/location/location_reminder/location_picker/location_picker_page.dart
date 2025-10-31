@@ -378,7 +378,7 @@ class LocationPickerPage extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 8),
                                 const Text(
-                                  '到达位置提醒',
+                                  '到达地点提醒',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF666666),
@@ -408,7 +408,7 @@ class LocationPickerPage extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 8),
                                 const Text(
-                                  '离开位置提醒',
+                                  '离开地点提醒',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF666666),

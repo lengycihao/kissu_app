@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'transparent_banner_widget.dart';
 import 'gradient_content_widget.dart';
 import 'custom_bottom_dialog_controller.dart';
+import 'binding_close_confirm_dialog.dart';
 
 /// 自定义底部弹窗组件
 class CustomBottomDialog extends GetView<CustomBottomDialogController> {
@@ -12,6 +13,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
   final List<String>? bannerImages;
   final double bannerHeight;
   final bool showBanner;
+  final Future<bool> Function()? onCloseConfirm; // 关闭确认回调，返回true表示允许关闭
+  final BindingDialogCaller? caller; // 调用者页面类型（用于判断是否上报埋点）
 
   const CustomBottomDialog({
     Key? key,
@@ -20,6 +23,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     this.bannerImages,
     this.bannerHeight = 220,
     this.showBanner = true,
+    this.onCloseConfirm,
+    this.caller,
   }) : super(key: key);
 
   @override
@@ -67,11 +72,30 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                     top: 15,
                     right: 16,
                     child: GestureDetector(
-                      onTap: () {
-                        if (onClose != null) {
-                          onClose!();
+                      onTap: () async {
+                        // 统一弹出挽回弹窗
+                        final result = await BindingCloseConfirmDialog.show(
+                          context: context,
+                          barrierDismissible: true,
+                          isFromHomePage: caller == BindingDialogCaller.home, // 只有首页才上报埋点
+                          onCancel: () {
+                            // 点击"再想想"，关闭绑定弹窗
+                            debugPrint('💬 用户点击"再想想"，关闭绑定弹窗');
+                          },
+                          onConfirm: () {
+                            // 点击"立即绑定"，保持绑定弹窗显示
+                            debugPrint('💬 用户点击"立即绑定"，保持绑定弹窗显示');
+                          },
+                        );
+                        
+                        // result 为 true 表示点击了"再想想"，应该关闭绑定弹窗
+                        if (result == true) {
+                          if (onClose != null) {
+                            onClose!();
+                          }
+                          Get.back();
                         }
-                        Get.back();
+                        // result 为 false 或 null 表示不关闭绑定弹窗
                       },
                       child: Image.asset(
                         "assets/3.0/kissu3_close.webp",
@@ -390,8 +414,10 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     List<String>? bannerImages,
     double bannerHeight = 220,
     bool showBanner = true,
-    bool isDismissible = true,
+    bool isDismissible = false, // 全局禁止点击背景关闭
+    bool enableDrag = false,    // 全局禁止滑动关闭
     BindingDialogCaller? caller, // 调用者页面类型
+    Future<bool> Function()? onCloseConfirm, // 关闭确认回调
   }) {
     // 删除旧的控制器实例（如果存在）
     if (Get.isRegistered<CustomBottomDialogController>()) {
@@ -414,7 +440,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       context: context,
       isScrollControlled: true,
       isDismissible: isDismissible,
-      enableDrag: true,
+      enableDrag: enableDrag,
       backgroundColor: Colors.transparent,
       builder: (context) => CustomBottomDialog(
         onClose: onClose,
@@ -422,6 +448,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
         bannerImages: bannerImages ?? defaultBannerImages,
         bannerHeight: bannerHeight,
         showBanner: showBanner,
+        onCloseConfirm: onCloseConfirm,
+        caller: caller, // 传递调用者页面类型
       ),
     ).then((result) {
       // 延迟删除控制器，确保所有 UI 重建完成

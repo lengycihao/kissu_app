@@ -17,6 +17,8 @@ import 'package:kissu_app/services/smart_background_location_reminder.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/services/geofence_monitoring_service.dart';
 import 'package:kissu_app/services/city_storage_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/services/relationship_animation_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
@@ -81,7 +83,7 @@ void main() async {
   try {
     // ========== 第一阶段：基础初始化（无隐私风险） ==========
     
-    // 步骤1: 初始化服务定位器
+    // 步骤1: 初始化服务定位器（不包含IM登录）
     await setupServiceLocator();
 
     // 步骤2: 预加载用户数据（确保AuthService能正确获取缓存）
@@ -105,6 +107,25 @@ void main() async {
     // 步骤6: 注册极光推送服务（但不立即初始化，等待隐私授权）
     Get.put(JPushService(), permanent: true);
     DebugUtil.info('极光推送服务已注册（等待隐私授权后初始化）');
+    
+    // 步骤6.1: 注册腾讯IM服务（必须在AuthService之后，才能自动登录）
+    Get.put(TencentIMService(), permanent: true);
+    DebugUtil.success('腾讯IM服务初始化完成');
+    
+    // 步骤6.1.1: 注册情侣关系动画服务
+    Get.put(RelationshipAnimationService(), permanent: true);
+    DebugUtil.success('情侣关系动画服务初始化完成');
+    
+    // 步骤6.2: IM服务注册完成后，如果用户已登录则自动登录IM
+    if (authService.isLoggedIn && authService.currentUser != null) {
+      DebugUtil.info('检测到已登录用户，开始自动登录IM');
+      try {
+        final imService = Get.find<TencentIMService>();
+        await imService.loginIM(authService.currentUser!);
+      } catch (e) {
+        DebugUtil.error('自动登录IM失败: $e');
+      }
+    }
     
     // 步骤7: 初始化友盟分享服务（保持现有逻辑，但不立即授权隐私）
     Get.put(ShareService(), permanent: true);

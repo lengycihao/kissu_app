@@ -488,7 +488,10 @@ class _KissuHomePageState extends State<KissuHomePage>
                               children: [
                                 const SizedBox(height: 5), // 间距30px
                                 GestureDetector(
-                                  onTap: () {
+                                  onTap: () async {
+                                    // 埋点：活动按钮点击
+                                    await TrackingService.trackActivityButtonClick();
+                                    
                                     controller.navigateToH5(
                                       controller.activityLink.value,
                                     );

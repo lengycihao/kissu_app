@@ -89,7 +89,13 @@ class Type19UnlockRecordItemWidget extends StatelessWidget {
         }
         
         // 跳转到VIP页面
-        await Get.toNamed(KissuRoutePath.vip);
+        await Get.toNamed(
+          KissuRoutePath.vip,
+          arguments: {
+            'previousPageName': '用机记录页面',
+            'previousPageId': 'device_usage_record_page',
+          },
+        );
         // VIP页面返回后刷新用户信息
         await UserManager.refreshUserInfo();
         // 通知父组件刷新UI

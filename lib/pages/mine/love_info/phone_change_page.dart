@@ -383,8 +383,7 @@ class PhoneChangePage extends StatelessWidget {
       keyboardType: isCodeField ? TextInputType.number : TextInputType.phone,
       inputFormatters: isCodeField
           ? [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(6),
+              FilteringTextInputFormatter.digitsOnly, // 验证码只能输入数字，无位数限制
             ]
           : [
               FilteringTextInputFormatter.digitsOnly,

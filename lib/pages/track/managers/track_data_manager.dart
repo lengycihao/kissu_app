@@ -17,8 +17,8 @@ class TrackDataManager {
   final Rx<LocationResponse?> partnerData = Rx<LocationResponse?>(null);
   
   /// 当前显示的是哪个用户（1=自己，0=另一半）
-  /// 🎯 默认显示另一半的数据
-  final currentUserType = 0.obs;
+  /// 🎯 默认显示自己的数据（未绑定时只看自己，已绑定时再切换到另一半）
+  final currentUserType = 1.obs;
   
   /// 当前显示的数据
   LocationResponse? get currentData => 

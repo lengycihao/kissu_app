@@ -733,7 +733,13 @@ class GenericRecordItemWidget extends StatelessWidget {
       print('❌ 会员可见按钮埋点上报失败: $e');
     }
     
-    Get.toNamed(KissuRoutePath.vip)?.then((_) {
+    Get.toNamed(
+      KissuRoutePath.vip,
+      arguments: {
+        'previousPageName': '用机记录页面',
+        'previousPageId': 'device_usage_record_page',
+      },
+    )?.then((_) {
       // VIP页面返回后，刷新会员状态
       _refreshVipStatus();
     });

@@ -146,10 +146,11 @@ class PhoneVerificationController extends GetxController {
       return false;
     }
 
-    if (!RegExp(r'^\d{5}$').hasMatch(code)) {
+    // 已移除验证码位数限制，只需验证是否为数字
+    if (!RegExp(r'^\d+$').hasMatch(code)) {
       CustomToast.show(
         Get.context!,
-        '请输入5位数字验证码',
+        '请输入数字验证码',
       );
       return false;
     }

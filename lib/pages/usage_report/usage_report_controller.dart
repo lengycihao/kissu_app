@@ -78,6 +78,9 @@ class UsageReportController extends GetxController {
 
   // 用户绑定状态（响应式）
   final isUserBound = false.obs;
+  
+  // 用户会员状态（响应式）
+  final isUserVip = false.obs;
 
   // Tooltip相关
   OverlayEntry? _overlayEntry;
@@ -875,7 +878,8 @@ class UsageReportController extends GetxController {
       }
     }
     isUserBound.value = bound;
-    debugPrint('📊 用户绑定状态更新: $bound');
+    isUserVip.value = UserManager.isVip; // 同时更新会员状态
+    debugPrint('📊 用户绑定状态更新: $bound, 会员状态: ${isUserVip.value}');
   }
 
   /// 检查用户是否已绑定（保持向后兼容）
@@ -900,15 +904,50 @@ class UsageReportController extends GetxController {
   void handleBindButtonClick() async {
     debugPrint('💑 立即绑定按钮被点击');
     
-    // 上报立即绑定按钮埋点
+    // 上报新版埋点：用机记录-立刻去绑定
     try {
-      await TrackingService.trackBindImmediately();
-      debugPrint('✅ 用机记录页面-立即绑定按钮埋点上报成功');
+      await TrackingService.trackHistoryToBind();
+      debugPrint('✅ 用机记录页面-立刻去绑定埋点上报成功');
     } catch (e) {
-      debugPrint('❌ 用机记录页面-立即绑定按钮埋点上报失败: $e');
+      debugPrint('❌ 用机记录页面-立刻去绑定埋点上报失败: $e');
     }
     
     showBindingDialog();
+  }
+  
+  /// 处理开通会员按钮点击事件
+  void handleVipButtonClick() async {
+    debugPrint('💎 开通会员按钮被点击');
+    
+    // 上报新版埋点：用机记录-立刻开通会员
+    try {
+      await TrackingService.trackHistoryToVip();
+      debugPrint('✅ 用机记录页面-立刻开通会员埋点上报成功');
+    } catch (e) {
+      debugPrint('❌ 用机记录页面-立刻开通会员埋点上报失败: $e');
+    }
+    
+    // 跳转到VIP页面
+    await Get.toNamed(KissuRoutePath.vip, arguments: {
+      'previousPageName': '用机记录页面',
+      'previousPageId': 'usage_report',
+    });
+    
+    // 从VIP页面返回后，刷新用户信息
+    debugPrint('📊 从VIP页面返回，刷新用户信息');
+    try {
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        _updateUserBindStatus(); // 更新绑定状态和会员状态
+        if (isUserBound.value && isUserVip.value) {
+          // 如果已绑定且已开通会员，刷新数据
+          debugPrint('💎 用户已开通会员，刷新页面数据');
+          loadData();
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 刷新用户信息失败: $e');
+    }
   }
 
   /// 显示绑定弹窗

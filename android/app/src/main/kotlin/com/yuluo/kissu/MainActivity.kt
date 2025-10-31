@@ -447,20 +447,37 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UMENG_ANALYTICS_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "umeng_init" -> {
-                    val appKey = call.argument<String>("appKey") ?: "6879fbe579267e0210b67be9"
+                    val appKey = call.argument<String>("appKey") ?: "6879fba679267e0210b67bde"
                     val channel = call.argument<String>("channel") ?: "Umeng"
                     val logEnabled = call.argument<Boolean>("logEnabled") ?: false
                     try {
-                        // 初始化友盟统计
+                        // 🔒 友盟合规：先调用 preInit 预初始化
+                        UMConfigure.preInit(this, appKey, channel)
+                        
+                        // 正式初始化友盟统计
                         UMConfigure.init(this, appKey, channel, UMConfigure.DEVICE_TYPE_PHONE, null)
+                        
                         if (logEnabled) {
                             UMConfigure.setLogEnabled(true)
                         }
+                        
                         Log.d("MainActivity", "友盟统计初始化成功: appKey=$appKey, channel=$channel")
                         result.success(null)
                     } catch (e: Exception) {
                         Log.e("MainActivity", "友盟统计初始化失败", e)
                         result.error("INIT_ERROR", e.message, null)
+                    }
+                }
+                "umeng_submitPolicyGrantResult" -> {
+                    val granted = call.argument<Boolean>("granted") ?: true
+                    try {
+                        // 🔒 友盟合规：提交隐私政策授权结果
+                        UMConfigure.submitPolicyGrantResult(this, granted)
+                        Log.d("MainActivity", "友盟隐私政策授权已提交: granted=$granted")
+                        result.success(null)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "友盟隐私政策授权提交失败", e)
+                        result.error("ERROR", e.message, null)
                     }
                 }
                 "umeng_setSessionContinue" -> {

@@ -7,6 +7,7 @@ import 'vip_dialog.dart';
 import 'huawei_vip_promo_dialog.dart';
 import 'vip_purchase_dialog.dart';
 import 'unbind_relationship_dialog.dart';
+import 'vip_cancel_retention_dialog.dart';
 import '../../pages/dialog_showcase/dialog_showcase_page.dart';
 
 /// 导出所有弹窗组件
@@ -18,6 +19,7 @@ export 'vip_dialog.dart';
 export 'huawei_vip_promo_dialog.dart';
 export 'vip_purchase_dialog.dart';
 export 'unbind_relationship_dialog.dart';
+export 'vip_cancel_retention_dialog.dart';
 
 /// 弹窗管理器
 class DialogManager {
@@ -183,5 +185,20 @@ class DialogManager {
   /// 显示解除关系提示弹窗
   static Future<bool?> showUnbindRelationshipDialog() {
     return UnbindRelationshipDialogUtil.showUnbindRelationshipDialog();
+  }
+
+  /// 显示取消开通会员挽留弹窗
+  static Future<bool?> showVipCancelRetention({
+    required BuildContext context,
+    VoidCallback? onUnlock,
+    VoidCallback? onCancel,
+    bool barrierDismissible = true,
+  }) {
+    return VipCancelRetentionDialog.show(
+      context: context,
+      onUnlock: onUnlock,
+      onCancel: onCancel,
+      barrierDismissible: barrierDismissible,
+    );
   }
 }

@@ -8,8 +8,8 @@ class OKToastUtil {
   static void show(
     String message, {
     Duration duration = const Duration(seconds: 2),
-    Color backgroundColor = const Color(0xffFFF7D0), // 使用您原来的粉色背景
-    Color textColor = const Color(0xFF8B4513), // 使用您原来的白色文字
+    Color backgroundColor = const Color(0xFF000000), // 黑色背景
+    Color textColor = const Color(0xFFFFFFFF), // 白色文字
     double fontSize = 13.0, // 使用您原来的字体大小
     double maxWidth = 275.0, // 使用您原来的最大宽度
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 5), // 使用您原来的内边距
@@ -35,7 +35,8 @@ class OKToastUtil {
   static void showSuccess(String message) {
     show(
       message,
-      backgroundColor: const Color(0xff4CAF50), // 绿色
+      backgroundColor: const Color(0xFF000000), // 黑色背景
+      textColor: const Color(0xFFFFFFFF), // 白色文字
       duration: const Duration(seconds: 2),
     );
   }
@@ -44,7 +45,8 @@ class OKToastUtil {
   static void showError(String message) {
     show(
       message,
-      backgroundColor: const Color(0xffF44336), // 红色
+      backgroundColor: const Color(0xFF000000), // 黑色背景
+      textColor: const Color(0xFFFFFFFF), // 白色文字
       duration: const Duration(seconds: 3),
     );
   }
@@ -53,7 +55,8 @@ class OKToastUtil {
   static void showWarning(String message) {
     show(
       message,
-      backgroundColor: const Color(0xffFF9800), // 橙色
+      backgroundColor: const Color(0xFF000000), // 黑色背景
+      textColor: const Color(0xFFFFFFFF), // 白色文字
       duration: const Duration(seconds: 2),
     );
   }
@@ -62,7 +65,8 @@ class OKToastUtil {
   static void showInfo(String message) {
     show(
       message,
-      backgroundColor: const Color(0xff2196F3), // 蓝色
+      backgroundColor: const Color(0xFF000000), // 黑色背景
+      textColor: const Color(0xFFFFFFFF), // 白色文字
       duration: const Duration(seconds: 2),
     );
   }

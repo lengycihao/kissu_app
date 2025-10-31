@@ -110,8 +110,7 @@ class PhoneVerificationPage extends StatelessWidget {
                     controller: controller.verificationCodeController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
+                      FilteringTextInputFormatter.digitsOnly, // 验证码只能输入数字，无位数限制
                     ],
                     decoration: const InputDecoration(
                       hintText: '请输入验证码',

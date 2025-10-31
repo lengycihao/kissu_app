@@ -22,8 +22,7 @@ import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
-import 'package:intl/intl.dart' as intl;
+import 'package:kissu_app/services/tracking_service.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -500,6 +499,10 @@ class LoveInfoController extends GetxController {
         myAvatar.value = result.data!;
         // 更新用户信息
         await _updateUserAvatar(result.data!);
+        
+        // 上报头像更换埋点（更换成功）
+        await TrackingService.trackPersonalInfoAvatar(isAvatarChanged: true);
+        
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
         CustomToast.show(Get.context!, result.msg ?? '头像上传失败');
@@ -629,34 +632,9 @@ class LoveInfoController extends GetxController {
             ? '女'
             : '未选择';
         
-        // 上报性别选择埋点
-        _trackGenderSelection(genderText);
-        
         _updateUserGender(genderText);
       },
     );
-  }
-  
-  /// 上报性别选择埋点事件（我的页面进入的个人信息页面）
-  Future<void> _trackGenderSelection(String gender) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('my_personal_info_gender', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-        'gender': gender,
-      });
-      
-      print('📊 性别选择埋点（我的页面） - device_id: $deviceId, click_time: $clickTime, gender: $gender');
-    } catch (e) {
-      print('❌ 性别选择埋点失败: $e');
-    }
   }
 
   /// 处理生日点击
@@ -788,6 +766,9 @@ class LoveInfoController extends GetxController {
       if (result.isSuccess) {
         // 更新本地数据
         myGender.value = genderText;
+
+        // 上报性别选择埋点
+        await TrackingService.trackPersonalInfoGender(gender: genderText);
 
         // 更新用户缓存
         final currentUser = UserManager.currentUser;
@@ -1001,6 +982,9 @@ class LoveInfoController extends GetxController {
       if (result.isSuccess) {
         // 更新本地数据
         myBirthday.value = birthdayStr;
+
+        // 上报生日选择埋点
+        await TrackingService.trackPersonalInfoBirth(birth: birthdayStr);
 
         // 更新用户缓存
         final currentUser = UserManager.currentUser;

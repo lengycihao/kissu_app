@@ -86,7 +86,7 @@ class LocationStatePage extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: const Text(
-                    '设置状态',
+                    '设置心情',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

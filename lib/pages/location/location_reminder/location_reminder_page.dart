@@ -47,7 +47,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
           ),
         ),
         title: const Text(
-          '位置提醒',
+          '地点提醒',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,

@@ -27,7 +27,7 @@ class ShareService extends GetxService {
     try {
       // 初始化友盟SDK（包含合规预初始化和隐私授权）
       await _channel.invokeMethod('umInit', {
-        'appKey': '6879fbe579267e0210b67be9',
+        'appKey': '6879fba679267e0210b67bde',
         'channel': 'umengshare',
         'logEnabled': true,
       });

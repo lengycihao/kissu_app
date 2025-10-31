@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import '../track_controller.dart';
 import '../track_replay_page/track_replay_controller.dart';
 import '../track_replay_page/track_replay_page.dart';
@@ -25,8 +26,8 @@ class TrackReplayFloatingButton extends StatelessWidget {
       // 计算下半屏当前的顶部位置（从屏幕底部算起）
       final sheetHeight = screenHeight * sheetPercent;
       
-      // 按钮固定在下半屏上方50px处
-      final buttonBottom = sheetHeight + 20;
+      // 按钮固定在下半屏上方60px处
+      final buttonBottom = sheetHeight + 80;
 
       // 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final actualBindStatus = controller.getActualBindStatus();
@@ -82,16 +83,7 @@ class TrackReplayFloatingButton extends StatelessWidget {
   void _onPlayButtonTap(BuildContext context) {
     // 检查是否有有效的轨迹数据
     if (controller.trackPoints.length < 3) {
-      // 使用简单的 SnackBar 提示
-      Get.snackbar(
-        '提示',
-        '暂无足够的轨迹数据可回放',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.black87,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.all(16),
-      );
+      CustomToast.show(context, '暂无足够的轨迹数据可回放');
       return;
     }
 

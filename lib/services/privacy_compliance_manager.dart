@@ -280,10 +280,14 @@ class PrivacyComplianceManager extends GetxService {
   /// 启用友盟统计初始化
   Future<void> _enableUmengAnalytics() async {
     try {
-      // 初始化友盟统计
+      // 初始化友盟统计（包含 preInit）
       await UmengAnalytics.init();
+      
+      // 提交隐私政策授权结果（用户已同意）
+      await UmengAnalytics.submitPolicyGrantResult(true);
+      
       if (kDebugMode) {
-        DebugUtil.success('友盟统计已初始化');
+        DebugUtil.success('友盟统计已初始化并授权隐私政策');
       }
     } catch (e) {
       if (kDebugMode) {

@@ -109,6 +109,50 @@ class TrackingService {
     await _trackEvent('message_center_button', params, '消息中心按钮点击');
   }
 
+  /// 埋点：活动按钮点击事件
+  /// 
+  /// 事件ID: receive_red_packet_button
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID（已登录时）
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击首页活动按钮时
+  static Future<void> trackActivityButtonClick() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('receive_red_packet_button', params, '活动按钮点击');
+  }
+
+  /// 埋点：首页页面 - 浏览事件
+  /// 
+  /// 事件ID: home_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - stay_duration: 页面停留时长（如：2s）
+  /// - scroll_times: 页面滑动次数（如：3次）
+  /// 
+  /// [stayDuration] 页面停留时长
+  /// [scrollTimes] 页面滑动次数
+  /// 
+  /// 触发场景：用户退出首页时
+  static Future<void> trackHomePageView({
+    required String stayDuration,
+    required int scrollTimes,
+  }) async {
+    try {
+      final params = await _buildBaseParams();
+      params.remove('click_time'); // 浏览事件不需要点击时间
+      params['stay_duration'] = stayDuration;
+      params['scroll_times'] = '${scrollTimes}次';
+      await _trackEvent('home_page', params, '首页页面-浏览事件');
+    } catch (e) {
+      debugPrint('❌ 首页页面浏览埋点：上报数据失败 - $e');
+    }
+  }
+
   // ==================== 登录页埋点 ====================
 
   /// 埋点：登录按钮点击事件
@@ -966,6 +1010,804 @@ class TrackingService {
   static Future<void> trackMembershipOnly() async {
     final params = await _buildBaseParams();
     await _trackEvent('membership_only', params, '会员可见按钮');
+  }
+
+  // ==================== 绑定页面埋点 ====================
+
+  /// 埋点：绑定页面 - 浏览事件
+  /// 
+  /// 事件ID: bind_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID（通过用户设备号生成）
+  /// - user_id: 用户ID（已登录时）
+  /// - stay_duration: 页面停留时长（如：2s）
+  /// - previous_name: 上一个页面名称
+  /// - previous_id: 上一个页面id
+  /// 
+  /// [stayDuration] 停留时长（格式：如"2s"）
+  /// [previousName] 上一个页面名称
+  /// [previousId] 上一个页面ID
+  static Future<void> trackBindPageView({
+    required String stayDuration,
+    required String previousName,
+    required String previousId,
+  }) async {
+    try {
+      // 获取基础参数（device_id + user_id + click_time）
+      final params = await _buildBaseParams();
+      
+      // 移除 click_time，因为浏览事件不需要点击时间
+      params.remove('click_time');
+      
+      // 添加绑定页面特有参数
+      params['stay_duration'] = stayDuration;
+      params['previous_name'] = previousName;
+      params['previous_id'] = previousId;
+      
+      // 发送埋点事件
+      await _trackEvent('bind_page', params, '绑定页面-浏览事件');
+    } catch (e) {
+      debugPrint('❌ 绑定页面浏览埋点：上报数据失败 - $e');
+    }
+  }
+
+  /// 埋点：绑定按钮 - 点击事件
+  /// 
+  /// 事件ID: bind_code_button
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID（已登录时）
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户在输入框输入匹配码后点击确认绑定按钮
+  static Future<void> trackBindCodeButton() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('bind_code_button', params, '绑定按钮点击');
+  }
+
+  /// 埋点：微信邀请 - 点击事件
+  /// 
+  /// 事件ID: wechat_invite
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID（已登录时）
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击微信分享按钮
+  static Future<void> trackWechatInvite() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('wechat_invite', params, '微信邀请点击');
+  }
+
+  /// 埋点：QQ邀请 - 点击事件
+  /// 
+  /// 事件ID: qq_invite
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID（已登录时）
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击QQ分享按钮
+  static Future<void> trackQQInvite() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('qq_invite', params, 'QQ邀请点击');
+  }
+
+  /// 埋点：扫码按钮 - 点击事件
+  /// 
+  /// 事件ID: scan_to_bind
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID（已登录时）
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击扫描二维码按钮
+  static Future<void> trackScanToBind() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('scan_to_bind', params, '扫码按钮点击');
+  }
+
+  // ==================== 我的页面埋点 ====================
+
+  /// 埋点：我的页面 - 浏览事件
+  /// 
+  /// 事件ID: my_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID（通过用户设备号生成）
+  /// - user_id: 用户ID（已登录时）
+  /// - stay_duration: 页面停留时长（如：2s）
+  /// - can_scroll: 页面是否滑动（是/否）
+  /// - scroll_times: 页面滑动次数（如：3次）
+  /// 
+  /// [stayDuration] 停留时长（格式：如"2s"）
+  /// [canScroll] 页面是否滑动
+  /// [scrollTimes] 页面滑动次数
+  static Future<void> trackMyPageView({
+    required String stayDuration,
+    required bool canScroll,
+    required int scrollTimes,
+  }) async {
+    try {
+      // 获取基础参数（device_id + user_id + click_time）
+      final params = await _buildBaseParams();
+      
+      // 移除 click_time，因为浏览事件不需要点击时间
+      params.remove('click_time');
+      
+      // 添加我的页面特有参数
+      params['stay_duration'] = stayDuration;
+      params['can_scroll'] = canScroll ? '是' : '否';
+      params['scroll_times'] = '${scrollTimes}次';
+      
+      // 发送埋点事件
+      await _trackEvent('my_page', params, '我的页面-浏览事件');
+    } catch (e) {
+      debugPrint('❌ 我的页面浏览埋点：上报数据失败 - $e');
+    }
+  }
+
+  // ==================== 恋爱信息页面埋点 ====================
+
+  /// 埋点：个人信息_性别 - 点击事件
+  /// 
+  /// 事件ID: my_personal_info_gender
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - gender: 性别状态（男/女）
+  /// 
+  /// [gender] 性别状态：男 或 女
+  /// 
+  /// 触发场景：用户在恋爱信息页面选择性别时
+  static Future<void> trackPersonalInfoGender({
+    required String gender,
+  }) async {
+    final params = await _buildBaseParams();
+    params['gender'] = gender;
+    await _trackEvent('my_personal_info_gender', params, '个人信息-性别点击');
+  }
+
+  /// 埋点：个人信息_头像 - 点击事件
+  /// 
+  /// 事件ID: my_personal_info_avatar
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - is_avatar: 头像是否更换（是/否）
+  /// 
+  /// [isAvatarChanged] 头像是否更换
+  /// 
+  /// 触发场景：用户在恋爱信息页面更换头像时
+  static Future<void> trackPersonalInfoAvatar({
+    required bool isAvatarChanged,
+  }) async {
+    final params = await _buildBaseParams();
+    params['is_avatar'] = isAvatarChanged ? '是' : '否';
+    await _trackEvent('my_personal_info_avatar', params, '个人信息-头像点击');
+  }
+
+  /// 埋点：个人信息_年龄 - 点击事件
+  /// 
+  /// 事件ID: my_personal_info_birth
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - birth: 年龄日期（显示具体年龄日期）
+  /// 
+  /// [birth] 年龄日期（格式：yyyy-MM-dd）
+  /// 
+  /// 触发场景：用户在恋爱信息页面选择生日时
+  static Future<void> trackPersonalInfoBirth({
+    required String birth,
+  }) async {
+    final params = await _buildBaseParams();
+    params['birth'] = birth;
+    await _trackEvent('my_personal_info_birth', params, '个人信息-年龄点击');
+  }
+
+  // ==================== 我的页面点击事件埋点 ====================
+
+  /// 埋点：我的页面-返回 - 点击事件
+  /// 
+  /// 事件ID: my_leave_event
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击我的页面的返回按钮
+  static Future<void> trackMyLeaveEvent() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('my_leave_event', params, '我的页面-返回点击');
+  }
+
+  /// 埋点：恋爱信息入口点击 - 点击事件
+  /// 
+  /// 事件ID: edit_info_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击恋爱信息入口（头像、标签等）
+  static Future<void> trackEditInfoPage() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('edit_info_page', params, '恋爱信息入口点击');
+  }
+
+  /// 埋点：绑定页面 - 点击事件
+  /// 
+  /// 事件ID: my_bind_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户在我的页面点击绑定相关入口
+  static Future<void> trackMyBindPage() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('my_bind_page', params, '绑定页面点击');
+  }
+
+  /// 埋点：开通会员 - 点击事件
+  /// 
+  /// 事件ID: my_open_membership
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - vip_page_type: 会员页面类型（会员页面、终身会员页面）
+  /// 
+  /// [vipPageType] 会员页面类型
+  /// 
+  /// 触发场景：用户点击会员相关按钮
+  static Future<void> trackMyOpenMembership({
+    required String vipPageType,
+  }) async {
+    final params = await _buildBaseParams();
+    params['vip_page_type'] = vipPageType;
+    await _trackEvent('my_open_membership', params, '开通会员点击');
+  }
+
+  /// 埋点：意见与反馈 - 点击事件
+  /// 
+  /// 事件ID: feedback
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击意见与反馈菜单
+  static Future<void> trackFeedback() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('feedback', params, '意见与反馈点击');
+  }
+
+  /// 埋点：联系我们 - 点击事件
+  /// 
+  /// 事件ID: contact_customer_service
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击联系我们菜单
+  static Future<void> trackContactCustomerService() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('contact_customer_service', params, '联系我们点击');
+  }
+
+  /// 埋点：关于我们 - 点击事件
+  /// 
+  /// 事件ID: about_us
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击关于我们菜单
+  static Future<void> trackAboutUs() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('about_us', params, '关于我们点击');
+  }
+
+  /// 埋点：首页视图 - 点击事件
+  /// 
+  /// 事件ID: home_view
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击首页视图菜单
+  static Future<void> trackHomeView() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('home_view', params, '首页视图点击');
+  }
+
+  /// 埋点：系统权限 - 点击事件
+  /// 
+  /// 事件ID: system_permissions
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击系统权限菜单
+  static Future<void> trackSystemPermissions() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('system_permissions', params, '系统权限点击');
+  }
+
+  /// 埋点：常见问题 - 点击事件
+  /// 
+  /// 事件ID: faq
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击常见问题菜单
+  static Future<void> trackFaq() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('faq', params, '常见问题点击');
+  }
+
+  /// 埋点：账号及隐私安全 - 点击事件
+  /// 
+  /// 事件ID: account_privacy_security
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击账号及隐私安全菜单
+  static Future<void> trackAccountPrivacySecurity() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('account_privacy_security', params, '账号及隐私安全点击');
+  }
+
+  /// 埋点：分享App - 点击事件
+  /// 
+  /// 事件ID: my_share
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击分享APP菜单
+  static Future<void> trackMyShare() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('my_share', params, '分享App点击');
+  }
+
+  /// 埋点：防偷拍检查 - 点击事件
+  /// 
+  /// 事件ID: safe_check
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击防偷拍检查菜单
+  static Future<void> trackSafeCheck() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('safe_check', params, '防偷拍检查点击');
+  }
+
+  // ==================== 消息中心/互动消息页面埋点 ====================
+
+  /// 埋点：接收绑定按钮 - 点击事件
+  /// 
+  /// 事件ID: accept_bind_button
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - other_id: 绑定情侣id
+  /// 
+  /// [otherId] 绑定情侣的用户ID
+  /// 
+  /// 触发场景：用户在消息中心点击"同意绑定"按钮
+  static Future<void> trackAcceptBindButton({
+    required String otherId,
+  }) async {
+    final params = await _buildBaseParams();
+    params['other_id'] = otherId;
+    await _trackEvent('accept_bind_button', params, '接收绑定按钮点击');
+  }
+
+  /// 埋点：拒绝绑定按钮 - 点击事件
+  /// 
+  /// 事件ID: reject_bind_button
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户在消息中心点击"拒绝绑定"按钮
+  static Future<void> trackRejectBindButton() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('reject_bind_button', params, '拒绝绑定按钮点击');
+  }
+
+  /// 埋点：互动消息页面 - 浏览事件
+  /// 
+  /// 事件ID: message_center_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - stay_duration: 页面停留时长
+  /// - can_scroll: 页面是否滑动
+  /// - is_bind: 情侣绑定状态（已绑定、未绑定）
+  /// 
+  /// [stayDuration] 页面停留时长（如：2s）
+  /// [canScroll] 页面是否滑动
+  /// [isBind] 情侣绑定状态
+  /// 
+  /// 触发场景：用户退出消息中心页面时
+  static Future<void> trackMessageCenterPageView({
+    required String stayDuration,
+    required bool canScroll,
+    required String isBind,
+  }) async {
+    try {
+      final params = await _buildBaseParams();
+      params.remove('click_time'); // 浏览事件不需要点击时间
+      params['stay_duration'] = stayDuration;
+      params['can_scroll'] = canScroll ? '是' : '否';
+      params['is_bind'] = isBind;
+      await _trackEvent('message_center_page', params, '互动消息页面-浏览事件');
+    } catch (e) {
+      debugPrint('❌ 互动消息页面浏览埋点：上报数据失败 - $e');
+    }
+  }
+
+  /// 埋点：19元弹窗 - 支付事件
+  /// 
+  /// 事件ID: vip_sale
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - vip_price: 会员金额（如：12.80）
+  /// - vip_name: 会员名称（如：双人月度会员）
+  /// - pay_type: 支付方式（如：支付宝）
+  /// - is_renew: 是否是续费（是续费、不是续费）
+  /// - previous_name: 上个页面名称
+  /// - pay_result: 支付结果（如：支付成功、支付取消、点击支付）
+  /// 
+  /// [vipPrice] 会员金额
+  /// [vipName] 会员名称
+  /// [payType] 支付方式
+  /// [isRenew] 是否是续费
+  /// [previousName] 上个页面名称
+  /// [payResult] 支付结果（支付成功、支付取消、点击支付等）
+  /// 
+  /// 触发场景：从19元弹窗进行支付操作时（包括支付成功、取消等所有支付结果）
+  static Future<void> trackVipSale({
+    required String vipPrice,
+    required String vipName,
+    required String payType,
+    required String isRenew,
+    required String previousName,
+    required String payResult,
+  }) async {
+    final params = await _buildBaseParams();
+    params['vip_price'] = vipPrice;
+    params['vip_name'] = vipName;
+    params['pay_type'] = payType;
+    params['is_renew'] = isRenew;
+    params['previous_name'] = previousName;
+    params['pay_result'] = payResult;
+    await _trackEvent('vip_sale', params, '19元弹窗支付');
+  }
+
+  // ==================== 会员页面埋点 ====================
+
+  /// 埋点：会员页面 - 浏览事件
+  /// 
+  /// 事件ID: membership_page
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - stay_duration: 页面停留时长（如：2s）
+  /// - can_scroll: 页面是否滑动（是/否）
+  /// - scroll_times: 页面滑动次数（如：3次）
+  /// - previous_name: 上个页面名称
+  /// - is_vip: 是否开通会员（开通/未开通）
+  /// - previous_id: 上个页面id
+  /// 
+  /// [stayDuration] 页面停留时长
+  /// [canScroll] 页面是否滑动
+  /// [scrollTimes] 页面滑动次数
+  /// [previousName] 上个页面名称
+  /// [isVip] 是否开通会员
+  /// [previousId] 上个页面id
+  /// 
+  /// 触发场景：用户退出会员页面时
+  static Future<void> trackMembershipPageView({
+    required String stayDuration,
+    required bool canScroll,
+    required int scrollTimes,
+    required String previousName,
+    required String isVip,
+    required String previousId,
+  }) async {
+    try {
+      final params = await _buildBaseParams();
+      params.remove('click_time'); // 浏览事件不需要点击时间
+      params['stay_duration'] = stayDuration;
+      params['can_scroll'] = canScroll ? '是' : '否';
+      params['scroll_times'] = '${scrollTimes}次';
+      params['previous_name'] = previousName;
+      params['is_vip'] = isVip;
+      params['previous_id'] = previousId;
+      await _trackEvent('membership_page', params, '会员页面-浏览事件');
+    } catch (e) {
+      debugPrint('❌ 会员页面浏览埋点：上报数据失败 - $e');
+    }
+  }
+
+  /// 埋点：会员页面返回 - 点击事件
+  /// 
+  /// 事件ID: membership_leave
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击会员页面返回按钮
+  static Future<void> trackMembershipLeave() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('membership_leave', params, '会员页面返回点击');
+  }
+
+  /// 埋点：会员服务协议 - 点击事件
+  /// 
+  /// 事件ID: membership_service_agreement
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用户点击会员服务协议
+  static Future<void> trackMembershipServiceAgreement() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('membership_service_agreement', params, '会员服务协议点击');
+  }
+
+  /// 埋点：开通会员 - 支付事件
+  /// 
+  /// 事件ID: membership_open
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - vip_price: 会员金额（如：12.80）
+  /// - vip_name: 会员名称（如：双人月度会员）
+  /// - pay_type: 支付方式（如：支付宝）
+  /// - is_renew: 是否是续费（是续费/不是续费）
+  /// - previous_name: 上个页面名称
+  /// - pay_result: 支付结果（如：支付成功、支付取消、点击支付）
+  /// 
+  /// [vipPrice] 会员金额
+  /// [vipName] 会员名称
+  /// [payType] 支付方式（支付宝/微信）
+  /// [isRenew] 是否是续费
+  /// [previousName] 上个页面名称
+  /// [payResult] 支付结果（支付成功、支付取消、点击支付等）
+  /// 
+  /// 触发场景：用户进行会员支付操作时（包括支付成功、取消等所有支付结果）
+  static Future<void> trackMembershipOpen({
+    required String vipPrice,
+    required String vipName,
+    required String payType,
+    required String isRenew,
+    required String previousName,
+    required String payResult,
+  }) async {
+    final params = await _buildBaseParams();
+    params['vip_price'] = vipPrice;
+    params['vip_name'] = vipName;
+    params['pay_type'] = payType;
+    params['is_renew'] = isRenew;
+    params['previous_name'] = previousName;
+    params['pay_result'] = payResult;
+    await _trackEvent('membership_open', params, '开通会员点击');
+  }
+
+  // ==================== 3.5版本新增埋点 ====================
+
+  /// 埋点：定位-立刻去绑定
+  /// 
+  /// 事件ID: location3.5_tobind
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：
+  /// 1. 定位页面蒙版上的绑定按钮点击
+  /// 2. 定位页面添加位置提醒时未绑定的绑定按钮点击
+  static Future<void> trackLocationToBind() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('location3.5_tobind', params, '定位-立刻去绑定');
+  }
+
+  /// 埋点：定位-立刻开通会员
+  /// 
+  /// 事件ID: location3.5_tovip
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：定位页面蒙版上的会员按钮点击
+  static Future<void> trackLocationToVip() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('location3.5_tovip', params, '定位-立刻开通会员');
+  }
+
+  /// 埋点：足迹-立刻去绑定
+  /// 
+  /// 事件ID: track3.5_tobind
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：足迹页面蒙版上的绑定按钮点击
+  static Future<void> trackTrackToBind() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('track3.5_tobind', params, '足迹-立刻去绑定');
+  }
+
+  /// 埋点：足迹-立刻开通会员
+  /// 
+  /// 事件ID: track3.5_tovip
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：足迹页面蒙版上的会员按钮点击
+  static Future<void> trackTrackToVip() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('track3.5_tovip', params, '足迹-立刻开通会员');
+  }
+
+  /// 埋点：用机记录-立刻去绑定
+  /// 
+  /// 事件ID: history3.5_tobind
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用机记录页面蒙版上的绑定按钮点击
+  static Future<void> trackHistoryToBind() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('history3.5_tobind', params, '用机记录-立刻去绑定');
+  }
+
+  /// 埋点：用机记录-立刻开通会员
+  /// 
+  /// 事件ID: history3.5_vip
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// 
+  /// 触发场景：用机记录页面蒙版上的会员按钮点击
+  static Future<void> trackHistoryToVip() async {
+    final params = await _buildBaseParams();
+    await _trackEvent('history3.5_vip', params, '用机记录-立刻开通会员');
+  }
+
+  /// 埋点：绑定页面挽回弹窗
+  /// 
+  /// 事件ID: home3.5_tobind_reback
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID
+  /// - user_id: 用户ID
+  /// - click_time: 点击时间
+  /// - button_name: 点击按钮名称（"再想想"或"立即绑定"）
+  /// 
+  /// [buttonName] 按钮名称：再想想 或 立即绑定
+  /// 
+  /// 触发场景：用户在绑定弹窗关闭时的挽回弹窗中点击按钮
+  static Future<void> trackBindingReback({
+    required String buttonName,
+  }) async {
+    final params = await _buildBaseParams();
+    params['button_name'] = buttonName;
+    await _trackEvent('home3.5_tobind_reback', params, '绑定页面挽回弹窗');
+  }
+
+  /// 埋点：会员挽留弹窗 - 点击事件
+  /// 
+  /// 事件ID: vipretention_popup
+  /// 
+  /// 参数：
+  /// - device_id: 虚拟用户ID（通过用户设备号生成）
+  /// - user_id: 用户ID
+  /// - button_name: 点击按钮名称（"全部解锁"或"下次再说"）
+  /// - click_time: 点击时间（格式：年/月/日 时:分:秒）
+  /// - vip_price: 会员金额（如：12.80）
+  /// - vip_name: 会员名称（如：双人月度会员）
+  /// - pay_type: 支付方式（如：支付宝、微信）
+  /// - is_renew: 是否是续费（是续费、不是续费）
+  /// - previous_name: 上个页面名称
+  /// - pay_result: 支付结果（如：支付成功、支付取消、点击支付、下次再说）
+  /// 
+  /// [buttonName] 按钮名称：全部解锁 或 下次再说
+  /// [vipPrice] 会员金额
+  /// [vipName] 会员名称
+  /// [payType] 支付方式
+  /// [isRenew] 是否是续费
+  /// [previousName] 上个页面名称
+  /// [payResult] 支付结果
+  /// 
+  /// 触发场景：用户在会员页面返回时弹出的挽留弹窗中点击按钮
+  static Future<void> trackVipRetentionPopup({
+    required String buttonName,
+    required String vipPrice,
+    required String vipName,
+    required String payType,
+    required String isRenew,
+    required String previousName,
+    required String payResult,
+  }) async {
+    final params = await _buildBaseParams();
+    params['button_name'] = buttonName;
+    params['vip_price'] = vipPrice;
+    params['vip_name'] = vipName;
+    params['pay_type'] = payType;
+    params['is_renew'] = isRenew;
+    params['previous_name'] = previousName;
+    params['pay_result'] = payResult;
+    await _trackEvent('vipretention_popup', params, '会员挽留弹窗');
   }
 }
 

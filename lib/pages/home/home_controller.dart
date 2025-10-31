@@ -32,7 +32,6 @@ import 'dart:math';
 import 'dart:async';
 import 'package:kissu_app/services/version_service.dart';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 
 
@@ -40,11 +39,12 @@ class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
   var selectedIndex = 0.obs;
   
-  // 埋点相关 - 页面滑动次数
+  // 埋点相关 - 页面滑动次数和停留时长
   var scrollTimes = 0.obs;
   double _lastScrollOffset = 0.0;
   bool _isScrolling = false;
   Timer? _scrollEndTimer;
+  DateTime? _pageEnterTime;
   
   // App启动标记 - 静态变量，app被杀掉时会自动重置
   static bool _hasAppStartedThisSession = false;
@@ -1462,7 +1462,13 @@ class HomeController extends GetxController {
         onConfirm: () {
           debugPrint('💎 点击了立即查看按钮，跳转到VIP页面');
           // 弹窗会自动关闭，然后跳转到VIP页面
-          Get.toNamed(KissuRoutePath.vip);
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'previousPageName': '首页',
+              'previousPageId': 'home_page', // 首页还没有单独的页面浏览埋点
+            },
+          );
         },
         barrierDismissible: true,
       );
@@ -1537,9 +1543,10 @@ class HomeController extends GetxController {
       _hasShownBindingDialogThisSession = true;
       
       // 使用CustomBottomDialog显示绑定弹窗
+      // 注意：关闭按钮点击时会自动弹出挽回弹窗，无需单独设置 onCloseConfirm
       CustomBottomDialog.show(
         context: currentContext,
-        caller: BindingDialogCaller.home,
+        caller: BindingDialogCaller.home, // 标记为首页，用于埋点判断
         onClose: () {
           debugPrint('💑 绑定弹窗已关闭');
         },
@@ -1556,7 +1563,7 @@ class HomeController extends GetxController {
       debugPrint('❌ 显示绑定弹窗时发生错误: $e');
     }
   }
-
+  
   /// 更新天气数据（从首页接口数据中解析）
   void _updateWeatherData(WeatherData weatherData) {
     try {
@@ -1596,8 +1603,8 @@ class HomeController extends GetxController {
   Future<void> _startPageTracking() async {
     try {
       debugPrint('📊 首页埋点：开始记录页面停留时长');
-      // 使用友盟的事件计时开始方法
-      await UmengAnalytics.eventBegin('home_page');
+      // 记录进入时间
+      _pageEnterTime = DateTime.now();
     } catch (e) {
       debugPrint('❌ 首页埋点：开始记录失败 - $e');
     }
@@ -1605,34 +1612,23 @@ class HomeController extends GetxController {
   
   /// 结束页面浏览追踪并上报埋点数据
   Future<void> _endPageTracking() async {
+    if (_pageEnterTime == null) return;
+    
     try {
       debugPrint('📊 首页埋点：结束记录并上报数据');
       
-      // 先结束计时
-      await UmengAnalytics.eventEnd('home_page');
+      // 计算停留时长
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
       
-      // 获取虚拟用户ID
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
+      // 使用统一的 TrackingService 上报
+      await TrackingService.trackHomePageView(
+        stayDuration: stayDuration,
+        scrollTimes: scrollTimes.value,
+      );
       
-      // 获取用户ID（如果已登录）
-      final user = UserManager.currentUser;
-      final userId = user?.id?.toString() ?? '';
-      
-      // 构建埋点参数
-      final params = <String, String>{
-        'device_id': deviceId,
-        'scroll_times': scrollTimes.value.toString(),
-      };
-      
-      // 如果有用户ID，添加到参数中
-      if (userId.isNotEmpty) {
-        params['user_id'] = userId;
-      }
-      
-      // 上报首页浏览事件
-      await UmengAnalytics.logEventWithParams('home_page', params);
-      
-      debugPrint('✅ 首页埋点上报成功: device_id=$deviceId, user_id=$userId, scroll_times=${scrollTimes.value}');
+      debugPrint('✅ 首页埋点上报成功: 停留时长=$stayDuration, 滑动次数=${scrollTimes.value}');
     } catch (e) {
       debugPrint('❌ 首页埋点：上报数据失败 - $e');
     }

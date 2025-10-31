@@ -6,6 +6,7 @@ import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 import 'location_v2_controller.dart';
 import 'widgets/device_info_section.dart';
 import 'widgets/location_info_section.dart';
@@ -37,12 +38,24 @@ class _LocationPageContent extends StatefulWidget {
 class _LocationPageContentState extends State<_LocationPageContent>
     with WidgetsBindingObserver {
   late double screenHeight;
-  late double initialHeight;
-  late double minHeight;
   late double maxHeight;
-  late double mapHeight;
   late DraggableScrollableController _draggableController;
   ScrollController? _scrollController;
+
+  // 动态计算 initialHeight 和 minHeight
+  double get initialHeight {
+    final isBindPartner = widget.controller.isBindPartner.value;
+    final isVip = widget.controller.isVip.value;
+    // 未绑定或未开通会员时：280，已绑定且是会员时：190
+    return (!isBindPartner || !isVip) ? 280 : 190;
+  }
+
+  double get minHeight {
+    final isBindPartner = widget.controller.isBindPartner.value;
+    final isVip = widget.controller.isVip.value;
+    // 未绑定或未开通会员时：280，已绑定且是会员时：190
+    return (!isBindPartner || !isVip) ? 280 : 190;
+  }
 
   @override
   void initState() {
@@ -68,10 +81,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
   void didChangeDependencies() {
     super.didChangeDependencies();
     screenHeight = MediaQuery.of(context).size.height;
-    initialHeight = 190;
-    minHeight = 190;
+    // initialHeight 和 minHeight 将在 build 中根据状态动态计算
     maxHeight = screenHeight - 100;
-    mapHeight = screenHeight - initialHeight + 90;
     _draggableController = DraggableScrollableController();
     widget.controller.setDraggableController(_draggableController);
   }
@@ -88,12 +99,12 @@ class _LocationPageContentState extends State<_LocationPageContent>
               child: CachedMapWidget(controller: widget.controller),
             ),
             _buildSwitchTransition(),
-            _GradientBackgroundOverlay(
+            Obx(() => _GradientBackgroundOverlay(
               controller: widget.controller,
               screenHeight: screenHeight,
               initialHeight: initialHeight,
               maxHeight: maxHeight,
-            ),
+            )),
             FloatingActionButtons(
               screenHeight: screenHeight,
               controller: widget.controller,
@@ -237,36 +248,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
   }
 
   Widget _buildVirtualDataTip() {
-    return Obx(() {
-      if (widget.controller.isOneself.value == 0 &&
-          !widget.controller.isBindPartner.value) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 125,
-                height: 23,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12.5),
-                ),
-                child: const Text(
-                  '以下为虚拟数据',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF999999),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-        );
-      }
-      return const SizedBox.shrink();
-    });
+    // 移除"以下为虚拟数据"提示
+    return const SizedBox.shrink();
   }
 
   Widget _buildOfflineTip() {
@@ -387,57 +370,76 @@ class _LocationPageContentState extends State<_LocationPageContent>
 
   Widget _buildVipMask() {
     return Obx(() {
-      final isSelfFlag = widget.controller.isOneself.value;
       final isBindPartner = widget.controller.isBindPartner.value;
       final isVip = widget.controller.isVip.value;
-      final shouldShowVipMask = !isVip && isSelfFlag == 0 && isBindPartner;
       
-      if (shouldShowVipMask) {
+      // 未绑定 或 已绑定但未开会员时显示蒙版
+      final shouldShowMask = !isBindPartner || (isBindPartner && !isVip);
+      
+      if (shouldShowMask) {
         return Positioned.fill(
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF).withOpacity(0.2),
+          child: Column(
+            children: [
+              // 顶部离线提示（清晰的，不模糊）
+              _buildOfflineTip(),
+              // 顶部距离信息模块（清晰的，不模糊）
+              DeviceInfoSection(controller: widget.controller),
+              const SizedBox(height: 10),
+              // 蒙版整体
+              Expanded(
+                child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    widget.controller.onOpenMembershipButtonTap();
-                  },
-                  child: Container(
-                    color: Colors.transparent,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              widget.controller.onOpenMembershipButtonTap();
-                            },
-                            child: Image.asset(
-                              'assets/kissu_go_bind.webp',
-                              width: 111,
-                              height: 34,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // 文字图片
+                            Image.asset(
+                              'assets/kissu3_go_label.webp',
+                              width: 216,
+                              height: 32,
+                              fit: BoxFit.contain,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            '实时查看"另一半"的位置和行程轨迹',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF333333),
+                            const SizedBox(height: 20),
+                            // 按钮
+                            GestureDetector(
+                              onTap: () async {
+                                if (!isBindPartner) {
+                                  // 未绑定：显示绑定弹窗
+                                  // 上报埋点：定位-立刻去绑定
+                                  await TrackingService.trackLocationToBind();
+                                  widget.controller.performBindAction();
+                                } else {
+                                  // 已绑定但未开会员：跳转到VIP页面
+                                  // 上报埋点：定位-立刻开通会员
+                                  await TrackingService.trackLocationToVip();
+                                  widget.controller.onOpenMembershipButtonTap();
+                                }
+                              },
+                              child: Image.asset(
+                                !isBindPartner
+                                    ? 'assets/kissu3_go_bind.webp'  // 未绑定
+                                    : 'assets/kissu3_go_vip.webp',  // 已绑定未开会员
+                                width: 150,
+                                height: 48,
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         );
       }
@@ -624,31 +626,41 @@ class _CachedAvatarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _AvatarButton(
-          controller: controller,
-          isMyself: false,
-          onTap: () {
-            if (controller.isOneself.value != 0) {
-              controller.onAvatarTapped(false);
-            }
-          },
-        ),
-        const SizedBox(width: 8.0),
-        _AvatarButton(
-          controller: controller,
-          isMyself: true,
-          onTap: () {
-            if (controller.isOneself.value != 1) {
-              controller.onAvatarTapped(true);
-            }
-          },
-        ),
-      ],
-    );
+    return Obx(() {
+      final isBindPartner = controller.isBindPartner.value;
+      
+      // 未绑定时不显示任何头像
+      if (!isBindPartner) {
+        return const SizedBox.shrink();
+      }
+      
+      // 已绑定时显示两个头像
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _AvatarButton(
+            controller: controller,
+            isMyself: false,
+            onTap: () {
+              if (controller.isOneself.value != 0) {
+                controller.onAvatarTapped(false);
+              }
+            },
+          ),
+          const SizedBox(width: 8.0),
+          _AvatarButton(
+            controller: controller,
+            isMyself: true,
+            onTap: () {
+              if (controller.isOneself.value != 1) {
+                controller.onAvatarTapped(true);
+              }
+            },
+          ),
+        ],
+      );
+    });
   }
 }
 

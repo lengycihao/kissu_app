@@ -78,15 +78,29 @@ class _TrackPageContent extends StatefulWidget {
 class _TrackPageContentState extends State<_TrackPageContent>
     with WidgetsBindingObserver {
   late final double screenHeight;
-  late final double initialHeight;
-  late final double minHeight;
   late final double maxHeight;
-  late final double mapHeight;
   late final DraggableScrollableController _draggableController;
   ScrollController? _scrollController;
   
   /// 上一次的屏幕状态（小屏/中屏/大屏），用于判断状态是否改变
   String? _lastScreenState;
+
+  // 动态计算 initialHeight 和 minHeight
+  double get initialHeight {
+    final isBindPartner = widget.controller.isBindPartner.value;
+    final isVip = UserManager.isVip;
+    // 未绑定或未开通会员时：280，已绑定且是会员时：190
+    return (!isBindPartner || !isVip) ? 280 : 190;
+  }
+
+  double get minHeight {
+    final isBindPartner = widget.controller.isBindPartner.value;
+    final isVip = UserManager.isVip;
+    // 未绑定或未开通会员时：280，已绑定且是会员时：190
+    return (!isBindPartner || !isVip) ? 280 : 190;
+  }
+
+  double get mapHeight => screenHeight - initialHeight + 90;
 
   @override
   void initState() {
@@ -163,10 +177,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
     super.didChangeDependencies();
     // 在这里计算屏幕尺寸相关参数
     screenHeight = MediaQuery.of(context).size.height;
-    initialHeight = 190;
-    minHeight = 190;
+    // initialHeight 和 minHeight 将在 build 中根据状态动态计算
     maxHeight = screenHeight - 100;
-    mapHeight = screenHeight - initialHeight + 90;
 
     // 初始化底部面板控制器
     _draggableController = DraggableScrollableController();
@@ -186,20 +198,20 @@ class _TrackPageContentState extends State<_TrackPageContent>
           ),
 
           // 背景遮罩层优化 - 减少重建频率
-          _OptimizedOverlayWidget(
+          Obx(() => _OptimizedOverlayWidget(
             controller: widget.controller,
             mapHeight: mapHeight,
             initialHeight: initialHeight,
             screenHeight: screenHeight,
-          ),
+          )),
 
           // 全屏渐变背景 - 从中间滑到顶部时显示
-          _GradientBackgroundOverlay(
+          Obx(() => _GradientBackgroundOverlay(
             controller: widget.controller,
             screenHeight: screenHeight,
             initialHeight: initialHeight,
             maxHeight: maxHeight,
-          ),
+          )),
 
           // 左侧浮动按钮组（刷新 + 切换地图）
           _LeftFloatingButtons(controller: widget.controller),
@@ -272,50 +284,6 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                     SliverToBoxAdapter(
                                       child: Column(
                                         children: [
-                                          // 虚拟数据提示（仅在查看另一半数据且未绑定时显示）
-                                          Obx(() {
-                                            if (widget
-                                                        .controller
-                                                        .isOneself
-                                                        .value ==
-                                                    0 &&
-                                                !widget
-                                                    .controller
-                                                    .isBindPartner
-                                                    .value) {
-                                              return Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Center(
-                                                    child: Container(
-                                                      width: 125,
-                                                      height: 23,
-                                                      alignment:
-                                                          Alignment.center,
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.white,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12.5,
-                                                            ),
-                                                      ),
-                                                      child: const Text(
-                                                        '以下为虚拟数据',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          color: Color(
-                                                            0xFF999999,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 10),
-                                                ],
-                                              );
-                                            }
-                                            return const SizedBox.shrink();
-                                          }),
                                           // 日期模块
                                           _buildDateModule(),
                                           const SizedBox(height: 10),
@@ -389,86 +357,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                   ],
                                 ),
                               ),
-                              // VIP遮罩层 - 覆盖整个滚动区域（带毛玻璃效果）
-                              // 只有在已绑定且非会员时，查看另一半才显示会员蒙版
-                              Obx(() {
-                                // 确保始终读取响应式变量，避免短路导致未注册依赖
-                                final isSelf =
-                                    widget.controller.isOneself.value;
-                                final isBind = 
-                                    widget.controller.isBindPartner.value;
-                                final showMask =
-                                    isBind && !UserManager.isVip && isSelf != 1;
-                                return showMask
-                                    ? Positioned.fill(
-                                        child: ClipRRect(
-                                          borderRadius: const BorderRadius.vertical(
-                                            top: Radius.circular(20),
-                                          ),
-                                          child: BackdropFilter(
-                                            filter: ImageFilter.blur(
-                                              sigmaX: 10.0,
-                                              sigmaY: 10.0,
-                                            ),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFFFFFFF)
-                                                    .withOpacity(0.2),
-                                                borderRadius: const BorderRadius.vertical(
-                                                  top: Radius.circular(20),
-                                                ),
-                                              ),
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  // 点击遮罩层时跳转到VIP页面
-                                                  Get.toNamed(KissuRoutePath.vip);
-                                                },
-                                                child: Container(
-                                                  color: Colors
-                                                      .transparent, // 确保整个区域可点击
-                                                  child: Center(
-                                                    child: Column(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment.center,
-                                                      children: [
-                                                        // 图片
-                                                        GestureDetector(
-                                                          onTap: () async {
-                                                            // 上报开通会员按钮埋点
-                                                            await _trackOpenMembershipButton();
-                                                            // 点击图片时跳转到VIP页面
-                                                            Get.toNamed(
-                                                              KissuRoutePath.vip,
-                                                            );
-                                                          },
-                                                          child: Image.asset(
-                                                            'assets/kissu_go_bind.webp',
-                                                            width: 111,
-                                                            height: 34,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(height: 12),
-                                                        // 文字
-                                                        const Text(
-                                                          '实时查看"另一半"的位置和行程轨迹',
-                                                          style: TextStyle(
-                                                            fontSize: 14,
-                                                            color: Color(
-                                                              0xFF333333,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : const SizedBox.shrink();
-                              }),
+                              // 统一的蒙版层（未绑定 或 已绑定但未开会员）
+                              _buildVipMask(),
                             ],
                           ),
                         ),
@@ -630,51 +520,15 @@ class _TrackPageContentState extends State<_TrackPageContent>
       // 未绑定时显示带背景图的绑定模块
       return Container(
         margin: EdgeInsets.symmetric(horizontal: 14),
-        height: 125,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          image: DecorationImage(
-            image: AssetImage('assets/3.0/kissu3_track__bind_bg.webp'),
-            fit: BoxFit.cover,
-          ),
-        ),
+        height: 92,
+         
         child: Stack(
           children: [
-            // 立即去绑定按钮（在背景图上）
-            Positioned(
-              right: 12,
-              top: 8,
-              child: GestureDetector(
-                onTap: () async {
-                  // 上报立即去绑定按钮埋点
-                  await _trackBindNowButton();
-                  // 显示绑定弹窗
-                  if (mounted && context.mounted) {
-                    CustomBottomDialog.show(
-                      context: context,
-                      caller: BindingDialogCaller.track,
-                    ).then((_) {
-                      // 绑定完成后刷新当前用户数据
-                      widget.controller.refreshCurrentUserData();
-                    });
-                  }
-                },
-                child: Container(
-                  width: 70,
-                  height: 30,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(15),
-                  ), 
-                ),
-              ),
-            ),
             // 日期选择器
             Positioned(
               left: 0,
               right: 0,
-              top: 49,
+              // top: 49,
               bottom: 0,
               child: Container(
                 decoration: BoxDecoration(
@@ -718,21 +572,112 @@ class _TrackPageContentState extends State<_TrackPageContent>
   /// 上报开通会员按钮埋点
   Future<void> _trackOpenMembershipButton() async {
     try {
-      await TrackingService.trackFootprintOpenMembershipButton();
-      DebugUtil.info('✅ 足迹页面-开通会员按钮埋点上报成功');
+      // 上报新版埋点：足迹-立刻开通会员
+      await TrackingService.trackTrackToVip();
+      DebugUtil.info('✅ 足迹页面-立刻开通会员埋点上报成功');
     } catch (e) {
-      DebugUtil.error('❌ 足迹页面-开通会员按钮埋点上报失败: $e');
+      DebugUtil.error('❌ 足迹页面-立刻开通会员埋点上报失败: $e');
     }
   }
 
   /// 上报立即去绑定按钮埋点
   Future<void> _trackBindNowButton() async {
     try {
-      await TrackingService.trackFootprintBindNowButton();
-      DebugUtil.info('✅ 足迹页面-立即去绑定按钮埋点上报成功');
+      // 上报新版埋点：足迹-立刻去绑定
+      await TrackingService.trackTrackToBind();
+      DebugUtil.info('✅ 足迹页面-立刻去绑定埋点上报成功');
     } catch (e) {
-      DebugUtil.error('❌ 足迹页面-立即去绑定按钮埋点上报失败: $e');
+      DebugUtil.error('❌ 足迹页面-立刻去绑定埋点上报失败: $e');
     }
+  }
+
+  /// 统一的蒙版层（未绑定 或 已绑定但未开会员）
+  Widget _buildVipMask() {
+    return Obx(() {
+      final isBindPartner = widget.controller.isBindPartner.value;
+      final isVip = UserManager.isVip;
+      
+      // 未绑定 或 已绑定但未开会员时显示蒙版
+      final shouldShowMask = !isBindPartner || (isBindPartner && !isVip);
+      
+      if (shouldShowMask) {
+        return Positioned.fill(
+          child: Column(
+            children: [
+              // 顶部日期组件（清晰的，不模糊）
+              _buildDateModule(),
+              const SizedBox(height: 10),
+              // 原来的蒙版整体
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // 文字图片
+                            Image.asset(
+                              'assets/kissu3_go_label.webp',
+                              width: 216,
+                              height: 32,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 20),
+                            // 按钮
+                            GestureDetector(
+                              onTap: () async {
+                                if (!isBindPartner) {
+                                  // 未绑定：显示绑定弹窗
+                                  await _trackBindNowButton();
+                                  if (mounted && context.mounted) {
+                                    CustomBottomDialog.show(
+                                      context: context,
+                                      caller: BindingDialogCaller.track,
+                                    ).then((_) {
+                                      widget.controller.refreshCurrentUserData();
+                                    });
+                                  }
+                                } else {
+                                  // 已绑定但未开会员：跳转到VIP页面
+                                  await _trackOpenMembershipButton();
+                                  Get.toNamed(
+                                    KissuRoutePath.vip,
+                                    arguments: {
+                                      'previousPageName': '足迹页面',
+                                      'previousPageId': 'footprint_page',
+                                    },
+                                  );
+                                }
+                              },
+                              child: Image.asset(
+                                !isBindPartner
+                                    ? 'assets/kissu3_go_bind.webp'  // 未绑定
+                                    : 'assets/kissu3_go_vip.webp',  // 已绑定未开会员
+                                width: 150,
+                                height: 48,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    });
   }
 }// 优化的遮罩层Widget - 减少重建频率
 class _OptimizedOverlayWidget extends StatelessWidget {
@@ -922,40 +867,47 @@ class _CachedAvatarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // 无论绑定状态如何，都显示另一半头像（左边，默认选中）
-        _AvatarButton(
-          controller: controller,
-          isMyself: false,
-          onTap: () {
-            if (controller.isOneself.value != 0) {
-              // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
-              controller.onAvatarTapped(false);
-              // 添加触觉反馈
-              HapticFeedback.lightImpact();
-              print('🎯 头像点击：切换到查看另一半的轨迹数据');
-            }
-          },
-        ),
-        const SizedBox(width: 8),
-        // 显示自己的头像（右边）
-        _AvatarButton(
-          controller: controller,
-          isMyself: true,
-          onTap: () {
-            if (controller.isOneself.value != 1) {
-              // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
-              controller.onAvatarTapped(true);
-              // 添加触觉反馈
-              HapticFeedback.lightImpact();
-              print('🎯 头像点击：切换到查看自己的轨迹数据');
-            }
-          },
-        ),
-      ],
-    );
+    return Obx(() {
+      // 未绑定时不展示任何头像
+      if (!controller.isBindPartner.value) {
+        return const SizedBox.shrink();
+      }
+      
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 显示另一半头像（左边）
+          _AvatarButton(
+            controller: controller,
+            isMyself: false,
+            onTap: () {
+              if (controller.isOneself.value != 0) {
+                // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
+                controller.onAvatarTapped(false);
+                // 添加触觉反馈
+                HapticFeedback.lightImpact();
+                print('🎯 头像点击：切换到查看另一半的轨迹数据');
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          // 显示自己的头像（右边）
+          _AvatarButton(
+            controller: controller,
+            isMyself: true,
+            onTap: () {
+              if (controller.isOneself.value != 1) {
+                // 直接调用onAvatarTapped，让controller内部处理状态更新和地图移动
+                controller.onAvatarTapped(true);
+                // 添加触觉反馈
+                HapticFeedback.lightImpact();
+                print('🎯 头像点击：切换到查看自己的轨迹数据');
+              }
+            },
+          ),
+        ],
+      );
+    });
   }
 }
 
@@ -1039,34 +991,6 @@ class _AvatarButtonState extends State<_AvatarButton> {
                 },
               ),
             ),
-            // 虚拟TA标签（只在未绑定且为另一半头像时显示）
-            if (!widget.isMyself && !widget.controller.isBindPartner.value)
-              Positioned(
-                top: -18,
-                left: actualSize / 2 - 23, // 居中显示
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(
-                      color: const Color(0xFFFF88AA),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Text(
-                    "虚拟TA",
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF000000),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       );

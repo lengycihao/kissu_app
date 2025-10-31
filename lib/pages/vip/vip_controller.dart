@@ -12,6 +12,8 @@ import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/discount_bottom_sheet.dart';
+import 'package:kissu_app/widgets/dialogs/vip_cancel_retention_dialog.dart';
+import 'package:kissu_app/services/tracking_service.dart';
 
 class VipController extends GetxController {
   // Logger实例
@@ -38,6 +40,9 @@ class VipController extends GetxController {
   // 价格组件横向滚动控制器
   late ScrollController priceScrollController;
   
+  // 主内容滚动控制器（用于埋点检测）
+  late ScrollController mainScrollController;
+  
   // 当前轮播图索引
   var currentIndex = 0.obs;
   
@@ -48,11 +53,11 @@ class VipController extends GetxController {
   // 选中的价格索引
   var selectedPriceIndex = 0.obs; // 默认选中第一个套餐
   
-  // 选中的支付方式 (0: 支付宝, 1: 微信)
-  var selectedPaymentMethod = 0.obs; // 默认支付宝
+  // 选中的支付方式 (0: 微信, 1: 支付宝)
+  var selectedPaymentMethod = 0.obs; // 默认微信
   
   // 是否同意协议
-  var agreementChecked = false.obs;
+  var agreementChecked = true.obs; // 默认勾选
   
   // 是否正在购买
   var isPurchasing = false.obs;
@@ -79,12 +84,33 @@ class VipController extends GetxController {
   // 支付结果监听器
   StreamSubscription<Map<String, dynamic>>? _paymentResultSubscription;
 
+  // 页面浏览埋点相关
+  DateTime? _pageEnterTime;
+  var scrollTimes = 0.obs;
+  var hasScrolled = false.obs;
+  String previousPageName = ''; // 上个页面名称
+  String previousPageId = ''; // 上个页面ID
+  bool isFromDialogPurchase = false; // 是否从弹窗入口支付
+  bool isFromRetentionDialog = false; // 是否从挽留弹窗入口支付
+  VipPackageModel? retentionDialogPackage; // 挽留弹窗选择的套餐
+
   @override
   void onInit() {
     super.onInit();
+    
+    // 记录进入时间
+    _pageEnterTime = DateTime.now();
+    
+    // 初始化控制器
     pageController = PageController();
     commentScrollController = ScrollController();
     priceScrollController = ScrollController();
+    mainScrollController = ScrollController();
+    
+    // 从路由参数获取上个页面信息
+    final args = Get.arguments as Map<String, dynamic>?;
+    previousPageName = args?['previousPageName'] ?? '未知页面';
+    previousPageId = args?['previousPageId'] ?? 'unknown';
     
     // 设置支付结果监听
     _setupPaymentResultListener();
@@ -151,7 +177,7 @@ class VipController extends GetxController {
     commentCurrentIndex.value = 0;
     selectedPriceIndex.value = 0;
     selectedPaymentMethod.value = 0;
-    agreementChecked.value = false;
+    agreementChecked.value = true; // 默认勾选
     isPurchasing.value = false;
     isLoadingPackages.value = false;
   }
@@ -164,6 +190,9 @@ class VipController extends GetxController {
       return;
     }
     _isDisposed = true;
+    
+    // 上报页面浏览埋点
+    _trackPageView();
     
     // 标记页面为不可见状态
     isPageVisible.value = false;
@@ -194,7 +223,157 @@ class VipController extends GetxController {
       print('PriceScrollController dispose失败: $e');
     }
     
+    try {
+      mainScrollController.dispose();
+    } catch (e) {
+      print('MainScrollController dispose失败: $e');
+    }
+    
     super.onClose();
+  }
+
+  /// 处理滚动事件
+  bool handleScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      if (delta.abs() > 10) {
+        if (!hasScrolled.value) {
+          hasScrolled.value = true;
+        }
+        scrollTimes.value++;
+      }
+    }
+    return false;
+  }
+
+  /// 上报页面浏览埋点
+  Future<void> _trackPageView() async {
+    if (_pageEnterTime == null) return;
+    
+    try {
+      final duration = DateTime.now().difference(_pageEnterTime!);
+      final seconds = duration.inSeconds;
+      final stayDuration = '${seconds}s';
+      
+      // 获取会员状态
+      final isVip = UserManager.isVip ? '开通' : '未开通';
+      
+      await TrackingService.trackMembershipPageView(
+        stayDuration: stayDuration,
+        canScroll: hasScrolled.value,
+        scrollTimes: scrollTimes.value,
+        previousName: previousPageName,
+        isVip: isVip,
+        previousId: previousPageId,
+      );
+      
+      debugPrint('✅ 会员页面浏览埋点上报成功: 停留时长=$stayDuration, 是否滑动=${hasScrolled.value}, 滑动次数=${scrollTimes.value}, 上个页面=$previousPageName, 会员状态=$isVip');
+    } catch (e) {
+      debugPrint('❌ 会员页面浏览埋点上报失败: $e');
+    }
+  }
+
+  /// 返回按钮点击（用于埋点）
+  Future<void> onBackTap() async {
+    // 显示挽留弹窗
+    final shouldLeave = await _showRetentionDialog();
+    
+    if (shouldLeave) {
+      // 上报返回按钮埋点
+      await TrackingService.trackMembershipLeave();
+      debugPrint('✅ 会员页面返回按钮埋点上报成功');
+      
+      Get.back();
+    }
+  }
+  
+  /// 显示挽留弹窗
+  Future<bool> _showRetentionDialog() async {
+    try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('❌ 无法获取Context，直接返回');
+        return true;
+      }
+      
+      // 使用封装好的弹窗
+      final result = await VipCancelRetentionDialog.show(
+        context: context,
+        onUnlock: () {
+          debugPrint('💫 用户点击"全部解锁"');
+          _handleUnlockFromRetention();
+        },
+        onCancel: () {
+          debugPrint('💫 用户点击"下次再说"');
+          _trackRetentionDialogCancel();
+        },
+        barrierDismissible: true,
+      );
+      
+      // result 为 true 表示点击了"全部解锁"，不返回
+      // result 为 false 表示点击了"下次再说"，允许返回
+      // result 为 null 表示点击背景关闭，不允许返回
+      return result == false; // 只有点击"下次再说"才返回true
+    } catch (e) {
+      debugPrint('❌ 显示挽留弹窗失败: $e');
+      return true; // 出错时允许返回
+    }
+  }
+  
+  /// 从挽留弹窗点击"全部解锁"
+  Future<void> _handleUnlockFromRetention() async {
+    debugPrint('💫 从挽留弹窗点击"全部解锁"，开始购买流程');
+    
+    // 检查是否正在购买
+    if (isPurchasing.value) {
+      debugPrint('💫 正在购买中，忽略重复点击');
+      return;
+    }
+    
+    // 检查是否有套餐
+    if (vipPackages.isEmpty) {
+      OKToastUtil.show('暂无可用套餐');
+      return;
+    }
+    
+    // 获取第一个套餐
+    final firstPackage = vipPackages.first;
+    debugPrint('💫 选择第一个套餐: ${firstPackage.title}');
+    
+    // 设置支付方式为微信
+    selectedPaymentMethod.value = 0;
+    debugPrint('💫 设置支付方式为微信');
+    
+    // 标记为从挽留弹窗入口支付
+    isFromRetentionDialog = true;
+    retentionDialogPackage = firstPackage;
+    
+    // 上报挽留弹窗埋点 - 点击"全部解锁"
+    await _trackRetentionDialogUnlock(firstPackage, '点击支付');
+    
+    // 设置正在购买标志
+    isPurchasing.value = true;
+    
+    try {
+      // 上报埋点
+      await _trackMembershipOpen(firstPackage, '点击支付');
+      
+      // 执行支付
+      await _processPurchase(firstPackage);
+      
+    } catch (e) {
+      debugPrint('❌ 从挽留弹窗购买失败: $e');
+      // 错误提示已在_processPurchase中处理
+    } finally {
+      isPurchasing.value = false;
+    }
+  }
+
+  /// 服务协议点击（用于埋点）
+  Future<void> onServiceAgreementTap() async {
+    // 上报服务协议点击埋点
+    await TrackingService.trackMembershipServiceAgreement();
+    debugPrint('✅ 会员服务协议点击埋点上报成功');
   }
   
 
@@ -464,6 +643,11 @@ class VipController extends GetxController {
     try {
       isPurchasing.value = true;
       
+      // 标记为从弹窗入口支付（重置挽留弹窗标记）
+      isFromDialogPurchase = true;
+      isFromRetentionDialog = false;
+      retentionDialogPackage = null;
+      
       // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
       
@@ -518,6 +702,11 @@ class VipController extends GetxController {
     try {
       isPurchasing.value = true;
       
+      // 标记为非弹窗入口支付（重置挽留弹窗标记）
+      isFromDialogPurchase = false;
+      isFromRetentionDialog = false;
+      retentionDialogPackage = null;
+      
       // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
       
@@ -556,11 +745,11 @@ class VipController extends GetxController {
   String _getSelectedPaymentMethod() {
     switch (selectedPaymentMethod.value) {
       case 0:
-        return '支付宝支付';
-      case 1:
         return '微信支付';
-      default:
+      case 1:
         return '支付宝支付';
+      default:
+        return '微信支付';
     }
   }
   
@@ -598,6 +787,8 @@ class VipController extends GetxController {
         // 检查是否是用户取消
         if (message.contains('取消')) {
           _logger.i('用户取消了支付');
+          // 上报支付取消埋点
+          _handlePaymentCancel();
         } else {
           // 支付失败时，仍然检查一下VIP状态
           _checkVipStatusAfterFailure();
@@ -606,6 +797,52 @@ class VipController extends GetxController {
     });
   }
   
+  /// 处理支付取消埋点
+  Future<void> _handlePaymentCancel() async {
+    try {
+      _logger.i('开始处理支付取消埋点...');
+      
+      // 获取当前选中的套餐
+      VipPackageModel? package;
+      if (selectedPriceIndex.value >= 0 && selectedPriceIndex.value < vipPackages.length) {
+        package = vipPackages[selectedPriceIndex.value];
+      } else {
+        // 如果没有选中套餐，可能是从挽留弹窗支付的，使用挽留弹窗套餐
+        package = retentionDialogPackage ?? (vipPackages.isNotEmpty ? vipPackages.first : null);
+      }
+      
+      if (package == null) {
+        _logger.w('支付取消埋点：无法获取套餐信息');
+        return;
+      }
+      
+      // 判断支付入口并上报相应埋点
+      if (isFromRetentionDialog && retentionDialogPackage != null) {
+        // 从挽留弹窗入口支付取消
+        await _trackRetentionDialogUnlock(retentionDialogPackage!, '支付取消');
+        debugPrint('✅ 会员挽留弹窗支付取消埋点已上报');
+        
+        // 重置标记
+        isFromRetentionDialog = false;
+        retentionDialogPackage = null;
+      } else if (isFromDialogPurchase) {
+        // 从19元弹窗入口支付取消
+        await _trackVipSale(package, '支付取消');
+        debugPrint('✅ 19元弹窗支付取消埋点已上报');
+        
+        // 重置标记
+        isFromDialogPurchase = false;
+      } else {
+        // 从普通会员页面支付取消
+        await _trackMembershipOpen(package, '支付取消');
+        debugPrint('✅ 会员页面支付取消埋点已上报');
+      }
+      
+    } catch (e) {
+      _logger.e('支付取消埋点处理异常: $e');
+    }
+  }
+
   /// 支付失败后检查VIP状态
   Future<void> _checkVipStatusAfterFailure() async {
     _logger.i('💡 支付失败，延迟检查VIP状态...');
@@ -638,26 +875,6 @@ class VipController extends GetxController {
       bool result = false;
       
       if (selectedPaymentMethod.value == 0) {
-        // 支付宝支付
-        _logger.i('💫 开始创建支付宝支付订单');
-        final aliPayResult = await _vipService.aliPay(vipPackageId: package.id);
-        _logger.i('💫 支付宝订单创建结果: isSuccess=${aliPayResult.isSuccess}, msg=${aliPayResult.msg}');
-        
-        if (aliPayResult.isSuccess && aliPayResult.data != null) {
-          _logger.i('💫 支付宝订单创建成功，orderString长度: ${aliPayResult.data!.orderString?.length ?? 0}');
-          _logger.i('💫 支付宝订单字符串前100字符: ${aliPayResult.data!.orderString?.substring(0, (aliPayResult.data!.orderString?.length ?? 0) > 100 ? 100 : (aliPayResult.data!.orderString?.length ?? 0))}...');
-          
-          // 调用支付宝支付
-          _logger.i('💫 开始调用支付宝支付SDK');
-          result = await _paymentService.payWithAlipay(
-            orderInfo: aliPayResult.data!.orderString ?? '',
-          );
-          _logger.i('💫 支付宝支付SDK调用完成，结果: $result');
-        } else {
-          _logger.e('💫 支付宝订单创建失败: ${aliPayResult.msg}');
-          throw Exception(aliPayResult.msg ?? '支付宝支付订单创建失败');
-        }
-      } else {
         // 微信支付
         _logger.i('💫 开始创建微信支付订单');
         final wxPayResult = await _vipService.wxPay(vipPackageId: package.id);
@@ -681,6 +898,26 @@ class VipController extends GetxController {
         } else {
           _logger.e('💫 微信支付订单创建失败: ${wxPayResult.msg}');
           throw Exception(wxPayResult.msg ?? '微信支付订单创建失败');
+        }
+      } else {
+        // 支付宝支付
+        _logger.i('💫 开始创建支付宝支付订单');
+        final aliPayResult = await _vipService.aliPay(vipPackageId: package.id);
+        _logger.i('💫 支付宝订单创建结果: isSuccess=${aliPayResult.isSuccess}, msg=${aliPayResult.msg}');
+        
+        if (aliPayResult.isSuccess && aliPayResult.data != null) {
+          _logger.i('💫 支付宝订单创建成功，orderString长度: ${aliPayResult.data!.orderString?.length ?? 0}');
+          _logger.i('💫 支付宝订单字符串前100字符: ${aliPayResult.data!.orderString?.substring(0, (aliPayResult.data!.orderString?.length ?? 0) > 100 ? 100 : (aliPayResult.data!.orderString?.length ?? 0))}...');
+          
+          // 调用支付宝支付
+          _logger.i('💫 开始调用支付宝支付SDK');
+          result = await _paymentService.payWithAlipay(
+            orderInfo: aliPayResult.data!.orderString ?? '',
+          );
+          _logger.i('💫 支付宝支付SDK调用完成，结果: $result');
+        } else {
+          _logger.e('💫 支付宝订单创建失败: ${aliPayResult.msg}');
+          throw Exception(aliPayResult.msg ?? '支付宝支付订单创建失败');
         }
       }
       
@@ -714,6 +951,26 @@ class VipController extends GetxController {
     try {
       _logger.i('支付成功，开始处理后续操作...');
       
+      // 判断是否从挽留弹窗入口支付
+      if (isFromRetentionDialog && retentionDialogPackage != null) {
+        // 上报挽留弹窗支付成功埋点
+        await _trackRetentionDialogUnlock(retentionDialogPackage!, '支付成功');
+        debugPrint('✅ 会员挽留弹窗支付成功埋点已上报');
+        
+        // 重置标记
+        isFromRetentionDialog = false;
+        retentionDialogPackage = null;
+      }
+      // 判断是否从19元弹窗入口支付
+      else if (isFromDialogPurchase) {
+        // 上报19元弹窗埋点
+        await _trackVipSale(package, '支付成功');
+        debugPrint('✅ 19元弹窗支付埋点已上报');
+      } else {
+        // 上报开通会员埋点
+        await _trackMembershipOpen(package, '支付成功');
+      }
+      
       // 显示支付成功提示
       // OKToastUtil.show('支付成功');
 
@@ -728,6 +985,116 @@ class VipController extends GetxController {
       _logger.e('支付成功后处理异常: $e');
       // 即使出现异常，也要尝试返回上一页
       Get.back();
+    }
+  }
+
+  /// 上报开通会员埋点
+  Future<void> _trackMembershipOpen(VipPackageModel package, String payResult) async {
+    try {
+      // 获取支付方式
+      final payType = selectedPaymentMethod.value == 0 ? '微信' : '支付宝';
+      
+      // 判断是否是续费
+      final isRenew = UserManager.isVip ? '是续费' : '不是续费';
+      
+      await TrackingService.trackMembershipOpen(
+        vipPrice: package.vipPrice,
+        vipName: package.title,
+        payType: payType,
+        isRenew: isRenew,
+        previousName: previousPageName,
+        payResult: payResult,
+      );
+      
+      debugPrint('✅ 开通会员埋点上报成功: 套餐=${package.title}, 金额=${package.vipPrice}, 支付方式=$payType, 续费=$isRenew, 结果=$payResult');
+    } catch (e) {
+      debugPrint('❌ 开通会员埋点上报失败: $e');
+    }
+  }
+
+  /// 上报19元弹窗支付埋点
+  Future<void> _trackVipSale(VipPackageModel package, String payResult) async {
+    try {
+      // 获取支付方式
+      final payType = selectedPaymentMethod.value == 0 ? '微信' : '支付宝';
+      
+      // 判断是否是续费
+      final isRenew = UserManager.isVip ? '是续费' : '不是续费';
+      
+      await TrackingService.trackVipSale(
+        vipPrice: package.vipPrice,
+        vipName: package.title,
+        payType: payType,
+        isRenew: isRenew,
+        previousName: previousPageName,
+        payResult: payResult,
+      );
+      
+      debugPrint('✅ 19元弹窗支付埋点上报成功: 套餐=${package.title}, 金额=${package.vipPrice}, 支付方式=$payType, 续费=$isRenew, 上个页面=$previousPageName, 结果=$payResult');
+    } catch (e) {
+      debugPrint('❌ 19元弹窗支付埋点上报失败: $e');
+    }
+  }
+
+  /// 上报挽留弹窗埋点 - 点击"全部解锁"
+  Future<void> _trackRetentionDialogUnlock(VipPackageModel package, String payResult) async {
+    try {
+      // 获取支付方式
+      final payType = selectedPaymentMethod.value == 0 ? '微信' : '支付宝';
+      
+      // 判断是否是续费
+      final isRenew = UserManager.isVip ? '是续费' : '不是续费';
+      
+      await TrackingService.trackVipRetentionPopup(
+        buttonName: '全部解锁',
+        vipPrice: package.vipPrice,
+        vipName: package.title,
+        payType: payType,
+        isRenew: isRenew,
+        previousName: previousPageName,
+        payResult: payResult,
+      );
+      
+      debugPrint('✅ 会员挽留弹窗埋点上报成功: 按钮=全部解锁, 套餐=${package.title}, 金额=${package.vipPrice}, 支付方式=$payType, 续费=$isRenew, 上个页面=$previousPageName, 结果=$payResult');
+    } catch (e) {
+      debugPrint('❌ 会员挽留弹窗埋点上报失败: $e');
+    }
+  }
+
+  /// 上报挽留弹窗埋点 - 点击"下次再说"
+  Future<void> _trackRetentionDialogCancel() async {
+    try {
+      // 获取当前选中的套餐，如果没有则使用第一个
+      VipPackageModel? package;
+      if (selectedPriceIndex.value >= 0 && selectedPriceIndex.value < vipPackages.length) {
+        package = vipPackages[selectedPriceIndex.value];
+      } else if (vipPackages.isNotEmpty) {
+        package = vipPackages.first;
+      }
+      
+      // 如果没有套餐数据，使用默认值
+      final vipPrice = package?.vipPrice ?? '0.00';
+      final vipName = package?.title ?? '未知套餐';
+      
+      // 获取支付方式
+      final payType = selectedPaymentMethod.value == 0 ? '微信' : '支付宝';
+      
+      // 判断是否是续费
+      final isRenew = UserManager.isVip ? '是续费' : '不是续费';
+      
+      await TrackingService.trackVipRetentionPopup(
+        buttonName: '下次再说',
+        vipPrice: vipPrice,
+        vipName: vipName,
+        payType: payType,
+        isRenew: isRenew,
+        previousName: previousPageName,
+        payResult: '下次再说',
+      );
+      
+      debugPrint('✅ 会员挽留弹窗埋点上报成功: 按钮=下次再说, 套餐=$vipName, 金额=$vipPrice, 支付方式=$payType, 续费=$isRenew, 上个页面=$previousPageName');
+    } catch (e) {
+      debugPrint('❌ 会员挽留弹窗埋点上报失败: $e');
     }
   }
   

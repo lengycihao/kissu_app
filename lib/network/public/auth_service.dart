@@ -8,6 +8,7 @@ import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/native_location_report_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:get/get.dart';
 
@@ -71,6 +72,9 @@ class AuthService {
   /// 初始化服务，读取缓存
   Future<void> init() async {
     _currentUser = await _loadCurrentUser();
+    
+    // 注意：不在这里登录IM，因为此时TencentIMService可能还没注册
+    // IM登录会在main.dart中所有服务注册完成后进行
   }
 
   Future<HttpResultN<LoginModel>> loginWithCode({
@@ -151,6 +155,8 @@ class AuthService {
     // 设置极光推送别名
     _setJPushAlias(user);
 
+    // 登录腾讯IM
+    _loginTencentIM(user);
 
     // 定位服务将在首页启动，这里不再自动启动
 
@@ -190,6 +196,32 @@ class AuthService {
     }
   }
 
+  /// 登录腾讯IM
+  void _loginTencentIM(LoginModel user) {
+    try {
+      // 检查IM服务是否已注册
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = Get.find<TencentIMService>();
+        
+        // 在后台登录IM，不阻塞登录流程
+        Future.microtask(() async {
+          bool success = await imService.loginIM(user);
+          if (success) {
+            logger.info('腾讯IM登录成功', tag: 'AuthService');
+          } else {
+            logger.w('腾讯IM登录失败', tag: 'AuthService');
+          }
+        });
+        
+        logger.info('开始登录腾讯IM', tag: 'AuthService');
+      } else {
+        logger.w('腾讯IM服务未注册，跳过IM登录', tag: 'AuthService');
+      }
+    } catch (e) {
+      logger.e('登录腾讯IM失败: $e', tag: 'AuthService');
+    }
+  }
+
   /// 清除极光推送别名（仅清除定向推送，保留广播推送能力）
   void _clearJPushAlias() {
     try {
@@ -220,6 +252,32 @@ class AuthService {
       }
     } catch (e) {
       logger.e('清除极光推送配置失败: $e');
+    }
+  }
+
+  /// 退出腾讯IM
+  void _logoutTencentIM() {
+    try {
+      // 检查IM服务是否已注册
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = Get.find<TencentIMService>();
+        
+        // 在后台退出IM，不阻塞退出流程
+        Future.microtask(() async {
+          bool success = await imService.logoutIM();
+          if (success) {
+            logger.info('腾讯IM退出成功', tag: 'AuthService');
+          } else {
+            logger.w('腾讯IM退出失败', tag: 'AuthService');
+          }
+        });
+        
+        logger.info('开始退出腾讯IM', tag: 'AuthService');
+      } else {
+        logger.w('腾讯IM服务未注册，跳过IM退出', tag: 'AuthService');
+      }
+    } catch (e) {
+      logger.e('退出腾讯IM失败: $e', tag: 'AuthService');
     }
   }
 
@@ -331,6 +389,9 @@ class AuthService {
       // 清除极光推送别名
       _clearJPushAlias();
 
+      // 退出腾讯IM
+      _logoutTencentIM();
+
       // 调用退出登录API
       try {
         final authApi = AuthApi();
@@ -363,6 +424,9 @@ class AuthService {
       
       // 清除极光推送别名（保留广播推送能力）
       _clearJPushAlias();
+
+      // 退出腾讯IM
+      _logoutTencentIM();
     }
 
     // 只清除本地数据

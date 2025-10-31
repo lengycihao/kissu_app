@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.4+4
+version: 1.0.5+5
 
 environment:
   sdk: ^3.8.0
@@ -86,6 +86,8 @@ dependencies:
   # Intl for date formatting
   intl: ^0.20.2
   shimmer: ^3.0.0  # Shimmer 加载动画效果
+  # 腾讯IM SDK
+  tencent_cloud_chat_sdk: ^8.2.6325
 
 dev_dependencies:
   flutter_test:
@@ -122,6 +124,7 @@ flutter:
     - assets/phone_history/
     - assets/mipmap-xxhdpi/
     - assets/3.0/
+    - assets/gif/
     - assets/chat/
     - assets/map/
     - assets/location/

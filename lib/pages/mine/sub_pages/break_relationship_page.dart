@@ -4,7 +4,7 @@ import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'break_relationship_controller.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
-import '../mine_controller.dart';
+import '../../../services/relationship_animation_service.dart';
 import '../../usage_report/usage_report_controller.dart';
 import '../../home/home_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -250,29 +250,29 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       if (result.isSuccess) {
         loadingText.value = '解除成功';
 
-        // 延迟一下让用户看到成功提示
-        await Future.delayed(const Duration(milliseconds: 800));
+        // 刷新用户信息，确保数据同步
+        await UserManager.refreshUserInfo();
 
-        // 先显示成功提示（在页面关闭前）
-        CustomToast.show(
-          Get.context!,
-          '关系已解除',
-        );
+        // 先刷新所有相关控制器的数据
+        await _refreshAllControllers();
 
-        // 延迟一下让Toast显示
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        // 先刷新用户信息，确保数据同步
-        final refreshSuccess = await UserManager.refreshUserInfo();
-        if (!refreshSuccess) {
-          CustomToast.show(
-            Get.context!,
-            '用户信息刷新失败，请重新进入页面',
-          );
+        // 播放解除绑定动画
+        try {
+          final animationService = RelationshipAnimationService.instance;
+          animationService.showUnbindAnimation(onComplete: () {
+            print('🎯 解除绑定动画播放完成，返回到我的页面');
+            // 动画完成后返回到我的页面
+            // 首先返回到上一级页面（隐私设置页面）
+            Get.back();
+            // 再返回到我的页面
+            Get.back();
+          });
+        } catch (e) {
+          print('❌ 播放解除绑定动画失败: $e');
+          // 如果动画服务失败，直接返回
+          Get.back();
+          Get.back();
         }
-        
-        // 返回到我的页面，并确保刷新我的页面数据
-        await _returnToMinePageAndRefresh();
       } else {
         CustomToast.show(
           Get.context!,
@@ -289,30 +289,6 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
     }
   }
 
-  /// 返回到我的页面并刷新数据
-  Future<void> _returnToMinePageAndRefresh() async {
-    try {
-      // 先刷新所有相关控制器的数据（在页面跳转前）
-      await _refreshAllControllers();
-      
-      // 然后返回到我的页面
-      // 首先返回到上一级页面（隐私设置页面）
-      Get.back();
-
-      // 再返回到我的页面
-      Get.back();
-      
-      // 页面跳转后再次确保数据刷新
-      await Future.delayed(const Duration(milliseconds: 200));
-      await _refreshMineControllerAfterReturn();
-      
-    } catch (e) {
-      print('返回页面并刷新数据失败: $e');
-      // 即使出错也要返回页面
-      Get.back();
-      Get.back();
-    }
-  }
   
   /// 刷新所有相关控制器
   Future<void> _refreshAllControllers() async {
@@ -339,20 +315,6 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       }
     } catch (e) {
       print('❌ 刷新用机记录页面数据失败: $e');
-    }
-  }
-  
-  /// 页面返回后刷新我的页面控制器
-  Future<void> _refreshMineControllerAfterReturn() async {
-    try {
-      if (Get.isRegistered<MineController>()) {
-        final mineController = Get.find<MineController>();
-        // 直接调用 loadUserInfo，避免重复的网络请求
-        mineController.loadUserInfo();
-        print('✅ 已刷新我的页面数据');
-      }
-    } catch (e) {
-      print('❌ 刷新我的页面数据失败: $e');
     }
   }
 

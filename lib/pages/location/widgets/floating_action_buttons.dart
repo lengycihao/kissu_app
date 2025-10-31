@@ -88,9 +88,7 @@ class FloatingActionButtons extends StatelessWidget {
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_knock_an.webp',
                   onTap: () {
-                    // 埋点：位置提醒按钮点击
-                    TrackingService.trackLocationReminderButton();
-                    Get.toNamed(KissuRoutePath.locationReminder);
+                    controller.onLocationReminderButtonTap();
                   },
                 ),
               ],
