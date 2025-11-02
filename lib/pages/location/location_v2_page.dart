@@ -89,6 +89,9 @@ class _LocationPageContentState extends State<_LocationPageContent>
     maxHeight = screenHeight - 100;
     _draggableController = DraggableScrollableController();
     widget.controller.setDraggableController(_draggableController);
+    
+    // 🔧 修复：初始化sheetPercent为正确的初始值，避免第一次滑动时按钮位置跳变
+    widget.controller.sheetPercent.value = initialHeight / screenHeight;
   }
 
   @override

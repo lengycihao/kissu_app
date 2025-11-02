@@ -105,6 +105,46 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     );
   }
 
+  /// 启动Marker呼吸动画（iOS原版实现）
+  Future<bool> startMarkerBreathAnimation({
+    required int mapId,
+    required String markerId,
+    int duration = 400,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#startBreathAnimation',
+        {
+          'markerId': markerId,
+          'duration': duration,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('启动Marker呼吸动画失败: $e');
+      return false;
+    }
+  }
+
+  /// 停止Marker呼吸动画
+  Future<bool> stopMarkerBreathAnimation({
+    required int mapId,
+    required String markerId,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#stopBreathAnimation',
+        {
+          'markerId': markerId,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('停止Marker呼吸动画失败: $e');
+      return false;
+    }
+  }
+
   @override
   void dispose({required int id}) {
     if (_channels.containsKey(id)) {

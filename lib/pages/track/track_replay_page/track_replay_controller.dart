@@ -103,6 +103,9 @@ class TrackReplayController extends GetxController with GetTickerProviderStateMi
   void onMapCreated(AMapController controller) {
     _mapManager.onMapCreated(controller, () {});
     
+    // 🎯 设置地图控制器给回放管理器（用于原生动画）
+    _replayManager.setMapController(controller);
+    
     // 延迟执行，等待地图准备完成
     Future.delayed(const Duration(milliseconds: 500), () {
       // 自动调整地图视角以显示完整轨迹

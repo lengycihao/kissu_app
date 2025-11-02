@@ -17,7 +17,6 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/map_preload_service.dart';
 import 'widgets/location_tips_manager.dart';
 import 'services/marker_builder.dart';
-import 'services/marker_swing_animator.dart';
 import 'services/location_data_helper.dart';
 
 class LocationV2Controller extends GetxController with GetTickerProviderStateMixin {
@@ -66,7 +65,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   
   // 🚀 新的服务和工具类
   late MarkerBuilder _markerBuilder;
-  late MarkerSwingAnimator _swingAnimator;
   
   DraggableScrollableController? _draggableController;
   AMapController? mapController;
@@ -116,7 +114,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       
       // 🚀 初始化新的服务和工具类
       _markerBuilder = MarkerBuilder();
-      _swingAnimator = MarkerSwingAnimator();
       
       tipsManager = LocationTipsManager(this);
       tipsManager.onInit();
@@ -577,17 +574,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
       if (tempMarkers.isNotEmpty) {
         _trackStartEndMarkers.value = tempMarkers;
-        // 🚀 使用 MarkerSwingAnimator 管理摆动动画
-        _swingAnimator.init(
-          mapController: mapController,
-          myIcon: _cachedMyIcon,
-          partnerIcon: _cachedPartnerIcon,
-          myLocation: actualMyLocation,
-          partnerLocation: actualPartnerLocation,
-        );
-        _swingAnimator.start();
+        // 🚀 使用原生呼吸动画（性能优秀，60fps流畅）
+        _startNativeBreathAnimation();
       } else {
         _trackStartEndMarkers.clear();
+        _stopNativeBreathAnimation();
       }
     } catch (e) {
       debugPrint('Init track markers error: $e');
@@ -1317,9 +1308,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     );
   }
 
-  // 🚀 摆动动画现在由 MarkerSwingAnimator 管理
-  // swingAngle 通过 _swingAnimator.swingAngle 访问
-
   bool _needsUpdateIconCache() {
     return _cachedMyAvatar != myAvatar.value ||
         _cachedPartnerAvatar != partnerAvatar.value ||
@@ -1366,9 +1354,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         _cachedMyIcon = _persistentMyIcon;
         _cachedMyAvatar = myAvatar.value;
         _cachedMyFace = myFace.value;
-        
-        // 🚀 更新动画器的图标
-        _swingAnimator.updateIcons(myIcon: _cachedMyIcon);
       }
 
       // 🚀 优化：Ta的头像Marker（使用全局缓存）
@@ -1406,15 +1391,71 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         _cachedPartnerAvatar = partnerAvatar.value;
         _cachedPartnerFace = partnerFace.value;
         _cachedIsBindPartner = isBindPartner.value;
-        
-        // 🚀 更新动画器的图标
-        _swingAnimator.updateIcons(partnerIcon: _cachedPartnerIcon);
       }
       
       final markerDuration = DateTime.now().difference(markerStartTime);
       debugPrint('📊 Marker创建/缓存耗时: ${markerDuration.inMilliseconds}ms');
     } catch (e) {
       debugPrint('Update icon cache error: $e');
+    }
+  }
+
+  /// 🎯 启动原生呼吸动画（iOS原版实现）
+  /// 
+  /// 🎨 iOS原版效果：
+  /// - 横向拉伸：X=1.03, Y=0.98（横向拉伸3%，纵向压缩2%）
+  /// - 纵向拉伸：X=0.98, Y=1.03（横向压缩2%，纵向拉伸3%）
+  /// - 两种状态交替变换，产生自然的"呼吸"效果
+  /// - 动画时长：0.4秒（与iOS原版完全一致）
+  /// 
+  /// ✅ 性能优势：
+  /// - 使用Android原生ScaleAnimation（GPU加速）
+  /// - 60fps流畅运行
+  /// - 零跨平台通信开销（只调用一次）
+  /// - 完全在原生层执行，不占用Flutter线程
+  void _startNativeBreathAnimation() async {
+    if (mapController == null) {
+      debugPrint('⚠️ MapController未初始化，跳过启动动画');
+      return;
+    }
+
+    try {
+      // 为"我的"Marker启动动画（iOS原版参数）
+      if (actualMyLocation.value != null) {
+        final mySuccess = await mapController!.startMarkerBreathAnimation(
+          markerId: 'my_marker',
+          duration: 400,  // iOS原版：0.4秒
+        );
+        if (mySuccess) {
+          debugPrint('✅ 我的Marker呼吸动画已启动(iOS原版效果)');
+        }
+      }
+
+      // 为"Ta的"Marker启动动画（iOS原版参数）
+      if (isBindPartner.value && actualPartnerLocation.value != null) {
+        final partnerSuccess = await mapController!.startMarkerBreathAnimation(
+          markerId: 'partner_marker',
+          duration: 400,  // iOS原版：0.4秒
+        );
+        if (partnerSuccess) {
+          debugPrint('✅ Ta的Marker呼吸动画已启动(iOS原版效果)');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 启动原生动画失败: $e');
+    }
+  }
+
+  /// 🎯 停止原生呼吸动画
+  void _stopNativeBreathAnimation() async {
+    if (mapController == null) return;
+
+    try {
+      await mapController!.stopMarkerBreathAnimation(markerId: 'my_marker');
+      await mapController!.stopMarkerBreathAnimation(markerId: 'partner_marker');
+      debugPrint('✅ Marker呼吸动画已停止');
+    } catch (e) {
+      debugPrint('❌ 停止原生动画失败: $e');
     }
   }
 
@@ -1444,11 +1485,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       debugPrint('Close tips manager error: $e');
     }
 
-    // 🚀 使用 MarkerSwingAnimator 清理摆动动画
+    // 🚀 停止原生呼吸动画
     try {
-      _swingAnimator.dispose();
+      _stopNativeBreathAnimation();
     } catch (e) {
-      debugPrint('Dispose swing animator error: $e');
+      debugPrint('Stop native breath animation error: $e');
     }
 
     try {

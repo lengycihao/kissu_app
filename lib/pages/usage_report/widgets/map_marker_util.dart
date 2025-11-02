@@ -6,58 +6,99 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 /// 地图标记工具类
 /// 用于创建自定义地图标记（如圆形头像标记）
 class MapMarkerUtil {
-  /// 创建圆形头像标记
+  /// 创建圆形头像标记（与定位页面完全一致）
   /// 
   /// [avatarUrl] 头像图片 URL
   /// [size] 标记大小（默认 80.0）
-  /// [borderWidth] 边框宽度（默认 4.0）
+  /// [borderWidth] 边框宽度（已废弃，使用固定双层边框）
   static Future<BitmapDescriptor> createCircleAvatarMarker(
     String? avatarUrl, {
     double size = 80.0,
-    double borderWidth = 4.0,
+    double borderWidth = 4.0, // 此参数已废弃，保留仅为兼容性
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final paint = Paint()..isAntiAlias = true;
 
-    // 绘制外圈白色边框
-    final borderPaint = Paint()
+    final center = Offset(size / 2, size / 2);
+    
+    // 🔧 修复：圆的半径要减去粉色边框宽度的一半，确保边框不超出canvas
+    final circleRadius = size / 2 - 2; // 减去粉色边框的一半（4/2=2）
+
+    // 绘制白色底色（与定位页面完全一致）
+    final avatarPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(size / 2, size / 2), size / 2, borderPaint);
+    canvas.drawCircle(center, circleRadius, avatarPaint);
 
-    // 绘制头像（内圈）
-    final avatarRadius = size / 2 - borderWidth;
-    final avatarCenter = Offset(size / 2, size / 2);
+    // 第一层：外层粉色边框 (#FF88AA, 4px) - 与定位页面完全一致
+    final outerBorderPaint = Paint()
+      ..color = const Color(0xFFFF88AA)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    canvas.drawCircle(center, circleRadius, outerBorderPaint);
 
-    // 裁剪为圆形
-    canvas.save();
-    canvas.clipPath(
-      Path()..addOval(Rect.fromCircle(center: avatarCenter, radius: avatarRadius)),
-    );
+    // 第二层：内层白色边框 (白色, 9px) - 与定位页面完全一致
+    // 白色边框要在粉色边框内侧，不能覆盖粉色
+    // 粉色边框外半径 = circleRadius，内半径 = circleRadius - 2
+    // 白色边框应该从 circleRadius - 2 开始往内，宽度9px，所以中心线在 circleRadius - 2 - 4.5 = circleRadius - 6.5
+    final innerBorderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9;
+    canvas.drawCircle(center, circleRadius - 6.5, innerBorderPaint);
 
-    // 加载并绘制头像
+    // 加载并绘制头像图片
+    ui.Image? avatarImage;
     if (avatarUrl != null && avatarUrl.isNotEmpty) {
       try {
-        final ui.Image avatarImage = await _loadNetworkImage(avatarUrl);
-        final srcRect = Rect.fromLTWH(
-          0,
-          0,
-          avatarImage.width.toDouble(),
-          avatarImage.height.toDouble(),
-        );
-        final dstRect = Rect.fromCircle(center: avatarCenter, radius: avatarRadius);
-        canvas.drawImageRect(avatarImage, srcRect, dstRect, paint);
+        avatarImage = await _loadNetworkImage(avatarUrl);
       } catch (e) {
-        // 加载失败，绘制默认图标
-        _drawDefaultAvatar(canvas, avatarCenter, avatarRadius);
+        // 加载失败，使用默认图标
+        avatarImage = null;
       }
-    } else {
-      // 没有头像URL，绘制默认图标
-      _drawDefaultAvatar(canvas, avatarCenter, avatarRadius);
     }
 
-    canvas.restore();
+    if (avatarImage != null) {
+      canvas.save();
+      // 头像应该在白色边框内侧（与定位页面完全一致）
+      // 白色边框中心线在 circleRadius - 6.5，宽度9px，所以内半径 = circleRadius - 6.5 - 4.5 = circleRadius - 11
+      final avatarRadius = circleRadius - 11;
+      final avatarInnerRect = Rect.fromCenter(
+        center: center,
+        width: avatarRadius * 2,
+        height: avatarRadius * 2,
+      );
+      final clipPath = Path()..addOval(avatarInnerRect);
+      canvas.clipPath(clipPath);
+      final srcRect = Rect.fromLTWH(0, 0, avatarImage.width.toDouble(), avatarImage.height.toDouble());
+      final dstRect = avatarInnerRect;
+      canvas.drawImageRect(avatarImage, srcRect, dstRect, paint);
+      canvas.restore();
+    } else {
+      // 绘制占位符（与定位页面完全一致）
+      final iconPaint = Paint()..color = const Color(0xFFE8B4CB);
+      canvas.drawCircle(center, circleRadius - 11 - 12.5, iconPaint);
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '?',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.7, // 根据size动态调整字体大小
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(
+          center.dx - textPainter.width / 2,
+          center.dy - textPainter.height / 2,
+        ),
+      );
+    }
 
     // 转换为图片
     final picture = recorder.endRecording();
@@ -66,37 +107,6 @@ class MapMarkerUtil {
     final uint8List = byteData!.buffer.asUint8List();
 
     return BitmapDescriptor.fromBytes(uint8List);
-  }
-
-  /// 绘制默认头像（person 图标）
-  static void _drawDefaultAvatar(Canvas canvas, Offset center, double radius) {
-    final paint = Paint()
-      ..color = Colors.grey[300]!
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius, paint);
-
-    // 绘制简单的人形图标
-    final iconPaint = Paint()
-      ..color = Colors.grey[600]!
-      ..style = PaintingStyle.fill;
-
-    // 头部
-    canvas.drawCircle(
-      Offset(center.dx, center.dy - radius * 0.2),
-      radius * 0.25,
-      iconPaint,
-    );
-
-    // 身体
-    final path = Path();
-    path.moveTo(center.dx - radius * 0.4, center.dy + radius * 0.6);
-    path.quadraticBezierTo(
-      center.dx,
-      center.dy + radius * 0.1,
-      center.dx + radius * 0.4,
-      center.dy + radius * 0.6,
-    );
-    canvas.drawPath(path, iconPaint);
   }
 
   /// 加载网络图片

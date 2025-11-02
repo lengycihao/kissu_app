@@ -49,7 +49,14 @@ public class Const {
      */
     public static final String METHOD_MARKER_UPDATE = "markers#update";
     public static final String METHOD_SINGLE_MARKER_UPDATE = "marker#update";
-    public static final String[] METHOD_ID_LIST_FOR_MARKER = {METHOD_MARKER_UPDATE, METHOD_SINGLE_MARKER_UPDATE};
+    public static final String METHOD_MARKER_START_BREATH_ANIMATION = "marker#startBreathAnimation";
+    public static final String METHOD_MARKER_STOP_BREATH_ANIMATION = "marker#stopBreathAnimation";
+    public static final String[] METHOD_ID_LIST_FOR_MARKER = {
+            METHOD_MARKER_UPDATE, 
+            METHOD_SINGLE_MARKER_UPDATE,
+            METHOD_MARKER_START_BREATH_ANIMATION,
+            METHOD_MARKER_STOP_BREATH_ANIMATION
+    };
 
     /**
      * polygons

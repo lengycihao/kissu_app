@@ -66,6 +66,9 @@ class TrackReplayManager extends GetxController {
   List<LatLng> Function()? getTrackPoints;
   List<dynamic> Function()? getStopPoints;
   
+  /// 地图控制器（用于原生动画）
+  AMapController? _mapController;
+  
   /// 设置外部依赖
   void setDependencies({
     Function(LatLng)? onMapMove,
@@ -81,6 +84,11 @@ class TrackReplayManager extends GetxController {
     this.getCurrentUserAvatar = getCurrentUserAvatar;
     this.getTrackPoints = getTrackPoints;
     this.getStopPoints = getStopPoints;
+  }
+  
+  /// 设置地图控制器（用于原生动画）
+  void setMapController(AMapController? controller) {
+    _mapController = controller;
   }
   
   /// 获取轨迹点列表
@@ -119,20 +127,27 @@ class TrackReplayManager extends GetxController {
       
       DebugUtil.info('🎭 创建播放头像标记，头像URL: $avatarUrl');
       
-      // 使用 MapMarkerUtil 创建圆形头像标记
+      // 使用 MapMarkerUtil 创建圆形头像标记（与定位页面一致的双层边框）
       final avatarIcon = await MapMarkerUtil.createCircleAvatarMarker(
         avatarUrl,
         size: 180.0, // 🎯 放大三倍（原80.0 → 240.0）
       );
       
-      replayAvatarMarker.value = Marker(
+      final marker = Marker(
         position: position,
         icon: avatarIcon,
         infoWindow: const InfoWindow(title: '', snippet: ''),
         zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
       );
+      marker.setIdForCopy('replay_avatar_marker'); // 🎯 设置ID用于动画控制
+      replayAvatarMarker.value = marker;
       
       DebugUtil.success('✅ 播放头像标记创建成功');
+      
+      // 🎯 延迟启动iOS原版呼吸动画（等待marker添加到地图）
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _startReplayAvatarAnimation();
+      });
     } catch (e) {
       DebugUtil.error('❌ 创建播放头像标记失败: $e');
       replayAvatarMarker.value = null;
@@ -148,12 +163,16 @@ class TrackReplayManager extends GetxController {
       try {
         // 同步更新现有标记的位置
         final currentMarker = replayAvatarMarker.value!;
-      replayAvatarMarker.value = Marker(
-        position: position,
-        icon: currentMarker.icon,
-        infoWindow: currentMarker.infoWindow,
-        zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
-      );
+        final updatedMarker = Marker(
+          position: position,
+          icon: currentMarker.icon,
+          infoWindow: currentMarker.infoWindow,
+          zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
+        );
+        // 🎯 保持marker的ID，确保动画不丢失
+        updatedMarker.setIdForCopy('replay_avatar_marker');
+        replayAvatarMarker.value = updatedMarker;
+        
         // 添加调试信息，但降低频率避免日志过多
         if ((currentReplayIndex.value % 20) == 0) {
           DebugUtil.info('🎯 平滑更新头像位置: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}');
@@ -616,6 +635,9 @@ class TrackReplayManager extends GetxController {
     _replayTimer?.cancel();
     _replayTimer = null;
     
+    // 停止播放头像动画
+    _stopReplayAvatarAnimation();
+    
     // 重置到起点
     currentReplayIndex.value = 0;
     replayProgress.value = 0.0;
@@ -727,9 +749,52 @@ class TrackReplayManager extends GetxController {
     DebugUtil.info('🎯 相机跟随功能已禁用，忽略设置请求');
   }
   
+  /// 🎯 启动播放头像的原生呼吸动画（iOS原版效果）
+  /// 
+  /// 🎨 iOS原版效果：
+  /// - 横向拉伸：X=1.03, Y=0.98（横向拉伸3%，纵向压缩2%）
+  /// - 纵向拉伸：X=0.98, Y=1.03（横向压缩2%，纵向拉伸3%）
+  /// - 两种状态交替变换，产生自然的"呼吸"效果
+  /// - 动画时长：0.4秒（与iOS原版完全一致）
+  void _startReplayAvatarAnimation() async {
+    if (_mapController == null) {
+      DebugUtil.warning('⚠️ MapController未初始化，跳过启动动画');
+      return;
+    }
+
+    try {
+      final success = await _mapController!.startMarkerBreathAnimation(
+        markerId: 'replay_avatar_marker',
+        duration: 400, // iOS原版：0.4秒
+      );
+      
+      if (success) {
+        DebugUtil.success('✅ 播放头像呼吸动画已启动(iOS原版效果)');
+      } else {
+        DebugUtil.warning('⚠️ 播放头像呼吸动画启动失败');
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 启动播放头像动画失败: $e');
+    }
+  }
+  
+  /// 🎯 停止播放头像的原生呼吸动画
+  void _stopReplayAvatarAnimation() async {
+    if (_mapController == null) return;
+
+    try {
+      await _mapController!.stopMarkerBreathAnimation(markerId: 'replay_avatar_marker');
+      DebugUtil.success('✅ 播放头像呼吸动画已停止');
+    } catch (e) {
+      DebugUtil.error('❌ 停止播放头像动画失败: $e');
+    }
+  }
+  
   @override
   void onClose() {
     _replayTimer?.cancel();
+    // 停止播放头像动画
+    _stopReplayAvatarAnimation();
     super.onClose();
   }
 }

@@ -34,7 +34,8 @@ class MarkerBuilder {
       final pedestalScale = 0.8;
       final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
       final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
-      final avatarBorderWidth = 20.0;
+      // 双层边框（不重叠）：外层粉色4px（向外2px）+ 内层白色9px = 从中心到头像边缘11px
+      final avatarBorderWidth = 11.0;
 
       final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0;
       final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0;
@@ -106,24 +107,30 @@ class MarkerBuilder {
     Offset center,
     double size,
   ) async {
-    final avatarRect = Rect.fromCenter(
-      center: center,
-      width: size,
-      height: size,
-    );
-
+    // size参数是avatarSize（180），canvas有足够的padding容纳边框
+    
     // 绘制白色背景
     final avatarPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, size / 2, avatarPaint);
 
-    // 绘制边框
-    final borderPaint = Paint()
-      ..color = const Color(0xFFFF9AD8)
+    // 第一层：外层粉色边框 (#FF88AA, 4px)
+    final outerBorderPaint = Paint()
+      ..color = const Color(0xFFFF88AA)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 20;
-    canvas.drawCircle(center, size / 2, borderPaint);
+      ..strokeWidth = 4;
+    canvas.drawCircle(center, size / 2, outerBorderPaint);
+
+    // 第二层：内层白色边框 (白色, 9px)
+    // 白色边框要在粉色边框内侧，不能覆盖粉色
+    // 粉色边框外半径 = size/2，内半径 = size/2 - 2
+    // 白色边框应该从 size/2 - 2 开始往内，宽度9px，所以中心线在 size/2 - 2 - 4.5 = size/2 - 6.5
+    final innerBorderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9;
+    canvas.drawCircle(center, size / 2 - 6.5, innerBorderPaint);
 
     // 加载并绘制头像图片
     ui.Image? avatarImage;
@@ -145,16 +152,24 @@ class MarkerBuilder {
 
     if (avatarImage != null) {
       canvas.save();
-      final clipPath = Path()..addOval(avatarRect);
+      // 头像应该在白色边框内侧
+      // 白色边框中心线在 size/2 - 6.5，宽度9px，所以内半径 = size/2 - 6.5 - 4.5 = size/2 - 11
+      final avatarRadius = size / 2 - 11;
+      final avatarInnerRect = Rect.fromCenter(
+        center: center,
+        width: avatarRadius * 2,
+        height: avatarRadius * 2,
+      );
+      final clipPath = Path()..addOval(avatarInnerRect);
       canvas.clipPath(clipPath);
       final srcRect = Rect.fromLTWH(0, 0, avatarImage.width.toDouble(), avatarImage.height.toDouble());
-      final dstRect = avatarRect;
+      final dstRect = avatarInnerRect;
       canvas.drawImageRect(avatarImage, srcRect, dstRect, Paint());
       canvas.restore();
     } else {
-      // 绘制占位符
+      // 绘制占位符（同样需要在白色边框内侧）
       final iconPaint = Paint()..color = const Color(0xFFE8B4CB);
-      canvas.drawCircle(center, size / 2 - 12.5, iconPaint);
+      canvas.drawCircle(center, size / 2 - 11 - 12.5, iconPaint);
       final textPainter = TextPainter(
         text: TextSpan(
           text: '?',
