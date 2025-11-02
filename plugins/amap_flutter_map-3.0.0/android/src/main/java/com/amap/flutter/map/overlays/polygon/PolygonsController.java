@@ -37,7 +37,7 @@ public class PolygonsController
     @Override
     public void doMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
         String methodId = call.method;
-        LogUtil.i(CLASS_NAME, "doMethodCall===>" +methodId);
+        // LogUtil.i(CLASS_NAME, "doMethodCall===>" +methodId); // 已注释：减少日志输出
         switch (methodId) {
             case Const.METHOD_POLYGON_UPDATE:
                 invokePolylineOptions(call, result);

@@ -61,7 +61,7 @@ public class MarkersController
 
     @Override
     public void doMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
-        LogUtil.i(CLASS_NAME, "doMethodCall===>" + call.method);
+        // LogUtil.i(CLASS_NAME, "doMethodCall===>" + call.method); // 已注释：减少日志输出
         switch (call.method) {
             case Const.METHOD_MARKER_UPDATE:
                 invokeMarkerOptions(call, result);

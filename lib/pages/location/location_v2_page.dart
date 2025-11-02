@@ -8,6 +8,7 @@ import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'location_v2_controller.dart';
+import 'services/location_data_helper.dart';
 import 'widgets/device_info_section.dart';
 import 'widgets/location_info_section.dart';
 import 'widgets/cached_map_widget.dart';
@@ -18,10 +19,13 @@ import 'widgets/floating_tips_widget.dart';
 class LocationV2Page extends StatelessWidget {
   LocationV2Page({super.key});
 
-  final controller = Get.put(LocationV2Controller());
-
   @override
   Widget build(BuildContext context) {
+    // 🚀 修复：使用安全的方式获取Controller，避免重复创建导致监听器重复注册
+    final controller = Get.isRegistered<LocationV2Controller>() 
+        ? Get.find<LocationV2Controller>() 
+        : Get.put(LocationV2Controller());
+    
     return _LocationPageContent(controller: controller);
   }
 }

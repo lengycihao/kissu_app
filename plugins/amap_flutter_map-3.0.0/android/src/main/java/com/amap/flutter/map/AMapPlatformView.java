@@ -144,7 +144,7 @@ public class AMapPlatformView
 
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
-        LogUtil.i(CLASS_NAME, "onMethodCall==>" + call.method + ", arguments==> " + call.arguments);
+        // LogUtil.i(CLASS_NAME, "onMethodCall==>" + call.method + ", arguments==> " + call.arguments); // 已注释：减少日志输出
         String methodId = call.method;
         if (myMethodCallHandlerMap.containsKey(methodId)) {
             myMethodCallHandlerMap.get(methodId).doMethodCall(call, result);

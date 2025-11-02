@@ -209,9 +209,9 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
       }
     }
 
-    // 默认位置（杭州）
+    // 默认位置（天安门）
     return const CameraPosition(
-      target: LatLng(30.2741, 120.2206),
+      target: LatLng(39.9042, 116.4074), // 天安门坐标
       zoom: 13.0,
     );
   }

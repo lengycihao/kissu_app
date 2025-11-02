@@ -46,7 +46,7 @@ public class PolylinesController
 
     @Override
     public void doMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
-        LogUtil.i(CLASS_NAME, "doMethodCall===>" + call.method);
+        // LogUtil.i(CLASS_NAME, "doMethodCall===>" + call.method); // 已注释：减少日志输出
         String methodStr = call.method;
         switch (methodStr) {
             case Const.METHOD_POLYLINE_UPDATE:

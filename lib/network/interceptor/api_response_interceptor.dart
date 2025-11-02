@@ -26,11 +26,11 @@ class ApiResponseInterceptor extends Interceptor {
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     try {
       // 🔍 打印原始响应body数据（用于调试）
-      print('🔍 原始响应URL: ${response.requestOptions.uri}');
-      print('🔍 原始响应状态码: ${response.statusCode}');
-      print('🔍 原始响应Headers: ${response.headers}');
-      print('🔍 原始响应Body: ${response.data}');
-      print('🔍 原始响应Body类型: ${response.data.runtimeType}');
+      // print('🔍 原始响应URL: ${response.requestOptions.uri}');
+      // print('🔍 原始响应状态码: ${response.statusCode}');
+      // print('🔍 原始响应Headers: ${response.headers}');
+      // print('🔍 原始响应Body: ${response.data}');
+      // print('🔍 原始响应Body类型: ${response.data.runtimeType}');
       
       // 移除HTTP状态码401的特殊处理，只通过业务错误码43000来判断token失效
 

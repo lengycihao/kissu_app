@@ -1,13 +1,9 @@
 import 'dart:async';
-import 'dart:ui' as ui;
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:http/http.dart' as http;
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -15,15 +11,17 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:kissu_app/utils/map_zoom_calculator.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/map_preload_service.dart';
 import 'widgets/location_tips_manager.dart';
+import 'services/marker_builder.dart';
+import 'services/marker_swing_animator.dart';
+import 'services/location_data_helper.dart';
 
 class LocationV2Controller extends GetxController with GetTickerProviderStateMixin {
-  final isOneself = 1.obs;  // 默认看自己（未绑定时不显示虚拟数据）
+  final isOneself = 1.obs;  // 默认看自己
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
   final myFace = Rx<Face?>(null);
@@ -52,7 +50,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   final RxList<LocationRecord> locationRecords = <LocationRecord>[].obs;
   final Rx<LocationResponseModel?> locationData = Rx<LocationResponseModel?>(null);
   final sheetPercent = 0.3.obs;
-  final swingAngle = 0.0.obs;
   final isLoading = false.obs;
   final mapType = 1.obs;
   
@@ -67,9 +64,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   late SimpleLocationService _locationService;
   late BuildContext pageContext;
   
+  // 🚀 新的服务和工具类
+  late MarkerBuilder _markerBuilder;
+  late MarkerSwingAnimator _swingAnimator;
+  
   DraggableScrollableController? _draggableController;
   AMapController? mapController;
-  Timer? _swingTimer;
   OverlayEntry? _overlayEntry;
 
   BitmapDescriptor? _cachedMyIcon;
@@ -86,9 +86,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   String? _lastMyCacheKey;
   String? _lastPartnerCacheKey;
 
-  final Map<String, ui.Image> _imageCache = {};
   final RxList<Marker> _trackStartEndMarkers = <Marker>[].obs;
   final RxSet<Polyline> _polylines = <Polyline>{}.obs;
+  
+  // 🚀 修复：管理 ever 监听器，确保正确清理
+  Worker? _locationServiceWorker;
 
   @override
   void onInit() {
@@ -97,10 +99,25 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       // 先加载本地用户信息（立即显示）
       _loadUserInfo();
       
+      // 🚀 修复：如果未绑定，立即清空伴侣位置缓存
+      if (!isBindPartner.value) {
+        debugPrint('⚠️ 未绑定状态，清空伴侣位置缓存');
+        partnerLocation.value = null;
+        actualPartnerLocation.value = null;
+        partnerAvatar.value = "";
+        partnerFace.value = null;
+        partnerOnlineStatus.value = null;
+      }
+      
       // 然后静默刷新用户信息
       _silentRefreshUserInfo();
       
       _initLocationService();
+      
+      // 🚀 初始化新的服务和工具类
+      _markerBuilder = MarkerBuilder();
+      _swingAnimator = MarkerSwingAnimator();
+      
       tipsManager = LocationTipsManager(this);
       tipsManager.onInit();
       _initBackButtonAnimation();
@@ -331,6 +348,47 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void _initLocationService() {
     try {
       _locationService = SimpleLocationService.instance;
+      
+      // 🚀 优化：无论绑定与否，自己的位置都优先使用实时定位数据
+      // 实时定位数据更新时，marker位置也要跟着更新
+      // 🚀 修复：将 ever 返回的 Worker 保存起来，以便在 onClose 时清理
+      _locationServiceWorker = ever(_locationService.currentLocation, (location) {
+        if (location != null) {
+          debugPrint('📍 监听到定位服务位置更新，使用真实定位数据（优先级高于接口）');
+          
+          // 解析位置
+          final lat = double.tryParse(location.latitude);
+          final lng = double.tryParse(location.longitude);
+          
+          if (lat != null && lng != null) {
+            final newPosition = LatLng(lat, lng);
+            final isFirstTime = actualMyLocation.value == null;
+            
+            // 🚀 优化：始终更新为真实定位数据（无论是否绑定）
+            debugPrint('🎯 更新actualMyLocation为真实定位: $newPosition');
+            actualMyLocation.value = newPosition;
+            
+            // 🚀 修复：只有在地图已初始化时才更新marker，避免Channel未初始化错误
+            if (mapController != null) {
+              _initTrackStartEndMarkers();
+            } else {
+              debugPrint('⚠️ 地图未初始化，暂不更新marker（等待地图创建完成）');
+            }
+            
+            // 第一次获取位置时，移动相机（未绑定时才自动移动）
+            if (isFirstTime && !isBindPartner.value && mapController != null) {
+              Future.delayed(const Duration(milliseconds: 100), () {
+                mapController?.moveCamera(
+                  CameraUpdate.newLatLngZoom(newPosition, 18.0),
+                  animated: true,
+                  duration: 300, // 0.3秒动画时长
+                );
+              });
+            }
+          }
+        }
+      });
+      
     } catch (e) {
       debugPrint('Location service init error: $e');
     }
@@ -376,10 +434,10 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     final user = UserManager.currentUser;
     if (user != null) {
       final bindStatus = user.bindStatus.toString();
-      isBindPartner.value = bindStatus.toString() == "1";
+      isBindPartner.value = bindStatus == "1";
       isVip.value = UserManager.isVip;
 
-      // 未绑定时强制设置为看自己（不显示虚拟数据）
+      // 未绑定时强制设置为看自己
       if (!isBindPartner.value) {
         isOneself.value = 1;
       }
@@ -398,425 +456,36 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     }
   }
 
-  Future<BitmapDescriptor> _createAvatarMarkerWithVirtualLabel(
-    String avatarUrl, {
-    String? defaultAsset,
-    required String baseAsset,
-    Face? face,
-  }) async {
+  /// 🚀 优化：抽取重复的实时定位获取逻辑
+  LatLng? _tryGetCurrentLocationFromService() {
     try {
-      final pedestal = await _loadImageFromAsset(baseAsset);
-      if (pedestal == null) {
-        return BitmapDescriptor.defaultMarker;
-      }
-
-      final avatarSize = 180.0;
-      final pedestalScale = 0.8;
-      final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
-      final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
-      final labelHeight = 30.0;
-      final labelTopMargin = 50.0;
-
-      final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0;
-      final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0;
-
-      final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20;
-      final canvasHeight = labelHeight + labelTopMargin + emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10;
-      final size = Size(canvasWidth, canvasHeight);
-
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-
-      final pedestalBottom = size.height - 10;
-      final pedestalTop = pedestalBottom - pedestalHeight;
-      final pedestalLeft = (size.width - pedestalWidth) / 2;
-
-      final avatarBottom = pedestalTop + pedestalHeight / 2;
-      final avatarTop = avatarBottom - avatarSize;
-      final avatarCenterX = size.width / 2;
-      final avatarCenterY = avatarTop + avatarSize / 2;
-
-      final emojiBgTop = avatarTop - emojiBgMargin - emojiBgHeight;
-      final emojiBgLeft = (size.width - avatarSize) / 2;
-
-      final labelTop = (face != null && face.isValid)
-          ? emojiBgTop - labelTopMargin - labelHeight
-          : avatarTop - labelTopMargin - labelHeight;
-
-      final srcRect = Rect.fromLTWH(0, 0, pedestal.width.toDouble(), pedestal.height.toDouble());
-      final dstRect = Rect.fromLTWH(pedestalLeft, pedestalTop, pedestalWidth, pedestalHeight);
-      canvas.drawImageRect(pedestal, srcRect, dstRect, Paint());
-
-      if (face != null && face.isValid) {
-        await _drawEmojiBackground(canvas, emojiBgLeft, emojiBgTop, avatarSize, emojiBgHeight, face);
-      }
-
-      final avatarCenter = Offset(avatarCenterX, avatarCenterY);
-      final avatarRect = Rect.fromCenter(
-        center: avatarCenter,
-        width: avatarSize,
-        height: avatarSize,
-      );
-
-      final avatarPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(avatarCenter, avatarSize / 2, avatarPaint);
-
-      final borderPaint = Paint()
-        ..color = const Color(0xFFFF9AD8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 20;
-      canvas.drawCircle(avatarCenter, avatarSize / 2, borderPaint);
-
-      ui.Image? avatarImage;
-      if (avatarUrl.isNotEmpty) {
-        try {
-          if (avatarUrl.startsWith('http')) {
-            avatarImage = await _loadImageFromNetwork(avatarUrl);
-          } else {
-            avatarImage = await _loadImageFromAsset(avatarUrl);
-          }
-        } catch (e) {
-          debugPrint('Load avatar error: $e');
+      final currentLoc = _locationService.currentLocation.value;
+      if (currentLoc != null) {
+        final lat = double.tryParse(currentLoc.latitude);
+        final lng = double.tryParse(currentLoc.longitude);
+        if (lat != null && lng != null) {
+          return LatLng(lat, lng);
         }
       }
-
-      if (avatarImage == null && defaultAsset != null) {
-        avatarImage = await _loadImageFromAsset(defaultAsset);
-      }
-
-      if (avatarImage != null) {
-        canvas.save();
-        final clipPath = Path()..addOval(avatarRect);
-        canvas.clipPath(clipPath);
-        final srcRect = Rect.fromLTWH(0, 0, avatarImage.width.toDouble(), avatarImage.height.toDouble());
-        final dstRect = avatarRect;
-        canvas.drawImageRect(avatarImage, srcRect, dstRect, Paint());
-        canvas.restore();
-      } else {
-        final iconPaint = Paint()..color = const Color(0xFFE8B4CB);
-        canvas.drawCircle(avatarCenter, avatarSize / 2 - 12.5, iconPaint);
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: '?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 125,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          textDirection: ui.TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(
-            avatarCenter.dx - textPainter.width / 2,
-            avatarCenter.dy - textPainter.height / 2,
-          ),
-        );
-      }
-
-      final labelWidth = 120.0;
-      final labelRect = Rect.fromLTWH(
-        (size.width - labelWidth) / 2,
-        labelTop,
-        labelWidth,
-        labelHeight + 15,
-      );
-
-      final labelRRect = RRect.fromRectAndRadius(labelRect, const Radius.circular(6));
-      final labelBgPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill;
-      canvas.drawRRect(labelRRect, labelBgPaint);
-
-      final labelBorderPaint = Paint()
-        ..color = const Color(0xFFFF88AA)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
-      canvas.drawRRect(labelRRect, labelBorderPaint);
-
-      final labelTextPainter = TextPainter(
-        text: const TextSpan(
-          text: "虚拟TA",
-          style: TextStyle(
-            fontSize: 30,
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: ui.TextDirection.ltr,
-      );
-      labelTextPainter.layout();
-      labelTextPainter.paint(
-        canvas,
-        Offset(
-          labelRect.center.dx - labelTextPainter.width / 2,
-          labelRect.center.dy - labelTextPainter.height / 2,
-        ),
-      );
-
-      final picture = recorder.endRecording();
-      final image = await picture.toImage(size.width.toInt(), size.height.toInt());
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = byteData!.buffer.asUint8List();
-
-      return BitmapDescriptor.fromBytes(bytes);
     } catch (e) {
-      debugPrint('Create virtual label avatar marker error: $e');
-      return await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(44, 46)),
-        'assets/kissu_location_start.webp',
-      );
+      debugPrint('获取实时位置失败: $e');
     }
+    return null;
   }
 
+  // 🚀 使用 MarkerBuilder 创建头像标记
   Future<BitmapDescriptor> _createAvatarMarker(
     String avatarUrl, {
     String? defaultAsset,
     required String baseAsset,
     Face? face,
   }) async {
-    final createStartTime = DateTime.now();
-    
-    try {
-      final pedestal = await _loadImageFromAsset(baseAsset);
-      if (pedestal == null) {
-        return BitmapDescriptor.defaultMarker;
-      }
-
-      final avatarSize = 180.0;
-      final pedestalScale = 0.8;
-      final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
-      final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
-      final avatarBorderWidth = 20.0;
-
-      final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0;
-      final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0;
-      final avatarTopPadding = (face != null && face.isValid) ? 0.0 : avatarBorderWidth + 10;
-
-      final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20;
-      final canvasHeight = avatarTopPadding + emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10;
-      final size = Size(canvasWidth, canvasHeight);
-
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-
-      final emojiBgTop = avatarTopPadding;
-      final emojiBgLeft = (size.width - avatarSize) / 2;
-
-      final avatarTop = (face != null && face.isValid)
-          ? emojiBgTop + emojiBgHeight + emojiBgMargin
-          : avatarTopPadding;
-      final avatarCenterX = size.width / 2;
-      final avatarCenterY = avatarTop + avatarSize / 2;
-
-      final avatarBottom = avatarTop + avatarSize;
-      final pedestalTop = avatarBottom - pedestalHeight / 2;
-      final pedestalLeft = (size.width - pedestalWidth) / 2;
-
-      final srcRect = Rect.fromLTWH(0, 0, pedestal.width.toDouble(), pedestal.height.toDouble());
-      final dstRect = Rect.fromLTWH(pedestalLeft, pedestalTop, pedestalWidth, pedestalHeight);
-      canvas.drawImageRect(pedestal, srcRect, dstRect, Paint());
-
-      if (face != null && face.isValid) {
-        await _drawEmojiBackground(canvas, emojiBgLeft, emojiBgTop, avatarSize, emojiBgHeight, face);
-      }
-
-      final avatarCenter = Offset(avatarCenterX, avatarCenterY);
-      final avatarRect = Rect.fromCenter(
-        center: avatarCenter,
-        width: avatarSize,
-        height: avatarSize,
-      );
-
-      final avatarPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(avatarCenter, avatarSize / 2, avatarPaint);
-
-      final borderPaint = Paint()
-        ..color = const Color(0xFFFF9AD8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 20;
-      canvas.drawCircle(avatarCenter, avatarSize / 2, borderPaint);
-
-      ui.Image? avatarImage;
-      if (avatarUrl.isNotEmpty) {
-        try {
-          if (avatarUrl.startsWith('http')) {
-            avatarImage = await _loadImageFromNetwork(avatarUrl);
-          } else {
-            avatarImage = await _loadImageFromAsset(avatarUrl);
-          }
-        } catch (e) {
-          debugPrint('Load avatar error: $e');
-        }
-      }
-
-      if (avatarImage == null && defaultAsset != null) {
-        avatarImage = await _loadImageFromAsset(defaultAsset);
-      }
-
-      if (avatarImage != null) {
-        canvas.save();
-        final clipPath = Path()..addOval(avatarRect);
-        canvas.clipPath(clipPath);
-        final srcRect = Rect.fromLTWH(0, 0, avatarImage.width.toDouble(), avatarImage.height.toDouble());
-        final dstRect = avatarRect;
-        canvas.drawImageRect(avatarImage, srcRect, dstRect, Paint());
-        canvas.restore();
-      } else {
-        final iconPaint = Paint()..color = const Color(0xFFE8B4CB);
-        canvas.drawCircle(avatarCenter, avatarSize / 2 - 12.5, iconPaint);
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: '?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 125,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          textDirection: ui.TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(
-            avatarCenter.dx - textPainter.width / 2,
-            avatarCenter.dy - textPainter.height / 2,
-          ),
-        );
-      }
-
-      final picture = recorder.endRecording();
-      final image = await picture.toImage(size.width.toInt(), size.height.toInt());
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = byteData!.buffer.asUint8List();
-
-      final createDuration = DateTime.now().difference(createStartTime);
-      debugPrint('📊 创建Marker耗时: ${createDuration.inMilliseconds}ms');
-      
-      return BitmapDescriptor.fromBytes(bytes);
-    } catch (e) {
-      debugPrint('Create avatar marker error: $e');
-      return await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(44, 46)),
-        'assets/kissu_location_start.webp',
-      );
-    }
-  }
-
-  Future<void> _drawEmojiBackground(
-    Canvas canvas,
-    double left,
-    double top,
-    double width,
-    double height,
-    Face face,
-  ) async {
-    try {
-      final emojiBg = await _loadImageFromAsset('assets/3.0/kissu3_emoij_bg.webp');
-      if (emojiBg == null) return;
-
-      final bgSrcRect = Rect.fromLTWH(0, 0, emojiBg.width.toDouble(), emojiBg.height.toDouble());
-      final bgDstRect = Rect.fromLTWH(left, top, width, height);
-      canvas.drawImageRect(emojiBg, bgSrcRect, bgDstRect, Paint());
-
-      if (face.faceUrl != null && face.faceUrl!.isNotEmpty) {
-        final emojiIcon = await _loadImageFromNetwork(face.faceUrl!);
-        if (emojiIcon != null) {
-          final iconSize = height * 0.45;
-          TextPainter? textPainter;
-          
-          if (face.faceText != null && face.faceText!.isNotEmpty) {
-            textPainter = TextPainter(
-              text: TextSpan(
-                text: face.faceText!,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'LiuHuanKaTongShouShu',
-                ),
-              ),
-              textDirection: ui.TextDirection.ltr,
-            );
-            textPainter.layout();
-          }
-
-          final spacing = (textPainter != null) ? 6.0 : 0.0;
-          final textWidth = textPainter?.width ?? 0.0;
-          final totalWidth = iconSize + spacing + textWidth;
-          final startLeft = left + (width - totalWidth) / 2;
-
-          final iconTop = top + (height - iconSize) / 2;
-          final iconSrcRect = Rect.fromLTWH(0, 0, emojiIcon.width.toDouble(), emojiIcon.height.toDouble());
-          final iconDstRect = Rect.fromLTWH(startLeft, iconTop, iconSize, iconSize);
-          canvas.drawImageRect(emojiIcon, iconSrcRect, iconDstRect, Paint());
-
-          if (textPainter != null) {
-            final textLeft = startLeft + iconSize + spacing;
-            final textTop = top + (height - textPainter.height) / 2;
-            textPainter.paint(canvas, Offset(textLeft, textTop));
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Draw emoji background error: $e');
-    }
-  }
-
-  Future<ui.Image?> _loadImageFromNetwork(String url) async {
-    if (_imageCache.containsKey(url)) {
-      return _imageCache[url];
-    }
-
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        final codec = await ui.instantiateImageCodec(bytes);
-        final frame = await codec.getNextFrame();
-        final image = frame.image;
-        _imageCache[url] = image;
-        return image;
-      }
-    } catch (e) {
-      debugPrint('Load image from network error: $e');
-    }
-    return null;
-  }
-
-  Future<ui.Image?> _loadImageFromAsset(String assetPath) async {
-    // 🚀 优化1：先从本地缓存查找
-    if (_imageCache.containsKey(assetPath)) {
-      return _imageCache[assetPath];
-    }
-
-    // 🚀 优化2：尝试从全局预加载服务获取
-    final preloadedImage = MapPreloadService.instance.getPreloadedImage(assetPath);
-    if (preloadedImage != null) {
-      _imageCache[assetPath] = preloadedImage;
-      return preloadedImage;
-    }
-
-    // 🚀 优化3：如果都没有，才进行加载
-    try {
-      final ByteData data = await rootBundle.load(assetPath);
-      final Uint8List bytes = data.buffer.asUint8List();
-      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
-      final ui.FrameInfo frame = await codec.getNextFrame();
-      final image = frame.image;
-      _imageCache[assetPath] = image;
-      return image;
-    } catch (e) {
-      debugPrint('Load image from asset error: $assetPath, $e');
-      return null;
-    }
+    return _markerBuilder.createAvatarMarker(
+      avatarUrl,
+      defaultAsset: defaultAsset,
+      baseAsset: baseAsset,
+      face: face,
+    );
   }
 
   Future<void> _initTrackStartEndMarkers() async {
@@ -835,18 +504,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         
         // 如果还没有位置数据，尝试从实时定位服务获取
         if (myPos == null) {
-          try {
-            final currentLoc = _locationService.currentLocation.value;
-            if (currentLoc != null) {
-              final lat = double.tryParse(currentLoc.latitude);
-              final lng = double.tryParse(currentLoc.longitude);
-              if (lat != null && lng != null) {
-                myPos = LatLng(lat, lng);
-                debugPrint('📍 使用实时定位服务创建 marker: ($lat, $lng)');
-              }
-            }
-          } catch (e) {
-            debugPrint('获取实时位置创建 marker 失败: $e');
+          myPos = _tryGetCurrentLocationFromService();
+          if (myPos != null) {
+            debugPrint('📍 使用实时定位服务创建 marker: $myPos');
           }
         }
         
@@ -917,7 +577,15 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
       if (tempMarkers.isNotEmpty) {
         _trackStartEndMarkers.value = tempMarkers;
-        _startSwingAnimation();
+        // 🚀 使用 MarkerSwingAnimator 管理摆动动画
+        _swingAnimator.init(
+          mapController: mapController,
+          myIcon: _cachedMyIcon,
+          partnerIcon: _cachedPartnerIcon,
+          myLocation: actualMyLocation,
+          partnerLocation: actualPartnerLocation,
+        );
+        _swingAnimator.start();
       } else {
         _trackStartEndMarkers.clear();
       }
@@ -966,70 +634,54 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   int get polylinesLength => _polylines.length;
 
   CameraPosition get initialCameraPosition {
-    // 未绑定时对准自己的真实位置，缩放级别18
+    // 🚀 修复：未绑定时对准自己的真实位置，缩放级别18（不使用伴侣位置）
     if (!isBindPartner.value) {
+      debugPrint('📍 未绑定状态，只使用自己的位置初始化地图');
+      
       // 优先使用 actualMyLocation
       if (actualMyLocation.value != null) {
+        debugPrint('📍 使用 actualMyLocation: ${actualMyLocation.value}');
         return CameraPosition(target: actualMyLocation.value!, zoom: 18.0);
       }
       
       // 其次尝试从实时定位服务获取当前位置
-      try {
-        final currentLoc = _locationService.currentLocation.value;
-        if (currentLoc != null) {
-          final lat = double.tryParse(currentLoc.latitude);
-          final lng = double.tryParse(currentLoc.longitude);
-          if (lat != null && lng != null) {
-            debugPrint('📍 未绑定时使用实时定位服务位置: ($lat, $lng)');
-            return CameraPosition(target: LatLng(lat, lng), zoom: 18.0);
-          }
-        }
-      } catch (e) {
-        debugPrint('获取实时位置失败: $e');
+      final serviceLocation = _tryGetCurrentLocationFromService();
+      if (serviceLocation != null) {
+        debugPrint('📍 未绑定时使用实时定位服务位置: $serviceLocation');
+        return CameraPosition(target: serviceLocation, zoom: 18.0);
       }
       
-      // 最后使用默认位置
+      // 最后使用默认位置（天安门）
+      debugPrint('📍 未绑定且无位置数据，使用默认位置（天安门）');
       return const CameraPosition(
-        target: LatLng(30.2741, 120.2206),
-        zoom: 18.0,
+        target: LatLng(39.9042, 116.4074), // 天安门坐标
+        zoom: 3.0, // 大范围视图
       );
     }
     
-    // 已绑定时的逻辑
+    // 🚀 已绑定时的逻辑：使用中间位置和合理的缩放级别
+    debugPrint('📍 已绑定状态，计算双人中心位置');
     if (myLocation.value != null && partnerLocation.value != null) {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
 
-      final latDiff = (myPos.latitude - partnerPos.latitude).abs();
-      final lngDiff = (myPos.longitude - partnerPos.longitude).abs();
-      final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-
-      double initialZoom;
-      if (maxDiff > 10.0) {
-        initialZoom = 2.0;
-      } else if (maxDiff > 5.0) {
-        initialZoom = 3.0;
-      } else if (maxDiff > 2.0) {
-        initialZoom = 4.0;
-      } else if (maxDiff > 1.0) {
-        initialZoom = 5.0;
-      } else {
-        initialZoom = 6.0;
-      }
-
+      // 计算中心点
       final centerLat = (myPos.latitude + partnerPos.latitude) / 2;
       final centerLng = (myPos.longitude + partnerPos.longitude) / 2;
       final center = LatLng(centerLat, centerLng);
 
-      return CameraPosition(target: center, zoom: initialZoom);
+      debugPrint('📍 双人位置：我(${myPos.latitude}, ${myPos.longitude}) 伴侣(${partnerPos.latitude}, ${partnerPos.longitude}) 中心($center)');
+      // 初始使用较低缩放级别，具体缩放由 _animateMapToShowBothUsersSync 中的 newLatLngBounds 精确控制
+      return CameraPosition(target: center, zoom: 10.0);
     } else if (myLocation.value != null) {
+      debugPrint('📍 只有我的位置: ${myLocation.value}');
       return CameraPosition(target: myLocation.value!, zoom: 16.0);
-    } else if (partnerLocation.value != null) {
-      return CameraPosition(target: partnerLocation.value!, zoom: 16.0);
     } else {
+      // 🚀 修复：已绑定但没有位置数据时，使用默认位置（不再使用 partnerLocation）
+      debugPrint('📍 已绑定但无位置数据，使用默认位置（天安门）');
       return const CameraPosition(
-        target: LatLng(30.2741, 120.2206),
-        zoom: 16.0,
+        target: LatLng(39.9042, 116.4074), // 天安门坐标
+        zoom: 3.0, // 大范围视图
       );
     }
   }
@@ -1070,29 +722,22 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   Future<void> _animateMapToShowBothUsersSync() async {
-    // 未绑定时对准自己的真实位置，缩放级别18
+    // 🚀 修复：未绑定时对准自己的真实位置，缩放级别18（不使用伴侣位置）
     if (!isBindPartner.value) {
+      debugPrint('📍 未绑定状态，地图只聚焦自己的位置');
       LatLng? targetLocation = actualMyLocation.value;
       
       // 如果没有位置数据，尝试从实时定位服务获取
       if (targetLocation == null) {
-        try {
-          final currentLoc = _locationService.currentLocation.value;
-          if (currentLoc != null) {
-            final lat = double.tryParse(currentLoc.latitude);
-            final lng = double.tryParse(currentLoc.longitude);
-            if (lat != null && lng != null) {
-              targetLocation = LatLng(lat, lng);
-              debugPrint('📍 地图动画使用实时定位服务位置: ($lat, $lng)');
-            }
-          }
-        } catch (e) {
-          debugPrint('获取实时位置失败: $e');
+        targetLocation = _tryGetCurrentLocationFromService();
+        if (targetLocation != null) {
+          debugPrint('📍 地图动画使用实时定位服务位置: $targetLocation');
         }
       }
       
       if (targetLocation != null) {
         try {
+          debugPrint('📍 未绑定状态，移动地图到自己的位置: $targetLocation');
           await mapController!.moveCamera(
             CameraUpdate.newLatLngZoom(targetLocation, 18.0),
             animated: true,
@@ -1101,48 +746,36 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         } catch (e) {
           debugPrint('Animate map error: $e');
         }
+      } else {
+        debugPrint('⚠️ 未绑定状态且无位置数据，地图保持默认位置');
       }
-      return;
+      return; // 🚀 关键：未绑定时直接返回，不执行下面的逻辑
     }
     
-    // 已绑定时的逻辑
+    // 🚀 已绑定时的逻辑
+    debugPrint('📍 已绑定状态，计算双人地图位置');
     if (myLocation.value != null && partnerLocation.value != null) {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
 
-      final optimalPosition = MapZoomCalculator.calculateOptimalCameraPosition(
-        point1: myPos,
-        point2: partnerPos,
-        defaultZoom: 16.0,
-      );
-
-      final latDiff = (myPos.latitude - partnerPos.latitude).abs();
-      final lngDiff = (myPos.longitude - partnerPos.longitude).abs();
-      final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-
-      double extraZoom;
-      if (maxDiff < 0.05) {
-        extraZoom = 1.5;
-      } else if (maxDiff < 0.1) {
-        extraZoom = 1.0;
-      } else if (maxDiff < 0.2) {
-        extraZoom = 0.5;
-      } else if (maxDiff < 1.0) {
-        extraZoom = 0.0;
-      } else if (maxDiff < 5.0) {
-        extraZoom = -0.5;
-      } else {
-        extraZoom = -1.0;
-      }
-
-      final enhancedPosition = CameraPosition(
-        target: optimalPosition.target,
-        zoom: optimalPosition.zoom + extraZoom,
-      );
-
       try {
+        // 🚀 优化：使用原生的 newLatLngBounds 自动计算最佳缩放层级
+        // 计算西南角和东北角
+        final double swLat = myPos.latitude < partnerPos.latitude ? myPos.latitude : partnerPos.latitude;
+        final double swLng = myPos.longitude < partnerPos.longitude ? myPos.longitude : partnerPos.longitude;
+        final double neLat = myPos.latitude > partnerPos.latitude ? myPos.latitude : partnerPos.latitude;
+        final double neLng = myPos.longitude > partnerPos.longitude ? myPos.longitude : partnerPos.longitude;
+        
+        final bounds = LatLngBounds(
+          southwest: LatLng(swLat, swLng),
+          northeast: LatLng(neLat, neLng),
+        );
+        
+        debugPrint('📍 已绑定，使用原生LatLngBounds移动地图到双人中心位置');
+        debugPrint('📍 bounds: southwest($swLat, $swLng), northeast($neLat, $neLng)');
+        
         await mapController!.moveCamera(
-          CameraUpdate.newCameraPosition(enhancedPosition),
+          CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
           animated: true,
           duration: 500,
         );
@@ -1150,9 +783,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         debugPrint('Animate map error: $e');
       }
     } else if (myLocation.value != null) {
+      debugPrint('📍 已绑定但只有我的位置，聚焦我的位置');
       _animateMapToLocation(myLocation.value!);
-    } else if (partnerLocation.value != null) {
-      _animateMapToLocation(partnerLocation.value!);
+    } else {
+      // 🚀 修复：已绑定但无位置数据时，不使用 partnerLocation
+      debugPrint('📍 已绑定但无位置数据，地图保持默认位置');
     }
   }
 
@@ -1292,19 +927,45 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         final locationDataResult = result.data!;
         locationData.value = locationDataResult;
 
-        if (locationDataResult.userLocationMobileDevice != null) {
-          _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
-          _updateActualMyLocationData(locationDataResult.userLocationMobileDevice!);
-        }
-
-        // 未绑定时不处理对方的数据（避免加载虚拟数据）
+        // 🚀 优化：无论绑定与否，自己的位置都优先使用实时定位数据
         if (!isBindPartner.value) {
+          debugPrint('⚠️ [未绑定] 只更新头像数据，不使用接口位置数据（保持真实定位数据）');
+          
+          // 只更新头像数据，不更新位置数据
+          if (locationDataResult.userLocationMobileDevice != null) {
+            _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
+            // ❌ 不调用 _updateActualMyLocationData，保持使用真实定位服务的数据
+          }
+          
           // 清空对方的位置数据
           partnerLocation.value = null;
           actualPartnerLocation.value = null;
-        } else if (locationDataResult.halfLocationMobileDevice != null) {
-          _updatePartnerAvatarData(locationDataResult.halfLocationMobileDevice!);
-          _updateActualPartnerLocationData(locationDataResult.halfLocationMobileDevice!);
+          partnerAvatar.value = "";
+          partnerFace.value = null;
+          partnerOnlineStatus.value = null;
+          // 强制设置为看自己
+          isOneself.value = 1;
+        } else {
+          // 已绑定时，更新头像和对方数据
+          debugPrint('✅ [已绑定] 更新头像和对方位置数据');
+          
+          if (locationDataResult.userLocationMobileDevice != null) {
+            _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
+            
+            // 🚀 优化：如果有实时定位数据，就不用接口数据更新自己的位置
+            if (actualMyLocation.value == null) {
+              debugPrint('📍 [已绑定] 没有实时定位数据，使用接口数据作为备用');
+              _updateActualMyLocationData(locationDataResult.userLocationMobileDevice!);
+            } else {
+              debugPrint('📍 [已绑定] 已有实时定位数据，保持使用（接口数据作为备用）');
+            }
+          }
+          
+          // 对方的位置正常使用接口数据
+          if (locationDataResult.halfLocationMobileDevice != null) {
+            _updatePartnerAvatarData(locationDataResult.halfLocationMobileDevice!);
+            _updateActualPartnerLocationData(locationDataResult.halfLocationMobileDevice!);
+          }
         }
 
         UserLocationMobileDevice? currentUser;
@@ -1313,7 +974,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         // 未绑定时只使用自己的数据
         if (!isBindPartner.value) {
           currentUser = locationDataResult.userLocationMobileDevice;
-          partnerUser = null;  // 不使用虚拟数据
+          partnerUser = null;
         } else if (isOneself.value == 1) {
           currentUser = locationDataResult.userLocationMobileDevice;
           partnerUser = locationDataResult.halfLocationMobileDevice;
@@ -1392,120 +1053,75 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     CustomToast.show(Get.context!, tip);
   }
 
+  // 🚀 使用 LocationDataHelper 简化数据更新
   void _updateMyAvatarData(UserLocationMobileDevice userData) {
-    if (userData.headPortrait != null && userData.headPortrait!.isNotEmpty) {
-      myAvatar.value = userData.headPortrait!;
-    }
-    myFace.value = userData.face;
+    LocationDataHelper.updateAvatarData(
+      userData: userData,
+      avatarUrl: myAvatar,
+      face: myFace,
+    );
   }
 
   void _updatePartnerAvatarData(UserLocationMobileDevice userData) {
-    if (userData.headPortrait != null && userData.headPortrait!.isNotEmpty) {
-      partnerAvatar.value = userData.headPortrait!;
-    }
-    partnerFace.value = userData.face;
-    partnerOnlineStatus.value = userData.online;
+    LocationDataHelper.updateAvatarData(
+      userData: userData,
+      avatarUrl: partnerAvatar,
+      face: partnerFace,
+      onlineStatus: partnerOnlineStatus,
+    );
   }
 
   void _updateActualMyLocationData(UserLocationMobileDevice userData) {
-    if (userData.latitude != null && userData.longitude != null) {
-      final lat = double.tryParse(userData.latitude!);
-      final lng = double.tryParse(userData.longitude!);
-      if (lat != null && lng != null) {
-        actualMyLocation.value = LatLng(lat, lng);
-      }
-    }
+    LocationDataHelper.updateLocationData(
+      userData: userData,
+      location: actualMyLocation,
+    );
   }
 
   void _updateActualPartnerLocationData(UserLocationMobileDevice userData) {
-    if (userData.latitude != null && userData.longitude != null) {
-      final lat = double.tryParse(userData.latitude!);
-      final lng = double.tryParse(userData.longitude!);
-      if (lat != null && lng != null) {
-        actualPartnerLocation.value = LatLng(lat, lng);
-      }
-    }
+    LocationDataHelper.updateLocationData(
+      userData: userData,
+      location: actualPartnerLocation,
+    );
   }
 
   void _updateCurrentUserData(UserLocationMobileDevice userData) {
-    if (userData.latitude != null && userData.longitude != null) {
-      final lat = double.tryParse(userData.latitude!);
-      final lng = double.tryParse(userData.longitude!);
-      if (lat != null && lng != null) {
-        myLocation.value = LatLng(lat, lng);
-      }
-    }
-
-    myDeviceModel.value = (userData.mobileModel?.isEmpty ?? true) ? "未知设备" : userData.mobileModel!;
-    myBatteryLevel.value = (userData.power?.isEmpty ?? true) ? "未知" : userData.power!;
-    myNetworkName.value = (userData.networkName?.isEmpty ?? true) ? "未知网络" : userData.networkName!;
-    speed.value = (userData.speed?.isEmpty ?? true) ? "0m/s" : userData.speed!;
-    isWifi.value = userData.isWifi ?? "0";
-    locationTime.value = userData.locationTime ?? "";
-    distance.value = userData.distance ?? "未知";
-    updateTime.value = userData.calculateLocationTime ?? "未知";
-
-    if (userData.lives?.base != null && userData.lives!.base!.isNotEmpty) {
-      final baseWeather = userData.lives!.base!.first;
-      weatherIcon.value = baseWeather.weatherIcon ?? "";
-      weather.value = baseWeather.weather ?? "";
-    } else {
-      weatherIcon.value = "";
-      weather.value = "";
-    }
-
-    currentLocationText.value = userData.location ?? "位置信息不可用";
+    LocationDataHelper.updateCurrentUserData(
+      userData: userData,
+      myLocation: myLocation,
+      deviceModel: myDeviceModel,
+      batteryLevel: myBatteryLevel,
+      networkName: myNetworkName,
+      speed: speed,
+      isWifi: isWifi,
+      locationTime: locationTime,
+      distance: distance,
+      updateTime: updateTime,
+      weatherIcon: weatherIcon,
+      weather: weather,
+      currentLocationText: currentLocationText,
+    );
   }
 
   void _updatePartnerData(UserLocationMobileDevice partnerData) {
-    if (partnerData.latitude != null && partnerData.longitude != null) {
-      final lat = double.tryParse(partnerData.latitude!);
-      final lng = double.tryParse(partnerData.longitude!);
-      if (lat != null && lng != null) {
-        partnerLocation.value = LatLng(lat, lng);
-      }
-    }
+    LocationDataHelper.updateLocationData(
+      userData: partnerData,
+      location: partnerLocation,
+    );
   }
 
+  // 🚀 使用 LocationDataHelper 简化位置记录更新
   void _updateLocationRecords(UserLocationMobileDevice? userData) {
     locationRecords.clear();
 
     if (userData?.stops != null && userData!.stops!.isNotEmpty) {
-      for (int i = 0; i < userData.stops!.length; i++) {
-        final stop = userData.stops![i];
-        final record = LocationRecord(
-          time: _formatTime(stop.startTime, stop.endTime),
-          locationName: stop.locationName ?? '未知位置',
-          distance: '0km',
-          duration: stop.duration ?? '未知',
-          startTime: stop.startTime,
-          endTime: stop.endTime,
-          status: stop.status,
-          latitude: stop.latitude != null ? double.tryParse(stop.latitude!) : null,
-          longitude: stop.longitude != null ? double.tryParse(stop.longitude!) : null,
-        );
+      for (final stop in userData.stops!) {
+        final record = LocationDataHelper.createLocationRecord(stop);
         locationRecords.add(record);
       }
     }
 
     _updatePolylines();
-  }
-
-  String _formatTime(String? startTime, String? endTime) {
-    if (startTime == null) return '未知时间';
-
-    try {
-      if (startTime.contains(':')) {
-        if (endTime != null && endTime.contains(':')) {
-          return '$startTime - $endTime';
-        } else {
-          return startTime;
-        }
-      }
-      return startTime;
-    } catch (e) {
-      return startTime;
-    }
   }
 
   void performBindAction() {
@@ -1701,87 +1317,8 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     );
   }
 
-  void _startSwingAnimation() {
-    _stopSwingAnimation();
-
-    if (_cachedMyIcon == null && _cachedPartnerIcon == null) {
-      return;
-    }
-
-    int timeStep = 0;
-    _swingTimer = Timer.periodic(const Duration(milliseconds: 60), (timer) {
-      final time = timeStep * 0.08;
-      final period = 2 * math.pi;
-      final normalizedTime = (time % period) / period;
-      final angle = (normalizedTime < 0.5)
-          ? (-12.0 + normalizedTime * 48.0)
-          : (36.0 - normalizedTime * 48.0);
-
-      swingAngle.value = angle;
-      Future.microtask(() => _updateMarkersRotation());
-      timeStep++;
-    });
-  }
-
-  void _stopSwingAnimation() {
-    if (_swingTimer == null) return;
-
-    _swingTimer?.cancel();
-    _swingTimer = null;
-
-    final currentAngle = swingAngle.value;
-    if (currentAngle.abs() > 0.5) {
-      int steps = 0;
-      const maxSteps = 8;
-      Timer.periodic(const Duration(milliseconds: 30), (timer) {
-        steps++;
-        final progress = steps / maxSteps;
-        final easeOut = 1 - math.pow(1 - progress, 3);
-        swingAngle.value = currentAngle * (1 - easeOut);
-
-        Future.microtask(() => _updateMarkersRotation());
-
-        if (steps >= maxSteps) {
-          timer.cancel();
-          swingAngle.value = 0.0;
-          _updateMarkersRotation();
-        }
-      });
-    } else {
-      swingAngle.value = 0.0;
-      _updateMarkersRotation();
-    }
-  }
-
-  void _updateMarkersRotation() async {
-    if (mapController == null) return;
-
-    try {
-      if (actualMyLocation.value != null && _cachedMyIcon != null) {
-        final myMarker = Marker(
-          position: actualMyLocation.value!,
-          rotation: swingAngle.value,
-          icon: _cachedMyIcon!,
-          anchor: const Offset(0.5, 1.0),
-        );
-        myMarker.setIdForCopy('my_marker');
-        await mapController!.updateMarker(myMarker);
-      }
-
-      if (actualPartnerLocation.value != null && _cachedPartnerIcon != null) {
-        final partnerMarker = Marker(
-          position: actualPartnerLocation.value!,
-          rotation: -swingAngle.value,
-          icon: _cachedPartnerIcon!,
-          anchor: const Offset(0.5, 1.0),
-        );
-        partnerMarker.setIdForCopy('partner_marker');
-        await mapController!.updateMarker(partnerMarker);
-      }
-    } catch (e) {
-      debugPrint('Update marker rotation error: $e');
-    }
-  }
+  // 🚀 摆动动画现在由 MarkerSwingAnimator 管理
+  // swingAngle 通过 _swingAnimator.swingAngle 访问
 
   bool _needsUpdateIconCache() {
     return _cachedMyAvatar != myAvatar.value ||
@@ -1800,7 +1337,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         final cacheKey = MapPreloadService.generateMarkerCacheKey(
           avatarUrl: myAvatar.value,
           faceUrl: myFace.value?.faceUrl,
-          isVirtual: false,
         );
         
         // 检查是否需要重新创建
@@ -1830,6 +1366,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         _cachedMyIcon = _persistentMyIcon;
         _cachedMyAvatar = myAvatar.value;
         _cachedMyFace = myFace.value;
+        
+        // 🚀 更新动画器的图标
+        _swingAnimator.updateIcons(myIcon: _cachedMyIcon);
       }
 
       // 🚀 优化：Ta的头像Marker（使用全局缓存）
@@ -1837,7 +1376,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         final cacheKey = MapPreloadService.generateMarkerCacheKey(
           avatarUrl: partnerAvatar.value,
           faceUrl: partnerFace.value?.faceUrl,
-          isVirtual: !isBindPartner.value,
         );
         
         // 检查是否需要重新创建
@@ -1850,21 +1388,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
             debugPrint('🎯 使用全局缓存的Ta的Marker');
           } else {
             // 创建新的Marker
-            if (isBindPartner.value) {
-              _persistentPartnerIcon = await _createAvatarMarker(
-                partnerAvatar.value,
-                defaultAsset: 'assets/kissu3_love_avater.webp',
-                baseAsset: 'assets/3.0/kissu3_location_she.webp',
-                face: partnerFace.value,
-              );
-            } else {
-              _persistentPartnerIcon = await _createAvatarMarkerWithVirtualLabel(
-                partnerAvatar.value,
-                defaultAsset: 'assets/kissu3_love_avater.webp',
-                baseAsset: 'assets/3.0/kissu3_location_she.webp',
-                face: partnerFace.value,
-              );
-            }
+            _persistentPartnerIcon = await _createAvatarMarker(
+              partnerAvatar.value,
+              defaultAsset: 'assets/kissu3_love_avater.webp',
+              baseAsset: 'assets/3.0/kissu3_location_she.webp',
+              face: partnerFace.value,
+            );
             
             // 保存到全局缓存
             MapPreloadService.instance.cacheMarker(cacheKey, _persistentPartnerIcon!);
@@ -1877,6 +1406,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         _cachedPartnerAvatar = partnerAvatar.value;
         _cachedPartnerFace = partnerFace.value;
         _cachedIsBindPartner = isBindPartner.value;
+        
+        // 🚀 更新动画器的图标
+        _swingAnimator.updateIcons(partnerIcon: _cachedPartnerIcon);
       }
       
       final markerDuration = DateTime.now().difference(markerStartTime);
@@ -1891,6 +1423,15 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     // 结束页面浏览事件计时
     _endPageViewTracking();
     
+    // 🚀 修复：清理定位服务监听器，避免内存泄漏和重复监听
+    try {
+      _locationServiceWorker?.dispose();
+      _locationServiceWorker = null;
+      debugPrint('✅ 定位服务监听器已清理');
+    } catch (e) {
+      debugPrint('Dispose location service worker error: $e');
+    }
+    
     try {
       hideTooltip();
     } catch (e) {
@@ -1903,7 +1444,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       debugPrint('Close tips manager error: $e');
     }
 
-    _stopSwingAnimation();
+    // 🚀 使用 MarkerSwingAnimator 清理摆动动画
+    try {
+      _swingAnimator.dispose();
+    } catch (e) {
+      debugPrint('Dispose swing animator error: $e');
+    }
 
     try {
       backButtonAnimationController.dispose();
@@ -1917,7 +1463,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       debugPrint('Dispose switchTransitionController error: $e');
     }
 
-    _imageCache.clear();
     _cachedMyIcon = null;
     _cachedPartnerIcon = null;
     _cachedMyAvatar = null;
@@ -1929,27 +1474,4 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     super.onClose();
   }
 }
-
-class LocationRecord {
-  final String? time;
-  final String? locationName;
-  final String? distance;
-  final String? duration;
-  final String? startTime;
-  final String? endTime;
-  final String? status;
-  final double? latitude;
-  final double? longitude;
-
-  LocationRecord({
-    this.time,
-    this.locationName,
-    this.distance,
-    this.duration,
-    this.startTime,
-    this.endTime,
-    this.status,
-    this.latitude,
-    this.longitude,
-  });
-}
+// 🚀 LocationRecord 类已移至 services/location_data_helper.dart

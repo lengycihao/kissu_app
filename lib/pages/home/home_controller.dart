@@ -21,6 +21,7 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
@@ -149,6 +150,9 @@ class HomeController extends GetxController {
     // 埋点：开始记录页面停留时长
     _startPageTracking();
     
+    // 🚀 关键修复：先初始化认证服务，再刷新用户信息
+    _authService = getIt<AuthService>();
+    
     // 先加载本地用户信息（立即显示）
     loadUserInfo();
     
@@ -157,9 +161,6 @@ class HomeController extends GetxController {
     
     // 初始化滚动控制器，如果有预设位置则使用预设位置
     _initializeScrollController();
-    
-    // 初始化认证服务
-    _authService = getIt<AuthService>();
     
     // 预加载首页PAG资源 (已注释)
     // _preloadPagAssets();
@@ -425,16 +426,30 @@ class HomeController extends GetxController {
   }
   
   /// 只检查定位权限状态，不自动启动服务
+  /// 🚀 修复：检查定位权限状态并启动服务（避免首页不上报位置）
   Future<void> _checkLocationPermissionStatusOnly() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final hasRequested = prefs.getBool('location_permission_requested') ?? false;
       
       if (hasRequested) {
-        // 已经请求过权限，检查服务状态（但不自动启动）
         debugPrint('已请求过定位权限，检查服务状态');
-        if (_locationService.isLocationEnabled.value) {
+        
+        // 🚀 修复：如果已有权限但服务未启动，主动启动服务
+        if (!_locationService.isLocationEnabled.value) {
+          // 先检查是否有权限
+          var locationStatus = await Permission.location.status;
+          if (locationStatus.isGranted) {
+            debugPrint('🏠 已有定位权限但服务未启动，主动启动服务（避免不上报位置）');
+            bool started = await _locationService.startLocation();
+            if (started) {
+              isLocationServiceStarted.value = true;
+              debugPrint('✅ 首页定位服务已启动，开始收集和上报位置');
+            }
+          }
+        } else {
           isLocationServiceStarted.value = true;
+          debugPrint('✅ 定位服务已在运行中');
         }
       }
     } catch (e) {
@@ -526,15 +541,29 @@ class HomeController extends GetxController {
         loveDays.value = indexData.user.loverDays;
         isBound.value = indexData.user.isBind == 1;
         
-        // 更新头像
+        // 🚀 优化：更新头像（确保即使为空也有默认值）
         if (indexData.user.headPortrait.isNotEmpty) {
           userAvatar.value = indexData.user.headPortrait;
+          debugPrint('✅ 用户头像已更新: ${userAvatar.value}');
+          // 🚀 优化：预加载网络头像
+          _precacheAvatarImage(userAvatar.value);
+        } else {
+          // 服务器返回空头像时，保持默认头像
+          debugPrint('⚠️ 服务器返回的用户头像为空，使用默认头像');
         }
         
         if (isBound.value && indexData.user.halfHeadPortrait.isNotEmpty) {
           partnerAvatar.value = indexData.user.halfHeadPortrait;
+          debugPrint('✅ 伴侣头像已更新: ${partnerAvatar.value}');
+          // 🚀 优化：预加载网络头像
+          _precacheAvatarImage(partnerAvatar.value);
         } else if (!isBound.value) {
           partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+          debugPrint('📌 未绑定状态，使用加号图标');
+        } else {
+          // 已绑定但服务器返回空头像时，使用默认头像
+          partnerAvatar.value = "assets/kissu3_love_avater.webp";
+          debugPrint('⚠️ 服务器返回的伴侣头像为空，使用默认头像');
         }
         
         // 更新照片墙
@@ -566,9 +595,14 @@ class HomeController extends GetxController {
   void loadUserInfo() {
     final user = UserManager.currentUser;
     if (user != null) {
-      // 用户头像
+      // 🚀 优化：用户头像（确保有值，即使本地缓存也为空）
       if (user.headPortrait?.isNotEmpty == true) {
         userAvatar.value = user.headPortrait!;
+        debugPrint('✅ 从本地加载用户头像: ${userAvatar.value}');
+      } else {
+        // 本地也没有头像时，使用默认头像
+        userAvatar.value = "assets/kissu3_love_avater.webp";
+        debugPrint('⚠️ 本地用户头像为空，使用默认头像');
       }
       
       // 绑定状态处理 (0从未绑定，1已绑定，2已解绑)
@@ -586,6 +620,7 @@ class HomeController extends GetxController {
       } else {
         // 未绑定状态，重置伴侣头像
         partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+        debugPrint('📌 未绑定状态，使用加号图标');
         // 重置距离信息
         distance.value = "0KM";
         // 重置停留点数量
@@ -593,6 +628,11 @@ class HomeController extends GetxController {
         // 重置恋爱天数
         loveDays.value = 0;
       }
+    } else {
+      // 🚀 优化：用户未登录或用户信息为空时，确保使用默认头像
+      userAvatar.value = "assets/kissu3_love_avater.webp";
+      partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+      debugPrint('⚠️ 用户信息为空，使用默认头像');
     }
   }
   
@@ -660,14 +700,43 @@ class HomeController extends GetxController {
     // 优先使用loverInfo中的头像
     if (user.loverInfo?.headPortrait?.isNotEmpty == true) {
       partnerAvatar.value = user.loverInfo!.headPortrait!;
+      debugPrint('✅ 从loverInfo加载伴侣头像: ${partnerAvatar.value}');
+      // 🚀 优化：预加载网络头像
+      _precacheAvatarImage(partnerAvatar.value);
     } 
     // 其次使用halfUserInfo中的头像
     else if (user.halfUserInfo?.headPortrait?.isNotEmpty == true) {
       partnerAvatar.value = user.halfUserInfo!.headPortrait!;
+      debugPrint('✅ 从halfUserInfo加载伴侣头像: ${partnerAvatar.value}');
+      // 🚀 优化：预加载网络头像
+      _precacheAvatarImage(partnerAvatar.value);
     }
     // 否则使用默认头像
     else {
       partnerAvatar.value = "assets/kissu3_love_avater.webp";
+      debugPrint('⚠️ 伴侣头像为空，使用默认头像');
+    }
+  }
+  
+  /// 🚀 预加载头像图片到缓存
+  void _precacheAvatarImage(String imageUrl) {
+    if (imageUrl.isEmpty || !imageUrl.startsWith('http')) {
+      return; // 只预加载网络图片
+    }
+    
+    try {
+      if (Get.context != null) {
+        precacheImage(
+          NetworkImage(imageUrl),
+          Get.context!,
+        ).then((_) {
+          debugPrint('✅ 头像预加载成功: $imageUrl');
+        }).catchError((error) {
+          debugPrint('⚠️ 头像预加载失败: $imageUrl, 错误: $error');
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ 头像预加载异常: $e');
     }
   }
   

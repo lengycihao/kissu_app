@@ -278,12 +278,11 @@ MapPreloadService.instance.preloadMapResources().then((_) {
 
 ### 缓存Key生成
 ```dart
-'marker_${avatarUrl.hashCode}_${faceUrl?.hashCode ?? 'null'}_$isVirtual'
+'marker_${avatarUrl.hashCode}_${faceUrl?.hashCode ?? 'null'}'
 ```
 确保：
 - 头像URL变化时重新创建
 - 表情变化时重新创建
-- 虚拟/真实状态变化时重新创建
 
 ---
 

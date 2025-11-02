@@ -12,11 +12,16 @@ class ImageCropPage extends StatefulWidget {
   /// 如果提供，将在裁剪框上方显示这个装饰图片
   final String? customCropFrameAsset;
 
+  /// 预加载的图片数据（可选）
+  /// 如果提供，将直接使用而不是从文件读取
+  final Uint8List? preloadedImageData;
+
   const ImageCropPage({
     Key? key,
     required this.imagePath,
     required this.onCropComplete,
     this.customCropFrameAsset,
+    this.preloadedImageData,
   }) : super(key: key);
 
   @override
@@ -28,9 +33,6 @@ class _ImageCropPageState extends State<ImageCropPage> {
   Uint8List? _imageData;
   bool _isLoading = true;
   bool _isCropping = false;
-  
-  // 裁剪区域的水平边距（确保裁剪框和装饰图片对齐）
-  static const double _horizontalPadding = 20.0;
 
   @override
   void initState() {
@@ -40,6 +42,16 @@ class _ImageCropPageState extends State<ImageCropPage> {
 
   Future<void> _loadImage() async {
     try {
+      // 如果有预加载的数据，直接使用
+      if (widget.preloadedImageData != null) {
+        setState(() {
+          _imageData = widget.preloadedImageData;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 否则从文件读取
       final file = File(widget.imagePath);
       final bytes = await file.readAsBytes();
       setState(() {
@@ -101,7 +113,26 @@ class _ImageCropPageState extends State<ImageCropPage> {
       backgroundColor: Colors.black,
       
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    '正在加载图片...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            )
           : Stack(
             children: [
               Container(

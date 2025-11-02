@@ -84,7 +84,7 @@ public class MapController
 
     @Override
     public void doMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
-        LogUtil.i(CLASS_NAME, "doMethodCall===>" + call.method);
+        // LogUtil.i(CLASS_NAME, "doMethodCall===>" + call.method); // 已注释：减少日志输出
         if (null == amap) {
             LogUtil.w(CLASS_NAME, "onMethodCall amap is null!!!");
             return;

@@ -94,9 +94,8 @@ class MapPreloadService {
   static String generateMarkerCacheKey({
     required String avatarUrl,
     String? faceUrl,
-    bool isVirtual = false,
   }) {
-    return 'marker_${avatarUrl.hashCode}_${faceUrl?.hashCode ?? 'null'}_$isVirtual';
+    return 'marker_${avatarUrl.hashCode}_${faceUrl?.hashCode ?? 'null'}';
   }
 
   /// 清空缓存（用于内存管理）

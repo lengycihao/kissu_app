@@ -147,11 +147,12 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
         source: source,
-        imageQuality: 80,
+        // 不设置imageQuality和maxWidth/maxHeight，保持原始图片质量
+        // 压缩将在裁剪后上传时进行
       );
 
       if (pickedFile != null) {
-        // 进入图片裁剪页面
+        // 直接进入图片裁剪页面（会预加载图片，裁剪页面有自己的loading）
         await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
@@ -166,7 +167,8 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         () => ImageCropPage(
           imagePath: imagePath,
           onCropComplete: _onCropComplete,
-          customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp', // 自定义裁剪框
+          customCropFrameAsset: 'assets/3.0/kissu3_crop_icon.webp',
+          // 不预加载，让裁剪页面自己加载并显示loading
         ),
         transition: Transition.rightToLeft,
         fullscreenDialog: true,

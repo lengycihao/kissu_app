@@ -273,10 +273,10 @@ class LocationPickerController extends GetxController {
       DebugUtil.error('获取当前位置失败: $e');
     }
     
-    // 默认位置（杭州，但地图会根据用户选择的城市进行调整）
+    // 默认位置（天安门，但地图会根据用户选择的城市进行调整）
     return const CameraPosition(
-      target: LatLng(30.2741, 120.2206),
-      zoom: 17.5,
+      target: LatLng(39.9042, 116.4074), // 天安门坐标
+      zoom: 12.0, // 中等范围视图，便于选择位置
     );
   }
   

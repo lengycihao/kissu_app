@@ -104,79 +104,29 @@ class TrackMapManager {
     DebugUtil.info('地图类型切换为: ${type == 1 ? "经典地图" : "卫星地图"}');
   }
 
-  /// 计算适合所有轨迹点的相机位置
+  /// 🚀 简化：计算适合所有轨迹点的相机位置（仅用于初始化，具体缩放由 newLatLngBounds 控制）
   CameraPosition? calculateOptimalCameraPosition(List<LatLng> trackPoints) {
     if (trackPoints.isEmpty) return null;
 
-    // 计算边界
-    double minLat = trackPoints.first.latitude;
-    double maxLat = trackPoints.first.latitude;
-    double minLng = trackPoints.first.longitude;
-    double maxLng = trackPoints.first.longitude;
-
-    for (final point in trackPoints) {
-      minLat = minLat < point.latitude ? minLat : point.latitude;
-      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
-      minLng = minLng < point.longitude ? minLng : point.longitude;
-      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
-    }
-
-    // 添加边距（10%的padding）
-    final latPadding = (maxLat - minLat) * 0.1;
-    final lngPadding = (maxLng - minLng) * 0.1;
-
-    minLat -= latPadding;
-    maxLat += latPadding;
-    minLng -= lngPadding;
-    maxLng += lngPadding;
-
     // 计算中心点
-    final centerLat = (minLat + maxLat) / 2;
-    final centerLng = (minLng + maxLng) / 2;
-
-    // 计算合适的缩放级别
-    final latDiff = maxLat - minLat;
-    final lngDiff = maxLng - minLng;
-    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-
-    // 根据距离计算缩放级别 - 支持更大范围的轨迹
-    double zoom;
-    if (maxDiff < 0.001) {
-      zoom = 19.0; // 非常小的区域 (< 100米)
-    } else if (maxDiff < 0.01) {
-      zoom = 18.0; // 小区域 (< 1公里)
-    } else if (maxDiff < 0.05) {
-      zoom = 16.0; // 中小区域 (< 5公里)
-    } else if (maxDiff < 0.1) {
-      zoom = 13.0; // 中等区域 (< 10公里)
-    } else if (maxDiff < 0.2) {
-      zoom = 11.0; // 中大区域 (< 20公里)
-    } else if (maxDiff < 0.5) {
-      zoom = 10.0; // 大区域 (< 50公里)
-    } else if (maxDiff < 1.0) {
-      zoom = 9.0; // 很大区域 (< 100公里)
-    } else if (maxDiff < 2.0) {
-      zoom = 8.0; // 超大区域 (< 200公里)
-    } else if (maxDiff < 5.0) {
-      zoom = 6.0; // < 500公里
-    } else if (maxDiff < 10.0) {
-      zoom = 4.0; // < 1000公里
-    } else if (maxDiff < 20.0) {
-      zoom = 3.0; // < 2000公里
-    } else {
-      zoom = 3.0; // 全球区域 (> 2000公里)
+    double centerLat = 0;
+    double centerLng = 0;
+    
+    for (final point in trackPoints) {
+      centerLat += point.latitude;
+      centerLng += point.longitude;
     }
+    
+    centerLat /= trackPoints.length;
+    centerLng /= trackPoints.length;
 
-    // 打印调试信息
-    DebugUtil.info(
-      '轨迹范围计算: latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom',
-    );
     DebugUtil.info('轨迹中心点: ($centerLat, $centerLng)');
-
-    return CameraPosition(target: LatLng(centerLat, centerLng), zoom: zoom);
+    
+    // 初始使用较低缩放级别，具体缩放由 fitMapToTrackPoints 中的 newLatLngBounds 精确控制
+    return CameraPosition(target: LatLng(centerLat, centerLng), zoom: 10.0);
   }
 
-  /// 自动调整地图视图以显示轨迹（仅基于轨迹点）
+  /// 🚀 优化：自动调整地图视图以显示轨迹（使用原生 newLatLngBounds）
   Future<void> fitMapToTrack(List<LatLng> trackPoints) async {
     if (!isMapReady.value || mapController == null) {
       DebugUtil.warning('地图未就绪或控制器为空，无法调整视图');
@@ -187,25 +137,53 @@ class TrackMapManager {
       DebugUtil.warning('轨迹点为空，无法调整视图');
       return;
     }
-
-    // 计算最佳相机位置
-    final targetPosition = calculateOptimalCameraPosition(trackPoints);
-    if (targetPosition == null) {
-      DebugUtil.warning('无法计算最佳相机位置');
+    
+    // 如果只有一个点，直接定位到该点
+    if (trackPoints.length == 1) {
+      try {
+        await mapController!.moveCamera(
+          CameraUpdate.newLatLngZoom(trackPoints.first, 18.0),
+        );
+        DebugUtil.success('只有一个轨迹点，直接定位');
+      } catch (e) {
+        DebugUtil.error('移动到单点位置失败: $e');
+      }
       return;
     }
 
     try {
-      await mapController!.moveCamera(
-        CameraUpdate.newCameraPosition(targetPosition),
+      // 🚀 使用原生 newLatLngBounds 自动计算缩放层级
+      // 计算边界
+      double minLat = trackPoints.first.latitude;
+      double maxLat = trackPoints.first.latitude;
+      double minLng = trackPoints.first.longitude;
+      double maxLng = trackPoints.first.longitude;
+      
+      for (final point in trackPoints) {
+        if (point.latitude < minLat) minLat = point.latitude;
+        if (point.latitude > maxLat) maxLat = point.latitude;
+        if (point.longitude < minLng) minLng = point.longitude;
+        if (point.longitude > maxLng) maxLng = point.longitude;
+      }
+      
+      final bounds = LatLngBounds(
+        southwest: LatLng(minLat, minLng),
+        northeast: LatLng(maxLat, maxLng),
       );
-      DebugUtil.success('地图已调整到显示完整轨迹 - 缩放级别: ${targetPosition.zoom}');
+      
+      await mapController!.moveCamera(
+        CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
+        animated: true,
+        duration: 500,
+      );
+      
+      DebugUtil.success('✅ 使用原生LatLngBounds调整地图到显示完整轨迹');
     } catch (e) {
       DebugUtil.error('调整地图视图失败: $e');
     }
   }
 
-  /// 自动调整地图视图以显示所有轨迹点
+  /// 🚀 优化：使用原生 newLatLngBounds 自动调整地图视图
   Future<void> fitMapToTrackPoints({
     required List<LatLng> trackPoints,
     required List<dynamic> stopPoints,
@@ -216,63 +194,111 @@ class TrackMapManager {
       return;
     }
 
-    CameraPosition? targetPosition;
-
-    // 检查是否有轨迹数据
-    final hasTrackData = trackPoints.isNotEmpty || stopPoints.isNotEmpty;
-
-    // 如果没有任何位置信息，显示全国地图视图
-    if (!hasTrackData) {
-      DebugUtil.info('🗺️ 无位置信息，显示全国地图视图');
-      targetPosition = CameraPosition(
-        target: LatLng(35.86166, 104.195397), // 中国地理中心
-        zoom: 3.0, // 可以看到全国的缩放级别 (越小范围越大)
-      );
+    // 🚀 收集所有需要显示的点：locations + trace 中的所有点
+    final List<LatLng> allPoints = [];
+    
+    // 1. 从 locations 列表中添加所有轨迹点
+    if (locationData?.locations != null && locationData.locations.isNotEmpty) {
+      for (final location in locationData.locations) {
+        if (location.lat != 0.0 && location.lng != 0.0) {
+          allPoints.add(LatLng(location.lat, location.lng));
+        }
+      }
+      DebugUtil.info('从 locations 添加轨迹点数量: ${locationData.locations.length}');
     }
-    // 优先使用轨迹点计算最佳位置
-    else if (trackPoints.isNotEmpty) {
-      DebugUtil.info('开始自动调整地图视图，轨迹点数量: ${trackPoints.length}');
-      targetPosition = calculateOptimalCameraPosition(trackPoints);
-    }
-    // 如果没有轨迹点，尝试使用位置数据的起点或终点
-    else if (locationData != null) {
-      if (locationData.trace?.startPoint.lat != 0.0 &&
-          locationData.trace?.startPoint.lng != 0.0) {
-        targetPosition = CameraPosition(
-          target: LatLng(
-            locationData.trace!.startPoint.lat,
-            locationData.trace!.startPoint.lng,
-          ),
-          zoom: 18.0,
-        );
-        DebugUtil.info('使用起点作为地图中心');
-      } else if (locationData.trace?.endPoint.lat != 0.0 &&
-          locationData.trace?.endPoint.lng != 0.0) {
-        targetPosition = CameraPosition(
-          target: LatLng(
-            locationData.trace!.endPoint.lat,
-            locationData.trace!.endPoint.lng,
-          ),
-          zoom: 18.0,
-        );
-        DebugUtil.info('使用终点作为地图中心');
+    
+    // 2. 添加 trace 中的起点
+    if (locationData?.trace?.startPoint != null) {
+      final startPoint = locationData.trace!.startPoint;
+      if (startPoint.lat != 0.0 && startPoint.lng != 0.0) {
+        allPoints.add(LatLng(startPoint.lat, startPoint.lng));
+        DebugUtil.info('添加起点: (${startPoint.lat}, ${startPoint.lng})');
       }
     }
-
-    // 如果没有任何有效位置，使用默认杭州坐标
-    if (targetPosition == null) {
-      DebugUtil.warning('没有有效位置数据，使用默认杭州坐标');
-      targetPosition = const CameraPosition(
-        target: LatLng(30.2741, 120.2206),
-        zoom: 18.0,
-      );
+    
+    // 3. 添加 trace 中的终点
+    if (locationData?.trace?.endPoint != null) {
+      final endPoint = locationData.trace!.endPoint;
+      if (endPoint.lat != 0.0 && endPoint.lng != 0.0) {
+        allPoints.add(LatLng(endPoint.lat, endPoint.lng));
+        DebugUtil.info('添加终点: (${endPoint.lat}, ${endPoint.lng})');
+      }
     }
-
+    
+    // 4. 添加 trace 中的所有停留点
+    if (locationData?.trace?.stops != null) {
+      for (final stop in locationData.trace!.stops) {
+        if (stop.lat != 0.0 && stop.lng != 0.0) {
+          allPoints.add(LatLng(stop.lat, stop.lng));
+        }
+      }
+      DebugUtil.info('添加停留点数量: ${locationData.trace!.stops.length}');
+    }
+    
+    DebugUtil.info('🗺️ 总点数: ${allPoints.length}');
+    
+    // 如果没有任何点，显示默认位置
+    if (allPoints.isEmpty) {
+      DebugUtil.warning('没有有效位置数据，显示全国地图视图');
+      try {
+        await mapController!.moveCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: LatLng(35.86166, 104.195397), // 中国地理中心
+              zoom: 3.0,
+            ),
+          ),
+        );
+      } catch (e) {
+        DebugUtil.error('移动到默认位置失败: $e');
+      }
+      return;
+    }
+    
+    // 如果只有一个点，直接定位到该点
+    if (allPoints.length == 1) {
+      try {
+        await mapController!.moveCamera(
+          CameraUpdate.newLatLngZoom(allPoints.first, 18.0),
+        );
+        DebugUtil.success('只有一个点，直接定位');
+      } catch (e) {
+        DebugUtil.error('移动到单点位置失败: $e');
+      }
+      return;
+    }
+    
+    // 🚀 使用原生 newLatLngBounds 自动计算最佳缩放层级
     try {
-      await mapController!.moveCamera(
-        CameraUpdate.newCameraPosition(targetPosition),
+      // 计算边界：找出最小和最大的经纬度
+      double minLat = allPoints.first.latitude;
+      double maxLat = allPoints.first.latitude;
+      double minLng = allPoints.first.longitude;
+      double maxLng = allPoints.first.longitude;
+      
+      for (final point in allPoints) {
+        if (point.latitude < minLat) minLat = point.latitude;
+        if (point.latitude > maxLat) maxLat = point.latitude;
+        if (point.longitude < minLng) minLng = point.longitude;
+        if (point.longitude > maxLng) maxLng = point.longitude;
+      }
+      
+      // 构建 LatLngBounds
+      final bounds = LatLngBounds(
+        southwest: LatLng(minLat, minLng),
+        northeast: LatLng(maxLat, maxLng),
       );
-      DebugUtil.success('地图已自动调整到最佳视图 - 缩放级别: ${targetPosition.zoom}');
+      
+      DebugUtil.info('📍 bounds: southwest($minLat, $minLng), northeast($maxLat, $maxLng)');
+      
+      // 使用原生方法自动计算缩放层级
+      await mapController!.moveCamera(
+        CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
+        animated: true,
+        duration: 500,
+      );
+      
+      DebugUtil.success('✅ 使用原生LatLngBounds自动调整地图视图');
     } catch (e) {
       DebugUtil.error('调整地图视图失败: $e');
     }
