@@ -164,11 +164,11 @@ class TrackReplayManager extends GetxController {
         // 同步更新现有标记的位置
         final currentMarker = replayAvatarMarker.value!;
         final updatedMarker = Marker(
-          position: position,
-          icon: currentMarker.icon,
-          infoWindow: currentMarker.infoWindow,
-          zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
-        );
+        position: position,
+        icon: currentMarker.icon,
+        infoWindow: currentMarker.infoWindow,
+        zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
+      );
         // 🎯 保持marker的ID，确保动画不丢失
         updatedMarker.setIdForCopy('replay_avatar_marker');
         replayAvatarMarker.value = updatedMarker;
