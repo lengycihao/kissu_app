@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// Native 定位上报服务（供 Native 端使用）
 /// 
@@ -21,7 +22,7 @@ class NativeLocationReportService {
       
       // 检查用户是否登录
       if (!authService.isLoggedIn || authService.userToken == null) {
-        print('⚠️ 用户未登录，无法保存 Token');
+        logger.warning('⚠️ 用户未登录，无法保存 Token', tag: 'NativeLocationReportService');
         return false;
       }
       
@@ -29,7 +30,7 @@ class NativeLocationReportService {
       final userId = authService.userId ?? '';
       final baseUrl = AppConfigN.baseApiUrl;
       
-      print('🔐 保存用户 Token 到 Native：userId=$userId, baseUrl=$baseUrl');
+      logger.info('🔐 保存用户 Token 到 Native：userId=$userId, baseUrl=$baseUrl', tag: 'NativeLocationReportService');
       
       final result = await _channel.invokeMethod('saveUserToken', {
         'token': token,
@@ -42,9 +43,9 @@ class NativeLocationReportService {
         final message = result['message'] as String? ?? '';
         
         if (success) {
-          print('✅ Native Token 保存成功');
+          logger.info('✅ Native Token 保存成功', tag: 'NativeLocationReportService');
         } else {
-          print('❌ Native Token 保存失败: $message');
+          logger.error('❌ Native Token 保存失败: $message', tag: 'NativeLocationReportService');
         }
         
         return success;
@@ -52,7 +53,7 @@ class NativeLocationReportService {
       
       return false;
     } catch (e) {
-      print('❌ 保存 Native Token 异常: $e');
+      logger.error('❌ 保存 Native Token 异常: $e', tag: 'NativeLocationReportService', error: e);
       return false;
     }
   }
@@ -60,7 +61,7 @@ class NativeLocationReportService {
   /// 清除用户 Token（登出时调用）
   static Future<bool> clearUserToken() async {
     try {
-      print('🗑️ 清除 Native Token');
+      logger.info('🗑️ 清除 Native Token', tag: 'NativeLocationReportService');
       
       final result = await _channel.invokeMethod('clearUserToken');
       
@@ -69,9 +70,9 @@ class NativeLocationReportService {
         final message = result['message'] as String? ?? '';
         
         if (success) {
-          print('✅ Native Token 已清除');
+          logger.info('✅ Native Token 已清除', tag: 'NativeLocationReportService');
         } else {
-          print('❌ Native Token 清除失败: $message');
+          logger.error('❌ Native Token 清除失败: $message', tag: 'NativeLocationReportService');
         }
         
         return success;
@@ -79,7 +80,7 @@ class NativeLocationReportService {
       
       return false;
     } catch (e) {
-      print('❌ 清除 Native Token 异常: $e');
+      logger.error('❌ 清除 Native Token 异常: $e', tag: 'NativeLocationReportService', error: e);
       return false;
     }
   }

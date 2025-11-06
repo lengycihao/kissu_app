@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:kissu_app/services/map_preload_service.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 地图图片加载和缓存服务
 /// 
@@ -33,7 +34,7 @@ class MapImageService {
         return image;
       }
     } catch (e) {
-      print('Load image from network error: $e');
+      logWarning('Load image from network error: $e', tag: 'MapImageService', error: e);
     }
     return null;
   }
@@ -62,7 +63,7 @@ class MapImageService {
       _imageCache[assetPath] = image;
       return image;
     } catch (e) {
-      print('Load image from asset error: $assetPath, $e');
+      logWarning('Load image from asset error: $assetPath, $e', tag: 'MapImageService', error: e);
       return null;
     }
   }

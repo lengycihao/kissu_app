@@ -8,6 +8,7 @@ import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// API响应拦截器
 /// 处理统一的响应格式和错误处理
@@ -20,7 +21,7 @@ class ApiResponseInterceptor extends Interceptor {
   static void resetUnauthorizedState() {
     _isHandlingUnauthorized = false;
     _lastUnauthorizedTime = null;
-    print('token失效处理状态已重置');
+    logDebug('token失效处理状态已重置', tag: 'ApiInterceptor');
   }
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
@@ -43,28 +44,28 @@ class ApiResponseInterceptor extends Interceptor {
         switch (processedResponse.code) {
           case 43000:
             // token失效或账号异常 - 跳到登录页
-            print('检测到code 43000，token失效或账号异常，需要重新登录');
+            logWarning('检测到code 43000，token失效或账号异常，需要重新登录', tag: 'ApiInterceptor');
             final message = processedResponse.msg ?? 'token失效或账号异常，请重新登录';
             _handleTokenExpired(message);
             return;
 
           case 41000:
             // header公共参数缺失
-            print('检测到code 41000，header公共参数缺失');
+            logWarning('检测到code 41000，header公共参数缺失', tag: 'ApiInterceptor');
             final message = processedResponse.msg ?? 'header公共参数缺失';
             _showMessage(message);
             break;
 
           case 51000:
             // 签名错误
-            print('检测到code 51000，签名错误');
+            logError('检测到code 51000，签名错误', tag: 'ApiInterceptor');
             final message = processedResponse.msg ?? '签名错误';
             _showMessage(message);
             break;
 
           case 1:
             // 接口处理失败 - 一般业务错误，不需要特殊处理，让上层业务处理
-            print('检测到code 1，接口处理失败: ${processedResponse.msg}');
+            logWarning('检测到code 1，接口处理失败: ${processedResponse.msg}', tag: 'ApiInterceptor');
             break;
 
           default:
@@ -107,13 +108,13 @@ class ApiResponseInterceptor extends Interceptor {
   void _handleTokenExpired(String message) {
     final now = DateTime.now();
     
-    print('⚠️ Token失效处理开始: $message');
-    print('📊 当前处理状态: _isHandlingUnauthorized=$_isHandlingUnauthorized');
-    print('⏰ 上次处理时间: $_lastUnauthorizedTime');
+    logWarning('⚠️ Token失效处理开始: $message', tag: 'ApiInterceptor');
+    logDebug('📊 当前处理状态: _isHandlingUnauthorized=$_isHandlingUnauthorized', tag: 'ApiInterceptor');
+    logDebug('⏰ 上次处理时间: $_lastUnauthorizedTime', tag: 'ApiInterceptor');
     
     // 检查是否正在处理中
     if (_isHandlingUnauthorized) {
-      print('⏸️ 正在处理token失效，跳过重复处理');
+      logDebug('⏸️ 正在处理token失效，跳过重复处理', tag: 'ApiInterceptor');
       return;
     }
     
@@ -121,7 +122,7 @@ class ApiResponseInterceptor extends Interceptor {
     if (_lastUnauthorizedTime != null && 
         now.difference(_lastUnauthorizedTime!) < const Duration(seconds: 10)) {
       final timeDiff = now.difference(_lastUnauthorizedTime!).inSeconds;
-      print('⏸️ 距离上次token失效处理太近（${timeDiff}秒），跳过重复处理');
+      logDebug('⏸️ 距离上次token失效处理太近（$timeDiff秒），跳过重复处理', tag: 'ApiInterceptor');
       return;
     }
     
@@ -129,7 +130,7 @@ class ApiResponseInterceptor extends Interceptor {
     _isHandlingUnauthorized = true;
     _lastUnauthorizedTime = now;
     
-    print('🚀 开始执行token失效处理流程...');
+    logInfo('🚀 开始执行token失效处理流程...', tag: 'ApiInterceptor');
     
     // 显示消息
     _showMessage(message);
@@ -140,61 +141,61 @@ class ApiResponseInterceptor extends Interceptor {
 
   /// 处理未授权错误
   void _handleUnauthorized() async {
-    print('🔐 检测到token过期，开始清除用户数据并跳转到登录页');
+    logInfo('🔐 检测到token过期，开始清除用户数据并跳转到登录页', tag: 'ApiInterceptor');
 
     try {
       // 直接清除本地用户数据，不调用退出登录API（因为token已失效）
       final authService = GetIt.instance<AuthService>();
       await authService.clearLocalUserData();
-      print('✅ 本地用户数据已清除');
+      logDebug('✅ 本地用户数据已清除', tag: 'ApiInterceptor');
     } catch (e) {
-      print('❌ 清除用户信息失败: $e');
+      logError('❌ 清除用户信息失败: $e', tag: 'ApiInterceptor', error: e);
       // 备用清除方式 - 直接删除存储的用户数据
       try {
         const storage = FlutterSecureStorage();
         await storage.delete(key: 'current_user');
-        print('✅ 备用清除方式成功');
+        logDebug('✅ 备用清除方式成功', tag: 'ApiInterceptor');
       } catch (fallbackError) {
-        print('❌ 备用清除方式也失败: $fallbackError');
+        logError('❌ 备用清除方式也失败: $fallbackError', tag: 'ApiInterceptor', error: fallbackError);
       }
     }
 
     // 跳转到登录页
     try {
-      print('🔄 准备跳转到登录页...');
+      logDebug('🔄 准备跳转到登录页...', tag: 'ApiInterceptor');
       
       // 检查Get路由是否已经初始化
       if (gg.Get.isRegistered<gg.GetMaterialController>()) {
         gg.Get.offAllNamed(KissuRoutePath.login);
-        print('✅ 已成功跳转到登录页');
+        logDebug('✅ 已成功跳转到登录页', tag: 'ApiInterceptor');
       } else {
-        print('⚠️ Get路由尚未初始化，延迟跳转...');
+        logWarning('⚠️ Get路由尚未初始化，延迟跳转...', tag: 'ApiInterceptor');
         // 延迟跳转，等待Get路由初始化完成
         Future.delayed(const Duration(milliseconds: 500), () {
           try {
             gg.Get.offAllNamed(KissuRoutePath.login);
-            print('✅ 延迟跳转到登录页成功');
+            logDebug('✅ 延迟跳转到登录页成功', tag: 'ApiInterceptor');
           } catch (delayedError) {
-            print('❌ 延迟跳转也失败: $delayedError');
+            logError('❌ 延迟跳转也失败: $delayedError', tag: 'ApiInterceptor', error: delayedError);
             _tryFallbackNavigation();
           }
         });
       }
     } catch (e) {
-      print('❌ 导航到登录页失败: $e');
+      logError('❌ 导航到登录页失败: $e', tag: 'ApiInterceptor', error: e);
       _tryFallbackNavigation();
     }
     
     // 延迟重置处理状态，确保跳转完成
     Future.delayed(const Duration(seconds: 2), () {
       _isHandlingUnauthorized = false;
-      print('🔄 token失效处理状态已重置');
+      logDebug('🔄 token失效处理状态已重置', tag: 'ApiInterceptor');
     });
   }
 
   /// 尝试备用跳转方式
   void _tryFallbackNavigation() {
-    print('🔧 尝试备用跳转方式...');
+    logDebug('🔧 尝试备用跳转方式...', tag: 'ApiInterceptor');
     
     // 尝试多种跳转方式
     final fallbackRoutes = ['/login', KissuRoutePath.login];
@@ -202,14 +203,14 @@ class ApiResponseInterceptor extends Interceptor {
     for (final route in fallbackRoutes) {
       try {
         gg.Get.offAllNamed(route);
-        print('✅ 备用跳转方式成功: $route');
+        logDebug('✅ 备用跳转方式成功: $route', tag: 'ApiInterceptor');
         return;
       } catch (e) {
-        print('❌ 备用跳转失败 ($route): $e');
+        logWarning('❌ 备用跳转失败 ($route): $e', tag: 'ApiInterceptor', error: e);
       }
     }
     
-    print('🚨 所有跳转方式都失败了，将在应用下次启动时重定向到登录页');
+    logError('🚨 所有跳转方式都失败了，将在应用下次启动时重定向到登录页', tag: 'ApiInterceptor');
   }
 
   /// 处理API响应
@@ -221,7 +222,7 @@ class ApiResponseInterceptor extends Interceptor {
         String errorMsg = '服务器内部错误';
         if (response.data is String && response.data.toString().contains('<!DOCTYPE html>')) {
           errorMsg = '服务器发生错误，请稍后重试';
-          print('🚨 服务器返回HTML错误页面，状态码: ${response.statusCode}');
+          logError('🚨 服务器返回HTML错误页面，状态码: ${response.statusCode}', tag: 'ApiInterceptor');
         }
         return HttpResultN(
           isSuccess: false,
@@ -339,27 +340,27 @@ class ApiResponseInterceptor extends Interceptor {
         }
       } catch (e) {
         // 记录详细的错误信息和原始数据
-        print('🚨 JSON解析失败:');
-        print('📝 原始数据长度: ${data.length}');
-        print('📝 原始数据前100字符: ${data.length > 100 ? data.substring(0, 100) + '...' : data}');
-        print('📝 错误详情: $e');
+        logError('🚨 JSON解析失败:', tag: 'ApiInterceptor');
+        logDebug('📝 原始数据长度: ${data.length}', tag: 'ApiInterceptor');
+        logDebug('📝 原始数据前100字符: ${data.length > 100 ? '${data.substring(0, 100)}...' : data}', tag: 'ApiInterceptor');
+        logError('📝 错误详情: $e', tag: 'ApiInterceptor', error: e);
         
         // 尝试修复常见的JSON问题
         try {
           final fixedData = _tryFixJsonString(data);
           if (fixedData != data) {
-            print('🔧 尝试修复JSON后重新解析...');
+            logDebug('🔧 尝试修复JSON后重新解析...', tag: 'ApiInterceptor');
             final result = json.decode(fixedData);
             if (result is Map<String, dynamic>) {
               return result;
             }
           }
         } catch (fixError) {
-          print('🚫 JSON修复也失败了: $fixError');
+          logError('🚫 JSON修复也失败了: $fixError', tag: 'ApiInterceptor', error: fixError);
         }
         
         throw FormatException(
-          'Failed to parse JSON response: $e. Data preview: ${data.length > 50 ? data.substring(0, 50) + '...' : data}',
+          'Failed to parse JSON response: $e. Data preview: ${data.length > 50 ? '${data.substring(0, 50)}...' : data}',
         );
       }
     } else {
@@ -392,7 +393,7 @@ class ApiResponseInterceptor extends Interceptor {
           (match) => String.fromCharCode(int.parse(match.group(1)!, radix: 16)),
         );
       } catch (e) {
-        print('修复Unicode转义失败: $e');
+        logWarning('修复Unicode转义失败: $e', tag: 'ApiInterceptor', error: e);
       }
     }
     

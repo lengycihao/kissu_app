@@ -5,6 +5,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 通用记录列表项组件（用于敏感记录、定位异常等）
 /// 根据event_type和ext动态渲染不同的UI
@@ -63,9 +64,9 @@ class GenericRecordItemWidget extends StatelessWidget {
   /// 构建记录内容
   Widget _buildRecordContent() {
     // 非会员状态下，类型9,17,18,19,20显示毛玻璃效果（优先级最高）
-    print('🔍 Debug: eventType=${record.eventType}, isVip=${UserManager.isVip}, shouldShowBlur=${_shouldShowBlurOverlay()}');
+    logDebug('🔍 Debug: eventType=${record.eventType}, isVip=${UserManager.isVip}, shouldShowBlur=${_shouldShowBlurOverlay()}', tag: 'GenericRecordItem');
     if (!UserManager.isVip && _shouldShowBlurOverlay()) {
-      print('✅ 显示毛玻璃效果');
+      logDebug('✅ 显示毛玻璃效果', tag: 'GenericRecordItem');
       // 根据不同类型返回对应的毛玻璃效果
       if (backgroundGradientColors != null && backgroundWidth != null && backgroundText != null) {
         return _buildType20BlurContent();
@@ -728,9 +729,9 @@ class GenericRecordItemWidget extends StatelessWidget {
     // 上报会员可见按钮埋点
     try {
       await TrackingService.trackMembershipOnly();
-      print('✅ 会员可见按钮埋点上报成功');
+      logDebug('✅ 会员可见按钮埋点上报成功', tag: 'GenericRecordItem');
     } catch (e) {
-      print('❌ 会员可见按钮埋点上报失败: $e');
+      logError('❌ 会员可见按钮埋点上报失败: $e', tag: 'GenericRecordItem', error: e);
     }
     
     Get.toNamed(
@@ -750,7 +751,7 @@ class GenericRecordItemWidget extends StatelessWidget {
     // 刷新用户信息以获取最新的会员状态
     UserManager.refreshUserInfo().then((success) {
       if (success) {
-        print('✅ 会员状态刷新成功');
+        logDebug('✅ 会员状态刷新成功', tag: 'GenericRecordItem');
         // 通知父组件刷新UI
         if (onVipStatusChanged != null) {
           onVipStatusChanged!();

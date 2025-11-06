@@ -16,6 +16,7 @@ import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoginController extends GetxController {
   var isChecked = false.obs;
@@ -52,6 +53,9 @@ class LoginController extends GetxController {
     
     // 📊 上报登录页面浏览埋点
     _trackLoginPageView();
+    
+    // 🔑 进入登录页面后静默上传 OAID/IDFA
+    _uploadOaidIdfa();
   }
 
   /// 加载协议同意状态
@@ -63,7 +67,7 @@ class LoginController extends GetxController {
           prefs.getBool('has_agreed_privacy_terms') ?? false;
       isChecked.value = hasAgreedBefore;
     } catch (e) {
-      print('加载协议状态失败: $e');
+      logWarning('加载协议状态失败: $e', tag: 'Login', error: e);
       isChecked.value = false;
     }
   }
@@ -74,7 +78,7 @@ class LoginController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('has_agreed_privacy_terms', agreed);
     } catch (e) {
-      print('保存协议状态失败: $e');
+      logWarning('保存协议状态失败: $e', tag: 'Login', error: e);
     }
   }
 
@@ -83,9 +87,9 @@ class LoginController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('has_agreed_privacy_terms');
-      print('协议状态已清除');
+      logDebug('协议状态已清除', tag: 'Login');
     } catch (e) {
-      print('清除协议状态失败: $e');
+      logWarning('清除协议状态失败: $e', tag: 'Login', error: e);
     }
   }
 
@@ -109,14 +113,14 @@ class LoginController extends GetxController {
         final bindData = installParams['bindData'];
         final friendCode = bindData['friend_code'];
         if (friendCode != null && friendCode.toString().isNotEmpty) {
-          print('获取到OpenInstall邀请码: $friendCode');
+          logDebug('获取到OpenInstall邀请码: $friendCode', tag: 'Login');
           return friendCode.toString();
         }
       }
-      print('未获取到OpenInstall邀请码');
+      logDebug('未获取到OpenInstall邀请码', tag: 'Login');
       return "";
     } catch (e) {
-      print('获取OpenInstall邀请码失败: $e');
+      logWarning('获取OpenInstall邀请码失败: $e', tag: 'Login', error: e);
       return "";
     }
   }
@@ -342,15 +346,15 @@ class LoginController extends GetxController {
   void _handleLinkTap(String linkName) {
     switch (linkName) {
       case '用户协议':
-        print('跳转到用户协议页面');
+        logDebug('跳转到用户协议页面', tag: 'Login');
         AgreementUtils.toUserAgreement();
         break;
       case '隐私协议':
-        print('跳转到隐私协议页面');
+        logDebug('跳转到隐私协议页面', tag: 'Login');
         AgreementUtils.toPrivacyAgreement();
         break;
       default:
-        print('未知链接: $linkName');
+        logWarning('未知链接: $linkName', tag: 'Login');
         break;
     }
   }
@@ -377,9 +381,9 @@ class LoginController extends GetxController {
         'device_id': deviceId,
       });
       
-      print('📊 登录页面浏览埋点 - device_id: $deviceId');
+      logDebug('📊 登录页面浏览埋点 - device_id: $deviceId', tag: 'Login');
     } catch (e) {
-      print('❌ 登录页面浏览埋点失败: $e');
+      logError('❌ 登录页面浏览埋点失败: $e', tag: 'Login', error: e);
     }
   }
 
@@ -399,9 +403,9 @@ class LoginController extends GetxController {
         'is_success': isSuccess ? '成功' : '失败',
       });
       
-      print('📊 获取验证码埋点 - device_id: $deviceId, click_time: $clickTime, is_success: ${isSuccess ? "成功" : "失败"}');
+      logDebug('📊 获取验证码埋点 - device_id: $deviceId, click_time: $clickTime, is_success: ${isSuccess ? "成功" : "失败"}', tag: 'Login');
     } catch (e) {
-      print('❌ 获取验证码埋点失败: $e');
+      logError('❌ 获取验证码埋点失败: $e', tag: 'Login', error: e);
     }
   }
 
@@ -411,5 +415,38 @@ class LoginController extends GetxController {
   /// - [isAgree] true=勾选/同意，false=取消勾选/不同意
   void trackAgreementCheckbox(bool isAgree) {
     TrackingService.trackAgreementOperation(isAgree: isAgree);
+  }
+
+  /// 上传 OAID/IDFA
+  /// 只在第一次下载 APP 进入登录页面时调用一次
+  void _uploadOaidIdfa() {
+    // 异步执行，不阻塞页面加载
+    Future.microtask(() async {
+      try {
+        // 检查是否已经上传过
+        final prefs = await SharedPreferences.getInstance();
+        final hasUploaded = prefs.getBool('oaid_uploaded') ?? false;
+        
+        if (hasUploaded) {
+          logDebug('OAID/IDFA 已上传过，跳过', tag: 'Login');
+          return;
+        }
+        
+        logDebug('首次进入登录页，开始上传 OAID/IDFA', tag: 'Login');
+        
+        final result = await authApi.saveOaidIdfa();
+        
+        if (result.isSuccess) {
+          // 标记为已上传
+          await prefs.setBool('oaid_uploaded', true);
+          logInfo('✅ OAID/IDFA 上传成功，已标记', tag: 'Login');
+        } else {
+          logWarning('⚠️ OAID/IDFA 上传失败: ${result.msg}', tag: 'Login');
+        }
+      } catch (e) {
+        logError('❌ OAID/IDFA 上传异常: $e', tag: 'Login', error: e);
+        // 上传失败不影响登录流程
+      }
+    });
   }
 }

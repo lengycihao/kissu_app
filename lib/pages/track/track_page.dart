@@ -17,6 +17,7 @@ import 'track_controller.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class TrackPage extends StatelessWidget {
   final double? initialLatitude;
@@ -123,10 +124,10 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
     if (state == AppLifecycleState.paused) {
       // 应用进入后台，暂停地图更新（释放资源）
-      print('🛤️ TrackPage: 应用进入后台，暂停地图更新');
+      logDebug('🛤️ TrackPage: 应用进入后台，暂停地图更新', tag: 'TrackPage');
     } else if (state == AppLifecycleState.resumed) {
       // 应用恢复前台，恢复地图更新
-      print('🛤️ TrackPage: 应用恢复前台，恢复地图更新');
+      logDebug('🛤️ TrackPage: 应用恢复前台，恢复地图更新', tag: 'TrackPage');
     }
   }
   
@@ -369,6 +370,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
               );
             }),
           ),
+
+          // 地图logo - 悬浮在地图上，位置跟随下半屏移动
+          _buildMapLogo(),
 
           // 顶部返回按钮（带旋转动画）
           Positioned(
@@ -679,6 +683,52 @@ class _TrackPageContentState extends State<_TrackPageContent>
       return const SizedBox.shrink();
     });
   }
+
+  // 地图logo - 悬浮在地图上，位置在右侧轨迹回放按钮下方，跟随下半屏滑动
+  Widget _buildMapLogo() {
+    return Obx(() {
+      // 🔧 修复：跟随下半屏滑动，与定位页面保持一致
+      final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
+      
+      // 右侧轨迹回放按钮的bottom位置
+      final buttonBottom = sheetHeight + 70;
+      
+      // logo在按钮下方，按钮高度50px
+      final logoBottom = buttonBottom - 50 - 15;
+      
+      // 根据绑定状态动态计算中间吸顶位置
+      final actualBindStatus = widget.controller.getActualBindStatus();
+      final middleSnapSize = actualBindStatus
+          ? 0.5 + (21 / screenHeight)
+          : 0.5 + (57 / screenHeight);
+      final maxPercent = (screenHeight - 100) / screenHeight;
+      
+      // 计算透明度（与轨迹回放按钮同步）
+      final sheetPercent = widget.controller.sheetPercent.value;
+      double opacity;
+      if (sheetPercent <= middleSnapSize) {
+        opacity = 1.0;
+      } else if (sheetPercent >= maxPercent) {
+        opacity = 0.0;
+      } else {
+        opacity = 1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+      }
+      opacity = opacity.clamp(0.0, 1.0);
+      
+      return Positioned(
+        bottom: logoBottom,
+        right: 16,
+        child: Opacity(
+          opacity: opacity,
+          child: Image.asset(
+            'assets/map_logo.webp',
+            width: 68,
+            height: 22,
+          ),
+        ),
+      );
+    });
+  }
 }// 优化的遮罩层Widget - 减少重建频率
 class _OptimizedOverlayWidget extends StatelessWidget {
   final TrackController controller;
@@ -886,7 +936,7 @@ class _CachedAvatarRow extends StatelessWidget {
                 controller.onAvatarTapped(false);
                 // 添加触觉反馈
                 HapticFeedback.lightImpact();
-                print('🎯 头像点击：切换到查看另一半的轨迹数据');
+                logDebug('🎯 头像点击：切换到查看另一半的轨迹数据', tag: 'TrackPage');
               }
             },
           ),
@@ -901,7 +951,7 @@ class _CachedAvatarRow extends StatelessWidget {
                 controller.onAvatarTapped(true);
                 // 添加触觉反馈
                 HapticFeedback.lightImpact();
-                print('🎯 头像点击：切换到查看自己的轨迹数据');
+                logDebug('🎯 头像点击：切换到查看自己的轨迹数据', tag: 'TrackPage');
               }
             },
           ),
@@ -1116,7 +1166,7 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
       final isLoading = controller.isLoading.value;
       
       // 🐛 调试信息
-      print('🎨 UI 重新渲染: isLoading=$isLoading, records.length=${records.length}');
+      logDebug('🎨 UI 重新渲染: isLoading=$isLoading, records.length=${records.length}', tag: 'TrackPage');
 
       // 计算图片透明度
       // 从 startShowPercent 滑动到 maxPercent 时，透明度从 0 到 1

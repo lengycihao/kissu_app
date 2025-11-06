@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// ShareService: unified WeChat / QQ share entry points via UMeng U-Share
 class ShareService extends GetxService {
@@ -12,14 +13,14 @@ class ShareService extends GetxService {
     // 🔒 隐私合规：不在服务初始化时自动启动友盟SDK
     // 等待隐私政策同意后再启动
     // _initUMengShare(); // 移除自动初始化
-    print('友盟分享服务已注册（等待隐私政策同意后初始化）');
+    logger.info('友盟分享服务已注册（等待隐私政策同意后初始化）', tag: 'ShareService');
   }
 
   /// 隐私合规启动方法 - 只有在用户同意隐私政策后才调用
   Future<void> startPrivacyCompliantService() async {
-    print('🔒 启动隐私合规友盟分享服务');
+    logger.info('🔒 启动隐私合规友盟分享服务', tag: 'ShareService');
     await _initUMengShare();
-    print('✅ 隐私合规友盟分享服务启动完成');
+    logger.info('✅ 隐私合规友盟分享服务启动完成', tag: 'ShareService');
   }
 
   /// 初始化友盟分享SDK
@@ -41,9 +42,9 @@ class ShareService extends GetxService {
         'weChatFileProvider': 'com.yuluo.kissu.fileprovider', // 微信FileProvider配置
       });
       
-      print('友盟分享SDK初始化成功');
+      logger.info('友盟分享SDK初始化成功', tag: 'ShareService');
     } catch (e) {
-      print('友盟分享SDK初始化失败: $e');
+      logger.error('友盟分享SDK初始化失败: $e', tag: 'ShareService', error: e);
     }
   }
 
@@ -52,9 +53,9 @@ class ShareService extends GetxService {
   Future<void> setPrivacyPolicyGranted(bool granted) async {
     try {
       await _channel.invokeMethod('setPrivacyPolicy', {'granted': granted});
-      print('友盟隐私政策授权状态已设置: $granted');
+      logger.info('友盟隐私政策授权状态已设置: $granted', tag: 'ShareService');
     } catch (e) {
-      print('设置友盟隐私政策授权失败: $e');
+      logger.error('设置友盟隐私政策授权失败: $e', tag: 'ShareService', error: e);
     }
   }
 
@@ -67,7 +68,7 @@ class ShareService extends GetxService {
       }
       return false;
     } catch (e) {
-      print('检查微信安装状态失败: $e');
+      logger.error('检查微信安装状态失败: $e', tag: 'ShareService', error: e);
       return false;
     }
   }
@@ -75,15 +76,15 @@ class ShareService extends GetxService {
   // 检查QQ是否安装
   Future<bool> isQQInstalled() async {
     try {
-      print('开始检查QQ安装状态...');
+      logger.debug('开始检查QQ安装状态...', tag: 'ShareService');
       
       // 首先尝试友盟检测
       final umResult = await _channel.invokeMethod('umCheckInstall', 1); // 1 = QQ
-      print('友盟QQ检测结果: $umResult');
+      logger.debug('友盟QQ检测结果: $umResult', tag: 'ShareService');
       
       if (umResult is Map) {
         final umInstalled = umResult['isInstalled'] ?? false;
-        print('友盟检测QQ安装状态: $umInstalled');
+        logger.debug('友盟检测QQ安装状态: $umInstalled', tag: 'ShareService');
         
         // 如果友盟检测到已安装，直接返回
         if (umInstalled) {
@@ -92,19 +93,19 @@ class ShareService extends GetxService {
       }
       
       // 友盟检测失败或未安装，尝试备用检测方法
-      print('友盟检测失败，尝试备用检测方法...');
+      logger.debug('友盟检测失败，尝试备用检测方法...', tag: 'ShareService');
       final backupResult = await _channel.invokeMethod('checkQQInstallBackup');
-      print('备用QQ检测结果: $backupResult');
+      logger.debug('备用QQ检测结果: $backupResult', tag: 'ShareService');
       
       if (backupResult is Map) {
         final backupInstalled = backupResult['isInstalled'] ?? false;
-        print('备用检测QQ安装状态: $backupInstalled');
+        logger.debug('备用检测QQ安装状态: $backupInstalled', tag: 'ShareService');
         return backupInstalled;
       }
       
       return false;
     } catch (e) {
-      print('检查QQ安装状态失败: $e');
+      logger.error('检查QQ安装状态失败: $e', tag: 'ShareService', error: e);
       return false;
     }
   }
@@ -150,12 +151,12 @@ class ShareService extends GetxService {
     required String webpageUrl,
   }) async {
     try {
-      print('开始分享到QQ好友: title=$title, description=$description, webpageUrl=$webpageUrl');
+      logger.info('开始分享到QQ好友: title=$title, description=$description, webpageUrl=$webpageUrl', tag: 'ShareService');
       
       // 先检查QQ是否安装
       final isInstalled = await isQQInstalled();
       if (!isInstalled) {
-        print('QQ未安装，无法分享');
+        logger.warning('QQ未安装，无法分享', tag: 'ShareService');
         return {'success': false, 'message': 'QQ未安装'};
       }
       
@@ -167,7 +168,7 @@ class ShareService extends GetxService {
         'sharemedia': 2, // 2 = QQ好友
       });
       
-      print('QQ好友分享结果: $result');
+      logger.info('QQ好友分享结果: $result', tag: 'ShareService');
       
       if (result is Map<String, dynamic>) {
         return result;
@@ -175,7 +176,7 @@ class ShareService extends GetxService {
         return {'success': false, 'message': '分享失败'};
       }
     } catch (e) {
-      print('QQ好友分享异常: $e');
+      logger.error('QQ好友分享异常: $e', tag: 'ShareService', error: e);
       return {'success': false, 'message': '分享异常: $e'};
     }
   }
@@ -188,7 +189,7 @@ class ShareService extends GetxService {
     required String webpageUrl,
   }) async {
     try {
-      print('开始分享到QQ空间: title=$title, description=$description, webpageUrl=$webpageUrl');
+      logger.info('开始分享到QQ空间: title=$title, description=$description, webpageUrl=$webpageUrl', tag: 'ShareService');
       
       final result = await _channel.invokeMethod('umShare', {
         'title': title,
@@ -198,7 +199,7 @@ class ShareService extends GetxService {
         'sharemedia': 3, // 3 = QQ空间
       });
       
-      print('QQ空间分享结果: $result');
+      logger.info('QQ空间分享结果: $result', tag: 'ShareService');
       
       if (result is Map<String, dynamic>) {
         return result;
@@ -206,7 +207,7 @@ class ShareService extends GetxService {
         return {'success': false, 'message': '分享结果格式错误'};
       }
     } catch (e) {
-      print('QQ空间分享异常: $e');
+      logger.error('QQ空间分享异常: $e', tag: 'ShareService', error: e);
       return {'success': false, 'message': '分享异常: $e'};
     }
   }
@@ -217,7 +218,7 @@ class ShareService extends GetxService {
       // 检查是否安装微信
       final isInstalled = await isWeChatInstalled();
       if (!isInstalled) {
-        print('微信未安装');
+        logger.warning('微信未安装', tag: 'ShareService');
         return false;
       }
       
@@ -228,7 +229,7 @@ class ShareService extends GetxService {
       });
       return true;
     } catch (e) {
-      print('分享到微信失败: $e');
+      logger.error('分享到微信失败: $e', tag: 'ShareService', error: e);
       return false;
     }
   }
@@ -239,7 +240,7 @@ class ShareService extends GetxService {
       // 检查是否安装QQ
       final isInstalled = await isQQInstalled();
       if (!isInstalled) {
-        print('QQ未安装');
+        logger.warning('QQ未安装', tag: 'ShareService');
         return false;
       }
       
@@ -250,64 +251,12 @@ class ShareService extends GetxService {
       });
       return true;
     } catch (e) {
-      print('分享到QQ失败: $e');
+      logger.error('分享到QQ失败: $e', tag: 'ShareService', error: e);
       return false;
     }
   }
   
-  /// 测试QQ分享功能
-  Future<Map<String, dynamic>> testQQShare() async {
-    try {
-      print('🧪 开始测试QQ分享功能...');
-      
-      // 1. 检查QQ是否安装
-      final isInstalled = await isQQInstalled();
-      print('📱 QQ安装状态: $isInstalled');
-      
-      if (!isInstalled) {
-        return {
-          'success': false,
-          'message': 'QQ未安装，请先安装QQ应用',
-          'details': {
-            'qqInstalled': false,
-            'testStep': '安装检查'
-          }
-        };
-      }
-      
-      // 2. 测试分享到QQ好友
-      print('📤 测试分享到QQ好友...');
-      final shareResult = await shareToQQ(
-        title: "KISSU测试分享",
-        description: "这是一个测试分享，用于验证QQ分享功能是否正常工作。",
-        webpageUrl: "https://www.ikissu.cn",
-        imageUrl: "https://www.ikissu.cn/logo.png",
-      );
-      
-      print('📊 QQ分享测试结果: $shareResult');
-      
-      return {
-        'success': shareResult['success'] ?? false,
-        'message': shareResult['message'] ?? '测试完成',
-        'details': {
-          'qqInstalled': true,
-          'shareResult': shareResult,
-          'testStep': '分享测试'
-        }
-      };
-      
-    } catch (e) {
-      print('❌ QQ分享测试异常: $e');
-      return {
-        'success': false,
-        'message': '测试异常: $e',
-        'details': {
-          'error': e.toString(),
-          'testStep': '异常处理'
-        }
-      };
-    }
-  }
+ 
 
   /// 🔧 内部方法：构建分享参数
   /// 
@@ -325,7 +274,7 @@ class ShareService extends GetxService {
       final user = UserManager.currentUser;
       final shareConfig = user?.shareConfig;
       
-      print('📋 用户配置: shareConfig=${shareConfig?.toJson()}');
+      logger.debug('📋 用户配置: shareConfig=${shareConfig?.toJson()}', tag: 'ShareService');
       
       // 构建标题
       String shareTitle;
@@ -410,12 +359,12 @@ class ShareService extends GetxService {
     bool useDefaultFallback = true,
   }) async {
     try {
-      print('🔍 开始QQ分享（使用配置）...');
+      logger.info('🔍 开始QQ分享（使用配置）...', tag: 'ShareService');
       
       // 1. 先检查QQ是否安装
       final isInstalled = await isQQInstalled();
       if (!isInstalled) {
-        print('❌ QQ未安装');
+        logger.warning('❌ QQ未安装', tag: 'ShareService');
         return {
           'success': false,
           'message': 'QQ未安装',
@@ -440,12 +389,12 @@ class ShareService extends GetxService {
       }
       
       // 打印调试信息
-      print('📤 QQ分享参数:');
-      print('  - 标题: ${params['title']}');
-      print('  - 描述: ${params['description']}');
-      print('  - 封面: ${params['cover']}');
-      print('  - 链接: ${params['url']}');
-      print('🔗 分享链接域名需要在QQ开放平台配置白名单');
+      logger.debug('📤 QQ分享参数:', tag: 'ShareService');
+      logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
+      logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
+      logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
+      logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
+      logger.info('🔗 分享链接域名需要在QQ开放平台配置白名单', tag: 'ShareService');
       
       // 3. 调用底层分享方法
       final result = await shareToQQ(
@@ -455,11 +404,11 @@ class ShareService extends GetxService {
         webpageUrl: params['url'],
       );
       
-      print('✅ QQ分享结果: $result');
+      logger.info('✅ QQ分享结果: $result', tag: 'ShareService');
       return result;
       
     } catch (e) {
-      print('❌ QQ分享异常: $e');
+      logger.error('❌ QQ分享异常: $e', tag: 'ShareService', error: e);
       return {
         'success': false,
         'message': '分享异常: $e',
@@ -485,12 +434,12 @@ class ShareService extends GetxService {
     bool useDefaultFallback = true,
   }) async {
     try {
-      print('🔍 开始微信分享（使用配置）...');
+      logger.info('🔍 开始微信分享（使用配置）...', tag: 'ShareService');
       
       // 1. 先检查微信是否安装
       final isInstalled = await isWeChatInstalled();
       if (!isInstalled) {
-        print('❌ 微信未安装');
+        logger.warning('❌ 微信未安装', tag: 'ShareService');
         throw Exception('微信未安装');
       }
       
@@ -508,11 +457,11 @@ class ShareService extends GetxService {
         throw Exception(params['error']);
       }
       
-      print('📤 微信分享参数:');
-      print('  - 标题: ${params['title']}');
-      print('  - 描述: ${params['description']}');
-      print('  - 封面: ${params['cover']}');
-      print('  - 链接: ${params['url']}');
+      logger.debug('📤 微信分享参数:', tag: 'ShareService');
+      logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
+      logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
+      logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
+      logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
       
       // 3. 调用底层分享方法
       await shareToWeChat(
@@ -522,10 +471,10 @@ class ShareService extends GetxService {
         webpageUrl: params['url'],
       );
       
-      print('✅ 微信分享已调起');
+      logger.info('✅ 微信分享已调起', tag: 'ShareService');
       
     } catch (e) {
-      print('❌ 微信分享异常: $e');
+      logger.error('❌ 微信分享异常: $e', tag: 'ShareService', error: e);
       rethrow;
     }
   }

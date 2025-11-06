@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +10,7 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -16,10 +18,10 @@ import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -82,19 +84,19 @@ class InfoSettingController extends GetxController {
       if (user.birthday?.isNotEmpty == true) {
         try {
           selectedDate.value = DateTime.parse(user.birthday!);
-          print('用户生日已设置: ${user.birthday}');
+          logDebug('用户生日已设置: ${user.birthday}', tag: 'InfoSetting');
         } catch (e) {
-          print('生日解析失败: $e，使用默认生日');
+          logWarning('生日解析失败: $e，使用默认生日', tag: 'InfoSetting', error: e);
           // 如果解析失败，设置为2007年1月1日作为合理的默认值
           selectedDate.value = DateTime(2007, 1, 1);
         }
       } else {
-        print('用户生日为空，使用默认生日');
+        logDebug('用户生日为空，使用默认生日', tag: 'InfoSetting');
         // 如果没有生日信息，设置为2007年1月1日作为合理的默认值
         selectedDate.value = DateTime(2007, 1, 1);
       }
     } else {
-      print('用户信息为空，使用默认值');
+      logDebug('用户信息为空，使用默认值', tag: 'InfoSetting');
       // 如果没有用户信息，设置默认值
       avatarUrl.value = 'assets/kissu_info_setting_headerbg.webp';
       selectedDate.value = DateTime(2007, 1, 1);
@@ -105,7 +107,7 @@ class InfoSettingController extends GetxController {
   void previewAvatar() {
     // 如果头像是默认头像（assets路径），不进行预览
     if (avatarUrl.value.startsWith('assets/')) {
-      print('❌ 头像预览: 默认头像，无法预览');
+      logDebug('❌ 头像预览: 默认头像，无法预览', tag: 'InfoSetting');
       return;
     }
     
@@ -116,7 +118,7 @@ class InfoSettingController extends GetxController {
         imageUrl: avatarUrl.value,
       );
     } else {
-      print('❌ 头像预览: 无有效头像可预览');
+      logDebug('❌ 头像预览: 无有效头像可预览', tag: 'InfoSetting');
     }
   }
 
@@ -205,12 +207,9 @@ class InfoSettingController extends GetxController {
         
         // 处理选择结果
         if (result.systemAvatarPath != null) {
-          // 选择了系统头像，直接使用
-          print('🎨 选择了系统头像: ${result.systemAvatarPath}');
-          avatarUrl.value = result.systemAvatarPath!;
-          uploadedHeadPortrait.value = result.systemAvatarPath!;
-          print('   avatarUrl: ${avatarUrl.value}');
-          print('   uploadedHeadPortrait: ${uploadedHeadPortrait.value}');
+          // 选择了系统头像，需要先上传到服务器
+          logDebug('🎨 选择了系统头像: ${result.systemAvatarPath}', tag: 'InfoSetting');
+          await _updateAvatarWithPath(result.systemAvatarPath!);
         } else if (result.imageSource != null) {
           // 选择了相册或相机
           await _pickImageFromSource(result.imageSource!);
@@ -241,12 +240,9 @@ class InfoSettingController extends GetxController {
         
         // 处理选择结果
         if (result.systemAvatarPath != null) {
-          // 选择了系统头像，直接使用
-          print('🎨 选择了系统头像: ${result.systemAvatarPath}');
-          avatarUrl.value = result.systemAvatarPath!;
-          uploadedHeadPortrait.value = result.systemAvatarPath!;
-          print('   avatarUrl: ${avatarUrl.value}');
-          print('   uploadedHeadPortrait: ${uploadedHeadPortrait.value}');
+          // 选择了系统头像，需要先上传到服务器
+          logDebug('🎨 选择了系统头像: ${result.systemAvatarPath}', tag: 'InfoSetting');
+          await _updateAvatarWithPath(result.systemAvatarPath!);
         } else if (result.imageSource != null) {
           // 选择了相册或相机
           await _pickImageFromSource(result.imageSource!);
@@ -255,7 +251,7 @@ class InfoSettingController extends GetxController {
         OKToastUtil.show('权限未授予，无法选择图片');
       }
     } catch (e) {
-      print('选择头像失败: $e');
+      logError('选择头像失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('选择头像失败');
     }
   }
@@ -308,7 +304,7 @@ class InfoSettingController extends GetxController {
         fullscreenDialog: true,
       );
     } catch (e) {
-      print('导航到裁剪页面失败: $e');
+      logError('导航到裁剪页面失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('打开裁剪页面失败');
     }
   }
@@ -330,8 +326,60 @@ class InfoSettingController extends GetxController {
         OKToastUtil.show(result.msg ?? '头像上传失败');
       }
     } catch (e) {
-      print('上传裁剪后的图片失败: $e');
+      logError('上传裁剪后的图片失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('头像上传失败');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 使用系统头像路径更新头像（上传到服务器）
+  Future<void> _updateAvatarWithPath(String avatarPath) async {
+    try {
+      // 显示加载指示器
+      isLoading.value = true;
+
+      // 系统头像是本地assets路径，需要先上传到服务器获取网络URL
+      String networkAvatarUrl = avatarPath;
+      
+      // 检查是否是本地assets路径
+      if (avatarPath.startsWith('assets/')) {
+        // 读取本地资源文件并上传到服务器
+        final bytes = await rootBundle.load(avatarPath);
+        final tempFile = File('${Directory.systemTemp.path}/temp_avatar_${DateTime.now().millisecondsSinceEpoch}.webp');
+        await tempFile.writeAsBytes(bytes.buffer.asUint8List());
+        
+        // 上传到服务器
+        final uploadResult = await _fileUploadApi.uploadFile(tempFile);
+        
+        // 删除临时文件
+        await tempFile.delete();
+        
+        if (uploadResult.isSuccess && uploadResult.data != null) {
+          networkAvatarUrl = uploadResult.data!;
+          logDebug('✅ 系统头像上传成功: $networkAvatarUrl', tag: 'InfoSetting');
+        } else {
+          // 关闭加载指示器
+          isLoading.value = false;
+          OKToastUtil.show('系统头像上传失败');
+          return;
+        }
+      } else {
+        // 如果不是assets路径，直接使用（可能是网络URL）
+        networkAvatarUrl = avatarPath;
+      }
+      
+      // 更新本地显示
+      avatarUrl.value = networkAvatarUrl;
+      uploadedHeadPortrait.value = networkAvatarUrl;
+      logDebug('✅ 头像已更新: avatarUrl=${avatarUrl.value}, uploadedHeadPortrait=${uploadedHeadPortrait.value}', tag: 'InfoSetting');
+      
+      OKToastUtil.show('头像已选择');
+    } catch (e) {
+      // 关闭加载指示器（如果还在显示）
+      isLoading.value = false;
+      logError('更新系统头像失败: $e', tag: 'InfoSetting', error: e);
+      OKToastUtil.show('头像更新失败：$e');
     } finally {
       isLoading.value = false;
     }
@@ -513,9 +561,9 @@ class InfoSettingController extends GetxController {
         loveTime: loveTime,
       );
 
-      print('📥 服务器响应: ${result.isSuccess ? "成功" : "失败"}');
+      logDebug('📥 服务器响应: ${result.isSuccess ? "成功" : "失败"}', tag: 'InfoSetting');
       if (result.msg != null) {
-        print('   消息: ${result.msg}');
+        logDebug('   消息: ${result.msg}', tag: 'InfoSetting');
       }
 
       if (result.isSuccess) {
@@ -528,18 +576,18 @@ class InfoSettingController extends GetxController {
           final refreshSuccess = await _authService.refreshUserInfoFromServer();
 
           if (refreshSuccess) {
-            print('✅ 用户信息刷新成功');
+            logDebug('✅ 用户信息刷新成功', tag: 'InfoSetting');
             // 检查刷新后的头像
             final refreshedUser = UserManager.currentUser;
-            print('   刷新后的头像: ${refreshedUser?.headPortrait}');
+            logDebug('   刷新后的头像: ${refreshedUser?.headPortrait}', tag: 'InfoSetting');
             // 通知其他Controller刷新数据（使用最新的缓存数据）
             _notifyControllersToRefresh();
           } else {
-            print('❌ 用户信息刷新失败，但本地数据已更新');
+            logWarning('❌ 用户信息刷新失败，但本地数据已更新', tag: 'InfoSetting');
             // 即使服务器刷新失败，我们仍然有本地更新的数据
           }
         } catch (e) {
-          print('⚠️ 刷新用户信息时发生异常: $e');
+          logError('⚠️ 刷新用户信息时发生异常: $e', tag: 'InfoSetting', error: e);
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
 
@@ -579,9 +627,9 @@ class InfoSettingController extends GetxController {
         'gender': gender,
       });
       
-      print('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender');
+      logDebug('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender', tag: 'InfoSetting');
     } catch (e) {
-      print('❌ 性别选择埋点失败: $e');
+      logError('❌ 性别选择埋点失败: $e', tag: 'InfoSetting', error: e);
     }
   }
   
@@ -600,9 +648,9 @@ class InfoSettingController extends GetxController {
         'click_time': clickTime,
       });
       
-      print('📊 生日选择埋点 - device_id: $deviceId, click_time: $clickTime');
+      logDebug('📊 生日选择埋点 - device_id: $deviceId, click_time: $clickTime', tag: 'InfoSetting');
     } catch (e) {
-      print('❌ 生日选择埋点失败: $e');
+      logError('❌ 生日选择埋点失败: $e', tag: 'InfoSetting', error: e);
     }
   }
   
@@ -641,9 +689,9 @@ class InfoSettingController extends GetxController {
         'is_nickname': isNickname,
       });
       
-      print('📊 开启陪伴按钮埋点 - device_id: $deviceId, user_id: $userId, click_time: $clickTime, is_avatar: $isAvatar, is_nickname: $isNickname');
+      logDebug('📊 开启陪伴按钮埋点 - device_id: $deviceId, user_id: $userId, click_time: $clickTime, is_avatar: $isAvatar, is_nickname: $isNickname', tag: 'InfoSetting');
     } catch (e) {
-      print('❌ 开启陪伴按钮埋点失败: $e');
+      logError('❌ 开启陪伴按钮埋点失败: $e', tag: 'InfoSetting', error: e);
     }
   }
 
@@ -658,21 +706,21 @@ class InfoSettingController extends GetxController {
     try {
       final homeController = Get.find<HomeController>();
       homeController.loadUserInfo();
-      print('✅ 首页Controller已刷新');
+      logDebug('✅ 首页Controller已刷新', tag: 'InfoSetting');
     } catch (e) {
-      print('❌ 首页Controller未找到: $e');
+      logWarning('❌ 首页Controller未找到: $e', tag: 'InfoSetting', error: e);
     }
     
     // 通知我的页面刷新
     try {
       final mineController = Get.find<MineController>();
       mineController.loadUserInfo();
-      print('✅ 我的页面Controller已刷新');
+      logDebug('✅ 我的页面Controller已刷新', tag: 'InfoSetting');
     } catch (e) {
-      print('❌ 我的页面Controller未找到: $e');
+      logWarning('❌ 我的页面Controller未找到: $e', tag: 'InfoSetting', error: e);
     }
     
-    print('通知其他Controller使用最新的用户数据');
+    logDebug('通知其他Controller使用最新的用户数据', tag: 'InfoSetting');
   }
 
   /// 本地更新用户信息（在服务器更新成功后立即更新本地缓存）
@@ -731,12 +779,13 @@ class InfoSettingController extends GetxController {
 
         // 更新本地缓存
         await _authService.updateCurrentUser(updatedUser);
-        print(
+        logDebug(
           '本地用户信息已更新: nickname=$nickname, gender=$gender, birthday=$birthday',
+          tag: 'InfoSetting',
         );
       }
     } catch (e) {
-      print('更新本地用户信息失败: $e');
+      logError('更新本地用户信息失败: $e', tag: 'InfoSetting', error: e);
     }
   }
 }

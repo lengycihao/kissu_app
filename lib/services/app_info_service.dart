@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 应用信息服务
 /// 用于获取系统中已安装应用的信息（如应用名称等）
@@ -27,7 +28,7 @@ class AppInfoService {
       });
       return appName ?? packageName.split('.').last;
     } catch (e) {
-      print('获取应用名称失败: $packageName, $e');
+      logger.error('获取应用名称失败: $packageName, $e', tag: 'AppInfoService', error: e);
       return packageName.split('.').last;
     }
   }
@@ -46,7 +47,7 @@ class AppInfoService {
     }
 
     try {
-      print('🔍 正在获取 ${packageNames.length} 个应用的名称...');
+      logger.debug('🔍 正在获取 ${packageNames.length} 个应用的名称...', tag: 'AppInfoService');
       final result = await _channel.invokeMethod('getAppNames', {
         'packageNames': packageNames,
       });
@@ -57,17 +58,17 @@ class AppInfoService {
           key.toString(),
           value.toString(),
         ));
-        print('✅ 成功获取应用名称: $appNamesMap');
+        logger.debug('✅ 成功获取应用名称: $appNamesMap', tag: 'AppInfoService');
         return appNamesMap;
       }
       
       // 如果返回结果不是 Map，使用备用方案
-      print('⚠️ 返回结果不是 Map，使用备用方案');
+      logger.warning('⚠️ 返回结果不是 Map，使用备用方案', tag: 'AppInfoService');
       return Map.fromEntries(
         packageNames.map((pkg) => MapEntry(pkg, pkg.split('.').last)),
       );
     } catch (e) {
-      print('❌ 批量获取应用名称失败: $e');
+      logger.error('❌ 批量获取应用名称失败: $e', tag: 'AppInfoService', error: e);
       // 返回包名的最后一部分作为备用
       return Map.fromEntries(
         packageNames.map((pkg) => MapEntry(pkg, pkg.split('.').last)),

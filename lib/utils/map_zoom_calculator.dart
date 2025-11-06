@@ -1,5 +1,6 @@
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 地图缩放级别计算工具类
 /// 基于轨迹页面的缩放逻辑，提供统一的地图缩放计算方法
@@ -77,8 +78,8 @@ class MapZoomCalculator {
       zoom = 3.0; // 全球区域 (> 2000公里)
     }
     
-    print('🗺️ MapZoomCalculator - 计算结果: latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom');
-    print('🗺️ MapZoomCalculator - 中心点: ($centerLat, $centerLng)');
+    logger.debug('🗺️ MapZoomCalculator - 计算结果: latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom', tag: 'MapZoomCalculator');
+    logger.debug('🗺️ MapZoomCalculator - 中心点: ($centerLat, $centerLng)', tag: 'MapZoomCalculator');
     
     return CameraPosition(
       target: LatLng(centerLat, centerLng),
@@ -171,8 +172,8 @@ class MapZoomCalculator {
       zoom = 3.0; // 全球区域 (> 2000公里)
     }
     
-    print('🗺️ MapZoomCalculator - 多点计算结果: 点数=${points.length}, latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom');
-    print('🗺️ MapZoomCalculator - 中心点: ($centerLat, $centerLng)');
+    logger.debug('🗺️ MapZoomCalculator - 多点计算结果: 点数=${points.length}, latDiff=$latDiff, lngDiff=$lngDiff, maxDiff=$maxDiff, zoom=$zoom', tag: 'MapZoomCalculator');
+    logger.debug('🗺️ MapZoomCalculator - 中心点: ($centerLat, $centerLng)', tag: 'MapZoomCalculator');
     
     return CameraPosition(
       target: LatLng(centerLat, centerLng),
@@ -227,8 +228,8 @@ class MapZoomCalculator {
       farZoom = 4.0; // 极远距离
     }
     
-    print('🌍 MapZoomCalculator - 拉远级别计算: maxDiff=$maxDiff, farZoom=$farZoom');
-    print('🌍 MapZoomCalculator - 拉远中心点: ($centerLat, $centerLng)');
+    logger.debug('🌍 MapZoomCalculator - 拉远级别计算: maxDiff=$maxDiff, farZoom=$farZoom', tag: 'MapZoomCalculator');
+    logger.debug('🌍 MapZoomCalculator - 拉远中心点: ($centerLat, $centerLng)', tag: 'MapZoomCalculator');
     
     return CameraPosition(
       target: center,

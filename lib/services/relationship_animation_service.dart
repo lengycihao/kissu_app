@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/widgets/relationship_animation_overlay.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
 

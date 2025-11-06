@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../services/permission_service.dart';
 import '../../../utils/oktoast_util.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 系统权限页面控制器
 class SystemPermissionController extends GetxController with WidgetsBindingObserver {
@@ -67,7 +68,7 @@ class SystemPermissionController extends GetxController with WidgetsBindingObser
     
     // 当应用从后台回到前台时，重新检查权限状态
     if (state == AppLifecycleState.resumed) {
-      print('应用回到前台，重新检查权限状态');
+      logDebug('应用回到前台，重新检查权限状态', tag: 'SystemPermission');
       // 延迟检查，确保页面完全激活
       Future.delayed(const Duration(milliseconds: 500), () {
         checkAllPermissions();
@@ -106,16 +107,16 @@ class SystemPermissionController extends GetxController with WidgetsBindingObser
       }
       
       // 记录后台位置权限状态（用于调试）
-      print('后台位置权限: $newLocationAlwaysGranted');
+      logDebug('后台位置权限: $newLocationAlwaysGranted', tag: 'SystemPermission');
       
-      print('权限状态检查完成:');
-      print('位置权限: ${isLocationGranted.value}');
-      print('通知权限: ${isNotificationGranted.value}');
-      print('电池优化: ${isBatteryOptimized.value}');
-      print('使用情况访问: ${isUsageAccessGranted.value}');
+      logDebug('权限状态检查完成:', tag: 'SystemPermission');
+      logDebug('位置权限: ${isLocationGranted.value}', tag: 'SystemPermission');
+      logDebug('通知权限: ${isNotificationGranted.value}', tag: 'SystemPermission');
+      logDebug('电池优化: ${isBatteryOptimized.value}', tag: 'SystemPermission');
+      logDebug('使用情况访问: ${isUsageAccessGranted.value}', tag: 'SystemPermission');
       
     } catch (e) {
-      print('检查权限状态时发生错误: $e');
+      logError('检查权限状态时发生错误: $e', tag: 'SystemPermission', error: e);
       OKToastUtil.showError('检查权限状态失败');
     } finally {
       isLoading.value = false;
@@ -181,7 +182,7 @@ class SystemPermissionController extends GetxController with WidgetsBindingObser
       await _permissionService.openPermissionSettings(type);
       
     } catch (e) {
-      print('跳转系统设置失败: $e');
+      logError('跳转系统设置失败: $e', tag: 'SystemPermission', error: e);
       OKToastUtil.showError('无法打开设置页面，请手动前往系统设置');
     }
   }

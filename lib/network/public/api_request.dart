@@ -15,6 +15,8 @@ class ApiRequest {
 
   static const bindPartner = '/start/bind';
 
+  static const saveOaidIdfa = '/user/saveOaidIdfa';
+
   static const getLocation = '/get/location';
 
   static const reportLocation = '/location/report';

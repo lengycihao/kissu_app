@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:crop_your_image/crop_your_image.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class ImageCropPage extends StatefulWidget {
   final String imagePath;
@@ -17,12 +18,12 @@ class ImageCropPage extends StatefulWidget {
   final Uint8List? preloadedImageData;
 
   const ImageCropPage({
-    Key? key,
+    super.key,
     required this.imagePath,
     required this.onCropComplete,
     this.customCropFrameAsset,
     this.preloadedImageData,
-  }) : super(key: key);
+  });
 
   @override
   State<ImageCropPage> createState() => _ImageCropPageState();
@@ -59,7 +60,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('加载图片失败: $e');
+      logError('加载图片失败: $e', tag: 'ImageCrop', error: e);
       if (mounted) {
         Get.back();
       }
@@ -86,7 +87,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
       // 回调
       widget.onCropComplete(croppedFile.path);
     } catch (e) {
-      print('保存裁剪图片失败: $e');
+      logError('保存裁剪图片失败: $e', tag: 'ImageCrop', error: e);
     } finally {
       if (mounted) {
         Get.back();
@@ -98,7 +99,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
     if (result is CropSuccess) {
       _onCropped(result.croppedImage);
     } else if (result is CropFailure) {
-      print('裁剪失败');
+      logError('裁剪失败', tag: 'ImageCrop');
       Get.back();
     }
   }

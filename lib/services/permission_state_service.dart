@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 权限状态管理服务
 /// 用于跟踪不同页面的权限请求状态
@@ -36,19 +37,19 @@ class PermissionStateService extends GetxService {
         // App被重启，重置轨迹页面权限状态
         trackPagePermissionRequested.value = false;
         trackPagePermissionDenied.value = false;
-        print('🔄 App重启，重置轨迹页面权限状态');
+        logger.debug('🔄 App重启，重置轨迹页面权限状态', tag: 'PermissionStateService');
       } else {
         // 同一生命周期，保持状态
         trackPagePermissionRequested.value = prefs.getBool('track_page_permission_requested') ?? false;
         trackPagePermissionDenied.value = prefs.getBool('track_page_permission_denied') ?? false;
-        print('📱 同一生命周期，保持权限状态: requested=${trackPagePermissionRequested.value}, denied=${trackPagePermissionDenied.value}');
+        logger.debug('📱 同一生命周期，保持权限状态: requested=${trackPagePermissionRequested.value}, denied=${trackPagePermissionDenied.value}', tag: 'PermissionStateService');
       }
       
       // 更新启动时间戳
       await prefs.setInt('app_last_start_time', currentTime);
       
     } catch (e) {
-      print('❌ 加载权限状态失败: $e');
+      logger.error('❌ 加载权限状态失败: $e', tag: 'PermissionStateService', error: e);
     }
   }
   
@@ -58,9 +59,9 @@ class PermissionStateService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('track_page_permission_requested', true);
-      print('✅ 标记轨迹页面已请求权限');
+      logger.debug('✅ 标记轨迹页面已请求权限', tag: 'PermissionStateService');
     } catch (e) {
-      print('❌ 保存轨迹页面权限请求状态失败: $e');
+      logger.error('❌ 保存轨迹页面权限请求状态失败: $e', tag: 'PermissionStateService', error: e);
     }
   }
   
@@ -70,9 +71,9 @@ class PermissionStateService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('track_page_permission_denied', true);
-      print('❌ 标记轨迹页面权限被拒绝');
+      logger.warning('❌ 标记轨迹页面权限被拒绝', tag: 'PermissionStateService');
     } catch (e) {
-      print('❌ 保存轨迹页面权限拒绝状态失败: $e');
+      logger.error('❌ 保存轨迹页面权限拒绝状态失败: $e', tag: 'PermissionStateService', error: e);
     }
   }
   
@@ -84,9 +85,9 @@ class PermissionStateService extends GetxService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('track_page_permission_requested');
       await prefs.remove('track_page_permission_denied');
-      print('🔄 重置轨迹页面权限状态');
+      logger.debug('🔄 重置轨迹页面权限状态', tag: 'PermissionStateService');
     } catch (e) {
-      print('❌ 重置轨迹页面权限状态失败: $e');
+      logger.error('❌ 重置轨迹页面权限状态失败: $e', tag: 'PermissionStateService', error: e);
     }
   }
   
@@ -94,25 +95,25 @@ class PermissionStateService extends GetxService {
   bool shouldRequestTrackPagePermission() {
     // 如果已经请求过且被拒绝，则不再请求
     if (trackPagePermissionRequested.value && trackPagePermissionDenied.value) {
-      print('🚫 轨迹页面权限已被拒绝，不再请求');
+      logger.debug('🚫 轨迹页面权限已被拒绝，不再请求', tag: 'PermissionStateService');
       return false;
     }
     
     // 如果还没有请求过，可以请求
     if (!trackPagePermissionRequested.value) {
-      print('✅ 轨迹页面可以请求权限');
+      logger.debug('✅ 轨迹页面可以请求权限', tag: 'PermissionStateService');
       return true;
     }
     
     // 如果请求过但没有被拒绝，说明权限已获取，不需要再请求
-    print('✅ 轨迹页面权限已获取，无需再请求');
+    logger.debug('✅ 轨迹页面权限已获取，无需再请求', tag: 'PermissionStateService');
     return false;
   }
   
   /// 检查定位页面是否应该请求权限（每次进入都请求）
   bool shouldRequestLocationPagePermission() {
     // 定位页面每次进入都请求权限
-    print('✅ 定位页面每次进入都请求权限');
+    logger.debug('✅ 定位页面每次进入都请求权限', tag: 'PermissionStateService');
     return true;
   }
   

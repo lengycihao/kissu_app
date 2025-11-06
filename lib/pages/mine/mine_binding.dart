@@ -7,3 +7,5 @@ class MineBinding extends Bindings {
     Get.lazyPut<MineController>(() => MineController());
   }
 }
+
+ 

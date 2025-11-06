@@ -126,6 +126,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
               screenHeight: screenHeight,
             ),
             _buildDraggableSheet(),
+            // 地图logo - 悬浮在地图上，位置跟随下半屏移动
+            _buildMapLogo(),
             _buildBackButton(context),
             _buildAvatarRow(context),
           ],
@@ -497,6 +499,51 @@ class _LocationPageContentState extends State<_LocationPageContent>
       right: 0,
       child: _CachedAvatarRow(controller: widget.controller),
     );
+  }
+
+  // 地图logo - 悬浮在地图上，位置在右侧位置提醒按钮下方60px处
+  Widget _buildMapLogo() {
+    return Obx(() {
+      final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
+      
+      // 右侧按钮的bottom位置
+      final buttonBottom = sheetHeight + 70;
+      
+      // logo在按钮下方60px，按钮高度50px，所以logo的bottom = buttonBottom - 50 - 60
+      final logoBottom = buttonBottom - 50 -15;
+      
+      // 根据绑定状态动态计算中间吸顶位置
+      final isBindPartner = widget.controller.isBindPartner.value;
+      final middleSnapSize = isBindPartner
+          ? 0.5 + (21 / screenHeight)
+          : 0.5 + (57 / screenHeight);
+      final maxPercent = (screenHeight - 100) / screenHeight;
+      
+      // 计算透明度（与右侧按钮同步）
+      final sheetPercent = widget.controller.sheetPercent.value;
+      double opacity;
+      if (sheetPercent <= middleSnapSize) {
+        opacity = 1.0;
+      } else if (sheetPercent >= maxPercent) {
+        opacity = 0.0;
+      } else {
+        opacity = 1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+      }
+      opacity = opacity.clamp(0.0, 1.0);
+      
+      return Positioned(
+        bottom: logoBottom,
+        right: 16,
+        child: Opacity(
+          opacity: opacity,
+          child: Image.asset(
+            'assets/map_logo.webp',
+            width: 68,
+            height: 22,
+          ),
+        ),
+      );
+    });
   }
 }
 

@@ -12,10 +12,11 @@ import 'package:kissu_app/widgets/dialogs/logout_cancelled_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/partner_location_permission_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 
 /// 弹窗展示页面
 class DialogShowcasePage extends StatelessWidget {
-  const DialogShowcasePage({Key? key}) : super(key: key);
+  const DialogShowcasePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -300,6 +301,11 @@ class DialogShowcasePage extends StatelessWidget {
                               '提示开通消息通知权限',
                               () => _showSelfNotificationPermissionDialog(),
                             ),
+                            _buildDialogItem(
+                              '自定义反馈弹窗（新）',
+                              '测试新的自定义反馈弹窗',
+                              () => _showCustomFeedbackDialog(),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 40),
@@ -517,6 +523,17 @@ class DialogShowcasePage extends StatelessWidget {
         _showToast('用户选择去开启通知');
       } else if (result == false) {
         _showToast('用户点击了知道了');
+      }
+    });
+  }
+
+  /// 显示自定义反馈弹窗
+  void _showCustomFeedbackDialog() {
+    CustomFeedbackDialogUtil.show().then((result) {
+      if (result != null && result.isNotEmpty) {
+        _showToast('选择的原因: $result');
+      } else {
+        _showToast('已取消');
       }
     });
   }

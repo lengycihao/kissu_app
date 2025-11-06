@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:encrypt/encrypt.dart';
 import 'package:dio/dio.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class EncryptInterceptor extends Interceptor {
   final String _defaultAesKey;
@@ -46,7 +47,7 @@ class EncryptInterceptor extends Interceptor {
         options.headers[HttpHeaderKey.encryptAlgorithm] = 'AES-256-ECB';
       } catch (e) {
         // Log encryption error
-        print('Encryption error: $e');
+        logError('Encryption error: $e', tag: 'EncryptInterceptor', error: e);
       }
     }
 
@@ -65,7 +66,7 @@ class EncryptInterceptor extends Interceptor {
         final decryptedData = _decryptResponseData(response.data);
         response.data = decryptedData;
       } catch (e) {
-        print('Decryption error: $e');
+        logError('Decryption error: $e', tag: 'EncryptInterceptor', error: e);
         // Continue with original data if decryption fails
       }
     }
@@ -151,7 +152,7 @@ class EncryptInterceptor extends Interceptor {
       final encrypted = _encrypter.encrypt(data, iv: _iv);
       return encrypted.base64;
     } catch (e) {
-      print('String encryption error: $e');
+      logError('String encryption error: $e', tag: 'EncryptInterceptor', error: e);
       return data; // Return original if encryption fails
     }
   }
@@ -173,7 +174,7 @@ class EncryptInterceptor extends Interceptor {
       final encrypted = Encrypted.fromBase64(encryptedData);
       return _encrypter.decrypt(encrypted, iv: _iv);
     } catch (e) {
-      print('String decryption error: $e');
+      logError('String decryption error: $e', tag: 'EncryptInterceptor', error: e);
       return encryptedData; // Return original if decryption fails
     }
   }
@@ -232,6 +233,6 @@ class EncryptInterceptor extends Interceptor {
   void updateKeys({String? newAesKey, String? newAesIv}) {
     // Note: In a real implementation, you might want to create a new interceptor
     // with updated keys rather than modifying the existing one
-    print('Keys updated - restart interceptor for changes to take effect');
+    logInfo('Keys updated - restart interceptor for changes to take effect', tag: 'EncryptInterceptor');
   }
 }

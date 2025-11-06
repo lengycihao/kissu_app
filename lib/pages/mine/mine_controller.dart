@@ -4,11 +4,13 @@ import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
-// import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+ // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/oaid_util.dart';
 import 'package:flutter/material.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../usage_report/usage_report_controller.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
@@ -23,10 +25,13 @@ import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart';
 import 'package:kissu_app/services/screen_usage_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/pages/debug/screen_lock_debug_page.dart';
+import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
+import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 
 class MineController extends GetxController {
   // 用户信息
   var nickname = "小可爱".obs;
+  var partnerNickname = "小可爱".obs;
   var matchCode = "1000000".obs;
   var bindDate = "".obs;
   var days = "".obs;
@@ -58,15 +63,15 @@ class MineController extends GetxController {
     );
   }
   void onHisstoryTap() {
-    Get.to(
-      () => const UsageReportPage(),
-      binding: UsageReportBinding(),
-      transition: Transition.rightToLeft,
-    );
+    // 跳转到新的用机记录页面
+    Get.toNamed(KissuRoutePath.deviceUsage);
   }
 
   // 设置项
   late final List<SettingItem> settingItems;
+
+  // 常用功能项
+  late final List<CommonFunctionItem> commonFunctionItems;
 
   // 下拉刷新相关
   var isRefreshing = false.obs;
@@ -83,6 +88,7 @@ class MineController extends GetxController {
   void onInit() {
     super.onInit();
     _initSettingItems();
+    _initCommonFunctionItems();
     
     // 初始化滚动控制器
     scrollController = ScrollController();
@@ -180,10 +186,17 @@ class MineController extends GetxController {
     
     // 基础信息
     nickname.value = userInfo['nickname'];
+    partnerNickname.value = userInfo['partnerNickname'];
     matchCode.value = userInfo['matchCode'];
     userAvatar.value = userInfo['avatar'].isNotEmpty 
       ? userInfo['avatar'] 
       : '';
+    
+    // 调试输出
+    debugPrint('👤 我的页面用户信息：');
+    debugPrint('   昵称: ${nickname.value}');
+    debugPrint('   另一半昵称: ${partnerNickname.value}');
+    debugPrint('   绑定状态: ${userInfo['isBound']}');
     
     // 绑定状态
     isBound.value = userInfo['isBound'];
@@ -199,6 +212,8 @@ class MineController extends GetxController {
       // 如果有用户对象，继续处理绑定状态的其他数据
       final user = UserManager.currentUser;
       if (user != null) {
+        debugPrint('   loverInfo.nickname: ${user.loverInfo?.nickname}');
+        debugPrint('   halfUserInfo.nickname: ${user.halfUserInfo?.nickname}');
         _handleBoundState(user);
       }
     } else {
@@ -257,7 +272,7 @@ class MineController extends GetxController {
           days.value = "$difference";
           return;
         } catch (e) {
-          print('解析LoverInfo bindTime失败: $e');
+          logWarning('解析LoverInfo bindTime失败: $e', tag: 'Mine', error: e);
         }
       }
     }
@@ -298,6 +313,9 @@ class MineController extends GetxController {
 
     isVip.value = vipStatus == 1;
     isForeverVip.value = foreverVipStatus == 1;
+    
+    // 设置会员到期日期
+    vipEndDate.value = user.vipEndDate ?? "";
 
     // 如果未绑定，显示"立即去绑定"
     if (!isBound.value) {
@@ -327,20 +345,65 @@ class MineController extends GetxController {
     return "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}";
   }
 
-  void _initSettingItems() {
-    settingItems = [
-      SettingItem(
-        icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
-        title: "防偷拍检测",
+  void _initCommonFunctionItems() {
+    commonFunctionItems = [
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_location.webp",
+        title: "实时定位",
+        onTap: () => onLocationTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_app_time.webp",
+        title: "app使用记录",
+        onTap: () => _onAppUsageRecordTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_history.webp",
+        title: "用机记录",
+        onTap: () => onHisstoryTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_track.webp",
+        title: "足迹",
+        onTap: () => onTrackTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_scan.webp",
+        title: "酒店防偷拍",
         onTap: () => _onAntiSpyTap(),
       ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_newhome.webp",
+        title: "个性化首页",
+        onTap: () => _onPersonalizedHomeTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_change_homeview.webp",
+        title: "更换首页视图",
+        onTap: () => _onChangeHomeViewTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_change_logo.webp",
+        title: "更换app图标",
+        onTap: () => _onChangeAppIconTap(),
+      ),
+    ];
+  }
+  
+  void _initSettingItems() {
+    settingItems = [
+      // SettingItem(
+      //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
+      //   title: "防偷拍检测",
+      //   onTap: () => _onAntiSpyTap(),
+      // ),
       // SettingItem(
       //   icon: "assets/kissu_mine_item_gywm.webp",
       //   title: "Banner预览",
       //   onTap: () => _onBannerPreviewTap(),
       // ),
       SettingItem(
-        icon: "assets/kissu_share_item.webp",
+        icon: "assets/4.0/kissu4_share.webp",
         title: "分享APP",
         onTap: () => _onShareAppTap(),
       ),
@@ -366,38 +429,32 @@ class MineController extends GetxController {
       //   onTap: () => Get.toNamed(KissuRoutePath.trackPlayTest),
         
       // ),
+      // SettingItem(
+      //   icon: "assets/kissu_mine_item_syst.webp",
+      //   title: "首页视图",
+      //   onTap: () async {
+      //     await TrackingService.trackHomeView();
+      //     Get.to(
+      //       SettingHomePage(),
+      //       transition: Transition.rightToLeft,
+      //     );
+      //   },
+      // ),
+      // SettingItem(
+      //   icon: "assets/4.0/kissu4_notice.webp",
+      //   title: "测试 OAID",
+      //   onTap: () async {
+      //     await _testOaid();
+      //   },
+      // ),
       SettingItem(
-        icon: "assets/kissu_mine_item_syst.webp",
-        title: "首页视图",
-        onTap: () async {
-          await TrackingService.trackHomeView();
-          Get.to(
-            SettingHomePage(),
-            transition: Transition.rightToLeft,
-          );
-        },
+        icon: "assets/4.0/kissu4_mine_contact.webp",
+        title: "联系我们",
+        onTap: _onContactTap,
       ),
+     
       SettingItem(
-        icon: "assets/kissu_mine_item_xtqx.webp",
-        title: "系统权限",
-        onTap: () async {
-          await TrackingService.trackSystemPermissions();
-          Get.toNamed(KissuRoutePath.systemPermission);
-        },
-      ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_gywm.webp",
-        title: "关于我们",
-        onTap: () async {
-          await TrackingService.trackAboutUs();
-          Get.to(
-            AboutUsPage(),
-            transition: Transition.rightToLeft,
-          );
-        },
-      ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_cjwt.webp",
+        icon: "assets/4.0/kissu4_mine_question.webp",
         title: "常见问题",
          onTap: () async {
           await TrackingService.trackFaq();
@@ -407,30 +464,37 @@ class MineController extends GetxController {
           );
         },
       ),
+      
       SettingItem(
-        icon: "assets/kissu_mine_item_lxwm.webp",
-        title: "联系我们",
-        onTap: _onContactTap,
-      ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_yjfk.webp",
+        icon: "assets/4.0/kissu4_feedback.webp",
         title: "意见反馈",
         onTap: () async {
           await TrackingService.trackFeedback();
           Get.toNamed(KissuRoutePath.feedback);
         },
       ),
-      SettingItem(
-        icon: "assets/kissu_mine_item_ysaq.webp",
-        title: "账号及隐私安全",
+       SettingItem(
+        icon: "assets/4.0/kissu4_mine_aboutus.webp",
+        title: "关于我们",
         onTap: () async {
-          await TrackingService.trackAccountPrivacySecurity();
+          await TrackingService.trackAboutUs();
           Get.to(
-            PrivacySettingPage(),
+            AboutUsPage(),
             transition: Transition.rightToLeft,
           );
         },
       ),
+      // SettingItem(
+      //   icon: "assets/kissu_mine_item_ysaq.webp",
+      //   title: "账号及隐私安全",
+      //   onTap: () async {
+      //     await TrackingService.trackAccountPrivacySecurity();
+      //     Get.to(
+      //       PrivacySettingPage(),
+      //       transition: Transition.rightToLeft,
+      //     );
+      //   },
+      // ),
     ];
   }
 
@@ -624,15 +688,15 @@ class MineController extends GetxController {
     const String kfId = 'kfcf77b8b4a2a2a61d9';  // 客服 ID
 
     try {
-      print('📞 开始拉起企业微信客服');
+      logDebug('📞 开始拉起企业微信客服', tag: 'Mine');
       // 直接使用客服ID拉起会话
       await PermissionHelper.openWeComKfWithParams(
         corpId: corpId,
         kfId: kfId,
       );
-      print('✅ 企业微信客服拉起成功');
+      logDebug('✅ 企业微信客服拉起成功', tag: 'Mine');
     } catch (e) {
-      print('❌ 拉起企业微信客服失败: $e');
+      logError('❌ 拉起企业微信客服失败: $e', tag: 'Mine', error: e);
       OKToastUtil.show('拉起企业微信客服失败: $e');
     }
   }
@@ -642,6 +706,16 @@ class MineController extends GetxController {
     // 上报返回按钮点击埋点
     TrackingService.trackMyLeaveEvent();
     Get.back();
+  }
+
+  // 右上角设置按钮
+  void onSettingTap() async {
+    // 上报账号及隐私安全点击埋点
+    await TrackingService.trackAccountPrivacySecurity();
+    Get.to(
+      PrivacySettingPage(),
+      transition: Transition.rightToLeft,
+    );
   }
 
   // 点击恋爱信息标签
@@ -698,12 +772,12 @@ class MineController extends GetxController {
 
   // 点击自己的头像
   void onAvatarTap() async {
-    print('🔥 头像被点击了！');
-    print('🔥 当前绑定状态: ${isBound.value}');
+    logDebug('🔥 头像被点击了！', tag: 'Mine');
+    logDebug('🔥 当前绑定状态: ${isBound.value}', tag: 'Mine');
     
     // 如果已绑定，跳转到恋爱信息页面
     if (isBound.value) {
-      print('🔥 用户已绑定，跳转到恋爱信息页面');
+      logDebug('🔥 用户已绑定，跳转到恋爱信息页面', tag: 'Mine');
       
       // 上报恋爱信息入口点击埋点
       await TrackingService.trackEditInfoPage();
@@ -715,7 +789,7 @@ class MineController extends GetxController {
       // 从恋爱信息页面返回时，刷新我的页面
       onPageResumed();
     } else {
-      print('🔥 用户未绑定，不执行跳转');
+      logDebug('🔥 用户未绑定，不执行跳转', tag: 'Mine');
     }
     // 如果未绑定，暂时不做任何操作
   }
@@ -741,18 +815,18 @@ class MineController extends GetxController {
         OKToastUtil.show('刷新用户信息失败');
       }
     } catch (e) {
-      print('刷新用户信息失败: $e');
+      logError('刷新用户信息失败: $e', tag: 'Mine', error: e);
        OKToastUtil.show('刷新用户信息失败: $e');
     }
   }
 
   // 会员续费/开通
   void onRenewTap() async {
-    print('💫 VIP按钮被点击');
+    logDebug('💫 VIP按钮被点击', tag: 'Mine');
 
     // 如果未绑定，弹出绑定弹窗
     if (!isBound.value) {
-      print('💫 用户未绑定，弹出绑定弹窗');
+      logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
       
       // 上报绑定页面点击埋点
       await TrackingService.trackMyBindPage();
@@ -777,7 +851,7 @@ class MineController extends GetxController {
 
     if (isForeverVip.value) {
       // 永久会员，跳转到权益页面
-      print('💫 永久会员，跳转到权益页面');
+      logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
       
       // 上报开通会员点击埋点（终身会员页面）
       await TrackingService.trackMyOpenMembership(vipPageType: '终身会员页面');
@@ -791,7 +865,7 @@ class MineController extends GetxController {
       );
     } else {
       // 普通会员或非会员，跳转到VIP页面
-      print('💫 普通会员或非会员，跳转到VIP页面');
+      logDebug('💫 普通会员或非会员，跳转到VIP页面', tag: 'Mine');
       
       // 上报开通会员点击埋点（会员页面）
       await TrackingService.trackMyOpenMembership(vipPageType: '会员页面');
@@ -906,10 +980,10 @@ class MineController extends GetxController {
       if (Get.isRegistered<UsageReportController>()) {
         final usageReportController = Get.find<UsageReportController>();
         usageReportController.loadData();
-        print('已刷新用机记录页面数据');
+        logDebug('已刷新用机记录页面数据', tag: 'Mine');
       }
     } catch (e) {
-      print('刷新用机记录页面数据失败: $e');
+      logError('刷新用机记录页面数据失败: $e', tag: 'Mine', error: e);
     }
   }
 
@@ -933,6 +1007,65 @@ class MineController extends GetxController {
     await TrackingService.trackContactCustomerService();
     openContact();
   }
+  
+  /// app使用记录点击事件
+  void _onAppUsageRecordTap() {
+    Get.to(
+      () => const AppUsagePage(),
+      binding: AppUsageBinding(),
+      transition: Transition.rightToLeft,
+    );
+  }
+  
+  /// 个性化首页点击事件
+  void _onPersonalizedHomeTap() {
+    // TODO: 实现个性化首页功能
+    OKToastUtil.show('个性化首页功能开发中');
+  }
+  
+  /// 更换首页视图点击事件
+  void _onChangeHomeViewTap() async {
+    await TrackingService.trackHomeView();
+    Get.to(
+      SettingHomePage(),
+      transition: Transition.rightToLeft,
+    );
+  }
+  
+  /// 更换app图标点击事件
+  void _onChangeAppIconTap() {
+    Get.toNamed(KissuRoutePath.appIconSelector);
+  }
+
+  /// 测试 OAID 获取
+  Future<void> _testOaid() async {
+    try {
+      OKToastUtil.show('正在获取 OAID...');
+      
+      final oaid = await OaidUtil.instance.getOaid();
+      
+      if (oaid != null && oaid.isNotEmpty) {
+        logger.info('OAID 获取成功: $oaid');
+        Get.dialog(
+          AlertDialog(
+            title: const Text('OAID 获取成功'),
+            content: SelectableText('OAID: $oaid'),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        OKToastUtil.show('OAID 获取失败');
+      }
+    } catch (e) {
+      logger.error('OAID 获取异常: $e');
+      OKToastUtil.show('OAID 获取异常: $e');
+    }
+  }
 }
 
 class SettingItem {
@@ -941,4 +1074,12 @@ class SettingItem {
   final void Function()? onTap;
 
   SettingItem({required this.icon, required this.title, this.onTap});
+}
+
+class CommonFunctionItem {
+  final String icon;
+  final String title;
+  final void Function()? onTap;
+
+  CommonFunctionItem({required this.icon, required this.title, this.onTap});
 }

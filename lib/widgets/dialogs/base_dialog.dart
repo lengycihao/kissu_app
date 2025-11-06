@@ -136,12 +136,17 @@ class DialogButton extends StatelessWidget {
               : null,
         ),
         child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: textColor ?? Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: TextStyle(
+                color: textColor ?? Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),

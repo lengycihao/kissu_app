@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/version_api.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 版本更新弹窗
 class VersionUpdateDialog extends StatelessWidget {
@@ -267,7 +268,7 @@ class VersionUpdateDialog extends StatelessWidget {
         );
       }
     } catch (e) {
-      print('打开下载链接失败: $e');
+      logError('打开下载链接失败: $e', tag: 'VersionUpdateDialog', error: e);
       Get.snackbar(
         '提示',
         '打开下载链接失败',

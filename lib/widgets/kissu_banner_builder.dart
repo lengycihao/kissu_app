@@ -343,15 +343,14 @@ class KissuBannerBuilder {
               child: Image.asset(
                 getTravelToolIcon(travelTool),
                 width: _transportIconSize,
-                height: _transportIconSize,
-                fit: BoxFit.fill,
+                height: _transportIconSize, 
               ),
             ),
             
             // 自己的头像背景（坐标 80, 27）
             Positioned(
               left: 80,
-              top: 27,
+              top: 28,
               child: Image.asset(
                 _avatarBg,
                 width: _avatarBgWidth,
@@ -360,18 +359,18 @@ class KissuBannerBuilder {
               ),
             ),
             
-            // 自己的头像（坐标 82, 29）
-            if (userAvatarUrl != null && userAvatarUrl.isNotEmpty)
+            // 另一半的头像（坐标 82, 29）
+            if (partnerAvatarUrl != null && partnerAvatarUrl.isNotEmpty)
               Positioned(
                 left: 83.5, // 80 + (32-26)/2 = 83, 调整到82居中
                 top: 30,  // 27 + 2 = 29
                 child: ClipOval(
-                  child: _buildAvatarImage(userAvatarUrl),
+                  child: _buildAvatarImage(partnerAvatarUrl),
                 ),
               ),
             
             // 另一半的头像背景（坐标 249, 14）
-            Positioned(
+            Positioned( 
               left: 249,
               top: 14,
               child: Image.asset(
@@ -382,8 +381,8 @@ class KissuBannerBuilder {
               ),
             ),
             
-            // 另一半的头像（在头像背景上居中）
-            if (partnerAvatarUrl != null && partnerAvatarUrl.isNotEmpty)
+            // 自己的头像（在头像背景上居中）
+            if (userAvatarUrl != null && userAvatarUrl.isNotEmpty)
               Positioned(
                 left: 252, // 249 + (36-30)/2 = 252
                 top: 16,   // 14 + 2 = 16
@@ -394,7 +393,7 @@ class KissuBannerBuilder {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       image: DecorationImage(
-                        image: NetworkImage(partnerAvatarUrl),
+                        image: NetworkImage(userAvatarUrl),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -592,7 +591,7 @@ class KissuBannerBuilder {
                 left: 94 + (_avatarBgWidth - _avatarSize) / 2,
                 top: 29 + _avatarTopMargin,
                 child: ClipOval(
-                  child: _buildAvatarImage(bannerElements[3]),
+                  child: _buildAvatarImage(partnerAvatarUrl),
                 ),
               ),
           ],

@@ -5,6 +5,7 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 围栏地图视图页面
 /// 显示所有位置提醒的围栏范围
@@ -45,10 +46,10 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
     
     if (state == AppLifecycleState.paused) {
       // 应用进入后台，暂停地图更新（释放资源）
-      print('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新');
+      logDebug('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新', tag: 'GeofenceMapView');
     } else if (state == AppLifecycleState.resumed) {
       // 应用恢复前台，恢复地图更新
-      print('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新');
+      logDebug('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新', tag: 'GeofenceMapView');
     }
   }
 

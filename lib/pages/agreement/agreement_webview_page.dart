@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 协议WebView页面
 class AgreementWebViewPage extends StatefulWidget {
@@ -45,17 +46,17 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
-            print('WebView加载进度: $progress%');
+            logDebug('WebView加载进度: $progress%', tag: 'AgreementWebView');
           },
           onPageStarted: (String url) {
-            print('WebView开始加载: $url');
+            logDebug('WebView开始加载: $url', tag: 'AgreementWebView');
             setState(() {
               _isLoading = true;
               _hasError = false;
             });
           },
           onPageFinished: (String url) {
-            print('WebView加载完成: $url');
+            logDebug('WebView加载完成: $url', tag: 'AgreementWebView');
             setState(() {
               _isLoading = false;
             });
@@ -63,15 +64,15 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             _updateNavigationState();
           },
           onUrlChange: (UrlChange change) {
-            print('WebView URL改变: ${change.url}');
+            logDebug('WebView URL改变: ${change.url}', tag: 'AgreementWebView');
             // URL改变时更新导航状态
             _updateNavigationState();
           },
           onWebResourceError: (WebResourceError error) {
-            print('WebView加载错误: ${error.description}');
-            print('错误代码: ${error.errorCode}');
-            print('错误类型: ${error.errorType}');
-            print('失败URL: ${error.url}');
+            logError('WebView加载错误: ${error.description}', tag: 'AgreementWebView');
+            logDebug('错误代码: ${error.errorCode}', tag: 'AgreementWebView');
+            logDebug('错误类型: ${error.errorType}', tag: 'AgreementWebView');
+            logDebug('失败URL: ${error.url}', tag: 'AgreementWebView');
             
             String errorMsg = _getErrorMessage(error);
             setState(() {
@@ -81,7 +82,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             });
           },
           onNavigationRequest: (NavigationRequest request) {
-            print('WebView导航请求: ${request.url}');
+            logDebug('WebView导航请求: ${request.url}', tag: 'AgreementWebView');
             return NavigationDecision.navigate;
           },
         ),

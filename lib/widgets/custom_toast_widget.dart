@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class CustomToastWidget extends StatefulWidget {
   final String message;
@@ -11,7 +12,7 @@ class CustomToastWidget extends StatefulWidget {
   final EdgeInsets padding;
 
   const CustomToastWidget({
-    Key? key,
+    super.key,
     required this.message,
     this.duration = const Duration(seconds: 2),
     this.backgroundColor = const Color(0xFF000000), // 黑色背景
@@ -19,7 +20,7 @@ class CustomToastWidget extends StatefulWidget {
     this.fontSize = 11.0,
     this.maxWidth = 275.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
-  }) : super(key: key);
+  });
 
   @override
   State<CustomToastWidget> createState() => _CustomToastWidgetState();
@@ -117,7 +118,7 @@ class CustomToast {
       try {
         _overlayEntry!.remove();
       } catch (e) {
-        print('CustomToast: Error removing existing toast: $e');
+        logWarning('CustomToast: Error removing existing toast: $e', tag: 'CustomToast', error: e);
       } finally {
         _overlayEntry = null;
       }
@@ -136,7 +137,7 @@ class CustomToast {
   }) {
     // 检查context是否有效
     if (!context.mounted) {
-      print('CustomToast: Context is not mounted, skipping toast display');
+      logWarning('CustomToast: Context is not mounted, skipping toast display', tag: 'CustomToast');
       return;
     }
 
@@ -151,7 +152,7 @@ class CustomToast {
       try {
         overlay = Overlay.of(context);
       } catch (e) {
-        print('CustomToast: Failed to get overlay from context: $e');
+        logWarning('CustomToast: Failed to get overlay from context: $e', tag: 'CustomToast', error: e);
       }
       
       // 方式2: 尝试获取根overlay
@@ -159,7 +160,7 @@ class CustomToast {
         try {
           overlay = Overlay.of(context, rootOverlay: true);
         } catch (e) {
-          print('CustomToast: Failed to get root overlay: $e');
+          logWarning('CustomToast: Failed to get root overlay: $e', tag: 'CustomToast', error: e);
         }
       }
       
@@ -169,7 +170,7 @@ class CustomToast {
           final navigatorState = Navigator.of(context);
           overlay = navigatorState.overlay;
         } catch (e) {
-          print('CustomToast: Failed to get Navigator overlay: $e');
+          logWarning('CustomToast: Failed to get Navigator overlay: $e', tag: 'CustomToast', error: e);
         }
       }
       
@@ -178,12 +179,12 @@ class CustomToast {
         try {
           overlay = Get.overlayContext?.findAncestorStateOfType<OverlayState>();
         } catch (e) {
-          print('CustomToast: Failed to get GetX overlay: $e');
+          logWarning('CustomToast: Failed to get GetX overlay: $e', tag: 'CustomToast', error: e);
         }
       }
       
       if (overlay == null) {
-        print('CustomToast: No overlay available, using fallback SnackBar');
+        logWarning('CustomToast: No overlay available, using fallback SnackBar', tag: 'CustomToast');
         // 使用SnackBar作为fallback
         try {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -194,7 +195,7 @@ class CustomToast {
             ),
           );
         } catch (e) {
-          print('CustomToast: SnackBar also failed: $e');
+          logError('CustomToast: SnackBar also failed: $e', tag: 'CustomToast', error: e);
           // 最后的fallback：使用Get.snackbar
           try {
             Get.snackbar(
@@ -206,7 +207,7 @@ class CustomToast {
               duration: duration,
             );
           } catch (e2) {
-            print('CustomToast: All fallback methods failed: $e2');
+            logError('CustomToast: All fallback methods failed: $e2', tag: 'CustomToast', error: e2);
           }
         }
         return;
@@ -232,7 +233,7 @@ class CustomToast {
       overlay.insert(_overlayEntry!);
       
     } catch (e) {
-      print('CustomToast: Error showing toast: $e');
+      logError('CustomToast: Error showing toast: $e', tag: 'CustomToast', error: e);
       _overlayEntry = null;
       
       // 最后的fallback
@@ -245,7 +246,7 @@ class CustomToast {
           ),
         );
       } catch (e2) {
-        print('CustomToast: Even SnackBar failed: $e2');
+        logError('CustomToast: Even SnackBar failed: $e2', tag: 'CustomToast', error: e2);
         // 使用Get.snackbar作为最终fallback
         try {
           Get.snackbar(
@@ -257,7 +258,7 @@ class CustomToast {
             duration: duration,
           );
         } catch (e3) {
-          print('CustomToast: All fallback methods failed: $e3');
+          logError('CustomToast: All fallback methods failed: $e3', tag: 'CustomToast', error: e3);
         }
       }
     }

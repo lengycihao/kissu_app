@@ -10,6 +10,7 @@ import '../../../utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 控制器
 class FeedbackController extends GetxController {
@@ -34,7 +35,7 @@ class FeedbackController extends GetxController {
     // 自动填入用户手机号到联系方式输入框
     if (UserManager.userPhone != null && UserManager.userPhone!.isNotEmpty) {
       contact.value = UserManager.userPhone!;
-      print('✅ 意见反馈: 已自动填入用户手机号 ${UserManager.userPhone}');
+      logDebug('✅ 意见反馈: 已自动填入用户手机号 ${UserManager.userPhone}', tag: 'Feedback');
     }
   }
 
@@ -95,35 +96,35 @@ class FeedbackController extends GetxController {
       
       if (hasPermission) {
         // 有权限，直接选择图片
-        print('✅ 意见反馈: 已有权限，直接选择图片');
+        logDebug('✅ 意见反馈: 已有权限，直接选择图片', tag: 'Feedback');
         final picked = await picker.pickImage(source: ImageSource.gallery);
         if (picked != null) {
           selectedImage.value = File(picked.path);
-          print('✅ 意见反馈: 图片选择成功 path=${picked.path}');
+          logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
         } else {
-          print('⚠️ 意见反馈: 用户取消了图片选择');
+          logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
         }
       } else {
         // 没有权限，申请权限（会弹出系统权限弹窗）
-        print('⚠️ 意见反馈: 没有权限，申请权限');
+        logDebug('⚠️ 意见反馈: 没有权限，申请权限', tag: 'Feedback');
         final permissionGranted = await _permissionService.requestPhotosPermission();
         
         if (permissionGranted) {
-          print('✅ 意见反馈: 权限申请成功，开始选择图片');
+          logDebug('✅ 意见反馈: 权限申请成功，开始选择图片', tag: 'Feedback');
           final picked = await picker.pickImage(source: ImageSource.gallery);
           if (picked != null) {
             selectedImage.value = File(picked.path);
-            print('✅ 意见反馈: 图片选择成功 path=${picked.path}');
+            logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
           } else {
-            print('⚠️ 意见反馈: 用户取消了图片选择');
+            logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
           }
         } else {
-          print('❌ 意见反馈: 权限申请被拒绝');
+          logWarning('❌ 意见反馈: 权限申请被拒绝', tag: 'Feedback');
           OKToastUtil.show('需要相册权限才能选择图片');
         }
       }
     } catch (e) {
-      print('❌ 意见反馈: 选择图片失败 - $e');
+      logError('❌ 意见反馈: 选择图片失败 - $e', tag: 'Feedback', error: e);
       OKToastUtil.showError('选择图片失败');
     }
   }

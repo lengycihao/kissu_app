@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/mine/mine_binding.dart';
 // import 'package:kissu_app/utils/pag_preloader.dart'; // 注释掉PAG预加载器导入
 import 'package:kissu_app/services/home_scroll_service.dart';
-import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
@@ -18,6 +18,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
@@ -233,7 +234,7 @@ class HomeController extends GetxController {
         // 使用后清除预设位置
         homeScrollService.clearPresetPosition();
         
-        debugPrint('✅ 使用预设滚动位置创建ScrollController: ${presetOffset}');
+        debugPrint('✅ 使用预设滚动位置创建ScrollController: $presetOffset');
       } else {
         // 没有预设位置，使用默认居中偏移
         _setDefaultCenterOffset();
@@ -252,7 +253,7 @@ class HomeController extends GetxController {
     final defaultOffset = ScreenAdaptation.getPresetScrollOffset();
     
     scrollController = ScrollController(initialScrollOffset: defaultOffset);
-    debugPrint('🎯 使用自适应居中偏移创建ScrollController: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 默认偏移=${defaultOffset}');
+    debugPrint('🎯 使用自适应居中偏移创建ScrollController: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 默认偏移=$defaultOffset');
   }
   
   @override
@@ -871,13 +872,13 @@ class HomeController extends GetxController {
   /// 外部调用的刷新方法（用于其他页面通知首页更新）
   Future<void> refreshUserInfoAndState() async {
     try {
-      print('🏠 首页收到刷新通知，正在更新用户信息...');
+      logDebug('🏠 首页收到刷新通知，正在更新用户信息...', tag: 'Home');
       // 不需要再次调用 UserManager.refreshUserInfo()，因为调用方已经刷新了
       // 外部刷新时不触发引导图检查，避免重复弹窗
       loadIndexData();
-      print('🏠 首页绑定状态已更新: ${isBound.value}');
+      logDebug('🏠 首页绑定状态已更新: ${isBound.value}', tag: 'Home');
     } catch (e) {
-      print('🏠 首页刷新绑定状态失败: $e');
+      logError('🏠 首页刷新绑定状态失败: $e', tag: 'Home', error: e);
     }
   }
 

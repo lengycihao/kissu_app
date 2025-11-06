@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'base_dialog.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 性别选择弹窗
 class GenderSelectDialog extends BaseDialog {
@@ -77,9 +78,9 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
         'gender': gender,
       });
       
-      print('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender');
+      logDebug('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender', tag: 'GenderSelectDialog');
     } catch (e) {
-      print('❌ 性别选择埋点失败: $e');
+      logError('❌ 性别选择埋点失败: $e', tag: 'GenderSelectDialog', error: e);
     }
   }
 

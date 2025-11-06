@@ -80,6 +80,7 @@ dependencies:
   lottie: ^3.1.2  # Lottie 动画
   audioplayers: ^6.1.0  # 音频播放插件
   usage_stats: ^1.3.1  # 屏幕使用时长统计
+  flutter_android_oaid_plugin: ^0.0.4  # OAID 获取插件
   # 防偷拍网络扫描
   ping_discover_network_forked:
     path: plugins/ping_discover_network_forked-0.0.1
@@ -88,6 +89,7 @@ dependencies:
   shimmer: ^3.0.0  # Shimmer 加载动画效果
   # 腾讯IM SDK
   tencent_cloud_chat_sdk: ^8.2.6325
+  fl_chart: ^0.69.0  # 专业图表库
 
 dev_dependencies:
   flutter_test:
@@ -118,6 +120,10 @@ flutter:
     - family: LiuHuanKaTongShouShu
       fonts:
         - asset: assets/font/LiuHuanKaTongShouShu.ttf
+    - family: AlimamaShuHeiTi
+      fonts:
+        - asset: assets/font/AlimamaShuHeiTi-Bold.ttf
+          weight: 700
   
   assets:
     - assets/
@@ -128,7 +134,7 @@ flutter:
     - assets/chat/
     - assets/map/
     - assets/location/
-    # - assets/kissu_heart.webp
+    - assets/4.0/
     # - assets/kissu_location_circle.webp
     # - assets/kissu3_love_avater.webp
     # - assets/kissu_track_location.webp

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 安全的Toast工具类
 /// 解决在Controller中调用CustomToast.show时可能出现的context问题
@@ -93,7 +94,7 @@ class SafeToastUtil {
         return context;
       }
     } catch (e) {
-      print('SafeToastUtil: Error getting current context: $e');
+      logger.error('SafeToastUtil: Error getting current context: $e', tag: 'SafeToastUtil', error: e);
     }
 
     // 方法4: 尝试从Navigator获取
@@ -103,7 +104,7 @@ class SafeToastUtil {
         return context;
       }
     } catch (e) {
-      print('SafeToastUtil: Error getting navigator context: $e');
+      logger.error('SafeToastUtil: Error getting navigator context: $e', tag: 'SafeToastUtil', error: e);
     }
 
     return null;
@@ -139,8 +140,8 @@ class SafeToastUtil {
       );
     } catch (e) {
       // 最后的备选方案：打印到控制台
-      print('SafeToastUtil: Failed to show toast: $message');
-      print('SafeToastUtil: Error: $e');
+      logger.error('SafeToastUtil: Failed to show toast: $message', tag: 'SafeToastUtil', error: e);
+      logger.error('SafeToastUtil: Error: $e', tag: 'SafeToastUtil', error: e);
     }
   }
 }

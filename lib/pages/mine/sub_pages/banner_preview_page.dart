@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/kissu_banner_builder.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
-
+import 'package:kissu_app/widgets/kissu_banner_builder.dart';
+ 
 /// Banner 预览页面
 /// 展示所有8种 Banner 样式
 class BannerPreviewPage extends StatelessWidget {

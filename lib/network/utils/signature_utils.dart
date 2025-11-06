@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 签名工具类
 /// 提供请求签名相关的功能
@@ -110,25 +111,25 @@ class SignatureUtils {
     return true;
   }
 
-  /// 构建排序后的查询字符串
-  static String _buildSortedQueryString(Map<String, dynamic>? params) {
-    if (params == null || params.isEmpty) {
-      return '';
-    }
+  // /// 构建排序后的查询字符串
+  // static String _buildSortedQueryString(Map<String, dynamic>? params) {
+  //   if (params == null || params.isEmpty) {
+  //     return '';
+  //   }
 
-    // 按照 key 排序
-    final sortedKeys = params.keys.toList()..sort();
+  //   // 按照 key 排序
+  //   final sortedKeys = params.keys.toList()..sort();
 
-    final parts = <String>[];
-    for (final key in sortedKeys) {
-      final value = params[key];
-      if (value != null) {
-        parts.add('$key=$value');
-      }
-    }
+  //   final parts = <String>[];
+  //   for (final key in sortedKeys) {
+  //     final value = params[key];
+  //     if (value != null) {
+  //       parts.add('$key=$value');
+  //     }
+  //   }
 
-    return parts.join('&');
-  }
+  //   return parts.join('&');
+  // }
 
   /// 生成 MD5 哈希
   static String _generateMD5(String input) {
@@ -200,9 +201,9 @@ class SignatureUtils {
     final signature = generateSignature(options: options);
     
     // 输出调试信息
-    print('=== 签名生成测试 ===');
-    print('Header参数: ${options.headers}');
-    print('Body参数: ${options.data}');
+    logDebug('=== 签名生成测试 ===', tag: 'SignatureUtils');
+    logDebug('Header参数: ${options.headers}', tag: 'SignatureUtils');
+    logDebug('Body参数: ${options.data}', tag: 'SignatureUtils');
     
     // 手动构建签名字符串用于验证
     final allParams = <String, String>{
@@ -217,10 +218,10 @@ class SignatureUtils {
     final sortedKeys = allParams.keys.toList()..sort();
     final signString = sortedKeys.map((key) => allParams[key]).join('') + 'TYXHTRrGeP8xy095q0iY';
     
-    print('排序后的参数: $sortedKeys');
-    print('拼接字符串: $signString');
-    print('生成的签名: $signature');
-    print('==================');
+    logDebug('排序后的参数: $sortedKeys', tag: 'SignatureUtils');
+    logDebug('拼接字符串: $signString', tag: 'SignatureUtils');
+    logDebug('生成的签名: $signature', tag: 'SignatureUtils');
+    logDebug('==================', tag: 'SignatureUtils');
     
     return signature;
   }

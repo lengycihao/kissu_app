@@ -1,6 +1,7 @@
 import 'package:usage_stats/usage_stats.dart';
 import 'dart:io';
 import 'app_info_service.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 屏幕使用时长数据模型
 class ScreenUsageData {
@@ -82,7 +83,7 @@ class ScreenUsageService {
       
       return totalTime;
     } catch (e) {
-      print('获取今日屏幕使用时长失败: $e');
+      logger.error('获取今日屏幕使用时长失败: $e', tag: 'ScreenUsageService', error: e);
       return 0;
     }
   }
@@ -105,7 +106,7 @@ class ScreenUsageService {
       
       return totalTime;
     } catch (e) {
-      print('获取指定日期范围屏幕使用时长失败: $e');
+      logger.error('获取指定日期范围屏幕使用时长失败: $e', tag: 'ScreenUsageService', error: e);
       return 0;
     }
   }
@@ -135,7 +136,7 @@ class ScreenUsageService {
       
       return limitedStats;
     } catch (e) {
-      print('获取今日应用使用详情失败: $e');
+      logger.error('获取今日应用使用详情失败: $e', tag: 'ScreenUsageService', error: e);
       return [];
     }
   }
@@ -166,7 +167,7 @@ class ScreenUsageService {
       
       return limitedStats;
     } catch (e) {
-      print('获取应用使用详情失败: $e');
+      logger.error('获取应用使用详情失败: $e', tag: 'ScreenUsageService', error: e);
       return [];
     }
   }
@@ -194,7 +195,7 @@ class ScreenUsageService {
 
       return result;
     } catch (e) {
-      print('获取过去${days}天屏幕使用时长失败: $e');
+      logger.error('获取过去${days}天屏幕使用时长失败: $e', tag: 'ScreenUsageService', error: e);
       return {};
     }
   }
@@ -221,7 +222,7 @@ class ScreenUsageService {
         eventTypeCounts[eventType] = (eventTypeCounts[eventType] ?? 0) + 1;
       }
       
-      print('📊 事件类型统计: $eventTypeCounts');
+      logger.debug('📊 事件类型统计: $eventTypeCounts', tag: 'ScreenUsageService');
       
       // Android UsageEvents 事件类型：
       // 1 = SCREEN_INTERACTIVE (屏幕交互/亮起)
@@ -249,28 +250,28 @@ class ScreenUsageService {
         }
       }
       
-      print('📊 USER_UNLOCKED(18): $userUnlockedCount, KEYGUARD_HIDDEN(6): $keyguardHiddenCount, SCREEN_INTERACTIVE(1): $screenInteractiveCount');
+      logger.debug('📊 USER_UNLOCKED(18): $userUnlockedCount, KEYGUARD_HIDDEN(6): $keyguardHiddenCount, SCREEN_INTERACTIVE(1): $screenInteractiveCount', tag: 'ScreenUsageService');
       
       // 优先使用 USER_UNLOCKED 事件（最准确）
       if (userUnlockedCount > 0) {
         unlockCount = userUnlockedCount;
-        print('✅ 使用 USER_UNLOCKED 事件统计解锁次数');
+        logger.debug('✅ 使用 USER_UNLOCKED 事件统计解锁次数', tag: 'ScreenUsageService');
       } 
       // 其次使用 KEYGUARD_HIDDEN 事件
       else if (keyguardHiddenCount > 0) {
         unlockCount = keyguardHiddenCount;
-        print('✅ 使用 KEYGUARD_HIDDEN 事件统计解锁次数');
+        logger.debug('✅ 使用 KEYGUARD_HIDDEN 事件统计解锁次数', tag: 'ScreenUsageService');
       }
       // 兜底：使用智能过滤算法
       else if (screenInteractiveCount > 0) {
-        print('⚠️ 设备不支持 USER_UNLOCKED 和 KEYGUARD_HIDDEN 事件，使用智能过滤');
+        logger.warning('⚠️ 设备不支持 USER_UNLOCKED 和 KEYGUARD_HIDDEN 事件，使用智能过滤', tag: 'ScreenUsageService');
         unlockCount = _filterScreenInteractiveEvents(events);
       }
       
-      print('📊 今日解锁次数: $unlockCount');
+      logger.debug('📊 今日解锁次数: $unlockCount', tag: 'ScreenUsageService');
       return unlockCount;
     } catch (e) {
-      print('获取今日解锁次数失败: $e');
+      logger.error('获取今日解锁次数失败: $e', tag: 'ScreenUsageService', error: e);
       return 0;
     }
   }
@@ -332,12 +333,12 @@ class ScreenUsageService {
                 currentInteractiveTime.difference(lastUnlockTime).inMinutes >= 2) {
               unlockCount++;
               lastUnlockTime = currentInteractiveTime;
-              print('🔓 解锁时间: ${currentInteractiveTime.hour}:${currentInteractiveTime.minute}, 使用时长: ${duration.inSeconds}秒');
+              logger.debug('🔓 解锁时间: ${currentInteractiveTime.hour}:${currentInteractiveTime.minute}, 使用时长: ${duration.inSeconds}秒', tag: 'ScreenUsageService');
             } else {
-              print('⏭️ 跳过：距离上次解锁不到2分钟 (${currentInteractiveTime.hour}:${currentInteractiveTime.minute})');
+              logger.debug('⏭️ 跳过：距离上次解锁不到2分钟 (${currentInteractiveTime.hour}:${currentInteractiveTime.minute})', tag: 'ScreenUsageService');
             }
           } else {
-            print('⏭️ 跳过：使用时长不足3秒 (${duration.inSeconds}秒)');
+            logger.debug('⏭️ 跳过：使用时长不足3秒 (${duration.inSeconds}秒)', tag: 'ScreenUsageService');
           }
           
           currentInteractiveTime = null;
@@ -354,7 +355,7 @@ class ScreenUsageService {
         if (lastUnlockTime == null || 
             currentInteractiveTime.difference(lastUnlockTime).inMinutes >= 2) {
           unlockCount++;
-          print('🔓 解锁时间: ${currentInteractiveTime.hour}:${currentInteractiveTime.minute}, 使用中... (${duration.inSeconds}秒)');
+          logger.debug('🔓 解锁时间: ${currentInteractiveTime.hour}:${currentInteractiveTime.minute}, 使用中... (${duration.inSeconds}秒)', tag: 'ScreenUsageService');
         }
       }
     }
@@ -401,7 +402,7 @@ class ScreenUsageService {
         );
       }).toList();
     } catch (e) {
-      print('查询使用统计失败: $e');
+      logger.error('查询使用统计失败: $e', tag: 'ScreenUsageService', error: e);
       return [];
     }
   }
@@ -421,7 +422,7 @@ class ScreenUsageService {
         };
       }).toList();
     } catch (e) {
-      print('查询事件统计失败: $e');
+      logger.error('查询事件统计失败: $e', tag: 'ScreenUsageService', error: e);
       return [];
     }
   }
@@ -435,7 +436,7 @@ class ScreenUsageService {
     try {
       return await UsageStats.checkUsagePermission() ?? false;
     } catch (e) {
-      print('检查使用统计权限失败: $e');
+      logger.error('检查使用统计权限失败: $e', tag: 'ScreenUsageService', error: e);
       return false;
     }
   }
@@ -449,7 +450,7 @@ class ScreenUsageService {
     try {
       await UsageStats.grantUsagePermission();
     } catch (e) {
-      print('请求使用统计权限失败: $e');
+      logger.error('请求使用统计权限失败: $e', tag: 'ScreenUsageService', error: e);
     }
   }
 }

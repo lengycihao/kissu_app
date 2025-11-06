@@ -10,6 +10,7 @@ import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/public/photo_wall_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 图片弹窗工具类
 class ImageDialogUtil {
@@ -123,7 +124,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         CustomToast.show(context, '权限未授予，无法选择图片');
       }
     } catch (e) {
-      print('选择照片失败: $e');
+      logError('选择照片失败: $e', tag: 'ImageDialog', error: e);
       CustomToast.show(context, '选择照片失败');
     }
   }
@@ -174,7 +175,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         fullscreenDialog: true,
       );
     } catch (e) {
-      print('导航到裁剪页面失败: $e');
+      logError('导航到裁剪页面失败: $e', tag: 'ImageDialog', error: e);
       CustomToast.show(context, '打开裁剪页面失败');
     }
   }
@@ -208,7 +209,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       
       // 获取上传后的图片URL
       final photoWallUrl = uploadResult.data!;
-      print('📸 图片上传成功，URL: $photoWallUrl');
+      logDebug('📸 图片上传成功，URL: $photoWallUrl', tag: 'ImageDialog');
       
       // 第二步：调用保存照片墙接口
       final saveResult = await _photoWallApi.savePhotoWall(photoWallUrl);
@@ -234,7 +235,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       setState(() {
         _isUploading = false;
       });
-      print('照片墙保存失败: $e');
+      logError('照片墙保存失败: $e', tag: 'ImageDialog', error: e);
       CustomToast.show(context, '操作失败: $e');
     }
   }

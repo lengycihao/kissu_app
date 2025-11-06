@@ -27,7 +27,9 @@ class _AgreementRichTextState extends State<AgreementRichText> {
   }
 
   @override
-  void dispose() {
+  void dispose() { 
+
+    
     _agreementTap.dispose();
     _privacyTap.dispose();
     super.dispose();

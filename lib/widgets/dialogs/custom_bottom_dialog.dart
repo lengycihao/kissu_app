@@ -5,6 +5,7 @@ import 'transparent_banner_widget.dart';
 import 'gradient_content_widget.dart';
 import 'custom_bottom_dialog_controller.dart';
 import 'binding_close_confirm_dialog.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 自定义底部弹窗组件
 class CustomBottomDialog extends GetView<CustomBottomDialogController> {
@@ -268,7 +269,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     void focusListener() {
       // 只有在 FocusNode 未释放、失去焦点且不是手动关闭时才自动关闭
       if (!isDisposed && !focusNode.hasFocus && !manualClose) {
-        print('输入框失去焦点，关闭输入弹窗');
+        logDebug('输入框失去焦点，关闭输入弹窗', tag: 'CustomBottomDialog');
         // 延迟一帧执行关闭操作，避免在 listener 中操作导致状态混乱
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!isDisposed && (Get.isBottomSheetOpen ?? false)) {

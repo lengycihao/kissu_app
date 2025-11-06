@@ -51,6 +51,9 @@ class LocationPickerPage extends StatelessWidget {
 
           // 底部信息面板
           _buildBottomPanel(context),
+
+          // 地图logo - 悬浮在地图上，位置在底部面板左上角
+          _buildMapLogo(context),
         ],
       ),
     );
@@ -512,9 +515,19 @@ class LocationPickerPage extends StatelessWidget {
       );
     });
   }
-  
-   
 
+  /// 构建地图logo - 悬浮在底部面板左上角
+  Widget _buildMapLogo(BuildContext context) {
+    return Positioned(
+      bottom: 370, // 根据底部面板的高度计算，让logo在面板上方
+      left: 14,
+      child: Image.asset(
+        'assets/map_logo.webp',
+        width: 68,
+        height: 22,
+      ),
+    );
+  }
 }
 
  

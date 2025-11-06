@@ -21,4 +21,5 @@ class HttpHeaderKey {
   static const String mobileModel = 'mobile-model';
   static const String power = 'power';
   static const String brand = 'brand';
+  static const String oaid = 'oaid';  // OAID（Open Anonymous Device Identifier）
 }

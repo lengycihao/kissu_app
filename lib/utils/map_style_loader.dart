@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 地图自定义样式加载工具类
 class MapStyleLoader {
@@ -28,13 +29,13 @@ class MapStyleLoader {
         styleExtraData: styleExtraData,
       );
 
-      print('✅ 地图自定义样式加载成功');
-      print('   style.data 大小: ${styleData.length} bytes');
-      print('   style_extra.data 大小: ${styleExtraData.length} bytes');
+      logger.info('✅ 地图自定义样式加载成功', tag: 'MapStyleLoader');
+      logger.debug('   style.data 大小: ${styleData.length} bytes', tag: 'MapStyleLoader');
+      logger.debug('   style_extra.data 大小: ${styleExtraData.length} bytes', tag: 'MapStyleLoader');
 
       return _cachedCustomStyle!;
     } catch (e) {
-      print('❌ 地图自定义样式加载失败: $e');
+      logger.error('❌ 地图自定义样式加载失败: $e', tag: 'MapStyleLoader', error: e);
       
       // 加载失败时返回禁用状态
       _cachedCustomStyle = CustomStyleOptions(false);
@@ -51,9 +52,9 @@ class MapStyleLoader {
   static Future<void> preloadMapStyle() async {
     try {
       await getCustomMapStyle();
-      print('✅ 地图样式预加载完成');
+      logger.info('✅ 地图样式预加载完成', tag: 'MapStyleLoader');
     } catch (e) {
-      print('❌ 地图样式预加载失败: $e');
+      logger.error('❌ 地图样式预加载失败: $e', tag: 'MapStyleLoader', error: e);
     }
   }
 }

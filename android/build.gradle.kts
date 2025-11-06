@@ -12,7 +12,11 @@ allprojects {
         // JPush 官方仓库
         maven { url = uri("https://repo1.maven.org/maven2/") }
         maven { url = uri("https://oss.sonatype.org/content/repositories/releases/") }
+        
+        // 华为 & 荣耀 OAID 依赖库（用于 flutter_android_oaid_plugin）
         maven { url = uri("https://developer.huawei.com/repo/") }
+        maven { url = uri("https://developer.hihonor.com/repo/") }
+        
         maven { url = uri("https://jitpack.io") }
         
         // OpenInstall 官方仓库

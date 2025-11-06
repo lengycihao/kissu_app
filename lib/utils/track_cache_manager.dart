@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 轨迹数据缓存管理器
 /// 专门缓存今天之前的历史轨迹数据，提高加载速度
@@ -52,10 +53,10 @@ class TrackCacheManager {
       
       // 只缓存今天之前的数据
       final shouldCache = targetDateOnly.isBefore(todayDate);
-      print('📅 缓存检查: $date ${shouldCache ? "应该缓存" : "不应缓存"}');
+      logger.debug('📅 缓存检查: $date ${shouldCache ? "应该缓存" : "不应缓存"}', tag: 'TrackCacheManager');
       return shouldCache;
     } catch (e) {
-      print('❌ 日期解析失败: $date, $e');
+      logger.error('❌ 日期解析失败: $date, $e', tag: 'TrackCacheManager', error: e);
       return false;
     }
   }
@@ -64,7 +65,7 @@ class TrackCacheManager {
   Future<LocationResponse?> getCachedTrackData(String date, int isOneself) async {
     // 检查是否应该使用缓存
     if (!_shouldCacheDate(date)) {
-      print('🚫 $date 是今天或未来日期，不使用缓存');
+      logger.debug('🚫 $date 是今天或未来日期，不使用缓存', tag: 'TrackCacheManager');
       return null;
     }
     
@@ -77,7 +78,7 @@ class TrackCacheManager {
       final metaData = prefs.getString(metaKey);
       
       if (cachedData == null || metaData == null) {
-        print('💾 无缓存数据: $date, isOneself=$isOneself');
+        logger.debug('💾 无缓存数据: $date, isOneself=$isOneself', tag: 'TrackCacheManager');
         return null;
       }
       
@@ -88,7 +89,7 @@ class TrackCacheManager {
       
       // 检查缓存是否过期（超过30天）
       if (now.difference(cacheTime).inDays > _maxCacheAgeDays) {
-        print('⏰ 缓存已过期: $date, 缓存时间: $cacheTime');
+        logger.debug('⏰ 缓存已过期: $date, 缓存时间: $cacheTime', tag: 'TrackCacheManager');
         await _removeCacheData(date, isOneself);
         return null;
       }
@@ -97,11 +98,11 @@ class TrackCacheManager {
       final jsonData = jsonDecode(cachedData);
       final locationResponse = LocationResponse.fromJson(jsonData);
       
-      print('✅ 使用缓存数据: $date, isOneself=$isOneself, 缓存时间: $cacheTime');
+      logger.debug('✅ 使用缓存数据: $date, isOneself=$isOneself, 缓存时间: $cacheTime', tag: 'TrackCacheManager');
       return locationResponse;
       
     } catch (e) {
-      print('❌ 获取缓存数据失败: $e');
+      logger.error('❌ 获取缓存数据失败: $e', tag: 'TrackCacheManager', error: e);
       await _removeCacheData(date, isOneself); // 清除损坏的缓存
       return null;
     }
@@ -111,7 +112,7 @@ class TrackCacheManager {
   Future<void> cacheTrackData(String date, int isOneself, LocationResponse data) async {
     // 检查是否应该缓存
     if (!_shouldCacheDate(date)) {
-      print('🚫 $date 是今天或未来日期，不进行缓存');
+      logger.debug('🚫 $date 是今天或未来日期，不进行缓存', tag: 'TrackCacheManager');
       return;
     }
     
@@ -135,13 +136,13 @@ class TrackCacheManager {
       await prefs.setString(cacheKey, jsonData);
       await prefs.setString(metaKey, jsonEncode(meta));
       
-      print('💾 缓存数据成功: $date, isOneself=$isOneself, 大小: ${jsonData.length} bytes');
+      logger.debug('💾 缓存数据成功: $date, isOneself=$isOneself, 大小: ${jsonData.length} bytes', tag: 'TrackCacheManager');
       
       // 清理旧缓存
       await _cleanupOldCache();
       
     } catch (e) {
-      print('❌ 缓存数据失败: $e');
+      logger.error('❌ 缓存数据失败: $e', tag: 'TrackCacheManager', error: e);
     }
   }
   
@@ -155,9 +156,9 @@ class TrackCacheManager {
       await prefs.remove(cacheKey);
       await prefs.remove(metaKey);
       
-      print('🗑️ 移除缓存数据: $date, isOneself=$isOneself');
+      logger.debug('🗑️ 移除缓存数据: $date, isOneself=$isOneself', tag: 'TrackCacheManager');
     } catch (e) {
-      print('❌ 移除缓存数据失败: $e');
+      logger.error('❌ 移除缓存数据失败: $e', tag: 'TrackCacheManager', error: e);
     }
   }
   
@@ -189,7 +190,7 @@ class TrackCacheManager {
             final date = meta['date'];
             final isOneself = meta['isOneself'];
             await _removeCacheData(date, isOneself);
-            print('🗑️ 移除过期缓存: $date, isOneself=$isOneself');
+            logger.debug('🗑️ 移除过期缓存: $date, isOneself=$isOneself', tag: 'TrackCacheManager');
             continue;
           }
           
@@ -201,7 +202,7 @@ class TrackCacheManager {
             'isOneself': meta['isOneself'],
           });
         } catch (e) {
-          print('❌ 处理缓存元数据失败: $metaKey, $e');
+          logger.error('❌ 处理缓存元数据失败: $metaKey, $e', tag: 'TrackCacheManager', error: e);
           await prefs.remove(metaKey);
         }
       }
@@ -214,14 +215,14 @@ class TrackCacheManager {
         final toRemove = cacheEntries.take(cacheEntries.length - _maxCacheSize);
         for (final entry in toRemove) {
           await _removeCacheData(entry['date'], entry['isOneself']);
-          print('🗑️ 移除旧缓存: ${entry['date']}, isOneself=${entry['isOneself']}');
+          logger.debug('🗑️ 移除旧缓存: ${entry['date']}, isOneself=${entry['isOneself']}', tag: 'TrackCacheManager');
         }
       }
       
-      print('🧹 缓存清理完成，当前缓存条目数: ${cacheEntries.length > _maxCacheSize ? _maxCacheSize : cacheEntries.length}');
+      logger.debug('🧹 缓存清理完成，当前缓存条目数: ${cacheEntries.length > _maxCacheSize ? _maxCacheSize : cacheEntries.length}', tag: 'TrackCacheManager');
       
     } catch (e) {
-      print('❌ 清理缓存失败: $e');
+      logger.error('❌ 清理缓存失败: $e', tag: 'TrackCacheManager', error: e);
     }
   }
   
@@ -239,9 +240,9 @@ class TrackCacheManager {
         await prefs.remove(key);
       }
       
-      print('🗑️ 清除所有轨迹缓存完成，移除 ${cacheKeys.length} 个条目');
+      logger.info('🗑️ 清除所有轨迹缓存完成，移除 ${cacheKeys.length} 个条目', tag: 'TrackCacheManager');
     } catch (e) {
-      print('❌ 清除所有缓存失败: $e');
+      logger.error('❌ 清除所有缓存失败: $e', tag: 'TrackCacheManager', error: e);
     }
   }
   
@@ -296,6 +297,6 @@ class TrackCacheManager {
   Future<void> preloadCommonDates() async {
     // 这个方法可以在应用启动时调用，预加载最近几天的数据
     // 目前暂时留空，可以根据使用模式来优化
-    print('🔥 预热缓存功能暂未实现');
+    logger.debug('🔥 预热缓存功能暂未实现', tag: 'TrackCacheManager');
   }
 }

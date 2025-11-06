@@ -1,6 +1,7 @@
 import 'package:kissu_app/models/screen_time_model.dart';
 import 'package:kissu_app/models/unlock_record_model.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 用机记录数据转换工具类
 /// 将API数据转换为UI模型
@@ -157,7 +158,7 @@ class UsageRecordConverter {
         return DateTime(date.year, date.month, date.day, hour, minute);
       }
     } catch (e) {
-      print('解析时间失败: $timeStr, 错误: $e');
+      logger.error('解析时间失败: $timeStr, 错误: $e', tag: 'UsageRecordConverter', error: e);
     }
     return date;
   }

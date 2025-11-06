@@ -204,6 +204,7 @@ class UserManager {
       return {
         'nickname': '小可爱',
         'matchCode': '1000000',
+        'partnerNickname': '小可爱',
         'avatar': '',
         'isBound': false,
         'partnerAvatar': '',
@@ -215,10 +216,21 @@ class UserManager {
     // 绑定状态处理 (0和2未绑定，1绑定)
     final isBound = user.bindStatus.toString() == "1";
     
+    // 获取另一半昵称（优先从 loverInfo，其次从 halfUserInfo）
+    String partnerNickname = '小可爱';
+    if (isBound) {
+      if (user.loverInfo?.nickname?.isNotEmpty == true) {
+        partnerNickname = user.loverInfo!.nickname!;
+      } else if (user.halfUserInfo?.nickname?.isNotEmpty == true) {
+        partnerNickname = user.halfUserInfo!.nickname!;
+      }
+    }
+    
     return {
       'nickname': user.nickname ?? '小可爱',
       'matchCode': user.friendCode ?? '1000000',
       'avatar': user.headPortrait ?? '',
+      'partnerNickname': partnerNickname,
       'isBound': isBound,
       'partnerAvatar': isBound && user.loverInfo?.headPortrait != null 
         ? user.loverInfo!.headPortrait! 

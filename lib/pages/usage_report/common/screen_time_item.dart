@@ -5,6 +5,7 @@ import 'package:kissu_app/models/screen_time_model.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 屏幕使用时长记录列表项组件（公共组件，可在多个页面复用）
 class ScreenTimeItemWidget extends StatelessWidget {
@@ -139,9 +140,9 @@ class ScreenTimeItemWidget extends StatelessWidget {
         // 上报会员可见按钮埋点
         try {
           await TrackingService.trackMembershipOnly();
-          print('✅ 会员可见按钮埋点上报成功');
+          logDebug('✅ 会员可见按钮埋点上报成功', tag: 'ScreenTimeItem');
         } catch (e) {
-          print('❌ 会员可见按钮埋点上报失败: $e');
+          logError('❌ 会员可见按钮埋点上报失败: $e', tag: 'ScreenTimeItem', error: e);
         }
         
         // 跳转到VIP页面

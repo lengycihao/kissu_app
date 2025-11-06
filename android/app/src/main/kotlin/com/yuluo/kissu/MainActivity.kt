@@ -9,6 +9,10 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.app.usage.UsageStats
+import android.app.usage.UsageStatsManager
+import android.graphics.drawable.BitmapDrawable
+import java.io.ByteArrayOutputStream
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
@@ -59,6 +63,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private val WHITELIST_CHANNEL = "kissu_app/whitelist"
     private val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
     private val SCREEN_LOCK_CHANNEL = "kissu_app/screen_lock"
+    private val APP_USAGE_CHANNEL = "app_usage_channel"
+    private val APP_ICON_CHANNEL = "app_icon_channel"
     
     // 微信支付API
     private var wxApi: IWXAPI? = null
@@ -833,6 +839,134 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                         result.success(appNames)
                     } catch (e: Exception) {
                         result.error("GET_APP_NAMES_FAILED", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // App使用时长通道 - 用于获取已安装应用列表和使用时长统计
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_USAGE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInstalledApps" -> {
+                    // 🔧 优化：在后台线程获取应用列表，避免阻塞主线程
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val apps = getInstalledApps()
+                            withContext(Dispatchers.Main) {
+                                result.success(apps)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "获取已安装应用列表失败", e)
+                            withContext(Dispatchers.Main) {
+                                result.error("GET_APPS_FAILED", e.message, null)
+                            }
+                        }
+                    }
+                }
+                "getAppUsageTime" -> {
+                    val packageName = call.argument<String>("packageName") ?: ""
+                    if (packageName.isEmpty()) {
+                        result.error("INVALID_ARGS", "packageName is required", null)
+                        return@setMethodCallHandler
+                    }
+                    if (!hasUsagePermission()) {
+                        result.error("NO_PERMISSION", "Usage permission not granted", null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val usageTime = getUsageTime(packageName)
+                        result.success(usageTime)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "获取应用使用时长失败", e)
+                        result.error("GET_USAGE_FAILED", e.message, null)
+                    }
+                }
+                "getDetailedUsageData" -> {
+                    // 获取详细的使用数据（每小时使用时长、打开/关闭时间）
+                    val packageName = call.argument<String>("packageName") ?: ""
+                    if (packageName.isEmpty()) {
+                        result.error("INVALID_ARGS", "packageName is required", null)
+                        return@setMethodCallHandler
+                    }
+                    if (!hasUsagePermission()) {
+                        result.error("NO_PERMISSION", "Usage permission not granted", null)
+                        return@setMethodCallHandler
+                    }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val detailedData = getDetailedUsageData(packageName)
+                            withContext(Dispatchers.Main) {
+                                result.success(detailedData)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "获取详细使用数据失败", e)
+                            withContext(Dispatchers.Main) {
+                                result.error("GET_DETAILED_USAGE_FAILED", e.message, null)
+                            }
+                        }
+                    }
+                }
+                "getBatchDetailedUsageData" -> {
+                    // 批量获取多个应用的详细使用数据
+                    val packageNames = call.argument<List<String>>("packageNames") ?: emptyList()
+                    if (packageNames.isEmpty()) {
+                        result.error("INVALID_ARGS", "packageNames is required", null)
+                        return@setMethodCallHandler
+                    }
+                    if (!hasUsagePermission()) {
+                        result.error("NO_PERMISSION", "Usage permission not granted", null)
+                        return@setMethodCallHandler
+                    }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val batchData = packageNames.map { packageName ->
+                                getDetailedUsageData(packageName)
+                            }
+                            withContext(Dispatchers.Main) {
+                                result.success(batchData)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "批量获取详细使用数据失败", e)
+                            withContext(Dispatchers.Main) {
+                                result.error("GET_BATCH_DETAILED_USAGE_FAILED", e.message, null)
+                            }
+                        }
+                    }
+                }
+                "openUsageSettings" -> {
+                    try {
+                        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                        result.success(null)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "打开使用情况设置失败", e)
+                        result.error("OPEN_SETTINGS_FAILED", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // App图标切换通道
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_ICON_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getCurrentIcon" -> {
+                    try {
+                        val currentIcon = getCurrentAppIcon()
+                        result.success(currentIcon)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "获取当前图标失败", e)
+                        result.error("GET_ICON_FAILED", e.message, null)
+                    }
+                }
+                "changeIcon" -> {
+                    val iconId = call.argument<String>("iconId") ?: "default"
+                    try {
+                        val success = changeAppIcon(iconId)
+                        result.success(success)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "切换图标失败", e)
+                        result.error("CHANGE_ICON_FAILED", e.message, null)
                     }
                 }
                 else -> result.notImplemented()
@@ -1898,6 +2032,450 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         // 处理微信支付回调
         if (wxApi != null) {
             wxApi!!.handleIntent(data, this)
+        }
+    }
+    
+    /**
+     * 获取所有已安装应用列表
+     * @return 应用列表，包含应用名称、包名、图标
+     */
+    private fun getInstalledApps(): List<Map<String, Any>> {
+        val pm = packageManager
+        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        val result = mutableListOf<Map<String, Any>>()
+        
+        for (app in apps) {
+            try {
+                // 🔧 过滤系统应用：只显示用户安装的应用
+                // FLAG_SYSTEM: 系统预装应用
+                // FLAG_UPDATED_SYSTEM_APP: 用户更新过的系统应用（保留这类应用，因为用户可能关心）
+                val isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                val isUpdatedSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                
+                // 跳过纯系统应用，保留用户安装的应用和用户更新过的系统应用
+                if (isSystemApp && !isUpdatedSystemApp) {
+                    continue
+                }
+                
+                val appName = pm.getApplicationLabel(app).toString()
+                val packageName = app.packageName
+                val iconDrawable = pm.getApplicationIcon(app)
+                
+                // 🔧 优化：缩小图标尺寸并降低压缩质量，减少内存占用和传输时间
+                val originalBitmap = (iconDrawable as BitmapDrawable).bitmap
+                // 将图标缩放到 64x64（原始可能是 192x192 或更大）
+                val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(
+                    originalBitmap, 
+                    64, 
+                    64, 
+                    true
+                )
+                val stream = ByteArrayOutputStream()
+                // 使用 JPEG 格式和 80% 质量，大幅减小文件大小（PNG 100% -> JPEG 80%）
+                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream)
+                val byteArray = stream.toByteArray()
+                
+                // 回收缩放后的 Bitmap，释放内存
+                if (scaledBitmap != originalBitmap) {
+                    scaledBitmap.recycle()
+                }
+                
+                result.add(
+                    mapOf(
+                        "appName" to appName,
+                        "packageName" to packageName,
+                        "icon" to byteArray
+                    )
+                )
+            } catch (e: Exception) {
+                // 某些应用可能无法获取图标，跳过
+                Log.w("MainActivity", "无法获取应用信息: ${app.packageName}, ${e.message}")
+            }
+        }
+        
+        Log.i("MainActivity", "共获取到 ${result.size} 个用户应用（已过滤系统应用）")
+        
+        // 按应用名称排序
+        return result.sortedBy { (it["appName"] as String).lowercase() }
+    }
+    
+    /**
+     * 检查是否有使用情况访问权限
+     * @return 是否有权限
+     */
+    private fun hasUsagePermission(): Boolean {
+        return try {
+            val appOps = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+            val mode = appOps.checkOpNoThrow(
+                "android:get_usage_stats",
+                android.os.Process.myUid(),
+                packageName
+            )
+            mode == android.app.AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) {
+            Log.e("MainActivity", "检查使用情况权限失败", e)
+            false
+        }
+    }
+    
+    /**
+     * 获取指定应用的使用时长（过去24小时）
+     * @param packageName 应用包名
+     * @return 使用时长（毫秒）
+     */
+    private fun getUsageTime(packageName: String): Int {
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val endTime = System.currentTimeMillis()
+        val startTime = endTime - 24 * 60 * 60 * 1000 // 过去24小时
+        
+        val statsList: List<UsageStats> =
+            usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+        
+        var totalTime = 0L
+        for (stats in statsList) {
+            if (stats.packageName == packageName) {
+                totalTime += stats.totalTimeInForeground
+            }
+        }
+        
+        return totalTime.toInt()
+    }
+    
+    /**
+     * 获取指定应用的详细使用数据（当天每小时使用时长、打开/关闭时间）
+     * @param packageName 应用包名
+     * @return 详细使用数据，包含每小时记录和会话记录
+     */
+    private fun getDetailedUsageData(packageName: String): Map<String, Any> {
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        
+        // 获取当天0点到现在的时间范围
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+        
+        // 获取应用信息
+        val pm = packageManager
+        var appName = packageName
+        var iconBase64 = ""
+        try {
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            appName = pm.getApplicationLabel(appInfo).toString()
+            
+            // 获取应用图标并转换为base64
+            val iconDrawable = pm.getApplicationIcon(appInfo)
+            val originalBitmap = (iconDrawable as BitmapDrawable).bitmap
+            val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(originalBitmap, 64, 64, true)
+            val stream = ByteArrayOutputStream()
+            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream)
+            val byteArray = stream.toByteArray()
+            iconBase64 = android.util.Base64.encodeToString(byteArray, android.util.Base64.NO_WRAP)
+            
+            if (scaledBitmap != originalBitmap) {
+                scaledBitmap.recycle()
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "获取应用信息失败: $packageName", e)
+        }
+        
+        // 获取使用事件（打开和关闭）
+        val events = mutableListOf<Map<String, Any>>()
+        val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
+        val event = android.app.usage.UsageEvents.Event()
+        
+        // 收集该应用的所有事件
+        val appEvents = mutableListOf<Pair<Int, Long>>() // (eventType, timestamp)
+        while (usageEvents.getNextEvent(event)) {
+            if (event.packageName == packageName) {
+                when (event.eventType) {
+                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        appEvents.add(Pair(1, event.timeStamp)) // 1 表示打开
+                    }
+                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        appEvents.add(Pair(0, event.timeStamp)) // 0 表示关闭
+                    }
+                }
+            }
+        }
+        
+        // 按时间排序
+        appEvents.sortBy { it.second }
+        
+        // 构建会话记录
+        val rawSessions = mutableListOf<Map<String, Any>>()
+        var lastOpenTime: Long? = null
+        
+        for ((eventType, timestamp) in appEvents) {
+            if (eventType == 1) { // 打开
+                lastOpenTime = timestamp
+            } else if (eventType == 0 && lastOpenTime != null) { // 关闭
+                rawSessions.add(mapOf(
+                    "openTime" to lastOpenTime,
+                    "closeTime" to timestamp,
+                    "duration" to (timestamp - lastOpenTime)
+                ))
+                lastOpenTime = null
+            }
+        }
+        
+        // 如果应用仍在前台（有打开但没有关闭），使用当前时间作为关闭时间
+        if (lastOpenTime != null) {
+            rawSessions.add(mapOf(
+                "openTime" to lastOpenTime,
+                "closeTime" to endTime,
+                "duration" to (endTime - lastOpenTime)
+            ))
+        }
+        
+        // 🔧 二次处理：合并连续会话并过滤噪音数据
+        val sessions = cleanupSessions(rawSessions)
+        
+        // 按小时分组统计（会话按开始时间分组，保留完整的打开/关闭时间）
+        val hourlyRecords = mutableListOf<Map<String, Any>>()
+        val hourMap = mutableMapOf<Int, MutableMap<String, Any>>()
+        
+        // 按会话开始的小时分组，并计算该小时的实际使用时长
+        for (session in sessions) {
+            val openTime = session["openTime"] as Long
+            val closeTime = session["closeTime"] as Long
+            
+            val openCal = java.util.Calendar.getInstance().apply { timeInMillis = openTime }
+            val startHour = openCal.get(java.util.Calendar.HOUR_OF_DAY)
+            
+            // 获取或创建该小时的数据
+            val hourData = hourMap.getOrPut(startHour) { 
+                mutableMapOf(
+                    "totalDuration" to 0L,
+                    "sessions" to mutableListOf<Map<String, Any>>()
+                )
+            }
+            
+            // 计算该会话对当前小时的贡献时长
+            val closeCal = java.util.Calendar.getInstance().apply { timeInMillis = closeTime }
+            val endHour = closeCal.get(java.util.Calendar.HOUR_OF_DAY)
+            
+            val contributedDuration = if (startHour == endHour) {
+                // 同一小时内，完整时长
+                closeTime - openTime
+            } else {
+                // 跨小时，只计算该小时内的时长（从打开时间到该小时结束）
+                val hourEndCal = java.util.Calendar.getInstance().apply {
+                    timeInMillis = openTime
+                    set(java.util.Calendar.HOUR_OF_DAY, startHour)
+                    set(java.util.Calendar.MINUTE, 59)
+                    set(java.util.Calendar.SECOND, 59)
+                    set(java.util.Calendar.MILLISECOND, 999)
+                }
+                minOf(closeTime, hourEndCal.timeInMillis) - openTime
+            }
+            
+            // 累加时长
+            hourData["totalDuration"] = (hourData["totalDuration"] as Long) + contributedDuration
+            
+            // 添加完整的会话记录（保留原始的打开和关闭时间）
+            @Suppress("UNCHECKED_CAST")
+            (hourData["sessions"] as MutableList<Map<String, Any>>).add(session)
+        }
+        
+        // 构建每小时记录（只包含有使用的小时）
+        for ((hour, hourData) in hourMap.entries.sortedBy { it.key }) {
+            val sessionsList = hourData["sessions"] as List<*>
+            hourlyRecords.add(mapOf(
+                "hour" to hour,
+                "totalDuration" to (hourData["totalDuration"] as Long),
+                "sessionCount" to sessionsList.size,  // 该小时开始的会话数
+                "sessions" to sessionsList  // 完整的会话列表（包含原始打开/关闭时间）
+            ))
+        }
+        
+        // 获取日期
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val date = dateFormat.format(java.util.Date(startTime))
+        
+        return mapOf(
+            "appName" to appName,
+            "packageName" to packageName,
+            "iconBase64" to iconBase64,
+            "date" to date,
+            "totalSessions" to sessions.size,  // 总会话数（清洗后的会话数量）
+            "hourlyRecords" to hourlyRecords
+        )
+    }
+    
+    /**
+     * 清理会话数据：合并连续会话并过滤噪音数据
+     * 
+     * 处理规则：
+     * 1. 过滤掉时长小于3秒的会话（可能是误触或系统切换）
+     * 2. 如果两个会话之间的间隔小于10秒，合并为一个会话
+     * 
+     * @param rawSessions 原始会话列表
+     * @return 清理后的会话列表
+     */
+    private fun cleanupSessions(rawSessions: List<Map<String, Any>>): List<Map<String, Any>> {
+        if (rawSessions.isEmpty()) {
+            return emptyList()
+        }
+        
+        // 第一步：过滤掉时长太短的会话（小于3秒）
+        val MIN_DURATION = 3000L // 3秒
+        val validSessions = rawSessions.filter { session ->
+            val duration = session["duration"] as Long
+            duration >= MIN_DURATION
+        }
+        
+        if (validSessions.isEmpty()) {
+            return emptyList()
+        }
+        
+        // 第二步：合并连续的会话
+        val MERGE_THRESHOLD = 10000L // 10秒
+        val mergedSessions = mutableListOf<MutableMap<String, Any>>()
+        
+        var currentSession = validSessions[0].toMutableMap()
+        
+        for (i in 1 until validSessions.size) {
+            val nextSession = validSessions[i]
+            val currentCloseTime = currentSession["closeTime"] as Long
+            val nextOpenTime = nextSession["openTime"] as Long
+            
+            // 计算两个会话之间的间隔
+            val gap = nextOpenTime - currentCloseTime
+            
+            if (gap <= MERGE_THRESHOLD) {
+                // 间隔小于10秒，合并会话
+                // 保持当前会话的打开时间，更新关闭时间为下一个会话的关闭时间
+                val nextCloseTime = nextSession["closeTime"] as Long
+                val currentOpenTime = currentSession["openTime"] as Long
+                
+                currentSession["closeTime"] = nextCloseTime
+                currentSession["duration"] = nextCloseTime - currentOpenTime
+                
+                Log.d("MainActivity", "合并会话: 间隔 ${gap}ms, " +
+                        "原始时长 ${validSessions[i-1]["duration"]}ms + ${nextSession["duration"]}ms -> " +
+                        "合并后 ${currentSession["duration"]}ms")
+            } else {
+                // 间隔超过10秒，保存当前会话，开始新会话
+                mergedSessions.add(currentSession)
+                currentSession = nextSession.toMutableMap()
+            }
+        }
+        
+        // 添加最后一个会话
+        mergedSessions.add(currentSession)
+        
+        // 第三步：再次过滤，去掉合并后仍然很短的会话（小于5秒）
+        val FINAL_MIN_DURATION = 5000L // 5秒
+        val finalSessions = mergedSessions.filter { session ->
+            val duration = session["duration"] as Long
+            duration >= FINAL_MIN_DURATION
+        }
+        
+        Log.i("MainActivity", "会话清理完成: 原始 ${rawSessions.size} -> " +
+                "过滤噪音后 ${validSessions.size} -> " +
+                "合并后 ${mergedSessions.size} -> " +
+                "最终 ${finalSessions.size} 个会话")
+        
+        return finalSessions
+    }
+    
+    /**
+     * 获取当前使用的图标ID
+     */
+    private fun getCurrentAppIcon(): String {
+        val pm = packageManager
+        
+        // 检查logo_one是否启用
+        val logoOneState = pm.getComponentEnabledSetting(
+            android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoOne")
+        )
+        if (logoOneState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+            return "logo_one"
+        }
+        
+        // 检查logo_two是否启用
+        val logoTwoState = pm.getComponentEnabledSetting(
+            android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoTwo")
+        )
+        if (logoTwoState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+            return "logo_two"
+        }
+        
+        // 默认使用MainActivity原始图标
+        return "default"
+    }
+    
+    /**
+     * 切换App图标
+     * @param iconId 图标ID：default、logo_one 或 logo_two
+     * @return 是否切换成功
+     */
+    private fun changeAppIcon(iconId: String): Boolean {
+        try {
+            val pm = packageManager
+            
+            // 定义所有activity-alias的组件名
+            val logoOneComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoOne")
+            val logoTwoComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoTwo")
+            
+            // 根据iconId决定启用哪个alias
+            when (iconId) {
+                "default" -> {
+                    // 使用默认图标（MainActivity），禁用所有alias
+                    pm.setComponentEnabledSetting(
+                        logoOneComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    pm.setComponentEnabledSetting(
+                        logoTwoComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    Log.d("MainActivity", "切换到默认图标")
+                }
+                "logo_one" -> {
+                    // 启用logo_one图标，禁用其他alias
+                    pm.setComponentEnabledSetting(
+                        logoOneComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    pm.setComponentEnabledSetting(
+                        logoTwoComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    Log.d("MainActivity", "切换到logo_one图标")
+                }
+                "logo_two" -> {
+                    // 启用logo_two图标，禁用其他alias
+                    pm.setComponentEnabledSetting(
+                        logoOneComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    pm.setComponentEnabledSetting(
+                        logoTwoComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    Log.d("MainActivity", "切换到logo_two图标")
+                }
+                else -> {
+                    Log.e("MainActivity", "未知的图标ID: $iconId")
+                    return false
+                }
+            }
+            
+            return true
+        } catch (e: Exception) {
+            Log.e("MainActivity", "切换图标失败", e)
+            return false
         }
     }
 

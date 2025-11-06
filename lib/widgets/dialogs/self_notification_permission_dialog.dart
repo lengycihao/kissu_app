@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/permission_service.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 自己是否打开通知权限弹窗
 class SelfNotificationPermissionDialog extends StatelessWidget {
@@ -20,7 +21,7 @@ class SelfNotificationPermissionDialog extends StatelessWidget {
       await permissionService.openNotificationSettings();
       onGoSettings?.call();
     } catch (e) {
-      print('跳转通知设置失败: $e');
+      logError('跳转通知设置失败: $e', tag: 'SelfNotificationPermission', error: e);
     }
   }
 

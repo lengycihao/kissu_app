@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import '../utils/map_style_loader.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 安全的高德地图包装器
 /// 功能：
@@ -77,7 +78,7 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
   @override
   void initState() {
     super.initState();
-    print('🗺️ SafeAMapWidget 初始化开始');
+    logDebug('🗺️ SafeAMapWidget 初始化开始', tag: 'SafeAMapWidget');
     
     // 加载自定义地图样式
     _loadCustomMapStyle();
@@ -92,7 +93,7 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
             setState(() {
               _shouldRender = true;
             });
-            print('🗺️ SafeAMapWidget 渲染已启用');
+            logDebug('🗺️ SafeAMapWidget 渲染已启用', tag: 'SafeAMapWidget');
           }
         });
       }
@@ -102,27 +103,27 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
   /// 加载自定义地图样式
   Future<void> _loadCustomMapStyle() async {
     if (!widget.enableCustomStyle) {
-      print('🗺️ SafeAMapWidget 自定义样式已禁用');
+      logDebug('🗺️ SafeAMapWidget 自定义样式已禁用', tag: 'SafeAMapWidget');
       return;
     }
 
     try {
       _customStyleOptions = await MapStyleLoader.getCustomMapStyle();
-      print('🗺️ SafeAMapWidget 自定义样式加载成功');
+      logDebug('🗺️ SafeAMapWidget 自定义样式加载成功', tag: 'SafeAMapWidget');
     } catch (e) {
-      print('🗺️ SafeAMapWidget 自定义样式加载失败: $e');
+      logWarning('🗺️ SafeAMapWidget 自定义样式加载失败: $e', tag: 'SafeAMapWidget', error: e);
       _customStyleOptions = null;
     }
   }
 
   @override
   void dispose() {
-    print('🗺️ SafeAMapWidget 销毁');
+    logDebug('🗺️ SafeAMapWidget 销毁', tag: 'SafeAMapWidget');
     super.dispose();
   }
 
   void _onMapCreated(AMapController controller) async {
-    print('🗺️ SafeAMapWidget 地图创建成功');
+    logDebug('🗺️ SafeAMapWidget 地图创建成功', tag: 'SafeAMapWidget');
     
     // 立即完成地图就绪状态
     if (!_mapReadyCompleter.isCompleted) {
@@ -132,16 +133,16 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
     // 立即调用用户的回调，让页面可以开始加载数据
     widget.onMapCreated?.call(controller);
     
-    print('🗺️ SafeAMapWidget 地图就绪完成');
+    logDebug('🗺️ SafeAMapWidget 地图就绪完成', tag: 'SafeAMapWidget');
     
     // 后台异步设置渲染帧率，不阻塞主流程
     Future.delayed(const Duration(milliseconds: 100)).then((_) async {
       if (mounted) {
         try {
           await controller.setRenderFps(30);
-          print('🗺️ SafeAMapWidget 已设置渲染帧率: 30fps');
+          logDebug('🗺️ SafeAMapWidget 已设置渲染帧率: 30fps', tag: 'SafeAMapWidget');
         } catch (e) {
-          print('🗺️ SafeAMapWidget 设置帧率失败: $e');
+          logWarning('🗺️ SafeAMapWidget 设置帧率失败: $e', tag: 'SafeAMapWidget', error: e);
         }
       }
     });

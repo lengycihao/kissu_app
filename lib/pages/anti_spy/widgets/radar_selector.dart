@@ -88,7 +88,7 @@ class RadarAnimationCard extends StatelessWidget {
         child: Column(
           children: [
             // 小型预览
-            Container(
+            SizedBox(
               width: 80,
               height: 80,
               child: RadarSelector(size: 80, type: type),

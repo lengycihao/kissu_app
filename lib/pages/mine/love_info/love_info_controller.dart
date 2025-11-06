@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
-import 'package:kissu_app/pages/mine/mine_controller.dart';
-import 'package:kissu_app/pages/home/home_controller.dart';
+ import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
@@ -23,6 +23,7 @@ import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
@@ -287,7 +288,7 @@ class LoveInfoController extends GetxController {
         CustomToast.show(Get.context!, '权限未授予，无法选择图片');
       }
     } catch (e) {
-      print('选择头像失败: $e');
+      logError('选择头像失败: $e', tag: 'LoveInfo', error: e);
       CustomToast.show(Get.context!, '选择头像失败');
     }
   }
@@ -461,7 +462,7 @@ class LoveInfoController extends GetxController {
         fullscreenDialog: true,
       );
     } catch (e) {
-      print('导航到裁剪页面失败: $e');
+      logError('导航到裁剪页面失败: $e', tag: 'LoveInfo', error: e);
       CustomToast.show(Get.context!, '打开裁剪页面失败');
     }
   }
@@ -473,7 +474,7 @@ class LoveInfoController extends GetxController {
       final file = File(croppedImagePath);
       await _uploadAvatar(file);
     } catch (e) {
-      print('上传裁剪后的图片失败: $e');
+      logError('上传裁剪后的图片失败: $e', tag: 'LoveInfo', error: e);
       CustomToast.show(Get.context!, '头像上传失败');
     }
   }

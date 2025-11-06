@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 权限设置助手类
 /// 通过MethodChannel调用Android原生代码打开具体的权限设置页面
@@ -12,7 +13,7 @@ class PermissionHelper {
     try {
       await _channel.invokeMethod('openLocationSettings');
     } on PlatformException catch (e) {
-      print("打开定位设置失败: ${e.message}");
+      logger.error("打开定位设置失败: ${e.message}", tag: 'PermissionHelper', error: e);
     }
   }
 
@@ -21,7 +22,7 @@ class PermissionHelper {
     try {
       await _channel.invokeMethod('openNotificationSettings');
     } on PlatformException catch (e) {
-      print("打开通知设置失败: ${e.message}");
+      logger.error("打开通知设置失败: ${e.message}", tag: 'PermissionHelper', error: e);
       // 降级到通用应用设置
       await _channel.invokeMethod('openAppSettings');
     }
@@ -32,7 +33,7 @@ class PermissionHelper {
     try {
       await _channel.invokeMethod('openBatteryOptimizationSettings');
     } on PlatformException catch (e) {
-      print("打开电池优化设置失败: ${e.message}");
+      logger.error("打开电池优化设置失败: ${e.message}", tag: 'PermissionHelper', error: e);
       // 降级到通用应用设置
       await _channel.invokeMethod('openAppSettings');
     }
@@ -43,7 +44,7 @@ class PermissionHelper {
     try {
       await _channel.invokeMethod('openUsageAccessSettings');
     } on PlatformException catch (e) {
-      print("打开使用情况访问设置失败: ${e.message}");
+      logger.error("打开使用情况访问设置失败: ${e.message}", tag: 'PermissionHelper', error: e);
       // 降级到通用应用设置
       await _channel.invokeMethod('openAppSettings');
     }
@@ -53,16 +54,16 @@ class PermissionHelper {
   static Future<void> openWifiSettings() async {
     try {
       await _channel.invokeMethod('openWifiSettings');
-      print("✅ WiFi设置页面打开成功");
+      logger.info("✅ WiFi设置页面打开成功", tag: 'PermissionHelper');
     } on PlatformException catch (e) {
-      print("❌ 打开WiFi设置失败 (PlatformException): ${e.message}");
+      logger.error("❌ 打开WiFi设置失败 (PlatformException): ${e.message}", tag: 'PermissionHelper', error: e);
       rethrow;
     } on MissingPluginException catch (e) {
-      print("❌ 打开WiFi设置失败 (MissingPluginException): ${e.message}");
-      print("提示：可能是 MethodChannel 还未初始化完成");
+      logger.error("❌ 打开WiFi设置失败 (MissingPluginException): ${e.message}", tag: 'PermissionHelper', error: e);
+      logger.warning("提示：可能是 MethodChannel 还未初始化完成", tag: 'PermissionHelper');
       rethrow;
     } catch (e) {
-      print("❌ 打开WiFi设置失败 (未知错误): $e");
+      logger.error("❌ 打开WiFi设置失败 (未知错误): $e", tag: 'PermissionHelper', error: e);
       rethrow;
     }
   }
@@ -72,7 +73,7 @@ class PermissionHelper {
     try {
       await _channel.invokeMethod('openAppSettings');
     } on PlatformException catch (e) {
-      print("打开应用设置失败: ${e.message}");
+      logger.error("打开应用设置失败: ${e.message}", tag: 'PermissionHelper', error: e);
     }
   }
 

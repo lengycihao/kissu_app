@@ -57,6 +57,34 @@
             </intent-filter>
         </activity>
         
+        <!-- 动态图标 - 图标一 -->
+        <activity-alias
+            android:name=".MainActivityLogoOne"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_one"
+            android:label="Kissu"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- 动态图标 - 图标二 -->
+        <activity-alias
+            android:name=".MainActivityLogoTwo"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_two"
+            android:label="Kissu"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        
         <!-- 微信回调 Activity：支付/分享/登录 -->
         <activity
             android:name="com.yuluo.kissu.wxapi.WXPayEntryActivity"
@@ -455,5 +483,9 @@
         <package android:name="com.tencent.mobileqqi" />
         <!-- 查询支付宝应用是否存在，用于支付功能 -->
         <package android:name="com.eg.android.AlipayGphone" />
+        <!-- 查询所有已安装的应用，用于app使用时长统计功能 -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
     </queries>
 </manifest>

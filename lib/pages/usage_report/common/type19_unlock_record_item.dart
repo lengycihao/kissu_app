@@ -5,6 +5,7 @@ import '../../../models/unlock_record_model.dart';
 import '../../../services/tracking_service.dart';
 import '../../../utils/user_manager.dart';
 import '../../../routers/kissu_route_path.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 类型19解锁记录专用组件
 /// 包含额外信息（移动距离和停留点）和毛玻璃效果
@@ -83,9 +84,9 @@ class Type19UnlockRecordItemWidget extends StatelessWidget {
         // 上报会员可见按钮埋点
         try {
           await TrackingService.trackMembershipOnly();
-          print('✅ 会员可见按钮埋点上报成功');
+          logDebug('✅ 会员可见按钮埋点上报成功', tag: 'Type19UnlockRecord');
         } catch (e) {
-          print('❌ 会员可见按钮埋点上报失败: $e');
+          logError('❌ 会员可见按钮埋点上报失败: $e', tag: 'Type19UnlockRecord', error: e);
         }
         
         // 跳转到VIP页面

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import '../../../widgets/safe_amap_widget.dart';
 import '../location_v2_controller.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 缓存的地图Widget - 避免不必要的重建
 class CachedMapWidget extends StatefulWidget {
@@ -38,12 +39,14 @@ class _CachedMapWidgetState extends State<CachedMapWidget> {
         _lastMarkersLength = markersLength;
         _lastPolylinesLength = polylinesLength;
 
-        print(
+        logDebug(
           '🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}',
+          tag: 'CachedMapWidget',
         );
         if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
-          print(
+          logDebug(
             '🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}',
+            tag: 'CachedMapWidget',
           );
         }
       }

@@ -33,6 +33,12 @@ import 'package:kissu_app/pages/interaction_message/interaction_message_binding.
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track_play_test/track_play_test_page.dart';
+import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
+import 'package:kissu_app/pages/app_icon_selector/app_icon_selector_page.dart';
+import 'package:kissu_app/pages/mine/device_usage/device_usage_page.dart';
+import 'package:kissu_app/pages/mine/device_usage/device_usage_binding.dart';
+import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_page.dart';
+import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -165,6 +171,28 @@ class KissuRoute {
     GetPage(
       name: KissuRoutePath.trackPlayTest,
       page: () => const TrackPlayTestPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.dialogShowcase,
+      page: () => const DialogShowcasePage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.appIconSelector,
+      page: () => const AppIconSelectorPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.deviceUsage,
+      page: () => const DeviceUsagePage(),
+      binding: DeviceUsageBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.appUsageDetail,
+      page: () => const AppUsageDetailPage(),
+      binding: AppUsageDetailBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

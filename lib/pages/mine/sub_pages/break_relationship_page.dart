@@ -8,6 +8,7 @@ import '../../../services/relationship_animation_service.dart';
 import '../../usage_report/usage_report_controller.dart';
 import '../../home/home_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class BreakRelationshipPage extends StatefulWidget {
   const BreakRelationshipPage({super.key});
@@ -260,7 +261,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
         try {
           final animationService = RelationshipAnimationService.instance;
           animationService.showUnbindAnimation(onComplete: () {
-            print('🎯 解除绑定动画播放完成，返回到我的页面');
+            logDebug('🎯 解除绑定动画播放完成，返回到我的页面', tag: 'BreakRelationship');
             // 动画完成后返回到我的页面
             // 首先返回到上一级页面（隐私设置页面）
             Get.back();
@@ -268,7 +269,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
             Get.back();
           });
         } catch (e) {
-          print('❌ 播放解除绑定动画失败: $e');
+          logError('❌ 播放解除绑定动画失败: $e', tag: 'BreakRelationship', error: e);
           // 如果动画服务失败，直接返回
           Get.back();
           Get.back();
@@ -300,10 +301,10 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       if (Get.isRegistered<HomeController>()) {
         final homeController = Get.find<HomeController>();
         homeController.loadUserInfo();
-        print('✅ 已刷新首页绑定状态');
+        logDebug('✅ 已刷新首页绑定状态', tag: 'BreakRelationship');
       }
     } catch (e) {
-      print('❌ 刷新首页绑定状态失败: $e');
+      logError('❌ 刷新首页绑定状态失败: $e', tag: 'BreakRelationship', error: e);
     }
     
     // 刷新用机记录页面（提前刷新）
@@ -311,10 +312,10 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       if (Get.isRegistered<UsageReportController>()) {
         final usageReportController = Get.find<UsageReportController>();
         usageReportController.loadData();
-        print('✅ 已刷新用机记录页面数据');
+        logDebug('✅ 已刷新用机记录页面数据', tag: 'BreakRelationship');
       }
     } catch (e) {
-      print('❌ 刷新用机记录页面数据失败: $e');
+      logError('❌ 刷新用机记录页面数据失败: $e', tag: 'BreakRelationship', error: e);
     }
   }
 

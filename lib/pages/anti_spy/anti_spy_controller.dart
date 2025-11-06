@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'widgets/radar_selector.dart';
 import '../../utils/permission_helper.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 信号量类，用于控制并发数量
 class Semaphore {
@@ -242,7 +243,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         currentWifiSSID.value = "";
       }
     } catch (e) {
-      print('获取WiFi信息失败: $e');
+      logError('获取WiFi信息失败: $e', tag: 'AntiSpy', error: e);
       isWifiConnected.value = false;
       currentWifiName.value = "获取WiFi信息失败";
     }
@@ -277,7 +278,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     discoveredDevices.clear();
     suspiciousDevices.clear();
     scanProgress.value = 0.0;
-    print('🚀 开始扫描，清空设备列表 (当前设备数: ${discoveredDevices.length})');
+    logDebug('🚀 开始扫描，清空设备列表 (当前设备数: ${discoveredDevices.length})', tag: 'AntiSpy');
     
     // 启动动画
     radarAnimationController.repeat();
@@ -286,7 +287,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     try {
       await _performNetworkScan();
     } catch (e) {
-      print('扫描失败: $e');
+      logError('扫描失败: $e', tag: 'AntiSpy', error: e);
       scanState.value = ScanState.failed;
       _stopAnimations();
     }
@@ -308,7 +309,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       }
       
       final subnet = '${ipParts[0]}.${ipParts[1]}.${ipParts[2]}';
-      print('开始扫描子网: $subnet');
+      logDebug('开始扫描子网: $subnet', tag: 'AntiSpy');
       
       // 第一阶段：PING扫描发现在线设备
       await _performPingScan(subnet);
@@ -320,7 +321,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       _finalizeScan();
       
     } catch (e) {
-      print('网络扫描错误: $e');
+      logError('网络扫描错误: $e', tag: 'AntiSpy', error: e);
       scanState.value = ScanState.failed;
     } finally {
       _stopAnimations();
@@ -330,7 +331,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 执行PING扫描发现在线设备 - 优化版本
   Future<void> _performPingScan(String subnet) async {
-    print('开始快速设备发现...');
+    logDebug('开始快速设备发现...', tag: 'AntiSpy');
     
     // 精简PING端口，只用最有效的几个
     final pingPorts = [80, 443, 22, 5555]; // 减少到4个最有效端口
@@ -340,7 +341,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     for (final port in pingPorts) {
       if (scanState.value != ScanState.scanning) break;
       
-      print('快速扫描端口: $port');
+      logDebug('快速扫描端口: $port', tag: 'AntiSpy');
       
       _scanSubscription = NetworkAnalyzer.discover2(
         subnet, 
@@ -365,7 +366,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 执行端口扫描 - 优化版本
   Future<void> _performPortScan(String subnet) async {
-    print('开始智能端口扫描...');
+    logDebug('开始智能端口扫描...', tag: 'AntiSpy');
     
     // 分层扫描策略：先扫描高价值端口，快速识别设备类型
     final priorityPorts = [
@@ -471,7 +472,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// ARP表扫描（补充发现方法）
   Future<void> _performArpScan(String subnet) async {
-    print('开始ARP表扫描...');
+    logDebug('开始ARP表扫描...', tag: 'AntiSpy');
     try {
       // 在Android/Linux上尝试读取ARP表
       if (Platform.isAndroid || Platform.isLinux) {
@@ -511,7 +512,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         }
       }
     } catch (e) {
-      print('ARP扫描失败: $e');
+      logWarning('ARP扫描失败: $e', tag: 'AntiSpy', error: e);
       // ARP扫描失败不影响主流程
     }
   }
@@ -536,7 +537,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       
       // 添加设备并立即更新UI
       discoveredDevices.add(device);
-      print('🔍 PING发现新设备: $ip - $deviceName (总数: ${discoveredDevices.length})');
+      logDebug('🔍 PING发现新设备: $ip - $deviceName (总数: ${discoveredDevices.length})', tag: 'AntiSpy');
       update(); // 实时更新UI，PING扫描到一个显示一个
       
       // ⚠️ 移除冗余的延迟更新，避免过度刷新UI影响动画
@@ -545,7 +546,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 摄像头专用端口扫描 - 优化版本
   Future<void> _scanCameraPorts(String subnet, List<int> ports, double startProgress, double endProgress, Duration timeout) async {
-    print('开始摄像头专用端口扫描...');
+    logDebug('开始摄像头专用端口扫描...', tag: 'AntiSpy');
     
     // 只扫描最常用的摄像头端口，减少扫描时间
     final priorityCameraPorts = [
@@ -600,7 +601,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     try {
       await Future.wait(futures).timeout(Duration(seconds: 30)); // 30秒总体超时
     } catch (e) {
-      print('摄像头扫描超时或出错: $e');
+      logWarning('摄像头扫描超时或出错: $e', tag: 'AntiSpy', error: e);
     }
   }
   
@@ -628,12 +629,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       if (_isHighRiskCameraPort(port)) {
         if (!suspiciousDevices.any((d) => d.ip == ip)) {
           suspiciousDevices.add(device);
-          print('🚨 发现可疑摄像头设备: $ip:$port - $deviceName');
+          logWarning('🚨 发现可疑摄像头设备: $ip:$port - $deviceName', tag: 'AntiSpy');
         }
       }
       
     } catch (e) {
-      print('轻量级摄像头检测失败 $ip:$port - $e');
+      logWarning('轻量级摄像头检测失败 $ip:$port - $e', tag: 'AntiSpy', error: e);
     }
   }
   
@@ -673,44 +674,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     }
   }
   
-  /// 深度检测摄像头设备
-  Future<void> _deepInspectCameraDevice(String ip, int port) async {
-    try {
-      // 1. HTTP指纹检测
-      String? httpFingerprint = await _getHttpFingerprint(ip, port);
-      
-      // 2. 检测设备类型和置信度
-      final deviceScore = _comprehensiveDeviceAnalysis(ip, port, httpFingerprint);
-      
-      // 3. 创建设备信息
-      final deviceType = deviceScore.suggestedType;
-      final confidence = deviceScore.totalScore;
-      final deviceName = _generateAdvancedDeviceName(ip, port, deviceType, httpFingerprint);
-      
-      final device = DeviceInfo(
-        ip: ip,
-        name: deviceName,
-        type: deviceType,
-        openPorts: [port],
-        httpFingerprint: httpFingerprint,
-        confidence: confidence,
-        responseTime: 0, // TODO: 实际测量响应时间
-      );
-      
-      _addOrUpdateDevice(device);
-      
-      // 判断是否为可疑摄像头设备
-      if (_isHighRiskCameraDevice(device)) {
-        if (!suspiciousDevices.any((d) => d.ip == ip)) {
-          suspiciousDevices.add(device);
-          print('🚨 发现高风险摄像头设备: $ip:$port - $deviceName (置信度: ${(confidence * 100).toStringAsFixed(1)}%)');
-        }
-      }
-      
-    } catch (e) {
-      print('深度检测失败 $ip:$port - $e');
-    }
-  }
+
   
   /// HTTP指纹检测
   Future<String?> _getHttpFingerprint(String ip, int port) async {
@@ -736,7 +700,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       
       client.close();
     } catch (e) {
-      print('HTTP指纹检测失败: $ip:$port - $e');
+      logWarning('HTTP指纹检测失败: $ip:$port - $e', tag: 'AntiSpy', error: e);
     }
     return null;
   }
@@ -784,7 +748,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// HTTP指纹扫描
   Future<void> _performHttpFingerprintScan(double startProgress, double endProgress) async {
-    print('开始HTTP指纹扫描...');
+    logDebug('开始HTTP指纹扫描...', tag: 'AntiSpy');
     
     int totalDevices = discoveredDevices.length;
     int completedDevices = 0;
@@ -842,12 +806,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         openPorts: [port],
       );
       discoveredDevices.add(device);
-      print('🔍 端口扫描发现新设备: $ip:$port - $deviceName (总数: ${discoveredDevices.length})');
+      logDebug('🔍 端口扫描发现新设备: $ip:$port - $deviceName (总数: ${discoveredDevices.length})', tag: 'AntiSpy');
       
       // 判断是否为可疑设备（摄像头常用端口）
       if (_isSuspiciousDevice(port)) {
         suspiciousDevices.add(device);
-        print('⚠️ 发现可疑设备: $ip:$port - $deviceName');
+        logWarning('⚠️ 发现可疑设备: $ip:$port - $deviceName', tag: 'AntiSpy');
       }
       
       // 🎯 批量更新UI，减少刷新频率，避免影响动画
@@ -875,12 +839,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         
         final index = discoveredDevices.indexOf(existingDevice);
         discoveredDevices[index] = updatedDevice;
-        print('🔄 更新设备端口: $ip:$port - ${updatedDevice.name}');
+        logDebug('🔄 更新设备端口: $ip:$port - ${updatedDevice.name}', tag: 'AntiSpy');
         
         // 重新检查是否为可疑设备
         if (_isSuspiciousDevice(port) && !suspiciousDevices.any((d) => d.ip == ip)) {
           suspiciousDevices.add(updatedDevice);
-          print('⚠️ 更新后发现可疑设备: $ip:$port - ${updatedDevice.name}');
+          logWarning('⚠️ 更新后发现可疑设备: $ip:$port - ${updatedDevice.name}', tag: 'AntiSpy');
         }
       }
     }
@@ -1335,59 +1299,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     return score > 1.0 ? 1.0 : score;
   }
   
-  /// 生成高级设备名称
-  String _generateAdvancedDeviceName(String ip, int port, DeviceType type, String? httpFingerprint) {
-    if (type == DeviceType.camera && httpFingerprint != null) {
-      String lowerFingerprint = httpFingerprint.toLowerCase();
-      
-      // 尝试识别具体厂商
-      if (lowerFingerprint.contains('hikvision')) {
-        return '海康威视摄像头';
-      } else if (lowerFingerprint.contains('dahua')) {
-        return '大华摄像头';
-      } else if (lowerFingerprint.contains('axis')) {
-        return 'Axis摄像头';
-      } else if (lowerFingerprint.contains('vivotek')) {
-        return 'Vivotek摄像头';
-      } else if (lowerFingerprint.contains('foscam')) {
-        return 'Foscam摄像头';
-      } else if (lowerFingerprint.contains('tp-link')) {
-        return 'TP-Link摄像头';
-      } else if (lowerFingerprint.contains('xiaomi')) {
-        return '小米摄像头';
-      }
-      
-      return '网络摄像头';
-    }
-    
-    return _generateDeviceName(ip, port, type);
-  }
-  
-  /// 判断是否为高风险摄像头设备
-  bool _isHighRiskCameraDevice(DeviceInfo device) {
-    if (device.type != DeviceType.camera) return false;
-    
-    // 高置信度摄像头
-    if (device.confidence > 0.8) return true;
-    
-    // 多个摄像头端口开放
-    int cameraPortCount = 0;
-    final cameraPorts = [554, 1935, 8000, 8001, 8080, 8443, 37777, 34567];
-    for (int port in device.openPorts) {
-      if (cameraPorts.contains(port)) {
-        cameraPortCount++;
-      }
-    }
-    if (cameraPortCount >= 2) return true;
-    
-    // HTTP指纹包含摄像头厂商信息
-    if (device.httpFingerprint != null && 
-        device.httpFingerprint!.toLowerCase().contains('cameravendor:')) {
-      return true;
-    }
-    
-    return false;
-  }
+   
   
   /// 判断是否为可疑设备
   bool _isSuspiciousDevice(int port) {
@@ -1457,7 +1369,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       await Future.delayed(const Duration(milliseconds: 100));
       await PermissionHelper.openWifiSettings();
     } catch (e) {
-      print("打开WiFi设置失败: $e");
+      logError("打开WiFi设置失败: $e", tag: 'AntiSpy', error: e);
       // 如果原生方法失败，尝试使用 url_launcher 打开设置
       try {
         // 这里可以添加备用方案，比如显示提示信息
@@ -1468,7 +1380,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
           duration: const Duration(seconds: 3),
         );
       } catch (e2) {
-        print("显示提示信息也失败: $e2");
+        logError("显示提示信息也失败: $e2", tag: 'AntiSpy', error: e2);
       }
     }
   }

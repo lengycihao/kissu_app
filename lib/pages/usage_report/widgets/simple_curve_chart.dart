@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:kissu_app/models/screen_time_model.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 简单曲线图组件
 class SimpleCurveChart extends StatelessWidget {
@@ -103,7 +104,7 @@ class SimpleCurveChart extends StatelessWidget {
                       return GestureDetector(
                         // 直接在这里处理点击，绕过内部复杂的手势处理
                         onTapUp: (details) {
-                          print('🎯 卡片级点击: ${details.localPosition}');
+                          logDebug('🎯 卡片级点击: ${details.localPosition}', tag: 'SimpleCurveChart');
                           // 调用图表的点击处理
                           chartKey.currentState?._handleTap(details.localPosition);
                         },
@@ -210,12 +211,12 @@ class _ChartPainterState extends State<_ChartPainter> {
 
     // 如果点击位置在点附近（30像素内），则选中该点
     if (minDistance < 30) {
-      print('📍 选中点 $closestIndex, 距离: ${minDistance.toStringAsFixed(1)}px');
+      logDebug('📍 选中点 $closestIndex, 距离: ${minDistance.toStringAsFixed(1)}px', tag: 'SimpleCurveChart');
       setState(() {
         _selectedIndex = closestIndex;
       });
     } else {
-      print('❌ 点击空白区域, 最近距离: ${minDistance.toStringAsFixed(1)}px, 隐藏 Marker');
+      logDebug('❌ 点击空白区域, 最近距离: ${minDistance.toStringAsFixed(1)}px, 隐藏 Marker', tag: 'SimpleCurveChart');
       setState(() {
         _selectedIndex = null;
       });

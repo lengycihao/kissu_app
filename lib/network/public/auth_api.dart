@@ -158,4 +158,15 @@ class AuthApi {
     );
     return result;
   }
+
+  /// 上传 OAID/IDFA
+  /// 在用户同意隐私政策后调用，上传设备标识符
+  Future<HttpResultN> saveOaidIdfa() async {
+    final result = await HttpManagerN.instance.executePost(
+      ApiRequest.saveOaidIdfa,
+      jsonParam: {},
+      paramEncrypt: false,
+    );
+    return result;
+  }
 }

@@ -12,6 +12,7 @@ import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/oaid_util.dart';
 
 /// 业务请求头拦截器
 /// 自动添加 token、sign、version、channel 等业务相关的请求头
@@ -144,27 +145,44 @@ class BusinessHeaderInterceptor extends Interceptor {
       // DeviceUtil内部已经处理了隐私合规检查
       options.headers[HttpHeaderKey.deviceId] = deviceUtil.deviceId;
       
+      // 动态获取 OAID（每次请求时实时检查隐私合规状态）
+      await _addOaidHeader(options);
+      
       // 设备型号和品牌信息相对不那么敏感，但也要检查隐私状态
       if (_canCollectSensitiveData()) {
         if (_deviceInfo != null) {
           if (Platform.isAndroid) {
-            if (_cachedMobileModel == null || _cachedBrand == null) {
+            // 🔧 修复：检查缓存是否是占位符值，如果是则强制刷新
+            final needsRefresh = _cachedMobileModel == null || 
+                                 _cachedBrand == null ||
+                                 _cachedMobileModel == Platform.operatingSystem ||
+                                 _cachedBrand == Platform.operatingSystem;
+            
+            if (needsRefresh) {
               final androidInfo = await _deviceInfo!.androidInfo;
               _cachedMobileModel = '${androidInfo.brand} ${androidInfo.model}';
               _cachedBrand = androidInfo.brand;
+              DebugUtil.info('设备信息已更新: $_cachedMobileModel');
             }
           } else if (Platform.isIOS) {
-            if (_cachedMobileModel == null || _cachedBrand == null) {
+            // 🔧 修复：检查缓存是否是占位符值，如果是则强制刷新
+            final needsRefresh = _cachedMobileModel == null || 
+                                 _cachedBrand == null ||
+                                 _cachedMobileModel == Platform.operatingSystem ||
+                                 _cachedBrand == Platform.operatingSystem;
+            
+            if (needsRefresh) {
               final iosInfo = await _deviceInfo!.iosInfo;
               _cachedMobileModel = iosInfo.model;
               _cachedBrand = 'Apple';
+              DebugUtil.info('设备信息已更新: $_cachedMobileModel');
             }
           }
         }
       } else {
-        // 隐私政策未同意时使用通用信息
-        _cachedMobileModel = Platform.operatingSystem;
-        _cachedBrand = Platform.operatingSystem;
+        // 隐私政策未同意时使用通用信息（仅在未设置时）
+        _cachedMobileModel ??= Platform.operatingSystem;
+        _cachedBrand ??= Platform.operatingSystem;
       }
 
       if (_cachedMobileModel != null) {
@@ -294,6 +312,34 @@ class BusinessHeaderInterceptor extends Interceptor {
       DebugUtil.error('获取电池信息失败: $e');
       // 使用默认值
       options.headers[HttpHeaderKey.power] = '100';
+    }
+  }
+
+  /// 添加 OAID 到请求头（隐私合规版本）
+  Future<void> _addOaidHeader(RequestOptions options) async {
+    // 只在 Android 平台且隐私合规后添加
+    if (!Platform.isAndroid) {
+      return;
+    }
+
+    // 🔒 隐私合规检查
+    if (!_canCollectSensitiveData()) {
+      DebugUtil.info('隐私政策未同意，跳过 OAID 获取');
+      return;
+    }
+
+    try {
+      // 动态获取 OAID（会使用缓存）
+      final oaid = await OaidUtil.instance.getOaid();
+      if (oaid != null && oaid.isNotEmpty) {
+        options.headers[HttpHeaderKey.oaid] = oaid;
+        DebugUtil.info('OAID 已添加到请求头');
+      } else {
+        DebugUtil.warning('OAID 不可用');
+      }
+    } catch (e) {
+      DebugUtil.error('获取 OAID 失败: $e');
+      // OAID 获取失败不影响请求
     }
   }
   

@@ -3,6 +3,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:usage_stats/usage_stats.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'dart:io';
 
 /// 权限类型枚举
@@ -63,10 +64,10 @@ class PermissionService {
       try {
         // 使用 usage_stats 插件检查权限（静态方法）
         final bool granted = await UsageStats.checkUsagePermission() ?? false;
-        return granted;
-      } catch (e) {
-        print("检查使用情况访问权限时发生错误: $e");
-        return false;
+      return granted;
+    } catch (e) {
+      logger.error("检查使用情况访问权限时发生错误: $e", tag: 'PermissionService', error: e);
+      return false;
       }
     }
     return true; // iOS不需要此权限
@@ -85,10 +86,10 @@ class PermissionService {
 
       final permission = _getPhotosPermission();
       final status = await permission.status;
-      print("相册权限检查: $status");
+      logger.debug("相册权限检查: $status", tag: 'PermissionService');
       return status.isGranted;
     } catch (e) {
-      print("检查相册权限时发生错误: $e");
+      logger.error("检查相册权限时发生错误: $e", tag: 'PermissionService', error: e);
       return false;
     }
   }
@@ -144,7 +145,7 @@ class PermissionService {
     if (Platform.isAndroid) {
       final status = await Permission.locationAlways.request();
       if (status.isGranted) {
-        print("后台定位权限已获取");
+        logger.info("后台定位权限已获取", tag: 'PermissionService');
         return true;
       } else if (status.isPermanentlyDenied) {
         await openAppSettings();
@@ -153,7 +154,7 @@ class PermissionService {
     } else if (Platform.isIOS) {
       final status = await Permission.locationAlways.request();
       if (status.isGranted) {
-        print("后台定位权限已获取");
+        logger.info("后台定位权限已获取", tag: 'PermissionService');
         return true;
       } else if (status.isPermanentlyDenied) {
         await openAppSettings();
@@ -167,7 +168,7 @@ class PermissionService {
   Future<bool> requestNotificationPermission() async {
     final status = await Permission.notification.request();
     if (status.isGranted) {
-      print("通知权限已获取");
+      logger.info("通知权限已获取", tag: 'PermissionService');
       return true;
     } else if (status.isPermanentlyDenied) {
       await openAppSettings();
@@ -193,19 +194,19 @@ class PermissionService {
         // 先检查是否已授权
         final bool isGranted = await isUsageAccessGranted();
         if (isGranted) {
-          print("使用情况访问权限已授权");
+          logger.info("使用情况访问权限已授权", tag: 'PermissionService');
           return true;
         }
         
         // 未授权，跳转到系统设置页面
-        print("跳转到使用情况访问设置页面");
+        logger.info("跳转到使用情况访问设置页面", tag: 'PermissionService');
         await openUsageAccessSettings();
         
         // 等待一段时间后再次检查权限状态
         await Future.delayed(const Duration(milliseconds: 500));
         return await isUsageAccessGranted();
       } catch (e) {
-        print("请求使用情况访问权限时发生错误: $e");
+        logger.error("请求使用情况访问权限时发生错误: $e", tag: 'PermissionService', error: e);
         return false;
       }
     }
@@ -219,47 +220,47 @@ class PermissionService {
       if (Platform.isAndroid) {
         final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
         if (isAndroid13OrAbove) {
-          print("Android 13+ 使用系统Photo Picker，无需申请相册权限");
+          logger.info("Android 13+ 使用系统Photo Picker，无需申请相册权限", tag: 'PermissionService');
           return true;
         }
       }
 
       final permission = _getPhotosPermission();
-      print("开始申请相册权限，权限类型: $permission");
+      logger.debug("开始申请相册权限，权限类型: $permission", tag: 'PermissionService');
       
       // 先检查当前状态
       final currentStatus = await permission.status;
-      print("相册权限当前状态: $currentStatus");
+      logger.debug("相册权限当前状态: $currentStatus", tag: 'PermissionService');
       
       if (currentStatus.isGranted) {
-        print("相册权限已经获得");
+        logger.info("相册权限已经获得", tag: 'PermissionService');
         return true;
       }
       
       if (currentStatus.isPermanentlyDenied) {
-        print("相册权限被永久拒绝，需要跳转到设置页面");
+        logger.warning("相册权限被永久拒绝，需要跳转到设置页面", tag: 'PermissionService');
         await openAppSettings();
         return false;
       }
       
       // 申请权限
-      print("正在弹出系统权限申请对话框...");
+      logger.debug("正在弹出系统权限申请对话框...", tag: 'PermissionService');
       final status = await permission.request();
-      print("权限申请结果: $status");
+      logger.debug("权限申请结果: $status", tag: 'PermissionService');
       
       if (status.isGranted) {
-        print("相册权限已获取");
+        logger.info("相册权限已获取", tag: 'PermissionService');
         return true;
       } else if (status.isPermanentlyDenied) {
-        print("相册权限被永久拒绝");
+        logger.warning("相册权限被永久拒绝", tag: 'PermissionService');
         await openAppSettings();
         return false;
       } else {
-        print("相册权限被拒绝");
+        logger.warning("相册权限被拒绝", tag: 'PermissionService');
         return false;
       }
     } catch (e) {
-      print("申请相册权限时发生错误: $e");
+      logger.error("申请相册权限时发生错误: $e", tag: 'PermissionService', error: e);
       return false;
     }
   }
@@ -274,7 +275,7 @@ class PermissionService {
       return sdkInt >= 33;
     } catch (e) {
       // 获取设备信息失败时，保守返回 false，保持旧逻辑
-      print("获取Android版本信息失败: $e");
+      logger.error("获取Android版本信息失败: $e", tag: 'PermissionService', error: e);
       return false;
     }
   }
@@ -283,7 +284,7 @@ class PermissionService {
   Future<bool> requestCameraPermission() async {
     final status = await Permission.camera.request();
     if (status.isGranted) {
-      print("相机权限已获取");
+      logger.info("相机权限已获取", tag: 'PermissionService');
       return true;
     } else if (status.isPermanentlyDenied) {
       // 权限被永久拒绝，需要跳转到设置页面
@@ -298,7 +299,7 @@ class PermissionService {
     try {
       await PermissionHelper.openAppSettings();
     } catch (e) {
-      print('跳转应用设置失败: $e');
+      logger.error('跳转应用设置失败: $e', tag: 'PermissionService', error: e);
       throw Exception('无法打开应用设置页面');
     }
   }
@@ -308,7 +309,7 @@ class PermissionService {
     try {
       await PermissionHelper.openLocationSettings();
     } catch (e) {
-      print('跳转位置权限设置失败: $e');
+      logger.error('跳转位置权限设置失败: $e', tag: 'PermissionService', error: e);
       throw Exception('无法打开位置权限设置页面');
     }
   }
@@ -318,7 +319,7 @@ class PermissionService {
     try {
       await PermissionHelper.openNotificationSettings();
     } catch (e) {
-      print('跳转通知权限设置失败: $e');
+      logger.error('跳转通知权限设置失败: $e', tag: 'PermissionService', error: e);
       throw Exception('无法打开通知权限设置页面');
     }
   }
@@ -328,7 +329,7 @@ class PermissionService {
     try {
       await PermissionHelper.openBatteryOptimizationSettings();
     } catch (e) {
-      print('跳转电池优化设置失败: $e');
+      logger.error('跳转电池优化设置失败: $e', tag: 'PermissionService', error: e);
       throw Exception('无法打开电池优化设置页面');
     }
   }
@@ -338,7 +339,7 @@ class PermissionService {
     try {
       await PermissionHelper.openUsageAccessSettings();
     } catch (e) {
-      print('跳转使用情况访问权限设置失败: $e');
+      logger.error('跳转使用情况访问权限设置失败: $e', tag: 'PermissionService', error: e);
       throw Exception('无法打开使用情况访问权限设置页面');
     }
   }
@@ -366,7 +367,7 @@ class PermissionService {
           break;
       }
     } catch (e) {
-      print('跳转权限设置失败: $e');
+      logger.error('跳转权限设置失败: $e', tag: 'PermissionService', error: e);
       rethrow; // 重新抛出异常，让调用者处理
     }
   }

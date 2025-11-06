@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
@@ -9,11 +10,11 @@ import 'package:kissu_app/services/relationship_animation_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 调用绑定弹窗的页面类型
 enum BindingDialogCaller {
@@ -55,8 +56,9 @@ class CustomBottomDialogController extends GetxController {
     // 监听输入框变化
     matchCodeController.addListener(() {
       inputMatchCode.value = matchCodeController.text;
-      print(
+      logDebug(
         '输入框内容变化: ${matchCodeController.text}, inputMatchCode: ${inputMatchCode.value}',
+        tag: 'BindingDialog',
       );
     });
 
@@ -95,9 +97,9 @@ class CustomBottomDialogController extends GetxController {
         previousId: pageInfo['id']!,
       );
       
-      print('✅ 绑定页面浏览埋点上报成功: 停留时长=$stayDuration, 上一页=${pageInfo['name']}, 页面ID=${pageInfo['id']}');
+      logDebug('✅ 绑定页面浏览埋点上报成功: 停留时长=$stayDuration, 上一页=${pageInfo['name']}, 页面ID=${pageInfo['id']}', tag: 'BindingDialog');
     } catch (e) {
-      print('❌ 绑定页面浏览埋点上报失败: $e');
+      logError('❌ 绑定页面浏览埋点上报失败: $e', tag: 'BindingDialog', error: e);
     }
   }
 
@@ -134,9 +136,9 @@ class CustomBottomDialogController extends GetxController {
       qrCodeUrl.value = user!.friendQrCode!;
     }
 
-    print('弹窗用户信息加载完成:');
-    print('匹配码: ${userMatchCode.value}');
-    print('二维码: ${qrCodeUrl.value}');
+    logDebug('弹窗用户信息加载完成:', tag: 'BindingDialog');
+    logDebug('匹配码: ${userMatchCode.value}', tag: 'BindingDialog');
+    logDebug('二维码: ${qrCodeUrl.value}', tag: 'BindingDialog');
   }
 
   /// 绑定另一半
@@ -168,7 +170,7 @@ class CustomBottomDialogController extends GetxController {
 
         // 关闭弹窗
         Get.back();
-        print('绑定成功，关闭弹窗');
+        logDebug('绑定成功，关闭弹窗', tag: 'BindingDialog');
 
         // 刷新当前页面数据
         _refreshCurrentPageData();
@@ -177,7 +179,7 @@ class CustomBottomDialogController extends GetxController {
         try {
           final animationService = RelationshipAnimationService.instance;
           animationService.showBindAnimation(onComplete: () {
-            print('🎯 绑定动画播放完成，准备跳转到VIP页面');
+            logDebug('🎯 绑定动画播放完成，准备跳转到VIP页面', tag: 'BindingDialog');
             Get.toNamed(
               KissuRoutePath.vip,
               arguments: {
@@ -187,7 +189,7 @@ class CustomBottomDialogController extends GetxController {
             );
           });
         } catch (e) {
-          print('❌ 播放绑定动画失败: $e');
+          logError('❌ 播放绑定动画失败: $e', tag: 'BindingDialog', error: e);
           // 如果动画服务失败，直接跳转到VIP页面
           Get.toNamed(
             KissuRoutePath.vip,
@@ -214,20 +216,20 @@ class CustomBottomDialogController extends GetxController {
       final result = await authApi.getUserInfo();
       if (result.isSuccess && result.data != null) {
         await UserManager.updateUserInfo(result.data!);
-        print('用户信息刷新成功');
+        logDebug('用户信息刷新成功', tag: 'BindingDialog');
       }
     } catch (e) {
-      print('刷新用户信息失败: $e');
+      logError('刷新用户信息失败: $e', tag: 'BindingDialog', error: e);
     }
   }
 
   /// 刷新当前页面数据（根据调用者只刷新对应页面）
   Future<void> _refreshCurrentPageData() async {
     try {
-      print('开始刷新当前页面数据，调用者: $caller');
+      logDebug('开始刷新当前页面数据，调用者: $caller', tag: 'BindingDialog');
 
       if (caller == null) {
-        print('❌ 调用者未指定，跳过页面数据刷新');
+        logWarning('❌ 调用者未指定，跳过页面数据刷新', tag: 'BindingDialog');
         return;
       }
 
@@ -238,9 +240,9 @@ class CustomBottomDialogController extends GetxController {
             try {
               final homeController = Get.find<HomeController>();
               await homeController.refreshUserInfoFromServer();
-              print('✅ 首页数据刷新完成');
+              logDebug('✅ 首页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
-              print('❌ 刷新首页控制器失败: $e');
+              logError('❌ 刷新首页控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;
@@ -250,9 +252,9 @@ class CustomBottomDialogController extends GetxController {
             try {
               final mineController = Get.find<MineController>();
               mineController.loadUserInfo();
-              print('✅ 我的页面数据刷新完成');
+              logDebug('✅ 我的页面数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
-              print('❌ 刷新我的页面控制器失败: $e');
+              logError('❌ 刷新我的页面控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;
@@ -264,9 +266,9 @@ class CustomBottomDialogController extends GetxController {
               // 延迟一下，确保UserManager的数据已经更新
               await Future.delayed(const Duration(milliseconds: 100));
               loveInfoController.refreshUserInfo();
-              print('✅ 恋爱信息页数据刷新完成');
+              logDebug('✅ 恋爱信息页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
-              print('❌ 刷新恋爱信息页控制器失败: $e');
+              logError('❌ 刷新恋爱信息页控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;
@@ -276,9 +278,9 @@ class CustomBottomDialogController extends GetxController {
             try {
               final trackController = Get.find<TrackController>();
               trackController.refreshCurrentUserData();
-              print('✅ 足迹页数据刷新完成');
+              logDebug('✅ 足迹页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
-              print('❌ 刷新足迹页控制器失败: $e');
+              logError('❌ 刷新足迹页控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;
@@ -288,9 +290,9 @@ class CustomBottomDialogController extends GetxController {
             try {
               final locationController = Get.find<LocationV2Controller>();
               locationController.refreshUserInfo();
-              print('✅ 定位页数据刷新完成');
+              logDebug('✅ 定位页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
-              print('❌ 刷新定位页控制器失败: $e');
+              logError('❌ 刷新定位页控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;
@@ -300,17 +302,17 @@ class CustomBottomDialogController extends GetxController {
             try {
               final usageReportController = Get.find<UsageReportController>();
               await usageReportController.loadData();
-              print('✅ 用机记录页数据刷新完成');
+              logDebug('✅ 用机记录页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
-              print('❌ 刷新用机记录页控制器失败: $e');
+              logError('❌ 刷新用机记录页控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;
       }
 
-      print('✅ 当前页面数据刷新完成');
+      logDebug('✅ 当前页面数据刷新完成', tag: 'BindingDialog');
     } catch (e) {
-      print('❌ 刷新当前页面数据失败: $e');
+      logError('❌ 刷新当前页面数据失败: $e', tag: 'BindingDialog', error: e);
     }
   }
 
@@ -459,7 +461,7 @@ class CustomBottomDialogController extends GetxController {
           );
           OKToastUtil.show('已调起微信分享');
         } catch (e) {
-          print('微信分享异常: $e');
+          logError('微信分享异常: $e', tag: 'BindingDialog', error: e);
           OKToastUtil.show('微信分享异常: $e');
         }
       } else if (target == 'QQ') {
@@ -470,7 +472,7 @@ class CustomBottomDialogController extends GetxController {
             bindCode: userMatchCode.value,
           );
 
-          print('QQ分享结果: $shareResult');
+          logDebug('QQ分享结果: $shareResult', tag: 'BindingDialog');
 
           if (shareResult['success'] == true) {
             OKToastUtil.show('QQ分享成功');
@@ -480,12 +482,12 @@ class CustomBottomDialogController extends GetxController {
             // OKToastUtil.show('QQ分享失败: $errorMsg');
           }
         } catch (e) {
-          print('QQ分享异常: $e');
+          logError('QQ分享异常: $e', tag: 'BindingDialog', error: e);
           OKToastUtil.show('QQ分享异常: $e');
         }
       }
     } catch (e) {
-      print('分享异常: $e');
+      logError('分享异常: $e', tag: 'BindingDialog', error: e);
       OKToastUtil.show('分享异常: $e');
     }
   }

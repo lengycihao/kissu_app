@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 首次启动服务
 class FirstLaunchService extends GetxService {
@@ -20,7 +21,7 @@ class FirstLaunchService extends GetxService {
       // 如果从未显示过弹窗，或者显示过但用户没有同意，则需要显示
       return !hasShown || !hasAgreed;
     } catch (e) {
-      print('检查首次协议弹窗状态失败: $e');
+      logger.error('检查首次协议弹窗状态失败: $e', tag: 'FirstLaunchService', error: e);
       return true; // 默认需要显示
     }
   }
@@ -30,9 +31,9 @@ class FirstLaunchService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_hasShownAgreementKey, true);
-      print('已标记首次协议弹窗已显示');
+      logger.info('已标记首次协议弹窗已显示', tag: 'FirstLaunchService');
     } catch (e) {
-      print('标记首次协议弹窗状态失败: $e');
+      logger.error('标记首次协议弹窗状态失败: $e', tag: 'FirstLaunchService', error: e);
     }
   }
   
@@ -41,9 +42,9 @@ class FirstLaunchService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_hasAgreedKey, true);
-      print('已标记用户同意首次协议');
+      logger.info('已标记用户同意首次协议', tag: 'FirstLaunchService');
     } catch (e) {
-      print('标记首次协议同意状态失败: $e');
+      logger.error('标记首次协议同意状态失败: $e', tag: 'FirstLaunchService', error: e);
     }
   }
   
@@ -56,7 +57,7 @@ class FirstLaunchService extends GetxService {
       // 退出应用
       await SystemNavigator.pop();
     } catch (e) {
-      print('退出应用失败: $e');
+      logger.error('退出应用失败: $e', tag: 'FirstLaunchService', error: e);
     }
   }
   
@@ -66,9 +67,9 @@ class FirstLaunchService extends GetxService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_hasShownAgreementKey);
       await prefs.remove(_hasAgreedKey);
-      print('首次协议状态已重置');
+      logger.info('首次协议状态已重置', tag: 'FirstLaunchService');
     } catch (e) {
-      print('重置首次协议状态失败: $e');
+      logger.error('重置首次协议状态失败: $e', tag: 'FirstLaunchService', error: e);
     }
   }
 }

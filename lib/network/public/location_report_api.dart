@@ -3,6 +3,7 @@ import 'package:kissu_app/model/location_model/location_report_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LocationReportApi {
   /// 上报位置信息
@@ -17,7 +18,7 @@ class LocationReportApi {
           .toList();
 
       if (validLocations.isEmpty) {
-        print('⚠️ 没有有效的位置数据可上报');
+        logWarning('⚠️ 没有有效的位置数据可上报', tag: 'LocationReportApi');
         return HttpResultN<LocationReportResponse>(
           isSuccess: false,
           code: -2,
@@ -30,10 +31,10 @@ class LocationReportApi {
       final locationsString = jsonEncode(locationsJsonList);
 
       // 添加调试信息
-      print('🚀 位置上报API调用开始');
-      print('📝 API端点: ${ApiRequest.reportLocation}');
-      print('📦 请求数据: $locationsString');
-      print('📊 有效位置数据数量: ${validLocations.length}');
+      logDebug('🚀 位置上报API调用开始', tag: 'LocationReportApi');
+      logDebug('📝 API端点: ${ApiRequest.reportLocation}', tag: 'LocationReportApi');
+      logDebug('📦 请求数据: $locationsString', tag: 'LocationReportApi');
+      logDebug('📊 有效位置数据数量: ${validLocations.length}', tag: 'LocationReportApi');
 
       // 发送位置上报请求
       final result = await HttpManagerN.instance.executePost(
@@ -43,25 +44,25 @@ class LocationReportApi {
         },
       );
 
-      print('📡 API响应状态: ${result.isSuccess}');
-      print('📡 API响应码: ${result.code}');
-      print('📡 API响应消息: ${result.msg}');
-      print('📡 原始响应dataJson: ${result.dataJson}');
-      print('📡 原始响应listJson: ${result.listJson}');
-      print('📡 完整响应对象: ${result.toString()}');
+      logDebug('📡 API响应状态: ${result.isSuccess}', tag: 'LocationReportApi');
+      logDebug('📡 API响应码: ${result.code}', tag: 'LocationReportApi');
+      logDebug('📡 API响应消息: ${result.msg}', tag: 'LocationReportApi');
+      logDebug('📡 原始响应dataJson: ${result.dataJson}', tag: 'LocationReportApi');
+      logDebug('📡 原始响应listJson: ${result.listJson}', tag: 'LocationReportApi');
+      logDebug('📡 完整响应对象: ${result.toString()}', tag: 'LocationReportApi');
 
       if (result.isSuccess) {
-        print('✅ 位置上报成功');
+        logInfo('✅ 位置上报成功', tag: 'LocationReportApi');
         return result.convert(
           data: LocationReportResponse.fromJson(result.getDataJson()),
         );
       } else {
-        print('❌ 位置上报失败: ${result.msg}');
+        logWarning('❌ 位置上报失败: ${result.msg}', tag: 'LocationReportApi');
         return result.convert();
       }
     } catch (e, stackTrace) {
-      print('💥 位置上报API异常: $e');
-      print('📋 堆栈跟踪: $stackTrace');
+      logError('💥 位置上报API异常: $e', tag: 'LocationReportApi', error: e, stackTrace: stackTrace);
+      logError('📋 堆栈跟踪: $stackTrace', tag: 'LocationReportApi');
       return HttpResultN<LocationReportResponse>(
         isSuccess: false,
         code: -1,

@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:kissu_app/network/public/version_api.dart';
 import 'package:kissu_app/widgets/dialogs/version_update_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 版本更新服务
 class VersionService extends GetxService {
@@ -35,7 +36,7 @@ class VersionService extends GetxService {
       
       return _currentVersionNum!;
     } catch (e) {
-      print('获取版本号失败: $e');
+      logger.error('获取版本号失败: $e', tag: 'VersionService', error: e);
       _currentVersionNum = 0;
       return 0;
     }
@@ -59,7 +60,7 @@ class VersionService extends GetxService {
         // 静默更新不弹窗
       }
     } catch (e) {
-      print('检查版本更新失败: $e');
+      logger.error('检查版本更新失败: $e', tag: 'VersionService', error: e);
     }
   }
   
@@ -84,7 +85,7 @@ class VersionService extends GetxService {
         OKToastUtil.show('当前已是最新版本');
       }
     } catch (e) {
-      print('检查版本更新失败: $e');
+      logger.error('检查版本更新失败: $e', tag: 'VersionService', error: e);
       OKToastUtil.show('检查更新失败，请稍后重试');
     }
   }
