@@ -7,6 +7,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/services/relationship_animation_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
@@ -44,6 +45,9 @@ class CustomBottomDialogController extends GetxController {
 
   // 输入的匹配码（用于响应式更新UI）
   var inputMatchCode = ''.obs;
+  
+  // 是否应该关闭弹窗（用于IM绑定消息触发关闭）
+  var shouldClose = false.obs;
 
   // 页面浏览时长统计
   DateTime? _pageEnterTime;
@@ -66,6 +70,28 @@ class CustomBottomDialogController extends GetxController {
     _pageEnterTime = DateTime.now();
 
     _loadUserInfo();
+    
+    // 监听IM绑定消息，当收到绑定消息时自动关闭弹窗
+    _setupBindMessageListener();
+  }
+  
+  /// 设置绑定消息监听器
+  /// 当收到IM绑定消息时，自动关闭绑定弹窗
+  void _setupBindMessageListener() {
+    try {
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = TencentIMService.instance;
+        imService.setOnBindMessageReceived(() {
+          logDebug('💬 收到IM绑定消息，准备自动关闭绑定弹窗', tag: 'BindingDialog');
+          // 设置标志，通知弹窗关闭
+          shouldClose.value = true;
+          logDebug('✅ 已设置弹窗关闭标志', tag: 'BindingDialog');
+        });
+        logDebug('✅ 已设置IM绑定消息监听器', tag: 'BindingDialog');
+      }
+    } catch (e) {
+      logError('❌ 设置IM绑定消息监听器失败: $e', tag: 'BindingDialog', error: e);
+    }
   }
 
   @override
@@ -73,8 +99,25 @@ class CustomBottomDialogController extends GetxController {
     // 上报页面浏览埋点
     _trackPageView();
     
+    // 清除IM绑定消息监听器
+    _removeBindMessageListener();
+    
     matchCodeController.dispose();
     super.onClose();
+  }
+  
+  /// 移除绑定消息监听器
+  void _removeBindMessageListener() {
+    try {
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = TencentIMService.instance;
+        // 将回调设置为null，表示不再监听
+        imService.onBindMessageReceived.value = null;
+        logDebug('✅ 已移除IM绑定消息监听器', tag: 'BindingDialog');
+      }
+    } catch (e) {
+      logError('❌ 移除IM绑定消息监听器失败: $e', tag: 'BindingDialog', error: e);
+    }
   }
 
   /// 上报页面浏览埋点

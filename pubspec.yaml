@@ -90,6 +90,7 @@ dependencies:
   # 腾讯IM SDK
   tencent_cloud_chat_sdk: ^8.2.6325
   fl_chart: ^0.69.0  # 专业图表库
+  sensors_plus: ^6.0.1  # 手机传感器（陀螺仪、磁力计）
 
 dev_dependencies:
   flutter_test:

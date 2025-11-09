@@ -32,12 +32,15 @@ class MinePage extends GetView<MineController> {
         cardType: cardType,
         vipEndDate: controller.vipEndDate.value,
         onRenewTap: controller.onRenewTap,
-        onPermissionSettingTap: () {
-          Get.to(
+        areAllPermissionsGranted: controller.areAllPermissionsGranted.value,
+        onPermissionSettingTap: () async {
+          await Get.to(
             () => const SystemPermissionPage(),
             binding: SystemPermissionBinding(),
             transition: Transition.rightToLeft,
           );
+          // 从权限设置页面返回时，重新检查权限状态
+          controller.checkAllPermissions();
         },
       );
     });

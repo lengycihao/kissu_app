@@ -5,8 +5,8 @@ import 'base_dialog.dart';
 /// 绑定弹窗关闭确认弹窗
 class BindingCloseConfirmDialog extends BaseDialog {
   final VoidCallback? onConfirm; // 点击"立即绑定"
-  final VoidCallback? onCancel;  // 点击"再想想"
-  final bool isFromHomePage;     // 是否来自首页（用于判断是否上报埋点）
+  final VoidCallback? onCancel; // 点击"再想想"
+  final bool isFromHomePage; // 是否来自首页（用于判断是否上报埋点）
 
   const BindingCloseConfirmDialog({
     Key? key,
@@ -30,108 +30,118 @@ class BindingCloseConfirmDialog extends BaseDialog {
         ),
         child: Stack(
           children: [
-          // 标题 - Y轴位置115，加粗
-          Positioned(
-            top: 115,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                '等等！最后一步啦，就能和Ta开启甜蜜之旅啦！',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF333333),
-                  fontWeight: FontWeight.bold, // 加粗
+            // 标题 - Y轴位置115，加粗
+            Positioned(
+              top: 115,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '等等！最后一步啦，就能和Ta开启甜蜜之旅啦！',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF333333),
+                    fontWeight: FontWeight.bold, // 加粗
+                  ),
                 ),
               ),
             ),
-          ),
-          // 按钮区域 - 底部间距18（为文字换行留出更多空间）
-          Positioned(
-            bottom: 18,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 左按钮 - "再想想"
-                GestureDetector(
-                  onTap: () async {
-                    // 只有来自首页的绑定弹窗才上报埋点
-                    if (isFromHomePage) {
-                      await TrackingService.trackBindingReback(buttonName: '再想想');
-                    }
-                    
-                    Navigator.of(context).pop(true); // 返回true表示允许关闭绑定弹窗
-                    onCancel?.call();
-                  },
-                  child: Container(
-                    width: 106,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
+            // 按钮区域 - 底部间距18（为文字换行留出更多空间）
+            Positioned(
+              bottom: 18,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 左按钮 - "再想想"
+                  GestureDetector(
+                    onTap: () async {
+                      // 只有来自首页的绑定弹窗才上报埋点
+                      if (isFromHomePage) {
+                        await TrackingService.trackBindingReback(
+                          buttonName: '再想想',
+                        );
+                      }
+
+                      Navigator.of(context).pop(true); // 返回true表示允许关闭绑定弹窗
+                      onCancel?.call();
+                    },
+                    child: Container(
+                      width: 106,
+                      height: 36,
+                      // 外层：粉色背景模拟边框
+                      decoration: BoxDecoration(
                         color: Color(0xFFFF88AA),
-                        width: 1,
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '再想想',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFFF88AA),
-                        fontWeight: FontWeight.w500,
+                      padding: const EdgeInsets.all(1), // 1px边框宽度
+                      alignment: Alignment.center,
+                      child: Container(
+                        // 内层：白色背景
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(17), // 比外层小1
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '再想想',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFFFF88AA),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                // 右按钮 - "立即绑定"
-                GestureDetector(
-                  onTap: () async {
-                    // 只有来自首页的绑定弹窗才上报埋点
-                    if (isFromHomePage) {
-                      await TrackingService.trackBindingReback(buttonName: '立即绑定');
-                    }
-                    
-                    Navigator.of(context).pop(false); // 返回false表示不关闭绑定弹窗
-                    onConfirm?.call();
-                  },
-                  child: Container(
-                    width: 106,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFFF408D), Color(0xFFFF6699)],
+                  const SizedBox(width: 12),
+                  // 右按钮 - "立即绑定"
+                  GestureDetector(
+                    onTap: () async {
+                      // 只有来自首页的绑定弹窗才上报埋点
+                      if (isFromHomePage) {
+                        await TrackingService.trackBindingReback(
+                          buttonName: '立即绑定',
+                        );
+                      }
+
+                      Navigator.of(context).pop(false); // 返回false表示不关闭绑定弹窗
+                      onConfirm?.call();
+                    },
+                    child: Container(
+                      width: 106,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFFF408D), Color(0xFFFF6699)],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '立即绑定',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '立即绑定',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
 
   /// 显示绑定关闭确认弹窗
-  /// 
+  ///
   /// [isFromHomePage] 是否来自首页的绑定弹窗（用于判断是否上报埋点）
   static Future<bool?> show({
     required BuildContext context,
@@ -151,4 +161,3 @@ class BindingCloseConfirmDialog extends BaseDialog {
     );
   }
 }
-

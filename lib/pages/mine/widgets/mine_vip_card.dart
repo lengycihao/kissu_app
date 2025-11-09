@@ -14,6 +14,7 @@ class MineVipCard extends StatelessWidget {
   final String? vipEndDate; // 会员到期日期（普通会员需要）
   final VoidCallback onRenewTap;
   final VoidCallback onPermissionSettingTap;
+  final bool areAllPermissionsGranted; // 4个权限是否全部开启
 
   const MineVipCard({
     super.key,
@@ -21,6 +22,7 @@ class MineVipCard extends StatelessWidget {
     this.vipEndDate,
     required this.onRenewTap,
     required this.onPermissionSettingTap,
+    required this.areAllPermissionsGranted,
   });
 
   @override
@@ -337,14 +339,17 @@ class MineVipCard extends StatelessWidget {
                 "开通对应权限，体验会更流畅！",
                 style: TextStyle(fontSize: 11, color: Color(0xff999999)),
               ),
-              SizedBox(width: 5),
-              Image(
-                image: AssetImage(
-                  "assets/4.0/kissu4_notice_setting_new.webp",
+              // 只有当4个权限都未全部开启时才显示图标
+              if (!areAllPermissionsGranted) ...[
+                SizedBox(width: 5),
+                Image(
+                  image: AssetImage(
+                    "assets/4.0/kissu4_notice_setting_new.webp",
+                  ),
+                  width: 10,
+                  height: 10,
                 ),
-                width: 10,
-                height: 10,
-              ),
+              ],
               SizedBox(width: 10),
               Image(
                 image: AssetImage(

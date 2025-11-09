@@ -127,12 +127,17 @@ class FloatingTipsWidget extends StatelessWidget {
             children: [
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF333333), // #333333
-                    fontWeight: FontWeight.w400,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF333333), // #333333
+                      fontWeight: FontWeight.w400,
+                    ),
+                    maxLines: 1,
                   ),
                 ),
               ),
@@ -202,15 +207,21 @@ class FloatingTipsWidget extends StatelessWidget {
             children: [
               const SizedBox(width: 16),
               // 会员到期文字
-              Obx(() => Text(
-                '你的会员还有${tipsManager.vipExpiryText.value}到期！',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF333333), // #333333
-                  fontWeight: FontWeight.w400,
-                ),
-              )),
-              const Spacer(),
+              Expanded(
+                child: Obx(() => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '你的会员还有${tipsManager.vipExpiryText.value}到期！',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF333333), // #333333
+                      fontWeight: FontWeight.w400,
+                    ),
+                    maxLines: 1,
+                  ),
+                )),
+              ),
               // 去续费按钮
               Row(
                 mainAxisSize: MainAxisSize.min,

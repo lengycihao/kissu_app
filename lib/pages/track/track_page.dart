@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/pages/location/widgets/mask_device_info_widget.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
@@ -45,8 +46,8 @@ class TrackPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // 🔧 修复：使用 Get.find 而不是 Get.put，让 TrackBinding 管理控制器生命周期
     // 如果控制器不存在，则创建一个临时的（这种情况不应该发生，因为使用了 TrackBinding）
-    final controller = Get.isRegistered<TrackController>() 
-        ? Get.find<TrackController>() 
+    final controller = Get.isRegistered<TrackController>()
+        ? Get.find<TrackController>()
         : Get.put(TrackController());
 
     // 如果有初始坐标，设置到控制器中
@@ -82,7 +83,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
   late final double maxHeight;
   late final DraggableScrollableController _draggableController;
   ScrollController? _scrollController;
-  
+
   /// 上一次的屏幕状态（小屏/中屏/大屏），用于判断状态是否改变
   String? _lastScreenState;
 
@@ -130,18 +131,18 @@ class _TrackPageContentState extends State<_TrackPageContent>
       logDebug('🛤️ TrackPage: 应用恢复前台，恢复地图更新', tag: 'TrackPage');
     }
   }
-  
+
   /// 监听滑动面板百分比变化，判断屏幕状态并上报埋点
   void _onSheetPercentChanged(double extent) {
     // 计算各个状态的阈值
-    final minPercent = minHeight / screenHeight;  // 小屏（底部）
-    final maxPercent = maxHeight / screenHeight;  // 大屏（顶部吸顶）
-    
+    final minPercent = minHeight / screenHeight; // 小屏（底部）
+    final maxPercent = maxHeight / screenHeight; // 大屏（顶部吸顶）
+
     // 中屏的阈值：介于小屏和大屏之间的中间位置（允许一定容差）
     // 判断逻辑：小屏和大屏各占 20% 的范围，中间 60% 的范围都算中屏
     final smallToMediumThreshold = minPercent + (maxPercent - minPercent) * 0.2;
     final mediumToLargeThreshold = minPercent + (maxPercent - minPercent) * 0.8;
-    
+
     // 判断当前屏幕状态
     String currentState;
     if (extent <= smallToMediumThreshold) {
@@ -151,16 +152,16 @@ class _TrackPageContentState extends State<_TrackPageContent>
     } else {
       currentState = '中屏';
     }
-    
+
     // 只有当状态真正改变时才上报埋点（避免频繁上报）
     if (_lastScreenState != null && _lastScreenState != currentState) {
       _trackSwipeState(currentState);
     }
-    
+
     // 更新上一次的状态
     _lastScreenState = currentState;
   }
-  
+
   /// 上报滑动状态埋点
   Future<void> _trackSwipeState(String clickState) async {
     try {
@@ -186,7 +187,6 @@ class _TrackPageContentState extends State<_TrackPageContent>
     widget.controller.setDraggableController(_draggableController);
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -199,20 +199,24 @@ class _TrackPageContentState extends State<_TrackPageContent>
           ),
 
           // 背景遮罩层优化 - 减少重建频率
-          Obx(() => _OptimizedOverlayWidget(
-            controller: widget.controller,
-            mapHeight: mapHeight,
-            initialHeight: initialHeight,
-            screenHeight: screenHeight,
-          )),
+          Obx(
+            () => _OptimizedOverlayWidget(
+              controller: widget.controller,
+              mapHeight: mapHeight,
+              initialHeight: initialHeight,
+              screenHeight: screenHeight,
+            ),
+          ),
 
           // 全屏渐变背景 - 从中间滑到顶部时显示
-          Obx(() => _GradientBackgroundOverlay(
-            controller: widget.controller,
-            screenHeight: screenHeight,
-            initialHeight: initialHeight,
-            maxHeight: maxHeight,
-          )),
+          Obx(
+            () => _GradientBackgroundOverlay(
+              controller: widget.controller,
+              screenHeight: screenHeight,
+              initialHeight: initialHeight,
+              maxHeight: maxHeight,
+            ),
+          ),
 
           // 左侧浮动按钮组（刷新 + 切换地图）
           _LeftFloatingButtons(controller: widget.controller),
@@ -227,10 +231,10 @@ class _TrackPageContentState extends State<_TrackPageContent>
           NotificationListener<DraggableScrollableNotification>(
             onNotification: (notification) {
               widget.controller.sheetPercent.value = notification.extent;
-              
+
               // 监听滑动状态变化并上报埋点
               _onSheetPercentChanged(notification.extent);
-              
+
               return true;
             },
             child: Obx(() {
@@ -253,7 +257,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
                   middleSnapSize, // 🔧 动态中间位置（根据绑定状态调整）
                   (screenHeight - 100) / screenHeight, // 距离屏幕顶部100px
                 ],
-                snapAnimationDuration: const Duration(milliseconds: 200), // 缩短吸附动画时间
+                snapAnimationDuration: const Duration(
+                  milliseconds: 200,
+                ), // 缩短吸附动画时间
                 builder: (context, scrollController) {
                   // 将scrollController保存到实例变量中，以便在返回按钮点击时使用
                   _scrollController = scrollController;
@@ -391,12 +397,16 @@ class _TrackPageContentState extends State<_TrackPageContent>
                 ],
               ),
               child: GestureDetector(
-                onTap: () => widget.controller.handleBackButtonTap(_scrollController),
+                onTap: () =>
+                    widget.controller.handleBackButtonTap(_scrollController),
                 child: AnimatedBuilder(
                   animation: widget.controller.backButtonRotationAnimation,
                   builder: (context, child) {
                     return Transform.rotate(
-                      angle: widget.controller.backButtonRotationAnimation.value * 2 * 3.14159, // 转换为弧度
+                      angle:
+                          widget.controller.backButtonRotationAnimation.value *
+                          2 *
+                          3.14159, // 转换为弧度
                       child: Image.asset(
                         'assets/kissu_mine_back.webp',
                         width: 24,
@@ -525,7 +535,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
       return Container(
         margin: EdgeInsets.symmetric(horizontal: 14),
         height: 92,
-         
+
         child: Stack(
           children: [
             // 日期选择器
@@ -600,27 +610,32 @@ class _TrackPageContentState extends State<_TrackPageContent>
     return Obx(() {
       final isBindPartner = widget.controller.isBindPartner.value;
       final isVip = UserManager.isVip;
-      
+
       // 未绑定 或 已绑定但未开会员时显示蒙版
       final shouldShowMask = !isBindPartner || (isBindPartner && !isVip);
-      
+
       if (shouldShowMask) {
         return Positioned.fill(
           child: Column(
             children: [
               // 顶部日期组件（清晰的，不模糊）
               _buildDateModule(),
+
               const SizedBox(height: 10),
               // 原来的蒙版整体
               Expanded(
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
                     child: Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
                       ),
                       child: Center(
                         child: Column(
@@ -645,7 +660,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                       context: context,
                                       caller: BindingDialogCaller.track,
                                     ).then((_) {
-                                      widget.controller.refreshCurrentUserData();
+                                      widget.controller
+                                          .refreshCurrentUserData();
                                     });
                                   }
                                 } else {
@@ -662,8 +678,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                               },
                               child: Image.asset(
                                 !isBindPartner
-                                    ? 'assets/kissu3_go_bind.webp'  // 未绑定
-                                    : 'assets/kissu3_go_vip.webp',  // 已绑定未开会员
+                                    ? 'assets/kissu3_go_bind.webp' // 未绑定
+                                    : 'assets/kissu3_go_vip.webp', // 已绑定未开会员
                                 width: 150,
                                 height: 48,
                                 fit: BoxFit.contain,
@@ -689,20 +705,20 @@ class _TrackPageContentState extends State<_TrackPageContent>
     return Obx(() {
       // 🔧 修复：跟随下半屏滑动，与定位页面保持一致
       final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
-      
+
       // 右侧轨迹回放按钮的bottom位置
       final buttonBottom = sheetHeight + 70;
-      
+
       // logo在按钮下方，按钮高度50px
-      final logoBottom = buttonBottom - 50 - 15;
-      
+      final logoBottom = buttonBottom - 30;
+
       // 根据绑定状态动态计算中间吸顶位置
       final actualBindStatus = widget.controller.getActualBindStatus();
       final middleSnapSize = actualBindStatus
           ? 0.5 + (21 / screenHeight)
           : 0.5 + (57 / screenHeight);
       final maxPercent = (screenHeight - 100) / screenHeight;
-      
+
       // 计算透明度（与轨迹回放按钮同步）
       final sheetPercent = widget.controller.sheetPercent.value;
       double opacity;
@@ -711,25 +727,24 @@ class _TrackPageContentState extends State<_TrackPageContent>
       } else if (sheetPercent >= maxPercent) {
         opacity = 0.0;
       } else {
-        opacity = 1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+        opacity =
+            1.0 -
+            ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
       }
       opacity = opacity.clamp(0.0, 1.0);
-      
+
       return Positioned(
         bottom: logoBottom,
         right: 16,
         child: Opacity(
           opacity: opacity,
-          child: Image.asset(
-            'assets/map_logo.webp',
-            width: 68,
-            height: 22,
-          ),
+          child: Image.asset('assets/map_logo.webp', width: 68, height: 22),
         ),
       );
     });
   }
-}// 优化的遮罩层Widget - 减少重建频率
+} // 优化的遮罩层Widget - 减少重建频率
+
 class _OptimizedOverlayWidget extends StatelessWidget {
   final TrackController controller;
   final double mapHeight;
@@ -788,7 +803,9 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
       final currentMarkersVersion =
           widget.controller.stopMarkers.length +
           widget.controller.trackStartEndMarkers.length +
-          (widget.controller.tempInfoWindowMarker != null ? 10000 : 0); // 检测临时标记变化
+          (widget.controller.tempInfoWindowMarker != null
+              ? 10000
+              : 0); // 检测临时标记变化
       if (currentMarkersVersion != _markersVersion) {
         _updateMarkers();
         _markersVersion = currentMarkersVersion;
@@ -842,7 +859,6 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
       DebugUtil.error('添加标记失败: $e');
     }
 
-    
     // 添加临时 InfoWindow 标记（如果存在）
     if (widget.controller.tempInfoWindowMarker != null) {
       try {
@@ -855,7 +871,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
 
     _cachedMarkers = newMarkers;
   }
-  
+
   /// 上报 InfoWindow 关闭埋点
   Future<void> _trackInfoWindowClose() async {
     try {
@@ -871,11 +887,11 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
 
     try {
       final trackPoints = widget.controller.trackPoints.toList();
-      
+
       if (widget.controller.hasValidTrackData.value &&
           trackPoints.length >= 2) {
         const int maxPointsPerSegment = 100;
-        
+
         if (trackPoints.length <= maxPointsPerSegment) {
           newPolylines.add(
             Polyline(
@@ -885,10 +901,17 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
             ),
           );
         } else {
-          for (int i = 0; i < trackPoints.length - 1; i += maxPointsPerSegment - 1) {
-            final endIndex = (i + maxPointsPerSegment).clamp(0, trackPoints.length);
+          for (
+            int i = 0;
+            i < trackPoints.length - 1;
+            i += maxPointsPerSegment - 1
+          ) {
+            final endIndex = (i + maxPointsPerSegment).clamp(
+              0,
+              trackPoints.length,
+            );
             final segmentPoints = trackPoints.sublist(i, endIndex);
-            
+
             if (segmentPoints.length >= 2) {
               newPolylines.add(
                 Polyline(
@@ -922,7 +945,7 @@ class _CachedAvatarRow extends StatelessWidget {
       if (!controller.isBindPartner.value) {
         return const SizedBox.shrink();
       }
-      
+
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -983,19 +1006,24 @@ class _AvatarButtonState extends State<_AvatarButton> {
   @override
   Widget build(BuildContext context) {
     // iOS风格尺寸定义
-    const selectedSize = 32.0;  // 选中时的尺寸
-    const unselectedSize = 25.0;  // 未选中时的尺寸
-    const selectedRadius = 12.0;  // 选中时的圆角
-    const unselectedRadius = 9.0;  // 未选中时的圆角
+    const selectedSize = 32.0; // 选中时的尺寸
+    const unselectedSize = 25.0; // 未选中时的尺寸
+    const selectedRadius = 12.0; // 选中时的圆角
+    const unselectedRadius = 9.0; // 未选中时的圆角
 
     return Obx(() {
       final currentIsOneselfValue = widget.controller.isOneself.value;
-      final isSelected = (widget.isMyself && currentIsOneselfValue == 1) ||
+      final isSelected =
+          (widget.isMyself && currentIsOneselfValue == 1) ||
           (!widget.isMyself && currentIsOneselfValue == 0);
 
       // iOS风格：直接根据选中状态确定尺寸，而不是用scale
-      final actualSize = (isSelected && _isAvatarLoaded) ? selectedSize : unselectedSize;
-      final cornerRadius = (isSelected && _isAvatarLoaded) ? selectedRadius : unselectedRadius;
+      final actualSize = (isSelected && _isAvatarLoaded)
+          ? selectedSize
+          : unselectedSize;
+      final cornerRadius = (isSelected && _isAvatarLoaded)
+          ? selectedRadius
+          : unselectedRadius;
 
       final avatarUrl = widget.isMyself
           ? widget.controller.myAvatar.value
@@ -1047,6 +1075,7 @@ class _AvatarButtonState extends State<_AvatarButton> {
     });
   }
 }
+
 // 带背景图片渐隐渐现效果的停留记录列表Widget
 class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
   final TrackController controller;
@@ -1055,9 +1084,7 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
 
   /// 构建 Shimmer 加载占位列表
   Widget _buildShimmerLoadingList() {
-    return Column(
-      children: List.generate(5, (index) => _buildShimmerItem()),
-    );
+    return Column(children: List.generate(5, (index) => _buildShimmerItem()));
   }
 
   /// 构建单个 Shimmer 占位项（模拟 StopListItem 的布局）
@@ -1112,7 +1139,10 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
                   const SizedBox(height: 11),
                   // 粉色渐变卡片
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),
@@ -1164,9 +1194,12 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
       final records = controller.stopRecords;
       final currentPercent = controller.sheetPercent.value;
       final isLoading = controller.isLoading.value;
-      
+
       // 🐛 调试信息
-      logDebug('🎨 UI 重新渲染: isLoading=$isLoading, records.length=${records.length}', tag: 'TrackPage');
+      logDebug(
+        '🎨 UI 重新渲染: isLoading=$isLoading, records.length=${records.length}',
+        tag: 'TrackPage',
+      );
 
       // 计算图片透明度
       // 从 startShowPercent 滑动到 maxPercent 时，透明度从 0 到 1
@@ -1185,7 +1218,6 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
           Column(
             children: [
               // 标题行
-               
               SizedBox(height: 10),
               // 🎯 加载状态：显示占位动画
               if (isLoading) ...[
@@ -1238,6 +1270,7 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
     });
   }
 }
+
 // 全屏渐变背景遮罩 - 从中间滑到顶部时显示
 class _GradientBackgroundOverlay extends StatelessWidget {
   final TrackController controller;
@@ -1311,7 +1344,8 @@ class _LeftFloatingButtons extends StatelessWidget {
       final screenHeight = MediaQuery.of(context).size.height;
       const deviceHeightDiff = -42.0; // 设备模块高度差
       const extraOffset = 80.0; // 额外向上移动80px，避免被播放条遮挡
-      final firstButtonBottom = screenHeight / 2 - deviceHeightDiff + extraOffset;
+      final firstButtonBottom =
+          screenHeight / 2 - deviceHeightDiff + extraOffset;
 
       // 计算透明度：当面板滑到中间时开始淡出
       const middleSnapSize = 0.6;
@@ -1563,7 +1597,3 @@ class _MapTypeOption extends StatelessWidget {
     );
   }
 }
-
-
-
-

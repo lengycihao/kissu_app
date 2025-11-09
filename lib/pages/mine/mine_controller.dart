@@ -27,6 +27,7 @@ import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/pages/debug/screen_lock_debug_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
+import 'package:kissu_app/services/permission_service.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -84,6 +85,10 @@ class MineController extends GetxController {
   var scrollTimes = 0.obs; // 滑动次数
   var hasScrolled = false.obs; // 是否滑动过
 
+  // 权限状态
+  var areAllPermissionsGranted = false.obs; // 4个权限是否全部开启
+  final PermissionService _permissionService = PermissionService();
+
   @override
   void onInit() {
     super.onInit();
@@ -100,6 +105,8 @@ class MineController extends GetxController {
     loadUserInfo();
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
+    // 检查权限状态
+    checkAllPermissions();
   }
   
   @override
@@ -164,6 +171,34 @@ class MineController extends GetxController {
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
+    // 重新检查权限状态（从权限设置页面返回时）
+    checkAllPermissions();
+  }
+
+  /// 检查所有权限状态
+  Future<void> checkAllPermissions() async {
+    try {
+      final permissions = await _permissionService.checkAllPermissions();
+      
+      // 检查4个关键权限是否全部开启
+      final isLocationGranted = permissions[PermissionType.location] ?? false;
+      final isNotificationGranted = permissions[PermissionType.notification] ?? false;
+      final isBatteryOptimized = permissions[PermissionType.battery] ?? false;
+      final isUsageAccessGranted = permissions[PermissionType.usage] ?? false;
+      
+      // 只有当4个权限都开启时，才设置为true
+      areAllPermissionsGranted.value = isLocationGranted && 
+                                       isNotificationGranted && 
+                                       isBatteryOptimized && 
+                                       isUsageAccessGranted;
+      
+      logDebug('权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted', tag: 'Mine');
+      logDebug('所有权限是否全部开启: ${areAllPermissionsGranted.value}', tag: 'Mine');
+    } catch (e) {
+      logError('检查权限状态失败: $e', tag: 'Mine', error: e);
+      // 出错时默认显示图标（保守策略）
+      areAllPermissionsGranted.value = false;
+    }
   }
   
   /// 静默刷新用户信息（不阻塞UI）

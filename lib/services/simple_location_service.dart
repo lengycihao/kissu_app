@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:amap_flutter_location/amap_location_option.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:kissu_app/model/location_model/location_report_model.dart';
 import 'package:kissu_app/network/public/location_report_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -28,7 +29,7 @@ class LocationPoint {
   final double accuracy;
   final double speed;
   final DateTime timestamp;
-  
+
   LocationPoint({
     required this.latitude,
     required this.longitude,
@@ -36,7 +37,7 @@ class LocationPoint {
     required this.speed,
     required this.timestamp,
   });
-  
+
   // 计算与另一个点的距离（使用简单的球面距离公式）
   double distanceTo(LocationPoint other) {
     const double earthRadius = 6371000; // 地球半径（米）
@@ -44,35 +45,43 @@ class LocationPoint {
     final lat2Rad = other.latitude * math.pi / 180;
     final deltaLat = (other.latitude - latitude) * math.pi / 180;
     final deltaLng = (other.longitude - longitude) * math.pi / 180;
-    
-    final a = math.sin(deltaLat / 2) * math.sin(deltaLat / 2) +
-        math.cos(lat1Rad) * math.cos(lat2Rad) *
-        math.sin(deltaLng / 2) * math.sin(deltaLng / 2);
+
+    final a =
+        math.sin(deltaLat / 2) * math.sin(deltaLat / 2) +
+        math.cos(lat1Rad) *
+            math.cos(lat2Rad) *
+            math.sin(deltaLng / 2) *
+            math.sin(deltaLng / 2);
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    
+
     return earthRadius * c;
   }
-  
+
   // 计算时间差（秒）
   double timeDifferenceInSeconds(LocationPoint other) {
     return timestamp.difference(other.timestamp).inMilliseconds.abs() / 1000.0;
   }
-  
-  
 }
 
 /// 基于高德定位的简化版定位服务类
 class SimpleLocationService extends GetxService with WidgetsBindingObserver {
-  static SimpleLocationService get instance => Get.find<SimpleLocationService>();
+  static SimpleLocationService get instance =>
+      Get.find<SimpleLocationService>();
 
   // 高德定位插件 - 单例确保整个应用生命周期只创建一次
   final AMapFlutterLocation _locationPlugin = AMapFlutterLocation();
 
   // 当前最新位置
-  final Rx<LocationReportModel?> currentLocation = Rx<LocationReportModel?>(null);
+  final Rx<LocationReportModel?> currentLocation = Rx<LocationReportModel?>(
+    null,
+  );
+
+  // 当前方向（移动方向，单位：度，正北为0度，顺时针0-360）
+  final Rx<double?> currentHeading = Rx<double?>(null);
 
   // 位置历史记录（用于采样点检测）
-  final RxList<LocationReportModel> locationHistory = <LocationReportModel>[].obs;
+  final RxList<LocationReportModel> locationHistory =
+      <LocationReportModel>[].obs;
 
   // 定时器
   Timer? _periodicLocationTimer;
@@ -81,7 +90,16 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   StreamSubscription<Map<String, Object>>? _globalLocationSub;
 
   // 暴露定位流，让外部管理订阅（参考用户示例）
-  Stream<Map<String, Object>> get locationStream => _locationPlugin.onLocationChanged();
+  Stream<Map<String, Object>> get locationStream =>
+      _locationPlugin.onLocationChanged();
+
+  // 传感器订阅
+  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+
+  // 传感器数据
+  List<double> _magnetometerValues = [0, 0, 0];
+  List<double> _accelerometerValues = [0, 0, 0];
 
   /// 简单启动定位（参考用户示例）
   void start() => _locationPlugin.startLocation();
@@ -96,42 +114,46 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   bool _isSingleLocationInProgress = false; // 是否正在进行单次定位
   bool _isGlobalListenerSetup = false; // 全局监听器是否已设置
   int _locationRetryCount = 0; // 定位重试计数
-  
+
   // 旧的上报策略相关变量（已迁移到新策略）
   // DateTime? _lastMinuteReportTime; // 已移除：最后一次定时上报时间
-  
+
   // 权限状态监听
-  final Rx<PermissionStatus> _currentLocationPermission = PermissionStatus.denied.obs;
-  final Rx<PermissionStatus> _currentBackgroundPermission = PermissionStatus.denied.obs;
-  
+  final Rx<PermissionStatus> _currentLocationPermission =
+      PermissionStatus.denied.obs;
+  final Rx<PermissionStatus> _currentBackgroundPermission =
+      PermissionStatus.denied.obs;
+
   // GPS开关状态监听（系统级别的定位服务开关）
-  static const EventChannel _gpsStatusChannel = EventChannel('kissu_app/gps_status');
+  static const EventChannel _gpsStatusChannel = EventChannel(
+    'kissu_app/gps_status',
+  );
   StreamSubscription<dynamic>? _gpsStatusSubscription;
   bool? _lastGpsEnabledStatus; // 上次的GPS开关状态（null表示未初始化）
-  
+
   // 应用生命周期状态（用于模拟iOS的应用状态监听）
   // ignore: unused_field
   String? _lastAppState; // 预留字段，在WidgetsBindingObserver实现中使用
-  
+
   // 后台任务标识（增强版后台任务）
   int? _backgroundTaskId;
   Timer? _backgroundKeepAliveTimer;
-  
+
   // 多重保障定时器（增强后台稳定性）
-  Timer? _quickCheckTimer;     // 快速检查定时器（20秒）
-  Timer? _mediumCheckTimer;    // 中等检查定位器（60秒）
-  Timer? _deepCheckTimer;      // 深度检查定时器（120秒）
+  Timer? _quickCheckTimer; // 快速检查定时器（20秒）
+  Timer? _mediumCheckTimer; // 中等检查定位器（60秒）
+  Timer? _deepCheckTimer; // 深度检查定时器（120秒）
   Timer? _batteryOptimizedTimer; // 电池优化定时器（动态间隔）
-  
+
   // 智能定时器控制
   int _consecutiveSuccessCount = 0; // 连续成功次数
   int _consecutiveFailureCount = 0; // 连续失败次数
-  bool _isInLowPowerMode = false;   // 低功耗模式标记
-  
+  bool _isInLowPowerMode = false; // 低功耗模式标记
+
   // 简化后的状态变量
-  
+
   // 使用简化策略
-  
+
   // 🚀 新的收集与上报分离策略（简化版）
   // 策略说明：
   // 1. 5秒获取一次定位信息
@@ -146,12 +168,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   Timer? _reportTimer; // 上报定时器
   bool _isFirstLocationSuccess = true; // 是否首次定位成功
   bool _isReportStrategyRunning = false; // 上报策略是否正在运行
-  
-  
+
   // 后台通知管理
   bool _isBackgroundNotificationShown = false; // 后台通知显示状态
   DateTime? _lastNotificationTime; // 上次通知时间
-  
+
   // 🚀 核心策略参数 - 新的收集与上报分离策略
   static const Duration _reportInterval = Duration(minutes: 1); // 1分钟上报间隔
   static const double _collectionDistance = 50.0; // 50米收集一个点位（不立即上报）
@@ -161,29 +182,29 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   // static const double _desiredAccuracy = 15.0; // 期望精度15米（平衡精度与功耗）
   static const int _maxCollectionBufferSize = 12; // 最大收集缓冲区大小（1分钟内最多12个点，5秒一个）
   static const int _maxHistorySize = 200; // 最大历史记录数
-  
+
   // 智能参数已简化
-  
-  
-  
+
   // 智能优化参数
   static const int _maxConsecutiveFailures = 3; // 最大连续失败次数
   static const int _successCountForOptimization = 10; // 成功次数阈值
-  static const Duration _lowPowerCheckInterval = Duration(seconds: 120); // 低功耗模式检查间隔
-  
+  static const Duration _lowPowerCheckInterval = Duration(
+    seconds: 120,
+  ); // 低功耗模式检查间隔
+
   // 智能运动状态检测和环境感知参数已删除，简化为基础过滤
-  
+
   // 电池优化参数
   static const int _batteryOptimizationThreshold = 20; // 电池优化阈值（连续成功次数）
   static const Duration _maxLowPowerDuration = Duration(hours: 2); // 最大低功耗持续时间
   DateTime? _lowPowerModeStartTime; // 低功耗模式开始时间
   // 与iOS策略完全一致：收集所有位置更新
-  // 
+  //
   // 性能优化说明：
   // 1. distanceFilter = 50米：平衡精度与性能，避免过度采集
   // 2. locationInterval = 6秒：平衡响应性与耗电，避免频繁唤醒GPS
   // 3. 采用批量上报策略：减少网络请求，提高上报效率
-  
+
   @override
   void onInit() {
     super.onInit();
@@ -202,27 +223,32 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     _removeAppLifecycleListener(); // 清理生命周期监听
     _backgroundKeepAliveTimer?.cancel();
     _batteryOptimizedTimer?.cancel(); // 清理电池优化定时器
-    
+
     // 🚀 清理新的定时上报器
     _reportTimer?.cancel();
     _reportTimer = null;
     _isReportStrategyRunning = false;
-    
+
     // 清理全局监听器
     _globalLocationSub?.cancel();
     _globalLocationSub = null;
     _isGlobalListenerSetup = false;
-    
+
     // 清理GPS状态监听
     _gpsStatusSubscription?.cancel();
     _gpsStatusSubscription = null;
-    
+
+    // 清理传感器监听
+    _magnetometerSubscription?.cancel();
+    _magnetometerSubscription = null;
+    _accelerometerSubscription?.cancel();
+    _accelerometerSubscription = null;
+
     super.onClose();
   }
-  
+
   /// 隐私合规启动方法 - 只有在用户同意隐私政策后才调用
   void startPrivacyCompliantService() {
-     
     // 初始化API Key和隐私合规
     init();
     // 设置全局唯一的监听器
@@ -235,8 +261,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     if (Platform.isAndroid) {
       _startGpsStatusMonitoring();
     }
-    
-   }
+    // 启动手机方向传感器监听
+    _startSensorListeners();
+  }
 
   /// 设置高德地图隐私合规和API Key
   /// 初始化定位服务（隐私合规版本）
@@ -250,12 +277,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 设置API Key - 确保在任何定位操作前执行
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
-
-     } catch (e) {
+    } catch (e) {
       logger.error('初始化高德定位服务失败', tag: 'Location', error: e);
     }
   }
-  
+
   Future<void> _setupPrivacyCompliance() async {
     try {
       // 🔑 关键修复：从隐私合规管理器获取当前隐私同意状态
@@ -270,8 +296,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 重新设置API Key（确保在定位前生效）
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
-
-     } catch (e) {
+    } catch (e) {
       logger.error('设置高德定位隐私合规失败', tag: 'Location', error: e);
     }
   }
@@ -279,15 +304,15 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 设置全局唯一的定位监听器（基于高德插件内部机制优化）
   void _setupGlobalLocationListener() {
     if (_isGlobalListenerSetup) {
-       return;
+      return;
     }
 
     try {
- 
       // 基于高德插件源码分析：
       // 插件内部使用 _receiveStream 判断是否已创建 StreamController
       // 只要不重复调用 onLocationChanged()，就不会有冲突
-      Stream<Map<String, Object>> locationStream = _locationPlugin.onLocationChanged();
+      Stream<Map<String, Object>> locationStream = _locationPlugin
+          .onLocationChanged();
 
       _globalLocationSub = locationStream.listen(
         (Map<String, Object> result) {
@@ -304,15 +329,14 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       );
       _isGlobalListenerSetup = true;
       logger.info('全局定位监听器设置完成', tag: 'Location');
-
     } catch (e) {
       logger.error('设置全局定位监听器失败: ', tag: 'Location');
-      if (e.toString().contains('Stream has already been listened to')) { 
+      if (e.toString().contains('Stream has already been listened to')) {
         _isGlobalListenerSetup = true; // 标记为已设置，避免重复尝试
       }
     }
   }
-  
+
   /// 请求定位权限（改进版，支持Android 10+后台定位）
   Future<bool> requestLocationPermission() async {
     try {
@@ -323,19 +347,16 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       bool hasPermission = await permissionManager.requestLocationPermission();
 
       if (hasPermission) {
-       // logger.info('定位权限申请成功，检查后台定位权限状态...', tag: 'Location');
+        // logger.info('定位权限申请成功，检查后台定位权限状态...', tag: 'Location');
 
         // 检查后台定位权限状态，但不主动请求（避免重复弹窗）
         var backgroundLocationStatus = await Permission.locationAlways.status;
-       // logger.info('后台定位权限状态: $backgroundLocationStatus', tag: 'Location');
+        // logger.info('后台定位权限状态: $backgroundLocationStatus', tag: 'Location');
 
         // 只在后台权限被明确拒绝时才提示用户
         if (backgroundLocationStatus.isPermanentlyDenied) {
           logger.warning('后台定位权限被永久拒绝', tag: 'Location');
-          CustomToast.show(
-            Get.context!,
-            '后台定位权限被永久拒绝，可在设置中手动开启',
-          );
+          CustomToast.show(Get.context!, '后台定位权限被永久拒绝，可在设置中手动开启');
         } else if (backgroundLocationStatus.isDenied) {
           logger.debug('后台定位权限未开启，前台定位仍可使用', tag: 'Location');
           // 不主动请求后台权限，避免重复弹窗
@@ -343,7 +364,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         }
       }
 
-     // logger.info('定位权限申请完成', tag: 'Location');
+      // logger.info('定位权限申请完成', tag: 'Location');
       return hasPermission;
     } catch (e) {
       logger.error('请求定位权限失败: ', tag: 'Location');
@@ -358,19 +379,16 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 1. 首先确保有前台定位权限
       var locationStatus = await Permission.location.status;
-     // logger.info('前台定位权限状态: $locationStatus', tag: 'Location');
+      // logger.info('前台定位权限状态: $locationStatus', tag: 'Location');
 
       if (!locationStatus.isGranted) {
-       // logger.info('先申请前台定位权限...', tag: 'Location');
+        // logger.info('先申请前台定位权限...', tag: 'Location');
         locationStatus = await Permission.location.request();
         logger.info('申请前台定位权限结果: $locationStatus', tag: 'Location');
 
         if (!locationStatus.isGranted) {
           logger.error('前台定位权限被拒绝，无法申请后台权限', tag: 'Location');
-          CustomToast.show(
-            Get.context!,
-            '请先开启定位权限，然后再申请后台定位权限',
-          );
+          CustomToast.show(Get.context!, '请先开启定位权限，然后再申请后台定位权限');
           return false;
         }
       }
@@ -380,27 +398,27 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       logger.info('后台定位权限状态: $backgroundLocationStatus', tag: 'Location');
 
       if (backgroundLocationStatus.isDenied) {
-       // logger.info('申请后台定位权限...', tag: 'Location');
+        // logger.info('申请后台定位权限...', tag: 'Location');
         backgroundLocationStatus = await Permission.locationAlways.request();
         logger.info('申请后台定位权限结果: $backgroundLocationStatus', tag: 'Location');
 
         if (backgroundLocationStatus.isGranted) {
-         // logger.info('后台定位权限获取成功', tag: 'Location');
+          // logger.info('后台定位权限获取成功', tag: 'Location');
           return true;
         } else if (backgroundLocationStatus.isPermanentlyDenied) {
-        //  logger.error('后台定位权限被永久拒绝，直接跳转到设置', tag: 'Location');
+          //  logger.error('后台定位权限被永久拒绝，直接跳转到设置', tag: 'Location');
           await _openLocationSettingsDirectly();
           return false;
         } else {
-         // logger.warning('后台定位权限被拒绝，直接跳转到设置', tag: 'Location');
+          // logger.warning('后台定位权限被拒绝，直接跳转到设置', tag: 'Location');
           await _openLocationSettingsDirectly();
           return false;
         }
       } else if (backgroundLocationStatus.isGranted) {
-       // logger.info('后台定位权限已授予', tag: 'Location');
+        // logger.info('后台定位权限已授予', tag: 'Location');
         return true;
       } else if (backgroundLocationStatus.isPermanentlyDenied) {
-       // logger.error('后台定位权限被永久拒绝，直接跳转到设置', tag: 'Location');
+        // logger.error('后台定位权限被永久拒绝，直接跳转到设置', tag: 'Location');
         await _openLocationSettingsDirectly();
         return false;
       }
@@ -411,11 +429,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       return false;
     }
   }
-  
+
   /// 开始定位
   Future<bool> startLocation() async {
     try {
-     // logger.info('SimpleLocationService.startLocation() 开始执行', tag: 'Location');
+      // logger.info('SimpleLocationService.startLocation() 开始执行', tag: 'Location');
 
       // 🔑 关键修复：检查隐私政策同意状态
       final privacyManager = Get.find<PrivacyComplianceManager>();
@@ -431,15 +449,15 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 设置高德地图隐私合规（必须在任何定位操作之前）
       await _setupPrivacyCompliance();
       logger.info('隐私合规设置完成', tag: 'Location');
-      
+
       // 检查权限状态，但不重复请求
       var locationStatus = await Permission.location.status;
-     // logger.info('定位权限状态: $locationStatus', tag: 'Location');
+      // logger.info('定位权限状态: $locationStatus', tag: 'Location');
       if (!locationStatus.isGranted) {
         logger.error('定位权限检查失败，无法启动定位服务', tag: 'Location');
         return false;
       }
-      
+
       // 如果已经在定位，先停止
       if (isLocationEnabled.value) {
         logger.info('定位服务已启动，先停止旧服务', tag: 'Location');
@@ -448,68 +466,68 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         await Future.delayed(Duration(milliseconds: 500));
       }
 
-     // logger.info('高德定位服务启动中...', tag: 'Location');
-      
+      // logger.info('高德定位服务启动中...', tag: 'Location');
+
       // 检查插件是否已正确初始化
       try {
         // 获取当前定位设置状态（这会触发插件检查）
-       // logger.info('检查高德定位插件状态...', tag: 'Location');
+        // logger.info('检查高德定位插件状态...', tag: 'Location');
         // 简单调用来检查插件是否正常
         _locationPlugin.stopLocation(); // 安全的检查调用
         logger.info('高德定位插件状态正常', tag: 'Location');
       } catch (e) {
         logger.error('高德定位插件可能未正确初始化: ', tag: 'Location');
       }
-      
+
       // 确保流监听器已彻底清理
       try {
         // 停止现有定位
         _locationPlugin.stopLocation();
         logger.info('高德定位插件已停止', tag: 'Location');
-        
+
         // 全局监听器无需清理，直接继续
-        
+
         logger.info('所有流监听器清理完成', tag: 'Location');
-        
+
         // 等待确保完全停止
         await Future.delayed(Duration(milliseconds: 500));
         logger.info('清理完成，等待结束', tag: 'Location');
       } catch (e) {
         logger.warning('清理监听器时出现异常: $e', tag: 'Location');
       }
-      
+
       // 设置高德定位参数 - 参考iOS版本的高精度配置 + 后台定位优化
-     // logger.info('开始设置高德定位参数（参考iOS版本 + 后台定位优化）...', tag: 'Location');
+      // logger.info('开始设置高德定位参数（参考iOS版本 + 后台定位优化）...', tag: 'Location');
       AMapLocationOption locationOption = AMapLocationOption();
-      
+
       // 设置定位模式 - 使用Hight_Accuracy模式（最关键的配置）
       // 🔥 重要：Hight_Accuracy模式在后台和息屏时会自动降级为基站+WIFI定位
       // 这是Android系统的限制，无法通过配置完全避免
-      locationOption.locationMode = AMapLocationMode.Hight_Accuracy; // 高精度模式，包含GPS
-      
+      locationOption.locationMode =
+          AMapLocationMode.Hight_Accuracy; // 高精度模式，包含GPS
+
       logger.debug('- 定位模式: 高精度模式（GPS+网络+WIFI）', tag: 'Location');
-     // logger.debug('-  高精度模式已启用', tag: 'Location');
-      logger.debug('- ⚠️  息屏后限制：Android系统会限制GPS访问，自动降级为基站+WIFI定位', tag: 'Location');
-      
+      // logger.debug('-  高精度模式已启用', tag: 'Location');
+      logger.debug(
+        '- ⚠️  息屏后限制：Android系统会限制GPS访问，自动降级为基站+WIFI定位',
+        tag: 'Location',
+      );
+
       // 设置定位间隔（参考iOS版本）
       // 🔥 后台定位优化：适当增加间隔以减少电量消耗和系统限制
       locationOption.locationInterval = _locationInterval; // 5秒间隔，平衡响应性与耗电
       logger.debug('- 定位间隔: ${_locationInterval}ms（平衡响应性与耗电）', tag: 'Location');
-      
+
       // ✅ 关键修复：取消距离过滤，让定位层保证数据完整性
       locationOption.distanceFilter = -1;
-     // logger.debug('- 距离过滤: ${_distanceFilter}米（设为0以避免与时间间隔冲突）', tag: 'Location');
-      
+      // logger.debug('- 距离过滤: ${_distanceFilter}米（设为0以避免与时间间隔冲突）', tag: 'Location');
+
       // 设置地址信息
       locationOption.needAddress = true;
-       
+
       // 设置持续定位
       locationOption.onceLocation = false;
-       
-     
-      
-    
-      
+
       try {
         _locationPlugin.setLocationOption(locationOption);
         logger.info('高德定位参数设置完成', tag: 'Location');
@@ -524,18 +542,15 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       } else {
         // logger.info('全局监听器已激活，直接启动定位', tag: 'Location');
       }
- 
+
       try {
         _locationPlugin.startLocation();
         logger.info('高德定位启动请求已发送', tag: 'Location');
-        
-     
-        
       } catch (e) {
         logger.error('启动高德定位失败: ', tag: 'Location');
         throw e;
       }
-      
+
       // // 延迟启动定时单次定位（给持续定位一些时间先工作）
       // Timer(Duration(seconds: 60), () {
       //   if (isLocationEnabled.value) {
@@ -543,7 +558,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       //     _startPeriodicSingleLocation();
       //   }
       // });
-      
+
       // 添加延迟检查
       Future.delayed(Duration(seconds: 5), () {
         logger.verbose('5秒后检查：定位是否有数据回调...', tag: 'Location');
@@ -552,31 +567,31 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
           _requestSingleLocation();
         }
       });
-      
+
       // Future.delayed(Duration(seconds: 10), () {
       //   logger.verbose('10秒后检查：定位是否有数据回调...', tag: 'Location');
       //   if (currentLocation.value == null) {
       //     logger.warning('10秒后仍未收到定位数据，可能存在问题', tag: 'Location');
       //   }
       // });
-      
+
       // 新策略：不再需要定时器，改为实时上报
-      
+
       isLocationEnabled.value = true;
       hasInitialReport.value = false; // 重置初始上报状态
-      
+
       // 🔥 关键修复：立即启动前台服务，确保息屏后能继续定位
       // 不等到进入后台才启动，因为用户可能随时息屏
       logger.info('立即启动前台服务以支持息屏后定位...', tag: 'Location');
       await _enableForegroundServiceIfNeeded();
-      
+
       // 🔥 重要优化：根据应用状态智能决定是否启动后台定时器
       _smartStartLocationStrategy();
-      
+
       // 🚀 每次启动定位服务时，立即尝试获取一次定位并放入收集池
       logger.info('定位服务启动完成，立即尝试获取一次定位放入收集池', tag: 'Location');
       _requestInitialLocationForCollection();
-      
+
       logger.info('高德定位服务已启动完成', tag: 'Location');
       return true;
     } catch (e) {
@@ -584,23 +599,26 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       return false;
     }
   }
-  
+
   /// 处理位置更新
   void _onLocationUpdate(Map<String, Object> result) {
     try {
-       logger.verbose('完整定位数据: ${result.toString()}', tag: 'Location');
-      
+      logger.verbose('完整定位数据: ${result.toString()}', tag: 'Location');
+
       // 检查高德定位错误码
       int? errorCode = int.tryParse(result['errorCode']?.toString() ?? '0');
       String? errorInfo = result['errorInfo']?.toString();
-      
+
       if (errorCode != null && errorCode != 0) {
-        logger.error('高德定位失败 - 错误码: $errorCode, 错误信息: $errorInfo', tag: 'Location');
-        
+        logger.error(
+          '高德定位失败 - 错误码: $errorCode, 错误信息: $errorInfo',
+          tag: 'Location',
+        );
+
         // 根据错误码进行智能重试
         bool shouldRetry = false;
         String suggestion = '';
-        
+
         switch (errorCode) {
           case 12:
             logger.error('错误码12: 缺少定位权限', tag: 'Location');
@@ -614,13 +632,16 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
             try {
               final appLifecycle = AppLifecycleService.instance;
               final inBackground = appLifecycle.isInBackground;
-              final hasBg = _currentBackgroundPermission.value == PermissionStatus.granted;
+              final hasBg =
+                  _currentBackgroundPermission.value ==
+                  PermissionStatus.granted;
               if (inBackground && !hasBg) {
                 logger.debug('触发GPS-only降级（后台且无后台权限）', tag: 'Location');
                 _locationPlugin.stopLocation();
                 final gpsOnly = AMapLocationOption();
                 gpsOnly.locationMode = AMapLocationMode.Device_Sensors;
-                gpsOnly.locationInterval = SimpleLocationService._locationInterval;
+                gpsOnly.locationInterval =
+                    SimpleLocationService._locationInterval;
                 gpsOnly.distanceFilter = SimpleLocationService._distanceFilter;
                 gpsOnly.needAddress = true;
                 gpsOnly.onceLocation = false;
@@ -663,16 +684,19 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
             suggestion = '未知错误，尝试重新初始化';
             shouldRetry = true;
         }
-        
+
         logger.debug('建议: $suggestion', tag: 'Location');
-        
+
         // ✅ 优化：使用指数退避策略进行智能重试
         if (shouldRetry && _locationRetryCount < 5) {
           _locationRetryCount++;
           // 指数退避：2秒、4秒、8秒、16秒、32秒
           final delaySeconds = 2 * (1 << (_locationRetryCount - 1)); // 2^(n-1)
-          logger.debug('第$_locationRetryCount 次重试定位（延迟${delaySeconds}秒）...', tag: 'Location');
-          
+          logger.debug(
+            '第$_locationRetryCount 次重试定位（延迟${delaySeconds}秒）...',
+            tag: 'Location',
+          );
+
           // 使用指数退避延迟后重试
           Future.delayed(Duration(seconds: delaySeconds), () async {
             try {
@@ -686,65 +710,76 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         } else {
           _locationRetryCount = 0; // 重置重试计数
         }
-        
+
         // 更新后台通知显示错误状态
         if (_isBackgroundNotificationShown) {
           _updateBackgroundNotification('定位异常 - $suggestion');
         }
-        
+
         return; // 错误情况直接返回
       }
-      
+
       // 解析高德定位结果
       double? latitude = double.tryParse(result['latitude']?.toString() ?? '');
-      double? longitude = double.tryParse(result['longitude']?.toString() ?? '');
+      double? longitude = double.tryParse(
+        result['longitude']?.toString() ?? '',
+      );
       double? accuracy = double.tryParse(result['accuracy']?.toString() ?? '');
       double? speed = double.tryParse(result['speed']?.toString() ?? '');
       double? altitude = double.tryParse(result['altitude']?.toString() ?? '');
+      // bearing（移动方向）不再使用，改用传感器数据获取手机朝向
       String? address = result['address']?.toString();
       int? timestamp = int.tryParse(result['timestamp']?.toString() ?? '');
-      
-     
-      
+
       if (latitude == null || longitude == null) {
         logger.debug('高德定位数据无效: $result', tag: 'Location');
         return;
       }
-      
+
       // 成功定位，重置重试计数
       _locationRetryCount = 0;
-      
+
       // logger.info('高德定位成功: 纬度=$latitude, 经度=$longitude, 精度=$accuracy 米', tag: 'Location');
 
       final location = LocationReportModel(
         longitude: longitude.toString(),
         latitude: latitude.toString(),
-        locationTime: timestamp != null ? (timestamp ~/ 1000).toString() : 
-                     (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString(),
+        locationTime: timestamp != null
+            ? (timestamp ~/ 1000).toString()
+            : (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString(),
         speed: (speed ?? 0.0).toStringAsFixed(2),
         altitude: (altitude ?? 0.0).toStringAsFixed(2),
-        locationName: address ?? '位置 ${latitude.toString()}, ${longitude.toString()}',
+        locationName:
+            address ?? '位置 ${latitude.toString()}, ${longitude.toString()}',
         accuracy: (accuracy ?? 0.0).toStringAsFixed(2),
       );
 
       // 更新当前位置
       currentLocation.value = location;
-      
+
+      // 注意：不再使用 bearing，改用传感器数据
+      // bearing 是移动方向，我们需要的是手机朝向
+
       // 新策略：只做基础验证
       if (_isBasicLocationValid(location)) {
         _handleLocationReporting(location);
       } else {
-        logger.warning(' 位置基础验证失败，跳过收集: ${location.latitude}, ${location.longitude}', tag: 'Location');
+        logger.warning(
+          ' 位置基础验证失败，跳过收集: ${location.latitude}, ${location.longitude}',
+          tag: 'Location',
+        );
       }
-      
+
       // logger.debug('高德实时定位: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}米, 速度: ${location.speed}m/s', tag: 'Location');
-      
+
       // 更新后台通知状态
       if (_isBackgroundNotificationShown) {
-        String locationText = address ?? '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+        String locationText =
+            address ??
+            '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
         _updateBackgroundNotification('定位正常 - $locationText');
       }
-      
+
       // 如果正在进行单次定位，现在收到了数据，说明单次定位成功
       if (_isSingleLocationInProgress) {
         logger.info('单次定位成功，准备重启持续定位', tag: 'Location');
@@ -754,19 +789,18 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
           _restartContinuousLocation();
         });
       }
-      
     } catch (e) {
       logger.debug('处理高德位置更新失败: $e', tag: 'Location');
     }
   }
-  
+
   /// 停止定位
   void stopLocation() {
     try {
       // 停止定时单次定位
       _periodicLocationTimer?.cancel();
       _periodicLocationTimer = null;
-      
+
       // 🚀 停止新的定时上报器
       _reportTimer?.cancel();
       _reportTimer = null;
@@ -781,13 +815,13 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       hasInitialReport.value = false;
       _lastReportedLocation = null;
       // _lastMinuteReportTime = null; // 已移除
-      
+
       // 🚀 清理新的收集缓冲区
       _collectionBuffer.clear();
       _isFirstLocationSuccess = true; // 重置首次定位标记
-      
+
       // 智能状态已简化
-      
+
       // 🆕 清空当前位置数据，避免关闭定位后仍然使用旧位置
       currentLocation.value = null;
 
@@ -805,48 +839,47 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   Future<void> _requestInitialLocationForCollection() async {
     try {
       logger.info('主动获取初始定位，准备放入收集池...', tag: 'Location');
-      
+
       // 等待一小段时间让定位服务稳定
       await Future.delayed(Duration(seconds: 2));
-      
+
       // 触发一次单次定位
       await _requestSingleLocationForCollection();
-      
     } catch (e) {
       logger.error('主动获取初始定位失败: ', tag: 'Location');
     }
   }
-  
+
   /// 为收集池专门的单次定位请求
   Future<void> _requestSingleLocationForCollection() async {
     try {
       logger.debug('为收集池请求单次定位...', tag: 'Location');
-      
+
       // 如果已经在进行单次定位，不重复执行
       if (_isSingleLocationInProgress) {
         logger.warning('单次定位已在进行中，跳过重复请求', tag: 'Location');
         return;
       }
-      
+
       // 标记正在进行单次定位
       _isSingleLocationInProgress = true;
-      
+
       // 先停止当前定位，然后重新配置
       _locationPlugin.stopLocation();
       await Future.delayed(Duration(milliseconds: 200));
-      
+
       // 设置单次定位参数
       AMapLocationOption singleLocationOption = AMapLocationOption();
       singleLocationOption.locationMode = AMapLocationMode.Hight_Accuracy;
       singleLocationOption.onceLocation = true; // 单次定位
       singleLocationOption.needAddress = true;
-      
+
       _locationPlugin.setLocationOption(singleLocationOption);
-      
+
       // 重新开始定位，此时应该是单次定位模式
       _locationPlugin.startLocation();
       logger.debug('为收集池的单次定位请求已发送', tag: 'Location');
-      
+
       // 设置超时，如果10秒内没有收到定位，则重启持续定位
       Timer(Duration(seconds: 10), () {
         if (_isSingleLocationInProgress) {
@@ -856,7 +889,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
           _locationPlugin.startLocation();
         }
       });
-      
     } catch (e) {
       logger.error('收集池单次定位失败: ', tag: 'Location');
       _isSingleLocationInProgress = false;
@@ -867,33 +899,33 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   Future<void> _requestSingleLocation() async {
     try {
       logger.debug('尝试单次定位作为备用方案...', tag: 'Location');
-      
+
       // 如果已经在进行单次定位，不重复执行
       if (_isSingleLocationInProgress) {
         logger.warning('单次定位已在进行中，跳过重复请求', tag: 'Location');
         return;
       }
-      
+
       // 标记正在进行单次定位
       _isSingleLocationInProgress = true;
-      
+
       // 先停止当前定位，然后重新配置
       _locationPlugin.stopLocation();
       await Future.delayed(Duration(milliseconds: 200));
-      
+
       // 设置单次定位参数
       AMapLocationOption singleLocationOption = AMapLocationOption();
       singleLocationOption.locationMode = AMapLocationMode.Hight_Accuracy;
       singleLocationOption.onceLocation = true; // 单次定位
       singleLocationOption.needAddress = true;
       // 优化已实现
-      
+
       _locationPlugin.setLocationOption(singleLocationOption);
-      
+
       // 重新开始定位，此时应该是单次定位模式
       _locationPlugin.startLocation();
       logger.debug('单次定位请求已发送', tag: 'Location');
-      
+
       // 设置超时，如果10秒内没有收到定位，则重启持续定位
       Timer(Duration(seconds: 10), () {
         if (_isSingleLocationInProgress) {
@@ -902,7 +934,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
           _handleLocationTimeout();
         }
       });
-      
     } catch (e) {
       logger.error('单次定位失败: ', tag: 'Location');
       _isSingleLocationInProgress = false;
@@ -916,27 +947,27 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       AMapLocationOption locationOption = AMapLocationOption();
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
       locationOption.locationInterval = _locationInterval; // 5秒间隔（平衡性能）
-      locationOption.distanceFilter = _distanceFilter; //  
+      locationOption.distanceFilter = _distanceFilter; //
       // 优化已实现
       locationOption.needAddress = true;
       locationOption.onceLocation = false; // 持续定位
-      
+
       _locationPlugin.setLocationOption(locationOption);
       logger.info('持续定位参数重新设置完成', tag: 'Location');
     } catch (e) {
       logger.error('重新设置持续定位参数失败: ', tag: 'Location');
     }
   }
-  
+
   /// 处理定位超时的智能恢复策略
   Future<void> _handleLocationTimeout() async {
     try {
       logger.info('开始处理定位超时，当前重试次数: $_locationRetryCount', tag: 'Location');
-      
+
       if (_locationRetryCount < 3) {
         _locationRetryCount++;
         logger.debug('第${_locationRetryCount}次超时重试...', tag: 'Location');
-        
+
         // 根据重试次数采用不同策略
         switch (_locationRetryCount) {
           case 1:
@@ -945,7 +976,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
             // 全局监听器已激活，无需重新设置
             _locationPlugin.startLocation();
             break;
-            
+
           case 2:
             // 第二次超时：强制重新初始化插件
             logger.info('策略2: 强制重新初始化插件', tag: 'Location');
@@ -953,13 +984,13 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
             // 全局监听器已激活，无需重新设置
             _locationPlugin.startLocation();
             break;
-            
+
           case 3:
             // 第三次超时：尝试切换定位模式
             logger.info('策略3: 切换到高精度定位模式', tag: 'Location');
             await _switchToHighAccuracyMode();
             break;
-            
+
           default:
             // 最后策略：重启持续定位
             logger.info('最终策略: 重启持续定位', tag: 'Location');
@@ -971,7 +1002,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         _locationRetryCount = 0;
         _restartContinuousLocation();
       }
-      
     } catch (e) {
       logger.error('处理定位超时失败: ', tag: 'Location');
       _locationRetryCount = 0;
@@ -983,11 +1013,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   Future<void> _switchToHighAccuracyMode() async {
     try {
       logger.info('切换到高精度定位模式...', tag: 'Location');
-      
+
       // 停止当前定位
       _locationPlugin.stopLocation();
       await Future.delayed(Duration(milliseconds: 500));
-      
+
       // 设置高精度定位参数
       AMapLocationOption locationOption = AMapLocationOption();
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
@@ -996,15 +1026,14 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 优化已实现
       locationOption.needAddress = true;
       locationOption.onceLocation = false;
-      
+
       _locationPlugin.setLocationOption(locationOption);
-      
+
       // 重新设置监听器并启动
       // 全局监听器已激活，无需重新设置
       _locationPlugin.startLocation();
-      
+
       logger.info('已切换到高精度定位模式', tag: 'Location');
-      
     } catch (e) {
       logger.error('切换高精度定位模式失败: ', tag: 'Location');
       throw e;
@@ -1025,7 +1054,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       await Future.delayed(Duration(milliseconds: 200));
       logger.info('插件轻量级重新初始化完成', tag: 'Location');
-
     } catch (e) {
       logger.error('轻量级重新初始化插件失败: ', tag: 'Location');
       throw e;
@@ -1033,26 +1061,29 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   }
 
   // 旧的Stream监听器方法已移除，现在使用全局监听器
-  
+
   /// 重启持续定位
   Future<void> _restartContinuousLocation() async {
     try {
       logger.debug('重启持续定位...', tag: 'Location');
-      
+
       // 🔥 修复：只有在缓冲区为空时才重置首次定位标志
       if (_collectionBuffer.isEmpty) {
         _isFirstLocationSuccess = true;
         logger.debug('缓冲区为空，重置首次定位标志', tag: 'Location');
       } else {
-        logger.debug('缓冲区不为空(${_collectionBuffer.length}个点)，保持首次定位标志为false', tag: 'Location');
+        logger.debug(
+          '缓冲区不为空(${_collectionBuffer.length}个点)，保持首次定位标志为false',
+          tag: 'Location',
+        );
       }
-      
+
       _locationPlugin.stopLocation();
       await Future.delayed(Duration(milliseconds: 300));
-      
+
       // 重新设置持续定位参数
       _setupContinuousLocation();
-      
+
       // 重新开始定位（不需要重新设置监听器，因为监听器是持续的）
       _locationPlugin.startLocation();
       logger.info('持续定位已重启', tag: 'Location');
@@ -1060,48 +1091,55 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       logger.error('重启持续定位失败: ', tag: 'Location');
     }
   }
-  
+
   /// 检查服务状态（用于测试）
   bool get isServiceRunning => isLocationEnabled.value;
-   
-  
+
   /// 尝试纯网络定位（不依赖GPS）
   Future<void> tryNetworkLocationOnly() async {
     logger.verbose('尝试纯网络定位...', tag: 'Location');
-    
+
     try {
       // 停止当前定位
       stopLocation();
       await Future.delayed(Duration(seconds: 1));
-      
+
       // 配置纯网络定位
       AMapLocationOption locationOption = AMapLocationOption();
-      locationOption.locationMode = AMapLocationMode.Battery_Saving; // 省电模式主要使用网络定位
-      locationOption.locationInterval = SimpleLocationService._locationInterval; // 5秒间隔
-      locationOption.distanceFilter = _distanceFilter; //  
+      locationOption.locationMode =
+          AMapLocationMode.Battery_Saving; // 省电模式主要使用网络定位
+      locationOption.locationInterval =
+          SimpleLocationService._locationInterval; // 5秒间隔
+      locationOption.distanceFilter = _distanceFilter; //
       locationOption.needAddress = true;
       locationOption.onceLocation = false;
       // locationOption.mockEnable = true;
       // locationOption.gpsFirst = false; // 不优先GPS
-      
+
       _locationPlugin.setLocationOption(locationOption);
       logger.info('网络定位参数设置完成', tag: 'Location');
-      
+
       // 重新设置监听器
       // 全局监听器已激活，无需重新设置
-      
+
       // 启动定位
       _locationPlugin.startLocation();
       logger.debug('网络定位已启动，等待结果...', tag: 'Location');
-      
+
       // 等待15秒
       await Future.delayed(Duration(seconds: 15));
-      
+
       if (currentLocation.value != null) {
         logger.info('网络定位成功！', tag: 'Location');
-        logger.debug('经度: ${currentLocation.value!.longitude}', tag: 'Location');
+        logger.debug(
+          '经度: ${currentLocation.value!.longitude}',
+          tag: 'Location',
+        );
         logger.debug('纬度: ${currentLocation.value!.latitude}', tag: 'Location');
-        logger.debug('地址: ${currentLocation.value!.locationName}', tag: 'Location');
+        logger.debug(
+          '地址: ${currentLocation.value!.locationName}',
+          tag: 'Location',
+        );
       } else {
         logger.error('网络定位也未能获取位置', tag: 'Location');
         logger.debug('建议检查：', tag: 'Location');
@@ -1109,38 +1147,37 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         logger.debug('2. 高德地图API Key是否正确', tag: 'Location');
         logger.debug('3. 是否在中国境内（高德地图限制）', tag: 'Location');
       }
-      
     } catch (e) {
       logger.error('网络定位出错: ', tag: 'Location');
     }
   }
-  
+
   /// 综合定位问题排查工具
   Future<void> comprehensiveLocationTroubleshoot() async {
     logger.info('========== 综合定位问题排查 ==========', tag: 'Location');
-    
+
     try {
       // 1. 基础检查
       logger.info('第1步：基础环境检查', tag: 'Location');
       await diagnoseLocationService();
-      
+
       // 2. API Key验证
       logger.debug('\n 第2步：API Key验证', tag: 'Location');
       await checkApiKeyConfiguration();
-      
+
       // 3. 尝试网络定位
       logger.debug('\n 第3步：尝试纯网络定位', tag: 'Location');
       await tryNetworkLocationOnly();
-      
+
       if (currentLocation.value != null) {
         logger.info('网络定位成功，问题已解决！', tag: 'Location');
         return;
       }
-      
+
       // 4. 尝试不同定位模式
       logger.debug('\n 第4步：尝试不同定位模式', tag: 'Location');
       await tryDifferentLocationModes();
-      
+
       // 5. 最终建议
       logger.debug('\n 第5步：最终建议', tag: 'Location');
       if (currentLocation.value == null) {
@@ -1156,7 +1193,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       } else {
         logger.info('定位问题已解决！', tag: 'Location');
       }
-      
     } catch (e) {
       logger.error('综合排查过程中出错: ', tag: 'Location');
     }
@@ -1165,70 +1201,76 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 尝试不同定位模式
   Future<void> tryDifferentLocationModes() async {
     logger.info('尝试不同定位模式...', tag: 'Location');
-    
+
     // 模式列表
     final modes = [
       {'mode': AMapLocationMode.Battery_Saving, 'name': '省电模式（网络定位优先）'},
       {'mode': AMapLocationMode.Device_Sensors, 'name': '设备模式（GPS优先）'},
       {'mode': AMapLocationMode.Hight_Accuracy, 'name': '高精度模式'},
     ];
-    
+
     for (int i = 0; i < modes.length; i++) {
       final modeInfo = modes[i];
-      logger.debug('尝试模式 ${i + 1}/${modes.length}: ${modeInfo['name']}', tag: 'Location');
-      
+      logger.debug(
+        '尝试模式 ${i + 1}/${modes.length}: ${modeInfo['name']}',
+        tag: 'Location',
+      );
+
       try {
         // 停止当前定位
         stopLocation();
         await Future.delayed(Duration(seconds: 1));
-        
+
         // 设置新模式
         AMapLocationOption locationOption = AMapLocationOption();
         locationOption.locationMode = modeInfo['mode'] as AMapLocationMode;
-        locationOption.locationInterval = SimpleLocationService._locationInterval;
-        locationOption.distanceFilter = _distanceFilter; // 
+        locationOption.locationInterval =
+            SimpleLocationService._locationInterval;
+        locationOption.distanceFilter = _distanceFilter; //
         // 优化已实现
         locationOption.needAddress = true;
         locationOption.onceLocation = false;
         // locationOption.mockEnable = true;
         // locationOption.gpsFirst = false;
-        
+
         _locationPlugin.setLocationOption(locationOption);
-        
+
         // 重新启动定位
         // 全局监听器已激活，无需重新设置
         _locationPlugin.startLocation();
-        
+
         logger.debug('启动 ${modeInfo['name']}，等待10秒测试...', tag: 'Location');
-        
+
         // 等待10秒看是否有数据
         await Future.delayed(Duration(seconds: 10));
-        
-      if (currentLocation.value != null) {
-        logger.info('${modeInfo['name']} 成功获取位置！', tag: 'Location');
-        logger.debug('位置: (${currentLocation.value!.latitude}, ${currentLocation.value!.longitude})', tag: 'Location');
+
+        if (currentLocation.value != null) {
+          logger.info('${modeInfo['name']} 成功获取位置！', tag: 'Location');
+          logger.debug(
+            '位置: (${currentLocation.value!.latitude}, ${currentLocation.value!.longitude})',
+            tag: 'Location',
+          );
           return; // 成功就退出
         } else {
           logger.error('${modeInfo['name']} 未获取到位置', tag: 'Location');
         }
-        
       } catch (e) {
         logger.error('${modeInfo['name']} 出错: ', tag: 'Location');
       }
     }
-    
+
     logger.warning('所有定位模式都未能获取到位置', tag: 'Location');
   }
 
   /// 检查高德API Key是否配置正确
   Future<void> checkApiKeyConfiguration() async {
     logger.info('检查高德地图API Key配置...', tag: 'Location');
-    
+
     try {
       // 尝试验证API Key配置（通过设置参数来测试）
       // await _locationPlugin.init(); // 某些版本可能没有这个方法
       logger.info('高德定位插件初始化成功，API Key可能配置正确', tag: 'Location');
-      
+
       // 检查是否能获取插件版本（这通常表示插件工作正常）
       try {
         // 注意：某些版本的高德插件可能没有getVersion方法
@@ -1236,7 +1278,6 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       } catch (e) {
         logger.warning('无法获取插件版本信息，但这可能是正常的: $e', tag: 'Location');
       }
-      
     } catch (e) {
       logger.error('高德定位插件初始化失败: ', tag: 'Location');
       logger.debug('可能的原因：', tag: 'Location');
@@ -1251,147 +1292,166 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 诊断定位服务状态
   Future<void> diagnoseLocationService() async {
     logger.info('========== 定位服务诊断报告 ==========', tag: 'Location');
-    
+
     try {
       // 1. 检查定位服务是否启用
-      logger.info('定位服务状态: ${isLocationEnabled.value ? "✅ 已启用" : "❌ 已禁用"}', tag: 'Location');
-      
+      logger.info(
+        '定位服务状态: ${isLocationEnabled.value ? "✅ 已启用" : "❌ 已禁用"}',
+        tag: 'Location',
+      );
+
       // 2. 检查当前位置数据
-      logger.info('当前位置数据: ${currentLocation.value?.toJson() ?? "❌ 无数据"}', tag: 'Location');
-      
+      logger.info(
+        '当前位置数据: ${currentLocation.value?.toJson() ?? "❌ 无数据"}',
+        tag: 'Location',
+      );
+
       // 3. 检查流监听器状态
-      logger.info('流监听器状态: ${_globalLocationSub != null ? "✅ 已创建" : "❌ 未创建"}', tag: 'Location');
-      
+      logger.info(
+        '流监听器状态: ${_globalLocationSub != null ? "✅ 已创建" : "❌ 未创建"}',
+        tag: 'Location',
+      );
+
       // 4. 检查定时器状态
-      logger.info('单次定位定时器: ${_periodicLocationTimer != null && _periodicLocationTimer!.isActive ? "✅ 运行中" : "❌ 未运行"}', tag: 'Location');
-      
+      logger.info(
+        '单次定位定时器: ${_periodicLocationTimer != null && _periodicLocationTimer!.isActive ? "✅ 运行中" : "❌ 未运行"}',
+        tag: 'Location',
+      );
+
       // 5. 检查历史数据
       logger.info('位置历史数量: ${locationHistory.length} 条', tag: 'Location');
-      
+
       // 6. 尝试获取一次位置
       logger.info('尝试手动单次定位测试...', tag: 'Location');
       await _requestSingleLocation();
-      
+
       logger.info('========== 诊断报告结束 ==========', tag: 'Location');
-      
     } catch (e) {
       logger.error('诊断过程中出错: ', tag: 'Location');
     }
   }
-  
+
   /// 运行完整的定位问题诊断和修复流程
   Future<bool> runLocationDiagnosticAndFix() async {
     logger.info('========== 开始完整定位诊断和修复 ==========', tag: 'Location');
-    
+
     try {
       // 1. 运行综合排查
       logger.debug('\n 步骤1：运行综合排查', tag: 'Location');
       await comprehensiveLocationTroubleshoot();
-      
+
       // 检查是否已经获得位置
       if (currentLocation.value != null) {
         logger.info('综合排查成功获得位置！', tag: 'Location');
         return true;
       }
-      
+
       // 2. 重启定位服务
       logger.debug('\n 步骤2：重启定位服务', tag: 'Location');
       stopLocation();
       await Future.delayed(Duration(seconds: 2));
       bool restartSuccess = await startLocation();
-      
+
       if (!restartSuccess) {
         logger.error('重启失败', tag: 'Location');
         return false;
       }
-      
+
       // 3. 等待30秒观察结果
       logger.debug('\n 步骤3：等待30秒观察定位结果...', tag: 'Location');
       for (int i = 0; i < 30; i++) {
         await Future.delayed(Duration(seconds: 1));
         if (currentLocation.value != null) {
-          logger.info('第${i+1}秒获得位置数据！', tag: 'Location');
-          logger.debug('经度: ${currentLocation.value!.longitude}', tag: 'Location');
-          logger.debug('纬度: ${currentLocation.value!.latitude}', tag: 'Location');
-          logger.debug('地址: ${currentLocation.value!.locationName}', tag: 'Location');
+          logger.info('第${i + 1}秒获得位置数据！', tag: 'Location');
+          logger.debug(
+            '经度: ${currentLocation.value!.longitude}',
+            tag: 'Location',
+          );
+          logger.debug(
+            '纬度: ${currentLocation.value!.latitude}',
+            tag: 'Location',
+          );
+          logger.debug(
+            '地址: ${currentLocation.value!.locationName}',
+            tag: 'Location',
+          );
           return true;
         }
         if ((i + 1) % 5 == 0) {
-          logger.debug('⏳ 已等待${i+1}秒，继续等待...', tag: 'Location');
+          logger.debug('⏳ 已等待${i + 1}秒，继续等待...', tag: 'Location');
         }
       }
-      
+
       logger.error('30秒后仍未获得位置数据', tag: 'Location');
-      
+
       return false;
-      
     } catch (e) {
       logger.error('诊断和修复过程中出错: ', tag: 'Location');
       return false;
     }
   }
-   
-  
-  
+
   /// 计算两点间距离（米）
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const double earthRadius = 6371000; // meters
     double dLat = _degToRad(lat2 - lat1);
     double dLon = _degToRad(lon2 - lon1);
     double a =
         (math.sin(dLat / 2) * math.sin(dLat / 2)) +
-        math.cos(_degToRad(lat1)) * math.cos(_degToRad(lat2)) *
+        math.cos(_degToRad(lat1)) *
+            math.cos(_degToRad(lat2)) *
             (math.sin(dLon / 2) * math.sin(dLon / 2));
     double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return earthRadius * c;
   }
 
   double _degToRad(double deg) => deg * (math.pi / 180.0);
-  
-  
-  
-  
-   
-  
+
   /// 获取位置历史记录数量
   int get historyCount => locationHistory.length;
-  
-  
+
   /// 获取待上报位置数量（新策略不再使用批量收集）
   int get pendingReportCount => 0;
-  
+
   /// 获取当前是否有位置数据
   bool get hasLocation => currentLocation.value != null;
-  
+
   /// 获取当前定位精度
   String get currentAccuracy => currentLocation.value?.accuracy ?? '0.0';
-  
-   
+
   /// 外部接口：确保后台策略激活
   void ensureBackgroundStrategyActive() {
     if (!isLocationEnabled.value) return;
-    
+
     logger.info('外部调用：确保后台策略激活', tag: 'Location');
     _startEnhancedBackgroundStrategy();
   }
-  
+
   /// 外部接口：优化前台策略
   void optimizeForegroundStrategy() {
     if (!isLocationEnabled.value) return;
-    
+
     logger.info('外部调用：优化前台策略', tag: 'Location');
     _stopEnhancedBackgroundStrategy();
   }
-  
+
   /// 智能启动策略：根据应用状态决定是否启动后台定时器
   void _smartStartLocationStrategy() {
     try {
       // 获取应用生命周期状态
       final appLifecycle = AppLifecycleService.instance;
       final isInBackground = appLifecycle.isInBackground;
-      
-      logger.debug('智能启动策略检查：应用${isInBackground ? "在后台" : "在前台"}', tag: 'Location');
-      
+
+      logger.debug(
+        '智能启动策略检查：应用${isInBackground ? "在后台" : "在前台"}',
+        tag: 'Location',
+      );
+
       if (isInBackground) {
         // 应用在后台，启动增强后台策略
         logger.verbose('应用在后台，启动增强后台策略（包含多重定时器）', tag: 'Location');
@@ -1408,7 +1468,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       _stopEnhancedBackgroundStrategy();
     }
   }
-  
+
   /// 获取服务状态
   Map<String, dynamic> get currentServiceStatus {
     return {
@@ -1419,28 +1479,26 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       'locationHistoryCount': locationHistory.length,
     };
   }
-   
 }
 
 // MARK: - 应用生命周期监听扩展（优化版本）
 extension AppLifecycleExtension on SimpleLocationService {
-  
   /// 设置真实的应用生命周期监听
   void _setupAppLifecycleListener() {
     logger.info('设置真实应用生命周期监听（优化版本）', tag: 'Location');
     WidgetsBinding.instance.addObserver(this);
   }
-  
+
   /// 清理生命周期监听
   void _removeAppLifecycleListener() {
     WidgetsBinding.instance.removeObserver(this);
   }
-  
+
   /// 真实的应用状态变化监听
   void didChangeAppLifecycleState(AppLifecycleState state) {
     logger.debug('应用状态变化: $state', tag: 'Location');
     _lastAppState = state.toString();
-    
+
     switch (state) {
       case AppLifecycleState.resumed:
         _onAppWillEnterForeground();
@@ -1461,61 +1519,61 @@ extension AppLifecycleExtension on SimpleLocationService {
         break;
     }
   }
-  
+
   /// 应用进入后台（真实状态检测）
   void _onAppDidEnterBackground() {
     logger.verbose('应用真实进入后台，启动增强后台策略', tag: 'Location');
     _startEnhancedBackgroundStrategy();
   }
-  
+
   /// 应用进入前台（真实状态检测）
   void _onAppWillEnterForeground() {
     logger.verbose('应用回到前台，恢复正常策略', tag: 'Location');
     _stopEnhancedBackgroundStrategy();
   }
-  
+
   /// 应用即将终止
   void _onAppWillTerminate() {
     logger.debug('应用即将终止，保存关键数据', tag: 'Location');
     _saveLocationDataBeforeTermination();
   }
-  
+
   /// 启动增强的后台策略
   void _startEnhancedBackgroundStrategy() {
     // 启用前台服务模式（Android）
     _enableForegroundServiceIfNeeded();
     // 1. 启动后台保活
     _startBackgroundKeepAlive();
-    
+
     // 2. 增强位置采集频率（后台模式）
     _enableBackgroundLocationMode();
-    
+
     // 3. 启动多重保障定时器
     _startMultipleBackgroundTimers();
-    
+
     // 4. 显示后台运行通知
     _showBackgroundNotification();
   }
-  
+
   /// 停止增强的后台策略
   void _stopEnhancedBackgroundStrategy() {
     // 🔥 修复：不停止前台服务！前台服务应该在定位开启时一直运行
     // 前台服务只在 stopLocation() 时才停止
     // _disableForegroundServiceIfNeeded();  // ← 已移除
-    
+
     // 1. 停止后台保活
     _stopBackgroundKeepAlive();
-    
+
     // 2. 恢复正常位置采集
     _enableForegroundLocationMode();
-    
+
     // 3. 停止多重保障定时器
     _stopMultipleBackgroundTimers();
-    
+
     // 4. 隐藏后台运行通知
     _hideBackgroundNotification();
   }
-  
+
   /// 启用后台位置模式
   void _enableBackgroundLocationMode() {
     logger.info('启用后台位置采集模式', tag: 'Location');
@@ -1523,19 +1581,26 @@ extension AppLifecycleExtension on SimpleLocationService {
     try {
       // 若后台定位权限未授予，避免触发网络/WIFI基站采集导致错误13
       if (_currentBackgroundPermission.value != PermissionStatus.granted) {
-        logger.warning('后台定位权限未授予，采用GPS优先的降级策略（Device_Sensors）', tag: 'Location');
+        logger.warning(
+          '后台定位权限未授予，采用GPS优先的降级策略（Device_Sensors）',
+          tag: 'Location',
+        );
         _locationPlugin.stopLocation();
 
         final gpsOnly = AMapLocationOption();
         gpsOnly.locationMode = AMapLocationMode.Device_Sensors; // 仅设备传感器（GPS）
-        gpsOnly.locationInterval = SimpleLocationService._locationInterval; // 降低频率，节能且避免频繁失败
+        gpsOnly.locationInterval =
+            SimpleLocationService._locationInterval; // 降低频率，节能且避免频繁失败
         gpsOnly.distanceFilter = SimpleLocationService._distanceFilter;
         gpsOnly.needAddress = true; // 纯GPS不解析地址，避免网络依赖
         gpsOnly.onceLocation = false;
 
         _locationPlugin.setLocationOption(gpsOnly);
         _locationPlugin.startLocation();
-        logger.info('已应用GPS优先后台策略：Device_Sensors / 20s / no address', tag: 'Location');
+        logger.info(
+          '已应用GPS优先后台策略：Device_Sensors / 20s / no address',
+          tag: 'Location',
+        );
         return;
       }
 
@@ -1545,19 +1610,24 @@ extension AppLifecycleExtension on SimpleLocationService {
       // 首选高精度模式，系统会在息屏/后台时自动降级为网络定位
       final option = AMapLocationOption();
       option.locationMode = AMapLocationMode.Hight_Accuracy;
-      option.locationInterval = SimpleLocationService._locationInterval; // 后台15秒一次，降低功耗
-      option.distanceFilter = SimpleLocationService._distanceFilter; // 与前台保持一致的距离过滤
+      option.locationInterval =
+          SimpleLocationService._locationInterval; // 后台15秒一次，降低功耗
+      option.distanceFilter =
+          SimpleLocationService._distanceFilter; // 与前台保持一致的距离过滤
       option.needAddress = true;
       option.onceLocation = false;
 
       _locationPlugin.setLocationOption(option);
       _locationPlugin.startLocation();
-      logger.info('后台模式参数已应用：Hight_Accuracy / 15s / distanceFilter=${SimpleLocationService._distanceFilter}', tag: 'Location');
+      logger.info(
+        '后台模式参数已应用：Hight_Accuracy / 15s / distanceFilter=${SimpleLocationService._distanceFilter}',
+        tag: 'Location',
+      );
     } catch (e) {
       logger.error('启用后台位置模式失败: ', tag: 'Location');
     }
   }
-  
+
   /// 启用前台位置模式
   void _enableForegroundLocationMode() {
     logger.info('恢复前台位置采集模式', tag: 'Location');
@@ -1567,49 +1637,53 @@ extension AppLifecycleExtension on SimpleLocationService {
 
       final option = AMapLocationOption();
       option.locationMode = AMapLocationMode.Hight_Accuracy;
-      option.locationInterval = SimpleLocationService._locationInterval; // 恢复到默认频率
+      option.locationInterval =
+          SimpleLocationService._locationInterval; // 恢复到默认频率
       option.distanceFilter = SimpleLocationService._distanceFilter;
       option.needAddress = true;
       option.onceLocation = false;
 
       _locationPlugin.setLocationOption(option);
       _locationPlugin.startLocation();
-      logger.info('前台模式参数已应用：Hight_Accuracy / ${SimpleLocationService._locationInterval}ms / distanceFilter=${SimpleLocationService._distanceFilter}', tag: 'Location');
+      logger.info(
+        '前台模式参数已应用：Hight_Accuracy / ${SimpleLocationService._locationInterval}ms / distanceFilter=${SimpleLocationService._distanceFilter}',
+        tag: 'Location',
+      );
     } catch (e) {
       logger.error('启用前台位置模式失败: ', tag: 'Location');
     }
   }
-  
+
   /// 应用终止前保存数据
   void _saveLocationDataBeforeTermination() {
     // 新策略：实时上报，无需在应用终止前处理批量数据
     logger.debug('应用终止前，清理定位服务状态', tag: 'Location');
-    
+
     // 隐藏后台通知
     _hideBackgroundNotification();
   }
-  
+
   /// 显示后台运行通知
   void _showBackgroundNotification() {
     if (_isBackgroundNotificationShown) {
       logger.debug('后台通知已显示，跳过', tag: 'Location');
       return;
     }
-    
+
     try {
       // 检查通知频率限制（避免过于频繁）
       final now = DateTime.now();
-      if (_lastNotificationTime != null && 
+      if (_lastNotificationTime != null &&
           now.difference(_lastNotificationTime!).inMinutes < 5) {
         logger.debug('通知频率限制，跳过显示', tag: 'Location');
         return;
       }
-      
+
       _isBackgroundNotificationShown = true;
       _lastNotificationTime = now;
-      
+
       logger.debug('显示后台定位运行通知', tag: 'Location');
-      
+
       // TODO: 集成本地通知插件
       // 这里可以使用 flutter_local_notifications 或其他通知插件
       // _showLocalNotification(
@@ -1617,63 +1691,60 @@ extension AppLifecycleExtension on SimpleLocationService {
       //   body: '正在后台为您提供位置服务',
       //   ongoing: true, // 持续通知
       // );
-      
     } catch (e) {
       logger.error('显示后台通知失败: ', tag: 'Location');
       _isBackgroundNotificationShown = false;
     }
   }
-  
+
   /// 隐藏后台运行通知
   void _hideBackgroundNotification() {
     if (!_isBackgroundNotificationShown) {
       logger.debug('后台通知未显示，跳过隐藏', tag: 'Location');
       return;
     }
-    
+
     try {
       _isBackgroundNotificationShown = false;
       logger.debug('隐藏后台定位运行通知', tag: 'Location');
-      
+
       // TODO: 取消本地通知
       // _cancelLocalNotification();
-      
     } catch (e) {
       logger.error('隐藏后台通知失败: ', tag: 'Location');
     }
   }
-  
+
   /// 更新后台通知内容
   void _updateBackgroundNotification(String status) {
     if (!_isBackgroundNotificationShown) return;
-    
+
     try {
       logger.debug('更新后台通知: $status', tag: 'Location');
-      
+
       // TODO: 更新通知内容
       // _updateLocalNotification(
       //   title: 'Kissu - 情侣定位',
       //   body: '状态: $status',
       // );
-      
     } catch (e) {
       logger.error('更新后台通知失败: ', tag: 'Location');
     }
   }
-  
+
   /// 启用前台服务（如果需要）
   Future<void> _enableForegroundServiceIfNeeded() async {
     try {
       final foregroundService = ForegroundLocationService.instance;
-      
+
       // 🔧 修复：检查服务是否已在运行，避免重复启动和通知更新
       if (foregroundService.isServiceRunning) {
         logger.debug('前台服务已在运行，跳过启动和通知更新', tag: 'Location');
         return;
       }
-      
+
       final success = await foregroundService.startForegroundService();
-      
+
       if (success) {
         logger.info('前台服务启动成功（静默模式）', tag: 'Location');
         // 🔧 移除通知更新，保持静默
@@ -1687,13 +1758,13 @@ extension AppLifecycleExtension on SimpleLocationService {
       logger.error('启用前台服务失败: ', tag: 'Location');
     }
   }
-  
+
   /// 禁用前台服务（如果需要）
   Future<void> _disableForegroundServiceIfNeeded() async {
     try {
       final foregroundService = ForegroundLocationService.instance;
       final success = await foregroundService.stopForegroundService();
-      
+
       if (success) {
         logger.info('前台服务停止成功', tag: 'Location');
       } else {
@@ -1703,12 +1774,10 @@ extension AppLifecycleExtension on SimpleLocationService {
       logger.error('禁用前台服务失败: ', tag: 'Location');
     }
   }
-  
 }
 
 // MARK: - 增强后台任务管理扩展
 extension BackgroundTaskExtension on SimpleLocationService {
-  
   /// 开始后台保活任务（增强版本）- 仅在后台运行
   void _startBackgroundKeepAlive() {
     // 🔥 重要检查：只在后台时启动保活定时器
@@ -1722,10 +1791,10 @@ extension BackgroundTaskExtension on SimpleLocationService {
       logger.error('无法获取应用状态，为安全起见跳过后台保活定时器: ', tag: 'Location');
       return;
     }
-    
+
     _backgroundTaskId = DateTime.now().millisecondsSinceEpoch;
     logger.info('应用在后台，开始增强后台保活任务 ID: $_backgroundTaskId', tag: 'Location');
-    
+
     // 启动主保活定时器（30秒间隔）
     _backgroundKeepAliveTimer?.cancel();
     _backgroundKeepAliveTimer = Timer.periodic(Duration(seconds: 30), (timer) {
@@ -1743,19 +1812,19 @@ extension BackgroundTaskExtension on SimpleLocationService {
       _maintainBackgroundLocation();
     });
   }
-  
+
   /// 停止后台保活任务
   void _stopBackgroundKeepAlive() {
     if (_backgroundTaskId != null) {
       logger.info('停止后台保活任务 ID: $_backgroundTaskId', tag: 'Location');
       _backgroundTaskId = null;
     }
-    
+
     _backgroundKeepAliveTimer?.cancel();
     _backgroundKeepAliveTimer = null;
     _stopMultipleBackgroundTimers();
   }
-  
+
   /// 启动多重保障定时器（增强后台稳定性）- 仅在后台运行
   void _startMultipleBackgroundTimers() {
     // 🔥 重要检查：只在后台时启动这些定时器
@@ -1769,12 +1838,12 @@ extension BackgroundTaskExtension on SimpleLocationService {
       logger.error('无法获取应用状态，为安全起见跳过后台定时器: ', tag: 'Location');
       return;
     }
-    
+
     // 停止现有定时器
     _stopMultipleBackgroundTimers();
-    
+
     logger.verbose('应用在后台，启动多重保障定时器', tag: 'Location');
-    
+
     // 定时器1：快速检查（20秒）- 检查定位服务状态
     _quickCheckTimer = Timer.periodic(Duration(seconds: 20), (timer) {
       // 每次执行前再次检查应用状态
@@ -1790,7 +1859,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
       _quickLocationServiceCheck();
     });
-    
+
     // 定时器2：中等检查（60秒）- 检查位置更新
     _mediumCheckTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       // 每次执行前再次检查应用状态
@@ -1806,7 +1875,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
       _mediumLocationUpdateCheck();
     });
-    
+
     // 定时器3：深度检查（120秒）- 完整性检查和恢复
     _deepCheckTimer = Timer.periodic(Duration(seconds: 120), (timer) {
       // 每次执行前再次检查应用状态
@@ -1822,76 +1891,77 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
       _deepLocationIntegrityCheck();
     });
-    
+
     // 定时器4：智能电池优化定时器（动态间隔）
     _startBatteryOptimizedTimer();
-    
+
     logger.info('后台多重保障定时器已启动：20s/60s/120s + 智能优化', tag: 'Location');
   }
-  
+
   /// 停止多重保障定时器
   void _stopMultipleBackgroundTimers() {
     _quickCheckTimer?.cancel();
     _quickCheckTimer = null;
-    
+
     _mediumCheckTimer?.cancel();
     _mediumCheckTimer = null;
-    
+
     _deepCheckTimer?.cancel();
     _deepCheckTimer = null;
-    
+
     _batteryOptimizedTimer?.cancel();
     _batteryOptimizedTimer = null;
   }
-  
+
   /// 维护后台定位（增强版本）
   void _maintainBackgroundLocation() {
     if (_backgroundTaskId == null || !isLocationEnabled.value) return;
-    
+
     logger.debug('维护后台定位服务（增强版本）', tag: 'Location');
-    
+
     // 1. 检查定位服务状态
     if (!_isLocationServiceHealthy()) {
       logger.warning('定位服务异常，尝试重启', tag: 'Location');
       _restartLocationService();
       return;
     }
-    
+
     // 2. 检查位置更新时效性
     if (!_isLocationUpdateTimely()) {
       logger.warning('位置更新超时，强制重新定位', tag: 'Location');
       _forceSingleLocationUpdate();
     }
-    
+
     // 3. 检查待上报数据
     _checkPendingReports();
   }
-  
+
   /// 快速检查定位服务状态
   void _quickLocationServiceCheck() {
     if (!isLocationEnabled.value) return;
-    
+
     // 检查权限状态
     if (_currentLocationPermission.value != PermissionStatus.granted) {
       logger.warning('快速检查：位置权限异常', tag: 'Location');
       return;
     }
-    
+
     // 检查高德定位插件状态
     logger.info('快速检查：定位服务正常', tag: 'Location');
   }
-  
+
   /// 中等检查位置更新
   void _mediumLocationUpdateCheck() {
     if (!isLocationEnabled.value) return;
-    
+
     if (currentLocation.value != null) {
       final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
       if (lastUpdateTime != null) {
         final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
         final timeDiff = now - lastUpdateTime;
-        
-        if (timeDiff > 120) { // 超过2分钟没有更新
+
+        if (timeDiff > 120) {
+          // 超过2分钟没有更新
           logger.warning('中等检查：位置更新超时 ${timeDiff}秒', tag: 'Location');
           _restartContinuousLocation();
         } else {
@@ -1903,16 +1973,16 @@ extension BackgroundTaskExtension on SimpleLocationService {
       _forceSingleLocationUpdate();
     }
   }
-  
+
   /// 深度检查完整性
   void _deepLocationIntegrityCheck() {
     if (!isLocationEnabled.value) return;
-    
+
     logger.info('深度检查：位置服务完整性', tag: 'Location');
-    
+
     // 1. 检查服务健康状态
     bool isHealthy = _isLocationServiceHealthy();
-    
+
     // 2. 更新智能计数器
     if (isHealthy) {
       _consecutiveSuccessCount++;
@@ -1922,21 +1992,24 @@ extension BackgroundTaskExtension on SimpleLocationService {
       _consecutiveFailureCount++;
       _consecutiveSuccessCount = 0;
       logger.error('深度检查失败，连续失败: $_consecutiveFailureCount', tag: 'Location');
-      
+
       // 连续失败过多时重启服务
-      if (_consecutiveFailureCount >= SimpleLocationService._maxConsecutiveFailures) {
+      if (_consecutiveFailureCount >=
+          SimpleLocationService._maxConsecutiveFailures) {
         logger.debug('连续失败过多，重启定位服务', tag: 'Location');
         _restartLocationService();
         _consecutiveFailureCount = 0;
       }
     }
-    
+
     // 3. 智能优化：成功次数足够时启用低功耗模式
-    if (_consecutiveSuccessCount >= SimpleLocationService._successCountForOptimization && !_isInLowPowerMode) {
+    if (_consecutiveSuccessCount >=
+            SimpleLocationService._successCountForOptimization &&
+        !_isInLowPowerMode) {
       _enableLowPowerMode();
     }
   }
-  
+
   /// 启动智能电池优化定时器 - 仅在后台运行
   void _startBatteryOptimizedTimer() {
     // 🔥 重要检查：只在后台时启动电池优化定时器
@@ -1950,13 +2023,13 @@ extension BackgroundTaskExtension on SimpleLocationService {
       logger.error('无法获取应用状态，为安全起见跳过电池优化定时器: ', tag: 'Location');
       return;
     }
-    
+
     _batteryOptimizedTimer?.cancel();
-    
-    Duration interval = _isInLowPowerMode 
-        ? SimpleLocationService._lowPowerCheckInterval 
+
+    Duration interval = _isInLowPowerMode
+        ? SimpleLocationService._lowPowerCheckInterval
         : Duration(seconds: 60);
-    
+
     _batteryOptimizedTimer = Timer.periodic(interval, (timer) {
       // 每次执行前检查应用状态
       try {
@@ -1971,22 +2044,22 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
       _performBatteryOptimizedCheck();
     });
-    
+
     logger.verbose('后台电池优化定时器已启动，间隔: ${interval.inSeconds}秒', tag: 'Location');
   }
-  
+
   /// 执行电池优化检查
   void _performBatteryOptimizedCheck() {
     if (!isLocationEnabled.value) return;
-    
+
     logger.verbose('执行电池优化检查', tag: 'Location');
-    
+
     // 1. 检查是否需要调整定时器频率
     if (_isInLowPowerMode && _consecutiveFailureCount > 0) {
       // 低功耗模式下出现失败，恢复正常模式
       _disableLowPowerMode();
     }
-    
+
     // 2. 检查低功耗模式是否超时
     if (_isInLowPowerMode && _lowPowerModeStartTime != null) {
       final duration = DateTime.now().difference(_lowPowerModeStartTime!);
@@ -1995,59 +2068,62 @@ extension BackgroundTaskExtension on SimpleLocationService {
         _disableLowPowerMode();
       }
     }
-    
+
     // 3. 检查位置数据新鲜度
     _checkLocationDataFreshness();
-    
+
     // 4. 智能调整检查间隔
     _adjustTimerIntervals();
-    
+
     // 5. 电池优化建议
     _provideBatteryOptimizationAdvice();
   }
-  
+
   /// 启用低功耗模式
   void _enableLowPowerMode() {
     if (_isInLowPowerMode) return;
-    
+
     _isInLowPowerMode = true;
     _lowPowerModeStartTime = DateTime.now();
     logger.verbose('启用低功耗模式，开始时间: $_lowPowerModeStartTime', tag: 'Location');
-    
+
     // 重启电池优化定时器以使用更长间隔
     _startBatteryOptimizedTimer();
-    
+
     // 更新后台通知
     if (_isBackgroundNotificationShown) {
       _updateBackgroundNotification('省电模式运行中...');
     }
   }
-  
+
   /// 禁用低功耗模式
   void _disableLowPowerMode() {
     if (!_isInLowPowerMode) return;
-    
+
     // 计算低功耗模式持续时间
     Duration lowPowerDuration = Duration.zero;
     if (_lowPowerModeStartTime != null) {
       lowPowerDuration = DateTime.now().difference(_lowPowerModeStartTime!);
-      logger.verbose('低功耗模式持续时间: ${lowPowerDuration.inMinutes}分钟', tag: 'Location');
+      logger.verbose(
+        '低功耗模式持续时间: ${lowPowerDuration.inMinutes}分钟',
+        tag: 'Location',
+      );
     }
-    
+
     _isInLowPowerMode = false;
     _lowPowerModeStartTime = null;
     _consecutiveSuccessCount = 0; // 重置计数器
     logger.verbose('禁用低功耗模式，恢复正常检查频率', tag: 'Location');
-    
+
     // 重启电池优化定时器以使用正常间隔
     _startBatteryOptimizedTimer();
-    
+
     // 更新后台通知
     if (_isBackgroundNotificationShown) {
       _updateBackgroundNotification('正常模式运行中...');
     }
   }
-  
+
   /// 检查位置数据新鲜度
   void _checkLocationDataFreshness() {
     if (currentLocation.value == null) {
@@ -2055,19 +2131,19 @@ extension BackgroundTaskExtension on SimpleLocationService {
       _forceSingleLocationUpdate();
       return;
     }
-    
+
     final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
     if (lastUpdateTime != null) {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final timeDiff = now - lastUpdateTime;
-      
+
       // 根据模式调整超时阈值
       int timeoutThreshold = _isInLowPowerMode ? 300 : 180; // 低功耗5分钟，正常3分钟
-      
+
       if (timeDiff > timeoutThreshold) {
         logger.warning('位置数据过期 ${timeDiff}秒，强制更新', tag: 'Location');
         _forceSingleLocationUpdate();
-        
+
         // 数据过期说明可能有问题，退出低功耗模式
         if (_isInLowPowerMode) {
           _disableLowPowerMode();
@@ -2075,11 +2151,12 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
     }
   }
-  
+
   /// 智能调整定时器间隔
   void _adjustTimerIntervals() {
     // 基于成功率动态调整检查频率
-    if (_consecutiveSuccessCount > SimpleLocationService._batteryOptimizationThreshold) {
+    if (_consecutiveSuccessCount >
+        SimpleLocationService._batteryOptimizationThreshold) {
       // 长期稳定，可以进一步优化
       logger.debug('服务长期稳定，建议启用深度省电模式', tag: 'Location');
       if (!_isInLowPowerMode) {
@@ -2093,13 +2170,13 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
     }
   }
-  
+
   /// 提供电池优化建议
   void _provideBatteryOptimizationAdvice() {
     // 分析当前电池使用情况并提供建议
     final currentTime = DateTime.now();
     final hour = currentTime.hour;
-    
+
     // 根据时间段提供不同的优化建议
     if (hour >= 22 || hour <= 6) {
       // 夜间时段，建议更激进的省电策略
@@ -2114,7 +2191,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
         // 保持低功耗但缩短超时时间
       }
     }
-    
+
     // 根据定位精度调整策略
     if (currentLocation.value != null) {
       final accuracy = double.tryParse(currentLocation.value!.accuracy) ?? 0.0;
@@ -2124,7 +2201,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
       }
     }
   }
-  
+
   /// 检查定位服务健康状态
   bool _isLocationServiceHealthy() {
     try {
@@ -2133,52 +2210,51 @@ extension BackgroundTaskExtension on SimpleLocationService {
         logger.error('健康检查：定位服务未启用', tag: 'Location');
         return false;
       }
-      
+
       // 2. 权限状态检查
       if (_currentLocationPermission.value != PermissionStatus.granted) {
         logger.error('健康检查：位置权限未授予', tag: 'Location');
         return false;
       }
-      
+
       // 3. 位置数据新鲜度检查
       if (currentLocation.value == null) {
         logger.warning('健康检查：当前位置为空', tag: 'Location');
         return false;
       }
-      
+
       // 4. 检查位置数据时效性
       final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
       if (lastUpdateTime != null) {
         final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
         final timeDiff = now - lastUpdateTime;
-        
+
         // 超过5分钟认为不健康
         if (timeDiff > 300) {
           logger.warning('健康检查：位置数据过期 ${timeDiff}秒', tag: 'Location');
           return false;
         }
       }
-      
+
       logger.info('健康检查：定位服务状态良好', tag: 'Location');
       return true;
-      
     } catch (e) {
       logger.error('健康检查异常: ', tag: 'Location');
       return false;
     }
   }
-  
+
   /// 检查位置更新是否及时
   bool _isLocationUpdateTimely() {
     if (currentLocation.value == null) return false;
-    
+
     final lastUpdateTime = int.tryParse(currentLocation.value!.locationTime);
     if (lastUpdateTime == null) return false;
-    
+
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     return (now - lastUpdateTime) < 90; // 90秒内有更新认为正常
   }
-  
+
   /// 检查待上报数据
   void _checkPendingReports() {
     // 检查是否有待上报的数据
@@ -2187,57 +2263,64 @@ extension BackgroundTaskExtension on SimpleLocationService {
       _reportCollectedLocations();
     }
   }
-  
+
   /// 上报收集的位置数据
   void _reportCollectedLocations() {
     if (_collectionBuffer.isNotEmpty) {
-      final locationsToReport = List<LocationReportModel>.from(_collectionBuffer);
+      final locationsToReport = List<LocationReportModel>.from(
+        _collectionBuffer,
+      );
       _collectionBuffer.clear();
-      
+
       logger.debug('保活上报: ${locationsToReport.length}个位置点', tag: 'Location');
       _reportMultipleLocations(locationsToReport, '保活检查上报');
-      
+
       // 已简化，不再记录上报时间
       _lastReportedLocation = locationsToReport.last;
     }
   }
-  
+
   /// 重启定位服务（智能增强版）
   void _restartLocationService() {
     logger.debug('智能重启定位服务', tag: 'Location');
-    
+
     try {
       // 1. 记录重启时间和原因
       final restartTime = DateTime.now();
-      logger.debug('定位服务重启时间: $restartTime，失败次数: $_consecutiveFailureCount', tag: 'Location');
-      
+      logger.debug(
+        '定位服务重启时间: $restartTime，失败次数: $_consecutiveFailureCount',
+        tag: 'Location',
+      );
+
       // 2. 🔥 修复：只有在缓冲区为空时才重置首次定位标志
       if (_collectionBuffer.isEmpty) {
         _isFirstLocationSuccess = true;
         logger.debug('缓冲区为空，重置首次定位标志', tag: 'Location');
       } else {
-        logger.debug('缓冲区不为空(${_collectionBuffer.length}个点)，保持首次定位标志为false', tag: 'Location');
+        logger.debug(
+          '缓冲区不为空(${_collectionBuffer.length}个点)，保持首次定位标志为false',
+          tag: 'Location',
+        );
       }
-      
+
       // 3. 优雅停止当前定位
       stopLocation();
-      
+
       // 3. 根据失败次数调整重启策略
       int delaySeconds = _calculateRestartDelay();
-      
+
       // 4. 延迟重启
       Future.delayed(Duration(seconds: delaySeconds), () {
         logger.debug('开始重新启动定位服务', tag: 'Location');
         _performSmartRestart();
       });
-      
     } catch (e) {
       logger.error('重启定位服务异常: ', tag: 'Location');
       // 异常情况下使用基础重启策略
       _performBasicRestart();
     }
   }
-  
+
   /// 计算重启延迟时间
   int _calculateRestartDelay() {
     // 根据连续失败次数动态调整延迟
@@ -2249,34 +2332,34 @@ extension BackgroundTaskExtension on SimpleLocationService {
       return 10; // 多次失败：10秒
     }
   }
-  
+
   /// 执行智能重启
   Future<void> _performSmartRestart() async {
     try {
       // 1. 重置状态标记
       _resetLocationState();
-      
+
       // 2. 重新启动定位
       await startLocation();
-      
+
       // 3. 重启成功，重置失败计数
       if (isLocationEnabled.value) {
         _consecutiveFailureCount = 0;
         logger.info('智能重启成功，重置失败计数', tag: 'Location');
       }
-      
     } catch (e) {
       logger.error('智能重启失败: ', tag: 'Location');
       _consecutiveFailureCount++;
-      
+
       // 如果智能重启也失败，考虑完全重新初始化
-      if (_consecutiveFailureCount >= SimpleLocationService._maxConsecutiveFailures) {
+      if (_consecutiveFailureCount >=
+          SimpleLocationService._maxConsecutiveFailures) {
         logger.debug('智能重启失败次数过多，尝试完全重新初始化', tag: 'Location');
         await _performFullReinitialization();
       }
     }
   }
-  
+
   /// 执行基础重启（兜底方案）
   void _performBasicRestart() {
     logger.debug('执行基础重启策略', tag: 'Location');
@@ -2284,51 +2367,50 @@ extension BackgroundTaskExtension on SimpleLocationService {
       startLocation();
     });
   }
-  
+
   /// 重置定位状态
   void _resetLocationState() {
     logger.info('重置定位服务状态', tag: 'Location');
-    
+
     // 重置响应式状态
     isLocationEnabled.value = false;
     isReporting.value = false;
-    
+
     // 重置低功耗模式
     if (_isInLowPowerMode) {
       _isInLowPowerMode = false;
       logger.verbose('重置：退出低功耗模式', tag: 'Location');
     }
   }
-  
+
   /// 完全重新初始化（最后的保障措施）
   Future<void> _performFullReinitialization() async {
     logger.debug('执行完全重新初始化', tag: 'Location');
-    
+
     try {
       // 1. 完全停止所有定时器
       _stopMultipleBackgroundTimers();
       _stopBackgroundKeepAlive();
-      
+
       // 2. 重置所有状态
       _resetLocationState();
       _consecutiveFailureCount = 0;
       _consecutiveSuccessCount = 0;
-      
+
       // 3. 重新初始化
       await Future.delayed(Duration(seconds: 5)); // 等待系统稳定
       init(); // 重新初始化
-      
+
       // 4. 重新启动定位
       await startLocation();
-      
+
       logger.info('完全重新初始化完成', tag: 'Location');
-      
     } catch (e) {
       logger.error('完全重新初始化失败: ', tag: 'Location');
       // 这是最后的保障，如果还失败就只能等用户手动操作了
     }
   }
-  
+
   /// 强制单次位置更新
   void _forceSingleLocationUpdate() {
     logger.debug('强制单次位置更新', tag: 'Location');
@@ -2338,27 +2420,26 @@ extension BackgroundTaskExtension on SimpleLocationService {
 
 // MARK: - 权限管理扩展（参考iOS版本的权限处理）
 extension PermissionManagementExtension on SimpleLocationService {
-  
   /// 初始化权限状态（参考iOS版本的权限监听）
   void _initializePermissionStatus() {
     logger.info('初始化权限状态（参考iOS版本）', tag: 'Location');
     _updateCurrentPermissionStatus();
-    
+
     // 设置定时检查权限状态变化（模拟iOS的权限变化监听）
     Timer.periodic(Duration(seconds: 10), (timer) {
       _checkPermissionChanges();
     });
   }
-  
+
   /// 更新当前权限状态
   Future<void> _updateCurrentPermissionStatus() async {
     try {
       final locationStatus = await Permission.location.status;
       final backgroundStatus = await Permission.locationAlways.status;
-      
+
       _currentLocationPermission.value = locationStatus;
       _currentBackgroundPermission.value = backgroundStatus;
-      
+
       logger.info('权限状态更新:', tag: 'Location');
       logger.debug('前台定位: ${locationStatus.name}', tag: 'Location');
       logger.debug('后台定位: ${backgroundStatus.name}', tag: 'Location');
@@ -2366,37 +2447,45 @@ extension PermissionManagementExtension on SimpleLocationService {
       logger.error('更新权限状态失败: ', tag: 'Location');
     }
   }
-  
+
   /// 检查权限变化（参考iOS版本的权限变化事件）
   Future<void> _checkPermissionChanges() async {
     try {
       final previousLocationStatus = _currentLocationPermission.value;
       final previousBackgroundStatus = _currentBackgroundPermission.value;
-      
+
       await _updateCurrentPermissionStatus();
-      
+
       final currentLocationStatus = _currentLocationPermission.value;
       final currentBackgroundStatus = _currentBackgroundPermission.value;
-      
+
       // 检查前台定位权限变化
       if (previousLocationStatus != currentLocationStatus) {
-        _handleLocationPermissionChange(previousLocationStatus, currentLocationStatus);
+        _handleLocationPermissionChange(
+          previousLocationStatus,
+          currentLocationStatus,
+        );
       }
-      
+
       // 检查后台定位权限变化
       if (previousBackgroundStatus != currentBackgroundStatus) {
-        _handleBackgroundPermissionChange(previousBackgroundStatus, currentBackgroundStatus);
+        _handleBackgroundPermissionChange(
+          previousBackgroundStatus,
+          currentBackgroundStatus,
+        );
       }
-      
     } catch (e) {
       logger.error('检查权限变化失败: ', tag: 'Location');
     }
   }
-  
+
   /// 处理前台定位权限变化（参考iOS版本的权限事件处理）
-  void _handleLocationPermissionChange(PermissionStatus from, PermissionStatus to) {
+  void _handleLocationPermissionChange(
+    PermissionStatus from,
+    PermissionStatus to,
+  ) {
     logger.info('前台定位权限变化: ${from.name} -> ${to.name}', tag: 'Location');
-    
+
     if (from.isDenied && to.isGranted) {
       logger.info('前台定位权限已开启', tag: 'Location');
       // 上报定位开启事件
@@ -2408,11 +2497,14 @@ extension PermissionManagementExtension on SimpleLocationService {
       stopLocation(); // 自动停止定位服务
     }
   }
-  
+
   /// 处理后台定位权限变化（参考iOS版本的权限事件处理）
-  void _handleBackgroundPermissionChange(PermissionStatus from, PermissionStatus to) {
+  void _handleBackgroundPermissionChange(
+    PermissionStatus from,
+    PermissionStatus to,
+  ) {
     logger.info('后台定位权限变化: ${from.name} -> ${to.name}', tag: 'Location');
-    
+
     if (from.isDenied && to.isGranted) {
       logger.info('后台定位权限已开启，提升定位服务能力', tag: 'Location');
       // 重新配置定位参数以支持更好的后台定位
@@ -2423,15 +2515,19 @@ extension PermissionManagementExtension on SimpleLocationService {
       logger.warning('后台定位权限已关闭，可能影响后台定位效果', tag: 'Location');
     }
   }
-  
+
   /// 获取当前权限状态描述（参考iOS版本的权限状态描述）
   Map<String, String> getCurrentPermissionStatusDescription() {
     return {
-      'foregroundLocation': _getPermissionDescription(_currentLocationPermission.value),
-      'backgroundLocation': _getPermissionDescription(_currentBackgroundPermission.value),
+      'foregroundLocation': _getPermissionDescription(
+        _currentLocationPermission.value,
+      ),
+      'backgroundLocation': _getPermissionDescription(
+        _currentBackgroundPermission.value,
+      ),
     };
   }
-  
+
   /// 获取权限状态描述（参考iOS版本的locationStatusDescription）
   String _getPermissionDescription(PermissionStatus status) {
     switch (status) {
@@ -2449,37 +2545,45 @@ extension PermissionManagementExtension on SimpleLocationService {
         return '未知';
     }
   }
-  
+
   /// 启动GPS状态监听（Android原生实现）
   void _startGpsStatusMonitoring() {
     logger.info('启动GPS状态监听（Android原生）', tag: 'Location');
-    
+
     try {
       // 取消之前的订阅（如果存在）
       _gpsStatusSubscription?.cancel();
-      
+
       // 订阅GPS状态变化EventChannel
-      _gpsStatusSubscription = SimpleLocationService._gpsStatusChannel.receiveBroadcastStream().listen(
-        (dynamic isEnabled) {
-          if (isEnabled is bool) {
-            logger.verbose('收到GPS状态变化通知: ${isEnabled ? "开启" : "关闭"}', tag: 'Location');
-            _handleGpsStatusChange(isEnabled);
-          } else {
-            logger.warning('GPS状态数据类型错误: ${isEnabled.runtimeType}', tag: 'Location');
-          }
-        },
-        onError: (dynamic error) {
-          logger.error('GPS状态监听错误: rror', tag: 'Location');
-        },
-        cancelOnError: false, // 发生错误时不取消订阅
-      );
-      
+      _gpsStatusSubscription = SimpleLocationService._gpsStatusChannel
+          .receiveBroadcastStream()
+          .listen(
+            (dynamic isEnabled) {
+              if (isEnabled is bool) {
+                logger.verbose(
+                  '收到GPS状态变化通知: ${isEnabled ? "开启" : "关闭"}',
+                  tag: 'Location',
+                );
+                _handleGpsStatusChange(isEnabled);
+              } else {
+                logger.warning(
+                  'GPS状态数据类型错误: ${isEnabled.runtimeType}',
+                  tag: 'Location',
+                );
+              }
+            },
+            onError: (dynamic error) {
+              logger.error('GPS状态监听错误: rror', tag: 'Location');
+            },
+            cancelOnError: false, // 发生错误时不取消订阅
+          );
+
       logger.info('GPS状态监听已启动', tag: 'Location');
     } catch (e) {
       logger.error('启动GPS状态监听失败: ', tag: 'Location');
     }
   }
-  
+
   /// 处理GPS开关状态变化（系统级别的定位服务开关）
   void _handleGpsStatusChange(bool isGpsEnabled) {
     // 首次初始化，只记录状态不上报
@@ -2488,17 +2592,20 @@ extension PermissionManagementExtension on SimpleLocationService {
       logger.info('初始化GPS状态: ${isGpsEnabled ? "开启" : "关闭"}', tag: 'Location');
       return;
     }
-    
+
     // 检查状态是否发生变化
     if (_lastGpsEnabledStatus == isGpsEnabled) {
       // 状态未变化，无需处理
       return;
     }
-    
+
     // 状态发生变化，记录并上报
-    logger.debug('检测到GPS状态变化: ${_lastGpsEnabledStatus! ? "开启" : "关闭"} -> ${isGpsEnabled ? "开启" : "关闭"}', tag: 'Location');
+    logger.debug(
+      '检测到GPS状态变化: ${_lastGpsEnabledStatus! ? "开启" : "关闭"} -> ${isGpsEnabled ? "开启" : "关闭"}',
+      tag: 'Location',
+    );
     _lastGpsEnabledStatus = isGpsEnabled;
-    
+
     if (isGpsEnabled) {
       // GPS开启
       logger.info('GPS已开启，上报定位开启事件', tag: 'Location');
@@ -2513,7 +2620,6 @@ extension PermissionManagementExtension on SimpleLocationService {
 
 // MARK: - 位置数据验证扩展（简化版）
 extension LocationValidationExtension on SimpleLocationService {
-
   /// 🚀 新策略：简化的收集与上报分离策略
   /// 1. 5秒获取一次定位信息，根据距离判断是否放入收集池
   /// 2. 收集池为空时直接放入，不为空时计算与最新点的距离
@@ -2521,35 +2627,44 @@ extension LocationValidationExtension on SimpleLocationService {
   /// 4. 每1分钟上报一次收集池内容，上报完清空收集池
   /// 5. 直接使用原始位置数据
   void _handleLocationReporting(LocationReportModel location) {
-    logger.info('_handleLocationReporting: _isFirstLocationSuccess = $_isFirstLocationSuccess', tag: 'Location');
+    logger.info(
+      '_handleLocationReporting: _isFirstLocationSuccess = $_isFirstLocationSuccess',
+      tag: 'Location',
+    );
     logger.info('收集缓冲区当前大小: ${_collectionBuffer.length}', tag: 'Location');
-    
+
     // 🚀 策略1: 首次定位成功后验证有效性，有效才放入收集池
     if (_isFirstLocationSuccess) {
       // 首先验证首次定位是否有效
       if (!_isBasicLocationValid(location)) {
-        logger.error('首次定位无效，抛弃并等待下次定位: ${location.latitude}, ${location.longitude}', tag: 'Location');
+        logger.error(
+          '首次定位无效，抛弃并等待下次定位: ${location.latitude}, ${location.longitude}',
+          tag: 'Location',
+        );
         return; // 抛弃无效的首次定位，保持_isFirstLocationSuccess为true，等待下次有效定位
       }
-      
+
       // 首次定位有效，设置标记并放入收集池
       _isFirstLocationSuccess = false;
-      logger.info('首次定位有效，放入收集池: ${location.latitude}, ${location.longitude}', tag: 'Location');
-      
+      logger.info(
+        '首次定位有效，放入收集池: ${location.latitude}, ${location.longitude}',
+        tag: 'Location',
+      );
+
       // 放入收集池
       _collectLocationToBuffer(location, 'app启动首次有效定位');
-      
+
       // 启动定时上报器（检查是否已运行）
       if (!_isReportStrategyRunning) {
         _startReportTimer();
       }
       return;
     }
-    
+
     // 🚀 策略2: 简化的距离判断收集逻辑
     bool shouldCollect = false;
     String collectReason = '';
-    
+
     if (_collectionBuffer.isEmpty) {
       // 收集池为空，直接放入
       shouldCollect = true;
@@ -2563,7 +2678,7 @@ extension LocationValidationExtension on SimpleLocationService {
         double.parse(location.latitude),
         double.parse(location.longitude),
       );
-      
+
       if (distance >= SimpleLocationService._collectionDistance) {
         shouldCollect = true;
         collectReason = '距离${distance.toStringAsFixed(1)}m≥50m';
@@ -2571,7 +2686,7 @@ extension LocationValidationExtension on SimpleLocationService {
         collectReason = '距离${distance.toStringAsFixed(1)}m<50m，抛弃';
       }
     }
-    
+
     // 执行收集或抛弃
     if (shouldCollect) {
       _collectLocationToBuffer(location, collectReason);
@@ -2585,75 +2700,98 @@ extension LocationValidationExtension on SimpleLocationService {
     try {
       final latitude = double.parse(location.latitude);
       final longitude = double.parse(location.longitude);
-      
+
       // 只检查基础的经纬度有效性
       if (latitude == 0 && longitude == 0) {
         logger.error('位置验证失败: 经纬度为(0,0)', tag: 'Location');
         return false;
       }
-      
+
       // 检查经纬度范围
-      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      if (latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180) {
         logger.error('位置验证失败: 经纬度超出有效范围', tag: 'Location');
         return false;
       }
-      
+
       return true;
     } catch (e) {
       logger.error('位置验证异常: ', tag: 'Location');
       return false;
     }
   }
-  
+
   // 运动状态检测和环境感知方法已删除，简化为基础的精度和距离过滤
-  
+
   /// 🚀 收集位置到缓冲区
   void _collectLocationToBuffer(LocationReportModel location, String reason) {
     _collectionBuffer.add(location);
-    
+
     // ✅ 优化：缓冲区满了立即上报，避免丢失数据
-    if (_collectionBuffer.length >= SimpleLocationService._maxCollectionBufferSize) {
-      logger.warning('缓冲区已满(${_collectionBuffer.length}/${SimpleLocationService._maxCollectionBufferSize})，触发强制上报', tag: 'Location');
+    if (_collectionBuffer.length >=
+        SimpleLocationService._maxCollectionBufferSize) {
+      logger.warning(
+        '缓冲区已满(${_collectionBuffer.length}/${SimpleLocationService._maxCollectionBufferSize})，触发强制上报',
+        tag: 'Location',
+      );
       // 立即上报缓冲区内的所有位置
-      final locationsToReport = List<LocationReportModel>.from(_collectionBuffer);
+      final locationsToReport = List<LocationReportModel>.from(
+        _collectionBuffer,
+      );
       _collectionBuffer.clear();
       _reportMultipleLocations(locationsToReport, '缓冲区满');
       logger.debug('缓冲区强制上报后，保留最后位置作为距离比较基准', tag: 'Location');
       return;
     }
-    
-    logger.debug('位置收集: $reason (缓冲区: ${_collectionBuffer.length}/${SimpleLocationService._maxCollectionBufferSize})', tag: 'Location');
-    logger.verbose('收集位置: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m', tag: 'Location');
+
+    logger.debug(
+      '位置收集: $reason (缓冲区: ${_collectionBuffer.length}/${SimpleLocationService._maxCollectionBufferSize})',
+      tag: 'Location',
+    );
+    logger.verbose(
+      '收集位置: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m',
+      tag: 'Location',
+    );
   }
-  
+
   /// 🚀 启动定时上报器
   void _startReportTimer() {
     if (_isReportStrategyRunning) {
       logger.warning('上报策略已在运行，跳过重复启动', tag: 'Location');
       return;
     }
-    
+
     _reportTimer?.cancel();
-    _reportTimer = Timer.periodic(SimpleLocationService._reportInterval, (timer) {
+    _reportTimer = Timer.periodic(SimpleLocationService._reportInterval, (
+      timer,
+    ) {
       _performScheduledReport();
     });
     _isReportStrategyRunning = true;
-    logger.verbose('定时上报器已启动，间隔: ${SimpleLocationService._reportInterval.inMinutes}分钟', tag: 'Location');
+    logger.verbose(
+      '定时上报器已启动，间隔: ${SimpleLocationService._reportInterval.inMinutes}分钟',
+      tag: 'Location',
+    );
   }
-  
+
   /// 🚀 执行定时上报
   void _performScheduledReport() {
     final now = DateTime.now();
-    
+
     if (_collectionBuffer.isNotEmpty) {
       // 获取收集池中的点位
-      final locationsToReport = List<LocationReportModel>.from(_collectionBuffer);
-      
+      final locationsToReport = List<LocationReportModel>.from(
+        _collectionBuffer,
+      );
+
       // 🔥 重要：如果收集池只有一个点，将时间戳改为当前时间戳
       if (locationsToReport.length == 1) {
-        final currentTimestamp = (now.millisecondsSinceEpoch ~/ 1000).toString();
+        final currentTimestamp = (now.millisecondsSinceEpoch ~/ 1000)
+            .toString();
         final originalLocation = locationsToReport[0];
-        
+
         // 创建新的位置对象，修改时间戳
         final updatedLocation = LocationReportModel(
           longitude: originalLocation.longitude,
@@ -2664,19 +2802,19 @@ extension LocationValidationExtension on SimpleLocationService {
           locationName: originalLocation.locationName,
           accuracy: originalLocation.accuracy,
         );
-        
+
         locationsToReport[0] = updatedLocation;
         logger.debug('单点上报：时间戳已修改为当前时间 $currentTimestamp', tag: 'Location');
       } else {
         logger.debug('多点上报：保持原始时间戳', tag: 'Location');
       }
-      
+
       // 清空收集池
       _collectionBuffer.clear();
-      
+
       logger.debug('定时上报: ${locationsToReport.length}个位置点', tag: 'Location');
       _reportMultipleLocations(locationsToReport, '定时上报');
-      
+
       if (locationsToReport.isNotEmpty) {
         _lastReportedLocation = locationsToReport.last;
       }
@@ -2685,33 +2823,38 @@ extension LocationValidationExtension on SimpleLocationService {
     }
   }
 
-
   /// 🚀 批量位置上报
-  Future<void> _reportMultipleLocations(List<LocationReportModel> locations, String reason) async {
+  Future<void> _reportMultipleLocations(
+    List<LocationReportModel> locations,
+    String reason,
+  ) async {
     if (isReporting.value) {
       logger.warning('正在上报中，跳过本次批量上报', tag: 'Location');
       return;
     }
-    
+
     if (locations.isEmpty) {
       logger.warning('批量上报列表为空', tag: 'Location');
       return;
     }
-    
+
     try {
       isReporting.value = true;
       logger.debug('开始批量上报: $reason', tag: 'Location');
       logger.verbose('批量上报数量: ${locations.length}个位置点', tag: 'Location');
-      
+
       // 打印每个位置的简要信息
       for (int i = 0; i < locations.length; i++) {
         final loc = locations[i];
-        logger.debug('[$i] ${loc.latitude}, ${loc.longitude}, 精度: ${loc.accuracy}m', tag: 'Location');
+        logger.debug(
+          '[$i] ${loc.latitude}, ${loc.longitude}, 精度: ${loc.accuracy}m',
+          tag: 'Location',
+        );
       }
-      
+
       final api = LocationReportApi();
       final result = await api.reportLocation(locations);
-      
+
       if (result.isSuccess) {
         logger.info('批量位置上报成功: $reason', tag: 'Location');
         logger.info('上报数量: ${locations.length}个位置点', tag: 'Location');
@@ -2721,7 +2864,7 @@ extension LocationValidationExtension on SimpleLocationService {
         logger.error('上报原因: $reason', tag: 'Location');
         logger.error('上报数量: ${locations.length}个位置点', tag: 'Location');
       }
-    } catch (e) { 
+    } catch (e) {
       logger.error('批量上报异常: ', tag: 'Location');
       logger.error('上报原因: $reason', tag: 'Location');
       logger.error('上报数量: ${locations.length}个位置点', tag: 'Location');
@@ -2734,18 +2877,98 @@ extension LocationValidationExtension on SimpleLocationService {
   Future<void> _openLocationSettingsDirectly() async {
     try {
       await PermissionHelper.openLocationSettings();
-      CustomToast.show(
-        Get.context!,
-        '请在设置中将定位权限改为"始终允许"',
-      );
+      CustomToast.show(Get.context!, '请在设置中将定位权限改为"始终允许"');
     } catch (e) {
       logger.error('打开定位设置页面失败: ', tag: 'Location');
-      CustomToast.show(
-        Get.context!,
-        '无法打开设置页面，请手动前往设置中开启定位权限',
-      );
+      CustomToast.show(Get.context!, '无法打开设置页面，请手动前往设置中开启定位权限');
     }
   }
-  
-  
+}
+
+// MARK: - 传感器监听扩展（手机方向）
+extension SensorListenerExtension on SimpleLocationService {
+  /// 启动传感器监听（磁力计 + 加速度计）
+  void _startSensorListeners() {
+    try {
+      logger.info('启动手机方向传感器监听', tag: 'Location');
+
+      // 监听磁力计
+      _magnetometerSubscription = magnetometerEventStream().listen(
+        (MagnetometerEvent event) {
+          _magnetometerValues = [event.x, event.y, event.z];
+          _calculateHeading();
+        },
+        onError: (error) {
+          logger.error('磁力计监听错误: $error', tag: 'Location');
+        },
+      );
+
+      // 监听加速度计
+      _accelerometerSubscription = accelerometerEventStream().listen(
+        (AccelerometerEvent event) {
+          _accelerometerValues = [event.x, event.y, event.z];
+          _calculateHeading();
+        },
+        onError: (error) {
+          logger.error('加速度计监听错误: $error', tag: 'Location');
+        },
+      );
+
+      logger.info('传感器监听启动成功', tag: 'Location');
+    } catch (e) {
+      logger.error('启动传感器监听失败: $e', tag: 'Location');
+    }
+  }
+
+  /// 计算手机方向角度（根据磁力计和加速度计数据）
+  void _calculateHeading() {
+    try {
+      // 使用磁力计和加速度计数据计算方向角
+      final mx = _magnetometerValues[0];
+      final my = _magnetometerValues[1];
+      final mz = _magnetometerValues[2];
+
+      final ax = _accelerometerValues[0];
+      final ay = _accelerometerValues[1];
+      final az = _accelerometerValues[2];
+
+      // 归一化加速度计数据
+      final norm = math.sqrt(ax * ax + ay * ay + az * az);
+      if (norm == 0) return;
+
+      final axNorm = ax / norm;
+      final ayNorm = ay / norm;
+      final azNorm = az / norm;
+
+      // 计算旋转矩阵
+      // pitch = atan2(ay, sqrt(ax^2 + az^2))
+      // roll = atan2(-ax, az)
+      final pitch = math.atan2(
+        ayNorm,
+        math.sqrt(axNorm * axNorm + azNorm * azNorm),
+      );
+      final roll = math.atan2(-axNorm, azNorm);
+
+      // 补偿倾斜对磁力计的影响
+      final mxCompensated = mx * math.cos(pitch) + mz * math.sin(pitch);
+      final myCompensated =
+          mx * math.sin(roll) * math.sin(pitch) +
+          my * math.cos(roll) -
+          mz * math.sin(roll) * math.cos(pitch);
+
+      // 计算方位角（azimuth）
+      var azimuth = math.atan2(myCompensated, mxCompensated);
+
+      // 转换为度数（0-360）
+      var heading = azimuth * 180 / math.pi;
+      if (heading < 0) {
+        heading += 360;
+      }
+
+      // 更新方向值
+      currentHeading.value = heading;
+    } catch (e) {
+      logger.error('计算手机方向失败: $e', tag: 'Location');
+    }
+  }
 }

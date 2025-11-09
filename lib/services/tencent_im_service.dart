@@ -45,6 +45,9 @@ class TencentIMService extends GetxService {
   // 消息撤回回调
   final Rx<Function(String)?> onRecvMessageRevoked = Rx<Function(String)?>(null);
 
+  // 绑定消息接收回调（当收到绑定消息时触发，用于自动关闭绑定弹窗等操作）
+  final Rx<Function()?> onBindMessageReceived = Rx<Function()?>(null);
+
   @override
   void onInit() {
     super.onInit();
@@ -442,10 +445,26 @@ class TencentIMService extends GetxService {
     logger.info('已设置消息撤回回调', tag: 'TencentIMService');
   }
 
+  /// 设置绑定消息接收回调
+  /// 
+  /// [callback] 收到绑定消息时的回调函数
+  /// 
+  /// 示例：
+  /// ```dart
+  /// TencentIMService.instance.setOnBindMessageReceived(() {
+  ///   print('收到绑定消息，准备关闭绑定弹窗');
+  /// });
+  /// ```
+  void setOnBindMessageReceived(Function() callback) {
+    onBindMessageReceived.value = callback;
+    logger.info('已设置绑定消息接收回调', tag: 'TencentIMService');
+  }
+
   /// 清除所有回调
   void clearCallbacks() {
     onReceiveNewMessage.value = null;
     onRecvMessageRevoked.value = null;
+    onBindMessageReceived.value = null;
     logger.info('已清除所有回调', tag: 'TencentIMService');
   }
 
@@ -494,12 +513,22 @@ class TencentIMService extends GetxService {
   }
 
   /// 处理绑定消息
-  /// 1. 刷新用户信息
-  /// 2. 播放绑定动画
-  /// 3. 动画完成后跳转到VIP页面
-  /// 4. 刷新当前页面
+  /// 1. 触发绑定消息回调（用于关闭绑定弹窗）
+  /// 2. 刷新用户信息
+  /// 3. 播放绑定动画
+  /// 4. 动画完成后跳转到VIP页面
+  /// 5. 刷新当前页面
   Future<void> _handleBindMessage(RelationshipAnimationService animationService) async {
     try {
+      // 0. 先触发绑定消息回调（关闭可能存在的绑定弹窗）
+      logger.info('💬 触发绑定消息回调，准备关闭绑定弹窗...', tag: 'TencentIMService');
+      if (onBindMessageReceived.value != null) {
+        onBindMessageReceived.value!();
+        logger.info('✅ 绑定消息回调已触发', tag: 'TencentIMService');
+        // 等待弹窗关闭动画完成
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+      
       // 1. 先刷新用户信息
       logger.info('📥 开始刷新用户信息...', tag: 'TencentIMService');
       final authService = getIt<AuthService>();

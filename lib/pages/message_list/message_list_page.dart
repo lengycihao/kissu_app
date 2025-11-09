@@ -38,10 +38,7 @@ class MessageListPage extends GetView<MessageListController> {
               // 标题
               const Text(
                 '消息列表',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Color(0xFF333333),
-                ),
+                style: TextStyle(fontSize: 18, color: Color(0xFF333333)),
               ),
               // 占位空间，保持布局平衡
               const SizedBox(width: 24),
@@ -64,7 +61,7 @@ class MessageListPage extends GetView<MessageListController> {
         onTap: controller.openNotificationSettings,
         child: Container(
           margin: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: const Color(0xFFF5F8FF),
             borderRadius: BorderRadius.circular(12),
@@ -77,17 +74,20 @@ class MessageListPage extends GetView<MessageListController> {
                 width: 12,
                 height: 12,
               ),
-              const SizedBox(width: 8),
+              // const SizedBox(width: 4),
               // 提示文字
-              const Expanded(
-                child: Text(
-                  '推送通知未开启，会错过对方重要信息哦~',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF819EFF),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: const Text(
+                    '推送通知未开启，会错过对方重要信息哦~',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF819EFF)),
+                    maxLines: 1,
                   ),
                 ),
               ),
+              const SizedBox(width: 3),
               // 去开启文字
               const Text(
                 '去开启',
@@ -97,7 +97,7 @@ class MessageListPage extends GetView<MessageListController> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 4),
+
               const Icon(
                 Icons.chevron_right,
                 size: 16,
@@ -126,16 +126,11 @@ class MessageListPage extends GetView<MessageListController> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-           
         ),
         child: Row(
           children: [
             // 图标
-            Image.asset(
-              icon,
-              width: 42,
-              height: 42,
-            ),
+            Image.asset(icon, width: 42, height: 42),
             const SizedBox(width: 12),
             // 文字内容
             Expanded(
@@ -178,7 +173,6 @@ class MessageListPage extends GetView<MessageListController> {
               ),
             // 箭头
             const SizedBox(width: 8),
-             
           ],
         ),
       ),
@@ -201,21 +195,25 @@ class MessageListPage extends GetView<MessageListController> {
                   // 通知开启提示
                   _buildNotificationTip(),
                   // 系统消息
-                  Obx(() => _buildMessageItem(
-                    icon: 'assets/3.0/kissu3_noti_noti.webp',
-                    title: '系统消息',
-                    subtitle: '您有一条新的系统消息',
-                    hasRedDot: controller.hasNewSystemMessage.value,
-                    onTap: controller.goToSystemMessage,
-                  )),
+                  Obx(
+                    () => _buildMessageItem(
+                      icon: 'assets/3.0/kissu3_noti_noti.webp',
+                      title: '系统消息',
+                      subtitle: '您有一条新的系统消息',
+                      hasRedDot: controller.hasNewSystemMessage.value,
+                      onTap: controller.goToSystemMessage,
+                    ),
+                  ),
                   // 互动消息
-                  Obx(() => _buildMessageItem(
-                    icon: 'assets/3.0/kissu3_noti_message.webp',
-                    title: '互动消息',
-                    subtitle: '您有一条新的互动消息',
-                    hasRedDot: controller.hasNewInteractionMessage.value,
-                    onTap: controller.goToInteractionMessage,
-                  )),
+                  Obx(
+                    () => _buildMessageItem(
+                      icon: 'assets/3.0/kissu3_noti_message.webp',
+                      title: '互动消息',
+                      subtitle: '您有一条新的互动消息',
+                      hasRedDot: controller.hasNewInteractionMessage.value,
+                      onTap: controller.goToInteractionMessage,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -225,4 +223,3 @@ class MessageListPage extends GetView<MessageListController> {
     );
   }
 }
-
