@@ -448,8 +448,9 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     
     <!-- Android 16 新增权限 -->
-    <!-- 注意：移除 READ_MEDIA_VISUAL_USER_SELECTED 权限，强制使用 READ_MEDIA_IMAGES 获得全部照片访问权限 -->
-    <!-- <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" /> -->
+    <!-- Android 13+ 相册选择权限：允许用户选择部分照片访问 -->
+    <!-- 必须声明此权限，否则Android 14+只会弹出相机权限对话框 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- 通知权限：Android 13+必需，Android 16更严格 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
