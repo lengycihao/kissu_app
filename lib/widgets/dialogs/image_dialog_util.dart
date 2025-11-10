@@ -486,22 +486,37 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       )],
                     ),
                   ),
-                  // 上传中的加载指示器
+                  // SizedBox(height: 20),
+                  // 上传中的加载指示器 - 显示在按钮上方
                   if (_isUploading)
                     Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(4),
+                      height: 50,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF87E1)),
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            "上传中...",
+                            style: TextStyle(
+                              color: Color(0xFFFF87E1),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                    ),
-                  SizedBox(height: 33),
+                    )
+                  else
+                    SizedBox(height: 50),
+                  SizedBox(height: 13),
                   GestureDetector(
                     onTap: _isUploading ? null : () async {
                       if (_selectedImageFile == null) {
