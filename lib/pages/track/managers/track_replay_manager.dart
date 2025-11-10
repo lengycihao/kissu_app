@@ -37,7 +37,7 @@ class TrackReplayManager extends GetxController {
 
   /// 播放头像标记
   final Rx<Marker?> replayAvatarMarker = Rx<Marker?>(null);
-  
+
   /// 🎯 播放底座标记（头像下面的旋转底座）
   final Rx<Marker?> replayPedestalMarker = Rx<Marker?>(null);
 
@@ -134,7 +134,7 @@ class TrackReplayManager extends GetxController {
       DebugUtil.info('🧹 清除播放底座标记');
       replayPedestalMarker.value = null;
     }
-    
+
     // 🎯 重置底座创建标志
     _isCreatingPedestal = false;
   }
@@ -285,20 +285,26 @@ class TrackReplayManager extends GetxController {
     final dx = endPoint.longitude - position.longitude;
     final dy = endPoint.latitude - position.latitude;
 
-    // 计算角度（0-360，0是北方）
-    var angle = math.atan2(dx, dy) * 180.0 / math.pi;
-    
+    // 计算角度（atan2(y, x) 返回的是从东方向开始逆时针的角度）
+    // 参数顺序：第一个是y（纬度差），第二个是x（经度差）
+    var angle = math.atan2(dy, dx) * 180.0 / math.pi;
+
+    // atan2返回的角度：正东=0°，正北=90°，正西=180°/-180°，正南=-90°
+    // 转换为地图角度：正北=0°，正东=90°，正南=180°，正西=270°
+    angle = 90.0 - angle;
+
     // 🎯 确保角度在0-360范围内
     if (angle < 0) {
       angle += 360.0;
     }
-    
-    // 🎯 底座图片默认指向左方（西方270度），需要加270度偏移
-    angle += 270.0;
+
+    // 🎯 底座图片默认指向左方（西方270度），需要加90度偏移
+    // 因为地图角度0是正北，而底座图片默认朝左(西方)
+    angle += 90.0;
     if (angle >= 360.0) {
       angle -= 360.0;
     }
-    
+
     return angle;
   }
 

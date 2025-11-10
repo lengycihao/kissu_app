@@ -387,16 +387,16 @@ class MineController extends GetxController {
         title: "实时定位",
         onTap: () => onLocationTap(),
       ),
-      CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_app_time.webp",
-        title: "app使用记录",
-        onTap: () => _onAppUsageRecordTap(),
-      ),
-      CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_history.webp",
-        title: "用机记录",
-        onTap: () => onHisstoryTap(),
-      ),
+      // CommonFunctionItem(
+      //   icon: "assets/4.0/kissu4_mine_app_time.webp",
+      //   title: "app使用记录",
+      //   onTap: () => _onAppUsageRecordTap(),
+      // ),
+      // CommonFunctionItem(
+      //   icon: "assets/4.0/kissu4_mine_history.webp",
+      //   title: "用机记录",
+      //   onTap: () => onHisstoryTap(),
+      // ),
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_track.webp",
         title: "足迹",
@@ -407,21 +407,21 @@ class MineController extends GetxController {
         title: "酒店防偷拍",
         onTap: () => _onAntiSpyTap(),
       ),
-      CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_newhome.webp",
-        title: "个性化首页",
-        onTap: () => _onPersonalizedHomeTap(),
-      ),
+      // CommonFunctionItem(
+      //   icon: "assets/4.0/kissu4_mine_newhome.webp",
+      //   title: "个性化首页",
+      //   onTap: () => _onPersonalizedHomeTap(),
+      // ),
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_change_homeview.webp",
         title: "更换首页视图",
         onTap: () => _onChangeHomeViewTap(),
       ),
-      CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_change_logo.webp",
-        title: "更换app图标",
-        onTap: () => _onChangeAppIconTap(),
-      ),
+      // CommonFunctionItem(
+      //   icon: "assets/4.0/kissu4_mine_change_logo.webp",
+      //   title: "更换app图标",
+      //   onTap: () => _onChangeAppIconTap(),
+      // ),
     ];
   }
   

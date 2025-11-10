@@ -7,13 +7,13 @@ import 'dart:io';
 
 /// 权限类型枚举
 enum PermissionType {
-  location,           // 位置权限
-  locationAlways,     // 后台位置权限
-  notification,       // 通知权限
-  battery,            // 电池优化（后台运行）
-  usage,              // 使用情况访问权限
-  photos,             // 相册权限
-  camera,             // 相机权限
+  location, // 位置权限
+  locationAlways, // 后台位置权限
+  notification, // 通知权限
+  battery, // 电池优化（后台运行）
+  usage, // 使用情况访问权限
+  photos, // 相册权限
+  camera, // 相机权限
 }
 
 /// 权限服务类
@@ -63,10 +63,10 @@ class PermissionService {
       try {
         // 使用 usage_stats 插件检查权限（静态方法）
         final bool granted = await UsageStats.checkUsagePermission() ?? false;
-      return granted;
-    } catch (e) {
-      logger.error("检查使用情况访问权限时发生错误: $e", tag: 'PermissionService', error: e);
-      return false;
+        return granted;
+      } catch (e) {
+        logger.error("检查使用情况访问权限时发生错误: $e", tag: 'PermissionService', error: e);
+        return false;
       }
     }
     return true; // iOS不需要此权限
@@ -75,6 +75,16 @@ class PermissionService {
   /// 检查相册权限状态
   Future<bool> isPhotosPermissionGranted() async {
     try {
+      // 🔧 Android 9及以下优先检查 Permission.storage
+      final storagePermission = _getStoragePermission();
+      final storageStatus = await storagePermission.status;
+
+      if (storageStatus.isGranted) {
+        logger.debug("存储权限已授予（Android 9及以下）", tag: 'PermissionService');
+        return true;
+      }
+
+      // Android 10+ 检查 Permission.photos
       final permission = _getPhotosPermission();
       final status = await permission.status;
       logger.debug("相册权限检查: $status", tag: 'PermissionService');
@@ -97,8 +107,12 @@ class PermissionService {
     // permission_handler 会根据 Android 版本自动处理：
     // - Android 13+ (API 33+): 使用 READ_MEDIA_IMAGES
     // - Android 10-12: 使用 READ_EXTERNAL_STORAGE
-    // - iOS: 使用 Photos Library 权限
     return Permission.photos;
+  }
+
+  /// 获取存储权限（Android 9及以下使用）
+  Permission _getStoragePermission() {
+    return Permission.storage;
   }
 
   /// 根据权限类型检查权限状态
@@ -185,11 +199,11 @@ class PermissionService {
           logger.info("使用情况访问权限已授权", tag: 'PermissionService');
           return true;
         }
-        
+
         // 未授权，跳转到系统设置页面
         logger.info("跳转到使用情况访问设置页面", tag: 'PermissionService');
         await openUsageAccessSettings();
-        
+
         // 等待一段时间后再次检查权限状态
         await Future.delayed(const Duration(milliseconds: 500));
         return await isUsageAccessGranted();
@@ -204,29 +218,49 @@ class PermissionService {
   /// 请求相册权限
   Future<bool> requestPhotosPermission() async {
     try {
+      // 🔧 Android 9及以下需要使用 Permission.storage 权限
+      // 先尝试 Permission.storage（适用于Android 9及以下）
+      final storagePermission = _getStoragePermission();
+      final storageStatus = await storagePermission.status;
+
+      if (!storageStatus.isGranted && !storageStatus.isPermanentlyDenied) {
+        logger.debug("开始申请存储权限（Android 9及以下）", tag: 'PermissionService');
+        final storageResult = await storagePermission.request();
+
+        if (storageResult.isGranted) {
+          logger.info("存储权限已获取（适用于Android 9及以下）", tag: 'PermissionService');
+          return true;
+        }
+      } else if (storageStatus.isGranted) {
+        logger.info("存储权限已经获得（Android 9及以下）", tag: 'PermissionService');
+        return true;
+      }
+
+      // 然后尝试 Permission.photos（适用于Android 10+）
+
       final permission = _getPhotosPermission();
       logger.debug("开始申请相册权限，权限类型: $permission", tag: 'PermissionService');
-      
+
       // 先检查当前状态
       final currentStatus = await permission.status;
       logger.debug("相册权限当前状态: $currentStatus", tag: 'PermissionService');
-      
+
       if (currentStatus.isGranted) {
         logger.info("相册权限已经获得", tag: 'PermissionService');
         return true;
       }
-      
+
       if (currentStatus.isPermanentlyDenied) {
         logger.warning("相册权限被永久拒绝，需要跳转到设置页面", tag: 'PermissionService');
         await openAppSettings();
         return false;
       }
-      
+
       // 申请权限
       logger.debug("正在弹出系统权限申请对话框...", tag: 'PermissionService');
       final status = await permission.request();
       logger.debug("权限申请结果: $status", tag: 'PermissionService');
-      
+
       if (status.isGranted) {
         logger.info("相册权限已获取", tag: 'PermissionService');
         return true;
@@ -395,19 +429,22 @@ class PermissionService {
 
     // 1. 请求基础位置权限
     results[PermissionType.location] = await requestLocationPermission();
-    
+
     // 2. 如果基础位置权限获取成功，再请求后台位置权限
     if (results[PermissionType.location]!) {
-      results[PermissionType.locationAlways] = await requestLocationAlwaysPermission();
+      results[PermissionType.locationAlways] =
+          await requestLocationAlwaysPermission();
     } else {
       results[PermissionType.locationAlways] = false;
     }
 
     // 3. 请求通知权限
-    results[PermissionType.notification] = await requestNotificationPermission();
+    results[PermissionType.notification] =
+        await requestNotificationPermission();
 
     // 4. 请求电池优化权限（Android）
-    results[PermissionType.battery] = await requestBatteryOptimizationPermission();
+    results[PermissionType.battery] =
+        await requestBatteryOptimizationPermission();
 
     // 5. 请求使用情况访问权限（Android）
     results[PermissionType.usage] = await requestUsageAccessPermission();
@@ -443,7 +480,7 @@ class PermissionService {
         permission = Permission.camera;
         break;
     }
-    
+
     final status = await permission.status;
     return status.isPermanentlyDenied;
   }

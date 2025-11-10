@@ -541,8 +541,30 @@ class LocationV2Controller extends GetxController
       );
       pedestalMarker.setIdForCopy('my_pedestal');
 
-      // 使用updateMarker更新底座（同时更新位置、旋转和anchor）
-      await mapController?.updateMarker(pedestalMarker);
+      // 🎯 同时更新头像marker的位置（确保头像和底座不分离）
+      if (_cachedMyIcon != null && _cachedMyAnchor != null) {
+        final avatarMarker = Marker(
+          position: myPos, // 🎯 使用与底座相同的位置
+          icon: _cachedMyIcon!,
+          anchor: _cachedMyAnchor!,
+          zIndex: 2.0, // 上层
+          onTap: (String markerId) {
+            _moveMapToLocation(myPos);
+          },
+        );
+        avatarMarker.setIdForCopy('my_marker');
+
+        // 同时更新底座和头像
+        await mapController?.updateMarker(pedestalMarker);
+        await mapController?.updateMarker(avatarMarker);
+
+        debugPrint(
+          '🎯 同步更新底座和头像位置: $myPos, 旋转: ${rotation.toStringAsFixed(1)}°',
+        );
+      } else {
+        // 如果头像marker还没创建，只更新底座
+        await mapController?.updateMarker(pedestalMarker);
+      }
     } catch (e) {
       debugPrint('更新底座旋转失败: $e');
     }
@@ -579,10 +601,12 @@ class LocationV2Controller extends GetxController
                 BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
 
             final capturedPos = myPos; // 捕获非空值到局部变量
-            
+
             // 🎯 获取头像anchor，用于调试
             final avatarAnchor = _cachedMyAnchor ?? const Offset(0.5, 1.0);
-            debugPrint('📍 未绑定状态创建marker - 位置: $capturedPos, 头像anchor: $avatarAnchor');
+            debugPrint(
+              '📍 未绑定状态创建marker - 位置: $capturedPos, 头像anchor: $avatarAnchor',
+            );
 
             // 🚀 添加底座marker（可旋转，zIndex=1，在下层）
             if (_persistentMyPedestalIcon != null) {
@@ -590,18 +614,20 @@ class LocationV2Controller extends GetxController
               final heading = currentHeading.value ?? 0.0;
               final rotation = heading + 90.0; // 🎯 修正：图片朝左需要+90度偏移
 
-            // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
-            final pedestalMarker = Marker(
-              position: capturedPos,
-              icon: _persistentMyPedestalIcon!,
-              anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
-              rotation: rotation, // 🎯 实时旋转角度
-              zIndex: 1.0, // 底层
-              clickable: false, // 底座不响应点击
-            );
-            pedestalMarker.setIdForCopy('my_pedestal');
-            tempMarkers.add(pedestalMarker);
-            debugPrint('✅ 底座marker创建 - 位置: $capturedPos, anchor: (0.5, 0.5), 旋转: $rotation°');
+              // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+              final pedestalMarker = Marker(
+                position: capturedPos,
+                icon: _persistentMyPedestalIcon!,
+                anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+                rotation: rotation, // 🎯 实时旋转角度
+                zIndex: 1.0, // 底层
+                clickable: false, // 底座不响应点击
+              );
+              pedestalMarker.setIdForCopy('my_pedestal');
+              tempMarkers.add(pedestalMarker);
+              debugPrint(
+                '✅ 底座marker创建 - 位置: $capturedPos, anchor: (0.5, 0.5), 旋转: $rotation°',
+              );
             }
 
             // 🚀 添加头像marker（不旋转，zIndex=2，在上层）
@@ -616,7 +642,9 @@ class LocationV2Controller extends GetxController
             );
             myMarker.setIdForCopy('my_marker');
             tempMarkers.add(myMarker);
-            debugPrint('✅ 头像marker创建 - 位置: $capturedPos, anchor: $avatarAnchor');
+            debugPrint(
+              '✅ 头像marker创建 - 位置: $capturedPos, anchor: $avatarAnchor',
+            );
           } catch (e) {
             debugPrint('Create my marker error: $e');
           }
@@ -639,17 +667,17 @@ class LocationV2Controller extends GetxController
               final heading = currentHeading.value ?? 0.0;
               final rotation = heading + 90.0; // 🎯 修正：图片朝左需要+90度偏移
 
-            // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
-            final pedestalMarker = Marker(
-              position: myPos,
-              icon: _persistentMyPedestalIcon!,
-              anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
-              rotation: rotation, // 🎯 实时旋转角度
-              zIndex: 1.0, // 底层
-              clickable: false, // 底座不响应点击
-            );
-            pedestalMarker.setIdForCopy('my_pedestal');
-            tempMarkers.add(pedestalMarker);
+              // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+              final pedestalMarker = Marker(
+                position: myPos,
+                icon: _persistentMyPedestalIcon!,
+                anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+                rotation: rotation, // 🎯 实时旋转角度
+                zIndex: 1.0, // 底层
+                clickable: false, // 底座不响应点击
+              );
+              pedestalMarker.setIdForCopy('my_pedestal');
+              tempMarkers.add(pedestalMarker);
             }
 
             // 🚀 添加头像marker（不旋转，zIndex=2，在上层）
@@ -678,7 +706,8 @@ class LocationV2Controller extends GetxController
                 BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
             // 🎯 获取伴侣头像anchor
-            final partnerAvatarAnchor = _cachedPartnerAnchor ?? const Offset(0.5, 1.0);
+            final partnerAvatarAnchor =
+                _cachedPartnerAnchor ?? const Offset(0.5, 1.0);
 
             // 🚀 添加伴侣底座marker（zIndex=1，在下层）
             if (_persistentPartnerPedestalIcon != null) {
@@ -743,12 +772,9 @@ class LocationV2Controller extends GetxController
     // 🎯 修复：使用 actualMyLocation 和 actualPartnerLocation，与marker位置保持一致
     final myPos = actualMyLocation.value ?? myLocation.value;
     final partnerPos = actualPartnerLocation.value ?? partnerLocation.value;
-    
+
     if (myPos != null && partnerPos != null) {
-      final List<LatLng> connectionPoints = [
-        myPos,
-        partnerPos,
-      ];
+      final List<LatLng> connectionPoints = [myPos, partnerPos];
 
       _polylines.add(
         Polyline(

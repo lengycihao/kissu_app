@@ -25,6 +25,31 @@ class MarkerBuilder {
       return BitmapDescriptor.defaultMarker;
     }
 
+    // 🔧 基于375px设计稿的比例计算，按屏幕比例缩放后直接乘以DPI
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr;
+
+    // 根据请求的尺寸判断是大底座还是小底座
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+
+    // 如果请求尺寸>100，说明是大底座(设计稿128px)，否则是小底座(设计稿40px)
+    final designSize = size > 100 ? 200.0 : 10.0;
+    final adjustedSize = designSize * screenScale * dpr;
+
+    debugPrint('📱 ============ 底座Marker创建 ============');
+    debugPrint('📱 设备像素比(DPI): $dpr');
+    debugPrint('📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}px');
+    debugPrint(
+      '📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)',
+    );
+    debugPrint('📱 请求底座尺寸: ${size}px');
+    debugPrint('📱 设计稿尺寸: ${designSize}px');
+    debugPrint(
+      '📱 实际底座尺寸: ${adjustedSize.toStringAsFixed(1)}px (${designSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
+    );
+    debugPrint('📱 ==========================================');
+
     // 创建画布（只包含底座）
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
@@ -37,12 +62,16 @@ class MarkerBuilder {
       pedestal.width.toDouble(),
       pedestal.height.toDouble(),
     );
-    final dstRect = Rect.fromLTWH(0, 0, size, size);
+    final dstRect = Rect.fromLTWH(0, 0, adjustedSize, adjustedSize);
     canvas.drawImageRect(pedestal, srcRect, dstRect, paint);
 
     // 转换为图片
     final picture = pictureRecorder.endRecording();
-    final image = await picture.toImage(size.toInt(), size.toInt());
+
+    final image = await picture.toImage(
+      adjustedSize.toInt(),
+      adjustedSize.toInt(),
+    );
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     final bytes = byteData!.buffer.asUint8List();
 
@@ -71,31 +100,72 @@ class MarkerBuilder {
         };
       }
 
-      // 头像和底座尺寸配置
-      final avatarSize = 180.0; // 保持头像大小不变
-      final pedestalScale = 0.8;
-      final pedestalWidth = useLargePedestal
-          ? 800.0 // 🎯 改成800x800
-          : pedestal.width.toDouble() * pedestalScale;
-      // 双层边框（不重叠）：外层粉色4px（向外2px）+ 内层白色9px = 从中心到头像边缘11px
-      final avatarBorderWidth = 11.0;
+      // 🔧 基于375px设计稿的比例计算，确保在不同设备上按比例缩放
+      final dpr = ui.window.devicePixelRatio;
+      final screenWidth = ui.window.physicalSize.width / dpr; // 逻辑像素宽度
 
-      final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0;
-      final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0;
+      debugPrint('📱 ============ Marker创建调试信息 ============');
+      debugPrint('📱 设备像素比(DPI): $dpr');
+      debugPrint(
+        '📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}逻辑像素 (${ui.window.physicalSize.width.toStringAsFixed(0)}物理像素)',
+      );
+
+      // 设计稿基准：375px屏幕宽度，头像60px，大底座128px，小底座40px
+      const designWidth = 375.0;
+      const designAvatarSize = 60.0;
+      const designLargePedestalSize = 200.0;
+      const designSmallPedestalSize = 10.0;
+
+      // 按屏幕宽度比例计算，然后直接乘以DPI
+      final screenScale = screenWidth / designWidth;
+
+      // 先按屏幕比例缩放，再乘以DPI
+      final avatarSize = designAvatarSize * screenScale * dpr;
+      final pedestalWidth = useLargePedestal
+          ? designLargePedestalSize * screenScale * dpr
+          : designSmallPedestalSize * screenScale * dpr;
+
+      debugPrint(
+        '📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)',
+      );
+      debugPrint(
+        '📱 头像尺寸: ${avatarSize.toStringAsFixed(1)}px (设计稿${designAvatarSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
+      );
+      debugPrint(
+        '📱 底座尺寸: ${pedestalWidth.toStringAsFixed(1)}px (设计稿${useLargePedestal ? designLargePedestalSize : designSmallPedestalSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
+      );
+
+      // 所有尺寸都基于60px设计稿按比例缩放
+      // 设计稿中：边框3.67px，表情背景26.67px，边距3.33px，padding 3.33-6.67px
+      final avatarBorderWidth = avatarSize * (3.67 / 60.0);
+
+      final emojiBgHeight = (face != null && face.isValid)
+          ? avatarSize * (26.67 / 60.0)
+          : 0.0;
+      final emojiBgMargin = (face != null && face.isValid)
+          ? avatarSize * (3.33 / 60.0)
+          : 0.0;
       final avatarTopPadding = (face != null && face.isValid)
           ? 0.0
-          : avatarBorderWidth + 10;
+          : avatarBorderWidth + avatarSize * (3.33 / 60.0);
 
+      final padding = avatarSize * (6.67 / 60.0); // 设计稿中padding约6.67px
       final canvasWidth =
-          (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20;
+          (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + padding;
+
       // 🎯 修复：canvas只包含头像部分，不包含底座（底座是独立marker）
       final canvasHeight =
           avatarTopPadding +
           emojiBgHeight +
           emojiBgMargin +
           avatarSize +
-          20; // 底部留一点padding即可
+          padding;
       final size = Size(canvasWidth, canvasHeight);
+
+      debugPrint(
+        '📱 Canvas尺寸: ${canvasWidth.toStringAsFixed(1)} x ${canvasHeight.toStringAsFixed(1)}px',
+      );
+      debugPrint('📱 边框宽度: ${avatarBorderWidth.toStringAsFixed(2)}px');
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -144,16 +214,17 @@ class MarkerBuilder {
       final bytes = byteData!.buffer.asUint8List();
 
       final createDuration = DateTime.now().difference(createStartTime);
-      debugPrint('📊 创建Marker耗时: ${createDuration.inMilliseconds}ms');
 
       // 🎯 修复：锚点要对准头像底部，让头像底部吸附在实际位置
       // 因为canvas包含padding，所以需要动态计算
       final avatarBottomY = avatarTop + avatarSize;
       final anchorY = avatarBottomY / size.height;
 
-      debugPrint(
-        '🎯 Marker锚点: (0.5, ${anchorY.toStringAsFixed(3)}), 头像底部Y: $avatarBottomY, canvas高度: ${size.height}',
-      );
+      debugPrint('📱 图片尺寸: ${size.width.toInt()} x ${size.height.toInt()}px');
+      debugPrint('📱 头像底部Y: ${avatarBottomY.toStringAsFixed(1)}px');
+      debugPrint('📱 锚点位置: (0.5, ${anchorY.toStringAsFixed(3)})');
+      debugPrint('📱 创建耗时: ${createDuration.inMilliseconds}ms');
+      debugPrint('📱 ============================================');
 
       return {
         'descriptor': BitmapDescriptor.fromBytes(bytes),

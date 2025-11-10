@@ -7,6 +7,7 @@ import '../../../utils/user_manager.dart';
 import '../../../services/relationship_animation_service.dart';
 import '../../usage_report/usage_report_controller.dart';
 import '../../home/home_controller.dart';
+import '../mine_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
@@ -305,6 +306,17 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       }
     } catch (e) {
       logError('❌ 刷新首页绑定状态失败: $e', tag: 'BreakRelationship', error: e);
+    }
+    
+    // 刷新"我的"页面
+    try {
+      if (Get.isRegistered<MineController>()) {
+        final mineController = Get.find<MineController>();
+        mineController.onPageResumed();
+        logDebug('✅ 已刷新"我的"页面数据', tag: 'BreakRelationship');
+      }
+    } catch (e) {
+      logError('❌ 刷新"我的"页面数据失败: $e', tag: 'BreakRelationship', error: e);
     }
     
     // 刷新用机记录页面（提前刷新）
