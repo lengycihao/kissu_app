@@ -111,17 +111,17 @@ class TrackMapManager {
     // 计算中心点
     double centerLat = 0;
     double centerLng = 0;
-    
+
     for (final point in trackPoints) {
       centerLat += point.latitude;
       centerLng += point.longitude;
     }
-    
+
     centerLat /= trackPoints.length;
     centerLng /= trackPoints.length;
 
     DebugUtil.info('轨迹中心点: ($centerLat, $centerLng)');
-    
+
     // 初始使用较低缩放级别，具体缩放由 fitMapToTrackPoints 中的 newLatLngBounds 精确控制
     return CameraPosition(target: LatLng(centerLat, centerLng), zoom: 10.0);
   }
@@ -137,7 +137,7 @@ class TrackMapManager {
       DebugUtil.warning('轨迹点为空，无法调整视图');
       return;
     }
-    
+
     // 如果只有一个点，直接定位到该点
     if (trackPoints.length == 1) {
       try {
@@ -158,25 +158,25 @@ class TrackMapManager {
       double maxLat = trackPoints.first.latitude;
       double minLng = trackPoints.first.longitude;
       double maxLng = trackPoints.first.longitude;
-      
+
       for (final point in trackPoints) {
         if (point.latitude < minLat) minLat = point.latitude;
         if (point.latitude > maxLat) maxLat = point.latitude;
         if (point.longitude < minLng) minLng = point.longitude;
         if (point.longitude > maxLng) maxLng = point.longitude;
       }
-      
+
       final bounds = LatLngBounds(
         southwest: LatLng(minLat, minLng),
         northeast: LatLng(maxLat, maxLng),
       );
-      
+
       await mapController!.moveCamera(
         CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
         animated: true,
         duration: 500,
       );
-      
+
       DebugUtil.success('✅ 使用原生LatLngBounds调整地图到显示完整轨迹');
     } catch (e) {
       DebugUtil.error('调整地图视图失败: $e');
@@ -196,7 +196,7 @@ class TrackMapManager {
 
     // 🚀 收集所有需要显示的点：locations + trace 中的所有点
     final List<LatLng> allPoints = [];
-    
+
     // 1. 从 locations 列表中添加所有轨迹点
     if (locationData?.locations != null && locationData.locations.isNotEmpty) {
       for (final location in locationData.locations) {
@@ -206,7 +206,7 @@ class TrackMapManager {
       }
       DebugUtil.info('从 locations 添加轨迹点数量: ${locationData.locations.length}');
     }
-    
+
     // 2. 添加 trace 中的起点
     if (locationData?.trace?.startPoint != null) {
       final startPoint = locationData.trace!.startPoint;
@@ -215,7 +215,7 @@ class TrackMapManager {
         DebugUtil.info('添加起点: (${startPoint.lat}, ${startPoint.lng})');
       }
     }
-    
+
     // 3. 添加 trace 中的终点
     if (locationData?.trace?.endPoint != null) {
       final endPoint = locationData.trace!.endPoint;
@@ -224,7 +224,7 @@ class TrackMapManager {
         DebugUtil.info('添加终点: (${endPoint.lat}, ${endPoint.lng})');
       }
     }
-    
+
     // 4. 添加 trace 中的所有停留点
     if (locationData?.trace?.stops != null) {
       for (final stop in locationData.trace!.stops) {
@@ -234,9 +234,9 @@ class TrackMapManager {
       }
       DebugUtil.info('添加停留点数量: ${locationData.trace!.stops.length}');
     }
-    
+
     DebugUtil.info('🗺️ 总点数: ${allPoints.length}');
-    
+
     // 如果没有任何点，显示默认位置
     if (allPoints.isEmpty) {
       DebugUtil.warning('没有有效位置数据，显示全国地图视图');
@@ -254,7 +254,7 @@ class TrackMapManager {
       }
       return;
     }
-    
+
     // 如果只有一个点，直接定位到该点
     if (allPoints.length == 1) {
       try {
@@ -267,7 +267,7 @@ class TrackMapManager {
       }
       return;
     }
-    
+
     // 🚀 使用原生 newLatLngBounds 自动计算最佳缩放层级
     try {
       // 计算边界：找出最小和最大的经纬度
@@ -275,29 +275,31 @@ class TrackMapManager {
       double maxLat = allPoints.first.latitude;
       double minLng = allPoints.first.longitude;
       double maxLng = allPoints.first.longitude;
-      
+
       for (final point in allPoints) {
         if (point.latitude < minLat) minLat = point.latitude;
         if (point.latitude > maxLat) maxLat = point.latitude;
         if (point.longitude < minLng) minLng = point.longitude;
         if (point.longitude > maxLng) maxLng = point.longitude;
       }
-      
+
       // 构建 LatLngBounds
       final bounds = LatLngBounds(
         southwest: LatLng(minLat, minLng),
         northeast: LatLng(maxLat, maxLng),
       );
-      
-      DebugUtil.info('📍 bounds: southwest($minLat, $minLng), northeast($maxLat, $maxLng)');
-      
+
+      DebugUtil.info(
+        '📍 bounds: southwest($minLat, $minLng), northeast($maxLat, $maxLng)',
+      );
+
       // 使用原生方法自动计算缩放层级
       await mapController!.moveCamera(
         CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
         animated: true,
         duration: 500,
       );
-      
+
       DebugUtil.success('✅ 使用原生LatLngBounds自动调整地图视图');
     } catch (e) {
       DebugUtil.error('调整地图视图失败: $e');

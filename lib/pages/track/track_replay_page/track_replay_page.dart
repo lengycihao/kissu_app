@@ -14,16 +14,14 @@ class TrackReplayPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<TrackReplayController>();
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
           // 全屏地图
-          Positioned.fill(
-            child: _MapWidget(controller: controller),
-          ),
-          
+          Positioned.fill(child: _MapWidget(controller: controller)),
+
           // 底部播放条
           Positioned(
             left: 0,
@@ -31,7 +29,7 @@ class TrackReplayPage extends StatelessWidget {
             bottom: 0,
             child: _ReplayControlBar(controller: controller),
           ),
-          
+
           // 顶部返回按钮
           Positioned(
             top: MediaQuery.of(context).padding.top + 16,
@@ -55,43 +53,39 @@ class _MapWidget extends StatefulWidget {
 }
 
 class _MapWidgetState extends State<_MapWidget> {
-  Set<Marker> _cachedMarkers = {};
   Set<Polyline> _cachedPolylines = {};
-  int _markersVersion = -1;
   int _polylinesVersion = -1;
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // 检查标记是否需要更新
-      final replayMarkerHash = widget.controller.replayAvatarMarker.value != null
-          ? (widget.controller.replayAvatarMarker.value!.position.latitude * 1000000).round() +
-            (widget.controller.replayAvatarMarker.value!.position.longitude * 1000000).round()
-          : 0;
-      
-      final currentMarkersVersion =
-          (widget.controller.replayAvatarMarker.value != null ? 1000 + replayMarkerHash : 0) +
-          widget.controller.stopPoints.length;
-      if (currentMarkersVersion != _markersVersion) {
-        _updateMarkers().then((_) {
-          if (mounted) {
-            setState(() {});
-          }
-        });
-        _markersVersion = currentMarkersVersion;
-      }
-
-      // 检查轨迹线是否需要更新
+      // 🎯 检查轨迹线是否需要更新
       final currentPolylinesVersion = widget.controller.trackPoints.length;
       if (currentPolylinesVersion != _polylinesVersion) {
         _updatePolylines();
         _polylinesVersion = currentPolylinesVersion;
       }
+      
+      // 🎯 直接组合所有markers（每次都重新组合以确保响应式更新）
+      final allMarkers = <Marker>{};
+      
+      // 添加播放markers（头像和底座）
+      final avatar = widget.controller.replayAvatarMarker.value;
+      final pedestal = widget.controller.replayPedestalMarker.value;
+      if (avatar != null) {
+        allMarkers.add(avatar);
+      }
+      if (pedestal != null) {
+        allMarkers.add(pedestal);
+      }
+      
+      // 添加静态markers（起点、终点、停留点）
+      allMarkers.addAll(widget.controller.allMarkers);
 
       return SafeAMapWidget(
         initialCameraPosition: widget.controller.initialCameraPosition,
         onMapCreated: widget.controller.onMapCreated,
-        markers: _cachedMarkers,
+        markers: allMarkers,
         polylines: _cachedPolylines,
         mapType: widget.controller.mapTypeValue.value == 1
             ? MapType.normal
@@ -107,25 +101,15 @@ class _MapWidgetState extends State<_MapWidget> {
     });
   }
 
-  Future<void> _updateMarkers() async {
-    try {
-      final newMarkers = await widget.controller.getMarkers();
-      _cachedMarkers = newMarkers;
-    } catch (e) {
-      DebugUtil.error('更新标记失败: $e');
-      _cachedMarkers = <Marker>{};
-    }
-  }
-
   void _updatePolylines() {
     final newPolylines = <Polyline>{};
 
     try {
       final trackPoints = widget.controller.trackPoints;
-      
+
       if (trackPoints.length >= 2) {
         const int maxPointsPerSegment = 100;
-        
+
         if (trackPoints.length <= maxPointsPerSegment) {
           newPolylines.add(
             Polyline(
@@ -135,10 +119,17 @@ class _MapWidgetState extends State<_MapWidget> {
             ),
           );
         } else {
-          for (int i = 0; i < trackPoints.length - 1; i += maxPointsPerSegment - 1) {
-            final endIndex = (i + maxPointsPerSegment).clamp(0, trackPoints.length);
+          for (
+            int i = 0;
+            i < trackPoints.length - 1;
+            i += maxPointsPerSegment - 1
+          ) {
+            final endIndex = (i + maxPointsPerSegment).clamp(
+              0,
+              trackPoints.length,
+            );
             final segmentPoints = trackPoints.sublist(i, endIndex);
-            
+
             if (segmentPoints.length >= 2) {
               newPolylines.add(
                 Polyline(
@@ -281,4 +272,3 @@ class _ReplayControlBar extends StatelessWidget {
     );
   }
 }
-

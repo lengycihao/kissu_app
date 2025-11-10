@@ -15,6 +15,7 @@ import 'widgets/cached_map_widget.dart';
 import 'widgets/floating_action_buttons.dart';
 import 'widgets/left_floating_buttons.dart';
 import 'widgets/floating_tips_widget.dart';
+import 'widgets/mask_device_info_widget.dart';
 
 class LocationV2Page extends StatelessWidget {
   LocationV2Page({super.key});
@@ -22,10 +23,10 @@ class LocationV2Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 🚀 修复：使用安全的方式获取Controller，避免重复创建导致监听器重复注册
-    final controller = Get.isRegistered<LocationV2Controller>() 
-        ? Get.find<LocationV2Controller>() 
+    final controller = Get.isRegistered<LocationV2Controller>()
+        ? Get.find<LocationV2Controller>()
         : Get.put(LocationV2Controller());
-    
+
     return _LocationPageContent(controller: controller);
   }
 }
@@ -89,7 +90,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
     maxHeight = screenHeight - 100;
     _draggableController = DraggableScrollableController();
     widget.controller.setDraggableController(_draggableController);
-    
+
     // 🔧 修复：初始化sheetPercent为正确的初始值，避免第一次滑动时按钮位置跳变
     widget.controller.sheetPercent.value = initialHeight / screenHeight;
   }
@@ -106,12 +107,14 @@ class _LocationPageContentState extends State<_LocationPageContent>
               child: CachedMapWidget(controller: widget.controller),
             ),
             _buildSwitchTransition(),
-            Obx(() => _GradientBackgroundOverlay(
-              controller: widget.controller,
-              screenHeight: screenHeight,
-              initialHeight: initialHeight,
-              maxHeight: maxHeight,
-            )),
+            Obx(
+              () => _GradientBackgroundOverlay(
+                controller: widget.controller,
+                screenHeight: screenHeight,
+                initialHeight: initialHeight,
+                maxHeight: maxHeight,
+              ),
+            ),
             FloatingActionButtons(
               screenHeight: screenHeight,
               controller: widget.controller,
@@ -189,10 +192,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
               snap: true,
               snapSizes: shouldLimitDrag
                   ? null
-                  : [
-                      middleSnapSize,
-                      (screenHeight - 100) / screenHeight,
-                    ],
+                  : [middleSnapSize, (screenHeight - 100) / screenHeight],
               snapAnimationDuration: const Duration(milliseconds: 200),
               builder: (context, scrollController) {
                 _scrollController = scrollController;
@@ -275,7 +275,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
         return GestureDetector(
           onTap: () {
             widget.controller.navigateToQuestionPage(
-                widget.controller.partnerOnlineStatus.value!.problemId);
+              widget.controller.partnerOnlineStatus.value!.problemId,
+            );
           },
           child: Container(
             width: double.infinity,
@@ -296,13 +297,14 @@ class _LocationPageContentState extends State<_LocationPageContent>
                 ),
                 SizedBox(width: 4),
                 Expanded(
-                  child: Text(
-                    'Ta离线啦${offlineTime.isNotEmpty ? '，离线时间: $offlineTime' : ''}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF333333),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ta离线啦${offlineTime.isNotEmpty ? '，离线时间: $offlineTime' : ''}',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF333333)),
+                      maxLines: 1,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Row(
@@ -310,10 +312,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   children: [
                     Text(
                       '查看原因',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFFFF9500),
-                      ),
+                      style: TextStyle(fontSize: 13, color: Color(0xFFFF9500)),
                     ),
                     const SizedBox(width: 4),
                     Image.asset(
@@ -369,7 +368,9 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   ),
                 );
               }
-              return _OptimizedLocationRecordsList(controller: widget.controller);
+              return _OptimizedLocationRecordsList(
+                controller: widget.controller,
+              );
             }),
           ),
         ],
@@ -381,29 +382,34 @@ class _LocationPageContentState extends State<_LocationPageContent>
     return Obx(() {
       final isBindPartner = widget.controller.isBindPartner.value;
       final isVip = widget.controller.isVip.value;
-      
+
       // 未绑定 或 已绑定但未开会员时显示蒙版
       final shouldShowMask = !isBindPartner || (isBindPartner && !isVip);
-      
+
       if (shouldShowMask) {
         return Positioned.fill(
           child: Column(
             children: [
               // 顶部离线提示（清晰的，不模糊）
               _buildOfflineTip(),
-              // 顶部距离信息模块（清晰的，不模糊）
-              DeviceInfoSection(controller: widget.controller),
+              // DeviceInfoSection(controller: widget.controller),
+              // 设备信息模块（白色背景，显示设备型号、电量、网络）
+              MaskDeviceInfoWidget(controller: widget.controller),
               const SizedBox(height: 10),
               // 蒙版整体
               Expanded(
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
                     child: Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
                       ),
                       child: Center(
                         child: Column(
@@ -434,8 +440,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
                               },
                               child: Image.asset(
                                 !isBindPartner
-                                    ? 'assets/kissu3_go_bind.webp'  // 未绑定
-                                    : 'assets/kissu3_go_vip.webp',  // 已绑定未开会员
+                                    ? 'assets/kissu3_go_bind.webp' // 未绑定
+                                    : 'assets/kissu3_go_vip.webp', // 已绑定未开会员
                                 width: 150,
                                 height: 48,
                                 fit: BoxFit.contain,
@@ -478,7 +484,10 @@ class _LocationPageContentState extends State<_LocationPageContent>
             animation: widget.controller.backButtonRotationAnimation,
             builder: (context, child) {
               return Transform.rotate(
-                angle: widget.controller.backButtonRotationAnimation.value * 2 * 3.14159,
+                angle:
+                    widget.controller.backButtonRotationAnimation.value *
+                    2 *
+                    3.14159,
                 child: Image.asset(
                   'assets/kissu_mine_back.webp',
                   width: 24,
@@ -505,20 +514,20 @@ class _LocationPageContentState extends State<_LocationPageContent>
   Widget _buildMapLogo() {
     return Obx(() {
       final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
-      
+
       // 右侧按钮的bottom位置
       final buttonBottom = sheetHeight + 70;
-      
+
       // logo在按钮下方60px，按钮高度50px，所以logo的bottom = buttonBottom - 50 - 60
-      final logoBottom = buttonBottom - 50 -15;
-      
+      final logoBottom = buttonBottom - 50 - 15;
+
       // 根据绑定状态动态计算中间吸顶位置
       final isBindPartner = widget.controller.isBindPartner.value;
       final middleSnapSize = isBindPartner
           ? 0.5 + (21 / screenHeight)
           : 0.5 + (57 / screenHeight);
       final maxPercent = (screenHeight - 100) / screenHeight;
-      
+
       // 计算透明度（与右侧按钮同步）
       final sheetPercent = widget.controller.sheetPercent.value;
       double opacity;
@@ -527,20 +536,18 @@ class _LocationPageContentState extends State<_LocationPageContent>
       } else if (sheetPercent >= maxPercent) {
         opacity = 0.0;
       } else {
-        opacity = 1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+        opacity =
+            1.0 -
+            ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
       }
       opacity = opacity.clamp(0.0, 1.0);
-      
+
       return Positioned(
         bottom: logoBottom,
         right: 16,
         child: Opacity(
           opacity: opacity,
-          child: Image.asset(
-            'assets/map_logo.webp',
-            width: 68,
-            height: 22,
-          ),
+          child: Image.asset('assets/map_logo.webp', width: 68, height: 22),
         ),
       );
     });
@@ -561,10 +568,12 @@ class _GradientBackgroundOverlay extends StatefulWidget {
   });
 
   @override
-  State<_GradientBackgroundOverlay> createState() => _GradientBackgroundOverlayState();
+  State<_GradientBackgroundOverlay> createState() =>
+      _GradientBackgroundOverlayState();
 }
 
-class _GradientBackgroundOverlayState extends State<_GradientBackgroundOverlay> {
+class _GradientBackgroundOverlayState
+    extends State<_GradientBackgroundOverlay> {
   double _opacity = 0.0;
   double _lastPercent = 0.0;
 
@@ -585,7 +594,8 @@ class _GradientBackgroundOverlayState extends State<_GradientBackgroundOverlay> 
 
     double newOpacity = 0.0;
     if (currentPercent > middlePosition) {
-      final progress = (currentPercent - middlePosition) / (maxPosition - middlePosition);
+      final progress =
+          (currentPercent - middlePosition) / (maxPosition - middlePosition);
       newOpacity = progress.clamp(0.0, 1.0);
     }
 
@@ -632,23 +642,13 @@ class _CachedMapWidget extends StatefulWidget {
 }
 
 class _CachedMapWidgetState extends State<_CachedMapWidget> {
-  Set<Marker>? _cachedMarkers;
-  Set<Polyline>? _cachedPolylines;
-  int _lastMarkersLength = -1;
-  int _lastPolylinesLength = -1;
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final markersLength = widget.controller.markersLength;
-      final polylinesLength = widget.controller.polylinesLength;
-
-      if (_lastMarkersLength != markersLength || _lastPolylinesLength != polylinesLength) {
-        _cachedMarkers = widget.controller.markers;
-        _cachedPolylines = widget.controller.polylines;
-        _lastMarkersLength = markersLength;
-        _lastPolylinesLength = polylinesLength;
-      }
+      // 🎯 修复：直接使用markers和polylines，但用RepaintBoundary优化性能
+      // 连线位置已修复为使用actualMyLocation，与marker保持一致
+      final markers = widget.controller.markers;
+      final polylines = widget.controller.polylines;
 
       final mapType = widget.controller.mapType.value == 2
           ? MapType.satellite
@@ -658,8 +658,8 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
         child: SafeAMapWidget(
           initialCameraPosition: widget.controller.initialCameraPosition,
           onMapCreated: widget.controller.onMapCreated,
-          markers: _cachedMarkers ?? {},
-          polylines: _cachedPolylines ?? {},
+          markers: markers,
+          polylines: polylines,
           compassEnabled: true,
           scaleEnabled: true,
           zoomGesturesEnabled: true,
@@ -682,12 +682,12 @@ class _CachedAvatarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final isBindPartner = controller.isBindPartner.value;
-      
+
       // 未绑定时不显示任何头像
       if (!isBindPartner) {
         return const SizedBox.shrink();
       }
-      
+
       // 已绑定时显示两个头像
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -739,19 +739,24 @@ class _AvatarButtonState extends State<_AvatarButton> {
   @override
   Widget build(BuildContext context) {
     // iOS风格尺寸定义
-    const selectedSize = 32.0;  // 选中时的尺寸
-    const unselectedSize = 25.0;  // 未选中时的尺寸
-    const selectedRadius = 12.0;  // 选中时的圆角
-    const unselectedRadius = 9.0;  // 未选中时的圆角
+    const selectedSize = 32.0; // 选中时的尺寸
+    const unselectedSize = 25.0; // 未选中时的尺寸
+    const selectedRadius = 12.0; // 选中时的圆角
+    const unselectedRadius = 9.0; // 未选中时的圆角
 
     return Obx(() {
       final currentIsOneselfValue = widget.controller.isOneself.value;
-      final isSelected = (widget.isMyself && currentIsOneselfValue == 1) ||
+      final isSelected =
+          (widget.isMyself && currentIsOneselfValue == 1) ||
           (!widget.isMyself && currentIsOneselfValue == 0);
 
       // iOS风格：直接根据选中状态确定尺寸，而不是用scale
-      final actualSize = (isSelected && _isAvatarLoaded) ? selectedSize : unselectedSize;
-      final cornerRadius = (isSelected && _isAvatarLoaded) ? selectedRadius : unselectedRadius;
+      final actualSize = (isSelected && _isAvatarLoaded)
+          ? selectedSize
+          : unselectedSize;
+      final cornerRadius = (isSelected && _isAvatarLoaded)
+          ? selectedRadius
+          : unselectedRadius;
 
       final avatarUrl = widget.isMyself
           ? widget.controller.myAvatar.value
@@ -802,11 +807,17 @@ class _AvatarButtonState extends State<_AvatarButton> {
                 top: -18,
                 left: actualSize / 2 - 23,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: const Color(0xFFFF88AA), width: 1),
+                    border: Border.all(
+                      color: const Color(0xFFFF88AA),
+                      width: 1,
+                    ),
                   ),
                   child: const Text(
                     "虚拟TA",
@@ -839,7 +850,10 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
       if (records.length > 10) {
         return _buildLargeList(records);
       } else {
-        return _LocationListWithBackground(controller: controller, records: records);
+        return _LocationListWithBackground(
+          controller: controller,
+          records: records,
+        );
       }
     });
   }
@@ -908,9 +922,11 @@ class _LocationListWithBackground extends StatelessWidget {
     return Obx(() {
       final currentPercent = controller.sheetPercent.value;
       double imageOpacity = 0.0;
-      
+
       if (currentPercent >= startShowPercent && currentPercent <= maxPercent) {
-        final progress = (currentPercent - startShowPercent) / (maxPercent - startShowPercent);
+        final progress =
+            (currentPercent - startShowPercent) /
+            (maxPercent - startShowPercent);
         imageOpacity = progress.clamp(0.0, 1.0);
       } else if (currentPercent > maxPercent) {
         imageOpacity = 1.0;

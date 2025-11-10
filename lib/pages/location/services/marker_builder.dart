@@ -6,7 +6,7 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'map_image_service.dart';
 
 /// 地图标记构建器
-/// 
+///
 /// 负责创建地图上的头像标记，包括：
 /// - 头像圆形裁剪
 /// - 边框绘制
@@ -15,35 +15,133 @@ import 'map_image_service.dart';
 class MarkerBuilder {
   final MapImageService _imageService = MapImageService.instance;
 
+  /// 🚀 创建纯底座Marker（用于实时旋转）
+  Future<BitmapDescriptor> createPedestalMarker({
+    required String pedestalAsset,
+    double size = 800.0, // 底座大小
+  }) async {
+    final pedestal = await _imageService.loadImageFromAsset(pedestalAsset);
+    if (pedestal == null) {
+      return BitmapDescriptor.defaultMarker;
+    }
+
+    // 🔧 基于375px设计稿的比例计算，按屏幕比例缩放后直接乘以DPI
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr;
+    
+    // 根据请求的尺寸判断是大底座还是小底座
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+    
+    // 如果请求尺寸>100，说明是大底座(设计稿128px)，否则是小底座(设计稿40px)
+    final designSize = size > 100 ? 200.0 : 10.0;
+    final adjustedSize = designSize * screenScale * dpr;
+
+    debugPrint('📱 ============ 底座Marker创建 ============');
+    debugPrint('📱 设备像素比(DPI): $dpr');
+    debugPrint('📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}px');
+    debugPrint('📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)');
+    debugPrint('📱 请求底座尺寸: ${size}px');
+    debugPrint('📱 设计稿尺寸: ${designSize}px');
+    debugPrint('📱 实际底座尺寸: ${adjustedSize.toStringAsFixed(1)}px (${designSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)');
+    debugPrint('📱 ==========================================');
+
+    // 创建画布（只包含底座）
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    final paint = Paint()..isAntiAlias = true;
+
+    // 绘制底座（居中）
+    final srcRect = Rect.fromLTWH(
+      0,
+      0,
+      pedestal.width.toDouble(),
+      pedestal.height.toDouble(),
+    );
+    final dstRect = Rect.fromLTWH(0, 0, adjustedSize, adjustedSize);
+    canvas.drawImageRect(pedestal, srcRect, dstRect, paint);
+
+    // 转换为图片
+    final picture = pictureRecorder.endRecording();
+    final image = await picture.toImage(adjustedSize.toInt(), adjustedSize.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final bytes = byteData!.buffer.asUint8List();
+
+    return BitmapDescriptor.fromBytes(bytes);
+  }
+
   /// 创建头像标记
-  Future<BitmapDescriptor> createAvatarMarker(
+  /// [skipPedestal] = true 时不绘制底座（底座将作为独立marker）
+  /// 返回: Map包含 'descriptor' (BitmapDescriptor) 和 'anchor' (Offset)
+  Future<Map<String, dynamic>> createAvatarMarker(
     String avatarUrl, {
     String? defaultAsset,
     required String baseAsset,
     Face? face,
+    bool useLargePedestal = false, // 是否使用大底座（用于计算anchor）
+    bool skipPedestal = false, // 是否跳过底座绘制
   }) async {
     final createStartTime = DateTime.now();
-    
+
     try {
       final pedestal = await _imageService.loadImageFromAsset(baseAsset);
       if (pedestal == null) {
-        return BitmapDescriptor.defaultMarker;
+        return {
+          'descriptor': BitmapDescriptor.defaultMarker,
+          'anchor': const Offset(0.5, 1.0),
+        };
       }
 
-      final avatarSize = 180.0;
-      final pedestalScale = 0.8;
-      final pedestalWidth = pedestal.width.toDouble() * pedestalScale;
-      final pedestalHeight = pedestal.height.toDouble() * pedestalScale;
-      // 双层边框（不重叠）：外层粉色4px（向外2px）+ 内层白色9px = 从中心到头像边缘11px
-      final avatarBorderWidth = 11.0;
+      // 🔧 基于375px设计稿的比例计算，确保在不同设备上按比例缩放
+      final dpr = ui.window.devicePixelRatio;
+      final screenWidth = ui.window.physicalSize.width / dpr; // 逻辑像素宽度
+      
+      debugPrint('📱 ============ Marker创建调试信息 ============');
+      debugPrint('📱 设备像素比(DPI): $dpr');
+      debugPrint('📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}逻辑像素 (${ui.window.physicalSize.width.toStringAsFixed(0)}物理像素)');
+      
+      // 设计稿基准：375px屏幕宽度，头像60px，大底座128px，小底座40px
+      const designWidth = 375.0;
+      const designAvatarSize = 60.0;
+      const designLargePedestalSize = 200.0;
+      const designSmallPedestalSize = 10.0;
+      
+      // 按屏幕宽度比例计算，然后直接乘以DPI
+      final screenScale = screenWidth / designWidth;
+      
+      // 先按屏幕比例缩放，再乘以DPI
+      final avatarSize = designAvatarSize * screenScale * dpr;
+      final pedestalWidth = useLargePedestal
+          ? designLargePedestalSize * screenScale * dpr
+          : designSmallPedestalSize * screenScale * dpr;
+          
+      debugPrint('📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)');
+      debugPrint('📱 头像尺寸: ${avatarSize.toStringAsFixed(1)}px (设计稿${designAvatarSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)');
+      debugPrint('📱 底座尺寸: ${pedestalWidth.toStringAsFixed(1)}px (设计稿${useLargePedestal ? designLargePedestalSize : designSmallPedestalSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)');
+      
+      // 所有尺寸都基于60px设计稿按比例缩放
+      // 设计稿中：边框3.67px，表情背景26.67px，边距3.33px，padding 3.33-6.67px
+      final avatarBorderWidth = avatarSize * (3.67 / 60.0);
 
-      final emojiBgHeight = (face != null && face.isValid) ? 80.0 : 0.0;
-      final emojiBgMargin = (face != null && face.isValid) ? 10.0 : 0.0;
-      final avatarTopPadding = (face != null && face.isValid) ? 0.0 : avatarBorderWidth + 10;
+      final emojiBgHeight = (face != null && face.isValid) ? avatarSize * (26.67 / 60.0) : 0.0;
+      final emojiBgMargin = (face != null && face.isValid) ? avatarSize * (3.33 / 60.0) : 0.0;
+      final avatarTopPadding = (face != null && face.isValid)
+          ? 0.0
+          : avatarBorderWidth + avatarSize * (3.33 / 60.0);
 
-      final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + 20;
-      final canvasHeight = avatarTopPadding + emojiBgHeight + emojiBgMargin + avatarSize + pedestalHeight / 2 + 10;
+      final padding = avatarSize * (6.67 / 60.0); // 设计稿中padding约6.67px
+      final canvasWidth = (pedestalWidth > avatarSize ? pedestalWidth : avatarSize) + padding;
+      // 🎯 修复：canvas只包含头像部分，不包含底座（底座是独立marker）
+      final canvasHeight =
+          avatarTopPadding +
+          emojiBgHeight +
+          emojiBgMargin +
+          avatarSize +
+          padding;
       final size = Size(canvasWidth, canvasHeight);
+      
+      debugPrint('📱 Canvas尺寸: ${canvasWidth.toStringAsFixed(1)} x ${canvasHeight.toStringAsFixed(1)}px');
+      debugPrint('📱 边框宽度: ${avatarBorderWidth.toStringAsFixed(2)}px');
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -57,47 +155,68 @@ class MarkerBuilder {
       final avatarCenterX = size.width / 2;
       final avatarCenterY = avatarTop + avatarSize / 2;
 
-      final avatarBottom = avatarTop + avatarSize;
-      final pedestalTop = avatarBottom - pedestalHeight / 2;
-      final pedestalLeft = (size.width - pedestalWidth) / 2;
-
-      // 绘制底座
-      _drawPedestal(canvas, pedestal, pedestalLeft, pedestalTop, pedestalWidth, pedestalHeight);
+      // 🎯 底座作为独立marker，这里不绘制
+      // 底座中心点对齐头像底部（用于计算anchor）
 
       // 绘制表情背景
       if (face != null && face.isValid) {
-        await _drawEmojiBackground(canvas, emojiBgLeft, emojiBgTop, avatarSize, emojiBgHeight, face);
+        await _drawEmojiBackground(
+          canvas,
+          emojiBgLeft,
+          emojiBgTop,
+          avatarSize,
+          emojiBgHeight,
+          face,
+        );
       }
 
       final avatarCenter = Offset(avatarCenterX, avatarCenterY);
 
       // 绘制头像
-      await _drawAvatar(canvas, avatarUrl, defaultAsset, avatarCenter, avatarSize);
+      await _drawAvatar(
+        canvas,
+        avatarUrl,
+        defaultAsset,
+        avatarCenter,
+        avatarSize,
+      );
 
       final picture = recorder.endRecording();
-      final image = await picture.toImage(size.width.toInt(), size.height.toInt());
+      final image = await picture.toImage(
+        size.width.toInt(),
+        size.height.toInt(),
+      );
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final bytes = byteData!.buffer.asUint8List();
 
       final createDuration = DateTime.now().difference(createStartTime);
-      debugPrint('📊 创建Marker耗时: ${createDuration.inMilliseconds}ms');
-      
-      return BitmapDescriptor.fromBytes(bytes);
+
+      // 🎯 修复：锚点要对准头像底部，让头像底部吸附在实际位置
+      // 因为canvas包含padding，所以需要动态计算
+      final avatarBottomY = avatarTop + avatarSize;
+      final anchorY = avatarBottomY / size.height;
+
+      debugPrint('📱 图片尺寸: ${size.width.toInt()} x ${size.height.toInt()}px');
+      debugPrint('📱 头像底部Y: ${avatarBottomY.toStringAsFixed(1)}px');
+      debugPrint('📱 锚点位置: (0.5, ${anchorY.toStringAsFixed(3)})');
+      debugPrint('📱 创建耗时: ${createDuration.inMilliseconds}ms');
+      debugPrint('📱 ============================================');
+
+      return {
+        'descriptor': BitmapDescriptor.fromBytes(bytes),
+        'anchor': Offset(0.5, anchorY),
+      };
     } catch (e) {
       debugPrint('Create avatar marker error: $e');
-      return await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(44, 46)),
-        'assets/kissu_location_start.webp',
-      );
+      return {
+        'descriptor': BitmapDescriptor.defaultMarker,
+        'anchor': const Offset(0.5, 1.0),
+      };
     }
   }
 
-  /// 绘制底座
-  void _drawPedestal(Canvas canvas, ui.Image pedestal, double left, double top, double width, double height) {
-    final srcRect = Rect.fromLTWH(0, 0, pedestal.width.toDouble(), pedestal.height.toDouble());
-    final dstRect = Rect.fromLTWH(left, top, width, height);
-    canvas.drawImageRect(pedestal, srcRect, dstRect, Paint());
-  }
+  /// 绘制底座（带旋转）
+  // 🗑️ 已删除_drawPedestal方法，底座现在作为独立marker绘制和旋转
 
   /// 绘制头像
   Future<void> _drawAvatar(
@@ -108,7 +227,7 @@ class MarkerBuilder {
     double size,
   ) async {
     // size参数是avatarSize（180），canvas有足够的padding容纳边框
-    
+
     // 绘制白色背景
     final avatarPaint = Paint()
       ..color = Colors.white
@@ -162,7 +281,12 @@ class MarkerBuilder {
       );
       final clipPath = Path()..addOval(avatarInnerRect);
       canvas.clipPath(clipPath);
-      final srcRect = Rect.fromLTWH(0, 0, avatarImage.width.toDouble(), avatarImage.height.toDouble());
+      final srcRect = Rect.fromLTWH(
+        0,
+        0,
+        avatarImage.width.toDouble(),
+        avatarImage.height.toDouble(),
+      );
       final dstRect = avatarInnerRect;
       canvas.drawImageRect(avatarImage, srcRect, dstRect, Paint());
       canvas.restore();
@@ -202,19 +326,28 @@ class MarkerBuilder {
     Face face,
   ) async {
     try {
-      final emojiBg = await _imageService.loadImageFromAsset('assets/3.0/kissu3_emoij_bg.webp');
+      final emojiBg = await _imageService.loadImageFromAsset(
+        'assets/3.0/kissu3_emoij_bg.webp',
+      );
       if (emojiBg == null) return;
 
-      final bgSrcRect = Rect.fromLTWH(0, 0, emojiBg.width.toDouble(), emojiBg.height.toDouble());
+      final bgSrcRect = Rect.fromLTWH(
+        0,
+        0,
+        emojiBg.width.toDouble(),
+        emojiBg.height.toDouble(),
+      );
       final bgDstRect = Rect.fromLTWH(left, top, width, height);
       canvas.drawImageRect(emojiBg, bgSrcRect, bgDstRect, Paint());
 
       if (face.faceUrl != null && face.faceUrl!.isNotEmpty) {
-        final emojiIcon = await _imageService.loadImageFromNetwork(face.faceUrl!);
+        final emojiIcon = await _imageService.loadImageFromNetwork(
+          face.faceUrl!,
+        );
         if (emojiIcon != null) {
           final iconSize = height * 0.45;
           TextPainter? textPainter;
-          
+
           if (face.faceText != null && face.faceText!.isNotEmpty) {
             textPainter = TextPainter(
               text: TextSpan(
@@ -237,8 +370,18 @@ class MarkerBuilder {
           final startLeft = left + (width - totalWidth) / 2;
 
           final iconTop = top + (height - iconSize) / 2;
-          final iconSrcRect = Rect.fromLTWH(0, 0, emojiIcon.width.toDouble(), emojiIcon.height.toDouble());
-          final iconDstRect = Rect.fromLTWH(startLeft, iconTop, iconSize, iconSize);
+          final iconSrcRect = Rect.fromLTWH(
+            0,
+            0,
+            emojiIcon.width.toDouble(),
+            emojiIcon.height.toDouble(),
+          );
+          final iconDstRect = Rect.fromLTWH(
+            startLeft,
+            iconTop,
+            iconSize,
+            iconSize,
+          );
           canvas.drawImageRect(emojiIcon, iconSrcRect, iconDstRect, Paint());
 
           if (textPainter != null) {
@@ -253,4 +396,3 @@ class MarkerBuilder {
     }
   }
 }
-

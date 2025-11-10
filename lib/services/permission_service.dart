@@ -1,5 +1,4 @@
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:usage_stats/usage_stats.dart';
@@ -76,14 +75,16 @@ class PermissionService {
   /// 检查相册权限状态
   Future<bool> isPhotosPermissionGranted() async {
     try {
-      // Android 13+ 使用系统 Photo Picker，不再需要读取媒体权限
-      if (Platform.isAndroid) {
-        final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
-        if (isAndroid13OrAbove) {
-          return true;
-        }
+      // 🔧 Android 9及以下优先检查 Permission.storage
+      final storagePermission = _getStoragePermission();
+      final storageStatus = await storagePermission.status;
+      
+      if (storageStatus.isGranted) {
+        logger.debug("存储权限已授予（Android 9及以下）", tag: 'PermissionService');
+        return true;
       }
-
+      
+      // Android 10+ 检查 Permission.photos
       final permission = _getPhotosPermission();
       final status = await permission.status;
       logger.debug("相册权限检查: $status", tag: 'PermissionService');
@@ -102,15 +103,18 @@ class PermissionService {
 
   /// 根据平台获取相册权限
   Permission _getPhotosPermission() {
-    if (Platform.isAndroid) {
-      // Android 使用 photos 权限来访问相册
-      // 直接使用 Permission.photos 确保获得全部照片访问权限
-      // 避免使用 Permission.storage 可能映射到 READ_MEDIA_VISUAL_USER_SELECTED
-      return Permission.photos;
-    } else {
-      // iOS 使用 photos 权限
-      return Permission.photos;
-    }
+    // Android 和 iOS 都使用 Permission.photos
+    // permission_handler 会根据 Android 版本自动处理：
+    // - Android 13+ (API 33+): 使用 READ_MEDIA_IMAGES
+    // - Android 10-12: 使用 READ_EXTERNAL_STORAGE
+    // - Android 9及以下: 需要使用 Permission.storage（包含读写权限）
+    // - iOS: 使用 Photos Library 权限
+    return Permission.photos;
+  }
+  
+  /// 获取存储权限（Android 9及以下使用）
+  Permission _getStoragePermission() {
+    return Permission.storage;
   }
 
   /// 根据权限类型检查权限状态
@@ -216,15 +220,25 @@ class PermissionService {
   /// 请求相册权限
   Future<bool> requestPhotosPermission() async {
     try {
-      // Android 13+ 使用系统 Photo Picker，不需要请求读取媒体权限
-      if (Platform.isAndroid) {
-        final bool isAndroid13OrAbove = await _isAndroid13OrAbove();
-        if (isAndroid13OrAbove) {
-          logger.info("Android 13+ 使用系统Photo Picker，无需申请相册权限", tag: 'PermissionService');
+      // 🔧 Android 9及以下需要使用 Permission.storage 权限
+      // 先尝试 Permission.storage（适用于Android 9及以下）
+      final storagePermission = _getStoragePermission();
+      final storageStatus = await storagePermission.status;
+      
+      if (!storageStatus.isGranted && !storageStatus.isPermanentlyDenied) {
+        logger.debug("开始申请存储权限（Android 9及以下）", tag: 'PermissionService');
+        final storageResult = await storagePermission.request();
+        
+        if (storageResult.isGranted) {
+          logger.info("存储权限已获取（适用于Android 9及以下）", tag: 'PermissionService');
           return true;
         }
+      } else if (storageStatus.isGranted) {
+        logger.info("存储权限已经获得（Android 9及以下）", tag: 'PermissionService');
+        return true;
       }
-
+      
+      // 然后尝试 Permission.photos（适用于Android 10+）
       final permission = _getPhotosPermission();
       logger.debug("开始申请相册权限，权限类型: $permission", tag: 'PermissionService');
       
@@ -261,21 +275,6 @@ class PermissionService {
       }
     } catch (e) {
       logger.error("申请相册权限时发生错误: $e", tag: 'PermissionService', error: e);
-      return false;
-    }
-  }
-
-  /// 判断是否为 Android 13 及以上（SDK >= 33）
-  Future<bool> _isAndroid13OrAbove() async {
-    try {
-      if (!Platform.isAndroid) return false;
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      final int sdkInt = androidInfo.version.sdkInt;
-      return sdkInt >= 33;
-    } catch (e) {
-      // 获取设备信息失败时，保守返回 false，保持旧逻辑
-      logger.error("获取Android版本信息失败: $e", tag: 'PermissionService', error: e);
       return false;
     }
   }

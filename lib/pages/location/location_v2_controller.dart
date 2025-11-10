@@ -19,8 +19,9 @@ import 'widgets/location_tips_manager.dart';
 import 'services/marker_builder.dart';
 import 'services/location_data_helper.dart';
 
-class LocationV2Controller extends GetxController with GetTickerProviderStateMixin {
-  final isOneself = 1.obs;  // 默认看自己
+class LocationV2Controller extends GetxController
+    with GetTickerProviderStateMixin {
+  final isOneself = 1.obs; // 默认看自己
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
   final myFace = Rx<Face?>(null);
@@ -32,6 +33,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   final partnerLocation = Rx<LatLng?>(null);
   final actualMyLocation = Rx<LatLng?>(null);
   final actualPartnerLocation = Rx<LatLng?>(null);
+  final currentHeading = Rx<double?>(null); // 当前方向角度（度）
   final isBackButtonRotated = false.obs;
   final isSwitchingView = false.obs;
   final distance = "".obs;
@@ -47,11 +49,13 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   final weatherIcon = "".obs;
   final weather = "".obs;
   final RxList<LocationRecord> locationRecords = <LocationRecord>[].obs;
-  final Rx<LocationResponseModel?> locationData = Rx<LocationResponseModel?>(null);
+  final Rx<LocationResponseModel?> locationData = Rx<LocationResponseModel?>(
+    null,
+  );
   final sheetPercent = 0.3.obs;
   final isLoading = false.obs;
   final mapType = 1.obs;
-  
+
   // 用于跟踪上一次的滑动状态，避免重复埋点
   String _lastScrollStatus = '';
 
@@ -62,33 +66,38 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   late LocationTipsManager tipsManager;
   late SimpleLocationService _locationService;
   late BuildContext pageContext;
-  
+
   // 🚀 新的服务和工具类
   late MarkerBuilder _markerBuilder;
-  
+
   DraggableScrollableController? _draggableController;
   AMapController? mapController;
   OverlayEntry? _overlayEntry;
 
   BitmapDescriptor? _cachedMyIcon;
   BitmapDescriptor? _cachedPartnerIcon;
+  Offset? _cachedMyAnchor; // 缓存的我的锚点位置
+  Offset? _cachedPartnerAnchor; // 缓存的伴侣的锚点位置
   String? _cachedMyAvatar;
   String? _cachedPartnerAvatar;
   Face? _cachedMyFace;
   Face? _cachedPartnerFace;
   bool? _cachedIsBindPartner;
-  
+
   // 🚀 持久化Marker缓存（跨页面访问复用）
-  BitmapDescriptor? _persistentMyIcon;
+  BitmapDescriptor? _persistentMyIcon; // 头像marker（不包含底座）
+  BitmapDescriptor? _persistentMyPedestalIcon; // 底座marker（可旋转）
   BitmapDescriptor? _persistentPartnerIcon;
+  BitmapDescriptor? _persistentPartnerPedestalIcon; // 伴侣底座marker
   String? _lastMyCacheKey;
   String? _lastPartnerCacheKey;
 
   final RxList<Marker> _trackStartEndMarkers = <Marker>[].obs;
   final RxSet<Polyline> _polylines = <Polyline>{}.obs;
-  
+
   // 🚀 修复：管理 ever 监听器，确保正确清理
   Worker? _locationServiceWorker;
+  Worker? _headingWorker; // 方向监听器
 
   @override
   void onInit() {
@@ -96,7 +105,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     try {
       // 先加载本地用户信息（立即显示）
       _loadUserInfo();
-      
+
       // 🚀 修复：如果未绑定，立即清空伴侣位置缓存
       if (!isBindPartner.value) {
         debugPrint('⚠️ 未绑定状态，清空伴侣位置缓存');
@@ -106,22 +115,22 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         partnerFace.value = null;
         partnerOnlineStatus.value = null;
       }
-      
+
       // 然后静默刷新用户信息
       _silentRefreshUserInfo();
-      
+
       _initLocationService();
-      
+
       // 🚀 初始化新的服务和工具类
       _markerBuilder = MarkerBuilder();
-      
+
       tipsManager = LocationTipsManager(this);
       tipsManager.onInit();
       _initBackButtonAnimation();
       _initSwitchTransitionAnimation();
       _listenToSheetChanges();
       _initializePageAsync();
-      
+
       // 开始页面浏览事件计时
       _startPageViewTracking();
     } catch (e) {
@@ -134,7 +143,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     super.onReady();
     // 页面准备就绪时，确保已经静默刷新
   }
-  
+
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
     debugPrint('📍 定位页面重新获得焦点，静默刷新用户信息');
@@ -142,7 +151,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
   }
-  
+
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
@@ -156,14 +165,14 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       debugPrint('❌ 定位页面：静默刷新用户信息失败: $e');
     }
   }
-  
+
   /// 开始页面浏览事件计时
   Future<void> _startPageViewTracking() async {
     try {
       // 获取位置权限状态
       final locationStatus = await Permission.location.status;
       final hasLocation = locationStatus.isGranted;
-      
+
       await TrackingService.trackLocationPageBegin(
         isBindPartner: isBindPartner.value,
         isVip: isVip.value,
@@ -173,14 +182,14 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       debugPrint('开始页面浏览事件计时失败: $e');
     }
   }
-  
+
   /// 结束页面浏览事件计时
   Future<void> _endPageViewTracking() async {
     try {
       // 获取位置权限状态
       final locationStatus = await Permission.location.status;
       final hasLocation = locationStatus.isGranted;
-      
+
       await TrackingService.trackLocationPageEnd(
         isBindPartner: isBindPartner.value,
         isVip: isVip.value,
@@ -196,13 +205,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    backButtonRotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: -0.25,
-    ).animate(CurvedAnimation(
-      parent: backButtonAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    backButtonRotationAnimation = Tween<double>(begin: 0.0, end: -0.25).animate(
+      CurvedAnimation(
+        parent: backButtonAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   void _initSwitchTransitionAnimation() {
@@ -210,13 +218,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    switchTransitionAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: switchTransitionController,
-      curve: Curves.easeInOut,
-    ));
+    switchTransitionAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: switchTransitionController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   void _listenToSheetChanges() {
@@ -229,16 +236,16 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         isBackButtonRotated.value = false;
         backButtonAnimationController.reverse();
       }
-      
+
       // 根据百分比判断当前所处的滑动状态
       _trackScrollStatus(percent);
     });
   }
-  
+
   /// 跟踪下半屏滑动状态埋点
   void _trackScrollStatus(double percent) {
     String currentStatus = _getScrollStatus(percent);
-    
+
     // 只有当状态发生变化时才触发埋点
     if (currentStatus != _lastScrollStatus && currentStatus.isNotEmpty) {
       _lastScrollStatus = currentStatus;
@@ -248,14 +255,14 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       );
     }
   }
-  
+
   /// 根据百分比获取滑动状态
   String _getScrollStatus(double percent) {
     // 定义三个状态的阈值范围
     // 小屏（底部）：0.15 - 0.35
     // 中屏（中间）：0.45 - 0.65
     // 大屏（顶部）：0.80 - 0.95
-    
+
     if (percent >= 0.15 && percent < 0.35) {
       return '小屏';
     } else if (percent >= 0.45 && percent < 0.65) {
@@ -263,11 +270,10 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     } else if (percent >= 0.80 && percent <= 0.95) {
       return '大屏';
     }
-    
+
     // 处于过渡状态，不触发埋点
     return '';
   }
-  
 
   void handleBackButtonTap([ScrollController? scrollController]) {
     if (isBackButtonRotated.value) {
@@ -283,19 +289,21 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
   void _scrollToBottom([ScrollController? scrollController]) {
     if (_draggableController != null) {
-      _draggableController!.animateTo(
-        0.3,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      ).then((_) {
-        if (scrollController != null && scrollController.hasClients) {
-          scrollController.animateTo(
-            0.0,
-            duration: const Duration(milliseconds: 200),
+      _draggableController!
+          .animateTo(
+            0.3,
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
-          );
-        }
-      });
+          )
+          .then((_) {
+            if (scrollController != null && scrollController.hasClients) {
+              scrollController.animateTo(
+                0.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+              );
+            }
+          });
     }
   }
 
@@ -305,11 +313,11 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       try {
         // 动态计算底部吸顶位置（对应 snapSizes 中的第一个位置）
         const minHeight = 190.0;
-        final screenHeight = Get.context != null 
-            ? MediaQuery.of(Get.context!).size.height 
+        final screenHeight = Get.context != null
+            ? MediaQuery.of(Get.context!).size.height
             : 800.0;
         final bottomSnapSize = minHeight / screenHeight;
-        
+
         _draggableController!.animateTo(
           bottomSnapSize, // 收起到底部吸顶位置
           duration: const Duration(milliseconds: 300),
@@ -325,53 +333,74 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   /// 统一的异步初始化流程（优化：后台静默加载，不阻塞UI）
   void _initializePageAsync() {
     debugPrint('🚀 地图页面异步初始化流程开始（后台静默执行）');
-    
+
     // 立即启动后台数据加载，不等待结果
     // 这样地图可以立即显示，数据到了再更新
-    loadLocationData().then((_) {
-      debugPrint('📊 位置数据加载完成');
-    }).catchError((e) {
-      debugPrint('位置数据加载失败: $e');
-    });
-    
+    loadLocationData()
+        .then((_) {
+          debugPrint('📊 位置数据加载完成');
+        })
+        .catchError((e) {
+          debugPrint('位置数据加载失败: $e');
+        });
+
     // 并行检查定位权限
-    _checkLocationPermissionOnPageEnter().then((_) {
-      debugPrint('📊 定位权限检查完成');
-    }).catchError((e) {
-      debugPrint('定位权限检查失败: $e');
-    });
+    _checkLocationPermissionOnPageEnter()
+        .then((_) {
+          debugPrint('📊 定位权限检查完成');
+        })
+        .catchError((e) {
+          debugPrint('定位权限检查失败: $e');
+        });
   }
 
   void _initLocationService() {
     try {
       _locationService = SimpleLocationService.instance;
-      
+
+      // 🚀 实时监听方向变化，像导航一样流畅
+      // 直接更新底座rotation，不重新创建marker
+      _headingWorker = ever(_locationService.currentHeading, (heading) {
+        if (heading != null) {
+          currentHeading.value = heading;
+
+          // 实时更新底座rotation（不重新创建marker，毫秒级响应）
+          if (mapController != null) {
+            _updatePedestalRotation();
+          }
+        }
+      });
+
       // 🚀 优化：无论绑定与否，自己的位置都优先使用实时定位数据
       // 实时定位数据更新时，marker位置也要跟着更新
       // 🚀 修复：将 ever 返回的 Worker 保存起来，以便在 onClose 时清理
-      _locationServiceWorker = ever(_locationService.currentLocation, (location) {
+      _locationServiceWorker = ever(_locationService.currentLocation, (
+        location,
+      ) {
         if (location != null) {
           debugPrint('📍 监听到定位服务位置更新，使用真实定位数据（优先级高于接口）');
-          
+
           // 解析位置
           final lat = double.tryParse(location.latitude);
           final lng = double.tryParse(location.longitude);
-          
+
           if (lat != null && lng != null) {
             final newPosition = LatLng(lat, lng);
             final isFirstTime = actualMyLocation.value == null;
-            
+
             // 🚀 优化：始终更新为真实定位数据（无论是否绑定）
             debugPrint('🎯 更新actualMyLocation为真实定位: $newPosition');
             actualMyLocation.value = newPosition;
-            
+
             // 🚀 修复：只有在地图已初始化时才更新marker，避免Channel未初始化错误
             if (mapController != null) {
               _initTrackStartEndMarkers();
+              // 🎯 更新连线位置，与marker保持同步
+              _updatePolylines();
             } else {
               debugPrint('⚠️ 地图未初始化，暂不更新marker（等待地图创建完成）');
             }
-            
+
             // 第一次获取位置时，移动相机（未绑定时才自动移动）
             if (isFirstTime && !isBindPartner.value && mapController != null) {
               Future.delayed(const Duration(milliseconds: 100), () {
@@ -385,7 +414,6 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
           }
         }
       });
-      
     } catch (e) {
       debugPrint('Location service init error: $e');
     }
@@ -470,27 +498,84 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     return null;
   }
 
-  // 🚀 使用 MarkerBuilder 创建头像标记
-  Future<BitmapDescriptor> _createAvatarMarker(
+  // 🚀 使用 MarkerBuilder 创建头像标记（不包含底座）
+  Future<Map<String, dynamic>> _createAvatarMarker(
     String avatarUrl, {
     String? defaultAsset,
     required String baseAsset,
     Face? face,
+    bool useLargePedestal = false, // 是否使用大底座（用于计算anchor）
   }) async {
     return _markerBuilder.createAvatarMarker(
       avatarUrl,
       defaultAsset: defaultAsset,
       baseAsset: baseAsset,
       face: face,
+      useLargePedestal: useLargePedestal,
+      skipPedestal: true, // 底座作为独立marker，这里不绘制
     );
   }
 
-  Future<void> _initTrackStartEndMarkers() async {
-    _trackStartEndMarkers.clear();
+  /// 🚀 实时更新底座旋转角度和位置（不重新创建marker，毫秒级响应）
+  void _updatePedestalRotation() async {
+    try {
+      // 🎯 关键修复：始终使用最新的位置，确保与头像marker同步
+      final myPos = actualMyLocation.value ?? myLocation.value;
+      if (myPos == null || _persistentMyPedestalIcon == null) return;
 
+      // 计算底座旋转角度
+      final heading = currentHeading.value ?? 0.0;
+      // 图片默认朝左（西=270度），要让它跟随手机方向
+      // 手机朝北(0度)时，需要旋转90度才能从朝西变成朝北
+      final rotation = heading + 90.0; // 🎯 修正：图片朝左需要+90度偏移
+
+      // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+      // 创建新的底座marker（同时更新position、rotation和anchor）
+      final pedestalMarker = Marker(
+        position: myPos, // 🎯 使用最新位置
+        icon: _persistentMyPedestalIcon!,
+        anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+        rotation: rotation, // 🎯 实时旋转角度
+        zIndex: 1.0, // 底层
+        clickable: false, // 底座不响应点击
+      );
+      pedestalMarker.setIdForCopy('my_pedestal');
+
+      // 🎯 同时更新头像marker的位置（确保头像和底座不分离）
+      if (_cachedMyIcon != null && _cachedMyAnchor != null) {
+        final avatarMarker = Marker(
+          position: myPos, // 🎯 使用与底座相同的位置
+          icon: _cachedMyIcon!,
+          anchor: _cachedMyAnchor!,
+          zIndex: 2.0, // 上层
+          onTap: (String markerId) {
+            _moveMapToLocation(myPos);
+          },
+        );
+        avatarMarker.setIdForCopy('my_marker');
+        
+        // 同时更新底座和头像
+        await mapController?.updateMarker(pedestalMarker);
+        await mapController?.updateMarker(avatarMarker);
+        
+        debugPrint('🎯 同步更新底座和头像位置: $myPos, 旋转: ${rotation.toStringAsFixed(1)}°');
+      } else {
+        // 如果头像marker还没创建，只更新底座
+        await mapController?.updateMarker(pedestalMarker);
+      }
+    } catch (e) {
+      debugPrint('更新底座旋转失败: $e');
+    }
+  }
+
+  Future<void> _initTrackStartEndMarkers() async {
+    // 🎯 优化：只在需要更新时才清空，减少闪烁
     if (_needsUpdateIconCache()) {
       await _updateIconCache();
     }
+
+    // 清空旧的markers
+    _trackStartEndMarkers.clear();
 
     try {
       final List<Marker> tempMarkers = [];
@@ -498,7 +583,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       // 未绑定时只显示自己的位置
       if (!isBindPartner.value) {
         LatLng? myPos = actualMyLocation.value ?? myLocation.value;
-        
+
         // 如果还没有位置数据，尝试从实时定位服务获取
         if (myPos == null) {
           myPos = _tryGetCurrentLocationFromService();
@@ -506,19 +591,95 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
             debugPrint('📍 使用实时定位服务创建 marker: $myPos');
           }
         }
-        
+
         if (myPos != null) {
           try {
-            final BitmapDescriptor myIcon = _cachedMyIcon ??
+            final BitmapDescriptor myIcon =
+                _cachedMyIcon ??
                 BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
 
             final capturedPos = myPos; // 捕获非空值到局部变量
+            
+            // 🎯 获取头像anchor，用于调试
+            final avatarAnchor = _cachedMyAnchor ?? const Offset(0.5, 1.0);
+            debugPrint('📍 未绑定状态创建marker - 位置: $capturedPos, 头像anchor: $avatarAnchor');
+
+            // 🚀 添加底座marker（可旋转，zIndex=1，在下层）
+            if (_persistentMyPedestalIcon != null) {
+              // 计算底座旋转角度
+              final heading = currentHeading.value ?? 0.0;
+              final rotation = heading + 90.0; // 🎯 修正：图片朝左需要+90度偏移
+
+            // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+            final pedestalMarker = Marker(
+              position: capturedPos,
+              icon: _persistentMyPedestalIcon!,
+              anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+              rotation: rotation, // 🎯 实时旋转角度
+              zIndex: 1.0, // 底层
+              clickable: false, // 底座不响应点击
+            );
+            pedestalMarker.setIdForCopy('my_pedestal');
+            tempMarkers.add(pedestalMarker);
+            debugPrint('✅ 底座marker创建 - 位置: $capturedPos, anchor: (0.5, 0.5), 旋转: $rotation°');
+            }
+
+            // 🚀 添加头像marker（不旋转，zIndex=2，在上层）
             final myMarker = Marker(
               position: capturedPos,
               icon: myIcon,
-              anchor: const Offset(0.5, 1.0),
+              anchor: avatarAnchor,
+              zIndex: 2.0, // 上层
               onTap: (String markerId) {
                 _moveMapToLocation(capturedPos);
+              },
+            );
+            myMarker.setIdForCopy('my_marker');
+            tempMarkers.add(myMarker);
+            debugPrint('✅ 头像marker创建 - 位置: $capturedPos, anchor: $avatarAnchor');
+          } catch (e) {
+            debugPrint('Create my marker error: $e');
+          }
+        }
+      } else {
+        // 已绑定时显示两个人的位置
+        final LatLng? myPos = actualMyLocation.value ?? myLocation.value;
+        if (myPos != null) {
+          try {
+            final BitmapDescriptor myIcon =
+                _cachedMyIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
+
+            // 🎯 获取头像anchor
+            final myAvatarAnchor = _cachedMyAnchor ?? const Offset(0.5, 1.0);
+
+            // 🚀 添加底座marker（可旋转，zIndex=1，在下层）
+            if (_persistentMyPedestalIcon != null) {
+              // 计算底座旋转角度
+              final heading = currentHeading.value ?? 0.0;
+              final rotation = heading + 90.0; // 🎯 修正：图片朝左需要+90度偏移
+
+            // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+            final pedestalMarker = Marker(
+              position: myPos,
+              icon: _persistentMyPedestalIcon!,
+              anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+              rotation: rotation, // 🎯 实时旋转角度
+              zIndex: 1.0, // 底层
+              clickable: false, // 底座不响应点击
+            );
+            pedestalMarker.setIdForCopy('my_pedestal');
+            tempMarkers.add(pedestalMarker);
+            }
+
+            // 🚀 添加头像marker（不旋转，zIndex=2，在上层）
+            final myMarker = Marker(
+              position: myPos,
+              icon: myIcon,
+              anchor: myAvatarAnchor,
+              zIndex: 2.0, // 上层
+              onTap: (String markerId) {
+                _moveMapToLocation(myPos);
               },
             );
             myMarker.setIdForCopy('my_marker');
@@ -527,47 +688,47 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
             debugPrint('Create my marker error: $e');
           }
         }
-      } else {
-        // 已绑定时显示两个人的位置
-      final LatLng? myPos = actualMyLocation.value ?? myLocation.value;
-      if (myPos != null) {
-        try {
-          final BitmapDescriptor myIcon = _cachedMyIcon ??
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
 
-          final myMarker = Marker(
-            position: myPos,
-            icon: myIcon,
-            anchor: const Offset(0.5, 1.0),
-            onTap: (String markerId) {
-              _moveMapToLocation(myPos);
-            },
-          );
-          myMarker.setIdForCopy('my_marker');
-          tempMarkers.add(myMarker);
-        } catch (e) {
-          debugPrint('Create my marker error: $e');
-        }
-      }
+        final LatLng? partnerPos =
+            actualPartnerLocation.value ?? partnerLocation.value;
+        if (partnerPos != null) {
+          try {
+            final BitmapDescriptor partnerIcon =
+                _cachedPartnerIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
-      final LatLng? partnerPos = actualPartnerLocation.value ?? partnerLocation.value;
-      if (partnerPos != null) {
-        try {
-          final BitmapDescriptor partnerIcon = _cachedPartnerIcon ??
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+            // 🎯 获取伴侣头像anchor
+            final partnerAvatarAnchor = _cachedPartnerAnchor ?? const Offset(0.5, 1.0);
 
-          final partnerMarker = Marker(
-            position: partnerPos,
-            icon: partnerIcon,
-            anchor: const Offset(0.5, 1.0),
-            onTap: (String markerId) {
-              _moveMapToLocation(partnerPos);
-            },
-          );
-          partnerMarker.setIdForCopy('partner_marker');
-          tempMarkers.add(partnerMarker);
-        } catch (e) {
-          debugPrint('Create partner marker error: $e');
+            // 🚀 添加伴侣底座marker（zIndex=1，在下层）
+            if (_persistentPartnerPedestalIcon != null) {
+              // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+              final partnerPedestalMarker = Marker(
+                position: partnerPos,
+                icon: _persistentPartnerPedestalIcon!,
+                anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+                rotation: 0.0, // 伴侣底座不旋转
+                zIndex: 1.0, // 底层
+                clickable: false, // 底座不响应点击
+              );
+              partnerPedestalMarker.setIdForCopy('partner_pedestal');
+              tempMarkers.add(partnerPedestalMarker);
+            }
+
+            // 🚀 添加伴侣头像marker（zIndex=2，在上层）
+            final partnerMarker = Marker(
+              position: partnerPos,
+              icon: partnerIcon,
+              anchor: partnerAvatarAnchor,
+              zIndex: 2.0, // 上层
+              onTap: (String markerId) {
+                _moveMapToLocation(partnerPos);
+              },
+            );
+            partnerMarker.setIdForCopy('partner_marker');
+            tempMarkers.add(partnerMarker);
+          } catch (e) {
+            debugPrint('Create partner marker error: $e');
           }
         }
       }
@@ -587,9 +748,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
   void _moveMapToLocation(LatLng location) {
     if (mapController != null) {
-      mapController!.moveCamera(
-        CameraUpdate.newLatLngZoom(location, 16.0),
-      );
+      mapController!.moveCamera(CameraUpdate.newLatLngZoom(location, 16.0));
     }
   }
 
@@ -601,21 +760,27 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       return;
     }
 
-    if (myLocation.value != null && partnerLocation.value != null) {
+    // 🎯 修复：使用 actualMyLocation 和 actualPartnerLocation，与marker位置保持一致
+    final myPos = actualMyLocation.value ?? myLocation.value;
+    final partnerPos = actualPartnerLocation.value ?? partnerLocation.value;
+    
+    if (myPos != null && partnerPos != null) {
       final List<LatLng> connectionPoints = [
-        myLocation.value!,
-        partnerLocation.value!,
+        myPos,
+        partnerPos,
       ];
 
-      _polylines.add(Polyline(
-        points: connectionPoints,
-        color: const Color(0xFFFF4B99),
-        width: 6,
-        visible: true,
-        alpha: 1.0,
-        dashLineType: DashLineType.circle,
-        capType: CapType.round,
-      ));
+      _polylines.add(
+        Polyline(
+          points: connectionPoints,
+          color: const Color(0xFFFF4B99),
+          width: 6,
+          visible: true,
+          alpha: 1.0,
+          dashLineType: DashLineType.circle,
+          capType: CapType.round,
+        ),
+      );
     }
   }
 
@@ -628,20 +793,20 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     // 🚀 修复：未绑定时对准自己的真实位置，缩放级别18（不使用伴侣位置）
     if (!isBindPartner.value) {
       debugPrint('📍 未绑定状态，只使用自己的位置初始化地图');
-      
+
       // 优先使用 actualMyLocation
       if (actualMyLocation.value != null) {
         debugPrint('📍 使用 actualMyLocation: ${actualMyLocation.value}');
         return CameraPosition(target: actualMyLocation.value!, zoom: 18.0);
       }
-      
+
       // 其次尝试从实时定位服务获取当前位置
       final serviceLocation = _tryGetCurrentLocationFromService();
       if (serviceLocation != null) {
         debugPrint('📍 未绑定时使用实时定位服务位置: $serviceLocation');
         return CameraPosition(target: serviceLocation, zoom: 18.0);
       }
-      
+
       // 最后使用默认位置（天安门）
       debugPrint('📍 未绑定且无位置数据，使用默认位置（天安门）');
       return const CameraPosition(
@@ -649,7 +814,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         zoom: 3.0, // 大范围视图
       );
     }
-    
+
     // 🚀 已绑定时的逻辑：使用中间位置和合理的缩放级别
     debugPrint('📍 已绑定状态，计算双人中心位置');
     if (myLocation.value != null && partnerLocation.value != null) {
@@ -661,7 +826,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       final centerLng = (myPos.longitude + partnerPos.longitude) / 2;
       final center = LatLng(centerLat, centerLng);
 
-      debugPrint('📍 双人位置：我(${myPos.latitude}, ${myPos.longitude}) 伴侣(${partnerPos.latitude}, ${partnerPos.longitude}) 中心($center)');
+      debugPrint(
+        '📍 双人位置：我(${myPos.latitude}, ${myPos.longitude}) 伴侣(${partnerPos.latitude}, ${partnerPos.longitude}) 中心($center)',
+      );
       // 初始使用较低缩放级别，具体缩放由 _animateMapToShowBothUsersSync 中的 newLatLngBounds 精确控制
       return CameraPosition(target: center, zoom: 10.0);
     } else if (myLocation.value != null) {
@@ -697,11 +864,13 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void _animateMapToLocation(LatLng location) {
     if (mapController == null) return;
     try {
-      unawaited(mapController!.moveCamera(
-        CameraUpdate.newLatLngZoom(location, 16.0),
-        animated: true,
-        duration: 1500,
-      ));
+      unawaited(
+        mapController!.moveCamera(
+          CameraUpdate.newLatLngZoom(location, 16.0),
+          animated: true,
+          duration: 1500,
+        ),
+      );
     } catch (e) {
       debugPrint('Animate map to location error: $e');
     }
@@ -717,7 +886,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     if (!isBindPartner.value) {
       debugPrint('📍 未绑定状态，地图只聚焦自己的位置');
       LatLng? targetLocation = actualMyLocation.value;
-      
+
       // 如果没有位置数据，尝试从实时定位服务获取
       if (targetLocation == null) {
         targetLocation = _tryGetCurrentLocationFromService();
@@ -725,7 +894,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
           debugPrint('📍 地图动画使用实时定位服务位置: $targetLocation');
         }
       }
-      
+
       if (targetLocation != null) {
         try {
           debugPrint('📍 未绑定状态，移动地图到自己的位置: $targetLocation');
@@ -742,7 +911,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       }
       return; // 🚀 关键：未绑定时直接返回，不执行下面的逻辑
     }
-    
+
     // 🚀 已绑定时的逻辑
     debugPrint('📍 已绑定状态，计算双人地图位置');
     if (myLocation.value != null && partnerLocation.value != null) {
@@ -752,19 +921,29 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       try {
         // 🚀 优化：使用原生的 newLatLngBounds 自动计算最佳缩放层级
         // 计算西南角和东北角
-        final double swLat = myPos.latitude < partnerPos.latitude ? myPos.latitude : partnerPos.latitude;
-        final double swLng = myPos.longitude < partnerPos.longitude ? myPos.longitude : partnerPos.longitude;
-        final double neLat = myPos.latitude > partnerPos.latitude ? myPos.latitude : partnerPos.latitude;
-        final double neLng = myPos.longitude > partnerPos.longitude ? myPos.longitude : partnerPos.longitude;
-        
+        final double swLat = myPos.latitude < partnerPos.latitude
+            ? myPos.latitude
+            : partnerPos.latitude;
+        final double swLng = myPos.longitude < partnerPos.longitude
+            ? myPos.longitude
+            : partnerPos.longitude;
+        final double neLat = myPos.latitude > partnerPos.latitude
+            ? myPos.latitude
+            : partnerPos.latitude;
+        final double neLng = myPos.longitude > partnerPos.longitude
+            ? myPos.longitude
+            : partnerPos.longitude;
+
         final bounds = LatLngBounds(
           southwest: LatLng(swLat, swLng),
           northeast: LatLng(neLat, neLng),
         );
-        
+
         debugPrint('📍 已绑定，使用原生LatLngBounds移动地图到双人中心位置');
-        debugPrint('📍 bounds: southwest($swLat, $swLng), northeast($neLat, $neLng)');
-        
+        debugPrint(
+          '📍 bounds: southwest($swLat, $swLng), northeast($neLat, $neLng)',
+        );
+
         await mapController!.moveCamera(
           CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
           animated: true,
@@ -787,7 +966,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
     // 计算目标用户类型
     final targetUserType = isMyself ? 1 : 0;
-    
+
     // 如果点击的是当前用户，不做任何处理
     if (isOneself.value == targetUserType) {
       debugPrint('🎯 定位页面：点击的是当前用户头像，不切换');
@@ -889,7 +1068,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       _trackMapModeSwitch(type);
     }
   }
-  
+
   /// 地图模式切换埋点
   Future<void> _trackMapModeSwitch(int mapType) async {
     await TrackingService.trackMapModeSwitch(mapType: mapType);
@@ -900,7 +1079,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     await _trackRefreshMapButton();
     await loadLocationData();
   }
-  
+
   /// 刷新地图按钮埋点
   Future<void> _trackRefreshMapButton() async {
     await TrackingService.trackRefreshMapButton();
@@ -921,13 +1100,13 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         // 🚀 优化：无论绑定与否，自己的位置都优先使用实时定位数据
         if (!isBindPartner.value) {
           debugPrint('⚠️ [未绑定] 只更新头像数据，不使用接口位置数据（保持真实定位数据）');
-          
+
           // 只更新头像数据，不更新位置数据
           if (locationDataResult.userLocationMobileDevice != null) {
             _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
             // ❌ 不调用 _updateActualMyLocationData，保持使用真实定位服务的数据
           }
-          
+
           // 清空对方的位置数据
           partnerLocation.value = null;
           actualPartnerLocation.value = null;
@@ -939,23 +1118,29 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         } else {
           // 已绑定时，更新头像和对方数据
           debugPrint('✅ [已绑定] 更新头像和对方位置数据');
-          
+
           if (locationDataResult.userLocationMobileDevice != null) {
             _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
-            
+
             // 🚀 优化：如果有实时定位数据，就不用接口数据更新自己的位置
             if (actualMyLocation.value == null) {
               debugPrint('📍 [已绑定] 没有实时定位数据，使用接口数据作为备用');
-              _updateActualMyLocationData(locationDataResult.userLocationMobileDevice!);
+              _updateActualMyLocationData(
+                locationDataResult.userLocationMobileDevice!,
+              );
             } else {
               debugPrint('📍 [已绑定] 已有实时定位数据，保持使用（接口数据作为备用）');
             }
           }
-          
+
           // 对方的位置正常使用接口数据
           if (locationDataResult.halfLocationMobileDevice != null) {
-            _updatePartnerAvatarData(locationDataResult.halfLocationMobileDevice!);
-            _updateActualPartnerLocationData(locationDataResult.halfLocationMobileDevice!);
+            _updatePartnerAvatarData(
+              locationDataResult.halfLocationMobileDevice!,
+            );
+            _updateActualPartnerLocationData(
+              locationDataResult.halfLocationMobileDevice!,
+            );
           }
         }
 
@@ -993,7 +1178,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
         _showFriendlyError(result.code, result.msg);
       }
     } catch (e, stackTrace) {
-      debugPrint('Load location data error: $e\n${stackTrace.toString().split('\n').take(10).join('\n')}');
+      debugPrint(
+        'Load location data error: $e\n${stackTrace.toString().split('\n').take(10).join('\n')}',
+      );
 
       if (retryCount < 2) {
         isLoading.value = false;
@@ -1118,14 +1305,14 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void performBindAction() {
     // 立即去绑定按钮埋点
     _trackBindNowButton();
-    
+
     if (Get.context != null) {
       CustomBottomDialog.show(context: Get.context!).then((_) {
         refreshUserInfo();
       });
     }
   }
-  
+
   /// 立即去绑定按钮埋点
   Future<void> _trackBindNowButton() async {
     await TrackingService.trackBindNowButton();
@@ -1135,7 +1322,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   Future<void> onLocationReminderButtonTap() async {
     // 埋点：位置提醒按钮点击
     await TrackingService.trackLocationReminderButton();
-    
+
     // 判断绑定状态
     if (!isBindPartner.value) {
       // 未绑定 -> 弹出绑定弹窗
@@ -1273,12 +1460,12 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       loadLocationData();
     });
   }
-  
+
   /// 开通会员按钮点击
   Future<void> onOpenMembershipButtonTap() async {
     // 开通会员按钮埋点
     await TrackingService.trackOpenMembershipButton();
-    
+
     // 跳转到会员页面
     Get.toNamed(
       KissuRoutePath.vip,
@@ -1294,12 +1481,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void navigateToQuestionPage(int? problemId) {
     // 离线提示"查看原因"埋点
     TrackingService.trackLocationOfflineReason();
-    
+
     if (problemId == null) {
-      Get.to(
-        () => const QuestionPage(),
-        transition: Transition.rightToLeft,
-      );
+      Get.to(() => const QuestionPage(), transition: Transition.rightToLeft);
       return;
     }
     Get.to(
@@ -1309,6 +1493,8 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   bool _needsUpdateIconCache() {
+    // 🎯 不再检查heading变化，heading由_updatePedestalRotation()实时处理
+    // 只检查头像、表情等需要重新创建marker的变化
     return _cachedMyAvatar != myAvatar.value ||
         _cachedPartnerAvatar != partnerAvatar.value ||
         _cachedMyFace != myFace.value ||
@@ -1318,39 +1504,58 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
   Future<void> _updateIconCache() async {
     final markerStartTime = DateTime.now();
-    
+
     try {
-      // 🚀 优化：我的头像Marker（使用全局缓存）
+      // 🚀 优化：我的头像Marker（方向变化时不使用全局缓存）
       if (myAvatar.value.isNotEmpty) {
         final cacheKey = MapPreloadService.generateMarkerCacheKey(
           avatarUrl: myAvatar.value,
           faceUrl: myFace.value?.faceUrl,
         );
-        
-        // 检查是否需要重新创建
-        if (_lastMyCacheKey != cacheKey || _persistentMyIcon == null) {
-          // 先尝试从全局缓存获取
-          final globalCached = MapPreloadService.instance.getCachedMarker(cacheKey);
-          
-          if (globalCached != null) {
+
+        // 🎯 只在首次或头像/表情变化时创建marker，不再检查heading
+        if (_lastMyCacheKey != cacheKey ||
+            _persistentMyIcon == null ||
+            _cachedMyAnchor == null) {
+          // 尝试从全局缓存获取
+          final globalCached = MapPreloadService.instance.getCachedMarker(
+            cacheKey,
+          );
+
+          if (globalCached != null && _cachedMyAnchor != null) {
+            // 只有当anchor已经被计算过时才使用全局缓存
             _persistentMyIcon = globalCached;
             debugPrint('🎯 使用全局缓存的我的Marker');
           } else {
-            // 创建新的Marker
-            _persistentMyIcon = await _createAvatarMarker(
+            // 创建新的Marker（不包含底座，底座将作为独立marker）
+            final markerData = await _createAvatarMarker(
               myAvatar.value,
               defaultAsset: 'assets/kissu3_love_avater.webp',
-              baseAsset: 'assets/3.0/kissu3_location_she.webp',
+              baseAsset: 'assets/kissu_location_run.webp',
               face: myFace.value,
+              useLargePedestal: true, // 底座尺寸配置（用于计算anchor）
             );
-            
+            _persistentMyIcon = markerData['descriptor'] as BitmapDescriptor;
+            _cachedMyAnchor = markerData['anchor'] as Offset;
+
             // 保存到全局缓存
-            MapPreloadService.instance.cacheMarker(cacheKey, _persistentMyIcon!);
+            MapPreloadService.instance.cacheMarker(
+              cacheKey,
+              _persistentMyIcon!,
+            );
           }
-          
+
           _lastMyCacheKey = cacheKey;
         }
-        
+
+        // 🎯 底座marker只在首次创建，之后不再重新创建
+        if (_persistentMyPedestalIcon == null) {
+          _persistentMyPedestalIcon = await _markerBuilder.createPedestalMarker(
+            pedestalAsset: 'assets/kissu_location_run.webp',
+            size: 800.0,
+          );
+        }
+
         _cachedMyIcon = _persistentMyIcon;
         _cachedMyAvatar = myAvatar.value;
         _cachedMyFace = myFace.value;
@@ -1362,37 +1567,57 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
           avatarUrl: partnerAvatar.value,
           faceUrl: partnerFace.value?.faceUrl,
         );
-        
+
         // 检查是否需要重新创建
-        if (_lastPartnerCacheKey != cacheKey || _persistentPartnerIcon == null) {
+        if (_lastPartnerCacheKey != cacheKey ||
+            _persistentPartnerIcon == null ||
+            _cachedPartnerAnchor == null) {
           // 先尝试从全局缓存获取
-          final globalCached = MapPreloadService.instance.getCachedMarker(cacheKey);
-          
-          if (globalCached != null) {
+          final globalCached = MapPreloadService.instance.getCachedMarker(
+            cacheKey,
+          );
+
+          if (globalCached != null && _cachedPartnerAnchor != null) {
+            // 只有当anchor已经被计算过时才使用全局缓存
             _persistentPartnerIcon = globalCached;
             debugPrint('🎯 使用全局缓存的Ta的Marker');
           } else {
-            // 创建新的Marker
-            _persistentPartnerIcon = await _createAvatarMarker(
+            // 创建新的Marker（不包含底座，底座是独立marker）
+            final markerData = await _createAvatarMarker(
               partnerAvatar.value,
               defaultAsset: 'assets/kissu3_love_avater.webp',
               baseAsset: 'assets/3.0/kissu3_location_she.webp',
               face: partnerFace.value,
             );
-            
+            _persistentPartnerIcon =
+                markerData['descriptor'] as BitmapDescriptor;
+            _cachedPartnerAnchor = markerData['anchor'] as Offset;
+
             // 保存到全局缓存
-            MapPreloadService.instance.cacheMarker(cacheKey, _persistentPartnerIcon!);
+            MapPreloadService.instance.cacheMarker(
+              cacheKey,
+              _persistentPartnerIcon!,
+            );
           }
-          
+
           _lastPartnerCacheKey = cacheKey;
         }
-        
+
+        // 🎯 伴侣底座marker只在首次创建，之后不再重新创建
+        if (_persistentPartnerPedestalIcon == null) {
+          _persistentPartnerPedestalIcon = await _markerBuilder
+              .createPedestalMarker(
+                pedestalAsset: 'assets/3.0/kissu3_location_she.webp',
+                size: 40.0,
+              );
+        }
+
         _cachedPartnerIcon = _persistentPartnerIcon;
         _cachedPartnerAvatar = partnerAvatar.value;
         _cachedPartnerFace = partnerFace.value;
         _cachedIsBindPartner = isBindPartner.value;
       }
-      
+
       final markerDuration = DateTime.now().difference(markerStartTime);
       debugPrint('📊 Marker创建/缓存耗时: ${markerDuration.inMilliseconds}ms');
     } catch (e) {
@@ -1401,13 +1626,13 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   }
 
   /// 🎯 启动原生呼吸动画（iOS原版实现）
-  /// 
+  ///
   /// 🎨 iOS原版效果：
   /// - 横向拉伸：X=1.03, Y=0.98（横向拉伸3%，纵向压缩2%）
   /// - 纵向拉伸：X=0.98, Y=1.03（横向压缩2%，纵向拉伸3%）
   /// - 两种状态交替变换，产生自然的"呼吸"效果
   /// - 动画时长：0.4秒（与iOS原版完全一致）
-  /// 
+  ///
   /// ✅ 性能优势：
   /// - 使用Android原生ScaleAnimation（GPU加速）
   /// - 60fps流畅运行
@@ -1424,7 +1649,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       if (actualMyLocation.value != null) {
         final mySuccess = await mapController!.startMarkerBreathAnimation(
           markerId: 'my_marker',
-          duration: 400,  // iOS原版：0.4秒
+          duration: 400, // iOS原版：0.4秒
         );
         if (mySuccess) {
           debugPrint('✅ 我的Marker呼吸动画已启动(iOS原版效果)');
@@ -1435,7 +1660,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
       if (isBindPartner.value && actualPartnerLocation.value != null) {
         final partnerSuccess = await mapController!.startMarkerBreathAnimation(
           markerId: 'partner_marker',
-          duration: 400,  // iOS原版：0.4秒
+          duration: 400, // iOS原版：0.4秒
         );
         if (partnerSuccess) {
           debugPrint('✅ Ta的Marker呼吸动画已启动(iOS原版效果)');
@@ -1452,7 +1677,9 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
 
     try {
       await mapController!.stopMarkerBreathAnimation(markerId: 'my_marker');
-      await mapController!.stopMarkerBreathAnimation(markerId: 'partner_marker');
+      await mapController!.stopMarkerBreathAnimation(
+        markerId: 'partner_marker',
+      );
       debugPrint('✅ Marker呼吸动画已停止');
     } catch (e) {
       debugPrint('❌ 停止原生动画失败: $e');
@@ -1463,7 +1690,7 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
   void onClose() {
     // 结束页面浏览事件计时
     _endPageViewTracking();
-    
+
     // 🚀 修复：清理定位服务监听器，避免内存泄漏和重复监听
     try {
       _locationServiceWorker?.dispose();
@@ -1472,7 +1699,16 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     } catch (e) {
       debugPrint('Dispose location service worker error: $e');
     }
-    
+
+    // 🚀 清理方向监听器
+    try {
+      _headingWorker?.dispose();
+      _headingWorker = null;
+      debugPrint('✅ 方向监听器已清理');
+    } catch (e) {
+      debugPrint('Dispose heading worker error: $e');
+    }
+
     try {
       hideTooltip();
     } catch (e) {
@@ -1515,4 +1751,5 @@ class LocationV2Controller extends GetxController with GetTickerProviderStateMix
     super.onClose();
   }
 }
+
 // 🚀 LocationRecord 类已移至 services/location_data_helper.dart

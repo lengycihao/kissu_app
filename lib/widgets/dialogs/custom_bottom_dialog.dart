@@ -30,6 +30,41 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // 主要内容
+        _buildMainContent(context),
+        
+        // 监听关闭标志（使用Obx）
+        _buildCloseListener(context),
+      ],
+    );
+  }
+  
+  /// 监听关闭标志
+  Widget _buildCloseListener(BuildContext context) {
+    if (!Get.isRegistered<CustomBottomDialogController>()) {
+      return const SizedBox.shrink();
+    }
+    
+    return Obx(() {
+      // 检查是否应该关闭
+      if (controller.shouldClose.value) {
+        // 延迟一帧执行，确保在build完成后再关闭
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          debugPrint('💬 检测到shouldClose标志，准备关闭绑定弹窗');
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+            debugPrint('✅ 绑定弹窗已自动关闭（通过Navigator）');
+          }
+        });
+      }
+      return const SizedBox.shrink();
+    });
+  }
+  
+  /// 构建主要内容
+  Widget _buildMainContent(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height,
       child: Stack(
@@ -78,7 +113,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                         final result = await BindingCloseConfirmDialog.show(
                           context: context,
                           barrierDismissible: true,
-                          isFromHomePage: caller == BindingDialogCaller.home, // 只有首页才上报埋点
+                          isFromHomePage:
+                              caller == BindingDialogCaller.home, // 只有首页才上报埋点
                           onCancel: () {
                             // 点击"再想想"，关闭绑定弹窗
                             debugPrint('💬 用户点击"再想想"，关闭绑定弹窗');
@@ -88,7 +124,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                             debugPrint('💬 用户点击"立即绑定"，保持绑定弹窗显示');
                           },
                         );
-                        
+
                         // result 为 true 表示点击了"再想想"，应该关闭绑定弹窗
                         if (result == true) {
                           if (onClose != null) {
@@ -113,22 +149,21 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       ),
     );
   }
-
+  
   /// 默认内容
   Widget _buildDefaultContent() {
     // 安全地获取 Controller，如果不存在则返回空容器
     if (!Get.isRegistered<CustomBottomDialogController>()) {
       return const SizedBox.shrink();
     }
-    
-    return Obx(
-      () {
-        // 二次检查，防止在 Obx 构建过程中 Controller 被删除
-        if (!Get.isRegistered<CustomBottomDialogController>()) {
-          return const SizedBox.shrink();
-        }
-        
-        return Column(
+
+    return Obx(() {
+      // 二次检查，防止在 Obx 构建过程中 Controller 被删除
+      if (!Get.isRegistered<CustomBottomDialogController>()) {
+        return const SizedBox.shrink();
+      }
+
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
@@ -150,15 +185,26 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
           GestureDetector(
             onTap: _showInputDialog,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              // 外层：粉色背景模拟边框
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Color(0xffFF88AA),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Color(0xffFF88AA)),
               ),
-              child: const Text(
-                '点击输入对方匹配码',
-                style: TextStyle(color: Color(0xffFFB2C8), fontSize: 14),
+              padding: const EdgeInsets.all(1), // 1px边框宽度
+              child: Container(
+                // 内层：白色背景
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(11), // 比外层小1
+                ),
+                child: const Text(
+                  '点击输入对方匹配码',
+                  style: TextStyle(color: Color(0xffFFB2C8), fontSize: 14),
+                ),
               ),
             ),
           ),
@@ -230,33 +276,28 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
             onTap: controller.viewQRCode,
             child: Stack(
               children: [
-               
-            Positioned(
-              bottom: 0,
-              child: Container(
-                width: 75,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: Color(0xffFFEEE8),
-                  borderRadius: BorderRadius.circular(4),
+                Positioned(
+                  bottom: 0,
+                  child: Container(
+                    width: 75,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: Color(0xffFFEEE8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 ),
-                 
-              ),
-            ), const Text(
-              '查看二维码',
-              style: TextStyle(
-                color: Color(0xff4496F9),
-                fontSize: 12,
-               ),
-            ),
+                const Text(
+                  '查看二维码',
+                  style: TextStyle(color: Color(0xff4496F9), fontSize: 12),
+                ),
               ],
-            )
+            ),
           ),
           const SizedBox(height: 20),
         ],
       );
-      },
-    );
+    });
   }
 
   /// 显示输入对话框 - 底部弹窗形式
@@ -337,49 +378,48 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                       ),
                     ),
                   ),
-                   SizedBox(width: 10),
-                   // 确认按钮 - 使用 Obx 包裹以实现响应式更新
-                   Obx(
-                     () {
-                       final bool isEnabled = controller.inputMatchCode.value.isNotEmpty;
-                       return SizedBox(
-                         width: 62,
-                         height: 50,
-                         child: GestureDetector(
-                           onTap: isEnabled
-                               ? () {
-                                   // 标记为手动关闭，防止监听器再次触发
-                                   manualClose = true;
-                                   // 执行绑定
-                                   controller.bindPartner();
-                                   // 清空输入框
-                                   controller.matchCodeController.clear();
-                                   // 关闭弹窗，让 .then() 回调自然清理 FocusNode
-                                   Get.back();
-                                 }
-                               : null,
-                           child: Opacity(
-                             opacity: isEnabled ? 1.0 : 0.4,
-                             child: Container(
-                               decoration: BoxDecoration(
-                                 color: const Color(0xffFF2462),
-                                 borderRadius: BorderRadius.circular(25),
-                               ),
-                               alignment: Alignment.center,
-                               child: const Text(
-                                 '确认',
-                                 style: TextStyle(
-                                   fontSize: 16,
-                                   color: Colors.white,
-                                   fontWeight: FontWeight.w500,
-                                 ),
-                               ),
-                             ),
-                           ),
-                         ),
-                       );
-                     },
-                   ),
+                  SizedBox(width: 10),
+                  // 确认按钮 - 使用 Obx 包裹以实现响应式更新
+                  Obx(() {
+                    final bool isEnabled =
+                        controller.inputMatchCode.value.isNotEmpty;
+                    return SizedBox(
+                      width: 62,
+                      height: 50,
+                      child: GestureDetector(
+                        onTap: isEnabled
+                            ? () {
+                                // 标记为手动关闭，防止监听器再次触发
+                                manualClose = true;
+                                // 执行绑定
+                                controller.bindPartner();
+                                // 清空输入框
+                                controller.matchCodeController.clear();
+                                // 关闭弹窗，让 .then() 回调自然清理 FocusNode
+                                Get.back();
+                              }
+                            : null,
+                        child: Opacity(
+                          opacity: isEnabled ? 1.0 : 0.4,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xffFF2462),
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              '确认',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -416,7 +456,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     double bannerHeight = 220,
     bool showBanner = true,
     bool isDismissible = false, // 全局禁止点击背景关闭
-    bool enableDrag = false,    // 全局禁止滑动关闭
+    bool enableDrag = false, // 全局禁止滑动关闭
     BindingDialogCaller? caller, // 调用者页面类型
     Future<bool> Function()? onCloseConfirm, // 关闭确认回调
   }) {
@@ -424,7 +464,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     if (Get.isRegistered<CustomBottomDialogController>()) {
       Get.delete<CustomBottomDialogController>();
     }
-    
+
     // 初始化新的控制器并设置调用者
     final controller = Get.put(CustomBottomDialogController());
     controller.caller = caller;
