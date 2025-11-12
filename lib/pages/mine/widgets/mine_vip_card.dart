@@ -68,7 +68,8 @@ class MineVipCard extends StatelessWidget {
           ),
           SizedBox(width: 5),
           _buildMiddleContent(),
-          SizedBox(width: 8),
+          // 
+          Spacer(),
           _buildActionButton(),
         ],
       ),
@@ -130,7 +131,7 @@ class MineVipCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 4),
+              SizedBox(height: 3),
               // 进度条
               Container(
                 height: 4,
@@ -166,7 +167,7 @@ class MineVipCard extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 4),
+              SizedBox(height: 3),
               Text.rich(
                 TextSpan(
                   children: [

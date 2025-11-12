@@ -1,3 +1,38 @@
+# ========================================
+# 自定义规则：只跟踪指定的文件和目录
+# ========================================
+
+# 1. 忽略根目录下所有文件和目录
+/*
+
+# 2. 取消忽略需要跟踪的目录和文件
+!.gitignore
+
+# lib 目录
+!lib/
+
+# plugins 目录
+!plugins/
+
+# assets 目录
+!assets/
+
+# yaml 配置文件
+!*.yaml
+
+# android/app/src/main 目录（需要逐层取消忽略）
+!android/
+android/*
+!android/app/
+android/app/*
+!android/app/src/
+android/app/src/*
+!android/app/src/main/
+
+# ========================================
+# 标准 Flutter 忽略规则
+# ========================================
+
 # Miscellaneous
 *.class
 *.log
@@ -18,11 +53,6 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -31,7 +61,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+build/
 
 # Symbolication related
 app.*.symbols
@@ -39,18 +69,14 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/app/build/
-t e m p _ a p k _ e x t r a c t / 
+# Android build artifacts
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/build/
 
-# Local configuration files (contain machine-specific paths and sensitive data)
+# Local configuration files (contain sensitive data)
 android/local.properties
 android/key.properties
 android/*.keystore
 android/app/*.keystore
-
-# Multi-channel APK builds (too large for Git)
-multi_channel_apks/
