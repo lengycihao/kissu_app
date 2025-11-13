@@ -2,6 +2,7 @@ import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/model/unbind_reason_model.dart';
 
 class AuthApi {
   Future<HttpResultN<LoginModel>> _login({
@@ -127,7 +128,9 @@ class AuthApi {
     if (result.isSuccess) {
       final dataJson = result.getDataJson();
       // 检查数据是否有效（不为空且包含必要字段）
-      if (dataJson.isNotEmpty && dataJson.containsKey('id') && dataJson['id'] != null) {
+      if (dataJson.isNotEmpty &&
+          dataJson.containsKey('id') &&
+          dataJson['id'] != null) {
         return result.convert(data: LoginModel.fromJson(dataJson));
       } else {
         // 数据无效，返回失败结果
@@ -149,11 +152,49 @@ class AuthApi {
     return result;
   }
 
+  /// 获取解绑原因列表
+  Future<HttpResultN<UnbindReasonModel>> getUnbindReasons() async {
+    final result = await HttpManagerN.instance.executeGet(
+      ApiRequest.unbindReasonSelect,
+      paramEncrypt: false,
+    );
+
+    if (result.isSuccess) {
+      final dataJson = result.getDataJson();
+      if (dataJson.containsKey('list') && dataJson['list'] != null) {
+        final List<dynamic> listJson = dataJson['list'] as List<dynamic>;
+        final reasons = listJson
+            .map((e) => UnbindReasonModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return HttpResultN<UnbindReasonModel>.success(
+          dataList: reasons,
+          code: result.code,
+          msg: result.msg,
+          listJson: listJson,
+        );
+      }
+      return HttpResultN<UnbindReasonModel>.failure(-1, '数据格式错误');
+    }
+
+    return HttpResultN<UnbindReasonModel>.failure(
+      result.code,
+      result.msg ?? '获取解绑原因列表失败',
+    );
+  }
+
   /// 解除关系
-  Future<HttpResultN> unbindPartner() async {
+  Future<HttpResultN> unbindPartner({
+    required int reasonId,
+    String? supplementReason,
+  }) async {
+    final params = <String, dynamic>{'reason_id': reasonId};
+    if (supplementReason != null && supplementReason.isNotEmpty) {
+      params['supplement_reason'] = supplementReason;
+    }
+
     final result = await HttpManagerN.instance.executePost(
-      "/unbind",
-      jsonParam: {},
+      ApiRequest.unbind,
+      jsonParam: params,
       paramEncrypt: false,
     );
     return result;

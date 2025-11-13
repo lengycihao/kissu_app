@@ -60,4 +60,8 @@ class ApiRequest {
   
   // 照片墙 API
   static const savePhotoWall = '/save/photo/wall';
+  
+  // 解绑关系相关 API
+  static const unbindReasonSelect = '/unbind/reasonSelect';
+  static const unbind = '/unbind';
 }

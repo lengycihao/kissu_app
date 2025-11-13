@@ -1,6 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/models/vip_package_model.dart';
+import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -19,8 +21,11 @@ class VipPage extends GetView<VipController> {
     // 计算底部支付组件的实际高度
     // 包括：支付方式选项(~44) + 间距(10) + 按钮(50) + 间距(15) + 协议文字(~20) + 顶部padding(10) + 底部padding(25) + 底部安全区域
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    const double paymentBaseHeight =
+        44.0 + 10.0 + 50.0 + 15.0 + 20.0; // 额外增加20px缓冲
+    const double paymentExtraBuffer = 20.0;
     final paymentComponentHeight =
-        44 + 10 + 50 + 15 + 20 + 10 + 25 + bottomPadding + 20; // 额外增加20px缓冲
+        paymentBaseHeight + bottomPadding + paymentExtraBuffer;
 
     return WillPopScope(
       onWillPop: () async {
@@ -29,7 +34,7 @@ class VipPage extends GetView<VipController> {
         return false; // 阻止默认返回行为
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFFDE0F9),
+        backgroundColor: const Color(0xFFffffff),
         body: Stack(
           children: [
             // 主要内容区域 - 添加底部padding为支付组件留出空间
@@ -50,15 +55,6 @@ class VipPage extends GetView<VipController> {
                       // 顶部轮播图 - 紧贴屏幕顶部，全宽度
                       _buildTopCarousel(),
 
-                      // 顶部轮播图指示条 - 位置在图片按钮组件顶部外15px处
-                      Transform.translate(
-                        offset: const Offset(
-                          0,
-                          -35,
-                        ), // 向上移动35px，在图片按钮组件顶部外15px处
-                        child: _buildTopCarouselIndicators(),
-                      ),
-
                       // 其他内容使用padding，从图片按钮下方开始应用渐变背景
                       Container(
                         decoration: const BoxDecoration(
@@ -69,14 +65,48 @@ class VipPage extends GetView<VipController> {
                           ),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
                             children: [
+                              const SizedBox(height: 5),
+                              Obx(() {
+                                final bannerData = controller.bannerData.value;
+                                final banners = bannerData?.vipIconBanner ?? [];
+
+                                String displayDesc = '';
+                                if (banners.isNotEmpty) {
+                                  final currentIndex =
+                                      controller.currentIndex.value %
+                                      banners.length;
+                                  displayDesc =
+                                      banners[currentIndex].vipIconBannerDesc;
+                                }
+
+                                if (displayDesc.isEmpty) {
+                                  displayDesc =
+                                      (bannerData?.desc ?? '想TA就立刻知道TA在哪儿')
+                                          .trim();
+                                }
+
+                                if (displayDesc.isEmpty) {
+                                  displayDesc = '想TA就立刻知道TA在哪儿';
+                                }
+
+                                return Text(
+                                  displayDesc,
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                );
+                              }),
+                              const SizedBox(height: 5),
+                              // 顶部轮播图指示条 - 位置在图片按钮组件顶部外15px处
+                              _buildTopCarouselIndicators(),
                               // 图片按钮组件 - 与轮播图底部重合，高度102px
-                              Transform.translate(
-                                offset: const Offset(0, -30), // 向上移动20px实现重合
-                                child: _buildIconButtons(),
-                              ),
+                              _buildIconButtons(),
                               // 开通提示图片
                               // Image.asset(
                               //   "assets/kissu_vip_top_tip.webp",
@@ -125,11 +155,10 @@ class VipPage extends GetView<VipController> {
                               // 用户评价轮播图
                               _buildCommentCarousel(),
 
-                              const SizedBox(height: 15),
-
-                              // 评价轮播图指示条
-                              _buildCommentCarouselIndicators(),
-
+                              const SizedBox(height: 30),
+                              _buildPriceComponents(),
+                              // // 评价轮播图指示条
+                              // _buildCommentCarouselIndicators(),
                               const SizedBox(height: 15),
                             ],
                           ),
@@ -175,7 +204,7 @@ class VipPage extends GetView<VipController> {
 
   // 顶部轮播图
   Widget _buildTopCarousel() {
-    // 本地静态图片文件列表
+    // 本地静态图片文件列表（作为兜底数据）
     final localImageAssets = [
       'assets/kissu4_vip_banner_location.webp',
       'assets/kissu4_vip_banner_track.webp',
@@ -183,17 +212,28 @@ class VipPage extends GetView<VipController> {
       'assets/kissu4_vip_banner_mingan.webp',
     ];
 
-    return SizedBox(
-      height: 260,
-      child: PageView.builder(
-        controller: controller.pageController,
-        onPageChanged: controller.onPageChanged,
-        itemCount: localImageAssets.length,
-        itemBuilder: (context, index) {
-          return _buildImageItem(localImageAssets[index]);
-        },
-      ),
-    );
+    return Obx(() {
+      final banners = controller.bannerData.value?.vipIconBanner ?? [];
+      final hasRemoteData = banners.isNotEmpty;
+      final itemCount = hasRemoteData
+          ? banners.length
+          : localImageAssets.length;
+
+      return SizedBox(
+        height: 248,
+        child: PageView.builder(
+          controller: controller.pageController,
+          onPageChanged: controller.onPageChanged,
+          itemCount: itemCount,
+          itemBuilder: (context, index) {
+            if (hasRemoteData) {
+              return _buildRemoteBannerItem(banners[index]);
+            }
+            return _buildImageItem(localImageAssets[index]);
+          },
+        ),
+      );
+    });
   }
 
   // 静态图片项
@@ -205,8 +245,36 @@ class VipPage extends GetView<VipController> {
         child: Image.asset(
           imageAssetPath,
           width: double.infinity,
-          height: 260,
+          height: 248,
           fit: BoxFit.fitHeight,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRemoteBannerItem(VipIconBanner banner) {
+    final displayUrl = banner.displayContent;
+    if (displayUrl.isEmpty) {
+      return _buildImageItem('assets/kissu4_vip_banner_location.webp');
+    }
+
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          displayUrl,
+          width: double.infinity,
+          height: 248,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Image.asset(
+              'assets/kissu4_vip_banner_location.webp',
+              width: double.infinity,
+              height: 248,
+              fit: BoxFit.fitHeight,
+            );
+          },
         ),
       ),
     );
@@ -214,63 +282,87 @@ class VipPage extends GetView<VipController> {
 
   // 图片按钮组件
   Widget _buildIconButtons() {
-    // 本地静态图片数量固定为4
-    const itemCount = 4;
+    final fallbackIcons = [
+      {
+        'selected': 'assets/kissu_vip_banner_1sel.webp',
+        'unselected': 'assets/kissu_vip_banner_1unsel.webp',
+      },
+      {
+        'selected': 'assets/kissu_vip_banner_2sel.webp',
+        'unselected': 'assets/kissu_vip_banner_2unsel.webp',
+      },
+      {
+        'selected': 'assets/kissu_vip_banner_3sel.webp',
+        'unselected': 'assets/kissu_vip_banner_3unsel.webp',
+      },
+      {
+        'selected': 'assets/kissu_vip_banner_4sel.webp',
+        'unselected': 'assets/kissu_vip_banner_4unsel.webp',
+      },
+    ];
 
     return Obx(() {
+      final banners = controller.bannerData.value?.vipIconBanner ?? [];
+      final hasRemoteData = banners.isNotEmpty;
+      final itemCount = hasRemoteData ? banners.length : fallbackIcons.length;
+
       return Container(
-        height: 102,
-        // decoration: const BoxDecoration(
-        //   image: DecorationImage(
-        //     image: AssetImage("assets/kissu_banner_bg.webp"),
-        //     fit: BoxFit.cover,
-        //   ),
-        // ),
-        padding: EdgeInsets.only(top: 24),
+        height: 77,
+        margin: const EdgeInsets.only(top: 10, bottom: 36),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: List.generate(itemCount, (index) {
-            // 根据索引确定图片资源
-            String imagePath;
             final isSelected = controller.currentIndex.value == index;
-
-            switch (index) {
-              case 0:
-                imagePath = isSelected
-                    ? 'assets/kissu_vip_banner_1sel.webp'
-                    : 'assets/kissu_vip_banner_1unsel.webp';
-                break;
-              case 1:
-                imagePath = isSelected
-                    ? 'assets/kissu_vip_banner_2sel.webp'
-                    : 'assets/kissu_vip_banner_2unsel.webp';
-                break;
-              case 2:
-                imagePath = isSelected
-                    ? 'assets/kissu_vip_banner_3sel.webp'
-                    : 'assets/kissu_vip_banner_3unsel.webp';
-                break;
-              case 3:
-                imagePath = isSelected
-                    ? 'assets/kissu_vip_banner_4sel.webp'
-                    : 'assets/kissu_vip_banner_4unsel.webp';
-                break;
-              default:
-                imagePath = 'assets/kissu_vip_banner_1unsel.webp';
-            }
+            final double size = 77;
+            final iconUrl = hasRemoteData
+                ? _resolveIconUrl(banners[index], isSelected)
+                : '';
+            final fallbackPair = fallbackIcons[index % fallbackIcons.length];
 
             return GestureDetector(
               onTap: () => controller.selectTab(index),
               child: SizedBox(
-                width: 70,
-                height: 78,
-                child: Image.asset(imagePath, fit: BoxFit.contain),
+                width: size,
+                height: size,
+                child: hasRemoteData && iconUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          iconUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            final fallback = isSelected
+                                ? fallbackPair['selected']!
+                                : fallbackPair['unselected']!;
+                            return Image.asset(fallback, fit: BoxFit.cover);
+                          },
+                        ),
+                      )
+                    : Image.asset(
+                        isSelected
+                            ? fallbackPair['selected']!
+                            : fallbackPair['unselected']!,
+                        fit: BoxFit.cover,
+                      ),
               ),
             );
           }),
         ),
       );
     });
+  }
+
+  String _resolveIconUrl(VipIconBanner banner, bool isSelected) {
+    if (isSelected && banner.vipIconSelect.isNotEmpty) {
+      return banner.vipIconSelect;
+    }
+    if (banner.vipIcon.isNotEmpty) {
+      return banner.vipIcon;
+    }
+    if (banner.vipIconSelect.isNotEmpty) {
+      return banner.vipIconSelect;
+    }
+    return '';
   }
 
   // 开通提示图片
@@ -294,246 +386,378 @@ class VipPage extends GetView<VipController> {
         return const Center(child: Text('暂无套餐数据'));
       }
 
-      // 在Obx内部先获取当前选中索引，确保响应式更新
+      final planList = controller.vipPackages
+          .asMap()
+          .entries
+          .map((entry) => _VipPlanData(entry.value, entry.key))
+          .toList();
+
+      final _VipPlanData? lifetimePlan = _extractPlan(
+        planList,
+        (plan) => plan.package.isForever,
+      );
+
+      final List<_VipPlanData> remainingPlans =
+          planList.where((plan) => !plan.package.isForever).toList()
+            ..sort((a, b) => a.package.vipDays.compareTo(b.package.vipDays));
+
+      final List<_VipPlanData> selectablePlans = List<_VipPlanData>.from(
+        remainingPlans,
+      );
+
+      _VipPlanData? monthlyPlan = _extractPlan(
+        selectablePlans,
+        (plan) => plan.package.title.contains('月'),
+      );
+      _VipPlanData? annualPlan = _extractPlan(
+        selectablePlans,
+        (plan) => plan.package.title.contains('年'),
+      );
+
+      if (monthlyPlan == null && selectablePlans.isNotEmpty) {
+        monthlyPlan = selectablePlans.removeAt(0);
+      }
+      if (annualPlan == null && selectablePlans.isNotEmpty) {
+        annualPlan = selectablePlans.removeAt(0);
+      }
+
       final currentSelectedIndex = controller.selectedPriceIndex.value;
 
-      // 获取屏幕宽度
-      final screenWidth = Get.width;
-      final itemWidth = 100.0;
-      final itemSpacing = 10.0;
-      final sideMargin = 15.0; // 两侧留白
+      final List<Widget> children = [];
 
-      // 计算可显示的套餐数量
-      final availableWidth = screenWidth - (sideMargin * 2);
-      final maxVisibleItems =
-          ((availableWidth + itemSpacing) / (itemWidth + itemSpacing)).floor();
-      final totalItems = controller.vipPackages.length;
-
-      // 🔥 统一容器高度：100px卡片 + 35px标签空间，确保所有套餐对齐
-      const unifiedHeight = 115.0;
-
-      // 如果套餐数量超过可显示数量，使用横向滑动
-      if (totalItems > maxVisibleItems) {
-        return Container(
-          height: unifiedHeight,
-          child: Stack(
-            children: [
-              ListView.separated(
-                controller: controller.priceScrollController,
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: sideMargin),
-                clipBehavior: Clip.none, // 允许子组件超出ListView边界
-                itemCount: totalItems,
-                separatorBuilder: (context, index) =>
-                    SizedBox(width: itemSpacing),
-                itemBuilder: (context, index) {
-                  final package = controller.vipPackages[index];
-                  final isLast = index == totalItems - 1;
-
-                  return _buildPriceItem(
-                    title: package.durationText,
-                    price1: package.priceText,
-                    price2: package.originalPriceText,
-                    size: const Size(100, 100),
-                    background: "assets/kissu_vip_year_bg.webp",
-                    isSelected: currentSelectedIndex == index,
-                    onTap: () => controller.selectPrice(index),
-                    showBottomLabel: isLast, // 最后一个显示底部标签
-                    bottomLabel: '80%选择',
-                  );
-                },
-              ),
-              // 左侧渐变指示器
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        const Color(0xFFFFFDF4).withValues(alpha: 0.8),
-                        const Color(0xFFFFFDF4).withValues(alpha: 0.0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // 右侧渐变指示器
-              Positioned(
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
-                      colors: [
-                        const Color(0xFFFFFDF4).withValues(alpha: 0.8),
-                        const Color(0xFFFFFDF4).withValues(alpha: 0.0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+      if (lifetimePlan != null) {
+        children.add(
+          _buildLifetimePlanCard(lifetimePlan, currentSelectedIndex),
         );
-      } else {
-        // 套餐数量较少时，使用居中的Row布局
-        return Container(
-          height: unifiedHeight, // 使用统一高度
-          alignment: Alignment.topCenter, // 顶部对齐
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start, // 🔥 关键：顶部对齐
-            children: controller.vipPackages.asMap().entries.map((entry) {
-              final index = entry.key;
-              final package = entry.value;
-              final isLast = index == controller.vipPackages.length - 1;
+        children.add(const SizedBox(height: 10));
+      }
 
-              return Row(
-                children: [
-                  _buildPriceItem(
-                    title: package.durationText,
-                    price1: package.priceText,
-                    price2: package.originalPriceText,
-                    size: const Size(100, 100),
-                    background: "assets/kissu_vip_year_bg.webp",
-                    isSelected: currentSelectedIndex == index,
-                    onTap: () => controller.selectPrice(index),
-                    showBottomLabel: isLast, // 最后一个显示底部标签
-                    bottomLabel: '80%选择',
-                  ),
-                  if (index < controller.vipPackages.length - 1)
-                    SizedBox(width: itemSpacing),
-                ],
-              );
-            }).toList(),
+      final List<Widget> rowChildren = [];
+      if (monthlyPlan != null) {
+        rowChildren.add(
+          Expanded(
+            child: _buildPeriodPlanCard(
+              monthlyPlan,
+              currentSelectedIndex,
+              isMonthly: true,
+            ),
           ),
         );
       }
+      if (monthlyPlan != null && annualPlan != null) {
+        rowChildren.add(const SizedBox(width: 10));
+      }
+      if (annualPlan != null) {
+        rowChildren.add(
+          Expanded(
+            child: _buildPeriodPlanCard(
+              annualPlan,
+              currentSelectedIndex,
+              isMonthly: false,
+            ),
+          ),
+        );
+      }
+
+      if (rowChildren.isNotEmpty) {
+        children.add(Row(children: rowChildren));
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      );
     });
   }
 
-  // 单个价格组件 - 重新设计确保完美对齐
-  Widget _buildPriceItem({
-    required String title,
-    required String price1,
-    required String price2,
-    required String background,
-    Size size = const Size(100, 100),
-    required bool isSelected,
-    required VoidCallback onTap,
-    bool showBottomLabel = false,
-    String bottomLabel = '',
-  }) {
-    return SizedBox(
-      width: size.width,
-      height: 115, // 🔥 固定统一高度：100px卡片 + 35px标签空间
+  _VipPlanData? _extractPlan(
+    List<_VipPlanData> list,
+    bool Function(_VipPlanData) test,
+  ) {
+    for (var i = 0; i < list.length; i++) {
+      if (test(list[i])) {
+        return list.removeAt(i);
+      }
+    }
+    return null;
+  }
+
+  Widget _buildLifetimePlanCard(_VipPlanData plan, int currentSelectedIndex) {
+    final priceParts = _splitPriceParts(plan.package.vipPrice);
+    final hasOriginalPrice = _hasOriginalPrice(plan.package.vipOriginalPrice);
+    final originalPrice = _formatPriceWithSymbol(plan.package.vipOriginalPrice);
+    final isSelected = currentSelectedIndex == plan.index;
+
+    final backgroundAsset = isSelected
+        ? "assets/4.0/kissu4_vip_open_bg.webp"
+        : "assets/4.0/kissu4_vip_open_bg_sel.webp";
+
+    return GestureDetector(
+      onTap: () {
+        if (plan.index >= 0) {
+          controller.selectPrice(plan.index);
+        }
+      },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 主价格卡片 - 固定在顶部
-          Positioned(
-            top: 0,
-            left: 0,
-            child: GestureDetector(
-              onTap: onTap,
-              child: Container(
-                width: size.width,
-                height: size.height, // 卡片本身保持100px高度
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFFFF950A)
-                        : const Color(0xFFFFF3B8),
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: 105,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(backgroundAsset),
+                fit: BoxFit.contain,
+              ),
+              // border: Border.all(
+              //   color: isSelected
+              //       ? const Color(0xffFF6885)
+              //       : Colors.transparent,
+              //   width: 2,
+              // ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: size.width - 10,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: priceParts[0],
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Color(0xffFF6885),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextSpan(
+                            text: priceParts[1],
+                            style: const TextStyle(
+                              fontSize: 24,
+                              color: Color(0xffFF6885),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      margin: const EdgeInsets.only(top: 6),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFFF0A6C)
-                            : const Color(0xffFF77AD),
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(10),
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        title,
+                    ),
+                    if (hasOriginalPrice)
+                      Text(
+                        originalPrice,
                         style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
+                          fontSize: 13,
+                          color: Color(0x66000000),
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: Color(0x66000000),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
+                  ],
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     Text(
-                      price1,
+                      plan.package.title,
                       style: const TextStyle(
-                        fontSize: 20,
-                        color: Color(0xFF5E3603),
-                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xff000000),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Text(
-                      price2,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF999999),
-                        decoration: TextDecoration.lineThrough,
-                      ),
+                    const Text(
+                      '永久在一起，久久不分离',
+                      style: TextStyle(fontSize: 11, color: Color(0x66000000)),
                     ),
                   ],
                 ),
-              ),
+                Container(
+                  width: 80,
+                  height: 26,
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage("assets/4.0/kissu4_vip_open_bt.webp"),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          // 底部标签 - 固定位置，不影响卡片对齐
-          if (showBottomLabel)
-            Positioned(
-              bottom: 5, // 固定在底部
-              right: -5, // 稍微向右偏移
-              child: Container(
+          Positioned(
+            top: -15,
+            left: 0,
+            child: Image.asset(
+              "assets/4.0/kissu4_vip_open_bg_tip.webp",
+              width: 110,
+              height: 34,
+              fit: BoxFit.contain,
+            ),
+          ),
+          Positioned(
+            top: 6,
+            right: 5,
+            child: Obx(() {
+              final desc = controller.lifetimeActivityDesc.value;
+              final countdown = controller.lifetimeCountdownText;
+              if (desc.isEmpty && countdown.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              final parts = <String>[];
+              if (desc.isNotEmpty) {
+                parts.add(desc);
+              }
+              if (countdown.isNotEmpty) {
+                parts.add(countdown);
+              }
+              final displayText = parts.join(' ');
+
+              return Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 4,
                 ),
                 decoration: const BoxDecoration(
-                  color: Color(0xff046AE4),
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-                child: Text(
-                  bottomLabel,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                  color: Color(0xffF6F275),
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(10),
+                    bottomLeft: Radius.circular(10),
                   ),
                 ),
-              ),
-            ),
+                alignment: Alignment.center,
+                child: Text(
+                  displayText,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xff000000),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            }),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildPeriodPlanCard(
+    _VipPlanData plan,
+    int currentSelectedIndex, {
+    required bool isMonthly,
+  }) {
+    final priceParts = _splitPriceParts(plan.package.vipPrice);
+    final isSelected = currentSelectedIndex == plan.index;
+    final perDayPriceText = plan.package.perDayPriceText;
+    final backgroundAsset = isSelected
+        ? "assets/4.0/kissu4_vip_open_second_bg_sel.webp"
+        : "assets/4.0/kissu4_vip_open_second_bg.webp";
+
+    return GestureDetector(
+      onTap: () {
+        if (plan.index >= 0) {
+          controller.selectPrice(plan.index);
+        }
+      },
+      child: Container(
+        height: 113,
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(backgroundAsset),
+            fit: BoxFit.fill,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            if (isMonthly)
+              Transform.translate(
+                offset: const Offset(0, -5),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Image.asset(
+                    "assets/4.0/kissu4_vip_open_second_tip.webp",
+                    width: 78,
+                    height: 19,
+                  ),
+                ),
+              ),
+            SizedBox(height: isMonthly ? 5 : 24),
+            Text(
+              plan.package.title,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xff000000),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: priceParts[0],
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Color(0xffFF6885),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextSpan(
+                    text: priceParts[1],
+                    style: const TextStyle(
+                      fontSize: 24,
+                      color: Color(0xffFF6885),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(width: 80, height: 0.5, color: const Color(0xff22000000)),
+            const SizedBox(height: 5),
+            if (perDayPriceText.isNotEmpty)
+              Text(
+                perDayPriceText,
+                style: const TextStyle(fontSize: 11, color: Color(0x66000000)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<String> _splitPriceParts(String? price) {
+    final clean = _stripCurrencySymbol(price);
+    final display = clean.isEmpty ? '0.00' : clean;
+    return ['￥', display];
+  }
+
+  bool _hasOriginalPrice(String? price) {
+    final clean = _stripCurrencySymbol(price);
+    if (clean.isEmpty) return false;
+    final value = double.tryParse(clean);
+    if (value == null) {
+      return true;
+    }
+    return value > 0;
+  }
+
+  String _formatPriceWithSymbol(String? price) {
+    final clean = _stripCurrencySymbol(price);
+    if (clean.isEmpty) return '';
+    return '￥$clean';
+  }
+
+  String _stripCurrencySymbol(String? price) {
+    final raw = price?.trim() ?? '';
+    if (raw.isEmpty) return '';
+    return raw.replaceFirst(RegExp(r'^[¥￥]'), '');
   }
 
   // 信息背景图片
@@ -589,17 +813,25 @@ class VipPage extends GetView<VipController> {
 
   // 用户评价标题
   Widget _buildUserCommonTitle() {
-    return Image.asset(
-      "assets/kissu_vip_user_common.webp",
-      height: 22,
-      fit: BoxFit.contain,
+    return Align(
+      alignment: AlignmentGeometry.centerLeft,
+      child: Text(
+        "会员用户五星评价",
+        style: TextStyle(
+          color: Color(0xff000000),
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'AlimamaShuHeiTi',
+        ),
+      ),
     );
   }
 
   // 用户评价轮播图
   Widget _buildCommentCarousel() {
     return Obx(() {
-      final commentList = controller.bannerData.value?.commentList ?? [];
+      final List<CommentItem> commentList =
+          controller.bannerData.value?.commentList ?? [];
       if (commentList.isEmpty) {
         return const SizedBox();
       }
@@ -632,36 +864,58 @@ class VipPage extends GetView<VipController> {
   }
 
   // 单个评价项
-  Widget _buildCommentItem(dynamic comment) {
+  Widget _buildCommentItem(CommentItem comment) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Color(0xFFDCDBD7), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            comment.nickname,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 4),
           Row(
             children: [
-              ...List.generate(
-                5,
-                (index) =>
-                    const Icon(Icons.star, size: 11, color: Color(0xFFFF408D)),
+              // 头像
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: comment.hasAvatar
+                    ? Image.network(
+                        comment.avatar,
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return SizedBox.shrink();
+                        },
+                      )
+                    : SizedBox.shrink(),
               ),
               const SizedBox(width: 8),
               Text(
-                comment.date,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                comment.nickname,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
+              const SizedBox(width: 8),
+              //vip标识
+              if (comment.hasVipIcon)
+                Image.network(
+                  comment.vipIcon,
+                  width: 60,
+                  height: 18,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox(width: 24, height: 24);
+                  },
+                ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+
           Expanded(
             child: Text(
               comment.content,
@@ -670,6 +924,18 @@ class VipPage extends GetView<VipController> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          //星星
+          if (comment.hasStarImage)
+            Image.network(
+              comment.starImage,
+              width: 100,
+              height: 20,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const SizedBox(width: 100, height: 20);
+              },
+            ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -706,13 +972,13 @@ class VipPage extends GetView<VipController> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildPaymentOption(
-                  'assets/kissu_vip_wechat.webp',
+                  'assets/4.0/kissu4_wechat.webp',
                   '微信支付',
                   controller.selectedPaymentMethod.value == 0,
                   () => controller.selectPaymentMethod(0),
                 ),
                 _buildPaymentOption(
-                  'assets/kissu_vip_alipay.webp',
+                  'assets/4.0/kissu4_zhifubao.webp',
                   '支付宝支付',
                   controller.selectedPaymentMethod.value == 1,
                   () => controller.selectPaymentMethod(1),
@@ -724,8 +990,10 @@ class VipPage extends GetView<VipController> {
           const SizedBox(height: 10),
 
           // 立即开通/继续续费按钮
-          Obx(
-            () => GestureDetector(
+          Obx(() {
+            final periodLabel = controller.getCurrentPeriodLabel();
+            final periodText = periodLabel.isNotEmpty ? '/$periodLabel' : '';
+            return GestureDetector(
               onTap: () {
                 if (!controller.agreementChecked.value) {
                   // 如果未勾选协议，显示提示并返回
@@ -738,25 +1006,63 @@ class VipPage extends GetView<VipController> {
               child: Container(
                 width: double.infinity,
                 height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: const BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage("assets/kissu_pay_btn_bg.webp"),
+                    image: AssetImage("assets/4.0/kissu4_vip_open_bt_bg.webp"),
                     fit: BoxFit.cover,
                   ),
                   borderRadius: BorderRadius.all(Radius.circular(9)),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  '${UserManager.isVip ? "立即续费" : "立即开通"} ${controller.getCurrentPrice()}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '￥',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: controller.getCurrentPrice(),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'AlimamaShuHeiTi',
+                              color: Colors.black,
+                            ),
+                          ),
+                          //支付价格提示
+                          TextSpan(
+                            text: periodText,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      UserManager.isVip ? "立即续费" : "立即开通",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'AlimamaShuHeiTi',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ),
+            );
+          }),
 
           const SizedBox(height: 15),
 
@@ -771,8 +1077,8 @@ class VipPage extends GetView<VipController> {
                     controller.agreementChecked.value
                         ? "assets/kissu_vip_agree.webp"
                         : "assets/kissu_select_circle.webp",
-                    width: 16,
-                    height: 16,
+                    width: 13,
+                    height: 13,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -792,7 +1098,7 @@ class VipPage extends GetView<VipController> {
                           text: '《会员服务协议》',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFFF839E), // 高亮蓝色
+                            color: Color(0xFF63A9EA), // 高亮蓝色
                           ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () async {
@@ -828,10 +1134,17 @@ class VipPage extends GetView<VipController> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Image(
+              image: AssetImage(iconPath),
+              width: 18,
+              height: 18,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8),
             // 支付方式图标
             Container(
-              width: 20,
-              height: 20,
+              width: 13,
+              height: 13,
               child: Image.asset(
                 isSelected
                     ? 'assets/kissu_vip_agree.webp'
@@ -854,14 +1167,15 @@ class VipPage extends GetView<VipController> {
 
   // 顶部轮播图指示条
   Widget _buildTopCarouselIndicators() {
-    // 本地静态图片数量固定为4
-    const itemCount = 4;
-
-    if (itemCount <= 1) {
-      return const SizedBox(); // 只有一个项目时不显示指示条
-    }
-
     return Obx(() {
+      final remoteCount =
+          controller.bannerData.value?.vipIconBanner.length ?? 0;
+      final itemCount = remoteCount > 0 ? remoteCount : 4;
+
+      if (itemCount <= 1) {
+        return const SizedBox();
+      }
+
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(
@@ -873,8 +1187,8 @@ class VipPage extends GetView<VipController> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: controller.currentIndex.value == index
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.5),
+                  ? Color(0xffFF89D9)
+                  : Color(0xFFFECFE9),
             ),
           ),
         ),
@@ -883,6 +1197,7 @@ class VipPage extends GetView<VipController> {
   }
 
   // 评价轮播图指示条
+  // ignore: unused_element
   Widget _buildCommentCarouselIndicators() {
     return Obx(() {
       final commentList = controller.bannerData.value?.commentList ?? [];
@@ -919,6 +1234,13 @@ class VipPage extends GetView<VipController> {
   void _setupPageVisibilityListener() {
     WidgetsBinding.instance.addObserver(_PageVisibilityObserver(controller));
   }
+}
+
+class _VipPlanData {
+  final VipPackageModel package;
+  final int index;
+
+  _VipPlanData(this.package, this.index);
 }
 
 /// 页面可见性观察者

@@ -3,6 +3,7 @@ class VipPackageModel {
   final String title;
   final int isDoubleVip;
   final int isForEverVip;
+  final int type;
   final String vipPrice;
   final String vipOriginalPrice;
   final int vipDays;
@@ -10,12 +11,15 @@ class VipPackageModel {
   final int isSubscribe;
   final int isDiscounts;
   final String discountsImg;
+  final String activityDesc;
+  final int activityRemainDuration;
 
   VipPackageModel({
     required this.id,
     required this.title,
     required this.isDoubleVip,
     required this.isForEverVip,
+    required this.type,
     required this.vipPrice,
     required this.vipOriginalPrice,
     required this.vipDays,
@@ -23,6 +27,8 @@ class VipPackageModel {
     required this.isSubscribe,
     required this.isDiscounts,
     required this.discountsImg,
+    required this.activityDesc,
+    required this.activityRemainDuration,
   });
 
   factory VipPackageModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +37,7 @@ class VipPackageModel {
       title: json['title'] ?? '',
       isDoubleVip: json['is_double_vip'] ?? 0,
       isForEverVip: json['is_for_ever_vip'] ?? 0,
+      type: json['type'] ?? 0,
       vipPrice: json['vip_price'] ?? '0.00',
       vipOriginalPrice: json['vip_original_price'] ?? '0.00',
       vipDays: json['vip_days'] ?? 0,
@@ -38,6 +45,8 @@ class VipPackageModel {
       isSubscribe: json['is_subscribe'] ?? 0,
       isDiscounts: json['is_discounts'] ?? 0,
       discountsImg: json['discounts_img'] ?? '',
+      activityDesc: json['activity_desc'] ?? '',
+      activityRemainDuration: json['activity_remain_duration'] ?? 0,
     );
   }
 
@@ -47,6 +56,7 @@ class VipPackageModel {
       'title': title,
       'is_double_vip': isDoubleVip,
       'is_for_ever_vip': isForEverVip,
+      'type': type,
       'vip_price': vipPrice,
       'vip_original_price': vipOriginalPrice,
       'vip_days': vipDays,
@@ -54,6 +64,8 @@ class VipPackageModel {
       'is_subscribe': isSubscribe,
       'is_discounts': isDiscounts,
       'discounts_img': discountsImg,
+      'activity_desc': activityDesc,
+      'activity_remain_duration': activityRemainDuration,
     };
   }
 
@@ -64,7 +76,7 @@ class VipPackageModel {
   bool get isForever => isForEverVip == 1;
 
   /// 获取价格显示文本
-  String get priceText => '¥$vipPrice';
+  String get priceText => vipPrice;
 
   /// 获取原价显示文本
   String get originalPriceText => '¥$vipOriginalPrice';
@@ -80,4 +92,40 @@ class VipPackageModel {
 
   /// 是否为订阅套餐
   bool get isSubscription => isSubscribe == 1;
+
+  /// 是否包含活动信息
+  bool get hasActivity => activityDesc.isNotEmpty && activityRemainDuration > 0;
+
+  double get priceValue =>
+      double.tryParse(_normalizeNumberString(vipPrice)) ?? 0;
+
+  double get originalPriceValue =>
+      double.tryParse(_normalizeNumberString(vipOriginalPrice)) ?? 0;
+
+  /// 每日价格显示文本
+  String get perDayPriceText {
+    if (vipDays <= 0) {
+      return '';
+    }
+    final perDayPrice = priceValue / vipDays;
+    return '¥${perDayPrice.toStringAsFixed(2)}/天';
+  }
+
+  /// 支付按钮展示的周期标签
+  String get periodLabel {
+    switch (type) {
+      case 1:
+        return '月度';
+      case 3:
+        return '年度';
+      case 4:
+        return '终身';
+      default:
+        return '';
+    }
+  }
+
+  String _normalizeNumberString(String value) {
+    return value.replaceFirst(RegExp(r'^[¥￥]'), '');
+  }
 }

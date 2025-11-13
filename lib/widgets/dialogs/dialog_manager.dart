@@ -114,7 +114,6 @@ class DialogManager {
     return NicknameInputDialog.show(context, currentNickname: currentNickname);
   }
 
-
   /// 显示VIP弹窗
   static Future<void> showVip({
     required BuildContext context,

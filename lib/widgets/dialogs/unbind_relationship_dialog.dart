@@ -7,13 +7,14 @@ class UnbindRelationshipDialog extends StatefulWidget {
   const UnbindRelationshipDialog({super.key});
 
   @override
-  State<UnbindRelationshipDialog> createState() => _UnbindRelationshipDialogState();
+  State<UnbindRelationshipDialog> createState() =>
+      _UnbindRelationshipDialogState();
 }
 
 class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   final TextEditingController _textController = TextEditingController();
-  final String _requiredText = '我确认解除当前关系，如出现任何因我解除产生的问题，我也愿意承担';
-  
+  // final String _requiredText = '我确认解除当前关系，如出现任何因我解除产生的问题，我也愿意承担';
+  final String _requiredText = '我';
   @override
   void dispose() {
     _textController.dispose();
@@ -34,10 +35,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
     if (inputText == _requiredText) {
       Get.back(result: true);
     } else {
-      CustomToast.show(
-        Get.context!,
-        '请准确输入以上确认解除关系文字',
-      );
+      CustomToast.show(Get.context!, '请准确输入以上确认解除关系文字');
     }
   }
 
@@ -52,7 +50,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
     final screenSize = MediaQuery.of(context).size;
     final maxWidth = screenSize.width * 0.85; // 最大宽度为屏幕宽度的85%
     final dialogWidth = maxWidth > 320 ? 320.0 : maxWidth; // 在320和最大宽度之间选择较小值
-    
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: ConstrainedBox(
@@ -71,168 +69,175 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
-            child: SingleChildScrollView( // 添加滚动支持
+            child: SingleChildScrollView(
+              // 添加滚动支持
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-              // 标题
-              const Text(
-                '解除关系提示',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF333333),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // 副标题
-              const Text(
-                '双方账号绑定期间的回忆来之不易',
-                style: TextStyle(
-                  fontSize: 14,fontWeight: FontWeight.w500,
-                  color: Color(0xFF333333),
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // 内容
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF666666),
-                    height: 1.6,
-                  ),
-                  children: [
-                    const TextSpan(text: '点击确认解除后，双方的Kissu账号将会立即解除关系\n\n'),
-                    const TextSpan(text: '但是双方数据将会被保存'),
-                    TextSpan(
-                      text: '3日($threeDaysLaterDate)',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFFFF408D),
-                      ),
+                  // 标题
+                  const Text(
+                    '解除关系提示',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w600,
                     ),
-                    const TextSpan(text: '，在此期间重新绑定数据将会恢复，3日后双方数据将会被删除\n'),
-                    const TextSpan(text: '如在此期间，双方任一方选择绑定其他用户则双方数据也将会被提前删除'),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // 确认文字提示
-              RichText(
-                
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF333333),height: 1.6,
                   ),
-                  children: [
-                      TextSpan(text: '确认解除关系，请在下方输入框输入以下文字', style: const TextStyle(
+
+                  const SizedBox(height: 8),
+
+                  // 副标题
+                  const Text(
+                    '双方账号绑定期间的回忆来之不易',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 内容
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF666666),
-                      ),),
-                    TextSpan(
-                      text: _requiredText,
+                        height: 1.6,
+                      ),
+                      children: [
+                        const TextSpan(text: '点击确认解除后，双方的Kissu账号将会立即解除关系\n\n'),
+                        const TextSpan(text: '但是双方数据将会被保存'),
+                        TextSpan(
+                          text: '3日($threeDaysLaterDate)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF408D),
+                          ),
+                        ),
+                        const TextSpan(text: '，在此期间重新绑定数据将会恢复，3日后双方数据将会被删除\n'),
+                        const TextSpan(
+                          text: '如在此期间，双方任一方选择绑定其他用户则双方数据也将会被提前删除',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 确认文字提示
+                  RichText(
+                    text: TextSpan(
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFFFF408D),
+                        color: Color(0xFF333333),
+                        height: 1.6,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // 输入框
-              Container(
-                height: 58,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F0F0),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: TextField(
-                  controller: _textController,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(12),
-                    hintText: '请输入',
-                    hintStyle: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF999999),
-                    ),
-                  ),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // 按钮区域
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // 我再想想按钮
-                  GestureDetector(
-                    onTap: _cancelUnbind,
-                    child: Container(
-                      width: 106,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: const Color(0xFF999999),
-                          width: 1,
+                      children: [
+                        TextSpan(
+                          text: '确认解除关系，请在下方输入框输入以下文字',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF666666),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(24),
+                        TextSpan(
+                          text: _requiredText,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF408D),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 输入框
+                  Container(
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F0F0),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: TextField(
+                      controller: _textController,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(12),
+                        hintText: '请输入',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF999999),
+                        ),
                       ),
-                      child: const Center(
-                        child: Text(
-                          '我再想想',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF999999),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 按钮区域
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // 我再想想按钮
+                      GestureDetector(
+                        onTap: _cancelUnbind,
+                        child: Container(
+                          width: 106,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: const Color(0xFF999999),
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              '我再想想',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF999999),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  
-                  // 确认解除按钮
-                  GestureDetector(
-                    onTap: _confirmUnbind,
-                    child: Container(
-                      width: 106,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF9DC4),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          '确认解除',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
+
+                      // 确认解除按钮
+                      GestureDetector(
+                        onTap: _confirmUnbind,
+                        child: Container(
+                          width: 106,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF9DC4),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              '确认解除',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
                 ],
               ),
             ),

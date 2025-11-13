@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/model/unbind_reason_model.dart';
+import 'package:kissu_app/model/unbind_result.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';
 
 /// 自定义反馈弹窗（根据UI设计）
 class CustomFeedbackDialog extends StatefulWidget {
-  const CustomFeedbackDialog({super.key});
+  final List<UnbindReasonModel> reasons;
+
+  const CustomFeedbackDialog({super.key, required this.reasons});
 
   @override
   State<CustomFeedbackDialog> createState() => _CustomFeedbackDialogState();
@@ -11,23 +16,15 @@ class CustomFeedbackDialog extends StatefulWidget {
 
 class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
   final TextEditingController _textController = TextEditingController();
-  String? _selectedReason; // 选中的原因
-  
-  final List<String> _reasons = [
-    '两人已分手',
-    '用户隐私安全',
-    'App功能单一',
-    'App bug多',
-    'App体验不好',
-    '页面不美观',
-    '其他原因',
-  ];
+  UnbindReasonModel? _selectedReason; // 选中的原因
 
   @override
   void initState() {
     super.initState();
     // 默认选中第一个
-    _selectedReason = _reasons[0];
+    if (widget.reasons.isNotEmpty) {
+      _selectedReason = widget.reasons.first;
+    }
   }
 
   @override
@@ -38,29 +35,26 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
 
   /// 确认按钮
   void _onConfirm() {
-    final otherText = _textController.text.trim();
-    
-    // 如果选择了"其他原因"，输入框必须填写
-    if (_selectedReason == '其他原因' && otherText.isEmpty) {
-      Get.snackbar(
-        '提示',
-        '选择其他原因时，请填写具体原因',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.black.withOpacity(0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-      );
+    if (_selectedReason == null) {
+      CustomToast.show(Get.context!, '请选择解绑原因');
       return;
     }
-    
-    // 返回结果
-    String result = _selectedReason ?? '';
-    if (otherText.isNotEmpty) {
-      result = '$result: $otherText';
+
+    final otherText = _textController.text.trim();
+
+    // 如果选中的原因需要补充说明，输入框必须填写
+    if (_selectedReason!.needSupplement && otherText.isEmpty) {
+      CustomToast.show(Get.context!, '${_selectedReason!.name}需要补充说明，请填写具体原因');
+      return;
     }
-    Get.back(result: result);
+
+    // 返回结果
+    Get.back(
+      result: UnbindResult(
+        reasonId: _selectedReason!.id,
+        supplementReason: otherText.isNotEmpty ? otherText : null,
+      ),
+    );
   }
 
   /// 取消按钮
@@ -130,6 +124,16 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
                   const SizedBox(height: 16),
 
                   // 其他原因输入框（一直显示）
+                  Text(
+                    _selectedReason?.needSupplement == true
+                        ? '补充说明（必填）'
+                        : '补充说明（选填）',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Container(
                     height: 80,
                     decoration: BoxDecoration(
@@ -199,10 +203,7 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
                             height: 40,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFFFFB5D5),
-                                  Color(0xFFFF9DC4),
-                                ],
+                                colors: [Color(0xFFFFB5D5), Color(0xFFFF9DC4)],
                               ),
                               borderRadius: BorderRadius.circular(24),
                             ),
@@ -232,41 +233,42 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
 
   /// 构建原因选项列表
   List<Widget> _buildReasonOptions() {
-    return _reasons.asMap().entries.map((entry) {
-      final index = entry.key;
-      final reason = entry.value;
-      final isSelected = _selectedReason == reason;
-
-      // 每两个选项一行
-      if (index % 2 == 0) {
-        final nextReason = index + 1 < _reasons.length ? _reasons[index + 1] : null;
-        final isNextSelected = _selectedReason == nextReason;
-
-        return Padding(
+    final List<Widget> rows = [];
+    for (var i = 0; i < widget.reasons.length; i += 2) {
+      final leftReason = widget.reasons[i];
+      final rightReason = i + 1 < widget.reasons.length
+          ? widget.reasons[i + 1]
+          : null;
+      rows.add(
+        Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
             children: [
-              // 左侧选项
               Expanded(
-                child: _buildReasonOption(reason, isSelected),
+                child: _buildReasonOption(
+                  leftReason,
+                  _selectedReason?.id == leftReason.id,
+                ),
               ),
               const SizedBox(width: 12),
-              // 右侧选项（如果存在）
               Expanded(
-                child: nextReason != null
-                    ? _buildReasonOption(nextReason, isNextSelected)
+                child: rightReason != null
+                    ? _buildReasonOption(
+                        rightReason,
+                        _selectedReason?.id == rightReason.id,
+                      )
                     : const SizedBox(),
               ),
             ],
           ),
-        );
-      }
-      return const SizedBox.shrink();
-    }).toList();
+        ),
+      );
+    }
+    return rows;
   }
 
   /// 构建单个原因选项
-  Widget _buildReasonOption(String reason, bool isSelected) {
+  Widget _buildReasonOption(UnbindReasonModel reason, bool isSelected) {
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -283,7 +285,9 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: isSelected ? const Color(0xFFFF9DC4) : const Color(0xFFDDDDDD),
+                color: isSelected
+                    ? const Color(0xFFFF9DC4)
+                    : const Color(0xFFDDDDDD),
                 width: 2,
               ),
               color: Colors.white,
@@ -305,10 +309,12 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
           // 选项文字
           Flexible(
             child: Text(
-              reason,
+              reason.name,
               style: TextStyle(
                 fontSize: 13,
-                color: isSelected ? const Color(0xFF333333) : const Color(0xFF666666),
+                color: isSelected
+                    ? const Color(0xFF333333)
+                    : const Color(0xFF666666),
                 fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
               ),
               maxLines: 1,
@@ -324,11 +330,12 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
 /// 显示自定义反馈弹窗工具类
 class CustomFeedbackDialogUtil {
   /// 显示自定义反馈弹窗
-  static Future<String?> show() {
-    return Get.dialog<String>(
-      const CustomFeedbackDialog(),
+  static Future<UnbindResult?> show({
+    required List<UnbindReasonModel> reasons,
+  }) {
+    return Get.dialog<UnbindResult>(
+      CustomFeedbackDialog(reasons: reasons),
       barrierDismissible: false,
     );
   }
 }
-

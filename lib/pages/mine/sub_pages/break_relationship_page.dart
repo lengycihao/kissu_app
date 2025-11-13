@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/model/unbind_reason_model.dart';
+import 'package:kissu_app/model/unbind_result.dart';
+import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'break_relationship_controller.dart';
 import '../../../network/public/auth_api.dart';
@@ -215,10 +218,16 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
         onPressed: () async {
-          final result = await DialogManager.showUnbindRelationshipDialog();
-          if (result == true) {
-            // 返回true表示用户输入了正确的确认文字并点击了确认解除按钮
-            await _handleBreakRelationship();
+          final confirmResult =
+              await DialogManager.showUnbindRelationshipDialog();
+          if (confirmResult == true) {
+            final feedbackResult = await _showUnbindRetentionDialog();
+            if (feedbackResult != null) {
+              await _handleBreakRelationship(
+                reasonId: feedbackResult.reasonId,
+                supplementReason: feedbackResult.supplementReason,
+              );
+            }
           }
         },
         style: ElevatedButton.styleFrom(
@@ -241,13 +250,37 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
     );
   }
 
-  Future<void> _handleBreakRelationship() async {
+  Future<UnbindResult?> _showUnbindRetentionDialog() async {
+    try {
+      final authApi = AuthApi();
+      final result = await authApi.getUnbindReasons();
+
+      final reasons = result.dataList ?? <UnbindReasonModel>[];
+      if (!result.isSuccess || reasons.isEmpty) {
+        CustomToast.show(Get.context!, result.msg ?? '获取解绑原因列表失败');
+        return null;
+      }
+
+      return await CustomFeedbackDialogUtil.show(reasons: reasons);
+    } catch (e) {
+      CustomToast.show(Get.context!, '网络异常，请稍后重试');
+      return null;
+    }
+  }
+
+  Future<void> _handleBreakRelationship({
+    required int reasonId,
+    String? supplementReason,
+  }) async {
     try {
       isLoading.value = true;
       loadingText.value = '解除中...';
 
       final authApi = AuthApi();
-      final result = await authApi.unbindPartner();
+      final result = await authApi.unbindPartner(
+        reasonId: reasonId,
+        supplementReason: supplementReason,
+      );
 
       if (result.isSuccess) {
         loadingText.value = '解除成功';
@@ -261,14 +294,16 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
         // 播放解除绑定动画
         try {
           final animationService = RelationshipAnimationService.instance;
-          animationService.showUnbindAnimation(onComplete: () {
-            logDebug('🎯 解除绑定动画播放完成，返回到我的页面', tag: 'BreakRelationship');
-            // 动画完成后返回到我的页面
-            // 首先返回到上一级页面（隐私设置页面）
-            Get.back();
-            // 再返回到我的页面
-            Get.back();
-          });
+          animationService.showUnbindAnimation(
+            onComplete: () {
+              logDebug('🎯 解除绑定动画播放完成，返回到我的页面', tag: 'BreakRelationship');
+              // 动画完成后返回到我的页面
+              // 首先返回到上一级页面（隐私设置页面）
+              Get.back();
+              // 再返回到我的页面
+              Get.back();
+            },
+          );
         } catch (e) {
           logError('❌ 播放解除绑定动画失败: $e', tag: 'BreakRelationship', error: e);
           // 如果动画服务失败，直接返回
@@ -276,27 +311,20 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
           Get.back();
         }
       } else {
-        CustomToast.show(
-          Get.context!,
-          result.msg ?? '解除关系失败',
-        );
+        CustomToast.show(Get.context!, result.msg ?? '解除关系失败');
       }
     } catch (e) {
-      CustomToast.show(
-        Get.context!,
-        '网络异常，请重试',
-      );
+      CustomToast.show(Get.context!, '网络异常，请重试');
     } finally {
       isLoading.value = false;
     }
   }
 
-  
   /// 刷新所有相关控制器
   Future<void> _refreshAllControllers() async {
     // 给一点时间让UserManager的数据完全同步
     await Future.delayed(const Duration(milliseconds: 100));
-    
+
     // 刷新首页绑定状态
     try {
       if (Get.isRegistered<HomeController>()) {
@@ -307,18 +335,21 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
     } catch (e) {
       logError('❌ 刷新首页绑定状态失败: $e', tag: 'BreakRelationship', error: e);
     }
-    
+
     // 刷新"我的"页面
     try {
       if (Get.isRegistered<MineController>()) {
         final mineController = Get.find<MineController>();
+        // 先直接刷新界面绑定数据
+        mineController.loadUserInfo();
+        // 再执行原有的恢复逻辑（静默刷新、权限检查等）
         mineController.onPageResumed();
         logDebug('✅ 已刷新"我的"页面数据', tag: 'BreakRelationship');
       }
     } catch (e) {
       logError('❌ 刷新"我的"页面数据失败: $e', tag: 'BreakRelationship', error: e);
     }
-    
+
     // 刷新用机记录页面（提前刷新）
     try {
       if (Get.isRegistered<UsageReportController>()) {
@@ -330,7 +361,6 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       logError('❌ 刷新用机记录页面数据失败: $e', tag: 'BreakRelationship', error: e);
     }
   }
-
 }
 
 // 复用恋爱信息的头像组件，适配解除关系页面
@@ -375,44 +405,44 @@ class _BreakAvatarSection extends StatelessWidget {
         child: ClipOval(
           child: controller.myAvatar.value.isNotEmpty
               ? controller.myAvatar.value.startsWith('assets/')
-                  ? Image.asset(
-                      controller.myAvatar.value,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                    )
-                  : Image.network(
-                      controller.myAvatar.value,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                    )
+                    ? Image.asset(
+                        controller.myAvatar.value,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(40),
+                              color: const Color(0xFFE8B4CB),
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          );
+                        },
+                      )
+                    : Image.network(
+                        controller.myAvatar.value,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(40),
+                              color: const Color(0xFFE8B4CB),
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          );
+                        },
+                      )
               : Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(40),
@@ -444,44 +474,44 @@ class _BreakAvatarSection extends StatelessWidget {
       child: ClipOval(
         child: controller.partnerAvatar.value.isNotEmpty
             ? controller.partnerAvatar.value.startsWith('assets/')
-                ? Image.asset(
-                    controller.partnerAvatar.value,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(40),
-                          color: const Color(0xFFE8B4CB),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Colors.white,
-                        ),
-                      );
-                    },
-                  )
-                : Image.network(
-                    controller.partnerAvatar.value,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(40),
-                          color: const Color(0xFFE8B4CB),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Colors.white,
-                        ),
-                      );
-                    },
-                  )
+                  ? Image.asset(
+                      controller.partnerAvatar.value,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
+                  : Image.network(
+                      controller.partnerAvatar.value,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    )
             : Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(40),
@@ -572,9 +602,9 @@ class _BreakTogetherCard extends StatelessWidget {
 
     // 计算数字位数，根据位数调整字体大小和容器大小
     final digitCount = daysStr.length;
-    double fontSize = 20.0;  // 基础字体大小（1-3位数字）
-    double containerSize = 30.0;  // 基础容器大小
-    double horizontalMargin = 2.0;  // 基础间距
+    double fontSize = 20.0; // 基础字体大小（1-3位数字）
+    double containerSize = 30.0; // 基础容器大小
+    double horizontalMargin = 2.0; // 基础间距
 
     // 根据数字位数逐步缩小
     if (digitCount >= 6) {

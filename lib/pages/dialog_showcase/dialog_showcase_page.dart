@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/model/unbind_reason_model.dart';
+import 'package:kissu_app/model/unbind_result.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -17,6 +19,16 @@ import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 /// 弹窗展示页面
 class DialogShowcasePage extends StatelessWidget {
   const DialogShowcasePage({super.key});
+
+  static final List<UnbindReasonModel> _mockUnbindReasons = [
+    UnbindReasonModel(id: 1, name: '两人已分手', supplementReason: 0),
+    UnbindReasonModel(id: 2, name: '用户隐私安全', supplementReason: 0),
+    UnbindReasonModel(id: 3, name: 'App功能单一', supplementReason: 0),
+    UnbindReasonModel(id: 4, name: 'App bug多', supplementReason: 0),
+    UnbindReasonModel(id: 5, name: 'App体验不好', supplementReason: 0),
+    UnbindReasonModel(id: 6, name: '页面不美观', supplementReason: 0),
+    UnbindReasonModel(id: 7, name: '其他原因', supplementReason: 1),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -42,272 +54,238 @@ class DialogShowcasePage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSection(
-                          '通用确认弹窗',
-                          [
-                            _buildDialogItem(
-                              '退出登录确认',
-                              '显示退出登录确认弹窗',
-                              () => DialogManager.showLogoutConfirm(context),
+                        _buildSection('通用确认弹窗', [
+                          _buildDialogItem(
+                            '退出登录确认',
+                            '显示退出登录确认弹窗',
+                            () => DialogManager.showLogoutConfirm(context),
+                          ),
+                          _buildDialogItem(
+                            '手机号更改确认',
+                            '显示手机号更改确认弹窗',
+                            () => DialogManager.showPhoneChangeConfirm(
+                              context,
+                              '+86 192****2378',
                             ),
-                            _buildDialogItem(
-                              '手机号更改确认',
-                              '显示手机号更改确认弹窗',
-                              () => DialogManager.showPhoneChangeConfirm(
-                                context,
-                                '+86 192****2378',
-                              ),
+                          ),
+                          _buildDialogItem(
+                            '解除关系确认',
+                            '显示解除关系确认弹窗',
+                            () => DialogManager.showUnbindConfirm(context),
+                          ),
+                          _buildDialogItem(
+                            '注销提示弹窗',
+                            '显示注销提示弹窗（带倒计时）',
+                            () => _showLogoutDialog(),
+                          ),
+                          _buildDialogItem(
+                            '登录注销账号提示',
+                            '显示登录注销账号提示弹窗',
+                            () => _showLogoutCancelledDialog(),
+                          ),
+                          _buildDialogItem(
+                            '自定义确认弹窗',
+                            '显示自定义确认弹窗',
+                            () => DialogManager.showConfirm(
+                              context: context,
+                              title: '自定义标题',
+                              content: '这是自定义内容',
+                              subContent: '这是副标题',
+                              confirmText: '好的',
+                              cancelText: '算了',
                             ),
-                            _buildDialogItem(
-                              '解除关系确认',
-                              '显示解除关系确认弹窗',
-                              () => DialogManager.showUnbindConfirm(context),
-                            ),
-                            _buildDialogItem(
-                              '注销提示弹窗',
-                              '显示注销提示弹窗（带倒计时）',
-                              () => _showLogoutDialog(),
-                            ),
-                            _buildDialogItem(
-                              '登录注销账号提示',
-                              '显示登录注销账号提示弹窗',
-                              () => _showLogoutCancelledDialog(),
-                            ),
-                            _buildDialogItem(
-                              '自定义确认弹窗',
-                              '显示自定义确认弹窗',
-                              () => DialogManager.showConfirm(
-                                context: context,
-                                title: '自定义标题',
-                                content: '这是自定义内容',
-                                subContent: '这是副标题',
-                                confirmText: '好的',
-                                cancelText: '算了',
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ]),
                         const SizedBox(height: 24),
-                        _buildSection(
-                          '输入与选择弹窗',
-                          [
-                            _buildDialogItem(
-                              '性别选择弹窗',
-                              '显示性别选择弹窗',
-                              () async {
-                                final gender = await DialogManager.showGenderSelect(
-                                  context: context,
-                                  selectedGender: '男生',
-                                );
-                                if (gender != null) {
-                                  _showToast('选择了: $gender');
-                                }
-                              },
-                            ),
-                            _buildDialogItem(
-                              '昵称输入弹窗',
-                              '显示昵称输入弹窗',
-                              () async {
-                                final nickname = await DialogManager.showNicknameInput(
+                        _buildSection('输入与选择弹窗', [
+                          _buildDialogItem('性别选择弹窗', '显示性别选择弹窗', () async {
+                            final gender = await DialogManager.showGenderSelect(
+                              context: context,
+                              selectedGender: '男生',
+                            );
+                            if (gender != null) {
+                              _showToast('选择了: $gender');
+                            }
+                          }),
+                          _buildDialogItem('昵称输入弹窗', '显示昵称输入弹窗', () async {
+                            final nickname =
+                                await DialogManager.showNicknameInput(
                                   context,
                                   currentNickname: '当前昵称',
                                 );
-                                if (nickname != null) {
-                                  _showToast('输入了: $nickname');
-                                }
-                              },
-                            ),
-                            _buildDialogItem(
-                              '通用输入弹窗',
-                              '显示通用输入弹窗',
-                              () async {
-                                final input = await DialogManager.showInput(
-                                  context: context,
-                                  title: '输入内容',
-                                  hintText: '请输入内容',
-                                  maxLength: 20,
-                                );
-                                if (input != null) {
-                                  _showToast('输入了: $input');
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                            if (nickname != null) {
+                              _showToast('输入了: $nickname');
+                            }
+                          }),
+                          _buildDialogItem('通用输入弹窗', '显示通用输入弹窗', () async {
+                            final input = await DialogManager.showInput(
+                              context: context,
+                              title: '输入内容',
+                              hintText: '请输入内容',
+                              maxLength: 20,
+                            );
+                            if (input != null) {
+                              _showToast('输入了: $input');
+                            }
+                          }),
+                        ]),
                         const SizedBox(height: 24),
-                        _buildSection(
-                          'VIP相关弹窗',
-                          [
-                            _buildDialogItem(
-                              'VIP通用弹窗',
-                              '显示VIP通用弹窗',
-                              () => DialogManager.showVip(
-                                context: context,
-                                title: 'VIP专属功能',
-                                subtitle: '解锁更多精彩内容',
-                                content: '成为VIP会员，享受更多特权',
-                                buttonText: '立即开通',
-                              ),
+                        _buildSection('VIP相关弹窗', [
+                          _buildDialogItem(
+                            'VIP通用弹窗',
+                            '显示VIP通用弹窗',
+                            () => DialogManager.showVip(
+                              context: context,
+                              title: 'VIP专属功能',
+                              subtitle: '解锁更多精彩内容',
+                              content: '成为VIP会员，享受更多特权',
+                              buttonText: '立即开通',
                             ),
-                            _buildDialogItem(
-                              '再看30秒得会员',
-                              '显示"再看30秒得会员"弹窗',
-                              () => DialogManager.showVipWatchMore(context),
+                          ),
+                          _buildDialogItem(
+                            '再看30秒得会员',
+                            '显示"再看30秒得会员"弹窗',
+                            () => DialogManager.showVipWatchMore(context),
+                          ),
+                          _buildDialogItem(
+                            '再看2个视频得全天免费会员',
+                            '显示"再看2个视频得全天免费会员"弹窗',
+                            () => DialogManager.showVipWatchVideos(context),
+                          ),
+                          _buildDialogItem(
+                            '恭喜你完成了今天任务',
+                            '显示"恭喜你完成了今天任务"弹窗',
+                            () => DialogManager.showVipTaskComplete(context),
+                          ),
+                          _buildDialogItem(
+                            '恭喜成功开通会员',
+                            '显示"恭喜成功开通会员"弹窗',
+                            () => DialogManager.showVipSuccess(context),
+                          ),
+                          _buildDialogItem(
+                            '华为渠道VIP推广',
+                            '显示华为渠道VIP推广弹窗',
+                            () => DialogManager.showHuaweiVipPromo(context),
+                          ),
+                          _buildDialogItem(
+                            'VIP开通弹窗',
+                            '显示VIP开通弹窗（0.9元/天）',
+                            () => DialogManager.showVipPurchase(
+                              context: context,
+                              onConfirm: () => _showToast('确认开通VIP'),
                             ),
-                            _buildDialogItem(
-                              '再看2个视频得全天免费会员',
-                              '显示"再看2个视频得全天免费会员"弹窗',
-                              () => DialogManager.showVipWatchVideos(context),
-                            ),
-                            _buildDialogItem(
-                              '恭喜你完成了今天任务',
-                              '显示"恭喜你完成了今天任务"弹窗',
-                              () => DialogManager.showVipTaskComplete(context),
-                            ),
-                            _buildDialogItem(
-                              '恭喜成功开通会员',
-                              '显示"恭喜成功开通会员"弹窗',
-                              () => DialogManager.showVipSuccess(context),
-                            ),
-                            _buildDialogItem(
-                              '华为渠道VIP推广',
-                              '显示华为渠道VIP推广弹窗',
-                              () => DialogManager.showHuaweiVipPromo(context),
-                            ),
-                            _buildDialogItem(
-                              'VIP开通弹窗',
-                              '显示VIP开通弹窗（0.9元/天）',
-                              () => DialogManager.showVipPurchase(
-                                context: context,
-                                onConfirm: () => _showToast('确认开通VIP'),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ]),
                         const SizedBox(height: 24),
-                        _buildSection(
-                          '底部弹窗',
-                          [
-                            _buildDialogItem(
-                              '自定义底部弹窗',
-                              '显示带轮播banner的底部弹窗',
-                              () => CustomBottomDialog.show(
-                                context: context,
-                                customContent: Container(
-                                  padding: const EdgeInsets.all(20),
-                                  child: const Text(
-                                    '这是自定义内容区域',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
+                        _buildSection('底部弹窗', [
+                          _buildDialogItem(
+                            '自定义底部弹窗',
+                            '显示带轮播banner的底部弹窗',
+                            () => CustomBottomDialog.show(
+                              context: context,
+                              customContent: Container(
+                                padding: const EdgeInsets.all(20),
+                                child: const Text(
+                                  '这是自定义内容区域',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ]),
                         const SizedBox(height: 24),
-                        _buildSection(
-                          '权限相关弹窗',
-                          [
-                            _buildDialogItem(
-                              '相机权限请求弹窗',
-                              '显示相机权限请求弹窗',
-                              () async {
-                                final result = await PermissionRequestDialog.showCameraPermissionDialog(context);
-                                _showToast(result == true ? '确认授权相机' : '取消授权相机');
-                              },
-                            ),
-                            _buildDialogItem(
-                              '相册权限请求弹窗',
-                              '显示相册权限请求弹窗',
-                              () async {
-                                final result = await PermissionRequestDialog.showPhotosPermissionDialog(context);
-                                _showToast(result == true ? '确认授权相册' : '取消授权相册');
-                              },
-                            ),
-                            _buildDialogItem(
-                              '位置权限弹窗',
-                              '显示位置权限弹窗',
-                              () => showDialog(
-                                context: context,
-                                builder: (context) => LocationPermissionDialog(
-                                  onAllow: () {
-                                    Navigator.of(context).pop();
-                                    _showToast('确认授权位置');
-                                  },
-                                  onCancel: () {
-                                    Navigator.of(context).pop();
-                                    _showToast('取消授权位置');
-                                  },
-                                ),
+                        _buildSection('权限相关弹窗', [
+                          _buildDialogItem('相机权限请求弹窗', '显示相机权限请求弹窗', () async {
+                            final result =
+                                await PermissionRequestDialog.showCameraPermissionDialog(
+                                  context,
+                                );
+                            _showToast(result == true ? '确认授权相机' : '取消授权相机');
+                          }),
+                          _buildDialogItem('相册权限请求弹窗', '显示相册权限请求弹窗', () async {
+                            final result =
+                                await PermissionRequestDialog.showPhotosPermissionDialog(
+                                  context,
+                                );
+                            _showToast(result == true ? '确认授权相册' : '取消授权相册');
+                          }),
+                          _buildDialogItem(
+                            '位置权限弹窗',
+                            '显示位置权限弹窗',
+                            () => showDialog(
+                              context: context,
+                              builder: (context) => LocationPermissionDialog(
+                                onAllow: () {
+                                  Navigator.of(context).pop();
+                                  _showToast('确认授权位置');
+                                },
+                                onCancel: () {
+                                  Navigator.of(context).pop();
+                                  _showToast('取消授权位置');
+                                },
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ]),
                         const SizedBox(height: 24),
-                        _buildSection(
-                          '图片/头像相关弹窗',
-                          [
-                            _buildDialogItem(
-                              '头像上传弹窗',
-                              '显示头像上传弹窗（带预览和裁剪）',
-                              () => ImageDialogUtil.showImageDialog(
-                                context: context,
-                                imagePath: 'assets/3.0/kissu3_avater_viewbg.webp',
-                              ),
+                        _buildSection('图片/头像相关弹窗', [
+                          _buildDialogItem(
+                            '头像上传弹窗',
+                            '显示头像上传弹窗（带预览和裁剪）',
+                            () => ImageDialogUtil.showImageDialog(
+                              context: context,
+                              imagePath: 'assets/3.0/kissu3_avater_viewbg.webp',
                             ),
-                            _buildDialogItem(
-                              '简单图片来源选择',
-                              '显示简单的图片来源选择弹窗',
-                              () async {
-                                final result = await SimpleImageSourceDialog.show(context);
-                                if (result != null) {
-                                  _showToast('选择了${result == ImageSource.camera ? '相机' : '相册'}');
-                                } else {
-                                  _showToast('取消选择图片');
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                          ),
+                          _buildDialogItem('简单图片来源选择', '显示简单的图片来源选择弹窗', () async {
+                            final result = await SimpleImageSourceDialog.show(
+                              context,
+                            );
+                            if (result != null) {
+                              _showToast(
+                                '选择了${result == ImageSource.camera ? '相机' : '相册'}',
+                              );
+                            } else {
+                              _showToast('取消选择图片');
+                            }
+                          }),
+                        ]),
                         const SizedBox(height: 24),
-                        _buildSection(
-                          '业务特定弹窗',
-                          [
-                            _buildDialogItem(
-                              '通话历史设置弹窗',
-                              '显示通话历史设置弹窗',
-                              () => _showToast('通话历史设置弹窗（需要导入相应页面）'),
-                            ),
-                            _buildDialogItem(
-                              '解除关系提示弹窗',
-                              '显示解除关系提示弹窗',
-                              () => _showUnbindRelationshipDialog(),
-                            ),
-                            _buildDialogItem(
-                              '删除位置提醒弹窗',
-                              '确认删除位置提醒数据',
-                              () => _showDeleteLocationReminderDialog(),
-                            ),
-                            _buildDialogItem(
-                              '对方未开通位置权限提示',
-                              '检查对方是否打开位置权限',
-                              () => _showPartnerLocationPermissionDialog(),
-                            ),
-                            _buildDialogItem(
-                              '自己未开通通知权限提示',
-                              '提示开通消息通知权限',
-                              () => _showSelfNotificationPermissionDialog(),
-                            ),
-                            _buildDialogItem(
-                              '自定义反馈弹窗（新）',
-                              '测试新的自定义反馈弹窗',
-                              () => _showCustomFeedbackDialog(),
-                            ),
-                          ],
-                        ),
+                        _buildSection('业务特定弹窗', [
+                          _buildDialogItem(
+                            '通话历史设置弹窗',
+                            '显示通话历史设置弹窗',
+                            () => _showToast('通话历史设置弹窗（需要导入相应页面）'),
+                          ),
+                          _buildDialogItem(
+                            '解除关系提示弹窗',
+                            '显示解除关系提示弹窗',
+                            () => _showUnbindRelationshipDialog(),
+                          ),
+                          _buildDialogItem(
+                            '删除位置提醒弹窗',
+                            '确认删除位置提醒数据',
+                            () => _showDeleteLocationReminderDialog(),
+                          ),
+                          _buildDialogItem(
+                            '对方未开通位置权限提示',
+                            '检查对方是否打开位置权限',
+                            () => _showPartnerLocationPermissionDialog(),
+                          ),
+                          _buildDialogItem(
+                            '自己未开通通知权限提示',
+                            '提示开通消息通知权限',
+                            () => _showSelfNotificationPermissionDialog(),
+                          ),
+                          _buildDialogItem(
+                            '自定义反馈弹窗（新）',
+                            '测试新的自定义反馈弹窗',
+                            () => _showCustomFeedbackDialog(),
+                          ),
+                        ]),
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -384,7 +362,11 @@ class DialogShowcasePage extends StatelessWidget {
   }
 
   /// 构建弹窗项目
-  Widget _buildDialogItem(String title, String description, VoidCallback onTap) {
+  Widget _buildDialogItem(
+    String title,
+    String description,
+    VoidCallback onTap,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -467,10 +449,9 @@ class DialogShowcasePage extends StatelessWidget {
 
   /// 显示注销提示弹窗
   void _showLogoutDialog() {
-    Get.dialog<bool>(
-      const LogoutDialog(),
-      barrierDismissible: false,
-    ).then((result) {
+    Get.dialog<bool>(const LogoutDialog(), barrierDismissible: false).then((
+      result,
+    ) {
       if (result == true) {
         _showToast('确认注销');
       } else if (result == false) {
@@ -529,9 +510,19 @@ class DialogShowcasePage extends StatelessWidget {
 
   /// 显示自定义反馈弹窗
   void _showCustomFeedbackDialog() {
-    CustomFeedbackDialogUtil.show().then((result) {
-      if (result != null && result.isNotEmpty) {
-        _showToast('选择的原因: $result');
+    CustomFeedbackDialogUtil.show(reasons: _mockUnbindReasons).then((
+      UnbindResult? result,
+    ) {
+      if (result != null) {
+        final reason = _mockUnbindReasons.firstWhere(
+          (item) => item.id == result.reasonId,
+          orElse: () =>
+              UnbindReasonModel(id: 0, name: '未知原因', supplementReason: 0),
+        );
+        final supplement = result.supplementReason?.isNotEmpty == true
+            ? '（备注：${result.supplementReason}）'
+            : '';
+        _showToast('选择的原因: ${reason.name}$supplement');
       } else {
         _showToast('已取消');
       }
