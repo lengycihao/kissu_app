@@ -4,13 +4,13 @@ gradle-wrapper.jar
 /gradlew
 /gradlew.bat
 /local.properties
-GeneratedPluginRegistrant.java
+# GeneratedPluginRegistrant.java
 .cxx/
 
 # Gradle configuration files (may contain machine-specific settings)
-gradle.properties
-build.gradle.kts
-app/build.gradle.kts
+# gradle.properties
+# build.gradle.kts
+# app/build.gradle.kts
 
 # Remember to never publicly share your keystore.
 # See https://flutter.dev/to/reference-keystore
