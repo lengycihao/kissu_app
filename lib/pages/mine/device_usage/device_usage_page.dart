@@ -1,11 +1,55 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'device_usage_controller.dart';
 import 'dart:math' as math;
+import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
+import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 新的用机记录页面
-class DeviceUsagePage extends GetView<DeviceUsageController> {
+class DeviceUsagePage extends StatefulWidget {
   const DeviceUsagePage({super.key});
+
+  @override
+  State<DeviceUsagePage> createState() => _DeviceUsagePageState();
+}
+
+class _DeviceUsagePageState extends State<DeviceUsagePage>
+    with WidgetsBindingObserver {
+  late DeviceUsageController controller;
+  bool _hasInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<DeviceUsageController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 首次构建时不刷新，后续页面恢复时刷新
+    if (_hasInitialized) {
+      // 页面恢复时刷新状态和数据（延迟一下确保路由已完成）
+      Future.microtask(() {
+        if (mounted) {
+          controller.updateBindStatus();
+        }
+      });
+    } else {
+      _hasInitialized = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,444 +158,776 @@ class DeviceUsagePage extends GetView<DeviceUsageController> {
       },
       child: Container(
         height: 190,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 模块标题
-          _buildModuleTitle("Ta的手机使用记录"),
-          const SizedBox(height: 12),
-          // 圆环图和统计数据
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 左侧圆环模块 - 174*143比例
-                Expanded(
-                  flex: 174,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9F9F9),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Obx(
-                        () => _buildCircularProgress(
-                          controller.screenUsageHours.value,
-                          controller.screenUsageMinutes.value,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // 右侧统计数据 - 131宽度
-                Expanded(
-                  flex: 131,
-                  child: Column(
-                    children: [
-                      // 解锁次数
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF9F9F9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          child: Obx(
-                            () => _buildStatItem(
-                              "assets/4.0/kissu4_new_use_times_pic.webp",
-                              "解锁手机次数",
-                              "${controller.unlockCount.value}",
-                              "次",
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // 最近使用时长
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF9F9F9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          child: Obx(
-                            () => _buildStatItem(
-                              "assets/4.0/kissu4_new_use_time_pic.webp",
-                              "最近使用时长",
-                              "${controller.recentUsageMinutes.value}",
-                              "分钟",
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
-  /// App使用记录模块
-  Widget _buildAppUsageModule() {
-    return Container(
-      height: 190,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 模块标题
-          _buildModuleTitle("Ta的App使用记录"),
-          const SizedBox(height: 12),
-          // App使用数据
-          Expanded(
-            child: Obx(() {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 左侧：最长使用App模块 - 150宽度
+                  // 模块标题
+                  _buildModuleTitle("Ta的手机使用记录"),
+                  const SizedBox(height: 12),
+                  // 圆环图和统计数据
                   Expanded(
-                    flex: 130,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9F9F9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // App图标
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: const Color(0xFFF5F5F5),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                "assets/4.0/kissu4_use_app_empty.webp",
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // 最长使用APP标题
-                          const Text(
-                            "最长使用APP",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                            // 时长
-                            (controller.mostUsedAppHours.value == 0 &&
-                                    controller.mostUsedAppMinutes.value == 0)
-                                ? const Text(
-                                    "0小时00分钟",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFF999999),
-                                    ),
-                                  )
-                                : Text.rich(
-                                    TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text:
-                                              "${controller.mostUsedAppHours.value}",
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF333333),
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: "小时",
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xcc333333),
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text:
-                                              "${controller.mostUsedAppMinutes.value}",
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF333333),
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: "分钟",
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xcc333333),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // 右侧：两个App信息模块 - 155宽度
-                  Expanded(
-                    flex: 155,
-                    child: Column(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // 打开次数最多的App
+                        // 左侧圆环模块 - 174*143比例
                         Expanded(
+                          flex: 174,
                           child: Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFFF9F9F9),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Image.asset(
-                                      "assets/4.0/kissu4_new_use_times_pic.webp",
-                                      width: 16,
-                                      height: 16,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Expanded(
-                                      child: Text(
-                                        "打开次数最多的App",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xcc333333),
-                                        ),
-                                      ),
-                                    ),
-                                    Image.asset(
-                                      "assets/4.0/kissu4_new_use_right.webp",
-                                      width: 6,
-                                      height: 6,
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    SizedBox(width: 20),
-                                    // 微信图标或灰色方块
-                                    Container(
-                                      width: 26,
-                                      height: 26,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(4),
-                                        color: controller.mostUsedAppCount.value > 0
-                                            ? const Color(0xFF07C160)
-                                            : const Color(0xFFE8E8E8),
-                                      ),
-                                      child: controller.mostUsedAppCount.value > 0
-                                          ? const Center(
-                                              child: Icon(
-                                                Icons.wechat,
-                                                size: 22,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    controller.mostUsedAppCount.value > 0
-                                        ? Text.rich(
-                                            TextSpan(
-                                              children: [
-                                                TextSpan(
-                                                  text:
-                                                      "${controller.mostUsedAppCount.value}",
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Color(0xFF333333),
-                                                  ),
-                                                ),
-                                                TextSpan(
-                                                  text: " 次",
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Color(0xff777777),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        : const Text(
-                                            "0次",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Color(0xFF999999),
-                                            ),
-                                          ),
-                                  ],
-                                ),
-                              ],
+                            child: Center(
+                              child: Obx(() {
+                                // 已绑定但未开会员时显示星号
+                                if (controller.isUserBound.value &&
+                                    !controller.isUserVip.value) {
+                                  return _buildCircularProgressWithStars();
+                                }
+                                return _buildCircularProgress(
+                                  controller.screenUsageHours.value,
+                                  controller.screenUsageMinutes.value,
+                                );
+                              }),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        // 最近使用的App
+                        const SizedBox(width: 10),
+                        // 右侧统计数据 - 131宽度
                         Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9F9F9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Image.asset(
+                          flex: 131,
+                          child: Column(
+                            children: [
+                              // 解锁次数
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF9F9F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  child: Obx(() {
+                                    // 已绑定但未开会员时显示星号
+                                    final value =
+                                        (controller.isUserBound.value &&
+                                            !controller.isUserVip.value)
+                                        ? "*"
+                                        : "${controller.unlockCount.value}";
+                                    return _buildStatItem(
+                                      "assets/4.0/kissu4_new_use_times_pic.webp",
+                                      "解锁手机次数",
+                                      value,
+                                      "次",
+                                    );
+                                  }),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              // 最近使用时长
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF9F9F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  child: Obx(() {
+                                    // 已绑定但未开会员时显示星号
+                                    final value =
+                                        (controller.isUserBound.value &&
+                                            !controller.isUserVip.value)
+                                        ? "*"
+                                        : "${controller.recentUsageMinutes.value}";
+                                    return _buildStatItem(
                                       "assets/4.0/kissu4_new_use_time_pic.webp",
-                                      width: 16,
-                                      height: 16,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Expanded(
-                                      child: Text(
-                                        "最近使用的App",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xcc333333),
-                                        ),
-                                      ),
-                                    ),
-                                    Image.asset(
-                                      "assets/4.0/kissu4_new_use_right.webp",
-                                      width: 6,
-                                      height: 6,
-                                    ),
-                                  ],
+                                      "最近使用时长",
+                                      value,
+                                      "分钟",
+                                    );
+                                  }),
                                 ),
-                                Row(
-                                  children: [
-                                    // 微博图标或灰色方块
-                                    SizedBox(width: 20),
-                                    Container(
-                                      width: 26,
-                                      height: 26,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(4),
-                                        color: controller.recentAppTime.value.isEmpty
-                                            ? const Color(0xFFE8E8E8)
-                                            : const Color(0xFFE6162D),
-                                      ),
-                                      child: controller.recentAppTime.value.isNotEmpty
-                                          ? const Center(
-                                              child: Icon(
-                                                Icons.wechat,
-                                                size: 22,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      controller.recentAppTime.value.isEmpty
-                                          ? "00:00"
-                                          : controller.recentAppTime.value,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: controller.recentAppTime.value.isEmpty
-                                            ? const Color(0xFF999999)
-                                            : const Color(0xFF333333),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              );
+              ),
+            ),
+            // 毛玻璃蒙版（仅未绑定时显示）
+            Obx(() {
+              if (!controller.isUserBound.value) {
+                return Positioned(
+                  top: 40, // 标题高度 + 间距
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildFrostedGlassMask("实时查看Ta的手机使用报告", false),
+                );
+              }
+              return const SizedBox.shrink();
             }),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// App使用记录模块
+  Widget _buildAppUsageModule() {
+    return GestureDetector(
+      onTap: () {
+        // 跳转到App使用统计页面
+        Get.toNamed(KissuRoutePath.appUsage);
+      },
+      child: Container(
+        height: 190,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 模块标题
+                  _buildModuleTitle("Ta的App使用记录"),
+                  const SizedBox(height: 12),
+                  // App使用数据
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 左侧：最长使用App模块 - 150宽度
+                        Expanded(
+                          flex: 130,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9F9F9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // App图标
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: const Color(0xFFF5F5F5),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Obx(() {
+                                      if (controller
+                                          .longestAppLogo
+                                          .value
+                                          .isNotEmpty) {
+                                        return Image.network(
+                                          controller.longestAppLogo.value,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Image.asset(
+                                                  "assets/4.0/kissu4_use_app_empty.webp",
+                                                  fit: BoxFit.cover,
+                                                );
+                                              },
+                                        );
+                                      } else {
+                                        return Image.asset(
+                                          "assets/4.0/kissu4_use_app_empty.webp",
+                                          fit: BoxFit.cover,
+                                        );
+                                      }
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // 最长使用APP标题
+                                const Text(
+                                  "最长使用APP",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF333333),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                // 时长
+                                Obx(
+                                  () =>
+                                      (controller.longestAppHours.value == 0 &&
+                                          controller.longestAppMinutes.value ==
+                                              0)
+                                      ? const Text(
+                                          "0小时00分钟",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF999999),
+                                          ),
+                                        )
+                                      : Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    "${controller.longestAppHours.value}",
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF333333),
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text: "小时",
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Color(0xcc333333),
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text:
+                                                    "${controller.longestAppMinutes.value}",
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF333333),
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text: "分钟",
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Color(0xcc333333),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // 右侧：两个App信息模块 - 155宽度
+                        Expanded(
+                          flex: 155,
+                          child: Column(
+                            children: [
+                              // 打开次数最多的App
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF9F9F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Image.asset(
+                                            "assets/4.0/kissu4_new_use_times_pic.webp",
+                                            width: 16,
+                                            height: 16,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Expanded(
+                                            child: Text(
+                                              "打开次数最多的App",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xcc333333),
+                                              ),
+                                            ),
+                                          ),
+                                          Image.asset(
+                                            "assets/4.0/kissu4_new_use_right.webp",
+                                            width: 6,
+                                            height: 6,
+                                          ),
+                                        ],
+                                      ),
+                                      Obx(
+                                        () => Row(
+                                          children: [
+                                            SizedBox(width: 20),
+                                            // App图标或灰色方块
+                                            Container(
+                                              width: 26,
+                                              height: 26,
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                color:
+                                                    controller
+                                                            .openMostAppCount
+                                                            .value >
+                                                        0
+                                                    ? const Color(0xFF07C160)
+                                                    : const Color(0xFFE8E8E8),
+                                              ),
+                                              child:
+                                                  controller
+                                                              .openMostAppCount
+                                                              .value >
+                                                          0 &&
+                                                      controller
+                                                          .openMostAppLogo
+                                                          .value
+                                                          .isNotEmpty
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
+                                                      child: Image.network(
+                                                        controller
+                                                            .openMostAppLogo
+                                                            .value,
+                                                        width: 26,
+                                                        height: 26,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) {
+                                                              return const Center(
+                                                                child: Icon(
+                                                                  Icons.apps,
+                                                                  size: 22,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
+                                                              );
+                                                            },
+                                                      ),
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            controller.openMostAppCount.value >
+                                                    0
+                                                ? Text.rich(
+                                                    TextSpan(
+                                                      children: [
+                                                        TextSpan(
+                                                          text:
+                                                              "${controller.openMostAppCount.value}",
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Color(
+                                                                  0xFF333333,
+                                                                ),
+                                                              ),
+                                                        ),
+                                                        TextSpan(
+                                                          text: " 次",
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 12,
+                                                                color: Color(
+                                                                  0xff777777,
+                                                                ),
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  )
+                                                : const Text(
+                                                    "0次",
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Color(0xFF999999),
+                                                    ),
+                                                  ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              // 最近使用的App
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF9F9F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Image.asset(
+                                            "assets/4.0/kissu4_new_use_time_pic.webp",
+                                            width: 16,
+                                            height: 16,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Expanded(
+                                            child: Text(
+                                              "最近使用的App",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xcc333333),
+                                              ),
+                                            ),
+                                          ),
+                                          Image.asset(
+                                            "assets/4.0/kissu4_new_use_right.webp",
+                                            width: 6,
+                                            height: 6,
+                                          ),
+                                        ],
+                                      ),
+                                      Obx(
+                                        () => Row(
+                                          children: [
+                                            // App图标或灰色方块
+                                            SizedBox(width: 20),
+                                            Container(
+                                              width: 26,
+                                              height: 26,
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                color:
+                                                    controller
+                                                        .lastUseAppTime
+                                                        .value
+                                                        .isEmpty
+                                                    ? const Color(0xFFE8E8E8)
+                                                    : const Color(0xFFE6162D),
+                                              ),
+                                              child:
+                                                  controller
+                                                          .lastUseAppTime
+                                                          .value
+                                                          .isNotEmpty &&
+                                                      controller
+                                                          .lastUseAppLogo
+                                                          .value
+                                                          .isNotEmpty
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
+                                                      child: Image.network(
+                                                        controller
+                                                            .lastUseAppLogo
+                                                            .value,
+                                                        width: 26,
+                                                        height: 26,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) {
+                                                              return const Center(
+                                                                child: Icon(
+                                                                  Icons.apps,
+                                                                  size: 22,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
+                                                              );
+                                                            },
+                                                      ),
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              controller
+                                                      .lastUseAppTime
+                                                      .value
+                                                      .isEmpty
+                                                  ? "00:00"
+                                                  : controller
+                                                        .lastUseAppTime
+                                                        .value,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color:
+                                                    controller
+                                                        .lastUseAppTime
+                                                        .value
+                                                        .isEmpty
+                                                    ? const Color(0xFF999999)
+                                                    : const Color(0xFF333333),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
+            Obx(() {
+              if (!controller.isUserBound.value ||
+                  (controller.isUserBound.value &&
+                      !controller.isUserVip.value)) {
+                return Positioned(
+                  top: 40, // 标题高度 + 间距
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildFrostedGlassMask(
+                    "实时查看Ta的App详细使用记录",
+                    controller.isUserBound.value && !controller.isUserVip.value,
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+          ],
+        ),
       ),
     );
   }
 
   /// 敏感操作记录模块
   Widget _buildSensitiveRecordModule() {
-    return Container(
-      height: 238,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 模块标题
-          _buildModuleTitle("Ta的敏感操作记录"),
-          const SizedBox(height: 12),
-          // 操作记录列表
-          Expanded(
-            child: Obx(() {
-              if (controller.sensitiveRecords.isEmpty ||
-                  controller.isDebugEmptyMode.value) {
-                return _buildEmptySensitiveRecords();
-              }
-              return Column(
-                children: List.generate(
-                  math.min(3, controller.sensitiveRecords.length),
-                  (index) => _buildSensitiveRecordItem(
-                    controller.sensitiveRecords[index],
-                    index < math.min(2, controller.sensitiveRecords.length - 1),
+    return GestureDetector(
+      onTap: () {
+        // 跳转到敏感操作记录详情页
+        Get.to(
+          () => const UsageReportPage(),
+          binding: UsageReportBinding(),
+          transition: Transition.rightToLeft,
+        );
+      },
+      child: Container(
+        height: 238,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 模块标题
+                  _buildModuleTitle("Ta的敏感操作记录"),
+                  const SizedBox(height: 12),
+                  // 操作记录列表
+                  Expanded(
+                    child: Obx(() {
+                      if (controller.sensitiveRecords.isEmpty ||
+                          controller.isDebugEmptyMode.value) {
+                        return _buildEmptySensitiveRecords();
+                      }
+                      return Column(
+                        children: List.generate(
+                          math.min(3, controller.sensitiveRecords.length),
+                          (index) => _buildSensitiveRecordItem(
+                            controller.sensitiveRecords[index],
+                            index <
+                                math.min(
+                                  2,
+                                  controller.sensitiveRecords.length - 1,
+                                ),
+                          ),
+                        ),
+                      );
+                    }),
                   ),
-                ),
-              );
+                ],
+              ),
+            ),
+
+            // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
+            Obx(() {
+              if (!controller.isUserBound.value ||
+                  (controller.isUserBound.value &&
+                      !controller.isUserVip.value)) {
+                return Positioned(
+                  top: 40, // 标题高度 + 间距
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildFrostedGlassMask(
+                    "实时查看Ta的敏感记录",
+                    controller.isUserBound.value && !controller.isUserVip.value,
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
             }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建毛玻璃蒙版
+  Widget _buildFrostedGlassMask(String text, bool isVipButton) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(12),
+        bottomRight: Radius.circular(12),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: GestureDetector(
+          onTap: () {
+            final currentContext = Get.context;
+            if (currentContext != null) {
+              if (isVipButton) {
+                // 已绑定未开会员：跳转到VIP页面
+                Get.toNamed(
+                  KissuRoutePath.vip,
+                  arguments: {
+                    'previousPageName': '用机记录页面',
+                    'previousPageId': 'device_usage',
+                  },
+                )?.then((_) {
+                  // 从VIP页面返回后，刷新状态并重新加载数据
+                  controller.updateBindStatus();
+                });
+              } else {
+                // 未绑定：显示绑定弹窗
+                CustomBottomDialog.show(
+                  context: currentContext,
+                  caller: BindingDialogCaller.deviceUsage,
+                  onClose: () {
+                    // 绑定弹窗关闭后，刷新状态并重新加载数据
+                    // 注意：绑定成功时，_refreshCurrentPageData() 会自动刷新，这里作为备用
+                    controller.updateBindStatus();
+                  },
+                );
+              }
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFFFFFFF).withOpacity(0.2), // #FFFFFF 半透明
+                  const Color(0xFFFDE4FF).withOpacity(0.8), // #FDE4FF 半透明
+                ],
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 第一行：图标 + 文字
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/kissu4_vip_hat.webp',
+                        width: 16,
+                        height: 14,
+                      ),
+                      const SizedBox(width: 6),
+                      Stack(
+                        children: [
+                          Positioned(
+                            bottom: 2,
+                            right: 0,
+                            child: Image.asset(
+                              'assets/kissu4_vip_line.webp',
+                              width: 68,
+                              height: 12,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Text(
+                            text,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // 第二行：按钮（根据状态显示不同的按钮）
+                  Image.asset(
+                    isVipButton
+                        ? 'assets/kissu3_go_vip.webp'
+                        : 'assets/kissu3_go_bind.webp',
+                    width: isVipButton ? 129 : 109,
+                    height: 35,
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -597,19 +973,15 @@ class DeviceUsagePage extends GetView<DeviceUsageController> {
         ),
         const Spacer(),
         // 箭头
-        Image.asset(
-          "assets/4.0/kissu4_next_go.webp",
-          width: 16,
-          height: 16,
-        ),
+        Image.asset("assets/4.0/kissu4_next_go.webp", width: 16, height: 16),
       ],
     );
   }
 
   /// 圆环进度（双层圆环）
   Widget _buildCircularProgress(int hours, int minutes) {
-    final totalMinutes = hours * 60 + minutes;
-    final progress = totalMinutes / (24 * 60); // 按24小时计算进度
+    // 使用 totalUseDuration.minute 对比今天当前时间的分钟数据
+    final progress = controller.getCircularProgress();
 
     return Stack(
       alignment: Alignment.center,
@@ -665,6 +1037,78 @@ class DeviceUsagePage extends GetView<DeviceUsageController> {
                   ),
                 ),
                 const Text(
+                  "分",
+                  style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              "屏幕使用时长",
+              style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 圆环进度（显示星号版本）
+  Widget _buildCircularProgressWithStars() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // 虚线圆环（内侧）
+        CustomPaint(
+          size: const Size(92, 92),
+          painter: DashedCirclePainter(
+            color: const Color(0xFFFFE2F4),
+            strokeWidth: 2,
+          ),
+        ),
+        // 实线进度圆环（外侧）- 不显示进度，只显示背景
+        SizedBox(
+          width: 120,
+          height: 120,
+          child: CustomPaint(
+            painter: GradientCircularProgressPainter(
+              progress: 0, // 不显示进度
+              strokeWidth: 9,
+              backgroundColor: const Color(0xFFFFE2F4),
+              gradientColors: const [Color(0xFFFFA4DC), Color(0xFFFFA0DB)],
+            ),
+          ),
+        ),
+        // 中间文字（星号）
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: const [
+                Text(
+                  "*",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                Text(
+                  "小时",
+                  style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
+                ),
+                Text(
+                  "*",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                Text(
                   "分",
                   style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
                 ),

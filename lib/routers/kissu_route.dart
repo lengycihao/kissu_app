@@ -39,6 +39,8 @@ import 'package:kissu_app/pages/mine/device_usage/device_usage_page.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_binding.dart';
 import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_page.dart';
 import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_binding.dart';
+import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
+import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -193,6 +195,12 @@ class KissuRoute {
       name: KissuRoutePath.appUsageDetail,
       page: () => const AppUsageDetailPage(),
       binding: AppUsageDetailBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.appUsage,
+      page: () => const AppUsagePage(),
+      binding: AppUsageBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

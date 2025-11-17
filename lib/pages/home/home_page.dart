@@ -82,10 +82,10 @@ class _KissuHomePageState extends State<KissuHomePage>
                   Positioned.fill(
                     child: Image.asset(
                       "assets/kissu_home_bg.webp",
-                      width: 1500, // 固定宽度1500px
+                      width: 1125, // 固定宽度1500px
                       height: ScreenAdaptation.getDynamicBackgroundSize()
                           .height, // 使用动态高度
-                      fit: BoxFit.cover, // 改回cover以保持原有显示效果
+                      fit: BoxFit.contain, // 改回cover以保持原有显示效果
                     ),
                   ),
 
@@ -177,7 +177,12 @@ class _KissuHomePageState extends State<KissuHomePage>
                               fit: BoxFit.fill,
                             ),
                           ),
-                          padding: EdgeInsets.only(left: 7, right: 7,top: 15,bottom: 7),
+                          padding: EdgeInsets.only(
+                            left: 7,
+                            right: 7,
+                            top: 15,
+                            bottom: 7,
+                          ),
                           child:
                               controller.photoWallUrl.value.startsWith('http')
                               ? NoPlaceholderImage(
@@ -344,83 +349,83 @@ class _KissuHomePageState extends State<KissuHomePage>
             },
             child: Swiper(
               itemBuilder: (BuildContext context, int index) {
-              return Center(
-                child: GestureDetector(
-                  onTap: () async {
-                    // 前两张 banner 点击显示绑定弹窗，天气 banner 不需要点击事件
-                    if (index < 2) {
-                      // 获取点击类型
-                      final clickType = index == 0 ? '定位' : '足迹';
-                      
-                      // 上报埋点：屏视图 Banner 点击
-                      await TrackingService.trackHomeBannerClick(
-                        isDrag: controller.isBannerManuallyDragged.value,
-                        clickType: clickType,
-                        isVip: UserManager.isVip,
-                        isBind: false, // 未绑定状态
-                      );
-                      
-                      CustomBottomDialog.show(
-                        context: context,
-                        caller: BindingDialogCaller.home,
-                      );
-                    }
-                  },
-                  child: Obx(() {
-                    // 获取当前用户的 VIP 状态
-                    final isVip = UserManager.isVip;
-                    final userAvatarUrl = controller.userAvatar.value;
+                return Center(
+                  child: GestureDetector(
+                    onTap: () async {
+                      // 前两张 banner 点击显示绑定弹窗，天气 banner 不需要点击事件
+                      if (index < 2) {
+                        // 获取点击类型
+                        final clickType = index == 0 ? '定位' : '足迹';
 
-                    // index == 0: 定位 banner
-                    // index == 1: 足迹 banner
-                    // index == 2: 天气 banner
-                    if (index == 0) {
-                      return KissuBannerBuilder.buildLocationBannerWidget(
-                        isBound: false,
-                        isVip: isVip,
-                        userAvatarUrl: userAvatarUrl,
-                        travelTool: controller.travelTool.value,
-                        width: 302,
-                        height: 83,
-                      );
-                    } else if (index == 1) {
-                      return KissuBannerBuilder.buildFootprintBannerWidget(
-                        isBound: false,
-                        isVip: isVip,
-                        userAvatarUrl: userAvatarUrl,
-                        width: 302,
-                        height: 83,
-                      );
-                    } else {
-                      // 天气 banner
-                      return KissuBannerBuilder.buildWeatherBannerWidget(
-                        weatherIconUrl: controller.weatherIconUrl.value,
-                        weather: controller.weather.value,
-                        minTemp: controller.minTemp.value,
-                        maxTemp: controller.maxTemp.value,
-                        currentTemp: controller.currentTemp.value,
-                        isLoading: controller.isWeatherLoading.value,
-                        width: 302,
-                        height: 83,
-                      );
-                    }
-                  }),
-                ),
-              );
-            },
-            autoplay: true,
-            loop: true,
-            itemCount: 3, // 3 张 banner
-            viewportFraction: 1,
-            // 移除内置的pagination
-            onIndexChanged: (index) {
-              controller.currentSwiperIndex.value = index;
-              // 索引变化后，重置手动滑动标记为 false（自动播放）
-              // 如果是手动滑动，会在 onTap 之前被 GestureDetector 的 onPanDown 捕获
-              Future.delayed(const Duration(milliseconds: 100), () {
-                controller.isBannerManuallyDragged.value = false;
-              });
-            },
+                        // 上报埋点：屏视图 Banner 点击
+                        await TrackingService.trackHomeBannerClick(
+                          isDrag: controller.isBannerManuallyDragged.value,
+                          clickType: clickType,
+                          isVip: UserManager.isVip,
+                          isBind: false, // 未绑定状态
+                        );
+
+                        CustomBottomDialog.show(
+                          context: context,
+                          caller: BindingDialogCaller.home,
+                        );
+                      }
+                    },
+                    child: Obx(() {
+                      // 获取当前用户的 VIP 状态
+                      final isVip = UserManager.isVip;
+                      final userAvatarUrl = controller.userAvatar.value;
+
+                      // index == 0: 定位 banner
+                      // index == 1: 足迹 banner
+                      // index == 2: 天气 banner
+                      if (index == 0) {
+                        return KissuBannerBuilder.buildLocationBannerWidget(
+                          isBound: false,
+                          isVip: isVip,
+                          userAvatarUrl: userAvatarUrl,
+                          travelTool: controller.travelTool.value,
+                          width: 302,
+                          height: 83,
+                        );
+                      } else if (index == 1) {
+                        return KissuBannerBuilder.buildFootprintBannerWidget(
+                          isBound: false,
+                          isVip: isVip,
+                          userAvatarUrl: userAvatarUrl,
+                          width: 302,
+                          height: 83,
+                        );
+                      } else {
+                        // 天气 banner
+                        return KissuBannerBuilder.buildWeatherBannerWidget(
+                          weatherIconUrl: controller.weatherIconUrl.value,
+                          weather: controller.weather.value,
+                          minTemp: controller.minTemp.value,
+                          maxTemp: controller.maxTemp.value,
+                          currentTemp: controller.currentTemp.value,
+                          isLoading: controller.isWeatherLoading.value,
+                          width: 302,
+                          height: 83,
+                        );
+                      }
+                    }),
+                  ),
+                );
+              },
+              autoplay: true,
+              loop: true,
+              itemCount: 3, // 3 张 banner
+              viewportFraction: 1,
+              // 移除内置的pagination
+              onIndexChanged: (index) {
+                controller.currentSwiperIndex.value = index;
+                // 索引变化后，重置手动滑动标记为 false（自动播放）
+                // 如果是手动滑动，会在 onTap 之前被 GestureDetector 的 onPanDown 捕获
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  controller.isBannerManuallyDragged.value = false;
+                });
+              },
             ),
           ),
         ),
@@ -450,99 +455,100 @@ class _KissuHomePageState extends State<KissuHomePage>
             },
             child: Swiper(
               itemBuilder: (BuildContext context, int index) {
-              return Center(
-                child: GestureDetector(
-                  onTap: () async {
-                    // 前两张 banner 点击跳转到对应页面，天气 banner 不需要点击事件
-                    if (index == 0) {
-                      // 获取点击类型
-                      final clickType = '定位';
-                      
-                      // 上报埋点：屏视图 Banner 点击
-                      await TrackingService.trackHomeBannerClick(
-                        isDrag: controller.isBannerManuallyDragged.value,
-                        clickType: clickType,
-                        isVip: UserManager.isVip,
-                        isBind: true, // 已绑定状态
-                      );
-                      
-                      // 定位banner - 添加会员检查
-                      VipNavigationHelper.navigateToLocationWithVipCheck();
-                    } else if (index == 1) {
-                      // 获取点击类型
-                      final clickType = '足迹';
-                      
-                      // 上报埋点：屏视图 Banner 点击
-                      await TrackingService.trackHomeBannerClick(
-                        isDrag: controller.isBannerManuallyDragged.value,
-                        clickType: clickType,
-                        isVip: UserManager.isVip,
-                        isBind: true, // 已绑定状态
-                      );
-                      
-                      Get.to(() => TrackPage(), binding: TrackBinding());
-                    }
-                  },
-                  child: Obx(() {
-                    // 获取当前用户的 VIP 状态
-                    final isVip = UserManager.isVip;
-                    final userAvatarUrl = controller.userAvatar.value;
-                    final partnerAvatarUrl = controller.partnerAvatar.value;
+                return Center(
+                  child: GestureDetector(
+                    onTap: () async {
+                      // 前两张 banner 点击跳转到对应页面，天气 banner 不需要点击事件
+                      if (index == 0) {
+                        // 获取点击类型
+                        final clickType = '定位';
 
-                    // index == 0: 定位 banner
-                    // index == 1: 足迹 banner
-                    // index == 2: 天气 banner
-                    if (index == 0) {
-                      return KissuBannerBuilder.buildLocationBannerWidget(
-                        isBound: true,
-                        isVip: isVip,
-                        userAvatarUrl: userAvatarUrl,
-                        partnerAvatarUrl: partnerAvatarUrl,
-                        distance: controller.distance.value,
-                        travelTool: controller.travelTool.value,
-                        width: 302,
-                        height: 83,
-                      );
-                    } else if (index == 1) {
-                      return KissuBannerBuilder.buildFootprintBannerWidget(
-                        isBound: true,
-                        isVip: isVip,
-                        userAvatarUrl: userAvatarUrl,
-                        partnerAvatarUrl: partnerAvatarUrl,
-                        footprintCount: controller.stayCount.value, // 显示实际的足迹数量
-                        width: 302,
-                        height: 83,
-                      );
-                    } else {
-                      // 天气 banner
-                      return KissuBannerBuilder.buildWeatherBannerWidget(
-                        weatherIconUrl: controller.weatherIconUrl.value,
-                        weather: controller.weather.value,
-                        minTemp: controller.minTemp.value,
-                        maxTemp: controller.maxTemp.value,
-                        currentTemp: controller.currentTemp.value,
-                        isLoading: controller.isWeatherLoading.value,
-                        width: 302,
-                        height: 83,
-                      );
-                    }
-                  }),
-                ),
-              );
-            },
-            autoplay: true,
-            loop: true,
-            itemCount: 3, // 3 张 banner
-            viewportFraction: 1,
-            // 移除内置的pagination
-            onIndexChanged: (index) {
-              controller.currentSwiperIndex.value = index;
-              // 索引变化后，重置手动滑动标记为 false（自动播放）
-              // 如果是手动滑动，会在 onTap 之前被 GestureDetector 的 onPanDown 捕获
-              Future.delayed(const Duration(milliseconds: 100), () {
-                controller.isBannerManuallyDragged.value = false;
-              });
-            },
+                        // 上报埋点：屏视图 Banner 点击
+                        await TrackingService.trackHomeBannerClick(
+                          isDrag: controller.isBannerManuallyDragged.value,
+                          clickType: clickType,
+                          isVip: UserManager.isVip,
+                          isBind: true, // 已绑定状态
+                        );
+
+                        // 定位banner - 添加会员检查
+                        VipNavigationHelper.navigateToLocationWithVipCheck();
+                      } else if (index == 1) {
+                        // 获取点击类型
+                        final clickType = '足迹';
+
+                        // 上报埋点：屏视图 Banner 点击
+                        await TrackingService.trackHomeBannerClick(
+                          isDrag: controller.isBannerManuallyDragged.value,
+                          clickType: clickType,
+                          isVip: UserManager.isVip,
+                          isBind: true, // 已绑定状态
+                        );
+
+                        Get.to(() => TrackPage(), binding: TrackBinding());
+                      }
+                    },
+                    child: Obx(() {
+                      // 获取当前用户的 VIP 状态
+                      final isVip = UserManager.isVip;
+                      final userAvatarUrl = controller.userAvatar.value;
+                      final partnerAvatarUrl = controller.partnerAvatar.value;
+
+                      // index == 0: 定位 banner
+                      // index == 1: 足迹 banner
+                      // index == 2: 天气 banner
+                      if (index == 0) {
+                        return KissuBannerBuilder.buildLocationBannerWidget(
+                          isBound: true,
+                          isVip: isVip,
+                          userAvatarUrl: userAvatarUrl,
+                          partnerAvatarUrl: partnerAvatarUrl,
+                          distance: controller.distance.value,
+                          travelTool: controller.travelTool.value,
+                          width: 302,
+                          height: 83,
+                        );
+                      } else if (index == 1) {
+                        return KissuBannerBuilder.buildFootprintBannerWidget(
+                          isBound: true,
+                          isVip: isVip,
+                          userAvatarUrl: userAvatarUrl,
+                          partnerAvatarUrl: partnerAvatarUrl,
+                          footprintCount:
+                              controller.stayCount.value, // 显示实际的足迹数量
+                          width: 302,
+                          height: 83,
+                        );
+                      } else {
+                        // 天气 banner
+                        return KissuBannerBuilder.buildWeatherBannerWidget(
+                          weatherIconUrl: controller.weatherIconUrl.value,
+                          weather: controller.weather.value,
+                          minTemp: controller.minTemp.value,
+                          maxTemp: controller.maxTemp.value,
+                          currentTemp: controller.currentTemp.value,
+                          isLoading: controller.isWeatherLoading.value,
+                          width: 302,
+                          height: 83,
+                        );
+                      }
+                    }),
+                  ),
+                );
+              },
+              autoplay: true,
+              loop: true,
+              itemCount: 3, // 3 张 banner
+              viewportFraction: 1,
+              // 移除内置的pagination
+              onIndexChanged: (index) {
+                controller.currentSwiperIndex.value = index;
+                // 索引变化后，重置手动滑动标记为 false（自动播放）
+                // 如果是手动滑动，会在 onTap 之前被 GestureDetector 的 onPanDown 捕获
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  controller.isBannerManuallyDragged.value = false;
+                });
+              },
             ),
           ),
         ),
@@ -688,7 +694,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                       isVip: UserManager.isVip,
                       isBind: controller.isBound.value,
                     );
-                    
+
                     Get.to(() => TrackPage(), binding: TrackBinding());
                   },
                 ),
@@ -706,7 +712,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                       isVip: UserManager.isVip,
                       isBind: controller.isBound.value,
                     );
-                    
+
                     // 距离按钮 - 添加会员检查
                     VipNavigationHelper.navigateToLocationWithVipCheck();
                   },

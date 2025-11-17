@@ -213,3 +213,213 @@ class HalfLocationMobileDevice {
   bool get isConnectedToWifi => isWifi == '1';
 }
 
+/// recordSta 接口响应数据模型
+class MobileUsageRecordStaResponse {
+  final MobileUsageData mobile;
+  final OtherAppData otherApp;
+  final Map<String, dynamic> sensitiveRecords; // 暂时不处理
+
+  MobileUsageRecordStaResponse({
+    required this.mobile,
+    required this.otherApp,
+    required this.sensitiveRecords,
+  });
+
+  factory MobileUsageRecordStaResponse.fromJson(Map<String, dynamic> json) {
+    return MobileUsageRecordStaResponse(
+      mobile: MobileUsageData.fromJson(json['mobile'] ?? {}),
+      otherApp: OtherAppData.fromJson(json['otherApp'] ?? {}),
+      sensitiveRecords: json['sensitiveRecords'] ?? {},
+    );
+  }
+}
+
+/// 手机使用数据
+class MobileUsageData {
+  final TotalUseDuration totalUseDuration;
+  final LastUseDuration lastUseDuration;
+  final TotalUnlock totalUnlock;
+
+  MobileUsageData({
+    required this.totalUseDuration,
+    required this.lastUseDuration,
+    required this.totalUnlock,
+  });
+
+  factory MobileUsageData.fromJson(Map<String, dynamic> json) {
+    return MobileUsageData(
+      totalUseDuration: TotalUseDuration.fromJson(json['totalUseDuration'] ?? {}),
+      lastUseDuration: LastUseDuration.fromJson(json['lastUseDuration'] ?? {}),
+      totalUnlock: TotalUnlock.fromJson(json['totalUnlock'] ?? {}),
+    );
+  }
+}
+
+/// 总使用时长
+class TotalUseDuration {
+  final int minute;
+  final String hour; // "2小时1分钟" 格式
+  final String desc;
+
+  TotalUseDuration({
+    required this.minute,
+    required this.hour,
+    required this.desc,
+  });
+
+  factory TotalUseDuration.fromJson(Map<String, dynamic> json) {
+    return TotalUseDuration(
+      minute: json['minute'] ?? 0,
+      hour: json['hour'] ?? '',
+      desc: json['desc'] ?? '',
+    );
+  }
+
+  /// 解析小时和分钟数字
+  /// 返回 (hours, minutes)
+  (int, int) parseHoursAndMinutes() {
+    // 解析 "2小时1分钟" 格式
+    final hourMatch = RegExp(r'(\d+)小时').firstMatch(hour);
+    final minuteMatch = RegExp(r'(\d+)分钟').firstMatch(hour);
+    
+    final hours = hourMatch != null ? int.tryParse(hourMatch.group(1) ?? '0') ?? 0 : 0;
+    final minutes = minuteMatch != null ? int.tryParse(minuteMatch.group(1) ?? '0') ?? 0 : 0;
+    
+    return (hours, minutes);
+  }
+}
+
+/// 最近使用时长
+class LastUseDuration {
+  final int minute;
+  final String unit;
+
+  LastUseDuration({
+    required this.minute,
+    required this.unit,
+  });
+
+  factory LastUseDuration.fromJson(Map<String, dynamic> json) {
+    return LastUseDuration(
+      minute: json['minute'] ?? 0,
+      unit: json['unit'] ?? '',
+    );
+  }
+}
+
+/// 总解锁次数
+class TotalUnlock {
+  final int count;
+  final String unit;
+
+  TotalUnlock({
+    required this.count,
+    required this.unit,
+  });
+
+  factory TotalUnlock.fromJson(Map<String, dynamic> json) {
+    return TotalUnlock(
+      count: json['count'] ?? 0,
+      unit: json['unit'] ?? '',
+    );
+  }
+}
+
+/// App使用数据
+class OtherAppData {
+  final AppInfo? longestApp;
+  final AppInfo? openMostApp;
+  final LastUseApp? lastUseApp;
+
+  OtherAppData({
+    this.longestApp,
+    this.openMostApp,
+    this.lastUseApp,
+  });
+
+  factory OtherAppData.fromJson(Map<String, dynamic> json) {
+    return OtherAppData(
+      longestApp: json['longestApp'] != null 
+          ? AppInfo.fromJson(json['longestApp']) 
+          : null,
+      openMostApp: json['openMostApp'] != null 
+          ? AppInfo.fromJson(json['openMostApp']) 
+          : null,
+      lastUseApp: json['lastUseApp'] != null 
+          ? LastUseApp.fromJson(json['lastUseApp']) 
+          : null,
+    );
+  }
+}
+
+/// App信息（最长使用、打开次数最多）
+class AppInfo {
+  final String appName;
+  final String appLogo;
+  final int? minute;
+  final String? hour; // "1小时2分钟" 格式
+  final int? count;
+  final String? unit;
+  final String? desc;
+
+  AppInfo({
+    required this.appName,
+    required this.appLogo,
+    this.minute,
+    this.hour,
+    this.count,
+    this.unit,
+    this.desc,
+  });
+
+  factory AppInfo.fromJson(Map<String, dynamic> json) {
+    return AppInfo(
+      appName: json['app_name'] ?? '',
+      appLogo: json['app_logo'] ?? '',
+      minute: json['minute'],
+      hour: json['hour'],
+      count: json['count'],
+      unit: json['unit'],
+      desc: json['desc'],
+    );
+  }
+
+  /// 解析小时和分钟数字（用于 longestApp）
+  /// 返回 (hours, minutes)
+  (int, int) parseHoursAndMinutes() {
+    if (hour == null || hour!.isEmpty) {
+      return (0, 0);
+    }
+    
+    // 解析 "1小时2分钟" 格式
+    final hourMatch = RegExp(r'(\d+)小时').firstMatch(hour!);
+    final minuteMatch = RegExp(r'(\d+)分钟').firstMatch(hour!);
+    
+    final hours = hourMatch != null ? int.tryParse(hourMatch.group(1) ?? '0') ?? 0 : 0;
+    final minutes = minuteMatch != null ? int.tryParse(minuteMatch.group(1) ?? '0') ?? 0 : 0;
+    
+    return (hours, minutes);
+  }
+}
+
+/// 最近使用的App
+class LastUseApp {
+  final String appName;
+  final String appLogo;
+  final String time; // "11:19" 格式
+
+  LastUseApp({
+    required this.appName,
+    required this.appLogo,
+    required this.time,
+  });
+
+  factory LastUseApp.fromJson(Map<String, dynamic> json) {
+    return LastUseApp(
+      appName: json['app_name'] ?? '',
+      appLogo: json['app_logo'] ?? '',
+      time: json['time'] ?? '',
+    );
+  }
+}
+

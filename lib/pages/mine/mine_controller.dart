@@ -4,7 +4,7 @@ import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
- // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+// import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -56,6 +56,7 @@ class MineController extends GetxController {
     // 添加会员检查
     VipNavigationHelper.navigateToLocationWithVipCheck();
   }
+
   void onTrackTap() {
     Get.to(
       () => TrackPage(),
@@ -63,6 +64,7 @@ class MineController extends GetxController {
       transition: Transition.rightToLeft,
     );
   }
+
   void onHisstoryTap() {
     // 跳转到新的用机记录页面
     Get.toNamed(KissuRoutePath.deviceUsage);
@@ -79,7 +81,7 @@ class MineController extends GetxController {
 
   // 页面浏览时长统计
   DateTime? _pageEnterTime;
-  
+
   // 滑动相关
   late ScrollController scrollController;
   var scrollTimes = 0.obs; // 滑动次数
@@ -94,13 +96,13 @@ class MineController extends GetxController {
     super.onInit();
     _initSettingItems();
     _initCommonFunctionItems();
-    
+
     // 初始化滚动控制器
     scrollController = ScrollController();
-    
+
     // 记录页面进入时间（用于计算停留时长）
     _pageEnterTime = DateTime.now();
-    
+
     // 先加载本地用户信息（立即显示）
     loadUserInfo();
     // 然后静默刷新用户信息
@@ -108,7 +110,7 @@ class MineController extends GetxController {
     // 检查权限状态
     checkAllPermissions();
   }
-  
+
   @override
   void onReady() {
     super.onReady();
@@ -119,10 +121,10 @@ class MineController extends GetxController {
   void onClose() {
     // 上报页面浏览埋点
     _trackPageView();
-    
+
     // 释放滚动控制器
     scrollController.dispose();
-    
+
     super.onClose();
   }
 
@@ -133,7 +135,7 @@ class MineController extends GetxController {
       if (!hasScrolled.value) {
         hasScrolled.value = true;
       }
-      
+
       // 滑动距离超过 10 像素时，计数一次
       if (notification.scrollDelta!.abs() > 10) {
         scrollTimes.value++;
@@ -145,26 +147,28 @@ class MineController extends GetxController {
   /// 上报页面浏览埋点
   Future<void> _trackPageView() async {
     if (_pageEnterTime == null) return;
-    
+
     try {
       // 计算停留时长
       final duration = DateTime.now().difference(_pageEnterTime!);
       final seconds = duration.inSeconds;
       final stayDuration = '${seconds}s';
-      
+
       // 上报埋点
       await TrackingService.trackMyPageView(
         stayDuration: stayDuration,
         canScroll: hasScrolled.value,
         scrollTimes: scrollTimes.value,
       );
-      
-      debugPrint('✅ 我的页面浏览埋点上报成功: 停留时长=$stayDuration, 是否滑动=${hasScrolled.value}, 滑动次数=${scrollTimes.value}');
+
+      debugPrint(
+        '✅ 我的页面浏览埋点上报成功: 停留时长=$stayDuration, 是否滑动=${hasScrolled.value}, 滑动次数=${scrollTimes.value}',
+      );
     } catch (e) {
       debugPrint('❌ 我的页面浏览埋点上报失败: $e');
     }
   }
-  
+
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
     debugPrint('👤 我的页面重新获得焦点，静默刷新用户信息');
@@ -179,20 +183,25 @@ class MineController extends GetxController {
   Future<void> checkAllPermissions() async {
     try {
       final permissions = await _permissionService.checkAllPermissions();
-      
+
       // 检查4个关键权限是否全部开启
       final isLocationGranted = permissions[PermissionType.location] ?? false;
-      final isNotificationGranted = permissions[PermissionType.notification] ?? false;
+      final isNotificationGranted =
+          permissions[PermissionType.notification] ?? false;
       final isBatteryOptimized = permissions[PermissionType.battery] ?? false;
       final isUsageAccessGranted = permissions[PermissionType.usage] ?? false;
-      
+
       // 只有当4个权限都开启时，才设置为true
-      areAllPermissionsGranted.value = isLocationGranted && 
-                                       isNotificationGranted && 
-                                       isBatteryOptimized && 
-                                       isUsageAccessGranted;
-      
-      logDebug('权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted', tag: 'Mine');
+      areAllPermissionsGranted.value =
+          isLocationGranted &&
+          isNotificationGranted &&
+          isBatteryOptimized &&
+          isUsageAccessGranted;
+
+      logDebug(
+        '权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted',
+        tag: 'Mine',
+      );
       logDebug('所有权限是否全部开启: ${areAllPermissionsGranted.value}', tag: 'Mine');
     } catch (e) {
       logError('检查权限状态失败: $e', tag: 'Mine', error: e);
@@ -200,7 +209,7 @@ class MineController extends GetxController {
       areAllPermissionsGranted.value = false;
     }
   }
-  
+
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
@@ -218,32 +227,30 @@ class MineController extends GetxController {
   void loadUserInfo() {
     // 使用 UserManager 统一获取用户基本信息
     final userInfo = UserManager.getUserBasicInfo();
-    
+
     // 基础信息
     nickname.value = userInfo['nickname'];
     partnerNickname.value = userInfo['partnerNickname'];
     matchCode.value = userInfo['matchCode'];
-    userAvatar.value = userInfo['avatar'].isNotEmpty 
-      ? userInfo['avatar'] 
-      : '';
-    
+    userAvatar.value = userInfo['avatar'].isNotEmpty ? userInfo['avatar'] : '';
+
     // 调试输出
     debugPrint('👤 我的页面用户信息：');
     debugPrint('   昵称: ${nickname.value}');
     debugPrint('   另一半昵称: ${partnerNickname.value}');
     debugPrint('   绑定状态: ${userInfo['isBound']}');
-    
+
     // 绑定状态
     isBound.value = userInfo['isBound'];
-    
+
     if (isBound.value) {
       // 已绑定状态
-      partnerAvatar.value = userInfo['partnerAvatar'].isNotEmpty 
-        ? userInfo['partnerAvatar'] 
-        : "assets/kissu_home_add_avair.webp";
+      partnerAvatar.value = userInfo['partnerAvatar'].isNotEmpty
+          ? userInfo['partnerAvatar']
+          : "assets/kissu_home_add_avair.webp";
       bindDate.value = userInfo['bindDate'];
       days.value = userInfo['days'];
-      
+
       // 如果有用户对象，继续处理绑定状态的其他数据
       final user = UserManager.currentUser;
       if (user != null) {
@@ -269,7 +276,7 @@ class MineController extends GetxController {
   void _handleBoundState(user) {
     // 处理绑定日期和恋爱天数
     _handleDateAndDays(user);
-    
+
     // 处理另一半头像
     _handlePartnerAvatar(user);
   }
@@ -348,7 +355,7 @@ class MineController extends GetxController {
 
     isVip.value = vipStatus == 1;
     isForeverVip.value = foreverVipStatus == 1;
-    
+
     // 设置会员到期日期
     vipEndDate.value = user.vipEndDate ?? "";
 
@@ -387,16 +394,16 @@ class MineController extends GetxController {
         title: "实时定位",
         onTap: () => onLocationTap(),
       ),
-      // CommonFunctionItem(
-      //   icon: "assets/4.0/kissu4_mine_app_time.webp",
-      //   title: "app使用记录",
-      //   onTap: () => _onAppUsageRecordTap(),
-      // ),
-      // CommonFunctionItem(
-      //   icon: "assets/4.0/kissu4_mine_history.webp",
-      //   title: "用机记录",
-      //   onTap: () => onHisstoryTap(),
-      // ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_app_time.webp",
+        title: "app使用记录",
+        onTap: () => _onAppUsageRecordTap(),
+      ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_history.webp",
+        title: "用机记录",
+        onTap: () => onHisstoryTap(),
+      ),
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_track.webp",
         title: "足迹",
@@ -407,24 +414,24 @@ class MineController extends GetxController {
         title: "酒店防偷拍",
         onTap: () => _onAntiSpyTap(),
       ),
-      // CommonFunctionItem(
-      //   icon: "assets/4.0/kissu4_mine_newhome.webp",
-      //   title: "个性化首页",
-      //   onTap: () => _onPersonalizedHomeTap(),
-      // ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_newhome.webp",
+        title: "个性化首页",
+        onTap: () => _onPersonalizedHomeTap(),
+      ),
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_change_homeview.webp",
         title: "更换首页视图",
         onTap: () => _onChangeHomeViewTap(),
       ),
-      // CommonFunctionItem(
-      //   icon: "assets/4.0/kissu4_mine_change_logo.webp",
-      //   title: "更换app图标",
-      //   onTap: () => _onChangeAppIconTap(),
-      // ),
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_change_logo.webp",
+        title: "更换app图标",
+        onTap: () => _onChangeAppIconTap(),
+      ),
     ];
   }
-  
+
   void _initSettingItems() {
     settingItems = [
       // SettingItem(
@@ -462,7 +469,7 @@ class MineController extends GetxController {
       //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
       //   title: "屏幕使用测试",
       //   onTap: () => Get.toNamed(KissuRoutePath.trackPlayTest),
-        
+
       // ),
       // SettingItem(
       //   icon: "assets/kissu_mine_item_syst.webp",
@@ -487,19 +494,16 @@ class MineController extends GetxController {
         title: "联系我们",
         onTap: _onContactTap,
       ),
-     
+
       SettingItem(
         icon: "assets/4.0/kissu4_mine_question.webp",
         title: "常见问题",
-         onTap: () async {
+        onTap: () async {
           await TrackingService.trackFaq();
-          Get.to(
-            QuestionPage(),
-            transition: Transition.rightToLeft,
-          );
+          Get.to(QuestionPage(), transition: Transition.rightToLeft);
         },
       ),
-      
+
       SettingItem(
         icon: "assets/4.0/kissu4_feedback.webp",
         title: "意见反馈",
@@ -508,15 +512,12 @@ class MineController extends GetxController {
           Get.toNamed(KissuRoutePath.feedback);
         },
       ),
-       SettingItem(
+      SettingItem(
         icon: "assets/4.0/kissu4_mine_aboutus.webp",
         title: "关于我们",
         onTap: () async {
           await TrackingService.trackAboutUs();
-          Get.to(
-            AboutUsPage(),
-            transition: Transition.rightToLeft,
-          );
+          Get.to(AboutUsPage(), transition: Transition.rightToLeft);
         },
       ),
       // SettingItem(
@@ -538,7 +539,7 @@ class MineController extends GetxController {
     // Get.to(() => const BannerPreviewPage());
     // 测试页面已移除
   }
-  
+
   /// 打开锁屏监听调试页面
   void _onScreenLockDebugTap() {
     Get.to(
@@ -546,14 +547,14 @@ class MineController extends GetxController {
       transition: Transition.rightToLeft,
     );
   }
-  
+
   // /// 屏幕使用测试
   // Future<void> _onScreenUsageTestTap() async {
   //   final permissionService = PermissionService();
-    
+
   //   // 检查权限
   //   final hasPermission = await permissionService.isUsageAccessGranted();
-    
+
   //   if (!hasPermission) {
   //     // 显示权限引导
   //     Get.dialog(
@@ -587,39 +588,37 @@ class MineController extends GetxController {
   //     );
   //     return;
   //   }
-    
+
   //   // 有权限，直接显示数据
   //   _showScreenUsageData();
   // }
-  
+
   /// 显示屏幕使用数据
   Future<void> _showScreenUsageData() async {
     final screenUsageService = ScreenUsageService();
-    
+
     // 显示加载中
     Get.dialog(
-      const Center(
-        child: CircularProgressIndicator(),
-      ),
+      const Center(child: CircularProgressIndicator()),
       barrierDismissible: false,
     );
-    
+
     try {
       // 获取今日屏幕使用时长
       final todayMs = await screenUsageService.getTodayScreenTime();
       final todayMinutes = (todayMs / (1000 * 60)).round();
       final todayHours = todayMinutes ~/ 60;
       final todayMins = todayMinutes % 60;
-      
+
       // 获取今日应用使用详情（前5个）
       final appStats = await screenUsageService.getTodayAppUsageStats(limit: 5);
-      
+
       // 获取今日解锁次数
       final unlockCount = await screenUsageService.getTodayUnlockCount();
-      
+
       // 关闭加载
       Get.back();
-      
+
       // 构建应用列表文本
       String appListText = '';
       if (appStats.isNotEmpty) {
@@ -632,7 +631,7 @@ class MineController extends GetxController {
       } else {
         appListText = '\n暂无应用使用数据';
       }
-      
+
       // 显示结果
       Get.dialog(
         AlertDialog(
@@ -665,23 +664,14 @@ class MineController extends GetxController {
                 const SizedBox(height: 16),
                 const Text(
                   '应用使用排行 TOP 5：',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  appListText,
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text(appListText, style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: const Text('关闭'),
-            ),
+            TextButton(onPressed: () => Get.back(), child: const Text('关闭')),
             TextButton(
               onPressed: () {
                 Get.back();
@@ -699,17 +689,14 @@ class MineController extends GetxController {
     } catch (e) {
       // 关闭加载
       Get.back();
-      
+
       // 显示错误
       Get.dialog(
         AlertDialog(
           title: const Text('错误'),
           content: Text('获取屏幕使用数据失败：\n$e'),
           actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: const Text('确定'),
-            ),
+            TextButton(onPressed: () => Get.back(), child: const Text('确定')),
           ],
         ),
       );
@@ -719,16 +706,13 @@ class MineController extends GetxController {
   /// 打开联系渠道（企业微信客服）
   Future<void> openContact() async {
     // 企业微信配置信息
-    const String corpId = 'ww5c345e5aa1a2a697';  // 企业微信ID (ww开头)
-    const String kfId = 'kfcf77b8b4a2a2a61d9';  // 客服 ID
+    const String corpId = 'ww5c345e5aa1a2a697'; // 企业微信ID (ww开头)
+    const String kfId = 'kfcf77b8b4a2a2a61d9'; // 客服 ID
 
     try {
       logDebug('📞 开始拉起企业微信客服', tag: 'Mine');
       // 直接使用客服ID拉起会话
-      await PermissionHelper.openWeComKfWithParams(
-        corpId: corpId,
-        kfId: kfId,
-      );
+      await PermissionHelper.openWeComKfWithParams(corpId: corpId, kfId: kfId);
       logDebug('✅ 企业微信客服拉起成功', tag: 'Mine');
     } catch (e) {
       logError('❌ 拉起企业微信客服失败: $e', tag: 'Mine', error: e);
@@ -747,21 +731,15 @@ class MineController extends GetxController {
   void onSettingTap() async {
     // 上报账号及隐私安全点击埋点
     await TrackingService.trackAccountPrivacySecurity();
-    Get.to(
-      PrivacySettingPage(),
-      transition: Transition.rightToLeft,
-    );
+    Get.to(PrivacySettingPage(), transition: Transition.rightToLeft);
   }
 
   // 点击恋爱信息标签
   void onLabelTap() async {
     // 上报恋爱信息入口点击埋点
     await TrackingService.trackEditInfoPage();
-    
-    await Get.to(
-      LoveInfoPage(),
-      transition: Transition.rightToLeft,
-    );
+
+    await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
     // 从恋爱信息页面返回时，刷新我的页面
     onPageResumed();
   }
@@ -784,7 +762,7 @@ class MineController extends GetxController {
     if (!isBound.value) {
       // 上报绑定页面点击埋点
       await TrackingService.trackMyBindPage();
-      
+
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
@@ -794,12 +772,9 @@ class MineController extends GetxController {
     } else {
       // 上报恋爱信息入口点击埋点
       await TrackingService.trackEditInfoPage();
-      
+
       // 如果已绑定，跳转到恋爱信息页面
-      await Get.to(
-        LoveInfoPage(),
-        transition: Transition.rightToLeft,
-      );
+      await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
       // 从恋爱信息页面返回时，刷新我的页面
       onPageResumed();
     }
@@ -809,18 +784,15 @@ class MineController extends GetxController {
   void onAvatarTap() async {
     logDebug('🔥 头像被点击了！', tag: 'Mine');
     logDebug('🔥 当前绑定状态: ${isBound.value}', tag: 'Mine');
-    
+
     // 如果已绑定，跳转到恋爱信息页面
     if (isBound.value) {
       logDebug('🔥 用户已绑定，跳转到恋爱信息页面', tag: 'Mine');
-      
+
       // 上报恋爱信息入口点击埋点
       await TrackingService.trackEditInfoPage();
-      
-      await Get.to(
-        LoveInfoPage(),
-        transition: Transition.rightToLeft,
-      );
+
+      await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
       // 从恋爱信息页面返回时，刷新我的页面
       onPageResumed();
     } else {
@@ -838,10 +810,10 @@ class MineController extends GetxController {
       if (success) {
         // 刷新成功后重新加载页面数据
         loadUserInfo();
-        
+
         // 同时刷新用机记录页面数据（如果绑定状态发生变化）
         _refreshUsageReportPage();
-        
+
         // 下拉刷新时不显示snackbar，避免界面干扰
         if (!isRefreshing.value) {
           OKToastUtil.show('用户信息已更新');
@@ -851,7 +823,7 @@ class MineController extends GetxController {
       }
     } catch (e) {
       logError('刷新用户信息失败: $e', tag: 'Mine', error: e);
-       OKToastUtil.show('刷新用户信息失败: $e');
+      OKToastUtil.show('刷新用户信息失败: $e');
     }
   }
 
@@ -862,16 +834,16 @@ class MineController extends GetxController {
     // 如果未绑定，弹出绑定弹窗
     if (!isBound.value) {
       logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
-      
+
       // 上报绑定页面点击埋点
       await TrackingService.trackMyBindPage();
-      
+
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
           caller: BindingDialogCaller.mine,
-          isDismissible: false,  // 禁用点击背景关闭
-          enableDrag: false,     // 禁用向下滑动关闭
+          isDismissible: false, // 禁用点击背景关闭
+          enableDrag: false, // 禁用向下滑动关闭
           onCloseConfirm: () async {
             // 点击关闭按钮时，弹出二次确认弹窗
             return await _showBindingCloseConfirmDialog();
@@ -887,34 +859,28 @@ class MineController extends GetxController {
     if (isForeverVip.value) {
       // 永久会员，跳转到权益页面
       logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
-      
+
       // 上报开通会员点击埋点（终身会员页面）
       await TrackingService.trackMyOpenMembership(vipPageType: '终身会员页面');
-      
+
       Get.toNamed(
         KissuRoutePath.foreverVip,
-        arguments: {
-          'previousPageName': '我的页面',
-          'previousPageId': 'my_page',
-        },
+        arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
       );
     } else {
       // 普通会员或非会员，跳转到VIP页面
       logDebug('💫 普通会员或非会员，跳转到VIP页面', tag: 'Mine');
-      
+
       // 上报开通会员点击埋点（会员页面）
       await TrackingService.trackMyOpenMembership(vipPageType: '会员页面');
-      
+
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {
-          'previousPageName': '我的页面',
-          'previousPageId': 'my_page',
-        },
+        arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
       );
-     }
+    }
   }
-  
+
   /// 显示绑定弹窗关闭确认弹窗
   /// 返回 true 表示用户选择关闭绑定弹窗，返回 false 表示继续留在绑定弹窗
   Future<bool> _showBindingCloseConfirmDialog() async {
@@ -926,7 +892,7 @@ class MineController extends GetxController {
       }
 
       debugPrint('💬 显示绑定弹窗关闭确认');
-      
+
       // 使用 BindingCloseConfirmDialog
       final result = await BindingCloseConfirmDialog.show(
         context: currentContext,
@@ -940,7 +906,7 @@ class MineController extends GetxController {
           debugPrint('💬 用户点击"立即绑定"，保持绑定弹窗显示');
         },
       );
-      
+
       // result 为 true 表示点击了"再想想"，应该关闭绑定弹窗
       // result 为 false 表示点击了"立即绑定"，不关闭绑定弹窗
       // result 为 null 表示点击了背景或其他方式关闭，默认不关闭绑定弹窗
@@ -1028,7 +994,7 @@ class MineController extends GetxController {
     await TrackingService.trackMyShare();
     ShareBottomSheet.showShareApp(Get.context!);
   }
-  
+
   /// 防偷拍检测点击事件
   void _onAntiSpyTap() async {
     // 上报防偷拍检查点击埋点
@@ -1042,7 +1008,7 @@ class MineController extends GetxController {
     await TrackingService.trackContactCustomerService();
     openContact();
   }
-  
+
   /// app使用记录点击事件
   void _onAppUsageRecordTap() {
     Get.to(
@@ -1051,22 +1017,19 @@ class MineController extends GetxController {
       transition: Transition.rightToLeft,
     );
   }
-  
+
   /// 个性化首页点击事件
   void _onPersonalizedHomeTap() {
     // TODO: 实现个性化首页功能
     OKToastUtil.show('个性化首页功能开发中');
   }
-  
+
   /// 更换首页视图点击事件
   void _onChangeHomeViewTap() async {
     await TrackingService.trackHomeView();
-    Get.to(
-      SettingHomePage(),
-      transition: Transition.rightToLeft,
-    );
+    Get.to(SettingHomePage(), transition: Transition.rightToLeft);
   }
-  
+
   /// 更换app图标点击事件
   void _onChangeAppIconTap() {
     Get.toNamed(KissuRoutePath.appIconSelector);
@@ -1076,9 +1039,9 @@ class MineController extends GetxController {
   Future<void> _testOaid() async {
     try {
       OKToastUtil.show('正在获取 OAID...');
-      
+
       final oaid = await OaidUtil.instance.getOaid();
-      
+
       if (oaid != null && oaid.isNotEmpty) {
         logger.info('OAID 获取成功: $oaid');
         Get.dialog(
@@ -1086,10 +1049,7 @@ class MineController extends GetxController {
             title: const Text('OAID 获取成功'),
             content: SelectableText('OAID: $oaid'),
             actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text('确定'),
-              ),
+              TextButton(onPressed: () => Get.back(), child: const Text('确定')),
             ],
           ),
         );

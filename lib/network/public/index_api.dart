@@ -13,6 +13,7 @@ class IndexResponseModel {
   final UserData user;
   final PhotoData photo;
   final WeatherData weather;
+  final VipData? vipData;
 
   IndexResponseModel({
     required this.isRedDot,
@@ -23,6 +24,7 @@ class IndexResponseModel {
     required this.user,
     required this.photo,
     required this.weather,
+    this.vipData,
   });
 
   factory IndexResponseModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,9 @@ class IndexResponseModel {
       user: UserData.fromJson(json['user'] ?? {}),
       photo: PhotoData.fromJson(json['photo'] ?? {}),
       weather: WeatherData.fromJson(json['weather'] ?? {}),
+      vipData: json['vip_data'] != null
+          ? VipData.fromJson(json['vip_data'])
+          : null,
     );
   }
 }
@@ -127,13 +132,26 @@ class UserData {
 class PhotoData {
   final String photoWall;
 
-  PhotoData({
-    required this.photoWall,
-  });
+  PhotoData({required this.photoWall});
 
   factory PhotoData.fromJson(Map<String, dynamic> json) {
-    return PhotoData(
-      photoWall: json['photo_wall'] ?? '',
+    return PhotoData(photoWall: json['photo_wall'] ?? '');
+  }
+}
+
+/// VIP数据模型
+class VipData {
+  final int type;
+  final String desc;
+  final int expireDays;
+
+  VipData({required this.type, required this.desc, required this.expireDays});
+
+  factory VipData.fromJson(Map<String, dynamic> json) {
+    return VipData(
+      type: json['type'] ?? 0,
+      desc: json['desc'] ?? '',
+      expireDays: json['expireDays'] ?? 0,
     );
   }
 }
@@ -143,15 +161,18 @@ class WeatherData {
   final List<WeatherBase> base;
   final List<WeatherAll> all;
 
-  WeatherData({
-    required this.base,
-    required this.all,
-  });
+  WeatherData({required this.base, required this.all});
 
   factory WeatherData.fromJson(Map<String, dynamic> json) {
     return WeatherData(
-      base: (json['base'] as List?)?.map((e) => WeatherBase.fromJson(e)).toList() ?? [],
-      all: (json['all'] as List?)?.map((e) => WeatherAll.fromJson(e)).toList() ?? [],
+      base:
+          (json['base'] as List?)
+              ?.map((e) => WeatherBase.fromJson(e))
+              .toList() ??
+          [],
+      all:
+          (json['all'] as List?)?.map((e) => WeatherAll.fromJson(e)).toList() ??
+          [],
     );
   }
 }
@@ -226,7 +247,11 @@ class WeatherAll {
       adcode: json['adcode'] ?? '',
       province: json['province'] ?? '',
       reporttime: json['reporttime'] ?? '',
-      casts: (json['casts'] as List?)?.map((e) => WeatherCast.fromJson(e)).toList() ?? [],
+      casts:
+          (json['casts'] as List?)
+              ?.map((e) => WeatherCast.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }
@@ -285,7 +310,7 @@ class IndexApi {
   Future<HttpResultN<IndexResponseModel>> getIndexData() async {
     try {
       DebugUtil.info('🏠 开始请求首页数据...');
-      
+
       final result = await HttpManagerN.instance.executeGet(
         '/index',
         paramEncrypt: false,
@@ -297,7 +322,7 @@ class IndexApi {
         final rawJson = result.getDataJson();
         DebugUtil.success('🏠 首页数据请求成功');
         DebugUtil.info('首页数据结构: ${rawJson.keys.toList()}');
-        
+
         return result.convert(data: IndexResponseModel.fromJson(rawJson));
       } else {
         DebugUtil.error('🏠 首页数据请求失败: ${result.msg}');

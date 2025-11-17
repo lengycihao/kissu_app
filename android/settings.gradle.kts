@@ -10,7 +10,27 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
-        google()
+        // 优先使用阿里云镜像，避免TLS连接问题
+        maven { 
+            url = uri("https://maven.aliyun.com/repository/public")
+            isAllowInsecureProtocol = false
+        }
+        maven { 
+            url = uri("https://maven.aliyun.com/repository/google")
+            isAllowInsecureProtocol = false
+        }
+        maven { 
+            url = uri("https://maven.aliyun.com/repository/gradle-plugin")
+            isAllowInsecureProtocol = false
+        }
+        
+        // 腾讯云镜像作为备选
+        maven { 
+            url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
+            isAllowInsecureProtocol = false
+        }
+        
+        // 备选仓库（不使用google()避免TLS问题）
         mavenCentral()
         gradlePluginPortal()
     }

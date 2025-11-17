@@ -164,7 +164,7 @@ class DialogManager {
   static Future<void> showVipPurchase({
     required BuildContext context,
     VoidCallback? onConfirm,
-    bool barrierDismissible = true,
+    bool barrierDismissible = false, // 默认不允许点击背景关闭
   }) {
     return VipPurchaseDialog.show(
       context: context,

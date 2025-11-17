@@ -5,8 +5,8 @@ import 'package:kissu_app/pages/mine/mine_binding.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
-import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
-import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
+import 'package:kissu_app/pages/mine/device_usage/device_usage_page.dart';
+import 'package:kissu_app/pages/mine/device_usage/device_usage_binding.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -35,6 +35,8 @@ import 'dart:async';
 import 'package:kissu_app/services/version_service.dart';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
+import 'package:intl/intl.dart';
 
 
 class HomeController extends GetxController {
@@ -579,6 +581,9 @@ class HomeController extends GetxController {
         // 更新天气数据
         _updateWeatherData(indexData.weather);
         
+        // 检查是否需要弹出VIP到期弹窗
+        _checkAndShowVipOuttimeDialog(indexData.vipData);
+        
         debugPrint('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
       } else {
         debugPrint('❌ 首页数据加载失败: ${result.msg}');
@@ -928,8 +933,8 @@ class HomeController extends GetxController {
       case 2:
         // 用机记录 - 返回时刷新首页数据
         await Get.to(
-          () => const UsageReportPage(),
-          binding: UsageReportBinding(),
+          () => const DeviceUsagePage(),
+          binding: DeviceUsageBinding(),
           transition: Transition.downToUp,
         );
         debugPrint('🔙 从用机记录页面返回首页，刷新数据');
@@ -1664,6 +1669,71 @@ class HomeController extends GetxController {
     } catch (e) {
       debugPrint('❌ 天气数据解析异常: $e');
       isWeatherLoading.value = false;
+    }
+  }
+
+  /// 检查并显示VIP到期弹窗
+  Future<void> _checkAndShowVipOuttimeDialog(VipData? vipData) async {
+    try {
+      // 检查是否有 vip_data 且 type == 1
+      if (vipData == null || vipData.type != 1) {
+        return;
+      }
+
+      // 检查 expireDays 是否为 1、3、7
+      if (![1, 3, 7].contains(vipData.expireDays)) {
+        return;
+      }
+
+      // 检查今天是否已弹过
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final prefs = await SharedPreferences.getInstance();
+      final lastShowDate = prefs.getString('vip_outtime_dialog_last_show_date');
+      
+      if (lastShowDate == today) {
+        debugPrint('📱 VIP到期弹窗今天已显示过，不再显示');
+        return;
+      }
+
+      // 获取当前上下文
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ 无法获取上下文，延迟显示VIP到期弹窗');
+        // 延迟一下再试
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _checkAndShowVipOuttimeDialog(vipData);
+        });
+        return;
+      }
+
+      // 显示弹窗
+      debugPrint('📱 显示VIP到期弹窗: expireDays=${vipData.expireDays}');
+      final result = await VipOuttimeDialog.show(
+        context: context,
+        expireDays: vipData.expireDays,
+        onRenew: () {
+          debugPrint('📱 用户点击立即续费，跳转到VIP页面');
+          // 跳转到VIP页面
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'previousPageName': '首页',
+              'previousPageId': 'home_page',
+            },
+          );
+        },
+        onLater: () {
+          debugPrint('📱 用户点击下次再说');
+        },
+      );
+
+      // 记录今天已显示
+      if (result != null) {
+        await prefs.setString('vip_outtime_dialog_last_show_date', today);
+        debugPrint('✅ VIP到期弹窗已记录: $today');
+      }
+    } catch (e) {
+      debugPrint('❌ 检查VIP到期弹窗异常: $e');
     }
   }
   

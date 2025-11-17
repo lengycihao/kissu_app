@@ -35,4 +35,5 @@ class KissuRoutePath {
   static const appIconSelector = '/kisssu_app/app_icon_selector';
   static const deviceUsage = '/kisssu_app/device_usage';
   static const appUsageDetail = '/kisssu_app/app_usage_detail';
+  static const appUsage = '/kisssu_app/app_usage';
 }

@@ -14,6 +14,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/discount_bottom_sheet.dart';
 import 'package:kissu_app/widgets/dialogs/vip_cancel_retention_dialog.dart';
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/dialogs/vip_open_success_dialog.dart';
 
 class VipController extends GetxController {
   // Logger实例
@@ -1149,8 +1150,20 @@ class VipController extends GetxController {
       // 这里稍等片刻，让支付服务的刷新操作完成
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // 刷新页面数据并返回上一页
-      await _refreshMinePageAndReturn();
+      // 显示VIP开通成功弹窗，点击"去体验"后再返回
+      if (Get.context != null) {
+        await VipOpenSuccessDialog.show(
+          context: Get.context!,
+          barrierDismissible: false, // 不允许点击背景关闭
+          onExperience: () async {
+            // 点击"去体验"后刷新页面数据并返回上一页
+            await _refreshMinePageAndReturn();
+          },
+        );
+      } else {
+        // 如果context为空，直接返回
+        await _refreshMinePageAndReturn();
+      }
     } catch (e) {
       _logger.e('支付成功后处理异常: $e');
       // 即使出现异常，也要尝试返回上一页

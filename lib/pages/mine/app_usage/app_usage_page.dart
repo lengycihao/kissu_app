@@ -14,65 +14,123 @@ class AppUsagePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: Color(0xFF333333),
-            size: 20,
-          ),
-          onPressed: () => Get.back(),
-        ),
-        title: const Text(
-          'App使用统计',
-          style: TextStyle(
-            color: Color(0xFF333333),
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          // 测试页面入口
-          IconButton(
-            icon: const Icon(
-              Icons.science_outlined,
-              color: Color(0xFFFF839E),
-              size: 24,
+      body: Stack(
+        children: [
+          // 背景渐变层（顶部25%白色，25%到100%白色到#F6F6F6渐变）
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0, 0.10, 1.0],
+                  colors: [Colors.white, Colors.white, const Color(0xFFF6F6F6)],
+                ),
+              ),
             ),
-            onPressed: () => Get.toNamed(KissuRoutePath.dialogShowcase),
-            tooltip: '测试弹窗页面',
+          ),
+          // 背景图片（与顶部对齐）
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // 顶部导航栏
+                _buildTopBar(controller),
+                // 可滚动内容区域
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    child: Column(
+                      children: [
+                        // 权限提示（只在没权限时显示）
+                        Obx(() {
+                          final hasPermission =
+                              controller.hasUsagePermission.value;
+                          if (!hasPermission)
+                            return _buildPermissionBanner(controller);
+                          return const SizedBox();
+                        }),
+
+                        // 日期选择器（最近7天）
+                        _buildDateSelector(controller),
+
+                        const SizedBox(height: 14),
+
+                        // 最近使用App模块
+                        _buildRecentlyUsedApps(controller),
+
+                        const SizedBox(height: 16),
+
+                        // 使用记录模块
+                        _buildUsageRecords(controller),
+
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 权限提示（只在没权限时显示）
-            Obx(() {
-              final hasPermission = controller.hasUsagePermission.value;
-              if (!hasPermission) return _buildPermissionBanner(controller);
-              return const SizedBox();
-            }),
+    );
+  }
 
-            // 日期选择器（最近7天）
-            _buildDateSelector(controller),
-
-            const SizedBox(height: 16),
-
-            // 最近使用App模块
-            _buildRecentlyUsedApps(controller),
-
-            const SizedBox(height: 16),
-
-            // 使用记录模块
-            _buildUsageRecords(controller),
-
-            const SizedBox(height: 20),
-          ],
-        ),
+  /// 顶部导航栏
+  Widget _buildTopBar(AppUsageController controller) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // 返回按钮
+          GestureDetector(
+            onTap: () => Get.back(),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                "assets/4.0/kissu4_back.webp",
+                width: 24,
+                height: 24,
+              ),
+            ),
+          ),
+          // 标题
+          const Expanded(
+            child: Center(
+              child: Text(
+                "App使用统计",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ),
+          ),
+          // 测试页面入口按钮
+          GestureDetector(
+            onTap: () => Get.toNamed(KissuRoutePath.dialogShowcase),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: const Icon(
+                Icons.science_outlined,
+                size: 24,
+                color: Color(0xFFFF839E),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -80,10 +138,10 @@ class AppUsagePage extends StatelessWidget {
   /// 权限提示横幅
   Widget _buildPermissionBanner(AppUsageController controller) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F5),
+        color: const Color(0xFFFFE1F4),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -101,14 +159,14 @@ class AppUsagePage extends StatelessWidget {
               size: 14,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 6),
           Expanded(
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
                 '目前必要权限还未开启，会造成数据显示错误',
-                style: TextStyle(color: const Color(0xFFFF839E), fontSize: 13),
+                style: TextStyle(color: const Color(0xb3000000), fontSize: 12),
                 maxLines: 1,
               ),
             ),
@@ -121,15 +179,15 @@ class AppUsagePage extends StatelessWidget {
                 Text(
                   '去开启',
                   style: TextStyle(
-                    color: Color(0xFFFF839E),
+                    color: Color(0xe6000000),
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(width: 4),
+                SizedBox(width: 2),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: Color(0xFFFF839E),
+                  color: Color(0xe6000000),
                   size: 12,
                 ),
               ],
@@ -151,13 +209,13 @@ class AppUsagePage extends StatelessWidget {
         children: [
           // 日期按钮
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 17),
             child: GestureDetector(
               onTap: () => controller.toggleDatePicker(),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 10,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.black,
@@ -172,17 +230,15 @@ class AppUsagePage extends StatelessWidget {
                           : '${selectedDate.month}月${selectedDate.day}日',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      showPicker
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      color: Colors.white,
-                      size: 20,
+                    const SizedBox(width: 6),
+                    Image.asset(
+                      "assets/4.0/kissu4_app_use_time_more.webp",
+                      width: 9,
+                      height: 9,
                     ),
                   ],
                 ),
@@ -283,7 +339,6 @@ class AppUsagePage extends StatelessWidget {
       // 空数据状态
       if (apps.isEmpty) {
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -294,33 +349,43 @@ class AppUsagePage extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text(
-                    '最近使用App',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
-                    ),
+                  Stack(
+                    children: [
+                      Image.asset(
+                        'assets/4.0/kissu4_app_use_late_tip.webp',
+                        width: 76,
+                        height: 16,
+                        fit: BoxFit.fitWidth,
+                      ),
+                      const Text(
+                        '最近使用App',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'AlimamaShuHeiTi',
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.auto_awesome, size: 16, color: Colors.amber),
+                  Transform.translate(
+                    offset: Offset(-2, -5),
+                    child: Image.asset(
+                      'assets/4.0/kissu4_app_use_tip.webp',
+                      width: 13,
+                      height: 17,
+                    ),
+                  ),
                   const Spacer(),
                   Obx(() {
                     final showCount = controller.showUsageCount.value;
-                    return Row(
-                      children: [
-                        _buildTabButton(
-                          '次数',
-                          showCount,
-                          () => controller.showUsageCount.value = true,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildTabButton(
-                          '分钟',
-                          !showCount,
-                          () => controller.showUsageCount.value = false,
-                        ),
-                      ],
+                    return _buildSegmentedControl(
+                      options: ['次数', '分钟'],
+                      selectedIndex: showCount ? 0 : 1,
+                      onSelected: (index) {
+                        controller.showUsageCount.value = index == 0;
+                      },
                     );
                   }),
                 ],
@@ -354,8 +419,7 @@ class AppUsagePage extends StatelessWidget {
       final displayApps = (showAll || !hasMore) ? apps : apps.take(5).toList();
 
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16).copyWith(bottom: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -365,33 +429,44 @@ class AppUsagePage extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text(
-                  '最近使用App',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF333333),
+                Stack(
+                  children: [
+                    Image.asset(
+                      'assets/4.0/kissu4_app_use_late_tip.webp',
+                      width: 76,
+                      height: 16,
+                      fit: BoxFit.fitWidth,
+                    ),
+                    const Text(
+                      '最近使用App',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: 'AlimamaShuHeiTi',
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(width: 4),
+                Transform.translate(
+                  offset: Offset(-2, -5),
+                  child: Image.asset(
+                    'assets/4.0/kissu4_app_use_tip.webp',
+                    width: 13,
+                    height: 17,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.auto_awesome, size: 16, color: Colors.amber),
                 const Spacer(),
                 Obx(() {
                   final showCount = controller.showUsageCount.value;
-                  return Row(
-                    children: [
-                      _buildTabButton(
-                        '次数',
-                        showCount,
-                        () => controller.showUsageCount.value = true,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildTabButton(
-                        '分钟',
-                        !showCount,
-                        () => controller.showUsageCount.value = false,
-                      ),
-                    ],
+                  return _buildSegmentedControl(
+                    options: ['次数', '分钟'],
+                    selectedIndex: showCount ? 0 : 1,
+                    onSelected: (index) {
+                      controller.showUsageCount.value = index == 0;
+                    },
                   );
                 }),
               ],
@@ -433,38 +508,32 @@ class AppUsagePage extends StatelessWidget {
 
             // 查看全部/收起按钮（少于5个时用SizedBox占位保持高度）
             SizedBox(
-              height: 40,
+              height: 30,
               child: hasMore
                   ? Center(
                       child: GestureDetector(
                         onTap: () => controller.toggleShowAllRecentApps(),
                         child: Container(
                           margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFE0E0E0)),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 showAll ? '收起' : '查看全部',
-                                style: const TextStyle(
-                                  color: Color(0xFF666666),
-                                  fontSize: 13,
+                                style: TextStyle(
+                                  color: Color(0xff000000).withOpacity(0.6),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              Icon(
+                              Image.asset(
                                 showAll
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: const Color(0xFF666666),
-                                size: 16,
+                                    ? 'assets/4.0/kissu4_app_use_more.webp'
+                                    : 'assets/4.0/kissu4_app_use_more.webp',
+                                width: 14,
+                                height: 14,
                               ),
                             ],
                           ),
@@ -532,41 +601,42 @@ class AppUsagePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    app.appName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF333333),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        app.appName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          // fontWeight: FontWeight.w500,
+                          color: Color(0xFF333333),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // 使用次数/时长
+                      Text(
+                        '$value$unit',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: progress,
-                      backgroundColor: const Color(0xFFE0E0E0),
+                      backgroundColor: const Color(0xFFD6EFFF),
                       valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF64B5F6),
+                        Color(0xFF7DCDFF),
                       ),
-                      minHeight: 6,
+                      minHeight: 8,
                     ),
                   ),
                 ],
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // 使用次数/时长
-            Text(
-              '$value$unit',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF666666),
               ),
             ),
           ],
@@ -575,24 +645,51 @@ class AppUsagePage extends StatelessWidget {
     });
   }
 
-  /// 标签按钮
-  Widget _buildTabButton(String text, bool selected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? Colors.black : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+  /// 分段控制器（根据UI图实现）
+  Widget _buildSegmentedControl({
+    required List<String> options,
+    required int selectedIndex,
+    required ValueChanged<int> onSelected,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: const Color(0xFFE0E0E0), // 浅灰色边框
+          width: 1,
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: selected ? Colors.white : const Color(0xFF999999),
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(options.length, (index) {
+          final isSelected = index == selectedIndex;
+          final isFirst = index == 0;
+          final isLast = index == options.length - 1;
+
+          return GestureDetector(
+            onTap: () => onSelected(index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.black : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: isFirst ? const Radius.circular(20) : Radius.zero,
+                  bottomLeft: isFirst ? const Radius.circular(20) : Radius.zero,
+                  topRight: isLast ? const Radius.circular(20) : Radius.zero,
+                  bottomRight: isLast ? const Radius.circular(20) : Radius.zero,
+                ),
+              ),
+              child: Text(
+                options[index],
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF777777),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -616,33 +713,43 @@ class AppUsagePage extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text(
-                    '使用记录',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
-                    ),
+                  Stack(
+                    children: [
+                      Image.asset(
+                        'assets/4.0/kissu4_app_use_late_tip.webp',
+                        width: 76,
+                        height: 16,
+                        fit: BoxFit.fitWidth,
+                      ),
+                      const Text(
+                        '使用记录',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'AlimamaShuHeiTi',
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.auto_awesome, size: 16, color: Colors.amber),
+                  Transform.translate(
+                    offset: Offset(-8, -5),
+                    child: Image.asset(
+                      'assets/4.0/kissu4_app_use_tip.webp',
+                      width: 13,
+                      height: 17,
+                    ),
+                  ),
                   const Spacer(),
                   Obx(() {
                     final showTimeline = controller.showTimeline.value;
-                    return Row(
-                      children: [
-                        _buildTabButton(
-                          '统计',
-                          !showTimeline,
-                          () => controller.showTimeline.value = false,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildTabButton(
-                          '时间轴',
-                          showTimeline,
-                          () => controller.showTimeline.value = true,
-                        ),
-                      ],
+                    return _buildSegmentedControl(
+                      options: ['统计', '时间轴'],
+                      selectedIndex: showTimeline ? 1 : 0,
+                      onSelected: (index) {
+                        controller.showTimeline.value = index == 1;
+                      },
                     );
                   }),
                 ],
@@ -672,7 +779,6 @@ class AppUsagePage extends StatelessWidget {
       }
 
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -683,33 +789,44 @@ class AppUsagePage extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text(
-                  '使用记录',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF333333),
+                Stack(
+                  children: [
+                    Image.asset(
+                      'assets/4.0/kissu4_app_use_late_tip.webp',
+                      width: 70,
+                      height: 16,
+                      fit: BoxFit.fitWidth,
+                    ),
+                    const Text(
+                      '使用记录',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'AlimamaShuHeiTi',
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(width: 4),
+                Transform.translate(
+                  offset: Offset(-8, -5),
+                  child: Image.asset(
+                    'assets/4.0/kissu4_app_use_tip.webp',
+                    width: 13,
+                    height: 17,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.auto_awesome, size: 16, color: Colors.amber),
                 const Spacer(),
                 Obx(() {
                   final showTimeline = controller.showTimeline.value;
-                  return Row(
-                    children: [
-                      _buildTabButton(
-                        '统计',
-                        !showTimeline,
-                        () => controller.showTimeline.value = false,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildTabButton(
-                        '时间轴',
-                        showTimeline,
-                        () => controller.showTimeline.value = true,
-                      ),
-                    ],
+                  return _buildSegmentedControl(
+                    options: ['统计', '时间轴'],
+                    selectedIndex: showTimeline ? 1 : 0,
+                    onSelected: (index) {
+                      controller.showTimeline.value = index == 1;
+                    },
                   );
                 }),
               ],
@@ -778,19 +895,24 @@ class AppUsagePage extends StatelessWidget {
     return SizedBox(
       height: 40,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 60,
+            width: 40,
             child: Text(
               time,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xdd333333),
+                height: 1,
+              ),
               textAlign: TextAlign.right,
             ),
           ),
           const SizedBox(width: 8),
           // 统一20px宽度，小圆点居中，虚线从中心（10px）位置绘制
           SizedBox(
-            width: 20,
+            width: 10,
             child: Column(
               children: [
                 // 小圆点居中
@@ -829,7 +951,7 @@ class AppUsagePage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 左侧空白（对齐时间）
-          const SizedBox(width: 68),
+          const SizedBox(width: 43),
 
           // 大圆点和虚线（20px宽度，虚线从中心位置）
           SizedBox(
@@ -837,6 +959,13 @@ class AppUsagePage extends StatelessWidget {
             child: Column(
               children: [
                 // 大圆点图片（20x20，正好填满容器）
+                Align(
+                  alignment: Alignment.center,
+                  child: CustomPaint(
+                    painter: DashedLinePainter(),
+                    size: const Size(1, 15),
+                  ),
+                ),
                 Image.asset(
                   'assets/4.0/kissu4_app_use_time.webp',
                   width: 20,
@@ -863,70 +992,75 @@ class AppUsagePage extends StatelessWidget {
           Expanded(
             child: Stack(
               children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const ClampingScrollPhysics(),
-                  child: Row(
-                    children: apps.map((record) {
-                      final hourlyRecord = record.hourlyRecords.firstWhere(
-                        (h) => h.hour == hour,
-                      );
-                      final duration = hourlyRecord.totalDuration;
-                      final minutes = (duration / 60000).round();
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Color(0xffF9F9F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  height: 62,
+                  padding: const EdgeInsets.symmetric(
+                    // horizontal: 5,
+                    vertical: 6,
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const ClampingScrollPhysics(),
+                    child: Row(
+                      children: apps.map((record) {
+                        final hourlyRecord = record.hourlyRecords.firstWhere(
+                          (h) => h.hour == hour,
+                        );
+                        final duration = hourlyRecord.totalDuration;
+                        final minutes = (duration / 60000).round();
 
-                      return Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (record.icon != null)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.memory(
-                                  record.icon!,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            else
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFF839E,
-                                  ).withOpacity(0.2),
+                        return Container(
+                          // margin: const EdgeInsets.only(right: 12),
+                          padding: EdgeInsets.only(left: 12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (record.icon != null)
+                                ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    record.icon!,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              else
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF839E),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.apps,
-                                  color: Color(0xFFFF839E),
-                                  size: 28,
+                              const SizedBox(height: 6),
+                              Text(
+                                '${minutes}分钟',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xbb333333),
                                 ),
                               ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${minutes}分钟',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF999999),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
-
                 // 右侧渐变蒙版
                 if (apps.length > 4)
                   Positioned(
-                    right: 0,
+                    right: 8,
                     top: 0,
                     bottom: 0,
-                    width: 40,
+                    width: 20,
                     child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
@@ -984,26 +1118,26 @@ class AppUsagePage extends StatelessWidget {
                       onTap: () =>
                           controller.selectAppForTimeline(record.packageName),
                       child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 56, // 固定宽度，避免布局变化
-                        height: 56, // 固定高度，避免布局变化
+                        margin: const EdgeInsets.only(right: 2),
+                        width: 44, // 固定宽度，避免布局变化
+                        height: 44, // 固定高度，避免布局变化
                         alignment: Alignment.center,
                         child: AnimatedScale(
-                          scale: isSelected ? 1.27 : 1.0, // 44 * 1.27 ≈ 56
+                          scale: isSelected ? 1.4 : 1.0, // 30 * 1.27 ≈ 56
                           duration: const Duration(milliseconds: 200),
                           child: record.icon != null
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.memory(
                                     record.icon!,
-                                    width: 44,
-                                    height: 44,
+                                    width: 30,
+                                    height: 30,
                                     fit: BoxFit.cover,
                                   ),
                                 )
                               : Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 30,
+                                  height: 30,
                                   decoration: BoxDecoration(
                                     color: const Color(
                                       0xFFFF839E,
@@ -1112,15 +1246,15 @@ class AppUsagePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     child: Image.memory(
                       item.record.icon!,
-                      width: 32,
-                      height: 32,
+                      width: 24,
+                      height: 24,
                       fit: BoxFit.cover,
                     ),
                   )
                 else
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF839E).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
@@ -1134,36 +1268,33 @@ class AppUsagePage extends StatelessWidget {
 
                 const SizedBox(width: 8),
 
-                // 文字信息
-                Expanded(
-                  child: Text(
-                    '打开了"${item.record.appName}"',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF333333),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  '打开了"${item.record.appName}"',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xbb333333),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
 
-                const SizedBox(width: 8),
+                const SizedBox(width: 13),
 
                 // 时长
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 18,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFE0F0),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(40),
                   ),
                   child: Text(
                     durationText,
                     style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFFFF839E),
+                      fontSize: 10,
+                      color: Color(0xFF333333),
                     ),
                   ),
                 ),

@@ -15,6 +15,7 @@ import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
+import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 调用绑定弹窗的页面类型
@@ -24,7 +25,8 @@ enum BindingDialogCaller {
   loveInfo,    // 恋爱信息页面
   track,       // 足迹页面
   location,    // 定位页面
-  usageReport, // 用机记录页面
+  usageReport, // 用机记录页面（敏感操作记录）
+  deviceUsage, // 用机记录页面（新的用机记录页面）
 }
 
 /// 自定义底部弹窗控制器
@@ -165,6 +167,8 @@ class CustomBottomDialogController extends GetxController {
         return {'name': '定位页面', 'id': 'location'};
       case BindingDialogCaller.usageReport:
         return {'name': '用机记录页面', 'id': 'usage_report'};
+      case BindingDialogCaller.deviceUsage:
+        return {'name': '用机记录页面', 'id': 'device_usage'};
     }
   }
 
@@ -348,6 +352,19 @@ class CustomBottomDialogController extends GetxController {
               logDebug('✅ 用机记录页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
               logError('❌ 刷新用机记录页控制器失败: $e', tag: 'BindingDialog', error: e);
+            }
+          }
+          break;
+
+        case BindingDialogCaller.deviceUsage:
+          if (Get.isRegistered<DeviceUsageController>()) {
+            try {
+              final deviceUsageController = Get.find<DeviceUsageController>();
+              // 刷新状态并重新加载数据
+              deviceUsageController.updateBindStatus();
+              logDebug('✅ 用机记录页（新）数据刷新完成', tag: 'BindingDialog');
+            } catch (e) {
+              logError('❌ 刷新用机记录页（新）控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
           break;

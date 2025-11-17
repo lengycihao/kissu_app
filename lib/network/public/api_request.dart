@@ -57,6 +57,7 @@ class ApiRequest {
   
   // 用机记录 API
   static const getSensitiveRecord = '/v2/get/sensitive/record';
+  static const getMobileUsageRecordSta = '/v4/mobileUsage/recordSta';
   
   // 照片墙 API
   static const savePhotoWall = '/save/photo/wall';

@@ -15,7 +15,7 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget build(BuildContext context) {
     // 保存context到controller，用于Overlay
     controller.pageContext = context;
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -63,110 +63,15 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   // 主内容
   Widget _buildMainContent() {
-    return Stack(
+    return Column(
       children: [
-        Column(
-          children: [
-            _buildHeader(),
-            _buildDateSelector(),
-            const SizedBox(height: 16),
-            _buildTabBarWithFilter(),
-            Expanded(child: _buildPageView()),
-            // 底部信息栏
-            _buildBottomInfo(),
-          ],
-        ),
-        Obx(() {
-          // 判断是否需要显示蒙版：未绑定 或 已绑定但未开会员
-          final shouldShowMask = !controller.isUserBound.value || 
-                                 (controller.isUserBound.value && !controller.isUserVip.value);
-          
-          if (shouldShowMask) {
-            return Positioned(
-              top: 190,
-              left: 0,
-              right: 0,
-              bottom: 90,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Color(0xffffffff),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: 10,
-                      left: 0,
-                      right: 0,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 320,
-                            decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(
-                                  'assets/kissu3_history_unbind_bg.webp',
-                                ),
-                              ),
-                            ),
-                          ),
-                          // 根据状态显示不同的按钮
-                          GestureDetector(
-                            onTap: () {
-                              if (!controller.isUserBound.value) {
-                                // 未绑定：显示绑定弹窗
-                                controller.handleBindButtonClick();
-                              } else {
-                                // 已绑定但未开会员：跳转到VIP页面
-                                controller.handleVipButtonClick();
-                              }
-                            },
-                            child: Container(
-                              margin: EdgeInsets.only(left: 72, top: 20),
-                              width: 150,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                    !controller.isUserBound.value
-                                        ? 'assets/kissu3_go_bind.webp'  // 未绑定
-                                        : 'assets/kissu3_go_vip.webp',  // 已绑定未开会员
-                                  ),
-                                  fit: BoxFit.fill,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 104,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage(
-                              'assets/kissu3_history_unbind_heart.webp',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          } else {
-            return SizedBox.shrink();
-          }
-        }),
+        _buildHeader(),
+        _buildDateSelector(),
+        const SizedBox(height: 16),
+        _buildTabBarWithFilter(),
+        Expanded(child: _buildPageView()),
+        // 底部信息栏
+        _buildBottomInfo(),
       ],
     );
   }
@@ -283,7 +188,7 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildFilterButton() {
     return Obx(() {
       final isFilterOpen = controller.isFilterDrawerVisible.value;
-      
+
       return GestureDetector(
         onTap: () => controller.toggleFilterDrawer(),
         child: Container(
@@ -296,9 +201,9 @@ class UsageReportPage extends GetView<UsageReportController> {
           ),
           alignment: Alignment.center,
           child: Image.asset(
-            isFilterOpen 
-              ? 'assets/phone_history/kissu3_history_seting_more.webp'
-              : 'assets/phone_history/kissu3_history_seting_more_close.webp',
+            isFilterOpen
+                ? 'assets/phone_history/kissu3_history_seting_more.webp'
+                : 'assets/phone_history/kissu3_history_seting_more_close.webp',
             width: 16,
             height: 16,
           ),
@@ -524,7 +429,7 @@ class UsageReportPage extends GetView<UsageReportController> {
           const Expanded(
             child: Center(
               child: Text(
-                '用机记录',
+                '敏感操作记录',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w500,
@@ -580,7 +485,7 @@ class UsageReportPage extends GetView<UsageReportController> {
   Widget _buildDistanceInfo() {
     return Obx(() {
       final isUserBound = controller.isUserBound.value;
-      
+
       return InkWell(
         onTap: () {
           controller.handleDistanceButtonClick();
@@ -620,11 +525,7 @@ class UsageReportPage extends GetView<UsageReportController> {
                     color: Color(0xFFFF577C),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    Icons.add,
-                    size: 10,
-                    color: Colors.white,
-                  ),
+                  child: Icon(Icons.add, size: 10, color: Colors.white),
                 ),
                 const SizedBox(height: 3),
                 const Text(
@@ -704,26 +605,22 @@ class UsageReportPage extends GetView<UsageReportController> {
     return GestureDetector(
       onLongPressStart: (details) {
         // 使用 globalPosition 直接获取触摸位置，向上偏移一点避免遮挡手指
-        controller.showTooltip(text, details.globalPosition + const Offset(0, -40));
+        controller.showTooltip(
+          text,
+          details.globalPosition + const Offset(0, -40),
+        );
       },
       child: Container(
         color: Colors.transparent, // 确保整个区域可以响应手势
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              icon,
-              width: 16,
-              height: 16,
-            ),
+            Image.asset(icon, width: 16, height: 16),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
                 displayText,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF333333),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
