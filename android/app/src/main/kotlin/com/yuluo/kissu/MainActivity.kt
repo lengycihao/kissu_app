@@ -2061,24 +2061,11 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 val packageName = app.packageName
                 val iconDrawable = pm.getApplicationIcon(app)
                 
-                // 🔧 优化：缩小图标尺寸并降低压缩质量，减少内存占用和传输时间
+                // 直接使用原始图标并保持 PNG 无损格式，确保显示清晰
                 val originalBitmap = (iconDrawable as BitmapDrawable).bitmap
-                // 将图标缩放到 64x64（原始可能是 192x192 或更大）
-                val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(
-                    originalBitmap, 
-                    64, 
-                    64, 
-                    true
-                )
                 val stream = ByteArrayOutputStream()
-                // 使用 JPEG 格式和 80% 质量，大幅减小文件大小（PNG 100% -> JPEG 80%）
-                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream)
+                originalBitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
                 val byteArray = stream.toByteArray()
-                
-                // 回收缩放后的 Bitmap，释放内存
-                if (scaledBitmap != originalBitmap) {
-                    scaledBitmap.recycle()
-                }
                 
                 result.add(
                     mapOf(
@@ -2166,18 +2153,13 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             val appInfo = pm.getApplicationInfo(packageName, 0)
             appName = pm.getApplicationLabel(appInfo).toString()
             
-            // 获取应用图标并转换为base64
+            // 获取应用图标并转换为无损 PNG，再编码为 base64
             val iconDrawable = pm.getApplicationIcon(appInfo)
             val originalBitmap = (iconDrawable as BitmapDrawable).bitmap
-            val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(originalBitmap, 64, 64, true)
             val stream = ByteArrayOutputStream()
-            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream)
+            originalBitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
             val byteArray = stream.toByteArray()
             iconBase64 = android.util.Base64.encodeToString(byteArray, android.util.Base64.NO_WRAP)
-            
-            if (scaledBitmap != originalBitmap) {
-                scaledBitmap.recycle()
-            }
         } catch (e: Exception) {
             Log.w("MainActivity", "获取应用信息失败: $packageName", e)
         }

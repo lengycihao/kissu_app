@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/mine/app_usage/app_usage_debug_page.dart';
+import 'package:kissu_app/pages/mine/app_usage/app_usage_test_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
@@ -1020,8 +1022,16 @@ class MineController extends GetxController {
 
   /// 个性化首页点击事件
   void _onPersonalizedHomeTap() {
-    // TODO: 实现个性化首页功能
-    OKToastUtil.show('个性化首页功能开发中');
+    // // TODO: 实现个性化首页功能
+    // OKToastUtil.show('个性化首页功能开发中');
+
+    // 调试：跳转到 App 使用记录测试页面
+    // 需要先注入 AppUsageController，否则页面中 Get.find<AppUsageController>() 会报错
+    Get.to(
+      () => const AppUsageDebugPage(),
+      binding: AppUsageBinding(),
+      transition: Transition.rightToLeft,
+    );
   }
 
   /// 更换首页视图点击事件

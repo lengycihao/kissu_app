@@ -7,6 +7,7 @@ import 'package:kissu_app/pages/vip/vip_controller.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
+import 'package:lottie/lottie.dart';
 
 class VipPage extends GetView<VipController> {
   const VipPage({super.key});
@@ -1005,57 +1006,78 @@ class VipPage extends GetView<VipController> {
               },
               child: Container(
                 width: double.infinity,
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                height: 44,
+                padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(right: 0),
                 decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage("assets/4.0/kissu4_vip_open_bt_bg.webp"),
-                    fit: BoxFit.cover,
+                  gradient: LinearGradient(
+                    colors: [Color(0xffFF93ED), Color(0xffFFF6FD)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.all(Radius.circular(9)),
+                  borderRadius: BorderRadius.all(Radius.circular(22)),
                 ),
                 alignment: Alignment.center,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '￥',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '￥',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
                             ),
-                          ),
-                          TextSpan(
-                            text: controller.getCurrentPrice(),
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'AlimamaShuHeiTi',
-                              color: Colors.black,
+                            TextSpan(
+                              text: controller.getCurrentPrice(),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'AlimamaShuHeiTi',
+                                color: Colors.black,
+                              ),
                             ),
-                          ),
-                          //支付价格提示
-                          TextSpan(
-                            text: periodText,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.black,
+                            //支付价格提示
+                            TextSpan(
+                              text: periodText,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                    Text(
-                      UserManager.isVip ? "立即续费" : "立即开通",
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'AlimamaShuHeiTi',
-                        color: Colors.white,
+                    const SizedBox(width: 8),
+                    // Spacer(),
+                    SizedBox(
+                      width: 150,
+                      height: 44,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Lottie.asset(
+                            'assets/json/recharge_btn.json',
+                            width: 150,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            repeat: true,
+                          ),
+                          // Text(
+                          //   UserManager.isVip ? "立即续费" : "立即开通",
+                          //   style: const TextStyle(
+                          //     fontSize: 18,
+                          //     fontWeight: FontWeight.bold,
+                          //     fontFamily: 'AlimamaShuHeiTi',
+                          //     color: Colors.white,
+                          //   ),
+                          // ),
+                        ],
                       ),
                     ),
                   ],

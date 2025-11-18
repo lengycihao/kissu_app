@@ -27,7 +27,7 @@ class VipCancelRetentionDialog extends BaseDialog {
     final unlockButtonWidth = screenWidth - 164;
     
     // "全部解锁"按钮高度：根据比例 212*36 计算
-    final unlockButtonHeight = unlockButtonWidth * 36 / 212;
+    final unlockButtonHeight = unlockButtonWidth * 44 / 212;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center, // 纵向居中
@@ -69,17 +69,8 @@ class VipCancelRetentionDialog extends BaseDialog {
                     height: unlockButtonHeight,
                     decoration: const BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage('assets/3.0/vip_cancel_sure.webp'),
+                        image: AssetImage('assets/4.0/kissu4_vip_cancel_sure.webp'),
                         fit: BoxFit.fill,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '全部解锁',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFFFFFFF),
-                        fontWeight: FontWeight.bold, // 加粗
                       ),
                     ),
                   ),
@@ -100,7 +91,7 @@ class VipCancelRetentionDialog extends BaseDialog {
             child: const Text(
               '下次再说',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Color(0xFF999999),
                 fontWeight: FontWeight.normal, // 正常字体
               ),
