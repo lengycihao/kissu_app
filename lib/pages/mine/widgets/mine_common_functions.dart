@@ -30,7 +30,7 @@ class MineCommonFunctions extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 color: Color(0xff000000),
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),

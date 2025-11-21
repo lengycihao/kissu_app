@@ -19,7 +19,7 @@ class LoveInfoPage extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage("assets/kissu_mine_bg.webp"),
+                  image: AssetImage("assets/images/kissu_mine_bg.webp"),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -44,7 +44,7 @@ class LoveInfoPage extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             child: Image.asset(
-                              'assets/kissu_mine_back.webp',
+                              'assets/images/kissu_mine_back.webp',
                               width: 24,
                               height: 24,
                             ),
@@ -111,7 +111,7 @@ class LoveInfoPage extends StatelessWidget {
                                     decoration: const BoxDecoration(
                                       image: DecorationImage(
                                         image: AssetImage(
-                                          'assets/kissu_loveinfo_header_bg.webp',
+                                          'assets/images/kissu_loveinfo_header_bg.webp',
                                         ),
                                         fit: BoxFit.fill,
                                       ),
@@ -306,7 +306,7 @@ class LoveInfoPage extends StatelessWidget {
                                   top: 40,
                                   child: Image(
                                     image: AssetImage(
-                                      "assets/kissu_heart.webp",
+                                      "assets/images/kissu_heart.webp",
                                     ),
                                     width: 29,
                                     height: 20,
@@ -335,7 +335,7 @@ class LoveInfoPage extends StatelessWidget {
   //     padding: const EdgeInsets.all(2),
   //     decoration: const BoxDecoration(
   //       image: DecorationImage(
-  //         image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+  //         image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
   //         fit: BoxFit.fill,
   //       ),
   //     ),

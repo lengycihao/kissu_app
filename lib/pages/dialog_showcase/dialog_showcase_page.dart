@@ -308,7 +308,7 @@ class DialogShowcasePage extends StatelessWidget {
           GestureDetector(
             onTap: () => Get.back(),
             child: Image.asset(
-              "assets/kissu_mine_back.webp",
+              "assets/images/kissu_mine_back.webp",
               width: 22,
               height: 22,
             ),

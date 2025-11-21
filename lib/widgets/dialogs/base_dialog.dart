@@ -15,7 +15,7 @@ abstract class BaseDialog extends StatelessWidget {
       context: context,
       barrierDismissible: barrierDismissible,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: barrierColor ?? Colors.black54,
+      barrierColor: barrierColor ?? Color(0xb3000000),
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation, secondaryAnimation) {
         return dialog;

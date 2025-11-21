@@ -2379,42 +2379,34 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             return "logo_one"
         }
         
-        // 检查logo_two是否启用
-        val logoTwoState = pm.getComponentEnabledSetting(
-            android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoTwo")
-        )
-        if (logoTwoState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
-            return "logo_two"
-        }
-        
         // 默认使用MainActivity原始图标
         return "default"
     }
     
     /**
      * 切换App图标
-     * @param iconId 图标ID：default、logo_one 或 logo_two
+     * @param iconId 图标ID：default 或 logo_one
      * @return 是否切换成功
      */
     private fun changeAppIcon(iconId: String): Boolean {
         try {
             val pm = packageManager
             
-            // 定义所有activity-alias的组件名
+            // 定义activity-alias的组件名
+            val defaultComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityDefault")
             val logoOneComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoOne")
-            val logoTwoComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoTwo")
             
             // 根据iconId决定启用哪个alias
             when (iconId) {
                 "default" -> {
-                    // 使用默认图标（MainActivity），禁用所有alias
+                    // 启用默认图标，禁用其他alias
                     pm.setComponentEnabledSetting(
-                        logoOneComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        defaultComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                         PackageManager.DONT_KILL_APP
                     )
                     pm.setComponentEnabledSetting(
-                        logoTwoComponent,
+                        logoOneComponent,
                         PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                         PackageManager.DONT_KILL_APP
                     )
@@ -2423,30 +2415,16 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 "logo_one" -> {
                     // 启用logo_one图标，禁用其他alias
                     pm.setComponentEnabledSetting(
-                        logoOneComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        defaultComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                         PackageManager.DONT_KILL_APP
                     )
                     pm.setComponentEnabledSetting(
-                        logoTwoComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        logoOneComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                         PackageManager.DONT_KILL_APP
                     )
                     Log.d("MainActivity", "切换到logo_one图标")
-                }
-                "logo_two" -> {
-                    // 启用logo_two图标，禁用其他alias
-                    pm.setComponentEnabledSetting(
-                        logoOneComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    pm.setComponentEnabledSetting(
-                        logoTwoComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    Log.d("MainActivity", "切换到logo_two图标")
                 }
                 else -> {
                     Log.e("MainActivity", "未知的图标ID: $iconId")

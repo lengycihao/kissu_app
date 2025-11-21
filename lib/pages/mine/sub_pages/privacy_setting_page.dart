@@ -37,7 +37,7 @@ class PrivacySettingPage extends StatelessWidget {
                         Get.back();
                       },
                       child: Image.asset(
-                        "assets/kissu_mine_back.webp",
+                        "assets/images/kissu_mine_back.webp",
                         width: 22,
                         height: 22,
                       ),
@@ -63,7 +63,7 @@ class PrivacySettingPage extends StatelessWidget {
               Column(
                 children: [
                   _SettingItem(
-                    iconPath: "assets/kissu_setting_account_ysaq.webp",
+                    iconPath: "assets/images/kissu_setting_account_ysaq.webp",
                     title: "隐私安全",
                     onTap: () => AgreementUtils.toPrivacySecurity(),
                   ),
@@ -71,7 +71,7 @@ class PrivacySettingPage extends StatelessWidget {
                   // 根据绑定状态显示解除关系选项
                   _buildBreakRelationshipItem(),
                   _SettingItem(
-                    iconPath: "assets/kissu_setting_account_zxzh.webp",
+                    iconPath: "assets/images/kissu_setting_account_zxzh.webp",
                     title: "注销账号",
                     onTap: () => Get.to(
                       () => AccountCancellationPage(),
@@ -80,7 +80,7 @@ class PrivacySettingPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _SettingItem(
-                    iconPath: "assets/kissu_setting_account_sjh.webp",
+                    iconPath: "assets/images/kissu_setting_account_sjh.webp",
                     title: "手机号",
                     trailingText: phoneNumber,
                     onTap: () => _handlePhoneChange(context, phoneNumber),
@@ -132,7 +132,7 @@ class PrivacySettingPage extends StatelessWidget {
       return Column(
         children: [
           _SettingItem(
-            iconPath: "assets/kissu_setting_account_jcgx.webp",
+            iconPath: "assets/images/kissu_setting_account_jcgx.webp",
             title: "解除关系",
             onTap: () => Get.to(
               () => const BreakRelationshipPage(),
@@ -218,7 +218,7 @@ class _SettingItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           image: const DecorationImage(
-            image: AssetImage("assets/kissu_setting_account_itenbg.webp"),
+            image: AssetImage("assets/images/kissu_setting_account_itenbg.webp"),
             fit: BoxFit.fill,
           ),
           borderRadius: BorderRadius.circular(8),

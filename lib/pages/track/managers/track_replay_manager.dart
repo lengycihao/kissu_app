@@ -211,7 +211,7 @@ class TrackReplayManager extends GetxController {
       // 创建底座icon（仅一次）
       if (_cachedPedestalIcon == null) {
         _cachedPedestalIcon = await _markerBuilder.createPedestalMarker(
-          pedestalAsset: 'assets/kissu_location_run.webp',
+          pedestalAsset: 'assets/images/kissu_location_run.webp',
           size: 800.0,
         );
         _cachedAnchor = const ui.Offset(0.5, 0.5); // 中心点为锚点

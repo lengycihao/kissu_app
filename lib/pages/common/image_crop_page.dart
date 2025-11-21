@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class ImageCropPage extends StatefulWidget {
   final String imagePath;
@@ -43,18 +45,34 @@ class _ImageCropPageState extends State<ImageCropPage> {
 
   Future<void> _loadImage() async {
     try {
+      Uint8List? bytes;
+      
       // 如果有预加载的数据，直接使用
       if (widget.preloadedImageData != null) {
-        setState(() {
-          _imageData = widget.preloadedImageData;
-          _isLoading = false;
-        });
-        return;
+        bytes = widget.preloadedImageData!;
+        logDebug('使用预加载数据，大小: ${bytes.length} bytes', tag: 'ImageCrop');
+      } else {
+        // 🔧 使用 flutter_image_compress 处理图片
+        // 支持 HEIC/HEIF 格式，自动转换为 JPEG，并压缩大图
+        logDebug('开始压缩图片: ${widget.imagePath}', tag: 'ImageCrop');
+        
+        bytes = await FlutterImageCompress.compressWithFile(
+          widget.imagePath,
+          format: CompressFormat.jpeg,
+          quality: 95,
+          minWidth: 2048,
+          minHeight: 2048,
+        );
+        
+        if (bytes == null) {
+          logError('图片压缩失败，尝试直接读取文件', tag: 'ImageCrop');
+          final file = File(widget.imagePath);
+          bytes = await file.readAsBytes();
+        } else {
+          logDebug('图片压缩完成，JPEG 大小: ${bytes.length} bytes', tag: 'ImageCrop');
+        }
       }
-
-      // 否则从文件读取
-      final file = File(widget.imagePath);
-      final bytes = await file.readAsBytes();
+      
       setState(() {
         _imageData = bytes;
         _isLoading = false;
@@ -157,6 +175,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
                       baseColor: Colors.black,
                       maskColor: Colors.black.withOpacity(0.6),
                       radius: 0, // 裁剪框圆角
+                      // 🔧 移除 formatDetector，让 crop_your_image 自动检测格式
                       cornerDotBuilder: (size, edgeAlignment) {
                         // 如果有自定义裁剪框图片，隐藏默认角点
                         if (widget.customCropFrameAsset != null) {

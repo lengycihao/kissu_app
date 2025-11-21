@@ -116,7 +116,7 @@ class LocationPermissionDialog extends StatelessWidget {
                     color: const Color(0xFF999999), // 灰色背景
                     borderRadius: BorderRadius.circular(16), // 圆角
                     image: const DecorationImage(
-                      image: AssetImage('assets/kissu_location_close.webp'),
+                      image: AssetImage('assets/images/kissu_location_close.webp'),
                       fit: BoxFit.cover,
                     ),
                   ),

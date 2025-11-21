@@ -11,6 +11,7 @@ import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/public/photo_wall_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/widgets/dialogs/location_state_delete_dialog.dart';
 
 /// 图片弹窗工具类
 class ImageDialogUtil {
@@ -406,11 +407,9 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       ),
       child: Stack(
         children: [
-          // 背景遮罩
+          // 背景遮罩（是否可点击关闭由 barrierDismissible 控制）
           GestureDetector(
-            onTap: widget.barrierDismissible
-                ? () => Navigator.of(context).pop()
-                : null,
+            onTap: widget.barrierDismissible ? () => Navigator.of(context).pop() : null,
             child: Container(color: Colors.transparent),
           ),
           // 图片内容
@@ -547,7 +546,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       ),
                     ),
                   ),
-                  SizedBox(height: 23),
+                  SizedBox(height: 15),
                   Text(
                     "*更多可自定义内容不断内测中...",
                     style: TextStyle(
@@ -555,6 +554,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       fontSize: 10,
                     ),
                   ),
+                  SizedBox(height: 10),
                 ],
               ),
             ),
@@ -565,7 +565,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
               top: 10,
               right: 3,
               child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: _handleCloseTap,
                 child: Container(
                   padding: EdgeInsets.all(3),
                   decoration: BoxDecoration(
@@ -578,6 +578,31 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
             ),
         ],
       ),
+    );
+  }
+
+  /// 处理右上角关闭按钮点击
+  Future<void> _handleCloseTap() async {
+    // 如果没有选中过新的本地照片，直接关闭弹窗
+    if (_selectedImageFile == null) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    // 已经有裁剪后的本地图片但未保存，弹出挽留弹窗
+    await LocationStateDeleteDialog.show(
+      context: context,
+      title: '照片暂未保存，是否直接退出？',
+      barrierDismissible: true,
+      // 左边按钮（取消按钮区域）："退出" -> 关闭照片墙弹窗
+      onCancel: () {
+        Navigator.of(context).pop();
+      },
+      // 右边按钮（确认按钮区域）："继续编辑" -> 仅关闭挽留弹窗（内部已处理 pop），不做额外处理
+      onConfirm: () {},
+      // 照片墙使用自定义按钮图片
+      cancelAsset: 'assets/location/kissu3_dialog_cancel.webp',
+      confirmAsset: 'assets/location/kissu3_dialog_sure.webp',
     );
   }
 }

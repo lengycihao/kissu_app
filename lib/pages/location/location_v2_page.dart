@@ -232,26 +232,44 @@ class _LocationPageContentState extends State<_LocationPageContent>
         }
         return false;
       },
-      child: CustomScrollView(
-        controller: scrollController,
-        slivers: [
-          SliverToBoxAdapter(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    _buildVirtualDataTip(),
-                    _buildOfflineTip(),
-                    DeviceInfoSection(controller: widget.controller),
-                    const SizedBox(height: 10),
-                    LocationInfoSection(controller: widget.controller),
-                  ],
-                ),
-              ],
+      child: Container(
+        color: const Color(0xFFF6F6F6),
+        padding: const EdgeInsets.only(top: 5),
+        child: Column(
+          children: [
+            Container(
+              //指示条
+              width: 46,
+              height: 7,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3.5),
+                color: const Color(0xFFD9D9D9),
+              ),
             ),
-          ),
-          _buildLocationRecordsList(),
-        ],
+            const SizedBox(height: 5),
+           Expanded(child:  CustomScrollView(
+              controller: scrollController,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Stack(
+                    children: [
+                      Column(
+                        children: [
+                          _buildVirtualDataTip(),
+                          _buildOfflineTip(),
+                          DeviceInfoSection(controller: widget.controller),
+                          const SizedBox(height: 10),
+                          LocationInfoSection(controller: widget.controller),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                _buildLocationRecordsList(),
+              ],
+            ),)
+          ],
+        ),
       ),
     );
   }
@@ -352,7 +370,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   child: Column(
                     children: [
                       Image.asset(
-                        'assets/kissu_location_empty.webp',
+                        'assets/images/kissu_location_empty.webp',
                         width: 128,
                         height: 128,
                       ),
@@ -390,6 +408,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
         return Positioned.fill(
           child: Column(
             children: [
+              // 顶部占位：与指示条高度对齐（5px padding + 7px 指示条 + 5px spacing = 17px）
+              const SizedBox(height: 17),
               // 顶部离线提示（清晰的，不模糊）
               _buildOfflineTip(),
               // DeviceInfoSection(controller: widget.controller),
@@ -417,7 +437,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                           children: [
                             // 文字图片
                             Image.asset(
-                              'assets/kissu3_go_label.webp',
+                              'assets/images/kissu3_go_label.webp',
                               width: 216,
                               height: 32,
                               fit: BoxFit.contain,
@@ -440,8 +460,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
                               },
                               child: Image.asset(
                                 !isBindPartner
-                                    ? 'assets/kissu3_go_bind.webp' // 未绑定
-                                    : 'assets/kissu3_go_vip.webp', // 已绑定未开会员
+                                    ? 'assets/images/kissu3_go_bind.webp' // 未绑定
+                                    : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
                                 width: 150,
                                 height: 48,
                                 fit: BoxFit.contain,
@@ -489,7 +509,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                     2 *
                     3.14159,
                 child: Image.asset(
-                  'assets/kissu_mine_back.webp',
+                  'assets/images/kissu_mine_back.webp',
                   width: 24,
                   height: 24,
                 ),
@@ -544,10 +564,10 @@ class _LocationPageContentState extends State<_LocationPageContent>
 
       return Positioned(
         bottom: logoBottom,
-        right: 16,
+        left: 16,
         child: Opacity(
           opacity: opacity,
-          child: Image.asset('assets/map_logo.webp', width: 68, height: 22),
+          child: Image.asset('assets/images/map_logo.webp', width: 68, height: 22),
         ),
       );
     });
@@ -619,7 +639,7 @@ class _GradientBackgroundOverlayState
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFFFEF6F0),
+                  Color(0xFFF6F6F6),
                   Color(0xFFFFFFFF),
                   Color(0xFFF6F6F6),
                 ],
@@ -875,7 +895,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Image.asset(
-                'assets/kissu_love_yellow.webp',
+                'assets/images/kissu_love_yellow.webp',
                 width: 23,
                 height: 23,
               ),
@@ -948,7 +968,7 @@ class _LocationListWithBackground extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Image.asset(
-                    'assets/kissu_love_yellow.webp',
+                    'assets/images/kissu_love_yellow.webp',
                     width: 23,
                     height: 23,
                   ),
@@ -1071,7 +1091,7 @@ class _LocationRecordItem extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Image(
-                image: AssetImage('assets/kissu_location_circle.webp'),
+                image: AssetImage('assets/images/kissu_location_circle.webp'),
                 width: 8,
                 height: 8,
               ),
@@ -1106,8 +1126,8 @@ class _LocationRecordItem extends StatelessWidget {
                       children: [
                         Image.asset(
                           record.status == 'staying'
-                              ? 'assets/kissu_track_staying.webp'
-                              : 'assets/kissu_track_location.webp',
+                              ? 'assets/images/kissu_track_staying.webp'
+                              : 'assets/images/kissu_track_location.webp',
                           width: 24,
                           height: 24,
                           color: record.status == 'staying'

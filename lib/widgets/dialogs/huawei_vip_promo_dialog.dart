@@ -19,7 +19,7 @@ class HuaweiVipPromoDialog extends BaseDialog {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           image: const DecorationImage(
-            image: AssetImage('assets/kissu_vip_oneday.webp'),
+            image: AssetImage('assets/images/kissu_vip_oneday.webp'),
             fit: BoxFit.fill,
           ),
         ),

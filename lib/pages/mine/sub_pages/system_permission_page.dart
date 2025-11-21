@@ -13,7 +13,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
         children: [
           // 背景图
           Positioned.fill(
-            child: Image.asset("assets/kissu_mine_bg.webp", fit: BoxFit.cover),
+            child: Image.asset("assets/images/kissu_mine_bg.webp", fit: BoxFit.cover),
           ),
           Column(
             children: [
@@ -43,7 +43,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
           GestureDetector(
             onTap: () => Get.back(),
             child: Image.asset(
-              "assets/kissu_mine_back.webp",
+              "assets/images/kissu_mine_back.webp",
               width: 22,
               height: 22,
             ),

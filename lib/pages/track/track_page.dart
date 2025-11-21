@@ -334,7 +334,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                                   child: Column(
                                                     children: [
                                                       Image.asset(
-                                                        'assets/kissu_track_empty.webp',
+                                                        'assets/images/kissu_track_empty.webp',
                                                         width: 128,
                                                         height: 128,
                                                       ),
@@ -408,7 +408,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
                           2 *
                           3.14159, // 转换为弧度
                       child: Image.asset(
-                        'assets/kissu_mine_back.webp',
+                        'assets/images/kissu_mine_back.webp',
                         width: 24,
                         height: 24,
                       ),
@@ -643,7 +643,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
                           children: [
                             // 文字图片
                             Image.asset(
-                              'assets/kissu3_go_label.webp',
+                              'assets/images/kissu3_go_label.webp',
                               width: 216,
                               height: 32,
                               fit: BoxFit.contain,
@@ -678,8 +678,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                               },
                               child: Image.asset(
                                 !isBindPartner
-                                    ? 'assets/kissu3_go_bind.webp' // 未绑定
-                                    : 'assets/kissu3_go_vip.webp', // 已绑定未开会员
+                                    ? 'assets/images/kissu3_go_bind.webp' // 未绑定
+                                    : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
                                 width: 150,
                                 height: 48,
                                 fit: BoxFit.contain,
@@ -735,10 +735,10 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
       return Positioned(
         bottom: logoBottom,
-        right: 16,
+        left: 16,
         child: Opacity(
           opacity: opacity,
-          child: Image.asset('assets/map_logo.webp', width: 68, height: 22),
+          child: Image.asset('assets/images/map_logo.webp', width: 68, height: 22),
         ),
       );
     });
@@ -1485,7 +1485,7 @@ class _MapTypePickerSheet extends StatelessWidget {
                   },
                   child: Obx(
                     () => _MapTypeOption(
-                      imagePath: 'assets/kissu3_map_custom.webp',
+                      imagePath: 'assets/images/kissu3_map_custom.webp',
                       label: '经典地图',
                       isSelected: controller.mapType.value == 1,
                     ),
@@ -1503,7 +1503,7 @@ class _MapTypePickerSheet extends StatelessWidget {
                   },
                   child: Obx(
                     () => _MapTypeOption(
-                      imagePath: 'assets/kissu3_map_3d.webp',
+                      imagePath: 'assets/images/kissu3_map_3d.webp',
                       label: '卫星地图',
                       isSelected: controller.mapType.value == 2,
                     ),

@@ -87,7 +87,7 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
   @override
   Widget build(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
       width: 300,
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
       child: Column(
@@ -110,8 +110,8 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
               _GenderOption(
                 gender: '男生',
                 isSelected: _selectedGender == '男生',
-                selectedImage: 'assets/kissu_info_setting_boysel.webp',
-                unselectedImage: 'assets/kissu_info_setting_boyunsel.webp',
+                selectedImage: 'assets/images/kissu_info_setting_boysel.webp',
+                unselectedImage: 'assets/images/kissu_info_setting_boyunsel.webp',
                 onTap: () {
                   setState(() {
                     _selectedGender = '男生';
@@ -124,8 +124,8 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
               _GenderOption(
                 gender: '女生',
                 isSelected: _selectedGender == '女生',
-                selectedImage: 'assets/kissu_info_setting_girlsel.webp',
-                unselectedImage: 'assets/kissu_info_setting_girlunsel.webp',
+                selectedImage: 'assets/images/kissu_info_setting_girlsel.webp',
+                unselectedImage: 'assets/images/kissu_info_setting_girlunsel.webp',
                 onTap: () {
                   setState(() {
                     _selectedGender = '女生';
@@ -140,7 +140,7 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
           // 确定按钮
           DialogButton(
             text: '确定',
-            backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp',
+            backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
             onTap: () {
               if (_selectedGender != null) {
                 Navigator.of(context).pop(_selectedGender);

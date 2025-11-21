@@ -30,27 +30,29 @@ class FloatingTipsWidget extends StatelessWidget {
 
       // 获取当前滑动进度
       final sheetPercent = controller.sheetPercent.value;
-      
+
       // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final isBindPartner = controller.isBindPartner.value;
       final middleSnapSize = isBindPartner
-          ? 0.5 + (21 / screenHeight) // 已绑定：屏幕中间 + 21px偏移
+          ? 0.5 +
+                (21 / screenHeight) // 已绑定：屏幕中间 + 21px偏移
           : 0.5 + (57 / screenHeight); // 未绑定：屏幕中间 + 57px偏移
-      
+
       // 计算顶部吸顶位置的百分比
       final maxPercent = (screenHeight - 100) / screenHeight;
-      
+
       // 计算透明度：从中间吸顶位置滑向顶部吸顶位置时逐渐消失
       double opacity = 1.0;
       if (sheetPercent > middleSnapSize) {
         // 从中间到顶部的进度：1 到 0（逐渐消失）
-        final progress = (sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize);
+        final progress =
+            (sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize);
         opacity = (1.0 - progress).clamp(0.0, 1.0);
       }
 
       return Positioned(
         top: tipTop, // 距离顶部头像底部26px的间距
-        left: 31, // 距离屏幕左侧间距
+        left: 16, // 距离屏幕左侧间距
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 150),
           opacity: opacity,
@@ -64,51 +66,64 @@ class FloatingTipsWidget extends StatelessWidget {
   /// 🔧 修改：支持同时显示多个提示，使用Column垂直排列
   Widget _buildCurrentTip() {
     List<Widget> tips = [];
-    
+
     // 按优先级顺序添加提示
     if (tipsManager.showPermissionTip.value) {
-      tips.add(GestureDetector(
-        onTap: tipsManager.onPermissionTipTap,
-        child: _buildBasicTip(
-          text: '请开启实时定位，更好体验KissU',
-          hasCloseButton: false,
+      tips.add(
+        GestureDetector(
+          onTap: tipsManager.onPermissionTipTap,
+          child: _buildBasicTip(
+            text: '请开启实时定位，更好体验',
+            richText: 'KissU',
+            hasCloseButton: false,
+          ),
         ),
-      ));
+      );
     }
-    
+
     if (tipsManager.showPartnerLocationTip.value) {
-      tips.add(_buildBasicTip(
-        text: '对方未开启定位，赶快提醒对方哦~',
-        hasCloseButton: true,
-        onClose: tipsManager.onPartnerLocationTipClose,
-        hasArrow: false, // 这个提示不显示箭头
-      ));
+      tips.add(
+        _buildBasicTip(
+          text: '对方未开启定位，赶快提醒对方哦~',
+          richText: '',
+          hasCloseButton: true,
+          onClose: tipsManager.onPartnerLocationTipClose,
+          hasArrow: false, // 这个提示不显示箭头
+        ),
+      );
     }
-    
+
     if (tipsManager.showVipExpiryTip.value) {
-      tips.add(GestureDetector(
-        onTap: tipsManager.onVipExpiryTipTap,
-        child: _buildMembershipTip(),
-      ));
+      tips.add(
+        GestureDetector(
+          onTap: tipsManager.onVipExpiryTipTap,
+          child: _buildMembershipTip(),
+        ),
+      );
     }
-    
+
     if (tips.isEmpty) return const SizedBox.shrink();
-    
+
     // 如果只有一个提示，直接返回
     if (tips.length == 1) return tips.first;
-    
+
     // 多个提示时使用Column垂直排列
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: tips.map((tip) => Padding(
-        padding: const EdgeInsets.only(bottom: 8), // 提示之间的间距
-        child: tip,
-      )).toList(),
+      children: tips
+          .map(
+            (tip) => Padding(
+              padding: const EdgeInsets.only(bottom: 8), // 提示之间的间距
+              child: tip,
+            ),
+          )
+          .toList(),
     );
   }
 
   Widget _buildBasicTip({
     required String text,
+    required String richText,
     required bool hasCloseButton,
     VoidCallback? onClose,
     bool hasArrow = true, // 默认显示箭头
@@ -118,27 +133,55 @@ class FloatingTipsWidget extends StatelessWidget {
       children: [
         Container(
           width: 240,
-          height: 36,
+          height: 34,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFCE8), // #FFFCE8
+            color: const Color(0xFf000000), // #FFFCE8
             borderRadius: BorderRadius.circular(40),
           ),
           child: Row(
             children: [
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              Image(
+                image: AssetImage('assets/4.0/kissu4_location_white.webp'),
+                width: 14,
+                height: 14,
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF333333), // #333333
-                      fontWeight: FontWeight.w400,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: text,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFffffff), // #333333
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        TextSpan(
+                          text: richText,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF8FBD ), // #333333
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
                   ),
+                  // Text(
+                  //   text,
+                  //   style: const TextStyle(
+                  //     fontSize: 12,
+                  //     color: Color(0xFFffffff), // #333333
+                  //     fontWeight: FontWeight.w400,
+                  //   ),
+                  //   maxLines: 1,
+                  // ),
                 ),
               ),
               // 箭头图标（可控显示）
@@ -146,7 +189,7 @@ class FloatingTipsWidget extends StatelessWidget {
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: Color(0xFFAD6D48), // #AD6D48
+                  color: Color(0xFFffffff), // #AD6D48
                 ),
                 const SizedBox(width: 11),
               ] else
@@ -158,7 +201,7 @@ class FloatingTipsWidget extends StatelessWidget {
         if (hasCloseButton)
           Positioned(
             top: -10, // 🔧 扩大点击区域：越界出去上边10px
-            right: -10, // 🔧 扩大点击区域：越界出去右边10px
+            right: -5, // 🔧 扩大点击区域：越界出去右边10px
             child: GestureDetector(
               onTap: onClose,
               child: Container(
@@ -179,10 +222,10 @@ class FloatingTipsWidget extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 10,
-                    color: Color(0xFF666666),
+                  child: Image(
+                    image: AssetImage('assets/4.0/kissu4_close_black.webp'),
+                    width: 16,
+                    height: 16,
                   ),
                 ),
               ),
@@ -208,19 +251,21 @@ class FloatingTipsWidget extends StatelessWidget {
               const SizedBox(width: 16),
               // 会员到期文字
               Expanded(
-                child: Obx(() => FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '你的会员还有${tipsManager.vipExpiryText.value}到期！',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF333333), // #333333
-                      fontWeight: FontWeight.w400,
+                child: Obx(
+                  () => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '你的会员还有${tipsManager.vipExpiryText.value}到期！',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF333333), // #333333
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
                     ),
-                    maxLines: 1,
                   ),
-                )),
+                ),
               ),
               // 去续费按钮
               Row(

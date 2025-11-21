@@ -59,21 +59,22 @@ class MineUserInfo extends StatelessWidget {
                       "在一起",
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xff666666),
+                        color: Color(0x99333333),
                       ),
                     ),
                     SizedBox(width: 6),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(horizontal: 12,vertical: 3).copyWith(top: 4),
                       decoration: BoxDecoration(
-                        color: Color(0xffFF82C6),
+                        color: Color(0xffFF94D6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         days,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
                           color: Color(0xffffffff),
                         ),
                       ),
@@ -83,7 +84,7 @@ class MineUserInfo extends StatelessWidget {
                       "天",
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xff666666),
+                        color: Color(0x99333333),
                       ),
                     ),
                   ],
@@ -91,7 +92,7 @@ class MineUserInfo extends StatelessWidget {
               else
                 Text(
                   "未绑定另一半",
-                  style: TextStyle(fontSize: 12, color: Color(0xff999999)),
+                  style: TextStyle(fontSize: 12, color: Color(0x99333333)),
                 ),
               SizedBox(height: 5),
               GestureDetector(
@@ -100,7 +101,7 @@ class MineUserInfo extends StatelessWidget {
                   children: [
                     Text(
                       "恋爱信息",
-                      style: TextStyle(fontSize: 12, color: Color(0xff666666)),
+                      style: TextStyle(fontSize: 12, color: Color(0x99333333)),
                     ),
                     SizedBox(width: 3),
                     Image(

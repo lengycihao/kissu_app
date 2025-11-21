@@ -6,12 +6,16 @@ class LocationStateDeleteDialog extends BaseDialog {
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
   final String title; // 弹窗标题
+  final String cancelAsset; // 左侧按钮背景图
+  final String confirmAsset; // 右侧按钮背景图
 
   const LocationStateDeleteDialog({
     Key? key,
     this.onConfirm,
     this.onCancel,
     this.title = '确定要删除吗？', // 默认标题
+    this.cancelAsset = 'assets/location/kissu3_state_delete_cancel.webp',
+    this.confirmAsset = 'assets/location/kissu3_state_delete_sure.webp',
   }) : super(key: key);
 
   @override
@@ -53,7 +57,7 @@ class LocationStateDeleteDialog extends BaseDialog {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 取消按钮
+                // 取消按钮（左侧按钮）
                 GestureDetector(
                   onTap: () {
                     Navigator.of(context).pop(false);
@@ -62,16 +66,16 @@ class LocationStateDeleteDialog extends BaseDialog {
                   child: Container(
                     width: 106,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage('assets/location/kissu3_state_delete_cancel.webp'),
+                        image: AssetImage(cancelAsset),
                         fit: BoxFit.fill,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                // 确认按钮
+                // 确认按钮（右侧按钮）
                 GestureDetector(
                   onTap: () {
                     Navigator.of(context).pop(true);
@@ -80,9 +84,9 @@ class LocationStateDeleteDialog extends BaseDialog {
                   child: Container(
                     width: 106,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage('assets/location/kissu3_state_delete_sure.webp'),
+                        image: AssetImage(confirmAsset),
                         fit: BoxFit.fill,
                       ),
                     ),
@@ -103,6 +107,8 @@ class LocationStateDeleteDialog extends BaseDialog {
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
     bool barrierDismissible = true,
+    String? cancelAsset,
+    String? confirmAsset,
   }) {
     return BaseDialog.show<bool>(
       context: context,
@@ -111,6 +117,10 @@ class LocationStateDeleteDialog extends BaseDialog {
         title: title,
         onConfirm: onConfirm,
         onCancel: onCancel,
+        cancelAsset:
+            cancelAsset ?? 'assets/location/kissu3_state_delete_cancel.webp',
+        confirmAsset:
+            confirmAsset ?? 'assets/location/kissu3_state_delete_sure.webp',
       ),
     );
   }

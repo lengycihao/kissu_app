@@ -141,7 +141,7 @@ class LocationMapSnapshot extends StatelessWidget {
   /// 获取位置图标
   Widget _getLocationIcon(int iconId) {
     // 统一使用位置图标，不再根据 iconId 区分
-    const assetPath = 'assets/home_list_type_location.webp';
+    const assetPath = 'assets/images/home_list_type_location.webp';
 
     return Container(
       decoration: BoxDecoration(

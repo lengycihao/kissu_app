@@ -33,20 +33,23 @@ buildscript {
 
 allprojects {
     repositories {
+        // 先使用 JitPack（提供 com.github.gzu-liyujiang:Android_CN_OAID:4.2.9）
+        maven { url = uri("https://jitpack.io") }
+
         // 优先使用阿里云镜像仓库，避免TLS连接问题
-       maven { 
-           url = uri("https://maven.aliyun.com/repository/public")
-           isAllowInsecureProtocol = false
-       }
-       maven { 
-           url = uri("https://maven.aliyun.com/repository/google")
-           isAllowInsecureProtocol = false
-       }
-       maven { 
-           url = uri("https://maven.aliyun.com/repository/jcenter")
-           isAllowInsecureProtocol = false
-       }
-       
+        maven { 
+            url = uri("https://maven.aliyun.com/repository/public")
+            isAllowInsecureProtocol = false
+        }
+        maven { 
+            url = uri("https://maven.aliyun.com/repository/google")
+            isAllowInsecureProtocol = false
+        }
+        maven { 
+            url = uri("https://maven.aliyun.com/repository/jcenter")
+            isAllowInsecureProtocol = false
+        }
+        
         // 使用腾讯云镜像作为备选（也包含Google Maven内容）
         maven { 
             url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
@@ -63,8 +66,6 @@ allprojects {
         // 华为 & 荣耀 OAID 依赖库（用于 flutter_android_oaid_plugin）
         maven { url = uri("https://developer.huawei.com/repo/") }
         maven { url = uri("https://developer.hihonor.com/repo/") }
-        
-        maven { url = uri("https://jitpack.io") }
         
         // OpenInstall 官方仓库
         maven { url = uri("https://maven.openinstall.io/repository/maven-public/") }
@@ -106,7 +107,9 @@ subprojects {
     }
 }
 subprojects {
-    project.evaluationDependsOn(":app")
+    if (path != ":app") {
+        evaluationDependsOn(":app")
+    }
 }
 
 tasks.register<Delete>("clean") {

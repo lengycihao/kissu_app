@@ -69,7 +69,7 @@ class IslandViewButton extends StatelessWidget {
             SizedBox(width: 1),
             if (showArrow) ...[
               Image(
-                image: AssetImage("assets/kissu_mine_arrow.webp"),
+                image: AssetImage("assets/images/kissu_mine_arrow.webp"),
                 width: 16,
                 height: 16,
               ),
@@ -94,7 +94,7 @@ class IslandViewButton extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) {
           // 如果网络图片加载失败，使用默认图标
           return Image(
-            image: AssetImage(iconAsset ?? "assets/home_list_type_location.webp"),
+            image: AssetImage(iconAsset ?? "assets/images/home_list_type_location.webp"),
             width: 20,
             height: 20,
           );

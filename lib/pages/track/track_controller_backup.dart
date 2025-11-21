@@ -2818,7 +2818,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       try {
         final startIcon = await BitmapDescriptor.fromAssetImage(
           const ImageConfiguration(size: Size(44, 46)),
-          'assets/kissu_location_start.webp',
+          'assets/images/kissu_location_start.webp',
         );
         
             final startMarker = Marker(
@@ -2864,7 +2864,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
           try {
             final endIcon = await BitmapDescriptor.fromAssetImage(
               const ImageConfiguration(size: Size(44, 46)),
-              'assets/kissu_location_end.webp',
+              'assets/images/kissu_location_end.webp',
             );
             
             final endMarker = Marker(

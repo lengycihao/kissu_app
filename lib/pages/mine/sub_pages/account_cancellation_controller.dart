@@ -4,7 +4,7 @@ import '../../../utils/user_manager.dart';
 
 class AccountCancellationController extends GetxController {
   // 用户信息
-  final userAvatar = 'assets/kissu_accout_header_bg.webp'.obs;
+  final userAvatar = 'assets/images/kissu_accout_header_bg.webp'.obs;
   final userName = '悠悠白茶'.obs;
 
   @override

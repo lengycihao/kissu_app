@@ -885,7 +885,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/kissu4_vip_hat.webp',
+                        'assets/images/kissu4_vip_hat.webp',
                         width: 16,
                         height: 14,
                       ),
@@ -896,7 +896,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                             bottom: 2,
                             right: 0,
                             child: Image.asset(
-                              'assets/kissu4_vip_line.webp',
+                              'assets/images/kissu4_vip_line.webp',
                               width: 68,
                               height: 12,
                               fit: BoxFit.cover,
@@ -918,8 +918,8 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                   // 第二行：按钮（根据状态显示不同的按钮）
                   Image.asset(
                     isVipButton
-                        ? 'assets/kissu3_go_vip.webp'
-                        : 'assets/kissu3_go_bind.webp',
+                        ? 'assets/images/kissu3_go_vip.webp'
+                        : 'assets/images/kissu3_go_bind.webp',
                     width: isVipButton ? 129 : 109,
                     height: 35,
                   ),

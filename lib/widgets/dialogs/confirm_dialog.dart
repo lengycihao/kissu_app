@@ -27,7 +27,7 @@ class ConfirmDialog extends BaseDialog {
   @override
   Widget buildContent(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
       width: 300,
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
@@ -71,7 +71,7 @@ class ConfirmDialog extends BaseDialog {
                 DialogButton(
                   text: cancelText ?? '取消',
                   width: 110,
-                  backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp',
+                  backgroundImage: 'assets/images/kissu_dialop_common_cancel_bg.webp',
                   onTap: () {
                     Navigator.of(context).pop(false);
                     onCancel?.call();
@@ -82,7 +82,7 @@ class ConfirmDialog extends BaseDialog {
               DialogButton(
                 text: confirmText,
                 width: 110,
-                backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp',
+                backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
                 onTap: () {
                   Navigator.of(context).pop(true);
                   onConfirm?.call();
@@ -142,7 +142,7 @@ class _LogoutConfirmDialogContent extends BaseDialog {
   @override
   Widget buildContent(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
       width: 300,
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
@@ -177,7 +177,7 @@ class _LogoutConfirmDialogContent extends BaseDialog {
                 text: '确认',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_cancel_bg.webp', // 退出确认用红色背景
+                    'assets/images/kissu_dialop_common_cancel_bg.webp', // 退出确认用红色背景
                 onTap: () {
                   Navigator.of(context).pop(true); // 返回 true 表示确认退出
                 },
@@ -187,7 +187,7 @@ class _LogoutConfirmDialogContent extends BaseDialog {
                 text: '我再想想',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_sure_bg.webp', // 取消退出用绿色背景
+                    'assets/images/kissu_dialop_common_sure_bg.webp', // 取消退出用绿色背景
                 onTap: () {
                   Navigator.of(context).pop(false); // 返回 false 表示取消
                 },
@@ -220,7 +220,7 @@ class _PhoneChangeDialog extends BaseDialog {
   @override
   Widget buildContent(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
       width: 300,
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
       child: Column(
@@ -253,7 +253,7 @@ class _PhoneChangeDialog extends BaseDialog {
             children: [
               DialogButton(
                 text: '确定',
-                backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp',
+                backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
                 width: 200,
                 onTap: () {
                   Navigator.of(context).pop(true);
@@ -262,7 +262,7 @@ class _PhoneChangeDialog extends BaseDialog {
               const SizedBox(height: 12),
               DialogButton(
                 text: '取消',
-                backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp',
+                backgroundImage: 'assets/images/kissu_dialop_common_cancel_bg.webp',
                 width: 200,
                 onTap: () {
                   Navigator.of(context).pop(false);
@@ -306,7 +306,7 @@ class _CancellationConfirmDialogContent extends BaseDialog {
   @override
   Widget buildContent(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
       width: 300,
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
@@ -341,7 +341,7 @@ class _CancellationConfirmDialogContent extends BaseDialog {
                 text: '确认',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景（红色）
+                    'assets/images/kissu_dialop_common_cancel_bg.webp', // 使用取消背景（红色）
                 onTap: () {
                   Navigator.of(context).pop(true); // 返回 true 表示确认注销
                 },
@@ -351,7 +351,7 @@ class _CancellationConfirmDialogContent extends BaseDialog {
                 text: '我再想想',
                 width: 110,
                 backgroundImage:
-                    'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景（绿色）
+                    'assets/images/kissu_dialop_common_sure_bg.webp', // 使用确认背景（绿色）
                 onTap: () {
                   Navigator.of(context).pop(false); // 返回 false 表示取消
                 },

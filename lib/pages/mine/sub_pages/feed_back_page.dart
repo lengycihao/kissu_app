@@ -282,7 +282,7 @@ class FeedbackPage extends StatelessWidget {
           // 背景
           Positioned.fill(
             child: Image.asset(
-              "assets/kissu_mine_bg.webp",
+              "assets/images/kissu_mine_bg.webp",
               fit: BoxFit.cover,
             ),
           ),
@@ -302,7 +302,7 @@ class FeedbackPage extends StatelessWidget {
                           GestureDetector(
                             onTap: () => Get.back(),
                             child: Image.asset(
-                              "assets/kissu_mine_back.webp",
+                              "assets/images/kissu_mine_back.webp",
                               width: 24,
                               height: 24,
                             ),
@@ -435,7 +435,7 @@ class FeedbackPage extends StatelessWidget {
                                             decoration: BoxDecoration(
                                               image: DecorationImage(
                                                 image: AssetImage(
-                                                  "assets/kissu_image_add.webp",
+                                                  "assets/images/kissu_image_add.webp",
                                                 ),
                                                 fit: BoxFit.cover,
                                               ),

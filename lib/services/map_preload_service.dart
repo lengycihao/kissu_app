@@ -40,10 +40,10 @@ class MapPreloadService {
       await Future.wait([
         _preloadAssetImage('assets/3.0/kissu3_location_she.webp'),
         _preloadAssetImage('assets/3.0/kissu3_emoij_bg.webp'),
-        _preloadAssetImage('assets/kissu3_love_avater.webp'),
-        _preloadAssetImage('assets/kissu_location_start.webp'),
-        _preloadAssetImage('assets/kissu_location_circle.webp'),
-        _preloadAssetImage('assets/kissu_love_yellow.webp'),
+        _preloadAssetImage('assets/3.0/kissu3_love_avater.webp'),
+        _preloadAssetImage('assets/images/kissu_location_start.webp'),
+        _preloadAssetImage('assets/images/kissu_location_circle.webp'),
+        _preloadAssetImage('assets/images/kissu_love_yellow.webp'),
       ]);
 
       _isPreloaded = true;

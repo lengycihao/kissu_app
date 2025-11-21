@@ -22,9 +22,8 @@ class VipPurchaseDialog extends StatefulWidget {
       context: context,
       barrierDismissible: barrierDismissible,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      // 背景色：#000000 50% 再 86% 不透明度 = 0.5 * 0.86 = 0.43 = 43% 不透明度
-      // alpha = 0.43 * 255 = 109.65 ≈ 110 = 0x6E
-      barrierColor: const Color(0x6E000000),
+      // 背景色：#000000 70% 
+      barrierColor: const Color(0xb3000000),
       transitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (context, animation, secondaryAnimation) {
         return Center(
@@ -59,22 +58,11 @@ class VipPurchaseDialog extends StatefulWidget {
 }
 
 class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
-  // 协议是否已同意
-  bool _agreementChecked = false;
-
-  /// 切换协议同意状态
-  void _toggleAgreement() {
-    setState(() {
-      _agreementChecked = !_agreementChecked;
-    });
-  }
+ 
 
   /// 处理开通会员按钮点击
   void _handleConfirm() {
-    if (!_agreementChecked) {
-      // 如果未同意协议，可以显示提示或直接返回
-      return;
-    }
+    
     // 埋点：立即查看按钮点击
     TrackingService.trackVipAlertOpen();
     Navigator.of(context).pop();
@@ -122,7 +110,7 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
             children: [
               // 开通会员按钮（距离协议6px，在协议上方）
               GestureDetector(
-                onTap: _agreementChecked ? _handleConfirm : null,
+                onTap: _handleConfirm,
                 child: Opacity(
                   opacity: 1.0,
                   child: Image.asset(
@@ -133,12 +121,8 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
                   ),
                 ),
               ),
-              SizedBox(height: 6 * scale), // 按钮距离协议6px
-              // 协议模块（距离底部21px）
-              Padding(
-                padding: EdgeInsets.only(bottom: 21 * scale),
-                child: _buildAgreementRow(scale),
-              ),
+              SizedBox(height: 25 * scale), // 按钮距离协议6px
+              
             ],
           ),
         ),
@@ -163,56 +147,4 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
     );
   }
 
-  /// 构建协议行（单选框 + 富文本）
-  Widget _buildAgreementRow(double scale) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20 * scale),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // 单选框
-          GestureDetector(
-            onTap: _toggleAgreement,
-            child: Image.asset(
-              _agreementChecked
-                  ? 'assets/4.0/kissu4_home_vip_per_sel.webp'
-                  : 'assets/4.0/kissu4_home_vip_per_unsel.webp',
-              width: 13 * scale,
-              height: 13 * scale,
-              fit: BoxFit.contain,
-            ),
-          ),
-          SizedBox(width: 8 * scale),
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: 12 * scale,
-                color: const Color(0xFF666666),
-              ),
-              children: [
-                const TextSpan(
-                  text: '我已阅读并同意 ',
-                  style: TextStyle(fontSize: 9, color: Color(0xdd000000)),
-                ),
-                TextSpan(
-                  text: '《会员服务协议》',
-                  style: TextStyle(
-                    fontSize: 9 * scale,
-                    color: const Color(0xFF00232C),
-                  ),
-                  recognizer: TapGestureRecognizer()
-                    ..onTap = () async {
-                      // 上报服务协议点击埋点
-                      await TrackingService.trackMembershipServiceAgreement();
-                      AgreementUtils.toVipAgreement();
-                    },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+ }

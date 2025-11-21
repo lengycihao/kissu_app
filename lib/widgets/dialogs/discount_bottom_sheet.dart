@@ -160,7 +160,7 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
               width: 20,
               height: 20,
               child: Image.asset(
-                isSelected ? 'assets/kissu_vip_agree.webp' : 'assets/kissu_select_circle.webp',
+                isSelected ? 'assets/images/kissu_vip_agree.webp' : 'assets/images/kissu_select_circle.webp',
                 width: 20,
                 height: 20,
                 fit: BoxFit.contain,

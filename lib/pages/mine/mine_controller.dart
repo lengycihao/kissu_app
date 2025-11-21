@@ -40,8 +40,8 @@ class MineController extends GetxController {
   var days = "".obs;
 
   // 头像信息
-  var userAvatar = "assets/kissu3_love_avater.webp".obs;
-  var partnerAvatar = "assets/kissu_home_add_avair.webp".obs;
+  var userAvatar = "assets/3.0/kissu3_love_avater.webp".obs;
+  var partnerAvatar = "assets/images/kissu_home_add_avair.webp".obs;
 
   // 绑定状态
   var isBound = false.obs;
@@ -249,7 +249,7 @@ class MineController extends GetxController {
       // 已绑定状态
       partnerAvatar.value = userInfo['partnerAvatar'].isNotEmpty
           ? userInfo['partnerAvatar']
-          : "assets/kissu_home_add_avair.webp";
+          : "assets/images/kissu_home_add_avair.webp";
       bindDate.value = userInfo['bindDate'];
       days.value = userInfo['days'];
 
@@ -264,7 +264,7 @@ class MineController extends GetxController {
       // 未绑定状态
       bindDate.value = "";
       days.value = "";
-      partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+      partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
     }
 
     // 会员信息处理
@@ -343,10 +343,10 @@ class MineController extends GetxController {
       partnerAvatar.value = user.halfUserInfo!.headPortrait!;
     } else if (isBound.value) {
       // 如果有绑定关系但没有头像，使用默认头像
-      partnerAvatar.value = "assets/kissu3_love_avater.webp";
+      partnerAvatar.value = "assets/3.0/kissu3_love_avater.webp";
     } else {
       // 如果没有绑定关系，显示添加头像
-      partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+      partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
     }
   }
 
@@ -452,18 +452,18 @@ class MineController extends GetxController {
         onTap: () => _onShareAppTap(),
       ),
       // SettingItem(
-      //   icon: "assets/kissu_mine_item_xtqx.webp", // 使用系统权限图标作为弹窗展示图标
+      //   icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
       //   title: "弹窗展示",
       //   onTap: () => Get.to(() => const DialogShowcasePage()),
       // ),
 
       // SettingItem(
-      //   icon: "assets/kissu_mine_item_syst.webp",
+      //   icon: "assets/images/kissu_home_tab_history.webp",
       //   title: "🔧 锁屏监听调试",
       //   onTap: () => _onScreenLockDebugTap(),
       // ),
       // SettingItem(
-      //   icon: "assets/kissu_home_tab_history.webp",
+      //   icon: "assets/images/kissu_home_tab_history.webp",
       //   title: "用机记录",
       //   onTap: () => Get.to(() => const UsageReportPage(), binding: UsageReportBinding()),
       // ),
@@ -474,7 +474,7 @@ class MineController extends GetxController {
 
       // ),
       // SettingItem(
-      //   icon: "assets/kissu_mine_item_syst.webp",
+      //   icon: "assets/images/kissu_home_tab_history.webp",
       //   title: "首页视图",
       //   onTap: () async {
       //     await TrackingService.trackHomeView();

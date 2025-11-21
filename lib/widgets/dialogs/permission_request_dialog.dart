@@ -56,7 +56,7 @@ class PermissionRequestDialog extends StatelessWidget {
             height: 183,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_permission_bg.webp'),
+                image: AssetImage('assets/images/kissu_permission_bg.webp'),
                 fit: BoxFit.cover,
               ),
             ),
@@ -134,7 +134,7 @@ class PermissionRequestDialog extends StatelessWidget {
                 color: const Color(0xFF999999), // 灰色背景
                 borderRadius: BorderRadius.circular(16), // 圆角
                 image: const DecorationImage(
-                  image: AssetImage('assets/kissu_location_close.webp'),
+                  image: AssetImage('assets/images/kissu_location_close.webp'),
                   fit: BoxFit.cover,
                 ),
               ),

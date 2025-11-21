@@ -48,13 +48,19 @@ class HomeAvatarSection extends StatelessWidget {
                         }
                       },
                       // 🚀 优化：统一使用 NoPlaceholderImage，它现在能自动识别网络和本地图片
-                      child: NoPlaceholderImage(
-                        imageUrl: controller.userAvatar.value,
-                        defaultAssetPath: "assets/kissu3_love_avater.webp",
-                        width: 38,
-                        height: 38,
-                        fit: BoxFit.cover,
-                        borderRadius: BorderRadius.circular(5),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: Colors.white, width: 1),
+                        ),
+                        child: NoPlaceholderImage(
+                          imageUrl: controller.userAvatar.value,
+                          defaultAssetPath: "assets/3.0/kissu3_love_avater.webp",
+                          width: 38,
+                          height: 38,
+                          fit: BoxFit.cover,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
                       ),
                     ),
                   ),
@@ -72,14 +78,21 @@ class HomeAvatarSection extends StatelessWidget {
                               // 已绑定状态下点击头像跳转到恋爱信息页
                               controller.navigateToLoveInfoPage();
                             },
-                            child: NoPlaceholderImage(
-                              imageUrl: controller.partnerAvatar.value,
-                              defaultAssetPath:
-                                  "assets/kissu3_love_avater.webp",
-                              width: 38,
-                              height: 38,
-                              fit: BoxFit.cover,
-                              borderRadius: BorderRadius.circular(5),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(5),
+                                border:
+                                    Border.all(color: Colors.white, width: 1),
+                              ),
+                              child: NoPlaceholderImage(
+                                imageUrl: controller.partnerAvatar.value,
+                                defaultAssetPath:
+                                    "assets/3.0/kissu3_love_avater.webp",
+                                width: 38,
+                                height: 38,
+                                fit: BoxFit.cover,
+                                borderRadius: BorderRadius.circular(5),
+                              ),
                             ),
                           )
                         : GestureDetector(
@@ -101,7 +114,7 @@ class HomeAvatarSection extends StatelessWidget {
                               ),
                               child: Center(
                                 child: Image.asset(
-                                  "assets/kissu_home_add_avair.webp",
+                                  "assets/images/kissu_home_add_avair.webp",
                                   width: 24,
                                   height: 24,
                                 ),
@@ -127,8 +140,8 @@ class HomeAvatarSection extends StatelessWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Color(0xffFFECEA)),
+                          color: Color(0xff5CC0FF),
+                          border: Border.all(color: Color(0xffffffff),width: 2),
                           borderRadius: BorderRadius.all(
                             Radius.circular(15),
                           ),
@@ -137,7 +150,7 @@ class HomeAvatarSection extends StatelessWidget {
                           () => Text(
                             "在一起${controller.loveDays.value}天",
                             style: TextStyle(
-                              color: Color(0xff666666),
+                              color: Color(0xffffffff),
                               fontSize: 12,
                             ),
                           ),
@@ -181,45 +194,85 @@ class HomeAvatarSection extends StatelessWidget {
             const SizedBox(height: 15), // 与下方两个按钮间距
             // 通知图标和活动图标
             Transform.translate(
-              offset: const Offset(9, 0),
+              offset: const Offset(19, 0),
               child: Column(
                 children: [
-                  // 通知图标（带红点）
-                  Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          controller.onNotificationTap();
-                        },
-                        child: Image.asset(
-                          "assets/kissu_home_notiicon.png",
-                          width: 50,
-                          height: 50,
+                  // 通知图标（带红点）+ 抽屉式提示
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // 左侧抽屉式提示条（从图标左侧展开）
+                        Positioned(
+                          right: 20, // 从图标左侧开始
+                          top: 0,
+                          child: Obx(() {
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              width: controller.isRedDot.value ? 110 : 0,
+                              height: 36,
+                              child: controller.isRedDot.value
+                                  ? Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black,
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(18),
+                                          bottomLeft: Radius.circular(18),
+                                        ),
+                                      ),
+                                      alignment: Alignment.centerLeft,
+                                      padding: EdgeInsets.only(left: 12, right: 8),
+                                      child: Text(
+                                        "有未读消息哦~",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    )
+                                  : SizedBox.shrink(),
+                            );
+                          }),
                         ),
-                      ),
-                      // 红点角标
-                      Obx(() {
-                        if (controller.isRedDot.value) {
-                          return Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: const Color(0xffFF6B6B),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1,
+                        // 通知图标（固定位置）
+                        GestureDetector(
+                          onTap: () {
+                            controller.onNotificationTap();
+                          },
+                          child: Image.asset(
+                            "assets/images/kissu_home_notiicon.png",
+                            width: 36,
+                            height: 36,
+                          ),
+                        ),
+                        // 红点角标
+                        Obx(() {
+                          if (controller.isRedDot.value) {
+                            return Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xffFF6B6B),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }),
-                    ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }),
+                      ],
+                    ),
                   ),
                   // 活动图标
                   Obx(() {

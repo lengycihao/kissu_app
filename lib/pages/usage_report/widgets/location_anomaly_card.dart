@@ -174,7 +174,7 @@ class _LocationAnomalyCardState extends State<LocationAnomalyCard> {
                   left: constraints.maxWidth * 0.12 - 12, // 图标宽度的一半
                   top: 40 - 12, // 图标高度的一半（卡片高度80px的中心）
                   child: Image.asset(
-                    'assets/home_list_type_location.webp',
+                    'assets/images/home_list_type_location.webp',
                     width: 24,
                     height: 24,
                   ),

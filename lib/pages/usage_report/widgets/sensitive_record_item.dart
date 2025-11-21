@@ -74,7 +74,7 @@ class SensitiveRecordItem extends StatelessWidget {
         iconPath = 'assets/phone_history/kissu3_history_time_icon.webp';
         break;
       case SensitiveRecordType.track:
-        iconPath = 'assets/kissu_track_location.webp';
+        iconPath = 'assets/images/kissu_track_location.webp';
         break;
       case SensitiveRecordType.wifi:
         iconPath = 'assets/phone_history/kissu_phone_wifi.webp';

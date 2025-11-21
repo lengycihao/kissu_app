@@ -66,7 +66,7 @@ class InfoSettingController extends GetxController {
         uploadedHeadPortrait.value = user.headPortrait!;
       } else {
         // 如果没有头像，使用默认头像背景
-        avatarUrl.value = 'assets/kissu_info_setting_headerbg.webp';
+        avatarUrl.value = 'assets/images/kissu_info_setting_headerbg.webp';
       }
 
       // 设置昵称
@@ -98,7 +98,7 @@ class InfoSettingController extends GetxController {
     } else {
       logDebug('用户信息为空，使用默认值', tag: 'InfoSetting');
       // 如果没有用户信息，设置默认值
-      avatarUrl.value = 'assets/kissu_info_setting_headerbg.webp';
+      avatarUrl.value = 'assets/images/kissu_info_setting_headerbg.webp';
       selectedDate.value = DateTime(2007, 1, 1);
     }
   }

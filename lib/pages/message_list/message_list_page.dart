@@ -29,7 +29,7 @@ class MessageListPage extends GetView<MessageListController> {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Image.asset(
-                    'assets/kissu_mine_back.webp',
+                    'assets/images/kissu_mine_back.webp',
                     width: 20,
                     height: 20,
                   ),

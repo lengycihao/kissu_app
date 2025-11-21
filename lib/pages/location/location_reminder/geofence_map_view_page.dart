@@ -132,7 +132,7 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
             margin: const EdgeInsets.only(left: 16),
             child: Center(
               child: Image.asset(
-                'assets/kissu_mine_back.webp',
+                'assets/images/kissu_mine_back.webp',
                 width: 24,
                 height: 24,
               ),

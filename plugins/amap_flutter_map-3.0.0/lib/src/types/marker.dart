@@ -101,6 +101,7 @@ class Marker extends BaseOverlay {
     this.rotation = 0.0,
     this.visible = true,
     this.zIndex = 0.0,
+    this.isFlat = false,
     Matrix4? transform,
     this.onTap,
     this.onDragEnd,
@@ -181,6 +182,9 @@ class Marker extends BaseOverlay {
   /// 值越小，图层越靠下，iOS该值不支持动态修改,仅能在初始化时指定
   final double zIndex;
 
+  /// 是否平贴在地图上，如果为true，marker会随地图旋转而旋转
+  final bool isFlat;
+
   /// Matrix4变换矩阵，用于支持复杂的动画效果
   final Matrix4 transform;
 
@@ -208,6 +212,7 @@ class Marker extends BaseOverlay {
     LatLng? positionParam,
     double? rotationParam,
     bool? visibleParam,
+    bool? isFlatParam,
     Matrix4? transformParam,
     ArgumentCallback<String>? onTapParam,
     MarkerDragEndCallback? onDragEndParam,
@@ -230,6 +235,7 @@ class Marker extends BaseOverlay {
       rotation: rotationParam ?? rotation,
       visible: visibleParam ?? visible,
       zIndex: zIndex,
+      isFlat: isFlatParam ?? isFlat,
       transform: transformParam ?? transform,
       onTap: onTapParam ?? onTap,
       onDragEnd: onDragEndParam ?? onDragEnd,
@@ -267,6 +273,7 @@ class Marker extends BaseOverlay {
     addIfPresent('position', position.toJson());
     addIfPresent('rotation', rotation);
     addIfPresent('visible', visible);
+    addIfPresent('flat', isFlat);
     addIfPresent('zIndex', zIndex);
     addIfPresent('transform', _matrix4ToJson(transform));
     return json;

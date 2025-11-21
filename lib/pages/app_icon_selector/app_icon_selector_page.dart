@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// App图标选择页面
 class AppIconSelectorPage extends StatefulWidget {
@@ -22,7 +23,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
     AppIconItem(
       id: 'default',
       name: '原始图标',
-      previewPath: 'assets/kissu_icon.webp', // 之前的logo
+      previewPath: 'assets/images/kissu_icon.webp', // 之前的logo
       description: 'Kissu经典图标',
     ),
     AppIconItem(
@@ -31,12 +32,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
       previewPath: 'assets/4.0/kissu4_logo_one.webp',
       description: '新设计图标一',
     ),
-    AppIconItem(
-      id: 'logo_two',
-      name: '图标二',
-      previewPath: 'assets/4.0/kissu4_logo_two.jpg',
-      description: '新设计图标二',
-    ),
+ 
   ];
 
   @override
@@ -60,15 +56,8 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
   /// 切换图标
   Future<void> _changeIcon(String iconId) async {
     if (_currentIcon == iconId) {
-      Get.snackbar(
-        '提示',
-        '当前已是该图标',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.black.withOpacity(0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.all(16),
-      );
+      OKToastUtil.show('当前已是该图标');
+      
       return;
     }
 
@@ -84,37 +73,15 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
           _currentIcon = iconId;
         });
         
-        Get.snackbar(
-          '成功',
-          '图标切换成功，重启App后生效',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: const Color(0xFFFF9DC4).withOpacity(0.9),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-          margin: const EdgeInsets.all(16),
-        );
+        OKToastUtil.show('切换成功，重启后生效');
+          
       } else {
-        Get.snackbar(
-          '失败',
-          '图标切换失败，请重试',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-          margin: const EdgeInsets.all(16),
-        );
+         OKToastUtil.show('图标切换失败，请重试');
       }
     } catch (e) {
       print('切换图标失败: $e');
-      Get.snackbar(
-        '错误',
-        '切换失败: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.all(16),
-      );
+      OKToastUtil.show('切换失败: $e');
+       
     } finally {
       setState(() {
         _isLoading = false;
@@ -125,24 +92,27 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xffFFF6F0),
       body: Stack(
+        
         children: [
-          // 背景
-          Positioned.fill(
-            child: Image.asset(
-              "assets/3.0/kissu3_view_bg.webp",
-              fit: BoxFit.fill,
-            ),
-          ),
+          
           SafeArea(
+            
             child: Column(
               children: [
                 // 顶部导航栏
                 _buildAppBar(),
                 // 图标列表
                 Expanded(
-                  child: ListView.builder(
+                  child: GridView.builder(
                     padding: const EdgeInsets.all(16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, // 一行3个
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 0.75, // 宽高比，为文字预留空间
+                    ),
                     itemCount: _iconItems.length,
                     itemBuilder: (context, index) {
                       final item = _iconItems[index];
@@ -178,7 +148,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
           GestureDetector(
             onTap: () => Get.back(),
             child: Image.asset(
-              "assets/kissu_mine_back.webp",
+              "assets/images/kissu_mine_back.webp",
               width: 22,
               height: 22,
             ),
@@ -203,114 +173,65 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
 
   /// 构建图标项
   Widget _buildIconItem(AppIconItem item, bool isSelected) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? const Color(0xFFFF9DC4) : Colors.transparent,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _changeIcon(item.id),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                // 图标预览
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
+      onTap: () => _changeIcon(item.id),
+      child: Column(
+        children: [
+          // 图标图片（带边框）- 正方形
+          AspectRatio(
+            aspectRatio: 1.0, // 1:1 正方形
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFFFA1DB) : Colors.transparent,
+                  width: 3,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(9),
                     child: Image.asset(
                       item.previewPath,
                       fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                // 图标信息
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            item.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                          if (isSelected) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF9DC4),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Text(
-                                '使用中',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.description,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF999999),
+                  // 选中指示器
+                  if (isSelected)
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFA1DB),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                // 选中指示器
-                Icon(
-                  isSelected ? Icons.check_circle : Icons.circle_outlined,
-                  color: isSelected ? const Color(0xFFFF9DC4) : const Color(0xFFCCCCCC),
-                  size: 28,
-                ),
-              ],
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 8),
+          // 图标名称（在边框外）
+          Text(
+            item.name,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF333333),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

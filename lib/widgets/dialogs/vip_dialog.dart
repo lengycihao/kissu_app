@@ -27,7 +27,7 @@ class VipDialog extends BaseDialog {
       alignment: Alignment.center,
       children: [
         DialogContainer(
-          backgroundImage: 'assets/kissu_dialog_vip_bg.webp',
+          backgroundImage: 'assets/images/kissu_dialog_vip_bg.webp',
           width: 300,
           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
           child: Column(
@@ -83,7 +83,7 @@ class VipDialog extends BaseDialog {
             top: -40,
             right: -10,
             child: Image.asset(
-              'assets/kissu_dialog_vip_fire.webp',
+              'assets/images/kissu_dialog_vip_fire.webp',
               width: 100,
               height: 100,
             ),

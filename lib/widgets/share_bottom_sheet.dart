@@ -66,17 +66,17 @@ class ShareBottomSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildShareOption(
-                icon: 'assets/kissu_share_mine_wx.webp',
+                icon: 'assets/images/kissu_share_mine_wx.webp',
                 label: '微信分享',
                 onTap: () => isShareApp ? _shareAppToWeChat(context) : _shareToWeChat(context),
               ),
               _buildShareOption(
-                icon: 'assets/kissu_share_mine_qq.webp',
+                icon: 'assets/images/kissu_share_mine_qq.webp',
                 label: 'QQ分享',
                 onTap: () => isShareApp ? _shareAppToQQ(context) : _shareToQQ(context),
               ),
               _buildShareOption(
-                icon: 'assets/kissu_share_mine_fx.webp',
+                icon: 'assets/images/kissu_share_mine_fx.webp',
                 label: '复制链接',
                 onTap: () => isShareApp ? _copyAppLink(context) : _copyLink(context),
                ),

@@ -8,6 +8,8 @@ import com.amap.api.maps.model.BitmapDescriptor;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.animation.ScaleAnimation;
+import com.amap.api.maps.model.animation.AlphaAnimation;
+import com.amap.api.maps.model.animation.AnimationSet;
 
 /**
  * @author whm
@@ -19,7 +21,9 @@ class MarkerController implements MarkerOptionsSink {
     private final Marker marker;
     private final String markerId;
     private ScaleAnimation breathAnimation;
+    private AnimationSet rippleAnimation;
     private boolean isAnimating = false;
+    private boolean isRippleAnimating = false;
 
     MarkerController(Marker marker) {
         this.marker = marker;
@@ -170,6 +174,68 @@ class MarkerController implements MarkerOptionsSink {
         }
         
         isAnimating = false;
+    }
+
+    /**
+     * 启动波纹动画（扩散+透明度渐变）
+     * 
+     * 🌊 波纹效果：
+     * - 从 1.0 扩大到 1.5倍
+     * - 透明度从 0.6 渐变到 0.0
+     * - 循环播放，产生持续扩散效果
+     * 
+     * @param duration 动画周期（毫秒）
+     */
+    public void startRippleAnimation(long duration) {
+        if (marker == null || isRippleAnimating) {
+            return;
+        }
+
+        // 创建扩散动画：从 1.0 到 1.5个
+        ScaleAnimation scaleAnim = new ScaleAnimation(1.0f, 1.5f, 1.0f, 1.5f);
+        scaleAnim.setDuration(duration);
+        scaleAnim.setRepeatCount(ValueAnimator.INFINITE); // 在子动画上设置重复
+        scaleAnim.setRepeatMode(ValueAnimator.RESTART);
+        
+        // 创建透明度动画：从 0.6 渐变到 0.0
+        AlphaAnimation alphaAnim = new AlphaAnimation(0.6f, 0.0f);
+        alphaAnim.setDuration(duration);
+        alphaAnim.setRepeatCount(ValueAnimator.INFINITE); // 在子动画上设置重复
+        alphaAnim.setRepeatMode(ValueAnimator.RESTART);
+        
+        // 组合动画
+        rippleAnimation = new AnimationSet(false); // false表示不共享插值器
+        rippleAnimation.addAnimation(scaleAnim);
+        rippleAnimation.addAnimation(alphaAnim);
+        
+        // 使用线性插值器，让扩散更均匀
+        rippleAnimation.setInterpolator(new android.view.animation.LinearInterpolator());
+        
+        // 启动动画
+        marker.setAnimation(rippleAnimation);
+        marker.startAnimation();
+        
+        isRippleAnimating = true;
+    }
+
+    /**
+     * 停止波纹动画
+     */
+    public void stopRippleAnimation() {
+        if (marker == null || !isRippleAnimating) {
+            return;
+        }
+
+        // 停止并清除动画
+        if (rippleAnimation != null) {
+            marker.setAnimation(null);
+            rippleAnimation = null;
+        }
+        
+        // 恢复透明度
+        marker.setAlpha(1.0f);
+        
+        isRippleAnimating = false;
     }
 
     /**

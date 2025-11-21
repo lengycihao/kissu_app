@@ -17,6 +17,7 @@ import 'package:kissu_app/widgets/island_view_button.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/pages/home/widget/home_avatar_section.dart';
+import 'package:lottie/lottie.dart';
 
 class KissuHomePage extends StatefulWidget {
   const KissuHomePage({super.key});
@@ -81,7 +82,7 @@ class _KissuHomePageState extends State<KissuHomePage>
                   // 背景图片
                   Positioned.fill(
                     child: Image.asset(
-                      "assets/kissu_home_bg.webp",
+                      "assets/images/kissu_home_bg.webp",
                       width: 1125, // 固定宽度1500px
                       height: ScreenAdaptation.getDynamicBackgroundSize()
                           .height, // 使用动态高度
@@ -151,66 +152,141 @@ class _KissuHomePageState extends State<KissuHomePage>
                   //   ),
                   // ),
 
+                  // Lottie 动画层 - home_light.json
+                  Positioned(
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      71,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(0), // Y坐标基于高度缩放
+                    child: Lottie.asset(
+                      'assets/json/home_light.json',
+                      width: ScreenAdaptation.scaleXByDynamicWidth(
+                        265,
+                      ), // 基于动态背景宽度缩放宽度
+                      height: ScreenAdaptation.scaleSizeByHeight(
+                        164,
+                      ), // 基于高度比例缩放高度
+                      fit: BoxFit.contain,
+                      repeat: true,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ home_light.json 加载失败: $error');
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ),
+
+                  // Lottie 动画层 - home_audio.json
+                  Positioned(
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      499,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(147), // Y坐标基于高度缩放
+                    child: Lottie.asset(
+                      'assets/json/home_audio.json',
+                      width: ScreenAdaptation.scaleXByDynamicWidth(
+                        78,
+                      ), // 基于动态背景宽度缩放宽度
+                      height: ScreenAdaptation.scaleSizeByHeight(
+                        84,
+                      ), // 基于高度比例缩放高度
+                      fit: BoxFit.contain,
+                      repeat: true,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ home_audio.json 加载失败: $error');
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ),
+
+                  // Lottie 动画层 - home_dog.json
+                  Positioned(
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      74,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(521), // Y坐标基于高度缩放
+                    child: Lottie.asset(
+                      'assets/json/home_dog.json',
+                      width: ScreenAdaptation.scaleXByDynamicWidth(
+                        216,
+                      ), // 基于动态背景宽度缩放宽度
+                      height: ScreenAdaptation.scaleSizeByHeight(
+                        130,
+                      ), // 基于高度比例缩放高度
+                      fit: BoxFit.contain,
+                      repeat: true,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ home_dog.json 加载失败: $error');
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ),
+
                   // 照片墙容器
                   Positioned(
-                    left: 475, // 基于动态背景宽度缩放X坐标
-                    top: ScreenAdaptation.scaleY(70), // Y坐标基于高度缩放
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      532,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(66), // Y坐标基于高度缩放
                     child: GestureDetector(
                       onTap: () {
                         // 点击事件处理
                         _onRedContainerTap();
                       },
                       child: Obx(
-                        () => Container(
-                          width: ScreenAdaptation.scaleXByDynamicWidth(
-                            74,
-                          ), // 基于高度比例缩放宽度
-                          height: ScreenAdaptation.scaleSizeByHeight(
-                            83,
-                          ), // 基于高度比例缩放高度
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            image: DecorationImage(
-                              image: AssetImage(
-                                "assets/kissu_home_avair_bg.webp",
+                        () => ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: ScreenAdaptation.scaleXByDynamicWidth(
+                              80,
+                            ), // 基于高度比例缩放宽度
+                            height: ScreenAdaptation.scaleSizeByHeight(
+                              78,
+                            ), // 基于高度比例缩放高度
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(
+                                  "assets/images/kissu_home_avair_bg.webp",
+                                ),
+                                fit: BoxFit.fill,
                               ),
-                              fit: BoxFit.fill,
+                            ),
+                            padding: EdgeInsets.only(
+                              left: 17,
+                              right: 15,
+                              top: 18,
+                              bottom: 16,
+                            ),
+                            child: SizedBox(
+                              width: ScreenAdaptation.scaleXByDynamicWidth(48),
+                              height: ScreenAdaptation.scaleSizeByHeight(44),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child:
+                                    controller.photoWallUrl.value.startsWith('http')
+                                    ? NoPlaceholderImage(
+                                        imageUrl: controller.photoWallUrl.value,
+                                        defaultAssetPath: "assets/images/kissu_icon.webp",
+                                        width: ScreenAdaptation.scaleXByDynamicWidth(
+                                          48,
+                                        ),
+                                        height: ScreenAdaptation.scaleSizeByHeight(
+                                          44,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.asset(
+                                        controller.photoWallUrl.value,
+                                        width: ScreenAdaptation.scaleXByDynamicWidth(
+                                          48,
+                                        ),
+                                        height: ScreenAdaptation.scaleSizeByHeight(
+                                          44,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
                             ),
                           ),
-                          padding: EdgeInsets.only(
-                            left: 7,
-                            right: 7,
-                            top: 15,
-                            bottom: 7,
-                          ),
-                          child:
-                              controller.photoWallUrl.value.startsWith('http')
-                              ? NoPlaceholderImage(
-                                  imageUrl: controller.photoWallUrl.value,
-                                  defaultAssetPath: "assets/kissu_icon.webp",
-                                  width: ScreenAdaptation.scaleXByDynamicWidth(
-                                    60,
-                                  ),
-                                  height: ScreenAdaptation.scaleSizeByHeight(
-                                    59,
-                                  ),
-                                  fit: BoxFit.fill,
-                                  borderRadius: BorderRadius.circular(2),
-                                )
-                              : ClipRRect(
-                                  borderRadius: BorderRadius.circular(2),
-                                  child: Image.asset(
-                                    controller.photoWallUrl.value,
-                                    width:
-                                        ScreenAdaptation.scaleXByDynamicWidth(
-                                          60,
-                                        ),
-                                    height: ScreenAdaptation.scaleSizeByHeight(
-                                      59,
-                                    ),
-                                    fit: BoxFit.fill,
-                                  ),
-                                ),
                         ),
                       ),
                     ),
@@ -569,6 +645,7 @@ class _KissuHomePageState extends State<KissuHomePage>
     ImageDialogUtil.showImageDialog(
       context: context,
       imagePath: "assets/3.0/kissu3_picture_wall.webp",
+      barrierDismissible: false,
       currentPhotoWallUrl: controller.photoWallUrl.value, // 传入当前照片墙的URL
       onUploadSuccess: () {
         // 上传成功后刷新首页数据
@@ -683,7 +760,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
               children: [
                 // 足迹按钮
                 IslandViewButton(
-                  iconAsset: "assets/home_list_type_foot.webp",
+                  iconAsset: "assets/images/home_list_type_foot.webp",
                   title: "TA的足迹",
                   value: stayCountText,
                   valueColor: Color(0xffFF6591),
@@ -701,7 +778,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                 SizedBox(height: 4),
                 // 定位按钮
                 IslandViewButton(
-                  iconAsset: "assets/home_list_type_location.webp",
+                  iconAsset: "assets/images/home_list_type_location.webp",
                   title: "我们相距",
                   value: distanceText,
                   valueColor: Color(0xff6D5DFF),
@@ -721,7 +798,7 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                 // 天气按钮（无点击事件，不显示箭头）
                 IslandViewButton(
                   iconUrl: controller.weatherIconUrl.value,
-                  iconAsset: "assets/home_list_type_location.webp", // 备用图标
+                  iconAsset: "assets/images/home_list_type_location.webp", // 备用图标
                   title: "TA的天气",
                   value: weatherText,
                   valueColor: Color(0xff3580FF),

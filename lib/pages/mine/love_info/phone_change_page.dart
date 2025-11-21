@@ -177,7 +177,7 @@ class PhoneChangePage extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // 背景图片
-          Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
+          Image.asset('assets/images/kissu_mine_bg.webp', fit: BoxFit.cover),
 
           SingleChildScrollView(
             child: Padding(
@@ -200,7 +200,7 @@ class PhoneChangePage extends StatelessWidget {
                           height: 40,
                           alignment: Alignment.centerLeft,
                           child: Image.asset(
-                            'assets/kissu_mine_back.webp',
+                            'assets/images/kissu_mine_back.webp',
                             width: 24,
                             height: 24,
                           ),
@@ -232,7 +232,7 @@ class PhoneChangePage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Image.asset(
-                          'assets/kissu_change_phone_title.png',
+                          'assets/images/kissu_change_phone_title.png',
                           width: 96,
                           height: 21,
                         ),

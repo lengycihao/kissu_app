@@ -92,7 +92,7 @@ class VipCancelRetentionDialog extends BaseDialog {
               '下次再说',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF999999),
+                color: Color(0xcc999999),
                 fontWeight: FontWeight.normal, // 正常字体
               ),
             ),

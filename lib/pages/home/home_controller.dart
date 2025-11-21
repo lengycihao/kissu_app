@@ -81,8 +81,8 @@ class HomeController extends GetxController {
   var isScreenView = true.obs;
   
   // 头像信息
-  var userAvatar = "assets/kissu3_love_avater.webp".obs;
-  var partnerAvatar = "assets/kissu_home_add_avair.webp".obs;
+  var userAvatar = "assets/3.0/kissu3_love_avater.webp".obs;
+  var partnerAvatar = "assets/images/kissu_home_add_avair.webp".obs;
   
   // 定位服务相关
   late SimpleLocationService _locationService;
@@ -123,7 +123,7 @@ class HomeController extends GetxController {
   var isWeatherLoading = true.obs;
   
   // 照片墙数据
-  var photoWallUrl = "assets/kissu_icon.webp".obs;
+  var photoWallUrl = "assets/images/kissu_icon.webp".obs;
   
   // 引导层显示状态
   var showGuideOverlay = false.obs;
@@ -561,11 +561,11 @@ class HomeController extends GetxController {
           // 🚀 优化：预加载网络头像
           _precacheAvatarImage(partnerAvatar.value);
         } else if (!isBound.value) {
-          partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+          partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
           debugPrint('📌 未绑定状态，使用加号图标');
         } else {
           // 已绑定但服务器返回空头像时，使用默认头像
-          partnerAvatar.value = "assets/kissu3_love_avater.webp";
+          partnerAvatar.value = "assets/3.0/kissu3_love_avater.webp";
           debugPrint('⚠️ 服务器返回的伴侣头像为空，使用默认头像');
         }
         
@@ -574,7 +574,7 @@ class HomeController extends GetxController {
           photoWallUrl.value = indexData.photo.photoWall;
           debugPrint('📸 照片墙URL: ${photoWallUrl.value}');
         } else {
-          photoWallUrl.value = "assets/kissu_icon.webp";
+          photoWallUrl.value = "assets/images/kissu_icon.webp";
           debugPrint('📸 照片墙为空，使用默认图片');
         }
         
@@ -607,7 +607,7 @@ class HomeController extends GetxController {
         debugPrint('✅ 从本地加载用户头像: ${userAvatar.value}');
       } else {
         // 本地也没有头像时，使用默认头像
-        userAvatar.value = "assets/kissu3_love_avater.webp";
+        userAvatar.value = "assets/3.0/kissu3_love_avater.webp";
         debugPrint('⚠️ 本地用户头像为空，使用默认头像');
       }
       
@@ -625,7 +625,7 @@ class HomeController extends GetxController {
         // 天气数据现在从首页接口统一获取，不再单独调用
       } else {
         // 未绑定状态，重置伴侣头像
-        partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+        partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
         debugPrint('📌 未绑定状态，使用加号图标');
         // 重置距离信息
         distance.value = "0KM";
@@ -636,8 +636,8 @@ class HomeController extends GetxController {
       }
     } else {
       // 🚀 优化：用户未登录或用户信息为空时，确保使用默认头像
-      userAvatar.value = "assets/kissu3_love_avater.webp";
-      partnerAvatar.value = "assets/kissu_home_add_avair.webp";
+      userAvatar.value = "assets/3.0/kissu3_love_avater.webp";
+      partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
       debugPrint('⚠️ 用户信息为空，使用默认头像');
     }
   }
@@ -719,7 +719,7 @@ class HomeController extends GetxController {
     }
     // 否则使用默认头像
     else {
-      partnerAvatar.value = "assets/kissu3_love_avater.webp";
+      partnerAvatar.value = "assets/3.0/kissu3_love_avater.webp";
       debugPrint('⚠️ 伴侣头像为空，使用默认头像');
     }
   }
@@ -973,15 +973,15 @@ class HomeController extends GetxController {
   String getTopIconPath(int index) {
     switch (index) {
       case 0:
-        return "assets/kissu_home_tab_location.webp";
+        return "assets/images/kissu_home_tab_location.webp";
       case 1:
-        return "assets/kissu_home_tab_foot.webp";
+        return "assets/images/kissu_home_tab_foot.webp";
       case 2:
-        return "assets/kissu_home_tab_history.webp";
+        return "assets/images/kissu_home_tab_history.webp";
       case 3:
-        return "assets/kissu_home_tab_mine.webp";
+        return "assets/images/kissu_home_tab_mine.webp";
       default:
-        return "assets/kissu_home_tab_location.webp";
+        return "assets/images/kissu_home_tab_location.webp";
     }
   }
 
@@ -989,15 +989,15 @@ class HomeController extends GetxController {
   String getBottomIconPath(int index) {
     switch (index) {
       case 0:
-        return "assets/kissu_home_tab_locationT.webp";
+        return "assets/images/kissu_home_tab_locationT.webp";
       case 1:
-        return "assets/kissu_home_tab_mapT.webp";
+        return "assets/images/kissu_home_tab_mapT.webp";
       case 2:
-        return "assets/kissu_home_tab_historyT.webp";
+        return "assets/images/kissu_home_tab_historyT.webp";
       case 3:
-        return "assets/kissu_home_tab_mineT.webp";
+        return "assets/images/kissu_home_tab_mineT.webp";
       default:
-        return "assets/kissu_home_tab_locationT.webp";
+        return "assets/images/kissu_home_tab_locationT.webp";
     }
   }
   

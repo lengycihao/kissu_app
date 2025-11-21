@@ -24,7 +24,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_toast_bg.webp'), // 弹窗背景图
+                image: AssetImage('assets/images/kissu_toast_bg.webp'), // 弹窗背景图
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -68,7 +68,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_toast_bg.webp'), // 弹窗背景图
+                image: AssetImage('assets/images/kissu_toast_bg.webp'), // 弹窗背景图
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -112,7 +112,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_toast_bg.webp'),
+                image: AssetImage('assets/images/kissu_toast_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -163,7 +163,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_toast_bg.webp'),
+                image: AssetImage('assets/images/kissu_toast_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -217,7 +217,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_toast_bg.webp'),
+                image: AssetImage('assets/images/kissu_toast_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -300,7 +300,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_privacy_bg.webp'),
+                image: AssetImage('assets/images/kissu_privacy_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -328,7 +328,7 @@ class ToastDialog {
                       text: '暂不同意',
                       width: 100,
                       backgroundImage:
-                          'assets/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
+                          'assets/images/kissu_dialop_common_cancel_bg.webp', // 使用取消背景
                       onTap: () {
                         Navigator.of(context).pop(false); // 返回 false 表示取消
                       },
@@ -336,7 +336,7 @@ class ToastDialog {
                       text: '同意并继续',
                       width: 100,
                       backgroundImage:
-                          'assets/kissu_dialop_common_sure_bg.webp', // 使用确认背景
+                          'assets/images/kissu_dialop_common_sure_bg.webp', // 使用确认背景
                       onTap: onConfirm,
                     ),
                   ],

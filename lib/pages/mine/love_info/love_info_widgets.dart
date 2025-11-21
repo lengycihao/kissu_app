@@ -121,7 +121,7 @@ class TogetherCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/kissu_loveinfo_day_bg.png'),
+            image: AssetImage('assets/images/kissu_loveinfo_day_bg.png'),
             fit: BoxFit.fill,
           ),
         ),
@@ -130,7 +130,7 @@ class TogetherCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/kissu_loveinfo_day_left.png',
+              'assets/images/kissu_loveinfo_day_left.png',
               width: 28,
               height: 32,
             ),
@@ -156,7 +156,7 @@ class TogetherCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Image.asset(
-              'assets/kissu_loveinfo_day_right.png',
+              'assets/images/kissu_loveinfo_day_right.png',
               width: 28,
               height: 32,
             ),
@@ -211,7 +211,7 @@ class TogetherCard extends StatelessWidget {
             height: containerSize,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_loveinfo_num_bg.webp'),
+                image: AssetImage('assets/images/kissu_loveinfo_num_bg.webp'),
                 fit: BoxFit.cover,
               ),
             ),
@@ -308,7 +308,7 @@ class MyInfoSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           image: DecorationImage(
-            image: AssetImage('assets/kissu_love_info_item_bg.webp'),
+            image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
             fit: BoxFit.fill,
           ),
           borderRadius: BorderRadius.circular(18),
@@ -383,7 +383,7 @@ class PartnerInfoSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           image: DecorationImage(
-            image: AssetImage('assets/kissu_love_info_item_bg.webp'),
+            image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
             fit: BoxFit.fill,
           ),
           borderRadius: BorderRadius.circular(18),
@@ -479,7 +479,7 @@ class PartnerInfoSection extends StatelessWidget {
 //       padding: const EdgeInsets.all(2),
 //       decoration: const BoxDecoration(
 //         image: DecorationImage(
-//           image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+//           image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
 //           fit: BoxFit.fill,
 //         ),
 //       ),
@@ -530,7 +530,7 @@ class PartnerInfoSection extends StatelessWidget {
 //       padding: const EdgeInsets.all(2),
 //       decoration: const BoxDecoration(
 //         image: DecorationImage(
-//           image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+//           image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
 //           fit: BoxFit.fill,
 //         ),
 //       ),

@@ -110,7 +110,7 @@ class VipPage extends GetView<VipController> {
                               _buildIconButtons(),
                               // 开通提示图片
                               // Image.asset(
-                              //   "assets/kissu_vip_top_tip.webp",
+                              //   "assets/images/kissu_vip_top_tip.webp",
                               //   height: 20,
                               //   fit: BoxFit.fitHeight,
                               // ),
@@ -181,7 +181,7 @@ class VipPage extends GetView<VipController> {
                   padding: EdgeInsets.all(8.0).copyWith(top: 0),
 
                   child: Image(
-                    image: AssetImage('assets/kissu_mine_back.webp'),
+                    image: AssetImage('assets/images/kissu_mine_back.webp'),
                     width: 22,
                     height: 22,
                     fit: BoxFit.cover,
@@ -207,10 +207,10 @@ class VipPage extends GetView<VipController> {
   Widget _buildTopCarousel() {
     // 本地静态图片文件列表（作为兜底数据）
     final localImageAssets = [
-      'assets/kissu4_vip_banner_location.webp',
-      'assets/kissu4_vip_banner_track.webp',
-      'assets/kissu4_vip_banner_history.webp',
-      'assets/kissu4_vip_banner_mingan.webp',
+      'assets/images/kissu4_vip_banner_location.webp',
+      'assets/images/kissu4_vip_banner_track.webp',
+      'assets/images/kissu4_vip_banner_history.webp',
+      'assets/images/kissu4_vip_banner_mingan.webp',
     ];
 
     return Obx(() {
@@ -270,7 +270,7 @@ class VipPage extends GetView<VipController> {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Image.asset(
-              'assets/kissu4_vip_banner_location.webp',
+              'assets/images/kissu4_vip_banner_location.webp',
               width: double.infinity,
               height: 248,
               fit: BoxFit.fitHeight,
@@ -285,20 +285,20 @@ class VipPage extends GetView<VipController> {
   Widget _buildIconButtons() {
     final fallbackIcons = [
       {
-        'selected': 'assets/kissu_vip_banner_1sel.webp',
-        'unselected': 'assets/kissu_vip_banner_1unsel.webp',
+        'selected': 'assets/images/kissu_vip_banner_1sel.webp',
+        'unselected': 'assets/images/kissu_vip_banner_1unsel.webp',
       },
       {
-        'selected': 'assets/kissu_vip_banner_2sel.webp',
-        'unselected': 'assets/kissu_vip_banner_2unsel.webp',
+        'selected': 'assets/images/kissu_vip_banner_2sel.webp',
+        'unselected': 'assets/images/kissu_vip_banner_2unsel.webp',
       },
       {
-        'selected': 'assets/kissu_vip_banner_3sel.webp',
-        'unselected': 'assets/kissu_vip_banner_3unsel.webp',
+        'selected': 'assets/images/kissu_vip_banner_3sel.webp',
+        'unselected': 'assets/images/kissu_vip_banner_3unsel.webp',
       },
       {
-        'selected': 'assets/kissu_vip_banner_4sel.webp',
-        'unselected': 'assets/kissu_vip_banner_4unsel.webp',
+        'selected': 'assets/images/kissu_vip_banner_4sel.webp',
+        'unselected': 'assets/images/kissu_vip_banner_4unsel.webp',
       },
     ];
 
@@ -369,7 +369,7 @@ class VipPage extends GetView<VipController> {
   // 开通提示图片
   Widget _buildOpenTipImage() {
     return Image.asset(
-      "assets/kissu_vip_top_tip.webp",
+      "assets/images/kissu_vip_top_tip.webp",
       height: 20,
       width: double.infinity,
       fit: BoxFit.cover,
@@ -764,7 +764,7 @@ class VipPage extends GetView<VipController> {
   // 信息背景图片
   Widget _buildInfoBackground() {
     return Image.asset(
-      "assets/kissu_vip_info_bg.webp",
+      "assets/images/kissu_vip_info_bg.webp",
       width: double.infinity,
       fit: BoxFit.fitWidth,
     );
@@ -1097,8 +1097,8 @@ class VipPage extends GetView<VipController> {
                   onTap: controller.toggleAgreement,
                   child: Image.asset(
                     controller.agreementChecked.value
-                        ? "assets/kissu_vip_agree.webp"
-                        : "assets/kissu_select_circle.webp",
+                        ? "assets/images/kissu_vip_agree.webp"
+                        : "assets/images/kissu_select_circle.webp",
                     width: 13,
                     height: 13,
                   ),
@@ -1169,8 +1169,8 @@ class VipPage extends GetView<VipController> {
               height: 13,
               child: Image.asset(
                 isSelected
-                    ? 'assets/kissu_vip_agree.webp'
-                    : 'assets/kissu_select_circle.webp',
+                    ? 'assets/images/kissu_vip_agree.webp'
+                    : 'assets/images/kissu_select_circle.webp',
                 width: 20,
                 height: 20,
                 fit: BoxFit.contain,

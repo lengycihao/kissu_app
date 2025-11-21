@@ -39,7 +39,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
             margin: const EdgeInsets.only(left: 16),
             child: Center(
               child: Image.asset(
-                'assets/kissu_mine_back.webp',
+                'assets/images/kissu_mine_back.webp',
                 width: 24,
                 height: 24,
               ),
@@ -337,7 +337,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
                     // Icon
                     Image(
                       image: AssetImage(
-                        'assets/home_list_type_location.webp',
+                        'assets/images/home_list_type_location.webp',
                       ),
                       width: 20,
                       height: 20,

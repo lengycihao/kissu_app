@@ -75,6 +75,12 @@ public class MarkersController
             case Const.METHOD_MARKER_STOP_BREATH_ANIMATION:
                 stopBreathAnimation(call, result);
                 break;
+            case Const.METHOD_MARKER_START_RIPPLE_ANIMATION:
+                startRippleAnimation(call, result);
+                break;
+            case Const.METHOD_MARKER_STOP_RIPPLE_ANIMATION:
+                stopRippleAnimation(call, result);
+                break;
         }
     }
 
@@ -483,6 +489,92 @@ public class MarkersController
 
         } catch (Exception e) {
             LogUtil.e(CLASS_NAME, "停止呼吸动画失败", e);
+            result.error("ANIMATION_ERROR", "停止动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 启动Marker波纹动画（扩散+透明度渐变）
+     * 
+     * 🌊 波纹效果：
+     * 1. 从1.0扩大到1.5倍
+     * 2. 透明度从0.6渐变到0.0
+     * 3. 循环播放，产生持续扩散效果
+     * 4. 在原生层执行，60fps流畅运行
+     * 
+     * @param call 包含markerId、duration的参数
+     * @param result 回调结果
+     */
+    private void startRippleAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+            Integer duration = call.argument("duration");
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+
+            // 设置默认值（2秒=2000ms）
+            long durationMs = duration != null ? duration.longValue() : 2000L;
+
+            // 获取MarkerController
+            MarkerController controller = controllerMapByDartId.get(markerId);
+            if (controller == null) {
+                result.error("MARKER_NOT_FOUND", "未找到markerId对应的Marker: " + markerId, null);
+                return;
+            }
+
+            // 启动波纹动画
+            controller.startRippleAnimation(durationMs);
+            
+            LogUtil.i(CLASS_NAME, String.format(
+                "✅ 启动Marker波纹动画: markerId=%s, duration=%dms (扩散1.0→1.5, 透明度0.6→0.0)",
+                markerId, durationMs));
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "启动波纹动画失败", e);
+            result.error("ANIMATION_ERROR", "启动动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 停止Marker波纹动画
+     * 
+     * @param call 包含markerId的参数
+     * @param result 回调结果
+     */
+    private void stopRippleAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+
+            // 获取MarkerController
+            MarkerController controller = controllerMapByDartId.get(markerId);
+            if (controller == null) {
+                result.error("MARKER_NOT_FOUND", "未找到markerId对应的Marker: " + markerId, null);
+                return;
+            }
+
+            // 停止动画
+            controller.stopRippleAnimation();
+            
+            LogUtil.i(CLASS_NAME, "✅ 停止Marker波纹动画: markerId=" + markerId);
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "停止波纹动画失败", e);
             result.error("ANIMATION_ERROR", "停止动画失败: " + e.getMessage(), null);
         }
     }

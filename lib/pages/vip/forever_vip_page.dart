@@ -62,7 +62,7 @@ class ForeverVipPage extends GetView<ForeverVipController> {
         GestureDetector(
           onTap: () => Get.back(),
           child: Image.asset(
-            "assets/kissu_mine_back.webp",
+            "assets/images/kissu_mine_back.webp",
             width: 22,
             height: 22,
           ),
@@ -90,14 +90,14 @@ class ForeverVipPage extends GetView<ForeverVipController> {
       width: 164,
       height: 22,
       margin: const EdgeInsets.symmetric(horizontal: 18),
-      child: Image.asset("assets/kissu_vip_forver_tip.webp", fit: BoxFit.fill),
+      child: Image.asset("assets/images/kissu_vip_forver_tip.webp", fit: BoxFit.fill),
     );
   }
 
   // 信息背景图片
   Widget _buildInfoImage() {
     return Container(
-      child: Image.asset("assets/kissu_vip_info_bg.webp", fit: BoxFit.fill),
+      child: Image.asset("assets/images/kissu_vip_info_bg.webp", fit: BoxFit.fill),
     );
   }
 
@@ -108,7 +108,7 @@ class ForeverVipPage extends GetView<ForeverVipController> {
       height: 130,
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage("assets/kissu_vip_back_info.webp"),
+          image: AssetImage("assets/images/kissu_vip_back_info.webp"),
           fit: BoxFit.fill,
         ),
       ),

@@ -18,7 +18,7 @@ class InfoSettingPage extends StatelessWidget {
           fit: StackFit.expand, // 使背景铺满整个页面
           children: [
             // 背景图片铺满整个页面
-            Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
+            Image.asset('assets/images/kissu_mine_bg.webp', fit: BoxFit.cover),
             SingleChildScrollView(
             child: Padding(
               padding: EdgeInsets.only(
@@ -57,7 +57,7 @@ class InfoSettingPage extends StatelessWidget {
                       const SizedBox(width: 3),
                       Image(
                         image: AssetImage(
-                          'assets/kissu_info_complet_header_icon.webp',
+                          'assets/images/kissu_info_complet_header_icon.webp',
                         ),
                         width: 29,
                         height: 29,
@@ -73,7 +73,7 @@ class InfoSettingPage extends StatelessWidget {
                       children: [
                         // 头像背景
                         Image.asset(
-                          'assets/kissu_info_setting_headerbg.webp',
+                          'assets/images/kissu_info_setting_headerbg.webp',
                           width: 90,
                           height: 90,
                         ),
@@ -97,7 +97,7 @@ class InfoSettingPage extends StatelessWidget {
                                       fit: BoxFit.cover,
                                       errorBuilder: (context, error, stackTrace) {
                                         return Image.asset(
-                                          'assets/kissu_info_setting_headerbg.webp',
+                                          'assets/images/kissu_info_setting_headerbg.webp',
                                           width: 80,
                                           height: 80,
                                           fit: BoxFit.cover,
@@ -114,7 +114,7 @@ class InfoSettingPage extends StatelessWidget {
                           child: GestureDetector(
                             onTap: controller.pickImage,
                             child: Image.asset(
-                              'assets/kissu_info_setting_camera.webp',
+                              'assets/images/kissu_info_setting_camera.webp',
                               width: 30,
                               height: 30,
                             ),
@@ -205,8 +205,8 @@ class InfoSettingPage extends StatelessWidget {
                           child: Obx(() {
                             return Image.asset(
                               controller.selectedGender.value == '男'
-                                  ? 'assets/kissu_info_setting_boysel.webp'
-                                  : 'assets/kissu_info_setting_boyunsel.webp',
+                                  ? 'assets/images/kissu_info_setting_boysel.webp'
+                                  : 'assets/images/kissu_info_setting_boyunsel.webp',
                               height: 64,
                               fit: BoxFit.contain,
                             );
@@ -220,8 +220,8 @@ class InfoSettingPage extends StatelessWidget {
                           child: Obx(() {
                             return Image.asset(
                               controller.selectedGender.value == '女'
-                                  ? 'assets/kissu_info_setting_girlsel.webp'
-                                  : 'assets/kissu_info_setting_girlunsel.webp',
+                                  ? 'assets/images/kissu_info_setting_girlsel.webp'
+                                  : 'assets/images/kissu_info_setting_girlunsel.webp',
                               height: 64,
                               fit: BoxFit.contain,
                             );
@@ -247,7 +247,7 @@ class InfoSettingPage extends StatelessWidget {
                         const SizedBox(width: 3),
                         Image(
                           image: AssetImage(
-                            'assets/kissu_info_complet_sex_icon.webp',
+                            'assets/images/kissu_info_complet_sex_icon.webp',
                           ),
                           width: 13,
                           height: 13,

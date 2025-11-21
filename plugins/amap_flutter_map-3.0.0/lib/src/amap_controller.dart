@@ -145,6 +145,43 @@ class AMapController {
     );
   }
 
+  /// 启动Marker波纹动画（扩散+透明度渐变）
+  /// 
+  /// 🌊 波纹效果：
+  /// - 从 1.0 扩大到 1.5倍
+  /// - 透明度从 0.6 渐变到 0.0
+  /// - 循环播放，产生持续扩散效果
+  /// 
+  /// 🚀 性能优势：
+  /// - 使用原生AnimationSet（GPU加速）
+  /// - 60fps流畅运行
+  /// - 零跨平台通信开销（只调用一次）
+  /// 
+  /// [markerId] Marker的ID（必须是已存在的Marker）
+  /// [duration] 动画周期（毫秒，默认2000ms）
+  Future<bool> startMarkerRippleAnimation({
+    required String markerId,
+    int duration = 2000,
+  }) {
+    return _methodChannel.startMarkerRippleAnimation(
+      mapId: mapId,
+      markerId: markerId,
+      duration: duration,
+    );
+  }
+
+  /// 停止Marker波纹动画
+  /// 
+  /// [markerId] Marker的ID
+  Future<bool> stopMarkerRippleAnimation({
+    required String markerId,
+  }) {
+    return _methodChannel.stopMarkerRippleAnimation(
+      mapId: mapId,
+      markerId: markerId,
+    );
+  }
+
   ///改变地图视角
   ///
   ///通过[CameraUpdate]对象设置新的中心点、缩放比例、放大缩小、显示区域等内容

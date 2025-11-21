@@ -171,7 +171,7 @@ class MapTypePickerSheet extends StatelessWidget {
                   },
                   child: Obx(
                     () => MapTypeOption(
-                      imagePath: 'assets/kissu3_map_custom.webp',
+                      imagePath: 'assets/images/kissu3_map_custom.webp',
                       label: '经典地图',
                       isSelected: controller.mapType.value == 1,
                     ),
@@ -189,7 +189,7 @@ class MapTypePickerSheet extends StatelessWidget {
                   },
                   child: Obx(
                     () => MapTypeOption(
-                      imagePath: 'assets/kissu3_map_3d.webp',
+                      imagePath: 'assets/images/kissu3_map_3d.webp',
                       label: '卫星地图',
                       isSelected: controller.mapType.value == 2,
                     ),

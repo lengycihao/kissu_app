@@ -34,7 +34,7 @@ class MarkerBuilder {
     final screenScale = screenWidth / designWidth;
 
     // 如果请求尺寸>100，说明是大底座(设计稿128px)，否则是小底座(设计稿40px)
-    final designSize = size > 100 ? 200.0 : 10.0;
+    final designSize = size > 100 ? 200.0 : 14.0;
     final adjustedSize = designSize * screenScale * dpr;
 
     debugPrint('📱 ============ 底座Marker创建 ============');
@@ -114,7 +114,7 @@ class MarkerBuilder {
       const designWidth = 375.0;
       const designAvatarSize = 60.0;
       const designLargePedestalSize = 200.0;
-      const designSmallPedestalSize = 10.0;
+      const designSmallPedestalSize = 14.0;
 
       // 按屏幕宽度比例计算，然后直接乘以DPI
       final screenScale = screenWidth / designWidth;
@@ -338,6 +338,167 @@ class MarkerBuilder {
         ),
       );
     }
+  }
+
+  /// 🌊 创建波纹圆环Marker（用于叠加在头像上）
+  /// 
+  /// 创建一个透明的圆环，只有边框，用于波纹动画
+  Future<BitmapDescriptor> createRippleRingMarker({
+    required double size, // 圆环大小（逻辑像素）
+    Color color = const Color(0xFFFFA1C7), // 波纹颜色
+    double strokeWidth = 1.0, // 线宽
+  }) async {
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr;
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+
+    // 根据屏幕缩放计算实际尺寸
+    final actualSize = size * screenScale * dpr;
+    final actualStrokeWidth = strokeWidth * screenScale * dpr;
+
+    // 创建画布
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    // 绘制填充渐变圆
+    final center = Offset(actualSize / 2, actualSize / 2);
+    final radius = actualSize / 2;
+
+    final fillPaint = Paint()
+      ..shader = ui.Gradient.radial(
+        center,
+        radius,
+        const [
+          Color(0xFFFFA1C7),
+          Color(0xFFFFA1C7),
+        ],
+      )
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    canvas.drawCircle(center, radius, fillPaint);
+
+    // 绘制白色边框
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = actualStrokeWidth
+      ..isAntiAlias = true;
+
+    canvas.drawCircle(center, radius - actualStrokeWidth / 2, borderPaint);
+
+    // 转换为图片
+    final picture = pictureRecorder.endRecording();
+    final image = await picture.toImage(
+      actualSize.toInt(),
+      actualSize.toInt(),
+    );
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final bytes = byteData!.buffer.asUint8List();
+
+    return BitmapDescriptor.fromBytes(bytes);
+  }
+
+  /// 创建距离标签Marker（黑色背景 + 白色文字）
+  /// 固定尺寸：64px × 21px
+  Future<BitmapDescriptor> createDistanceLabelMarker({
+    required String distanceText,
+  }) async {
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr;
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+
+    // 固定标签尺寸（设计稿尺寸）
+    const designLabelWidth = 64.0;
+    const designLabelHeight = 21.0;
+    final width = designLabelWidth * screenScale * dpr;
+    final height = designLabelHeight * screenScale * dpr;
+
+    // 文字样式
+    final textStyle = TextStyle(
+      color: Color(0xffF3ACC9),
+      fontSize: 10 * screenScale,
+      fontWeight: FontWeight.bold,
+    );
+
+    final textPainter = TextPainter(
+      text: TextSpan(text: distanceText, style: textStyle),
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    textPainter.layout();
+
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+
+    // 绘制黑色圆角矩形背景
+    final rect = Rect.fromLTWH(0, 0, width, height);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(15 * screenScale * dpr));
+    final bgPaint = Paint()
+      ..color = const Color(0xFF000000)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    canvas.drawRRect(rrect, bgPaint);
+
+    // 绘制白色文字（居中）
+    canvas.save();
+    canvas.scale(dpr, dpr);
+    final textX = (width / dpr - textPainter.width) / 2;
+    final textY = (height / dpr - textPainter.height) / 2;
+    textPainter.paint(
+      canvas,
+      Offset(textX, textY),
+    );
+    canvas.restore();
+
+    final picture = pictureRecorder.endRecording();
+    final image = await picture.toImage(width.toInt(), height.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final bytes = byteData!.buffer.asUint8List();
+
+    return BitmapDescriptor.fromBytes(bytes);
+  }
+
+  Future<BitmapDescriptor> createRippleBackgroundMarker({
+    required double size,
+  }) async {
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr;
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+
+    final actualSize = size * screenScale * dpr;
+
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+
+    final center = Offset(actualSize / 2, actualSize / 2);
+    final radius = actualSize / 2;
+
+    final fillPaint = Paint()
+      ..shader = ui.Gradient.radial(
+        center,
+        radius,
+        const [
+          Color(0x99F8D7DF),
+          Color(0x99FBE8ED),
+        ],
+      )
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    canvas.drawCircle(center, radius, fillPaint);
+
+    final picture = pictureRecorder.endRecording();
+    final image = await picture.toImage(
+      actualSize.toInt(),
+      actualSize.toInt(),
+    );
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final bytes = byteData!.buffer.asUint8List();
+
+    return BitmapDescriptor.fromBytes(bytes);
   }
 
   /// 绘制表情背景

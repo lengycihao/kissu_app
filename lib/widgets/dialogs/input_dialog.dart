@@ -103,7 +103,7 @@ class _InputDialogContentState extends State<_InputDialogContent> {
   @override
   Widget build(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/kissu_dialog_sex_bg.webp',
+      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
       width: 300,
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
       child: Column(
@@ -157,7 +157,7 @@ class _InputDialogContentState extends State<_InputDialogContent> {
           // 确定按钮
           DialogButton(
             text: widget.confirmText,
-            backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp',
+            backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
             onTap: () {
               final value = _controller.text.trim();
               if (value.isNotEmpty) {

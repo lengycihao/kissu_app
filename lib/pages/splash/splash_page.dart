@@ -145,7 +145,7 @@ class _SplashPageState extends State<SplashPage> {
             height: 400.0, // 使用您原来的高度
             decoration: BoxDecoration(
               image: const DecorationImage(
-                image: AssetImage('assets/kissu_privacy_bg.webp'),
+                image: AssetImage('assets/images/kissu_privacy_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -171,7 +171,7 @@ class _SplashPageState extends State<SplashPage> {
                     DialogButton(
                       text: '暂不同意',
                       width: 100,
-                      backgroundImage: 'assets/kissu_dialop_common_cancel_bg.webp',
+                      backgroundImage: 'assets/images/kissu_dialop_common_cancel_bg.webp',
                       onTap: () {
                         Navigator.of(context).pop(false); // 返回 false 表示取消
                       },
@@ -179,7 +179,7 @@ class _SplashPageState extends State<SplashPage> {
                     DialogButton(
                       text: '同意并继续',
                       width: 100,
-                      backgroundImage: 'assets/kissu_dialop_common_sure_bg.webp',
+                      backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
                       onTap: () {
                         Navigator.of(context).pop(true); // 返回 true 表示同意
                       },

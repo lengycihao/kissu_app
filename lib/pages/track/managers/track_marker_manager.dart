@@ -702,7 +702,7 @@ class TrackMarkerManager {
         try {
           final startIcon = await BitmapDescriptor.fromAssetImage(
             const ImageConfiguration(size: Size(44, 46)),
-            'assets/kissu_location_start.webp',
+            'assets/images/kissu_location_start.webp',
           );
           
           markers.add(Marker(
@@ -743,7 +743,7 @@ class TrackMarkerManager {
           try {
             final endIcon = await BitmapDescriptor.fromAssetImage(
               const ImageConfiguration(size: Size(44, 46)),
-              'assets/kissu_location_end.webp',
+              'assets/images/kissu_location_end.webp',
             );
             
             markers.add(Marker(

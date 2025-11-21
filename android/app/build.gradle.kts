@@ -69,21 +69,25 @@ android {
 
 
     signingConfigs {
-        create("release") {
-            storeFile = file("kissu1.keystore")
-            storePassword = "111111"
-            keyAlias = "kissu"
-            keyPassword = "111111"
+        val releaseKeystore = file("kissu1.keystore")
+        if (releaseKeystore.exists()) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = "111111"
+                keyAlias = "kissu"
+                keyPassword = "111111"
+            }
         }
     }
 
     buildTypes {
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("release")
+            // 如果本地存在正式签名文件，则复用；否则使用系统默认 debug 签名
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false  // 关闭代码混淆
             isShrinkResources = false  // 关闭资源收缩
             proguardFiles(
@@ -100,10 +104,13 @@ flutter {
 
 configurations.all {
     resolutionStrategy {
-    // 使用稳定版本组合 (JPush 5.7.0 + JCore 4.9.1)
-    force("cn.jiguang.sdk:jpush:5.7.0")
-    force("cn.jiguang.sdk:jcore:4.9.1")
+        // 使用稳定版本组合 (JPush 5.7.0 + JCore 4.9.1)
+        force("cn.jiguang.sdk:jpush:5.7.0")
+        force("cn.jiguang.sdk:jcore:4.9.1")
     }
+
+    // 排除 flutter_android_oaid_plugin 里远程引入的 OAID 依赖，避免和本地 AAR 重复
+    exclude(group = "com.github.gzu-liyujiang", module = "Android_CN_OAID")
 }
 
 dependencies {
@@ -147,4 +154,7 @@ dependencies {
     // 高德地图和定位SDK
     implementation("com.amap.api:location:5.6.0")
     implementation("com.amap.api:3dmap:8.1.0")
+
+    // 本地 OAID SDK（替代远程 com.github.gzu-liyujiang:Android_CN_OAID:4.2.9）
+    implementation(files("../libs/Android_CN_OAID-4.2.9.aar"))
 }

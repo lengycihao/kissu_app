@@ -90,7 +90,7 @@ class UsageSettingsPage extends StatelessWidget {
               controller.handleBack();
             },
             child: Image.asset(
-              'assets/kissu_mine_back.webp',
+              'assets/images/kissu_mine_back.webp',
               width: 24,
               height: 24,
             ),

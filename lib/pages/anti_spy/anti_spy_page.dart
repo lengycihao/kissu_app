@@ -56,7 +56,7 @@ class AntiSpyPage extends GetView<AntiSpyController> {
               padding: const EdgeInsets.all(8.0).copyWith(left: 0),
 
               child: const Image(
-                image: AssetImage('assets/kissu_mine_back.webp'),
+                image: AssetImage('assets/images/kissu_mine_back.webp'),
                 width: 22,
                 height: 22,
                 fit: BoxFit.cover,

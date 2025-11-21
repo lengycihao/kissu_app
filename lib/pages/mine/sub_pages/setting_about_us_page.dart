@@ -73,7 +73,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                 style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
               ),
             ),
-            Image.asset("assets/kissu_mine_arrow.webp", width: 16, height: 16),
+            Image.asset("assets/images/kissu_mine_arrow.webp", width: 16, height: 16),
           ],
         ),
       ),
@@ -87,7 +87,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
         children: [
           // 背景图
           Positioned.fill(
-            child: Image.asset("assets/kissu_mine_bg.webp", fit: BoxFit.cover),
+            child: Image.asset("assets/images/kissu_mine_bg.webp", fit: BoxFit.cover),
           ),
 
           Column(
@@ -100,7 +100,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     GestureDetector(
                       onTap: () => Get.back(),
                       child: Image.asset(
-                        "assets/kissu_mine_back.webp",
+                        "assets/images/kissu_mine_back.webp",
                         width: 24,
                         height: 24,
                       ),
@@ -125,7 +125,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
               // App 图标
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.asset("assets/kissu3_love_avater.webp", width: 80, height: 80),
+                child: Image.asset("assets/3.0/kissu3_love_avater.webp", width: 80, height: 80),
               ),
 
               const SizedBox(height: 20),
@@ -145,7 +145,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     image: const DecorationImage(
-                      image: AssetImage("assets/kissu_setting_aboutus.webp"),
+                      image: AssetImage("assets/images/kissu_setting_aboutus.webp"),
                       fit: BoxFit.fill,
                     ),
                     borderRadius: BorderRadius.circular(12),

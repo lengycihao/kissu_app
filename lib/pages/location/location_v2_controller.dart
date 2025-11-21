@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as dart_math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
@@ -44,7 +45,6 @@ class LocationV2Controller extends GetxController
   final myNetworkName = "WiFi".obs;
   final speed = "0m/s".obs;
   final isWifi = "1".obs;
-  final deviceId = "".obs;
   final locationTime = "".obs;
   final weatherIcon = "".obs;
   final weather = "".obs;
@@ -74,8 +74,7 @@ class LocationV2Controller extends GetxController
   AMapController? mapController;
   OverlayEntry? _overlayEntry;
 
-  BitmapDescriptor? _cachedMyIcon;
-  BitmapDescriptor? _cachedPartnerIcon;
+  // 缓存字段（用于判断是否需要重新创建 marker）
   Offset? _cachedMyAnchor; // 缓存的我的锚点位置
   Offset? _cachedPartnerAnchor; // 缓存的伴侣的锚点位置
   String? _cachedMyAvatar;
@@ -89,6 +88,11 @@ class LocationV2Controller extends GetxController
   BitmapDescriptor? _persistentMyPedestalIcon; // 底座marker（可旋转）
   BitmapDescriptor? _persistentPartnerIcon;
   BitmapDescriptor? _persistentPartnerPedestalIcon; // 伴侣底座marker
+  BitmapDescriptor? _persistentPartnerRippleBgIcon;
+  BitmapDescriptor? _persistentPartnerRippleIcon; // 🌊 伴侣波纹圆环marker
+  BitmapDescriptor? _distanceLabelIcon; // 距离标签marker
+  String? _lastDistanceText; // 上次的距离文本，用于判断是否需要重新创建
+  BitmapDescriptor? _dashLineTexture; // 虚线纹理（32x8）
   String? _lastMyCacheKey;
   String? _lastPartnerCacheKey;
 
@@ -108,12 +112,7 @@ class LocationV2Controller extends GetxController
 
       // 🚀 修复：如果未绑定，立即清空伴侣位置缓存
       if (!isBindPartner.value) {
-        debugPrint('⚠️ 未绑定状态，清空伴侣位置缓存');
-        partnerLocation.value = null;
-        actualPartnerLocation.value = null;
-        partnerAvatar.value = "";
-        partnerFace.value = null;
-        partnerOnlineStatus.value = null;
+        _clearPartnerData();
       }
 
       // 然后静默刷新用户信息
@@ -542,10 +541,10 @@ class LocationV2Controller extends GetxController
       pedestalMarker.setIdForCopy('my_pedestal');
 
       // 🎯 同时更新头像marker的位置（确保头像和底座不分离）
-      if (_cachedMyIcon != null && _cachedMyAnchor != null) {
+      if (_persistentMyIcon != null && _cachedMyAnchor != null) {
         final avatarMarker = Marker(
           position: myPos, // 🎯 使用与底座相同的位置
-          icon: _cachedMyIcon!,
+          icon: _persistentMyIcon!,
           anchor: _cachedMyAnchor!,
           zIndex: 2.0, // 上层
           onTap: (String markerId) {
@@ -558,9 +557,9 @@ class LocationV2Controller extends GetxController
         await mapController?.updateMarker(pedestalMarker);
         await mapController?.updateMarker(avatarMarker);
 
-        debugPrint(
-          '🎯 同步更新底座和头像位置: $myPos, 旋转: ${rotation.toStringAsFixed(1)}°',
-        );
+        // debugPrint(
+        //   '🎯 同步更新底座和头像位置: $myPos, 旋转: ${rotation.toStringAsFixed(1)}°',
+        // );
       } else {
         // 如果头像marker还没创建，只更新底座
         await mapController?.updateMarker(pedestalMarker);
@@ -597,7 +596,7 @@ class LocationV2Controller extends GetxController
         if (myPos != null) {
           try {
             final BitmapDescriptor myIcon =
-                _cachedMyIcon ??
+                _persistentMyIcon ??
                 BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
 
             final capturedPos = myPos; // 捕获非空值到局部变量
@@ -655,7 +654,7 @@ class LocationV2Controller extends GetxController
         if (myPos != null) {
           try {
             final BitmapDescriptor myIcon =
-                _cachedMyIcon ??
+                _persistentMyIcon ??
                 BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
 
             // 🎯 获取头像anchor
@@ -702,20 +701,20 @@ class LocationV2Controller extends GetxController
         if (partnerPos != null) {
           try {
             final BitmapDescriptor partnerIcon =
-                _cachedPartnerIcon ??
+                _persistentPartnerIcon ??
                 BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
-            // 🎯 获取伴侣头像anchor
-            final partnerAvatarAnchor =
-                _cachedPartnerAnchor ?? const Offset(0.5, 1.0);
+            // 🎯 头像使用底部中心作为锚点，与"我"的头像一致
+            // 底座和波纹使用中心点对齐，这样头像底部会正好在底座上方
+            final partnerAvatarAnchor = _cachedPartnerAnchor ?? const Offset(0.5, 1.0);
 
             // 🚀 添加伴侣底座marker（zIndex=1，在下层）
             if (_persistentPartnerPedestalIcon != null) {
-              // 🎯 修复：底座anchor固定为(0.5, 0.5)，因为底座图片的锚点就在中心
+              // 底座anchor：中心点 (0.5, 0.5)
               final partnerPedestalMarker = Marker(
                 position: partnerPos,
                 icon: _persistentPartnerPedestalIcon!,
-                anchor: const Offset(0.5, 0.5), // 🎯 底座图片的锚点在中心
+                anchor: const Offset(0.5, 0.5),
                 rotation: 0.0, // 伴侣底座不旋转
                 zIndex: 1.0, // 底层
                 clickable: false, // 底座不响应点击
@@ -728,7 +727,7 @@ class LocationV2Controller extends GetxController
             final partnerMarker = Marker(
               position: partnerPos,
               icon: partnerIcon,
-              anchor: partnerAvatarAnchor,
+              anchor: partnerAvatarAnchor, // 底部中心点，与"我"的头像一致
               zIndex: 2.0, // 上层
               onTap: (String markerId) {
                 _moveMapToLocation(partnerPos);
@@ -736,6 +735,50 @@ class LocationV2Controller extends GetxController
             );
             partnerMarker.setIdForCopy('partner_marker');
             tempMarkers.add(partnerMarker);
+
+            // 📍 添加距离标签marker（在连线中点，旋转角度与连线一致）
+            if (myPos != null && distance.value.isNotEmpty) {
+              try {
+                // 使用墨卡托投影计算中点（与高德地图原生一致）
+                // 在投影坐标系中计算中点，然后反投影回经纬度
+                final midPoint = _projectedMiddle(myPos, partnerPos);
+
+                // 计算连线角度（弧度转度数）
+                // 注意：地图上经度差对应dx，纬度差对应dy
+                // atan2(dx, dy) 会给出从北方向顺时针的角度，需要加95度让标签与虚线平行
+                // isFlat=true会让marker自动跟随地图旋转，所以不需要手动减去mapBearing
+                final dx = partnerPos.longitude - myPos.longitude;
+                final dy = partnerPos.latitude - myPos.latitude;
+                final angleRad = dart_math.atan2(dx, dy);
+                final angleDeg = (angleRad * 180 / dart_math.pi) + 95; // 加95度微调，使标签与虚线完全平行
+
+                // 如果距离文本变化了，重新创建标签
+                if (_lastDistanceText != distance.value) {
+                  _distanceLabelIcon = await _markerBuilder.createDistanceLabelMarker(
+                    distanceText: distance.value,
+                  );
+                  _lastDistanceText = distance.value;
+                }
+
+                if (_distanceLabelIcon != null) {
+                  // 使用墨卡托投影中点 + 不使用isFlat = 完美对齐
+                  // isFlat会导致渲染偏差，移除后标签会垂直于屏幕，位置完全准确
+                  final distanceLabelMarker = Marker(
+                    position: midPoint,
+                    icon: _distanceLabelIcon!,
+                    anchor: const Offset(0.5, 0.5),
+                    rotation: angleDeg,
+                    zIndex: 1.8, // 在波纹和头像之间
+                    clickable: false,
+                    isFlat: true,
+                  );
+                  distanceLabelMarker.setIdForCopy('distance_label');
+                  tempMarkers.add(distanceLabelMarker);
+                }
+              } catch (e) {
+                debugPrint('Create distance label marker error: $e');
+              }
+            }
           } catch (e) {
             debugPrint('Create partner marker error: $e');
           }
@@ -761,7 +804,34 @@ class LocationV2Controller extends GetxController
     }
   }
 
-  void _updatePolylines() {
+  /// 使用墨卡托投影计算两点的中点
+  /// 这是高德地图原生的做法，确保中点在屏幕投影上也是中点
+  LatLng _projectedMiddle(LatLng p1, LatLng p2) {
+    // 经纬度 → 墨卡托投影
+    double lonToX(double lng) => lng * 20037508.34 / 180;
+    double latToY(double lat) =>
+        dart_math.log(dart_math.tan((90 + lat) * dart_math.pi / 360)) * 20037508.34 / dart_math.pi;
+
+    // 墨卡托 → 经纬度（反投影）
+    double xToLon(double x) => x / 20037508.34 * 180;
+    double yToLat(double y) =>
+        (180 / dart_math.pi) * (2 * dart_math.atan(dart_math.exp(y / 20037508.34 * dart_math.pi)) - dart_math.pi / 2);
+
+    // 转换到投影坐标系
+    final x1 = lonToX(p1.longitude);
+    final y1 = latToY(p1.latitude);
+    final x2 = lonToX(p2.longitude);
+    final y2 = latToY(p2.latitude);
+
+    // 在投影坐标系中计算中点
+    final midX = (x1 + x2) / 2;
+    final midY = (y1 + y2) / 2;
+
+    // 反投影回经纬度
+    return LatLng(yToLat(midY), xToLon(midX));
+  }
+
+  Future<void> _updatePolylines() async {
     _polylines.clear();
 
     // 未绑定时不显示连线
@@ -776,14 +846,19 @@ class LocationV2Controller extends GetxController
     if (myPos != null && partnerPos != null) {
       final List<LatLng> connectionPoints = [myPos, partnerPos];
 
+      // 加载虚线纹理（只加载一次）
+      // 使用32x8标准尺寸纹理，符合2的n次方要求
+      _dashLineTexture ??= await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(),
+          'assets/texture/kissu4_dash_line.png',
+        );
+
       _polylines.add(
         Polyline(
           points: connectionPoints,
-          color: const Color(0xFFFF4B99),
-          width: 6,
+          width: 8,
           visible: true,
-          alpha: 1.0,
-          dashLineType: DashLineType.circle,
+          customTexture: _dashLineTexture!, // 使用32x8纹理实现虚线
           capType: CapType.round,
         ),
       );
@@ -1071,24 +1146,14 @@ class LocationV2Controller extends GetxController
     if (mapType.value != type) {
       mapType.value = type;
       // 地图模式切换埋点
-      _trackMapModeSwitch(type);
+      TrackingService.trackMapModeSwitch(mapType: type);
     }
-  }
-
-  /// 地图模式切换埋点
-  Future<void> _trackMapModeSwitch(int mapType) async {
-    await TrackingService.trackMapModeSwitch(mapType: mapType);
   }
 
   Future<void> refreshLocationData() async {
     // 刷新地图按钮埋点
-    await _trackRefreshMapButton();
-    await loadLocationData();
-  }
-
-  /// 刷新地图按钮埋点
-  Future<void> _trackRefreshMapButton() async {
     await TrackingService.trackRefreshMapButton();
+    await loadLocationData();
   }
 
   Future<void> loadLocationData({int retryCount = 0}) async {
@@ -1114,11 +1179,7 @@ class LocationV2Controller extends GetxController
           }
 
           // 清空对方的位置数据
-          partnerLocation.value = null;
-          actualPartnerLocation.value = null;
-          partnerAvatar.value = "";
-          partnerFace.value = null;
-          partnerOnlineStatus.value = null;
+          _clearPartnerData();
           // 强制设置为看自己
           isOneself.value = 1;
         } else {
@@ -1308,20 +1369,25 @@ class LocationV2Controller extends GetxController
     _updatePolylines();
   }
 
+  /// 清空伴侣数据（提取重复逻辑）
+  void _clearPartnerData() {
+    debugPrint('⚠️ 清空伴侣位置缓存');
+    partnerLocation.value = null;
+    actualPartnerLocation.value = null;
+    partnerAvatar.value = "";
+    partnerFace.value = null;
+    partnerOnlineStatus.value = null;
+  }
+
   void performBindAction() {
     // 立即去绑定按钮埋点
-    _trackBindNowButton();
+    TrackingService.trackBindNowButton();
 
     if (Get.context != null) {
       CustomBottomDialog.show(context: Get.context!).then((_) {
         refreshUserInfo();
       });
     }
-  }
-
-  /// 立即去绑定按钮埋点
-  Future<void> _trackBindNowButton() async {
-    await TrackingService.trackBindNowButton();
   }
 
   /// 位置提醒按钮点击处理
@@ -1536,8 +1602,8 @@ class LocationV2Controller extends GetxController
             // 创建新的Marker（不包含底座，底座将作为独立marker）
             final markerData = await _createAvatarMarker(
               myAvatar.value,
-              defaultAsset: 'assets/kissu3_love_avater.webp',
-              baseAsset: 'assets/kissu_location_run.webp',
+              defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
+              baseAsset: 'assets/images/kissu_location_run.webp',
               face: myFace.value,
               useLargePedestal: true, // 底座尺寸配置（用于计算anchor）
             );
@@ -1557,12 +1623,12 @@ class LocationV2Controller extends GetxController
         // 🎯 底座marker只在首次创建，之后不再重新创建
         if (_persistentMyPedestalIcon == null) {
           _persistentMyPedestalIcon = await _markerBuilder.createPedestalMarker(
-            pedestalAsset: 'assets/kissu_location_run.webp',
+            pedestalAsset: 'assets/images/kissu_location_run.webp',
             size: 800.0,
           );
         }
 
-        _cachedMyIcon = _persistentMyIcon;
+        // 更新缓存标记
         _cachedMyAvatar = myAvatar.value;
         _cachedMyFace = myFace.value;
       }
@@ -1591,7 +1657,7 @@ class LocationV2Controller extends GetxController
             // 创建新的Marker（不包含底座，底座是独立marker）
             final markerData = await _createAvatarMarker(
               partnerAvatar.value,
-              defaultAsset: 'assets/kissu3_love_avater.webp',
+              defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
               baseAsset: 'assets/3.0/kissu3_location_she.webp',
               face: partnerFace.value,
             );
@@ -1618,7 +1684,25 @@ class LocationV2Controller extends GetxController
               );
         }
 
-        _cachedPartnerIcon = _persistentPartnerIcon;
+        // 创建波纹静态背景marker（只创建一次）
+        if (_persistentPartnerRippleBgIcon == null) {
+          _persistentPartnerRippleBgIcon =
+              await _markerBuilder.createRippleBackgroundMarker(
+            size: 96.0,
+          );
+        }
+
+        // 创建波纹圆环marker（只创建一次，带填充渐变和白色边框）
+        if (_persistentPartnerRippleIcon == null) {
+          _persistentPartnerRippleIcon =
+              await _markerBuilder.createRippleRingMarker(
+            size: 64.0, // 圆环大小（头像的1.3倍左右）
+            color: const Color(0xFFFFA1C7), // 粉色
+            strokeWidth: 3.0,
+          );
+        }
+
+        // 更新缓存标记
         _cachedPartnerAvatar = partnerAvatar.value;
         _cachedPartnerFace = partnerFace.value;
         _cachedIsBindPartner = isBindPartner.value;
@@ -1631,15 +1715,15 @@ class LocationV2Controller extends GetxController
     }
   }
 
-  /// 🎯 启动原生呼吸动画（iOS原版实现）
+  /// 启动原生呼吸动画（iOS原版实现）
   ///
-  /// 🎨 iOS原版效果：
-  /// - 横向拉伸：X=1.03, Y=0.98（横向拉伸3%，纵向压缩2%）
-  /// - 纵向拉伸：X=0.98, Y=1.03（横向压缩2%，纵向拉伸3%）
-  /// - 两种状态交替变换，产生自然的"呼吸"效果
+  /// iOS原版效果：
+  /// - 横向拉伸：X=1.03, Y=0.98（横向拉伸，纵向压缩）
+  /// - 纵向拉伸：X=0.98, Y=1.03（横向压缩，纵向拉伸）
+  /// - 两种状态交替变换，产生自然的“呼吸”效果
   /// - 动画时长：0.4秒（与iOS原版完全一致）
   ///
-  /// ✅ 性能优势：
+  /// 性能优势：
   /// - 使用Android原生ScaleAnimation（GPU加速）
   /// - 60fps流畅运行
   /// - 零跨平台通信开销（只调用一次）
@@ -1746,8 +1830,9 @@ class LocationV2Controller extends GetxController
       debugPrint('Dispose switchTransitionController error: $e');
     }
 
-    _cachedMyIcon = null;
-    _cachedPartnerIcon = null;
+    // 清理缓存字段
+    _cachedMyAnchor = null;
+    _cachedPartnerAnchor = null;
     _cachedMyAvatar = null;
     _cachedPartnerAvatar = null;
     _cachedMyFace = null;

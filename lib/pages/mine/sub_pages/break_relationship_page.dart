@@ -91,7 +91,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
           GestureDetector(
             onTap: () => Get.back(),
             child: Image.asset(
-              'assets/kissu_mine_back.webp',
+              'assets/images/kissu_mine_back.webp',
               width: 24,
               height: 24,
             ),
@@ -396,7 +396,7 @@ class _BreakAvatarSection extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+          image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
           fit: BoxFit.fill,
         ),
       ),
@@ -467,7 +467,7 @@ class _BreakAvatarSection extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+          image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
           fit: BoxFit.fill,
         ),
       ),
@@ -542,7 +542,7 @@ class _BreakTogetherCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_loveinfo_day_bg.png'),
+                image: AssetImage('assets/images/kissu_loveinfo_day_bg.png'),
                 fit: BoxFit.fill,
               ),
             ),
@@ -550,7 +550,7 @@ class _BreakTogetherCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
-                  'assets/kissu_loveinfo_day_left.png',
+                  'assets/images/kissu_loveinfo_day_left.png',
                   width: 32,
                   height: 36,
                 ),
@@ -576,7 +576,7 @@ class _BreakTogetherCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Image.asset(
-                  'assets/kissu_loveinfo_day_right.png',
+                  'assets/images/kissu_loveinfo_day_right.png',
                   width: 32,
                   height: 36,
                 ),
@@ -640,7 +640,7 @@ class _BreakTogetherCard extends StatelessWidget {
             height: containerSize,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/kissu_loveinfo_num_bg.webp'),
+                image: AssetImage('assets/images/kissu_loveinfo_num_bg.webp'),
                 fit: BoxFit.cover,
               ),
             ),

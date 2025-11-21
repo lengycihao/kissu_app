@@ -14,7 +14,7 @@ class MessageCenterPage extends GetView<MessageCenterController> {
           GestureDetector(
             onTap: controller.onBackTap,
             child: Image.asset(
-              "assets/kissu_mine_back.webp",
+              "assets/images/kissu_mine_back.webp",
               width: 22,
               height: 22,
             ),
@@ -40,7 +40,7 @@ class MessageCenterPage extends GetView<MessageCenterController> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage("assets/kissu_notuce_bg.webp"),
+          image: AssetImage("assets/images/kissu_notuce_bg.webp"),
           fit: BoxFit.fill,
         ),
         borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -63,7 +63,7 @@ class MessageCenterPage extends GetView<MessageCenterController> {
                         Positioned(
                           left: 0,
                           bottom: 0,
-                          child: Image(image: AssetImage("assets/kissu_notice_title_bg.webp"),width: 78,height: 12,fit: BoxFit.contain,)),
+                          child: Image(image: AssetImage("assets/images/kissu_notice_title_bg.webp"),width: 78,height: 12,fit: BoxFit.contain,)),
                         Positioned(
                           left: 15,
                           bottom: 0,
@@ -227,7 +227,7 @@ class MessageCenterPage extends GetView<MessageCenterController> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
-                "assets/kissu_notice_empty.webp",
+                "assets/images/kissu_notice_empty.webp",
                 width: 128,
                 height: 128,
               ),
@@ -276,7 +276,7 @@ class MessageCenterPage extends GetView<MessageCenterController> {
         children: [
           // 全屏背景
           Positioned.fill(
-            child: Image.asset("assets/kissu_mine_bg.webp", fit: BoxFit.cover),
+            child: Image.asset("assets/images/kissu_mine_bg.webp", fit: BoxFit.cover),
           ),
           SafeArea(
             child: Column(

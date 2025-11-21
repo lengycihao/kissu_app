@@ -121,7 +121,7 @@ class StopListItem extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Image.asset(
-                                'assets/kissu_track_location.webp',
+                                'assets/images/kissu_track_location.webp',
                                 width: 24,
                                 height: 24,
                               ),
@@ -141,7 +141,7 @@ class StopListItem extends StatelessWidget {
                         Row(
                             children: [
                               Image.asset(
-                                record.status == 'staying' ? 'assets/kissu_track_staying.webp' : 'assets/kissu_track_location.webp',
+                                record.status == 'staying' ? 'assets/images/kissu_track_staying.webp' : 'assets/images/kissu_track_location.webp',
                                 width: 24,
                                 height: 24,
                                 color: record.status == 'staying' ? Color(0xFFBE9DFF) : Color(0xFFFBAE84),

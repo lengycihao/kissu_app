@@ -20,7 +20,7 @@
             android:name="UMENG_CHANNEL"
             android:value="Umeng" />
         <activity
-            android:name=".MainActivity"
+            android:name="com.yuluo.kissu.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -28,9 +28,10 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <!-- 不要在主Activity中添加LAUNCHER，通过activity-alias来控制图标 -->
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
@@ -57,6 +58,20 @@
             </intent-filter>
         </activity>
         
+        <!-- 动态图标 - 默认图标 (启用状态) -->
+        <activity-alias
+            android:name=".MainActivityDefault"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="Kissu"
+            android:targetActivity=".MainActivity">
+            <!-- <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter> -->
+        </activity-alias>
+        
         <!-- 动态图标 - 图标一 -->
         <activity-alias
             android:name=".MainActivityLogoOne"
@@ -71,19 +86,6 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- 动态图标 - 图标二 -->
-        <activity-alias
-            android:name=".MainActivityLogoTwo"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_two"
-            android:label="Kissu"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
         
         <!-- 微信回调 Activity：支付/分享/登录 -->
         <activity

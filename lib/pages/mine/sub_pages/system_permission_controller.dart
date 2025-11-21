@@ -20,25 +20,25 @@ class SystemPermissionController extends GetxController with WidgetsBindingObser
   // 权限配置数据
   final List<Map<String, dynamic>> permissionItems = [
     {
-      "icon": "assets/kissu_setting_ssdw.webp",
+      "icon": "assets/images/kissu_setting_ssdw.webp",
       "title": "开启实时定位",
       "subtitle": "和ta持续分享你的位置",
       "type": PermissionType.location,
     },
     {
-      "icon": "assets/kissu_setting_htyx.webp", 
+      "icon": "assets/images/kissu_setting_htyx.webp", 
       "title": "允许后台运行",
       "subtitle": "应用后台常驻，确保数据同步",
       "type": PermissionType.battery,
     },
     {
-      "icon": "assets/kissu_setting_tztx.webp",
+      "icon": "assets/images/kissu_setting_tztx.webp",
       "title": "开启通知提醒", 
       "subtitle": "收到ta的实时动态提醒",
       "type": PermissionType.notification,
     },
     {
-      "icon": "assets/kissu_setting_cc.webp",
+      "icon": "assets/images/kissu_setting_cc.webp",
       "title": "允许获取应用使用权限",
       "subtitle": "和ta分享手机使用报告", 
       "type": PermissionType.usage,

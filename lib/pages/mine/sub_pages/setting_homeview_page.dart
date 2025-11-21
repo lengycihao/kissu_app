@@ -20,22 +20,22 @@ class SettingHomeController extends GetxController {
 
   String get centerImage {
     if (selectedIndex == 0) {
-      return "assets/kissu_setting_home_center_dst.webp";
+      return "assets/images/kissu_setting_home_center_dst.webp";
     } else {
-      return "assets/kissu_setting_home_center_pst.webp";
+      return "assets/images/kissu_setting_home_center_pst.webp";
     }
   }
 
   String get leftButtonImage {
     return selectedIndex == 0
-        ? "assets/kissu_setting_home_pst.webp"
-        : "assets/kissu_setting_home_pstu.webp";
+        ? "assets/images/kissu_setting_home_pst.webp"
+        : "assets/images/kissu_setting_home_pstu.webp";
   }
 
   String get rightButtonImage {
     return selectedIndex == 1
-        ? "assets/kissu_setting_home_dst.webp"
-        : "assets/kissu_setting_home_dstu.webp";
+        ? "assets/images/kissu_setting_home_dst.webp"
+        : "assets/images/kissu_setting_home_dstu.webp";
   }
 
   void onBackTap() {
@@ -56,7 +56,7 @@ class SettingHomePage extends StatelessWidget {
           // 背景图
           Positioned.fill(
             child: Image.asset(
-              "assets/kissu_setting_home_bg.webp",
+              "assets/images/kissu_setting_home_bg.webp",
               fit: BoxFit.cover,
             ),
           ),
@@ -72,7 +72,7 @@ class SettingHomePage extends StatelessWidget {
                     GestureDetector(
                       onTap: controller.onBackTap,
                       child: Image.asset(
-                        "assets/kissu_mine_back.webp",
+                        "assets/images/kissu_mine_back.webp",
                         width: 22,
                         height: 22,
                       ),
@@ -99,8 +99,8 @@ class SettingHomePage extends StatelessWidget {
                    child: Obx(
                      () => Image.asset(
                        controller.viewModeService.selectedViewMode.value == 1
-                           ? "assets/kissu_setting_home_center_dst.webp"
-                           : "assets/kissu_setting_home_center_pst.webp",
+                           ? "assets/images/kissu_setting_home_center_dst.webp"
+                           : "assets/images/kissu_setting_home_center_pst.webp",
                        width: 180,
                        height: 364,
                        fit: BoxFit.contain,
@@ -120,8 +120,8 @@ class SettingHomePage extends StatelessWidget {
                          onTap: () => controller.select(0),
                          child: Image.asset(
                            controller.viewModeService.selectedViewMode.value == 0
-                               ? "assets/kissu_setting_home_pst.webp"
-                               : "assets/kissu_setting_home_pstu.webp",
+                               ? "assets/images/kissu_setting_home_pst.webp"
+                               : "assets/images/kissu_setting_home_pstu.webp",
                            width: 124,
                            height: 184,
                            fit: BoxFit.contain,
@@ -132,8 +132,8 @@ class SettingHomePage extends StatelessWidget {
                          onTap: () => controller.select(1),
                          child: Image.asset(
                            controller.viewModeService.selectedViewMode.value == 1
-                               ? "assets/kissu_setting_home_dst.webp"
-                               : "assets/kissu_setting_home_dstu.webp",
+                               ? "assets/images/kissu_setting_home_dst.webp"
+                               : "assets/images/kissu_setting_home_dstu.webp",
                            width: 124,
                            height: 184,
                            fit: BoxFit.contain,

@@ -29,7 +29,7 @@ class PhoneVerificationPage extends StatelessWidget {
                     const SizedBox(height: 50),
                     Image(
                       image: AssetImage(
-                        "assets/kissu_delete_phone_lable_bg.webp",
+                        "assets/images/kissu_delete_phone_lable_bg.webp",
                       ),
                       width: 96,
                       height: 21,
@@ -99,7 +99,7 @@ class PhoneVerificationPage extends StatelessWidget {
             height: 58,
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage("assets/kissu_setting_account_code_bg.webp"),
+                image: AssetImage("assets/images/kissu_setting_account_code_bg.webp"),
                 fit: BoxFit.fill,
               ),
             ),
@@ -161,7 +161,7 @@ class PhoneVerificationPage extends StatelessWidget {
           height: 50,
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage("assets/kissu_delete_btn_bg.webp"),
+              image: AssetImage("assets/images/kissu_delete_btn_bg.webp"),
               fit: BoxFit.fill,
             ),
           ),

@@ -145,6 +145,55 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     }
   }
 
+  /// 启动Marker波纹动画（扩散+透明度渐变）
+  /// 
+  /// 🌊 波纹效果：
+  /// - 从 1.0 扩大到 1.5倍
+  /// - 透明度从 0.6 渐变到 0.0
+  /// - 循环播放，产生持续扩散效果
+  /// - 在原生层执行，60fps流畅运行
+  /// 
+  /// [markerId] Marker的ID（必须是已存在的Marker）
+  /// [duration] 动画周期（毫秒，默认2000ms）
+  Future<bool> startMarkerRippleAnimation({
+    required int mapId,
+    required String markerId,
+    int duration = 2000,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#startRippleAnimation',
+        {
+          'markerId': markerId,
+          'duration': duration,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('启动Marker波纹动画失败: $e');
+      return false;
+    }
+  }
+
+  /// 停止Marker波纹动画
+  Future<bool> stopMarkerRippleAnimation({
+    required int mapId,
+    required String markerId,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#stopRippleAnimation',
+        {
+          'markerId': markerId,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('停止Marker波纹动画失败: $e');
+      return false;
+    }
+  }
+
   @override
   void dispose({required int id}) {
     if (_channels.containsKey(id)) {

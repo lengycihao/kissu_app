@@ -1096,11 +1096,13 @@ class VipController extends GetxController {
       _logger.i('💫 支付SDK调用结果: $result');
 
       if (result) {
-        _logger.i('💫 成功唤起支付应用，等待支付结果回调...');
-        // 支付结果将通过监听器处理，这里不需要做额外处理
+        _logger.i('💫 支付成功，开始处理后续操作');
+        OKToastUtil.show('支付成功');
+        _updateVipStatus(package);
+        await _handlePaymentSuccess(package);
       } else {
-        _logger.e('💫 唤起支付应用失败');
-        // 支付服务已经显示了错误信息，这里不再重复
+        _logger.e('💫 支付失败或取消');
+        await _handlePaymentCancel();
       }
     } catch (e) {
       _logger.e('💫 支付处理失败: $e');

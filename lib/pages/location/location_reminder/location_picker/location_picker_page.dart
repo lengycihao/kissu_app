@@ -373,8 +373,8 @@ class LocationPickerPage extends StatelessWidget {
                                 Image(
                                   image: AssetImage(
                                     controller.selectedBottomAway.value
-                                        ? 'assets/kissu_login_privite_sel.webp'
-                                        : 'assets/kissu_login_privite_unsel.webp',
+                                        ? 'assets/images/kissu_login_privite_sel.webp'
+                                        : 'assets/images/kissu_login_privite_unsel.webp',
                                   ),
                                   width: 14,
                                   height: 14,
@@ -403,8 +403,8 @@ class LocationPickerPage extends StatelessWidget {
                                 Image(
                                   image: AssetImage(
                                     controller.selectedBottomAway.value
-                                        ? 'assets/kissu_login_privite_unsel.webp'
-                                        : 'assets/kissu_login_privite_sel.webp',
+                                        ? 'assets/images/kissu_login_privite_unsel.webp'
+                                        : 'assets/images/kissu_login_privite_sel.webp',
                                   ),
                                   width: 14,
                                   height: 14,
@@ -522,7 +522,7 @@ class LocationPickerPage extends StatelessWidget {
       bottom: 370, // 根据底部面板的高度计算，让logo在面板上方
       left: 14,
       child: Image.asset(
-        'assets/map_logo.webp',
+        'assets/images/map_logo.webp',
         width: 68,
         height: 22,
       ),

@@ -65,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset('assets/kissu_login_bg.webp', fit: BoxFit.cover),
+                Image.asset('assets/images/kissu_login_bg.webp', fit: BoxFit.cover),
                 Center(
                   child: SingleChildScrollView(
                     controller: _scrollController,
@@ -78,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
                           //   height: MediaQuery.of(context).size.height * 0.15,
                           // ), // 动态高度
                           Image.asset(
-                            'assets/kissu_login_title.webp',
+                            'assets/images/kissu_login_title.webp',
                             width: 80,
                             height: 25,
                           ),
@@ -112,7 +112,7 @@ class _LoginPageState extends State<LoginPage> {
                               decoration: BoxDecoration(
                                 image: const DecorationImage(
                                   image: AssetImage(
-                                    'assets/kissu_login_btn_bg.webp',
+                                    'assets/images/kissu_login_btn_bg.webp',
                                   ),
                                   fit: BoxFit.fill,
                                 ),
@@ -167,8 +167,8 @@ class _LoginPageState extends State<LoginPage> {
                               image: DecorationImage(
                                 image: AssetImage(
                                   controller.isChecked.value
-                                      ? 'assets/kissu_login_privite_sel.webp'
-                                      : 'assets/kissu_login_privite_unsel.webp',
+                                      ? 'assets/images/kissu_login_privite_sel.webp'
+                                      : 'assets/images/kissu_login_privite_unsel.webp',
                                 ),
                               ),
                               // color: controller.isChecked.value

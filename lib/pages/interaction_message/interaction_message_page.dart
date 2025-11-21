@@ -14,7 +14,7 @@ class InteractionMessagePage extends GetView<InteractionMessageController> {
           GestureDetector(
             onTap: controller.onBackTap,
             child: Image.asset(
-              "assets/kissu_mine_back.webp",
+              "assets/images/kissu_mine_back.webp",
               width: 22,
               height: 22,
             ),
@@ -173,7 +173,7 @@ class InteractionMessagePage extends GetView<InteractionMessageController> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
-                "assets/kissu_notice_empty.webp",
+                "assets/images/kissu_notice_empty.webp",
                 width: 128,
                 height: 128,
               ),

@@ -145,7 +145,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             onTap: _handleBack,
             child: Center(
               child: Image.asset(
-                "assets/kissu_mine_back.webp",
+                "assets/images/kissu_mine_back.webp",
                 width: 22,
                 height: 22,
                 fit: BoxFit.contain,
@@ -238,7 +238,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/kissu3_love_avater.webp',
+              'assets/3.0/kissu3_love_avater.webp',
               width: 80,
               height: 80,
             ),

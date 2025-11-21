@@ -26,7 +26,7 @@ class FloatingActionButtons extends StatelessWidget {
       final sheetHeight = screenHeight * sheetPercent;
       
       // 按钮固定在下半屏上方100px处
-      final buttonBottom = sheetHeight + 70;
+      final buttonBottom = sheetHeight + 20;
 
       // 🔧 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final isBindPartner = controller.isBindPartner.value;
@@ -64,29 +64,29 @@ class FloatingActionButtons extends StatelessWidget {
               children: [
                 // 状态按钮
                 FloatingButton(
-                  assetPath: 'assets/location/kissu3_location_state_an.webp',
+                  assetPath: 'assets/location/kissu3_location_state_an.png',
                   onTap: () {
                     // 埋点：当前状态按钮点击
                     TrackingService.trackCurrentStateButton();
                     Get.toNamed(KissuRoutePath.locationState);
                   },
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 10),
 
                 // 轨迹按钮（Ta的足迹）
                 FloatingButton(
-                  assetPath: 'assets/location/kissu3_location_track_an.webp',
+                  assetPath: 'assets/location/kissu3_location_track_an.png',
                   onTap: () {
                     // 埋点：Ta的足迹按钮点击
                     TrackingService.trackHerTrackButton();
                     Get.toNamed(KissuRoutePath.track);
                   },
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 10),
 
                 // 位置提醒按钮
                 FloatingButton(
-                  assetPath: 'assets/location/kissu3_location_knock_an.webp',
+                  assetPath: 'assets/location/kissu3_location_knock_an.png',
                   onTap: () {
                     controller.onLocationReminderButtonTap();
                   },
@@ -119,21 +119,11 @@ class FloatingButton extends StatelessWidget {
       child: Container(
         width: 50,
         height: 50,
-        // decoration: BoxDecoration(
-        //   boxShadow: [
-        //     BoxShadow(
-        //       color: Colors.black.withOpacity(0.1),
-        //       blurRadius: 8,
-        //       offset: const Offset(0, 2),
-        //     ),
-        //   ],
-        // ),
-        child: Image.asset(
-          assetPath,
-          width: 50,
-          height: 50,
-          fit: BoxFit.contain,
+
+        decoration: BoxDecoration(
+          image: DecorationImage(image: AssetImage(assetPath),fit: BoxFit.fill)
         ),
+         
       ),
     );
   }

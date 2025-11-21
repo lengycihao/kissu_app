@@ -85,7 +85,7 @@ class _QuestionPageState extends State<QuestionPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/kissu_mine_bg.webp', fit: BoxFit.cover),
+            child: Image.asset('assets/images/kissu_mine_bg.webp', fit: BoxFit.cover),
           ),
           Column(
             children: [
@@ -100,7 +100,7 @@ class _QuestionPageState extends State<QuestionPage> {
                     GestureDetector(
                       onTap: () => Get.back(),
                       child: Image.asset(
-                        "assets/kissu_mine_back.webp",
+                        "assets/images/kissu_mine_back.webp",
                         width: 22,
                         height: 22,
                       ),
@@ -161,7 +161,7 @@ class _QuestionPageState extends State<QuestionPage> {
                               decoration: BoxDecoration(
                                 image: const DecorationImage(
                                   image: AssetImage(
-                                    'assets/kissu_mine_question_bg.webp',
+                                    'assets/images/kissu_mine_question_bg.webp',
                                   ),
                                   fit: BoxFit.fill,
                                 ),
@@ -185,7 +185,7 @@ class _QuestionPageState extends State<QuestionPage> {
                                         ),
                                       ),
                                       Image.asset(
-                                        'assets/kissu_mine_arrow.webp',
+                                        'assets/images/kissu_mine_arrow.webp',
                                         width: 16,
                                         height: 16,
                                       ),

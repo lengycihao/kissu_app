@@ -44,7 +44,7 @@ class DeviceInfoSection extends StatelessWidget {
                   ),
                   const SizedBox(width: 22),
                   Image(
-                    image: AssetImage('assets/kissu_location_time_logo.webp'),
+                    image: AssetImage('assets/images/kissu_location_time_logo.webp'),
                     width: 22,
                     height: 22,
                   ),

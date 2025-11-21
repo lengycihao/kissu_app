@@ -90,7 +90,7 @@ class AccountCancellationPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 30),
       decoration: BoxDecoration(
         image: const DecorationImage(
-          image: AssetImage('assets/kissu_accout_info_bg.webp'),
+          image: AssetImage('assets/images/kissu_accout_info_bg.webp'),
           fit: BoxFit.fill,
         ),
         borderRadius: BorderRadius.circular(20),
@@ -158,7 +158,7 @@ class AccountCancellationPage extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/kissu_loveinfo_header_bg.webp'),
+          image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
           fit: BoxFit.fill,
         ),
       ),
