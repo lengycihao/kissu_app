@@ -11,13 +11,32 @@ import 'package:kissu_app/utils/debug_util.dart';
 /// 全局用户数据管理工具类
 /// 提供便捷的用户数据访问方法
 class UserManager {
-  static AuthService get _authService => getIt<AuthService>();
+  // 🚀 优化：延迟获取AuthService，避免在服务未注册时访问
+  static AuthService get _authService {
+    try {
+      return getIt<AuthService>();
+    } catch (e) {
+      throw StateError('AuthService未初始化，请确保应用已完成初始化');
+    }
+  }
 
   /// 获取当前登录用户
-  static LoginModel? get currentUser => _authService.currentUser;
+  static LoginModel? get currentUser {
+    try {
+      return _authService.currentUser;
+    } catch (e) {
+      return null;
+    }
+  }
 
   /// 检查是否已登录
-  static bool get isLoggedIn => _authService.isLoggedIn;
+  static bool get isLoggedIn {
+    try {
+      return _authService.isLoggedIn;
+    } catch (e) {
+      return false;
+    }
+  }
 
   /// 获取用户ID
   static String? get userId => _authService.userId;
@@ -85,7 +104,13 @@ class UserManager {
   }
 
   /// 检查用户是否需要完善信息
-  static bool get needsPerfectInfo => _authService.needsPerfectInfo;
+  static bool get needsPerfectInfo {
+    try {
+      return _authService.needsPerfectInfo;
+    } catch (e) {
+      return false;
+    }
+  }
 
   /// 更新用户信息
   static Future<void> updateUserInfo(LoginModel updatedUser) async {

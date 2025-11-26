@@ -393,9 +393,10 @@ class LocationV2Controller extends GetxController
 
             // 🚀 修复：只有在地图已初始化时才更新marker，避免Channel未初始化错误
             if (mapController != null) {
-              _initTrackStartEndMarkers();
-              // 🎯 更新连线位置，与marker保持同步
-              _updatePolylines();
+              // 🎯 先更新连线和距离，再更新marker，确保距离标签使用最新的距离值
+              _updatePolylines().then((_) {
+                _initTrackStartEndMarkers();
+              });
             } else {
               debugPrint('⚠️ 地图未初始化，暂不更新marker（等待地图创建完成）');
             }
@@ -846,6 +847,9 @@ class LocationV2Controller extends GetxController
     if (myPos != null && partnerPos != null) {
       final List<LatLng> connectionPoints = [myPos, partnerPos];
 
+      // 🎯 实时计算距离并更新distance.value
+      _updateDistanceFromPositions(myPos, partnerPos);
+
       // 加载虚线纹理（只加载一次）
       // 使用32x8标准尺寸纹理，符合2的n次方要求
       _dashLineTexture ??= await BitmapDescriptor.fromAssetImage(
@@ -862,6 +866,35 @@ class LocationV2Controller extends GetxController
           capType: CapType.round,
         ),
       );
+    }
+  }
+
+  /// 根据两个位置实时计算距离并更新distance.value
+  void _updateDistanceFromPositions(LatLng pos1, LatLng pos2) {
+    // 使用Haversine公式计算两点间的距离（单位：米）
+    const double earthRadius = 6371000; // 地球半径（米）
+    
+    final lat1Rad = pos1.latitude * dart_math.pi / 180;
+    final lat2Rad = pos2.latitude * dart_math.pi / 180;
+    final deltaLat = (pos2.latitude - pos1.latitude) * dart_math.pi / 180;
+    final deltaLng = (pos2.longitude - pos1.longitude) * dart_math.pi / 180;
+    
+    final a = dart_math.sin(deltaLat / 2) * dart_math.sin(deltaLat / 2) +
+        dart_math.cos(lat1Rad) * dart_math.cos(lat2Rad) *
+        dart_math.sin(deltaLng / 2) * dart_math.sin(deltaLng / 2);
+    final c = 2 * dart_math.atan2(dart_math.sqrt(a), dart_math.sqrt(1 - a));
+    final distanceInMeters = earthRadius * c;
+    
+    // 格式化距离文本
+    if (distanceInMeters < 1000) {
+      distance.value = '${distanceInMeters.toStringAsFixed(0)}m';
+    } else {
+      final distanceInKm = distanceInMeters / 1000;
+      if (distanceInKm < 10) {
+        distance.value = '${distanceInKm.toStringAsFixed(2)}km';
+      } else {
+        distance.value = '${distanceInKm.toStringAsFixed(1)}km';
+      }
     }
   }
 

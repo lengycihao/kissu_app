@@ -256,6 +256,24 @@ class DialogShowcasePage extends StatelessWidget {
                         const SizedBox(height: 24),
                         _buildSection('业务特定弹窗', [
                           _buildDialogItem(
+                            '绑定申请弹窗',
+                            '显示绑定申请弹窗',
+                            () async {
+                              final result = await DialogManager.showBindRequest(
+                                context: context,
+                                avatarImage: const AssetImage(
+                                  'assets/3.0/kissu3_avater_viewbg.webp',
+                                ),
+                                nickname: 'Kissu9236',
+                              );
+                              if (result == true) {
+                                _showToast('点击了同意');
+                              } else if (result == false) {
+                                _showToast('点击了拒绝');
+                              }
+                            },
+                          ),
+                          _buildDialogItem(
                             '通话历史设置弹窗',
                             '显示通话历史设置弹窗',
                             () => _showToast('通话历史设置弹窗（需要导入相应页面）'),

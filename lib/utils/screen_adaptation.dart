@@ -104,7 +104,7 @@ class ScreenAdaptation {
   static double getPresetScrollOffset() {
     final centerOffset = getDynamicBackgroundCenterOffset(); // 使用动态偏移量
     final scrollOffset =
-        centerOffset - scaleXByDynamicWidth(190); // 向左偏移190px，使用动态宽度缩放
+        centerOffset; 
     return scrollOffset.clamp(0.0, double.infinity);
   }
 }

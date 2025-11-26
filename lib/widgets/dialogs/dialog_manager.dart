@@ -8,6 +8,7 @@ import 'huawei_vip_promo_dialog.dart';
 import 'vip_purchase_dialog.dart';
 import 'unbind_relationship_dialog.dart';
 import 'vip_cancel_retention_dialog.dart';
+import 'bind_request_dialog.dart';
 import '../../pages/dialog_showcase/dialog_showcase_page.dart';
 
 /// 导出所有弹窗组件
@@ -197,6 +198,24 @@ class DialogManager {
       context: context,
       onUnlock: onUnlock,
       onCancel: onCancel,
+      barrierDismissible: barrierDismissible,
+    );
+  }
+
+  static Future<bool?> showBindRequest({
+    required BuildContext context,
+    required ImageProvider avatarImage,
+    required String nickname,
+    VoidCallback? onAccept,
+    VoidCallback? onReject,
+    bool barrierDismissible = true,
+  }) {
+    return BindRequestDialog.show(
+      context: context,
+      avatarImage: avatarImage,
+      nickname: nickname,
+      onAccept: onAccept,
+      onReject: onReject,
       barrierDismissible: barrierDismissible,
     );
   }

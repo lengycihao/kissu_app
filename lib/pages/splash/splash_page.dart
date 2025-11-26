@@ -4,7 +4,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
-import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
@@ -12,6 +11,7 @@ import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';
 import 'package:kissu_app/widgets/dialogs/base_dialog.dart';
+import 'package:kissu_app/services/app_initializer.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -32,12 +32,27 @@ class _SplashPageState extends State<SplashPage> {
   /// 预加载所有启动页图片，避免闪烁
   Future<void> _preloadImagesAndNavigate() async {
     try {
-      // 预加载所有启动页图片
+      // 🚀 关键优化：并行执行图片预加载和应用初始化
+      // ⚠️ 使用 Future.wait 但不等待初始化完成，避免卡住
       await Future.wait([
+        // 预加载启动页图片
         precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash.webp'), context),
         precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'), context),
         precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'), context),
-      ]);
+        // 🚀 在启动页执行所有应用初始化（带超时保护）
+        AppInitializer.initialize().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            DebugUtil.warning('⚠️ 应用初始化超时（10秒），继续启动流程');
+          },
+        ),
+      ]).timeout(
+        const Duration(seconds: 12),
+        onTimeout: () {
+          DebugUtil.warning('⚠️ 启动页初始化总超时（12秒），强制继续');
+          return List.filled(4, null);
+        },
+      );
       
       // 图片加载完成，更新状态
       if (mounted) {
@@ -49,8 +64,8 @@ class _SplashPageState extends State<SplashPage> {
       // 继续原有的导航逻辑
       await _checkLoginStatusAndNavigate();
     } catch (e) {
-      DebugUtil.error('预加载启动页图片失败: $e');
-      // 即使预加载失败，也继续执行
+      DebugUtil.error('预加载启动页图片或初始化失败: $e');
+      // ✅ 即使预加载失败，也继续执行，不会卡住
       if (mounted) {
         setState(() {
           _imagesLoaded = true;
@@ -65,22 +80,42 @@ class _SplashPageState extends State<SplashPage> {
     await Future.delayed(const Duration(seconds: 2));
     
     try {
-      // 🔑 关键改进：首先检查是否需要显示隐私政策弹窗
-      final firstLaunchService = FirstLaunchService.instance;
-      final shouldShowPrivacyDialog = await firstLaunchService.shouldShowFirstAgreement();
-      
-      if (shouldShowPrivacyDialog) {
-        DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
-        await _showPrivacyDialog();
-        return;
+      // 🚀 确保应用已初始化（关键！必须在访问任何服务之前）
+      if (!AppInitializer.isInitialized) {
+        DebugUtil.warning('⚠️ 应用尚未初始化完成，等待初始化...');
+        try {
+          await AppInitializer.initialize().timeout(
+            const Duration(seconds: 8),
+            onTimeout: () {
+              DebugUtil.error('⚠️ 应用初始化超时（8秒），强制继续');
+            },
+          );
+        } catch (e) {
+          DebugUtil.error('⚠️ 应用初始化失败: $e，尝试继续启动');
+        }
       }
       
-      // 检查隐私政策合规状态
-      final privacyManager = Get.find<PrivacyComplianceManager>();
-      if (!privacyManager.isPrivacyAgreed) {
-        DebugUtil.warning('隐私政策未同意，在启动页显示隐私政策弹窗');
-        await _showPrivacyDialog();
-        return;
+      // 🔑 现在可以安全访问服务了（带异常保护）
+      try {
+        final firstLaunchService = FirstLaunchService.instance;
+        final shouldShowPrivacyDialog = await firstLaunchService.shouldShowFirstAgreement();
+        
+        if (shouldShowPrivacyDialog) {
+          DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
+          await _showPrivacyDialog();
+          return;
+        }
+        
+        // 检查隐私政策合规状态
+        final privacyManager = Get.find<PrivacyComplianceManager>();
+        if (!privacyManager.isPrivacyAgreed) {
+          DebugUtil.warning('隐私政策未同意，在启动页显示隐私政策弹窗');
+          await _showPrivacyDialog();
+          return;
+        }
+      } catch (e) {
+        DebugUtil.error('⚠️ 获取服务失败: $e，跳过隐私检查直接进入登录检查');
+        // 如果服务获取失败，直接进入登录状态检查
       }
       
       // 隐私政策已同意，继续正常的登录状态检查
@@ -95,15 +130,38 @@ class _SplashPageState extends State<SplashPage> {
   /// 继续登录状态检查（隐私政策同意后）
   Future<void> _continueLoginStatusCheck() async {
     try {
-      final authService = getIt<AuthService>();
-      await authService.loadCurrentUser();
+      // 🚀 确保应用已初始化（带超时保护）
+      if (!AppInitializer.isInitialized) {
+        DebugUtil.warning('应用尚未初始化完成，等待初始化...');
+        try {
+          await AppInitializer.initialize().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              DebugUtil.error('⚠️ 二次初始化超时（5秒），强制继续启动');
+            },
+          );
+        } catch (e) {
+          DebugUtil.error('⚠️ 二次初始化失败: $e，继续启动流程');
+        }
+      }
+      
+      // 🛡️ 安全获取AuthService（带异常保护）
+      AuthService? authService;
+      try {
+        authService = getIt<AuthService>();
+      } catch (e) {
+        DebugUtil.error('⚠️ AuthService未注册: $e，跳转到登录页');
+        Get.offAllNamed(KissuRoutePath.login);
+        return;
+      }
       
       DebugUtil.info('启动页检查登录状态: ${authService.isLoggedIn}');
       DebugUtil.info('用户token: ${authService.userToken != null ? "存在" : "不存在"}');
       
       if (authService.isLoggedIn && authService.userToken != null) {
         // 用户已登录，检查是否需要完善信息
-        if (UserManager.needsPerfectInfo) {
+        // 🚀 直接使用authService，避免通过UserManager访问未初始化的服务
+        if (authService.needsPerfectInfo) {
           DebugUtil.info('用户已登录但需要完善信息，跳转到信息完善页面');
           Get.offAllNamed(KissuRoutePath.infoSetting);
         } else {

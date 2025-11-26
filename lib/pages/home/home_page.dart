@@ -174,7 +174,69 @@ class _KissuHomePageState extends State<KissuHomePage>
                       },
                     ),
                   ),
-
+                  // 静态图片 - kissu4_home_light.webp
+                  Positioned(
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      332,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(0), // Y坐标基于高度缩放
+                    child: Image.asset(
+                      'assets/home/kissu4_home_light.webp',
+                      width: ScreenAdaptation.scaleXByDynamicWidth(
+                        111,
+                      ), // 基于动态背景宽度缩放宽度
+                      height: ScreenAdaptation.scaleSizeByHeight(
+                        164,
+                      ), // 基于高度比例缩放高度
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ home_light.png 加载失败: $error');
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                  // 静态图片 - kissu_home_person.webp
+                  Positioned(
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      429,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(280), // Y坐标基于高度缩放
+                    child: Image.asset(
+                      'assets/home/kissu_home_person.webp',
+                      width: ScreenAdaptation.scaleXByDynamicWidth(
+                        305,
+                      ), // 基于动态背景宽度缩放宽度
+                      height: ScreenAdaptation.scaleSizeByHeight(
+                        320,
+                      ), // 基于高度比例缩放高度
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ home_light.png 加载失败: $error');
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                   // 静态图片 - kissu_home_person.webp
+                  Positioned(
+                    left: ScreenAdaptation.scaleXByDynamicWidth(
+                      620,
+                    ), // 基于动态背景宽度缩放X坐标
+                    top: ScreenAdaptation.scaleY(44), // Y坐标基于高度缩放
+                    child: Image.asset(
+                      'assets/home/kissu_home_window.webp',
+                      width: ScreenAdaptation.scaleXByDynamicWidth(
+                        422,
+                      ), // 基于动态背景宽度缩放宽度
+                      height: ScreenAdaptation.scaleSizeByHeight(
+                        370,
+                      ), // 基于高度比例缩放高度
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ home_light.png 加载失败: $error');
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ),
                   // Lottie 动画层 - home_audio.json
                   Positioned(
                     left: ScreenAdaptation.scaleXByDynamicWidth(
@@ -262,26 +324,33 @@ class _KissuHomePageState extends State<KissuHomePage>
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child:
-                                    controller.photoWallUrl.value.startsWith('http')
+                                    controller.photoWallUrl.value.startsWith(
+                                      'http',
+                                    )
                                     ? NoPlaceholderImage(
                                         imageUrl: controller.photoWallUrl.value,
-                                        defaultAssetPath: "assets/images/kissu_icon.webp",
-                                        width: ScreenAdaptation.scaleXByDynamicWidth(
-                                          48,
-                                        ),
-                                        height: ScreenAdaptation.scaleSizeByHeight(
-                                          44,
-                                        ),
+                                        defaultAssetPath:
+                                            "assets/images/kissu_icon.webp",
+                                        width:
+                                            ScreenAdaptation.scaleXByDynamicWidth(
+                                              48,
+                                            ),
+                                        height:
+                                            ScreenAdaptation.scaleSizeByHeight(
+                                              44,
+                                            ),
                                         fit: BoxFit.cover,
                                       )
                                     : Image.asset(
                                         controller.photoWallUrl.value,
-                                        width: ScreenAdaptation.scaleXByDynamicWidth(
-                                          48,
-                                        ),
-                                        height: ScreenAdaptation.scaleSizeByHeight(
-                                          44,
-                                        ),
+                                        width:
+                                            ScreenAdaptation.scaleXByDynamicWidth(
+                                              48,
+                                            ),
+                                        height:
+                                            ScreenAdaptation.scaleSizeByHeight(
+                                              44,
+                                            ),
                                         fit: BoxFit.cover,
                                       ),
                               ),
@@ -798,7 +867,8 @@ class _AnimatedIslandViewState extends State<_AnimatedIslandView>
                 // 天气按钮（无点击事件，不显示箭头）
                 IslandViewButton(
                   iconUrl: controller.weatherIconUrl.value,
-                  iconAsset: "assets/images/home_list_type_location.webp", // 备用图标
+                  iconAsset:
+                      "assets/images/home_list_type_location.webp", // 备用图标
                   title: "TA的天气",
                   value: weatherText,
                   valueColor: Color(0xff3580FF),

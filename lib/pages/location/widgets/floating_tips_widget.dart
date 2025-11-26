@@ -243,13 +243,18 @@ class FloatingTipsWidget extends StatelessWidget {
           width: 240,
           height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFCE8), // #FFFCE8
+            color: const Color(0xFf000000), // #FFFCE8
             borderRadius: BorderRadius.circular(40),
           ),
           child: Row(
             children: [
-              const SizedBox(width: 16),
-              // 会员到期文字
+              const SizedBox(width: 12),
+              Image(
+                image: AssetImage('assets/4.0/kissu4_location_white.webp'),
+                width: 14,
+                height: 14,
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: Obx(
                   () => FittedBox(
@@ -259,7 +264,7 @@ class FloatingTipsWidget extends StatelessWidget {
                       '你的会员还有${tipsManager.vipExpiryText.value}到期！',
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF333333), // #333333
+                        color: Color(0xFFffffff), // #333333
                         fontWeight: FontWeight.w400,
                       ),
                       maxLines: 1,
@@ -282,7 +287,7 @@ class FloatingTipsWidget extends StatelessWidget {
                   const Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
-                    color: Color(0xFFAD6D48), // #AD6D48
+                    color: Color(0xFFffffff), // #AD6D48
                   ),
                 ],
               ),
@@ -290,39 +295,39 @@ class FloatingTipsWidget extends StatelessWidget {
             ],
           ),
         ),
-        // 关闭按钮
+         
         Positioned(
-          top: -10, // 🔧 扩大点击区域：越界出去上边10px
-          right: -10, // 🔧 扩大点击区域：越界出去右边10px
-          child: GestureDetector(
-            onTap: () => tipsManager.showVipExpiryTip.value = false,
-            child: Container(
-              width: 24, // 🔧 扩大点击区域：从14增加到24
-              height: 24, // 🔧 扩大点击区域：从14增加到24
-              alignment: Alignment.center, // 🔧 确保图标居中
+            top: -10, // 🔧 扩大点击区域：越界出去上边10px
+            right: -5, // 🔧 扩大点击区域：越界出去右边10px
+            child: GestureDetector(
+              onTap: () => tipsManager.showVipExpiryTip.value = false,
               child: Container(
-                width: 14, // 保持视觉大小不变
-                height: 14,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.close,
-                  size: 10,
-                  color: Color(0xFF666666),
+                width: 24, // 🔧 扩大点击区域：从14增加到24
+                height: 24, // 🔧 扩大点击区域：从14增加到24
+                alignment: Alignment.center, // 🔧 确保图标居中
+                child: Container(
+                  width: 14, // 保持视觉大小不变
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Image(
+                    image: AssetImage('assets/4.0/kissu4_close_black.webp'),
+                    width: 16,
+                    height: 16,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

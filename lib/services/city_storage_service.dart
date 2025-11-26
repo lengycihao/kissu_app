@@ -10,18 +10,29 @@ class CityStorageService extends GetxService {
   static const String _recentCitiesKey = 'recent_visited_cities';
   static const int _maxRecentCities = 3;
 
-  late final SharedPreferences _prefs;
+  SharedPreferences? _prefs;
+  bool _isInitialized = false;
 
   /// 初始化服务
   Future<CityStorageService> init() async {
+    if (_isInitialized) return this;
     _prefs = await SharedPreferences.getInstance();
+    _isInitialized = true;
     return this;
+  }
+  
+  /// 确保已初始化
+  Future<void> _ensureInitialized() async {
+    if (!_isInitialized) {
+      await init();
+    }
   }
 
   /// 获取最近访问的城市列表
-  List<CityModel> getRecentCities() {
+  Future<List<CityModel>> getRecentCities() async {
+    await _ensureInitialized();
     try {
-      final String? jsonString = _prefs.getString(_recentCitiesKey);
+      final String? jsonString = _prefs!.getString(_recentCitiesKey);
       if (jsonString == null || jsonString.isEmpty) {
         return [];
       }
@@ -42,8 +53,9 @@ class CityStorageService extends GetxService {
   /// 2. 如果城市不存在，添加到第一位
   /// 3. 最多保存3个城市
   Future<bool> addRecentCity(CityModel city) async {
+    await _ensureInitialized();
     try {
-      List<CityModel> recentCities = getRecentCities();
+      List<CityModel> recentCities = await getRecentCities();
 
       // 移除已存在的相同城市
       recentCities.removeWhere((c) => c.adcode == city.adcode);
@@ -59,7 +71,7 @@ class CityStorageService extends GetxService {
       // 保存到本地
       final String jsonString =
           json.encode(recentCities.map((c) => c.toJson()).toList());
-      return await _prefs.setString(_recentCitiesKey, jsonString);
+      return await _prefs!.setString(_recentCitiesKey, jsonString);
     } catch (e) {
       debugPrint('❌ 保存最近城市失败: $e');
       return false;
@@ -68,8 +80,9 @@ class CityStorageService extends GetxService {
 
   /// 清空最近访问的城市列表
   Future<bool> clearRecentCities() async {
+    await _ensureInitialized();
     try {
-      return await _prefs.remove(_recentCitiesKey);
+      return await _prefs!.remove(_recentCitiesKey);
     } catch (e) {
       debugPrint('❌ 清空最近城市失败: $e');
       return false;

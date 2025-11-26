@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 🚀 启动背景：纯白色，快速显示，无额外资源加载 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 纯白色背景 -->
+    <item android:drawable="@android:color/white" />
+    
+    <!-- 可选：如果需要显示启动图标，取消下面的注释 -->
+    <!-- 
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/ic_launcher" />
+    </item>
+    -->
+</layer-list>

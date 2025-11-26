@@ -61,8 +61,8 @@ class CityListController extends GetxController {
   }
 
   /// 加载最近访问的城市
-  void _loadRecentCities() {
-    recentCities.value = _cityStorageService.getRecentCities();
+  Future<void> _loadRecentCities() async {
+    recentCities.value = await _cityStorageService.getRecentCities();
   }
 
   /// 加载当前定位城市
