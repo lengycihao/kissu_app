@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'love_info_controller.dart';
 import 'love_info_widgets.dart';
 
@@ -12,23 +13,20 @@ class LoveInfoPage extends StatelessWidget {
     final controller = Get.put(LoveInfoController());
 
     return Obx(
-      () => Stack(
-        children: [
-          // 背景图层
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/images/kissu_mine_bg.webp"),
-                  fit: BoxFit.cover,
-                ),
+      () => Scaffold(
+        backgroundColor: const Color(0xFFF7F7F7),
+        body: Stack(
+          children: [
+            // 背景图层
+            Positioned.fill(
+              child: Image.asset(
+                "assets/4.0/kissu4_new_use_bg.webp",
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
               ),
             ),
-          ),
 
-          Scaffold(
-            backgroundColor: Colors.transparent,
-            body: SafeArea(
+            SafeArea(
               child: Column(
                 children: [
                   // 自定义标题栏
@@ -71,6 +69,7 @@ class LoveInfoPage extends StatelessWidget {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(20),
+                      physics: const BouncingScrollPhysics(),
                       child: Stack(
                         alignment: Alignment.topCenter,
                         children: [
@@ -154,32 +153,25 @@ class LoveInfoPage extends StatelessWidget {
                                                           );
                                                         },
                                                   )
-                                                : Image.network(
-                                                    controller.myAvatar.value,
+                                                : NetworkImageHelper.loadImage(
+                                                    imageUrl: controller.myAvatar.value,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) {
-                                                          return Container(
-                                                            decoration: BoxDecoration(
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    40,
-                                                                  ),
-                                                              color: const Color(
-                                                                0xFFE8B4CB,
-                                                              ),
+                                                    errorWidget: Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              40,
                                                             ),
-                                                            child: const Icon(
-                                                              Icons.person,
-                                                              size: 40,
-                                                              color: Colors.white,
-                                                            ),
-                                                          );
-                                                        },
+                                                        color: const Color(
+                                                          0xFFE8B4CB,
+                                                        ),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.person,
+                                                        size: 40,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
                                                   )
                                             : Container(
                                                 decoration: BoxDecoration(
@@ -242,22 +234,20 @@ class LoveInfoPage extends StatelessWidget {
                                                         );
                                                       },
                                                     )
-                                                  : Image.network(
-                                                      controller.partnerAvatar.value,
+                                                  : NetworkImageHelper.loadImage(
+                                                      imageUrl: controller.partnerAvatar.value,
                                                       fit: BoxFit.cover,
-                                                      errorBuilder: (context, error, stackTrace) {
-                                                        return Container(
-                                                          decoration: BoxDecoration(
-                                                            borderRadius: BorderRadius.circular(25),
-                                                            color: const Color(0xFFE8B4CB),
-                                                          ),
-                                                          child: const Icon(
-                                                            Icons.person,
-                                                            size: 25,
-                                                            color: Colors.white,
-                                                          ),
-                                                        );
-                                                      },
+                                                      errorWidget: Container(
+                                                        decoration: BoxDecoration(
+                                                          borderRadius: BorderRadius.circular(25),
+                                                          color: const Color(0xFFE8B4CB),
+                                                        ),
+                                                        child: const Icon(
+                                                          Icons.person,
+                                                          size: 25,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
                                                     )
                                               : Container(
                                                   decoration: BoxDecoration(
@@ -322,8 +312,8 @@ class LoveInfoPage extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

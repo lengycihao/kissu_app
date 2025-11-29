@@ -3,13 +3,63 @@ import 'package:get/get.dart';
 import 'app_usage_controller.dart';
 
 /// App使用记录采集调试页面
-class AppUsageDebugPage extends StatelessWidget {
+class AppUsageDebugPage extends StatefulWidget {
   const AppUsageDebugPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<AppUsageController>();
+  State<AppUsageDebugPage> createState() => _AppUsageDebugPageState();
+}
+
+class _AppUsageDebugPageState extends State<AppUsageDebugPage> {
+  late AppUsageController controller;
+  bool _hasAutoSelected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<AppUsageController>();
     
+    // 延迟执行自动选择，确保apps已加载
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoSelectAllApps();
+    });
+  }
+
+  /// 自动选择所有应用
+  void _autoSelectAllApps() {
+    if (_hasAutoSelected) return;
+    
+    // 等待apps加载完成
+    if (controller.apps.isNotEmpty && !controller.isLoading.value) {
+      // 自动选择所有应用
+      for (final app in controller.apps) {
+        if (!controller.selectedApps.contains(app.packageName)) {
+          controller.toggleSelection(app.packageName);
+        }
+      }
+      _hasAutoSelected = true;
+      
+      // 显示提示
+      Get.snackbar(
+        '自动筛选完成',
+        '已自动筛选 ${controller.apps.length} 个应用',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFFFF839E).withOpacity(0.9),
+        colorText: Colors.white,
+      );
+    } else if (!controller.isLoading.value) {
+      // 如果apps为空但不在加载中，可能需要刷新
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && !_hasAutoSelected) {
+          _autoSelectAllApps();
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
@@ -29,6 +79,70 @@ class AppUsageDebugPage extends StatelessWidget {
         ),
         centerTitle: true,
         actions: [
+          // 调试菜单按钮
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.bug_report, color: Color(0xFFFF839E)),
+            tooltip: '调试功能',
+            onSelected: (value) {
+              switch (value) {
+                case 'view_pending':
+                  controller.debugViewPendingData();
+                  break;
+                case 'full_report':
+                  controller.debugFullReport();
+                  break;
+                case 'incremental_report':
+                  controller.debugIncrementalReport();
+                  break;
+                case 'clear_local':
+                  controller.debugClearLocalData();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'view_pending',
+                child: Row(
+                  children: [
+                    Icon(Icons.visibility, size: 20, color: Color(0xFF666666)),
+                    SizedBox(width: 12),
+                    Text('查看待上报数据'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'full_report',
+                child: Row(
+                  children: [
+                    Icon(Icons.upload_file, size: 20, color: Color(0xFF4CAF50)),
+                    SizedBox(width: 12),
+                    Text('全量上报'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'incremental_report',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline, size: 20, color: Color(0xFF2196F3)),
+                    SizedBox(width: 12),
+                    Text('增量上报'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'clear_local',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20, color: Color(0xFFFF5252)),
+                    SizedBox(width: 12),
+                    Text('清空本地记录'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          // 原有的上报按钮
           Obx(() => controller.selectedApps.isEmpty
               ? const SizedBox.shrink()
               : IconButton(
@@ -92,17 +206,17 @@ class AppUsageDebugPage extends StatelessWidget {
             child: Row(
               children: [
                 const Icon(
-                  Icons.info_outline,
+                  Icons.check_circle_outline,
                   size: 16,
-                  color: Color(0xFF999999),
+                  color: Color(0xFFFF839E),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Obx(() => Text(
-                    '已筛选 ${controller.selectedApps.length} 个应用，点击右上角上传按钮上报使用数据',
+                    '已自动关联 ${controller.selectedApps.length} 个应用，点击应用查看详情，点击右上角上报数据',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF999999),
+                      color: Color(0xFF666666),
                     ),
                   )),
                 ),
@@ -174,10 +288,7 @@ class AppUsageDebugPage extends StatelessWidget {
   
   /// 构建应用列表项
   Widget _buildAppItem(AppUsageController controller, AppInfo app) {
-    return Obx(() {
-      final isSelected = controller.selectedApps.contains(app.packageName);
-      
-      return Container(
+    return Container(
         color: Colors.white,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -224,43 +335,41 @@ class AppUsageDebugPage extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: SizedBox(
-            width: 80,
-            child: TextButton(
-              onPressed: () => controller.toggleSelection(app.packageName),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                backgroundColor: isSelected 
-                    ? const Color(0xFFFF839E) 
-                    : const Color(0xFFF5F5F5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF839E).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: Color(0xFFFF839E),
                 ),
-              ),
-              child: Text(
-                isSelected ? '已筛选' : '筛选',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isSelected 
-                      ? Colors.white 
-                      : const Color(0xFF666666),
-                  fontWeight: FontWeight.w500,
+                SizedBox(width: 4),
+                Text(
+                  '已关联',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFFFF839E),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-          onTap: isSelected 
-              ? () async {
-                  // 显示详细使用数据
-                  final record = await controller.getDetailedUsageData(app.packageName);
-                  if (record != null) {
-                    _showDetailedUsageDialog(app.appName, record);
-                  }
-                }
-              : null,
+          onTap: () async {
+            // 显示详细使用数据
+            final record = await controller.getDetailedUsageData(app.packageName);
+            if (record != null) {
+              _showDetailedUsageDialog(app.appName, record);
+            }
+          },
         ),
       );
-    });
   }
   
   /// 显示详细使用数据对话框
@@ -468,72 +577,146 @@ class AppUsageDebugPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          // 根据是否正在运行显示不同的布局
+          session.isRunning || session.closeTime == -1
+              ? _buildRunningSessionInfo(session)
+              : _buildClosedSessionInfo(session),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建正在运行的会话信息（只显示打开时间）
+  Widget _buildRunningSessionInfo(dynamic session) {
+    return Column(
+      children: [
+        // 打开时间
+        Row(
+          children: [
+            const Icon(Icons.login, size: 16, color: Color(0xFF4CAF50)),
+            const SizedBox(width: 6),
+            const Text(
+              '打开时间',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF999999),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              session.openTimeFormatted,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // 运行状态
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: const Color(0xFF4CAF50).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.login, size: 16, color: Color(0xFF4CAF50)),
-                        const SizedBox(width: 6),
-                        const Text(
-                          '打开时间',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF999999),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session.openTimeFormatted,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                  ],
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF4CAF50),
+                  shape: BoxShape.circle,
                 ),
               ),
-              const Icon(Icons.arrow_forward, size: 20, color: Color(0xFFCCCCCC)),
               const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.logout, size: 16, color: Color(0xFFFF5252)),
-                        const SizedBox(width: 6),
-                        const Text(
-                          '关闭时间',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF999999),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session.closeTimeFormatted,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                  ],
+              const Text(
+                '运行中...',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4CAF50),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+  
+  /// 构建已关闭的会话信息（显示打开和关闭时间）
+  Widget _buildClosedSessionInfo(dynamic session) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.login, size: 16, color: Color(0xFF4CAF50)),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '打开时间',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF999999),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                session.openTimeFormatted,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Icon(Icons.arrow_forward, size: 20, color: Color(0xFFCCCCCC)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.logout, size: 16, color: Color(0xFFFF5252)),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '关闭时间',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF999999),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                session.closeTimeFormatted,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
   

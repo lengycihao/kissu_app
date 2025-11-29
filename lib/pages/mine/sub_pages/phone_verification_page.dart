@@ -11,8 +11,18 @@ class PhoneVerificationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF5F0),
-      body: SafeArea(
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: Stack(
+        children: [
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          SafeArea(
         child: Column(
           children: [
             // 顶部导航栏
@@ -20,6 +30,9 @@ class PhoneVerificationPage extends StatelessWidget {
 
             Expanded(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 43),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,6 +61,8 @@ class PhoneVerificationPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+        ],
       ),
     );
   }

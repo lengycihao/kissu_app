@@ -20,72 +20,79 @@ class PrivacySettingPage extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6F0),
-      body: SafeArea(
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: Stack(
+        children: [
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 标题
-              Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        Get.back();
-                      },
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Get.back(),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
                       child: Image.asset(
                         "assets/images/kissu_mine_back.webp",
                         width: 22,
                         height: 22,
                       ),
                     ),
-                    const Expanded(
-                      child: Center(
-                        child: Text(
-                          "账号及隐私安全",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w400,
-                          ),
+                  ),
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        "账号及隐私安全",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 22), // 占位保持居中
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 30), // 占位保持居中
+                ],
               ),
               const SizedBox(height: 35),
 
-              // Item 列表
-              Column(
-                children: [
-                  _SettingItem(
-                    iconPath: "assets/images/kissu_setting_account_ysaq.webp",
-                    title: "隐私安全",
-                    onTap: () => AgreementUtils.toPrivacySecurity(),
-                  ),
-                  const SizedBox(height: 14),
-                  // 根据绑定状态显示解除关系选项
-                  _buildBreakRelationshipItem(),
-                  _SettingItem(
-                    iconPath: "assets/images/kissu_setting_account_zxzh.webp",
-                    title: "注销账号",
-                    onTap: () => Get.to(
-                      () => AccountCancellationPage(),
-                      transition: Transition.rightToLeft,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _SettingItem(
-                    iconPath: "assets/images/kissu_setting_account_sjh.webp",
-                    title: "手机号",
-                    trailingText: phoneNumber,
-                    onTap: () => _handlePhoneChange(context, phoneNumber),
-                  ),
-                ],
+              // Item 列表 - 带动画
+              _AnimatedSettingItem(
+                delay: 0,
+                iconPath: "assets/images/kissu_setting_account_ysaq.webp",
+                title: "隐私安全",
+                onTap: () => AgreementUtils.toPrivacySecurity(),
+              ),
+              const SizedBox(height: 14),
+              // 根据绑定状态显示解除关系选项
+              _buildBreakRelationshipItem(),
+              _AnimatedSettingItem(
+                delay: 100,
+                iconPath: "assets/images/kissu_setting_account_zxzh.webp",
+                title: "注销账号",
+                onTap: () => Get.to(
+                  () => AccountCancellationPage(),
+                  transition: Transition.rightToLeft,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _AnimatedSettingItem(
+                delay: 200,
+                iconPath: "assets/images/kissu_setting_account_sjh.webp",
+                title: "手机号",
+                trailingText: phoneNumber,
+                onTap: () => _handlePhoneChange(context, phoneNumber),
               ),
 
               const Spacer(),
@@ -117,6 +124,8 @@ class PrivacySettingPage extends StatelessWidget {
           ),
         ),
       ),
+        ],
+      ),
     );
   }
 
@@ -131,7 +140,8 @@ class PrivacySettingPage extends StatelessWidget {
     if (isBindPartner) {
       return Column(
         children: [
-          _SettingItem(
+          _AnimatedSettingItem(
+            delay: 50,
             iconPath: "assets/images/kissu_setting_account_jcgx.webp",
             title: "解除关系",
             onTap: () => Get.to(
@@ -195,56 +205,117 @@ class PrivacySettingPage extends StatelessWidget {
   }
 }
 
-/// 设置页面单个Item
-class _SettingItem extends StatelessWidget {
+/// 带动画效果的设置项
+class _AnimatedSettingItem extends StatefulWidget {
   final String iconPath;
   final String title;
-  final String? trailingText; // 右侧显示文字（手机号）
+  final String? trailingText;
   final VoidCallback? onTap;
+  final int delay;
 
-  const _SettingItem({
+  const _AnimatedSettingItem({
     required this.iconPath,
     required this.title,
     this.trailingText,
     this.onTap,
+    this.delay = 0,
   });
 
   @override
+  State<_AnimatedSettingItem> createState() => _AnimatedSettingItemState();
+}
+
+class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          image: const DecorationImage(
-            image: AssetImage("assets/images/kissu_setting_account_itenbg.webp"),
-            fit: BoxFit.fill,
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            height: 54,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              image: const DecorationImage(
+                image: AssetImage("assets/images/kissu_setting_account_itenbg.webp"),
+                fit: BoxFit.fill,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Image.asset(widget.iconPath, width: 34, height: 34),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (widget.trailingText != null)
+                  Text(
+                    widget.trailingText!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF999999),
+                    ),
+                  ),
+                if (widget.trailingText != null) const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: Color(0xFF999999),
+                ),
+              ],
+            ),
           ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Image.asset(iconPath, width: 34, height: 34),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
-              ),
-            ),
-            if (trailingText != null)
-              Text(
-                trailingText!,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF999999)),
-              ),
-            if (trailingText != null) const SizedBox(width: 8),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Color(0xFF999999),
-            ),
-          ],
         ),
       ),
     );

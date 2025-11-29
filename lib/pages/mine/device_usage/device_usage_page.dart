@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'device_usage_controller.dart';
 import 'dart:math' as math;
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
@@ -73,6 +74,9 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                 // 可滚动内容区域
                 Expanded(
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
@@ -154,7 +158,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     return GestureDetector(
       onTap: () {
         // 跳转到App使用记录详情页
-        Get.toNamed('/kisssu_app/app_usage_detail');
+        Get.toNamed(KissuRoutePath.appUsageInfo);
       },
       child: Container(
         height: 190,
@@ -334,7 +338,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                   height: 60,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    color: const Color(0xFFF5F5F5),
+                                    color: const Color(0xFFF9f9f9),
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
@@ -343,20 +347,17 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                           .longestAppLogo
                                           .value
                                           .isNotEmpty) {
-                                        return Image.network(
-                                          controller.longestAppLogo.value,
+                                        return NetworkImageHelper.loadImage(
+                                          imageUrl: controller.longestAppLogo.value,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Image.asset(
-                                                  "assets/4.0/kissu4_use_app_empty.webp",
-                                                  fit: BoxFit.cover,
-                                                );
-                                              },
+                                          errorWidget: Image.asset(
+                                            "assets/phone_history/kissu4_phone_icon_empty.webp",
+                                            fit: BoxFit.cover,
+                                          ),
                                         );
                                       } else {
                                         return Image.asset(
-                                          "assets/4.0/kissu4_use_app_empty.webp",
+                                          "assets/phone_history/kissu4_phone_icon_empty.webp",
                                           fit: BoxFit.cover,
                                         );
                                       }
@@ -480,20 +481,13 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                         () => Row(
                                           children: [
                                             SizedBox(width: 20),
-                                            // App图标或灰色方块
+                                            // App图标
                                             Container(
                                               width: 26,
                                               height: 26,
                                               decoration: BoxDecoration(
                                                 borderRadius:
                                                     BorderRadius.circular(4),
-                                                color:
-                                                    controller
-                                                            .openMostAppCount
-                                                            .value >
-                                                        0
-                                                    ? const Color(0xFF07C160)
-                                                    : const Color(0xFFE8E8E8),
                                               ),
                                               child:
                                                   controller
@@ -509,36 +503,38 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                                           BorderRadius.circular(
                                                             4,
                                                           ),
-                                                      child: Image.network(
-                                                        controller
+                                                      child: NetworkImageHelper.loadImage(
+                                                        imageUrl: controller
                                                             .openMostAppLogo
                                                             .value,
                                                         width: 26,
                                                         height: 26,
                                                         fit: BoxFit.cover,
-                                                        errorBuilder:
-                                                            (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                            ) {
-                                                              return const Center(
-                                                                child: Icon(
-                                                                  Icons.apps,
-                                                                  size: 22,
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                              );
-                                                            },
+                                                        errorWidget: ClipRRect(
+                                                          borderRadius:
+                                                              BorderRadius.circular(4),
+                                                          child: Image.asset(
+                                                            "assets/phone_history/kissu4_phone_icon_empty.webp",
+                                                            width: 26,
+                                                            height: 26,
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                        ),
                                                       ),
                                                     )
-                                                  : null,
+                                                  : ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(4),
+                                                      child: Image.asset(
+                                                        "assets/phone_history/kissu4_phone_icon_empty.webp",
+                                                        width: 26,
+                                                        height: 26,
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    ),
                                             ),
                                             const SizedBox(width: 6),
-                                            controller.openMostAppCount.value >
-                                                    0
-                                                ? Text.rich(
+                                            Text.rich(
                                                     TextSpan(
                                                       children: [
                                                         TextSpan(
@@ -546,7 +542,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                                               "${controller.openMostAppCount.value}",
                                                           style:
                                                               const TextStyle(
-                                                                fontSize: 16,
+                                                                fontSize: 14,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold,
@@ -568,13 +564,6 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                                       ],
                                                     ),
                                                   )
-                                                : const Text(
-                                                    "0次",
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Color(0xFF999999),
-                                                    ),
-                                                  ),
                                           ],
                                         ),
                                       ),
@@ -627,7 +616,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                       Obx(
                                         () => Row(
                                           children: [
-                                            // App图标或灰色方块
+                                            // App图标
                                             SizedBox(width: 20),
                                             Container(
                                               width: 26,
@@ -635,13 +624,6 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                               decoration: BoxDecoration(
                                                 borderRadius:
                                                     BorderRadius.circular(4),
-                                                color:
-                                                    controller
-                                                        .lastUseAppTime
-                                                        .value
-                                                        .isEmpty
-                                                    ? const Color(0xFFE8E8E8)
-                                                    : const Color(0xFFE6162D),
                                               ),
                                               child:
                                                   controller
@@ -657,31 +639,35 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                                           BorderRadius.circular(
                                                             4,
                                                           ),
-                                                      child: Image.network(
-                                                        controller
+                                                      child: NetworkImageHelper.loadImage(
+                                                        imageUrl: controller
                                                             .lastUseAppLogo
                                                             .value,
                                                         width: 26,
                                                         height: 26,
                                                         fit: BoxFit.cover,
-                                                        errorBuilder:
-                                                            (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                            ) {
-                                                              return const Center(
-                                                                child: Icon(
-                                                                  Icons.apps,
-                                                                  size: 22,
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                              );
-                                                            },
+                                                        errorWidget: ClipRRect(
+                                                          borderRadius:
+                                                              BorderRadius.circular(4),
+                                                          child: Image.asset(
+                                                            "assets/phone_history/kissu4_phone_icon_empty.webp",
+                                                            width: 26,
+                                                            height: 26,
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                        ),
                                                       ),
                                                     )
-                                                  : null,
+                                                  : ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(4),
+                                                      child: Image.asset(
+                                                        "assets/phone_history/kissu4_phone_icon_empty.webp",
+                                                        width: 26,
+                                                        height: 26,
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    ),
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
@@ -701,7 +687,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                                         .lastUseAppTime
                                                         .value
                                                         .isEmpty
-                                                    ? const Color(0xFF999999)
+                                                    ? const Color(0xFF333333)
                                                     : const Color(0xFF333333),
                                               ),
                                             ),

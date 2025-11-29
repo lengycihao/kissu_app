@@ -68,10 +68,15 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/kissu_mine_bg.webp', fit: BoxFit.cover),
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
           ),
           Column(
             children: [

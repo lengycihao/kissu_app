@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 
 /// Kissu Banner 图片组装器
 /// 
@@ -731,14 +732,12 @@ class KissuBannerBuilder {
     
     // 如果是网络图片
     if (avatarUrl.startsWith('http')) {
-      return Image.network(
-        avatarUrl,
+      return NetworkImageHelper.loadImage(
+        imageUrl: avatarUrl,
         width: _avatarSize,
         height: _avatarSize,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildDefaultAvatar();
-        },
+        errorWidget: _buildDefaultAvatar(),
       );
     }
     
@@ -764,14 +763,12 @@ class KissuBannerBuilder {
     
     // 如果是网络图片
     if (avatarUrl.startsWith('http')) {
-      return Image.network(
-        avatarUrl,
+      return NetworkImageHelper.loadImage(
+        imageUrl: avatarUrl,
         width: _partnerAvatarSize,
         height: _partnerAvatarSize,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildDefaultPartnerAvatar();
-        },
+        errorWidget: _buildDefaultPartnerAvatar(),
       );
     }
     
@@ -859,17 +856,15 @@ class KissuBannerBuilder {
             Positioned(
               left: _weatherIconLeft,
               top: _weatherIconTop,
-              child: Image.network(
-                weatherIconUrl,
+              child: NetworkImageHelper.loadImage(
+                imageUrl: weatherIconUrl,
                 width: _weatherIconSize,
                 height: _weatherIconSize,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return SizedBox(
-                    width: _weatherIconSize,
-                    height: _weatherIconSize,
-                  );
-                },
+                errorWidget: SizedBox(
+                  width: _weatherIconSize,
+                  height: _weatherIconSize,
+                ),
               ),
             ),
           

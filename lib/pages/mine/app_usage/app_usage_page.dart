@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'app_usage_controller.dart';
 
 /// App使用统计页面
@@ -23,7 +24,7 @@ class AppUsagePage extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: const [0, 0.10, 1.0],
+                  stops: const [0, 0.05, 1.0],
                   colors: [Colors.white, Colors.white, const Color(0xFFF6F6F6)],
                 ),
               ),
@@ -45,6 +46,10 @@ class AppUsagePage extends StatelessWidget {
                 // 可滚动内容区域
                 Expanded(
                   child: SingleChildScrollView(
+                    // iOS风格弹性滚动
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
@@ -60,8 +65,13 @@ class AppUsagePage extends StatelessWidget {
                           return const SizedBox();
                         }),
 
-                        // 日期选择器（最近7天）
-                        _buildDateSelector(controller),
+                        // 日期选择器
+                        DateSelector(
+                          externalSelectedIndex: controller.selectedDateIndex,
+                          onSelect: (date) {
+                            controller.selectDate(date);
+                          },
+                        ),
 
                         const SizedBox(height: 14),
 
@@ -198,138 +208,6 @@ class AppUsagePage extends StatelessWidget {
     );
   }
 
-  /// 日期选择器（最近7天）
-  Widget _buildDateSelector(AppUsageController controller) {
-    return Obx(() {
-      final selectedDate = controller.selectedDate.value;
-      final showPicker = controller.showDatePicker.value;
-      final isToday = _isToday(selectedDate);
-
-      return Column(
-        children: [
-          // 日期按钮
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 17),
-            child: GestureDetector(
-              onTap: () => controller.toggleDatePicker(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      isToday
-                          ? '${selectedDate.month}月${selectedDate.day}日 今天'
-                          : '${selectedDate.month}月${selectedDate.day}日',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Image.asset(
-                      "assets/4.0/kissu4_app_use_time_more.webp",
-                      width: 9,
-                      height: 9,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // 日期选择面板
-          if (showPicker) _buildDatePickerPanel(controller),
-        ],
-      );
-    });
-  }
-
-  /// 日期选择面板（最近7天）
-  Widget _buildDatePickerPanel(AppUsageController controller) {
-    final now = DateTime.now();
-    final dates = List.generate(
-      7,
-      (index) => now.subtract(Duration(days: 6 - index)),
-    );
-
-    return Container(
-      height: 60,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Obx(() {
-        final selectedDate = controller.selectedDate.value;
-
-        return Row(
-          children: List.generate(dates.length, (index) {
-            final date = dates[index];
-            final isSelected = _isSameDay(date, selectedDate);
-            final dateText = _getDateText(date);
-
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => controller.selectDate(date),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFFFF839E)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        dateText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF333333),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${date.day}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF666666),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
-        );
-      }),
-    );
-  }
-
-  /// 获取日期文本（周几）
-  String _getDateText(DateTime date) {
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return weekdays[date.weekday % 7];
-  }
-
-  /// 判断是否同一天
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
-  }
 
   /// 最近使用App模块
   Widget _buildRecentlyUsedApps(AppUsageController controller) {
@@ -479,10 +357,15 @@ class AppUsagePage extends StatelessWidget {
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
+                  // 添加缓存区域提升性能
+                  cacheExtent: 200,
                   itemCount: displayApps.length,
                   itemBuilder: (context, index) {
                     final app = displayApps[index];
-                    return _buildRecentAppItem(app, controller);
+                    // 使用RepaintBoundary隔离重绘
+                    return RepaintBoundary(
+                      child: _buildRecentAppItem(app, controller),
+                    );
                   },
                 ),
 
@@ -625,15 +508,24 @@ class AppUsagePage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: const Color(0xFFD6EFFF),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF7DCDFF),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF5CB7F0),
+                        width: 1,
                       ),
-                      minHeight: 8,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: const Color(0xFFD6EFFF),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF7DCDFF),
+                        ),
+                        minHeight: 8,
+                      ),
                     ),
                   ),
                 ],
@@ -1005,7 +897,8 @@ class AppUsagePage extends StatelessWidget {
                   ),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    physics: const ClampingScrollPhysics(),
+                    // iOS风格弹性滚动
+                    physics: const BouncingScrollPhysics(),
                     child: Row(
                       children: apps.map((record) {
                         final hourlyRecord = record.hourlyRecords.firstWhere(
@@ -1108,7 +1001,8 @@ class AppUsagePage extends StatelessWidget {
             children: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                physics: const ClampingScrollPhysics(),
+                // iOS风格弹性滚动
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: records.map((record) {
                     final isSelected =

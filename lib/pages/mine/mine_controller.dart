@@ -451,6 +451,12 @@ class MineController extends GetxController {
         title: "分享APP",
         onTap: () => _onShareAppTap(),
       ),
+      SettingItem(
+        icon: "assets/4.0/kissu4_notice.webp",
+        title: "通知设置",
+        onTap: () => _onNotificationSettingsTap(),
+      ),
+
       // SettingItem(
       //   icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
       //   title: "弹窗展示",
@@ -995,6 +1001,11 @@ class MineController extends GetxController {
     // 上报分享App点击埋点
     await TrackingService.trackMyShare();
     ShareBottomSheet.showShareApp(Get.context!);
+  }
+
+  /// 通知设置点击事件
+  void _onNotificationSettingsTap() {
+    Get.toNamed(KissuRoutePath.notificationSettings);
   }
 
   /// 防偷拍检测点击事件

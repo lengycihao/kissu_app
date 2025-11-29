@@ -8,16 +8,16 @@ import 'dart:io';
 import 'dart:async';
 import 'package:fluwx/fluwx.dart';
 
-/// 支付服务类 - 使用 fluwx 处理微信支付，tobias 处理支付宝支付
+/// 支付服务类 - 使用 fluwx 处理微信支付，MethodChannel 处理支付宝支付
 class PaymentService extends GetxService {
   static PaymentService get to => Get.find();
 
   final Logger _logger = Logger();
 
-  // MethodChannel 用于支付宝支付（保留）
+  // MethodChannel 用于支付宝支付
   static const MethodChannel _channel = MethodChannel('kissu_payment');
 
-  // fluwx 实例
+  // fluwx 实例用于微信支付
   final Fluwx _fluwx = Fluwx();
 
   // 支付状态
@@ -40,7 +40,7 @@ class PaymentService extends GetxService {
     // 设置 fluwx 微信支付回调监听
     _setupFluwxCallbackHandler();
 
-    // 设置支付宝支付结果回调处理器（保留）
+    // 设置支付宝支付回调处理器
     _setupAlipayCallbackHandler();
   }
 
@@ -54,7 +54,6 @@ class PaymentService extends GetxService {
 
   /// 设置 fluwx 微信支付回调监听
   void _setupFluwxCallbackHandler() {
-    // 使用 addSubscriber 添加回调监听器
     _fluwxCancelable = _fluwx.addSubscriber((response) {
       _logger.i(
         '📱 收到 fluwx 微信支付回调: ${response.isSuccessful}, errCode: ${response.errCode}',
@@ -67,7 +66,7 @@ class PaymentService extends GetxService {
     _logger.i('✅ fluwx 微信支付回调监听器已设置');
   }
 
-  /// 设置支付宝支付结果回调处理器
+  /// 设置支付宝支付回调处理器
   void _setupAlipayCallbackHandler() {
     _channel.setMethodCallHandler((call) async {
       _logger.i('📱 收到原生回调: ${call.method}, 参数: ${call.arguments}');
@@ -268,7 +267,7 @@ class PaymentService extends GetxService {
         return;
       }
 
-      // 初始化微信支付
+      // 初始化原生微信支付
       await _initWechatPay();
 
       _isInitialized.value = true;
@@ -286,7 +285,7 @@ class PaymentService extends GetxService {
       final registered = await _fluwx.registerApi(
         appId: 'wxca15128b8c388c13',
         doOnAndroid: true,
-        doOnIOS: false, // 如果不需要 iOS 可以设为 false
+        doOnIOS: false,
       );
 
       if (registered) {
@@ -389,24 +388,27 @@ class PaymentService extends GetxService {
           ),
         );
 
-        // 取消超时定时器
-        timeoutTimer.cancel();
-
         _logger.i('fluwx 微信支付调用返回: $result');
 
         if (result) {
           // 成功唤起微信支付，等待用户操作
           _logger.i('✅ 成功唤起微信支付，等待支付结果回调...');
-          // 返回true表示成功唤起支付，实际结果通过回调处理
-          return true;
+          // 注意：不要在这里返回结果，也不要隐藏进度
+          // 实际支付结果通过 _handleFluwxWechatResponse 回调处理
+          // 这里不返回，让方法继续等待（实际上方法会结束，但状态保持）
         } else {
           // fluwx 返回失败（如：微信未安装、版本过低等）
           _logger.e('❌ fluwx 调用失败');
+          timeoutTimer.cancel();
           _hideProgress();
           _paymentInProgress.value = false;
           _showError('支付失败，请检查微信是否已安装');
           return false;
         }
+        
+        // 成功唤起微信后，不返回任何值，让方法自然结束
+        // 支付结果将通过回调异步处理
+        return true; // 仅表示成功唤起，不表示支付成功
       } catch (e) {
         timeoutTimer.cancel();
         _logger.e('微信支付调用异常: $e');
@@ -486,8 +488,7 @@ class PaymentService extends GetxService {
         _logger.i('支付宝支付调用完成，返回结果类型: ${result.runtimeType}');
         _logger.i('支付宝支付返回结果: $result');
 
-        _hideProgress();
-        _paymentInProgress.value = false;
+        // 注意：不要在这里隐藏进度和重置状态，让 _onPaymentSuccess/_onPaymentFailed 处理
 
         if (result != null && result is Map) {
           final success = result['success'];
@@ -501,15 +502,18 @@ class PaymentService extends GetxService {
 
           if (success == true) {
             _logger.i('支付宝支付成功');
+            // 触发支付成功处理（会隐藏进度、重置状态、刷新用户信息）
+            _onPaymentSuccess('alipay');
             return true;
           } else {
             _logger.e('支付宝支付失败: $message');
-            _showError('支付失败: $message');
+            // 触发支付失败处理（会隐藏进度、重置状态、显示错误）
+            _onPaymentFailed(message);
             return false;
           }
         } else {
           _logger.e('支付宝支付返回结果格式错误: $result');
-          _showError('支付失败: 返回结果格式错误');
+          _onPaymentFailed('返回结果格式错误');
           return false;
         }
       } catch (e) {
@@ -540,10 +544,10 @@ class PaymentService extends GetxService {
     }
 
     try {
-      // 使用 fluwx 检查微信是否安装（isWeChatInstalled 是 getter，不是方法）
-      final isInstalled = await _fluwx.isWeChatInstalled;
-      _logger.d('微信安装检测结果: $isInstalled');
-      return isInstalled;
+      // 使用原生方法检查微信是否安装
+      final result = await _channel.invokeMethod('isWechatInstalled');
+      _logger.d('微信安装检测结果: $result');
+      return result == true;
     } catch (e) {
       _logger.e('检查微信安装状态失败: $e');
       return false;
@@ -761,8 +765,6 @@ class PaymentService extends GetxService {
   void onClose() {
     _paymentInProgress.value = false;
     _hideProgress();
-    // 移除 fluwx 回调监听器
-    _fluwxCancelable?.cancel();
     _paymentResultController.close();
     super.onClose();
   }

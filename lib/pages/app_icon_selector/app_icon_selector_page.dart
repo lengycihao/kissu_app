@@ -92,11 +92,17 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xffFFF6F0),
+      backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
-        
         children: [
-          
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
           SafeArea(
             
             child: Column(

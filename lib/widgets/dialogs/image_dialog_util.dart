@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
@@ -299,20 +300,18 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                               localFile!,
                               fit: BoxFit.contain,
                             )
-                          : Image.network(
-                              networkUrl!,
+                          : NetworkImageHelper.loadImage(
+                              imageUrl: networkUrl!,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Text(
-                                    '图片加载失败',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
+                              errorWidget: Center(
+                                child: Text(
+                                  '图片加载失败',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
                                   ),
-                                );
-                              },
+                                ),
+                              ),
                             ),
                     ),
                   ),
@@ -367,20 +366,17 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         widget.currentPhotoWallUrl!.startsWith('http')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(4),
-        child: Image.network(
-          widget.currentPhotoWallUrl!,
+        child: NetworkImageHelper.loadImage(
+          imageUrl: widget.currentPhotoWallUrl!,
           fit: BoxFit.cover,
           width: 100,
           height: 100,
-          errorBuilder: (context, error, stackTrace) {
-            // 网络图片加载失败时显示默认头像
-            return Image.asset(
-              "assets/3.0/kissu3_love_avater.webp",
-              fit: BoxFit.cover,
-              width: 100,
-              height: 100,
-            );
-          },
+          errorWidget: Image.asset(
+            "assets/3.0/kissu3_love_avater.webp",
+            fit: BoxFit.cover,
+            width: 100,
+            height: 100,
+          ),
         ),
       );
     }

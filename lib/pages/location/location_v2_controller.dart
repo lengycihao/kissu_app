@@ -98,6 +98,10 @@ class LocationV2Controller extends GetxController
 
   final RxList<Marker> _trackStartEndMarkers = <Marker>[].obs;
   final RxSet<Polyline> _polylines = <Polyline>{}.obs;
+  
+  // 细粒度更新ID，用于GetBuilder精准更新
+  static const String markersUpdateId = 'markers_update';
+  static const String polylinesUpdateId = 'polylines_update';
 
   // 🚀 修复：管理 ever 监听器，确保正确清理
   Worker? _locationServiceWorker;
@@ -578,6 +582,8 @@ class LocationV2Controller extends GetxController
 
     // 清空旧的markers
     _trackStartEndMarkers.clear();
+    // 触发GetBuilder精准更新
+    update([markersUpdateId]);
 
     try {
       final List<Marker> tempMarkers = [];
@@ -790,9 +796,13 @@ class LocationV2Controller extends GetxController
         _trackStartEndMarkers.value = tempMarkers;
         // 🚀 使用原生呼吸动画（性能优秀，60fps流畅）
         _startNativeBreathAnimation();
+        // 触发GetBuilder精准更新
+        update([markersUpdateId]);
       } else {
         _trackStartEndMarkers.clear();
         _stopNativeBreathAnimation();
+        // 触发GetBuilder精准更新
+        update([markersUpdateId]);
       }
     } catch (e) {
       debugPrint('Init track markers error: $e');
@@ -837,6 +847,8 @@ class LocationV2Controller extends GetxController
 
     // 未绑定时不显示连线
     if (!isBindPartner.value) {
+      // 触发GetBuilder精准更新
+      update([markersUpdateId]);
       return;
     }
 
@@ -866,6 +878,9 @@ class LocationV2Controller extends GetxController
           capType: CapType.round,
         ),
       );
+      
+      // 触发GetBuilder精准更新
+      update([markersUpdateId]);
     }
   }
 
@@ -898,6 +913,7 @@ class LocationV2Controller extends GetxController
     }
   }
 
+  // 使用getter避免直接暴露内部状态，减少不必要的重建
   Set<Marker> get markers => _trackStartEndMarkers.toSet();
   Set<Polyline> get polylines => _polylines;
   int get markersLength => _trackStartEndMarkers.length;

@@ -88,8 +88,8 @@ android {
         }
         getByName("release") {
             signingConfigs.findByName("release")?.let { signingConfig = it }
-            isMinifyEnabled = false  // 关闭代码混淆
-            isShrinkResources = false  // 关闭资源收缩
+            isMinifyEnabled = true  // 开启代码混淆优化性能
+            isShrinkResources = true  // 开启资源收缩减小包体积
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 
 /// 我的页面-头像区域
 class MineAvatarSection extends StatelessWidget {
@@ -71,36 +72,20 @@ class MineAvatarSection extends StatelessWidget {
                   );
                 },
               )
-            : Image.network(
-                userAvatar,
+            : NetworkImageHelper.loadImage(
+                imageUrl: userAvatar,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(40),
-                      color: const Color(0xFFE8B4CB),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 80,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(40),
-                      color: const Color(0xFFE8B4CB),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 80,
-                      color: Colors.white,
-                    ),
-                  );
-                },
+                errorWidget: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(40),
+                    color: const Color(0xFFE8B4CB),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 80,
+                    color: Colors.white,
+                  ),
+                ),
               ),
       ),
     );
@@ -140,36 +125,20 @@ class MineAvatarSection extends StatelessWidget {
                   );
                 },
               )
-            : Image.network(
-                partnerAvatar,
+            : NetworkImageHelper.loadImage(
+                imageUrl: partnerAvatar,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25),
-                      color: const Color(0xFFE8B4CB),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 24,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25),
-                      color: const Color(0xFFE8B4CB),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 24,
-                      color: Colors.white,
-                    ),
-                  );
-                },
+                errorWidget: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: const Color(0xFFE8B4CB),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                ),
               ),
       ),
     );

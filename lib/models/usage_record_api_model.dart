@@ -1,5 +1,76 @@
 /// 用机记录API数据模型
 
+/// 分页敏感记录响应模型（新版V4接口）
+class SensitiveRecordPageResponse {
+  final bool hasMore;
+  final List<SensitiveRecordItem> list;
+
+  SensitiveRecordPageResponse({
+    required this.hasMore,
+    required this.list,
+  });
+
+  factory SensitiveRecordPageResponse.fromJson(Map<String, dynamic> json) {
+    return SensitiveRecordPageResponse(
+      hasMore: json['has_more'] ?? false,
+      list: (json['data'] as List?)
+              ?.map((e) => SensitiveRecordItem.fromJson(e))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+/// 敏感记录单项
+class SensitiveRecordItem {
+  final String icon;
+  final String content;
+   final String createTime;
+  final int eventType;
+  final String jumpPage;
+  final int isVip;
+    final Map<String, dynamic> ext;
+
+  SensitiveRecordItem({
+    required this.icon,
+    required this.content,  
+     required this.createTime,
+    required this.eventType,
+    required this.jumpPage,
+    required this.isVip,
+     required this.ext,
+  });
+
+  factory SensitiveRecordItem.fromJson(Map<String, dynamic> json) {
+    return SensitiveRecordItem(
+      icon: json['icon'] ?? '',
+      content: json['content'] ?? '',
+      createTime: json['create_time'] ?? '',
+      eventType: json['event_type'] ?? 0,
+      jumpPage: json['jump_page'] ?? '',
+      isVip: json['is_vip'] ?? 0,
+      ext: json['ext'] ?? {},
+    );
+  }
+
+  /// 是否有副标题（双行显示）
+  bool get hasSubContent {
+    return ext['sub_content'] != null && 
+           ext['sub_content'].toString().isNotEmpty;
+  }
+
+  /// 获取副标题内容
+  String get subContent {
+    return ext['sub_content']?.toString() ?? '';
+  }
+
+  /// 是否需要VIP权限
+  bool get needsVip => isVip == 1;
+
+  /// 是否显示跳转按钮
+  bool get showJumpButton => jumpPage.isNotEmpty;
+}
+
 /// API响应根模型
 class UsageRecordApiResponse {
   final RecordSection allRecord;

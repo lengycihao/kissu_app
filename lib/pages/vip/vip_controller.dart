@@ -1095,14 +1095,24 @@ class VipController extends GetxController {
 
       _logger.i('💫 支付SDK调用结果: $result');
 
-      if (result) {
-        _logger.i('💫 支付成功，开始处理后续操作');
-        OKToastUtil.show('支付成功');
-        _updateVipStatus(package);
-        await _handlePaymentSuccess(package);
+      // 注意：对于微信支付，result 只表示是否成功唤起微信，不表示支付结果
+      // 实际支付结果通过 PaymentService 的回调处理
+      // 对于支付宝，result 表示实际支付结果
+      if (selectedPaymentMethod.value == 0) {
+        // 微信支付：不处理返回值，等待回调
+        _logger.i('💫 微信支付已唤起，等待用户操作和回调...');
+        // 不做任何处理，让 PaymentService 的回调来处理结果
       } else {
-        _logger.e('💫 支付失败或取消');
-        await _handlePaymentCancel();
+        // 支付宝支付：处理返回值
+        if (result) {
+          _logger.i('💫 支付成功，开始处理后续操作');
+          OKToastUtil.show('支付成功');
+          _updateVipStatus(package);
+          await _handlePaymentSuccess(package);
+        } else {
+          _logger.e('💫 支付失败或取消');
+          await _handlePaymentCancel();
+        }
       }
     } catch (e) {
       _logger.e('💫 支付处理失败: $e');

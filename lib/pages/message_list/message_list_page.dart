@@ -190,6 +190,9 @@ class MessageListPage extends GetView<MessageListController> {
           // 内容区域
           Expanded(
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               child: Column(
                 children: [
                   // 通知开启提示

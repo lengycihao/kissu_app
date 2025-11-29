@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -451,8 +452,8 @@ class CustomBottomDialogController extends GetxController {
                       height: 262,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          qrCodeUrl.value,
+                        child: NetworkImageHelper.loadImage(
+                          imageUrl: qrCodeUrl.value,
                           fit: BoxFit.cover,
                         ),
                       ),

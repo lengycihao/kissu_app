@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'app_usage_detail_controller.dart';
 import 'dart:math' as math;
+import 'package:kissu_app/widgets/selector/date_selector.dart';
+import 'package:intl/intl.dart';
 
 /// App使用记录详情页面
 class AppUsageDetailPage extends GetView<AppUsageDetailController> {
@@ -27,26 +29,26 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
               children: [
                 // 顶部导航栏
                 _buildTopBar(),
-                // Tab切换
-
                 // 内容区域
                 Expanded(
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
                     ),
                     child: Obx(() {
-                      bool hasData = controller.selectedTab.value == 0
-                          ? controller.hasTodayData
-                          : controller.hasWeekData;
-
-                      if (!hasData) {
+                      if (!controller.hasTodayData) {
                         return _buildEmptyState();
                       }
 
                       return Column(
                         children: [
+                          // 日期选择器（已有自己的margin，不需要额外padding）
+                          _buildDateSelector(),
+                          const SizedBox(height: 16),
                           // 标题行（使用与主页面相同的样式）
                           _buildModuleTitle("屏幕使用时间"),
                           const SizedBox(height: 12),
@@ -89,68 +91,32 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
               ),
             ),
           ),
-          Expanded(child: Center(child: _buildTabBar())),
+          // 标题
+          const Expanded(
+            child: Center(
+              child: Text(
+                "Ta的手机使用记录",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(width: 40),
         ],
       ),
     );
   }
 
-  /// Tab切换栏
-  Widget _buildTabBar() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 12),
-        width: 112,
-        height: 24,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF000000), width: 1),
-        ),
-        child: Obx(() {
-          return Row(
-            children: [
-              SizedBox(width: 55, child: _buildTabItem("当天", 0)),
-              SizedBox(width: 55, child: _buildTabItem("本周", 1)),
-            ],
-          );
-        }),
-      ),
-    );
-  }
-
-  /// Tab项
-  Widget _buildTabItem(String title, int index) {
-    bool isSelected = controller.selectedTab.value == index;
-    return GestureDetector(
-      onTap: () => controller.switchTab(index),
-      child: Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF000000) : Colors.transparent,
-          // 只有选中的tab有外部圆角
-          borderRadius: index == 0
-              ? BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                )
-              : index == 1
-              ? BorderRadius.only(
-                  topRight: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                )
-              : BorderRadius.circular(12),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-            color: isSelected ? Colors.white : const Color(0xFF333333),
-          ),
-        ),
-      ),
+  /// 日期选择器
+  Widget _buildDateSelector() {
+    return DateSelector(
+      externalSelectedIndex: controller.selectedDateIndex,
+      onSelect: (date) {
+        controller.changeDate(date);
+      },
     );
   }
 
@@ -168,11 +134,17 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
         children: [
           // 日期和总时长
           Obx(() {
-            bool isToday = controller.selectedTab.value == 0;
-            String dateText = isToday ? "10月20日（今天）" : "10月20日-10月26日";
-
+            final selectedDate = controller.selectedDate.value;
+            final now = DateTime.now();
+            final isToday = selectedDate.year == now.year &&
+                selectedDate.month == now.month &&
+                selectedDate.day == now.day;
+            
+            final dateStr = DateFormat('M月d日').format(selectedDate);
+            final displayText = isToday ? '$dateStr（今天）' : dateStr;
+            
             return Text(
-              dateText,
+              displayText,
               style: const TextStyle(fontSize: 11, color: Color(0xFF333333)),
             );
           }),
@@ -182,10 +154,7 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Obx(() {
-                bool isToday = controller.selectedTab.value == 0;
-                String totalTime = isToday
-                    ? controller.todayTotalScreenTime
-                    : controller.weekTotalScreenTime;
+                String totalTime = controller.todayTotalScreenTime;
 
                 // 解析时间字符串
                 final match = RegExp(r'(\d+)小时(\d+)分').firstMatch(totalTime);
@@ -229,58 +198,59 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
                   ),
                 );
               }),
-               Row(
+              // 趋势显示（根据trend值显示）
+              Obx(() {
+                final trend = controller.screenTrend.value;
+                final trendText = controller.screenTrendText.value;
+
+                // trend为0时不显示
+                if (trend == 0 || trendText.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                // 根据trend显示不同的图标
+                String iconPath = trend == 1
+                    ? "assets/4.0/kissu4_use_down.webp"  // 下降
+                    : "assets/4.0/kissu4_use_up.webp";   // 上升
+
+                return Row(
                   children: [
                     Image.asset(
-                      "assets/4.0/kissu4_use_time_top.webp",
+                      iconPath,
                       width: 12,
                       height: 12,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      controller.selectedTab.value == 0
-                          ? "比昨天多3小时43分"
-                          : "比上周多32%",
+                      trendText,
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF333333),
                       ),
                     ),
                   ],
-                ),
-             ],
-           ),
+                );
+              }),
+            ],
+          ),
           const SizedBox(height: 15),
           // 柱状图
           Obx(() {
-            bool isToday = controller.selectedTab.value == 0;
-            List<int> data = isToday
-                ? controller.todayScreenUsage.sublist(0, 19) // 只显示0-18点
-                : controller.weekScreenUsage;
-            List<String> labels = isToday
-                ? List.generate(19, (i) => "$i点")
-                : ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+            List<int> data = controller.todayScreenUsage.sublist(0, 19); // 只显示0-18点
+            List<String> labels = List.generate(19, (i) => "$i点");
 
-            // 当天固定0-60分钟，本周自动计算最大值
-            int maxValue = isToday
-                ? 60
-                : _calculateChartMaxValue(
-                    data.isEmpty ? 0 : data.reduce(math.max),
-                    400,
-                  );
+            int maxValue = 60;
 
             return _buildBarChart(
               data: data,
               labels: labels,
-              color: isToday
-                  ? const Color(0xFFFF88CC)
-                  : const Color(0xFF66BBFF),
+              color: const Color(0xFFFF88CC),
               maxValue: maxValue,
               unit: "分钟",
               valueFormatter: (value) => "$value分钟",
-              isToday: isToday,
-              showAllLabels: !isToday,
-              yAxisReservedSize: isToday ? 45 : 55, // 当天45，本周55
+              isToday: true,
+              showAllLabels: false,
+              yAxisReservedSize: 45,
               isScreenTimeChart: true, // 标识是屏幕使用时间图表
             );
           }),
@@ -303,70 +273,104 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
         children: [
           // 日期和对比
           Obx(() {
-            bool isToday = controller.selectedTab.value == 0;
-            String dateText = isToday ? "10月20日（今天）" : "10月20日-10月26日";
-
+            final selectedDate = controller.selectedDate.value;
+            final now = DateTime.now();
+            final isToday = selectedDate.year == now.year &&
+                selectedDate.month == now.month &&
+                selectedDate.day == now.day;
+            
+            final dateStr = DateFormat('M月d日').format(selectedDate);
+            final displayText = isToday ? '$dateStr（今天）' : dateStr;
+            
             return Text(
-              dateText,
+              displayText,
               style: const TextStyle(fontSize: 11, color: Color(0xFF333333)),
             );
           }),
           const SizedBox(height: 4),
-          // 总次数
-          Obx(() {
-            bool isToday = controller.selectedTab.value == 0;
-            int totalCount = isToday
-                ? controller.todayTotalUnlockCount
-                : controller.weekTotalUnlockCount;
+          // 总次数和趋势
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Obx(() {
+                int totalCount = controller.todayTotalUnlockCount;
 
-            return Text.rich(
-              TextSpan(
-                children: [
+                return Text.rich(
                   TextSpan(
-                    text: "$totalCount",
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333), 
+                    children: [
+                      TextSpan(
+                        text: "$totalCount",
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333333), 
+                        ),
+                      ),
+                      const TextSpan(
+                        text: "次",
+                        style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              // 趋势显示（根据trend值显示）
+              Obx(() {
+                final trend = controller.unlockTrend.value;
+                final trendText = controller.unlockTrendText.value;
+                
+                // trend为0时不显示
+                if (trend == 0 || trendText.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                
+                // 根据trend显示不同的图标
+                String iconPath = trend == 1 
+                    ? "assets/4.0/kissu4_use_down.webp"  // 下降
+                    : "assets/4.0/kissu4_use_up.webp";   // 上升
+                
+                return Row(
+                  children: [
+                    Image.asset(
+                      iconPath,
+                      width: 12,
+                      height: 12,
                     ),
-                  ),
-                  const TextSpan(
-                    text: "次",
-                    style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
-                  ),
-                ],
-              ),
-            );
-          }),
+                    const SizedBox(width: 4),
+                    Text(
+                      trendText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
           const SizedBox(height: 15),
           // 柱状图
           Obx(() {
-            bool isToday = controller.selectedTab.value == 0;
-            List<int> data = isToday
-                ? controller.todayUnlockCount.sublist(0, 19) // 只显示0-18点
-                : controller.weekUnlockCount;
-            List<String> labels = isToday
-                ? List.generate(19, (i) => "$i点")
-                : ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+            List<int> data = controller.todayUnlockCount.sublist(0, 19); // 只显示0-18点
+            List<String> labels = List.generate(19, (i) => "$i点");
 
             // 根据数据最大值向上取整到10的倍数
             int maxValue = _calculateChartMaxValue(
               data.isEmpty ? 0 : data.reduce(math.max),
-              isToday ? 50 : 120,
+              50,
             );
 
             return _buildBarChart(
               data: data,
               labels: labels,
-              color: isToday
-                  ? const Color(0xFFFF88CC)
-                  : const Color(0xFF66BBFF),
+              color: const Color(0xFFFF88CC),
               maxValue: maxValue,
               unit: "次",
               valueFormatter: (value) => "$value次",
-              isToday: isToday,
-              showAllLabels: !isToday,
-              yAxisReservedSize: isToday ? 40 : 42, // 当天40，本周42
+              isToday: true,
+              showAllLabels: false,
+              yAxisReservedSize: 40,
               isScreenTimeChart: false, // 标识是解锁次数图表
             );
           }),

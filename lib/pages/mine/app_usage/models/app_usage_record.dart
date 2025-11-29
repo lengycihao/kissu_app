@@ -8,20 +8,32 @@ class AppUsageSession {
   
   /// 关闭时间（离开前台的时间戳，毫秒）
   /// 包括：进入后台、应用被杀死等所有离开前台的情况
+  /// 特殊值：-1 表示应用仍在运行中，没有关闭时间
   final int closeTime;
   
+  /// 是否正在运行中
+  final bool isRunning;
+  
   /// 使用时长（毫秒）
-  int get duration => closeTime - openTime;
+  /// 如果正在运行，返回从打开到现在的时长
+  int get duration {
+    if (isRunning || closeTime == -1) {
+      return DateTime.now().millisecondsSinceEpoch - openTime;
+    }
+    return closeTime - openTime;
+  }
   
   AppUsageSession({
     required this.openTime,
     required this.closeTime,
+    this.isRunning = false,
   });
   
   factory AppUsageSession.fromJson(Map<String, dynamic> json) {
     return AppUsageSession(
       openTime: json['openTime'] as int,
       closeTime: json['closeTime'] as int,
+      isRunning: json['isRunning'] as bool? ?? false,
     );
   }
   
@@ -30,6 +42,7 @@ class AppUsageSession {
       'openTime': openTime,
       'closeTime': closeTime,
       'duration': duration,
+      'isRunning': isRunning,
     };
   }
   
@@ -40,7 +53,11 @@ class AppUsageSession {
   }
   
   /// 格式化关闭时间
+  /// 如果正在运行，返回 "运行中..."
   String get closeTimeFormatted {
+    if (isRunning || closeTime == -1) {
+      return '运行中...';
+    }
     final date = DateTime.fromMillisecondsSinceEpoch(closeTime);
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}:${date.second.toString().padLeft(2, '0')}';
   }

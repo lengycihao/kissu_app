@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tracking_service.dart';
@@ -401,11 +402,11 @@ class GenericRecordItemWidget extends StatelessWidget {
     
     // 否则使用原来的逻辑
     if (record.icon.isNotEmpty) {
-      return Image.network(
-        record.icon,
+      return NetworkImageHelper.loadImage(
+        imageUrl: record.icon,
         width: 16,
         height: 16,
-        errorBuilder: (context, error, stackTrace) => Icon(
+        errorWidget: Icon(
           Icons.image_not_supported,
           size: 16,
           // color: Colors.grey[400],
@@ -435,12 +436,12 @@ class GenericRecordItemWidget extends StatelessWidget {
     
     // 否则使用原来的逻辑
     if (record.icon.isNotEmpty) {
-      return Image.network(
-        record.icon,
+      return NetworkImageHelper.loadImage(
+        imageUrl: record.icon,
         width: 18,
         height: 18,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Icon(
+        errorWidget: Icon(
           Icons.image_not_supported,
           size: 18,
           color: Colors.white.withOpacity(0.3),

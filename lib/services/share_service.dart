@@ -62,7 +62,7 @@ class ShareService extends GetxService {
   // 检查微信是否安装
   Future<bool> isWeChatInstalled() async {
     try {
-      final result = await _channel.invokeMethod('umCheckInstall', 0); // 0 = 微信
+      final result = await _channel.invokeMethod('umCheckInstall', {'platform': 0}); // 0 = 微信
       if (result is Map) {
         return result['isInstalled'] ?? false;
       }
@@ -79,7 +79,7 @@ class ShareService extends GetxService {
       logger.debug('开始检查QQ安装状态...', tag: 'ShareService');
       
       // 首先尝试友盟检测
-      final umResult = await _channel.invokeMethod('umCheckInstall', 1); // 1 = QQ
+      final umResult = await _channel.invokeMethod('umCheckInstall', {'platform': 1}); // 1 = QQ
       logger.debug('友盟QQ检测结果: $umResult', tag: 'ShareService');
       
       if (umResult is Map) {

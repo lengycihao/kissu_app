@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/widgets/dash_line_widget.dart';
 import 'love_info_controller.dart';
 
@@ -89,16 +90,14 @@ class InfoItem extends StatelessWidget {
                       );
                     },
                   )
-                : Image.network(
-                    imageUrl!,
+                : NetworkImageHelper.loadImage(
+                    imageUrl: imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.person,
-                        size: 20,
-                        color: Colors.white,
-                      );
-                    },
+                    errorWidget: const Icon(
+                      Icons.person,
+                      size: 20,
+                      color: Colors.white,
+                    ),
                   )
             : const Icon(Icons.person, size: 20, color: Colors.white),
       ),
@@ -115,16 +114,36 @@ class TogetherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Container(
-        width: double.infinity,
-        height: 83,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/kissu_loveinfo_day_bg.png'),
-            fit: BoxFit.fill,
+      () => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOut,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * value),
+              child: child,
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: 83,
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
+          decoration: BoxDecoration(
+            image: const DecorationImage(
+              image: AssetImage('assets/images/kissu_loveinfo_day_bg.png'),
+              fit: BoxFit.fill,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFEA39C).withOpacity(0.2),
+                blurRadius: 15,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ),
         //相爱信息ROW
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -161,6 +180,7 @@ class TogetherCard extends StatelessWidget {
               height: 32,
             ),
           ],
+        ),
         ),
       ),
     );
@@ -240,18 +260,38 @@ class LoveTimeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => GestureDetector(
-        onTap: controller.isBindPartner.value 
-            ? () => controller.onLoveTimeTap(context)
-            : null,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xffFFD4D1)),
-            borderRadius: BorderRadius.circular(16),
-          ),
+      () => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOut,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, 20 * (1 - value)),
+              child: child,
+            ),
+          );
+        },
+        child: GestureDetector(
+          onTap: controller.isBindPartner.value 
+              ? () => controller.onLoveTimeTap(context)
+              : null,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xffFFD4D1)),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -288,6 +328,7 @@ class LoveTimeSection extends StatelessWidget {
             ],
           ),
         ),
+        ),
       ),
     );
   }
@@ -302,17 +343,37 @@ class MyInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          image: DecorationImage(
-            image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
-            fit: BoxFit.fill,
+      () => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOut,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, 30 * (1 - value)),
+              child: child,
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            image: const DecorationImage(
+              image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
+              fit: BoxFit.fill,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          borderRadius: BorderRadius.circular(18),
-        ),
         child: Column(
           children: [
             InfoItem(
@@ -362,6 +423,7 @@ class MyInfoSection extends StatelessWidget {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -377,17 +439,37 @@ class PartnerInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          image: DecorationImage(
-            image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
-            fit: BoxFit.fill,
+      () => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeOut,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, 40 * (1 - value)),
+              child: child,
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            image: const DecorationImage(
+              image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
+              fit: BoxFit.fill,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          borderRadius: BorderRadius.circular(18),
-        ),
         child: Column(
           children: [
             InfoItem(
@@ -436,6 +518,7 @@ class PartnerInfoSection extends StatelessWidget {
               isPartner: true,
             ),
           ],
+        ),
         ),
       ),
     );

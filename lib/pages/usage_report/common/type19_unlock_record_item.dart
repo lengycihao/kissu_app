@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import '../../../models/unlock_record_model.dart';
 import '../../../services/tracking_service.dart';
 import '../../../utils/user_manager.dart';
@@ -276,14 +277,11 @@ class Type19UnlockRecordItemWidget extends StatelessWidget {
   Widget _buildIcon(String iconUrl, UnlockActionType action) {
     if (iconUrl.isNotEmpty) {
       // 使用网络图标
-      return Image.network(
-        iconUrl,
+      return NetworkImageHelper.loadImage(
+        imageUrl: iconUrl,
         width: 16,
         height: 16,
-        errorBuilder: (context, error, stackTrace) {
-          // 网络图标加载失败，使用本地图标
-          return _buildLocalIcon(action);
-        },
+        errorWidget: _buildLocalIcon(action),
       );
     } else {
       // 没有网络图标，使用本地图标

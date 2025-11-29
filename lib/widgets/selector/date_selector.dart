@@ -37,15 +37,29 @@ class DateSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final dates = recentDates;
     final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = (screenWidth - 12*4 - 32) / 7; // 平分屏幕宽度
+    final itemWidth = (screenWidth - 12*6 - 52) / 7; // 平分屏幕宽度
     
     // 使用外部传入的selectedIndex或者创建本地的
     final selectedIndex = externalSelectedIndex ?? 6.obs;
 
     return Container(
-      height: 50,
-      margin: const EdgeInsets.symmetric(horizontal: 9,vertical: 10),
+      height: 65,
+      
+      // margin: const EdgeInsets.symmetric(horizontal: 15),
+      padding: EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(dates.length, (index) {
           final date = dates[index];
 
@@ -60,7 +74,7 @@ class DateSelector extends StatelessWidget {
               },
               child: Container(
                 width: itemWidth,
-                height: 50,
+                height: 45,
                 margin: EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: selectedIndex.value == index
@@ -69,10 +83,10 @@ class DateSelector extends StatelessWidget {
                   border: Border.all(
                     color: selectedIndex.value == index
                         ? Colors.transparent
-                        : const Color(0xffFFB6E3),
+                        : const Color(0xffDCDCDC),
                     width: 1,
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -80,21 +94,22 @@ class DateSelector extends StatelessWidget {
                     Text(
                       getDateText(date),
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         color: selectedIndex.value == index
                             ? Colors.white
-                            : const Color(0xFF333333),
+                            : const Color(0x99000000),
                       ),
                     ),
                     SizedBox(height: 2),
                     Text(
                       getDateNumber(date),
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
+                        fontFamily: 'AlimamaShuHeiTi',
                         fontWeight: FontWeight.w500,
                         color: selectedIndex.value == index
                             ? Colors.white
-                            : const Color(0xFF666666),
+                            : const Color(0x80333333),
                       ),
                     ),
                   ],

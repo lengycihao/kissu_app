@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/model/unbind_reason_model.dart';
 import 'package:kissu_app/model/unbind_result.dart';
 import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
@@ -35,14 +36,18 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/phone_history/kissu_phone_bg.webp'),
-            fit: BoxFit.cover,
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: Stack(
+        children: [
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
           ),
-        ),
-        child: SafeArea(
+          SafeArea(
           child: Column(
             children: [
               // 自定义AppBar
@@ -50,6 +55,9 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
               // 页面内容
               Expanded(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   padding: const EdgeInsets.only(
                     left: 18,
                     right: 18,
@@ -79,6 +87,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
             ],
           ),
         ),
+        ],
       ),
     );
   }
@@ -424,24 +433,22 @@ class _BreakAvatarSection extends StatelessWidget {
                           );
                         },
                       )
-                    : Image.network(
-                        controller.myAvatar.value,
+                    : NetworkImageHelper.loadImage(
+                        imageUrl: controller.myAvatar.value,
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(40),
-                              color: const Color(0xFFE8B4CB),
-                            ),
-                            child: const Icon(
-                              Icons.person,
-                              size: 40,
-                              color: Colors.white,
-                            ),
-                          );
-                        },
+                        errorWidget: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        ),
                       )
               : Container(
                   decoration: BoxDecoration(
@@ -493,24 +500,22 @@ class _BreakAvatarSection extends StatelessWidget {
                         );
                       },
                     )
-                  : Image.network(
-                      controller.partnerAvatar.value,
+                  : NetworkImageHelper.loadImage(
+                      imageUrl: controller.partnerAvatar.value,
                       width: 50,
                       height: 50,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
+                      errorWidget: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      ),
                     )
             : Container(
                 decoration: BoxDecoration(

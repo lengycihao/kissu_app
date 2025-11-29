@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
 
 /// 折扣底部弹窗组件
@@ -65,21 +66,19 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
                       aspectRatio: 305 / 216,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          widget.package.discountsImg,
+                        child: NetworkImageHelper.loadImage(
+                          imageUrl: widget.package.discountsImg,
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[300],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                  size: 50,
-                                ),
+                          errorWidget: Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(
+                                Icons.image_not_supported,
+                                color: Colors.grey,
+                                size: 50,
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
                       ),
                     ),

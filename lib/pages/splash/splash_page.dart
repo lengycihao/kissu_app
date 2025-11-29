@@ -12,6 +12,8 @@ import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';
 import 'package:kissu_app/widgets/dialogs/base_dialog.dart';
 import 'package:kissu_app/services/app_initializer.dart';
+import 'package:kissu_app/pages/home/home_page.dart';
+import 'package:kissu_app/pages/home/home_binding.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -36,9 +38,18 @@ class _SplashPageState extends State<SplashPage> {
       // ⚠️ 使用 Future.wait 但不等待初始化完成，避免卡住
       await Future.wait([
         // 预加载启动页图片
-        precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash.webp'), context),
-        precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'), context),
-        precacheImage(const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'), context),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'),
+          context,
+        ),
         // 🚀 在启动页执行所有应用初始化（带超时保护）
         AppInitializer.initialize().timeout(
           const Duration(seconds: 10),
@@ -53,14 +64,14 @@ class _SplashPageState extends State<SplashPage> {
           return List.filled(4, null);
         },
       );
-      
+
       // 图片加载完成，更新状态
       if (mounted) {
         setState(() {
           _imagesLoaded = true;
         });
       }
-      
+
       // 继续原有的导航逻辑
       await _checkLoginStatusAndNavigate();
     } catch (e) {
@@ -78,7 +89,7 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _checkLoginStatusAndNavigate() async {
     // 延迟2秒显示启动页面
     await Future.delayed(const Duration(seconds: 2));
-    
+
     try {
       // 🚀 确保应用已初始化（关键！必须在访问任何服务之前）
       if (!AppInitializer.isInitialized) {
@@ -94,18 +105,19 @@ class _SplashPageState extends State<SplashPage> {
           DebugUtil.error('⚠️ 应用初始化失败: $e，尝试继续启动');
         }
       }
-      
+
       // 🔑 现在可以安全访问服务了（带异常保护）
       try {
         final firstLaunchService = FirstLaunchService.instance;
-        final shouldShowPrivacyDialog = await firstLaunchService.shouldShowFirstAgreement();
-        
+        final shouldShowPrivacyDialog = await firstLaunchService
+            .shouldShowFirstAgreement();
+
         if (shouldShowPrivacyDialog) {
           DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
           await _showPrivacyDialog();
           return;
         }
-        
+
         // 检查隐私政策合规状态
         final privacyManager = Get.find<PrivacyComplianceManager>();
         if (!privacyManager.isPrivacyAgreed) {
@@ -117,10 +129,9 @@ class _SplashPageState extends State<SplashPage> {
         DebugUtil.error('⚠️ 获取服务失败: $e，跳过隐私检查直接进入登录检查');
         // 如果服务获取失败，直接进入登录状态检查
       }
-      
+
       // 隐私政策已同意，继续正常的登录状态检查
       await _continueLoginStatusCheck();
-      
     } catch (e) {
       DebugUtil.error('检查登录状态失败: $e，跳转到登录页面');
       Get.offAllNamed(KissuRoutePath.login);
@@ -144,7 +155,7 @@ class _SplashPageState extends State<SplashPage> {
           DebugUtil.error('⚠️ 二次初始化失败: $e，继续启动流程');
         }
       }
-      
+
       // 🛡️ 安全获取AuthService（带异常保护）
       AuthService? authService;
       try {
@@ -154,10 +165,12 @@ class _SplashPageState extends State<SplashPage> {
         Get.offAllNamed(KissuRoutePath.login);
         return;
       }
-      
+
       DebugUtil.info('启动页检查登录状态: ${authService.isLoggedIn}');
-      DebugUtil.info('用户token: ${authService.userToken != null ? "存在" : "不存在"}');
-      
+      DebugUtil.info(
+        '用户token: ${authService.userToken != null ? "存在" : "不存在"}',
+      );
+
       if (authService.isLoggedIn && authService.userToken != null) {
         // 用户已登录，检查是否需要完善信息
         // 🚀 直接使用authService，避免通过UserManager访问未初始化的服务
@@ -168,7 +181,15 @@ class _SplashPageState extends State<SplashPage> {
           DebugUtil.success('用户已登录且信息完整，直接跳转到首页');
           // 在跳转到首页前预设滚动位置
           _presetHomeScrollPosition();
-          Get.offAllNamed(KissuRoutePath.home);
+          // 使用自定义淡入过渡动画
+          Get.off(
+            () => KissuHomePage(),
+            binding: HomeBinding(),
+            transition: Transition.fadeIn,
+            duration: const Duration(milliseconds: 500),
+            routeName: KissuRoutePath.home,
+            preventDuplicates: false,
+          );
         }
       } else {
         DebugUtil.info('用户未登录，跳转到登录页面');
@@ -184,7 +205,7 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _showPrivacyDialog() async {
     // 标记已显示弹窗
     FirstLaunchService.instance.markFirstAgreementShown();
-    
+
     // 完全按照您原有的showDialogWithCloseButtonWithFirst方法实现
     final result = await showGeneralDialog<bool>(
       context: context,
@@ -217,11 +238,9 @@ class _SplashPageState extends State<SplashPage> {
                     left: 20,
                     right: 20,
                     bottom: 20,
-                    top: 40
+                    top: 40,
                   ),
-                  child: const AgreementRichText(
-                    textAlign: TextAlign.left,
-                  ),
+                  child: const AgreementRichText(textAlign: TextAlign.left),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -229,7 +248,8 @@ class _SplashPageState extends State<SplashPage> {
                     DialogButton(
                       text: '暂不同意',
                       width: 100,
-                      backgroundImage: 'assets/images/kissu_dialop_common_cancel_bg.webp',
+                      backgroundImage:
+                          'assets/images/kissu_dialop_common_cancel_bg.webp',
                       onTap: () {
                         Navigator.of(context).pop(false); // 返回 false 表示取消
                       },
@@ -237,7 +257,8 @@ class _SplashPageState extends State<SplashPage> {
                     DialogButton(
                       text: '同意并继续',
                       width: 100,
-                      backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
+                      backgroundImage:
+                          'assets/images/kissu_dialop_common_sure_bg.webp',
                       onTap: () {
                         Navigator.of(context).pop(true); // 返回 true 表示同意
                       },
@@ -291,49 +312,46 @@ class _SplashPageState extends State<SplashPage> {
     }
   }
 
-
   /// 用户同意后初始化SDK
   Future<void> _initializeSDKsAfterAgreement() async {
     DebugUtil.info('用户在启动页同意隐私政策');
     FirstLaunchService.instance.markFirstAgreementAgreed();
-    
+
     // 🔑 关键：启用隐私相关功能
     try {
       final privacyManager = Get.find<PrivacyComplianceManager>();
       await privacyManager.agreeToPrivacyPolicy();
       DebugUtil.success('✅ 隐私政策同意完成，所有功能已启用');
-      
+
       // 🔥 新增：用户同意隐私政策后立即申请关键权限
       await _requestEssentialPermissionsAfterAgreement();
-      
     } catch (e) {
       DebugUtil.error('❌ 启用隐私功能失败: $e');
     }
   }
-  
+
   /// 🔥 新增：用户同意隐私政策后立即申请关键权限（网络权限 + 通知权限）
   Future<void> _requestEssentialPermissionsAfterAgreement() async {
     DebugUtil.info('🔐 开始申请关键权限（网络 + 通知）...');
-    
+
     try {
       // 先检查当前通知权限状态
       final jpushService = Get.find<JPushService>();
       bool currentStatus = await jpushService.isNotificationEnabled();
       DebugUtil.info('📱 当前通知权限状态: $currentStatus');
-      
+
       if (!currentStatus) {
         // 如果通知权限未开启，使用 permission_handler 直接申请系统权限
         DebugUtil.info('🔔 通知权限未开启，开始申请系统权限...');
-        
+
         // 导入 permission_handler 包中的 Permission
         final permissionStatus = await Permission.notification.request();
-        
+
         if (permissionStatus.isGranted) {
           DebugUtil.success('✅ 通知权限申请成功');
-          
+
           // 权限申请成功后，再调用极光推送的方法确保推送服务正常
           await jpushService.requestNotificationPermission();
-          
         } else if (permissionStatus.isDenied) {
           DebugUtil.warning('⚠️ 用户拒绝了通知权限');
         } else if (permissionStatus.isPermanentlyDenied) {
@@ -341,19 +359,17 @@ class _SplashPageState extends State<SplashPage> {
         } else {
           DebugUtil.warning('⚠️ 通知权限申请状态: $permissionStatus');
         }
-        
+
         // 再次检查权限状态
         bool finalStatus = await jpushService.isNotificationEnabled();
         DebugUtil.info('📱 最终通知权限状态: $finalStatus');
-        
       } else {
         DebugUtil.success('✅ 通知权限已经开启，无需申请');
       }
-      
+
       // 注意：网络权限（INTERNET）在Android中是普通权限，不需要运行时申请
       // 已在 AndroidManifest.xml 中声明，应用安装时自动授予
       DebugUtil.success('✅ 网络权限已通过Manifest声明（无需运行时申请）');
-      
     } catch (e) {
       DebugUtil.error('❌ 申请关键权限失败: $e');
       // 即使权限申请失败，也不阻塞应用启动流程
@@ -389,22 +405,22 @@ class _SplashPageState extends State<SplashPage> {
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-    
+
     // 基于375*812的设计稿计算缩放比例
     const designWidth = 375.0;
     const designHeight = 812.0;
     final scaleX = screenWidth / designWidth;
     final scaleY = screenHeight / designHeight;
-    
+
     // 使用较小的缩放比例保持比例
     final scale = scaleX < scaleY ? scaleX : scaleY;
-    
+
     // 计算图片尺寸（保持原始比例）
-    final titleWidth = 127.0 * scale;
-    final titleHeight = 258.0 * scale;
-    final iconWidth = 80.0 * scale;
-    final iconHeight = 80.0 * scale;
-    
+    final titleWidth = 175.0 * scale;
+    final titleHeight = 218.0 * scale;
+    final iconWidth = 85.0 * scale;
+    final iconHeight = 34.0 * scale;
+
     return Scaffold(
       body: AnimatedOpacity(
         opacity: _imagesLoaded ? 1.0 : 0.0,
@@ -412,35 +428,38 @@ class _SplashPageState extends State<SplashPage> {
         child: Container(
           width: double.infinity,
           height: double.infinity,
+
           decoration: const BoxDecoration(
+            color: Colors.white,
             image: DecorationImage(
               image: AssetImage('assets/mipmap-xxhdpi/flash.webp'),
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
+              alignment: Alignment.topCenter,
             ),
           ),
           child: Stack(
             children: [
               Transform.translate(
-                offset: Offset(0, -100 ),
+                offset: Offset(0, -135),
                 child: Center(
-                child:Image.asset(
-                      'assets/mipmap-xxhdpi/flash_title.webp',
-                      width: titleWidth,
-                      height: titleHeight,
-                      fit: BoxFit.contain,
-                    ),
-              ),
+                  child: Image.asset(
+                    'assets/mipmap-xxhdpi/flash_icon.webp',
+                    width: titleWidth,
+                    height: titleHeight,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
               Positioned(
-                bottom: 60*scale,
+                bottom: 70 * scale,
                 left: 0,
                 right: 0,
                 child: Image.asset(
-                        'assets/mipmap-xxhdpi/flash_icon.webp',
-                        width: iconWidth,
-                        height: iconHeight,
-                        fit: BoxFit.contain,
-                      ),
+                  'assets/mipmap-xxhdpi/flash_title.webp',
+                  width: iconWidth,
+                  height: iconHeight,
+                  fit: BoxFit.contain,
+                ),
               ),
             ],
           ),

@@ -25,7 +25,7 @@ class KissuRoutePath {
   static const locationState = '/kisssu_app/location_state';
   static const locationReminder = '/kisssu_app/location_reminder';
   static const antiSpy = '/kisssu_app/anti_spy';
-  static const usageSettings = '/kisssu_app/usage_settings';
+  // static const usageSettings = '/kisssu_app/usage_settings';
   static const messageList = '/kisssu_app/message_list';
   static const messageDetail = '/kisssu_app/message_detail';
   static const interactionMessage = '/kisssu_app/interaction_message';
@@ -36,4 +36,6 @@ class KissuRoutePath {
   static const deviceUsage = '/kisssu_app/device_usage';
   static const appUsageDetail = '/kisssu_app/app_usage_detail';
   static const appUsage = '/kisssu_app/app_usage';
+  static const notificationSettings = '/kisssu_app/notification_settings';
+  static const appUsageInfo = '/kisssu_app/app_usage_detail';
 }

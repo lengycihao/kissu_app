@@ -78,7 +78,9 @@ class MinePage extends GetView<MineController> {
                       },
                       child: SingleChildScrollView(
                         controller: controller.scrollController,
-                        physics: const AlwaysScrollableScrollPhysics(),
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -111,7 +113,7 @@ class MinePage extends GetView<MineController> {
                             MineSettings(
                               items: controller.settingItems,
                             ),
-                            // const SizedBox(height: 20),
+                            const SizedBox(height: 20),
                           ],
                         ),
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
 import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
@@ -46,7 +47,9 @@ class VipPage extends GetView<VipController> {
               },
               child: SingleChildScrollView(
                 controller: controller.mainScrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 child: Padding(
                   padding: EdgeInsets.only(
                     bottom: paymentComponentHeight,
@@ -263,19 +266,17 @@ class VipPage extends GetView<VipController> {
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          displayUrl,
+        child: NetworkImageHelper.loadImage(
+          imageUrl: displayUrl,
           width: double.infinity,
           height: 248,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Image.asset(
-              'assets/images/kissu4_vip_banner_location.webp',
-              width: double.infinity,
-              height: 248,
-              fit: BoxFit.fitHeight,
-            );
-          },
+          errorWidget: Image.asset(
+            'assets/images/kissu4_vip_banner_location.webp',
+            width: double.infinity,
+            height: 248,
+            fit: BoxFit.fitHeight,
+          ),
         ),
       ),
     );
@@ -328,15 +329,15 @@ class VipPage extends GetView<VipController> {
                 child: hasRemoteData && iconUrl.isNotEmpty
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          iconUrl,
+                        child: NetworkImageHelper.loadImage(
+                          imageUrl: iconUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            final fallback = isSelected
+                          errorWidget: Image.asset(
+                            isSelected
                                 ? fallbackPair['selected']!
-                                : fallbackPair['unselected']!;
-                            return Image.asset(fallback, fit: BoxFit.cover);
-                          },
+                                : fallbackPair['unselected']!,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       )
                     : Image.asset(
@@ -882,14 +883,12 @@ class VipPage extends GetView<VipController> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: comment.hasAvatar
-                    ? Image.network(
-                        comment.avatar,
+                    ? NetworkImageHelper.loadImage(
+                        imageUrl: comment.avatar,
                         width: 24,
                         height: 24,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return SizedBox.shrink();
-                        },
+                        errorWidget: SizedBox.shrink(),
                       )
                     : SizedBox.shrink(),
               ),
@@ -904,14 +903,12 @@ class VipPage extends GetView<VipController> {
               const SizedBox(width: 8),
               //vip标识
               if (comment.hasVipIcon)
-                Image.network(
-                  comment.vipIcon,
+                NetworkImageHelper.loadImage(
+                  imageUrl: comment.vipIcon,
                   width: 60,
                   height: 18,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const SizedBox(width: 24, height: 24);
-                  },
+                  errorWidget: const SizedBox(width: 24, height: 24),
                 ),
             ],
           ),
@@ -927,14 +924,12 @@ class VipPage extends GetView<VipController> {
           ),
           //星星
           if (comment.hasStarImage)
-            Image.network(
-              comment.starImage,
+            NetworkImageHelper.loadImage(
+              imageUrl: comment.starImage,
               width: 100,
               height: 20,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox(width: 100, height: 20);
-              },
+              errorWidget: const SizedBox(width: 100, height: 20),
             ),
           const SizedBox(height: 8),
         ],

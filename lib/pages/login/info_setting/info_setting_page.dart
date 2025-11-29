@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_controller.dart';
 
 class InfoSettingPage extends StatelessWidget {
@@ -90,19 +91,17 @@ class InfoSettingPage extends StatelessWidget {
                                       height: 80,
                                       fit: BoxFit.cover,
                                     )
-                                  : Image.network(
-                                      controller.avatarUrl.value,
+                                  : NetworkImageHelper.loadImage(
+                                      imageUrl: controller.avatarUrl.value,
                                       width: 80,
                                       height: 80,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Image.asset(
-                                          'assets/images/kissu_info_setting_headerbg.webp',
-                                          width: 80,
-                                          height: 80,
-                                          fit: BoxFit.cover,
-                                        );
-                                      },
+                                      errorWidget: Image.asset(
+                                        'assets/images/kissu_info_setting_headerbg.webp',
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                             );
                           }),

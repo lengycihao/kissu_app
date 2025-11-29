@@ -50,6 +50,9 @@ class DialogShowcasePage extends StatelessWidget {
                 // 内容区域
                 Expanded(
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

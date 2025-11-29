@@ -185,6 +185,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
     // 初始化底部面板控制器
     _draggableController = DraggableScrollableController();
     widget.controller.setDraggableController(_draggableController);
+
+    // 🔧 修复：初始化sheetPercent为正确的初始值，避免第一次加载时按钮和logo位置跳变
+    widget.controller.sheetPercent.value = initialHeight / screenHeight;
   }
 
   @override
@@ -284,84 +287,108 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                   }
                                   return false;
                                 },
-                                child: CustomScrollView(
-                                  controller: scrollController,
-                                  slivers: [
-                                    // 顶部固定区域 - 前两个模块
-                                    SliverToBoxAdapter(
-                                      child: Column(
-                                        children: [
-                                          // 日期模块
-                                          _buildDateModule(),
-                                          const SizedBox(height: 10),
-                                          // 停留次数时间模块
-                                          _buildStayStatsModule(),
-                                        ],
+                                child: Container(
+                                  color: const Color(0xFFF6F6F6),
+                                  padding: const EdgeInsets.only(top: 5),
+                                  child: Column(
+                                    children: [
+                                      // 指示条
+                                      Container(
+                                        width: 46,
+                                        height: 7,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(3.5),
+                                          color: const Color(0xFFD9D9D9),
+                                        ),
                                       ),
-                                    ),
-
-                                    // 停留点模块 + 背景色 - 使用 SliverFillRemaining 确保填充到底部
-                                    SliverFillRemaining(
-                                      hasScrollBody: false,
-                                      child: Stack(
-                                        children: [
-                                          Container(
-                                            margin: EdgeInsets.only(
-                                              left: 14,
-                                              right: 14,
-                                              top: 10,
-                                              bottom: 15,
-                                            ),
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 15,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: Obx(() {
-                                              if (widget
-                                                  .controller
-                                                  .stopRecords
-                                                  .isEmpty) {
-                                                return Container(
-                                                  width: double.infinity,
-                                                  padding: EdgeInsets.symmetric(
-                                                    vertical: 40,
-                                                  ),
-                                                  child: Column(
-                                                    children: [
-                                                      Image.asset(
-                                                        'assets/images/kissu_track_empty.webp',
-                                                        width: 128,
-                                                        height: 128,
-                                                      ),
-                                                      SizedBox(height: 16),
-                                                      Text(
-                                                        '对方目前还没有足迹内容哦～',
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color: Color(
-                                                            0xff666666,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              }
-
-                                              return _OptimizedStopRecordsListWithBackground(
-                                                controller: widget.controller,
-                                              );
-                                            }),
+                                      const SizedBox(height: 5),
+                                      Expanded(
+                                        child: CustomScrollView(
+                                          controller: scrollController,
+                                          physics: const BouncingScrollPhysics(
+                                            parent: AlwaysScrollableScrollPhysics(),
                                           ),
-                                        ],
+                                          cacheExtent: 500,
+                                          slivers: [
+                                            // 顶部固定区域 - 前两个模块
+                                            SliverToBoxAdapter(
+                                              child: Column(
+                                                children: [
+                                                  // 日期模块
+                                                  _buildDateModule(),
+                                                  const SizedBox(height: 10),
+                                                  // 停留次数时间模块
+                                                  _buildStayStatsModule(),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // 停留点模块 + 背景色 - 使用 SliverFillRemaining 确保填充到底部
+                                            SliverFillRemaining(
+                                              hasScrollBody: false,
+                                              child: Stack(
+                                                children: [
+                                                  Container(
+                                                    margin: const EdgeInsets.only(
+                                                      left: 14,
+                                                      right: 14,
+                                                      top: 10,
+                                                      bottom: 15,
+                                                    ),
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 15,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      borderRadius:
+                                                          BorderRadius.circular(20),
+                                                    ),
+                                                    child: Obx(() {
+                                                      if (widget
+                                                          .controller
+                                                          .stopRecords
+                                                          .isEmpty) {
+                                                        return Container(
+                                                          width: double.infinity,
+                                                          padding: const EdgeInsets.symmetric(
+                                                            vertical: 40,
+                                                          ),
+                                                          child: Column(
+                                                            children: [
+                                                              Image.asset(
+                                                                'assets/images/kissu_track_empty.webp',
+                                                                width: 128,
+                                                                height: 128,
+                                                              ),
+                                                              const SizedBox(height: 16),
+                                                              const Text(
+                                                                '对方目前还没有足迹内容哦～',
+                                                                style: TextStyle(
+                                                                  fontSize: 14,
+                                                                  color: Color(
+                                                                    0xff666666,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      }
+
+                                                      return _OptimizedStopRecordsListWithBackground(
+                                                        controller: widget.controller,
+                                                      );
+                                                    }),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                               // 统一的蒙版层（未绑定 或 已绑定但未开会员）
@@ -709,8 +736,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
       // 右侧轨迹回放按钮的bottom位置
       final buttonBottom = sheetHeight + 70;
 
-      // logo在按钮下方，按钮高度50px
-      final logoBottom = buttonBottom - 30;
+      // logo在按钮下方，按钮高度50px，logo距离按钮15px
+      // 所以logo的bottom = buttonBottom - 50 - 15
+      final logoBottom = buttonBottom - 50 - 15;
 
       // 根据绑定状态动态计算中间吸顶位置
       final actualBindStatus = widget.controller.getActualBindStatus();
@@ -1272,7 +1300,7 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
 }
 
 // 全屏渐变背景遮罩 - 从中间滑到顶部时显示
-class _GradientBackgroundOverlay extends StatelessWidget {
+class _GradientBackgroundOverlay extends StatefulWidget {
   final TrackController controller;
   final double screenHeight;
   final double initialHeight;
@@ -1286,45 +1314,67 @@ class _GradientBackgroundOverlay extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // 计算中间位置（屏幕中间）
-      final middlePosition = 0.5; // 屏幕中间位置
-      final maxPosition = maxHeight / screenHeight;
-      final currentPercent = controller.sheetPercent.value;
+  State<_GradientBackgroundOverlay> createState() =>
+      _GradientBackgroundOverlayState();
+}
 
-      // 只在从中间位置滑到顶部时显示渐变背景
-      // 当 currentPercent > middlePosition 时开始显示
-      double opacity = 0.0;
-      if (currentPercent > middlePosition) {
-        // 从中间到顶部的进度：0 到 1
-        final progress =
-            (currentPercent - middlePosition) / (maxPosition - middlePosition);
-        opacity = progress.clamp(0.0, 1.0);
+class _GradientBackgroundOverlayState
+    extends State<_GradientBackgroundOverlay> {
+  double _opacity = 0.0;
+  double _lastPercent = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.sheetPercent.listen((percent) {
+      if ((percent - _lastPercent).abs() > 0.02) {
+        _lastPercent = percent;
+        _updateOpacity(percent);
       }
+    });
+  }
 
-      return Positioned.fill(
-        child: IgnorePointer(
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: opacity,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFFEF6F0), // 顶部颜色
-                    Color(0xFFFFFFFF), // 中间颜色
-                    Color(0xFFF6F6F6), // 底部颜色
-                  ],
-                ),
+  void _updateOpacity(double currentPercent) {
+    final middlePosition = 0.5;
+    final maxPosition = widget.maxHeight / widget.screenHeight;
+
+    double newOpacity = 0.0;
+    if (currentPercent > middlePosition) {
+      final progress =
+          (currentPercent - middlePosition) / (maxPosition - middlePosition);
+      newOpacity = progress.clamp(0.0, 1.0);
+    }
+
+    if (mounted && newOpacity != _opacity) {
+      setState(() {
+        _opacity = newOpacity;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: _opacity,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFF6F6F6),
+                  Color(0xFFFFFFFF),
+                  Color(0xFFF6F6F6),
+                ],
               ),
             ),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 }
 

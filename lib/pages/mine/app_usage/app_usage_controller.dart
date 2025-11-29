@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/api/app_usage_api.dart';
+import 'package:kissu_app/pages/mine/app_usage/services/app_usage_report_service.dart';
 
 /// App使用时长控制器
 class AppUsageController extends GetxController {
@@ -32,6 +33,9 @@ class AppUsageController extends GetxController {
   // 选中的日期
   var selectedDate = DateTime.now().obs;
   
+  // 日期选择器索引（0表示今天）
+  var selectedDateIndex = 6.obs; // 默认选中最后一个（今天）
+  
   // 是否显示日期选择器
   var showDatePicker = false.obs;
   
@@ -49,6 +53,9 @@ class AppUsageController extends GetxController {
   
   // 是否显示全部最近使用的App
   var showAllRecentApps = false.obs;
+  
+  // 上报服务
+  final _reportService = AppUsageReportService();
   
   // 最近使用的App列表
   List<AppUsageRecord> get recentlyUsedApps {
@@ -257,6 +264,9 @@ class AppUsageController extends GetxController {
     try {
       await _loadSelectedApps();
       await _loadInstalledApps();
+      
+      // 初始化上报服务（不需要传入筛选应用，自动采集所有应用）
+      await initializeReportService();
     } finally {
       isLoading.value = false;
     }
@@ -327,6 +337,8 @@ class AppUsageController extends GetxController {
       }
       
       await prefs.setStringList('selected_apps_for_usage', selectedApps.toList());
+      
+      // 注意：上报服务不依赖筛选列表，这里的筛选只是用于调试页面显示
     } catch (e) {
       logger.error('保存筛选状态失败: $e', tag: 'AppUsage', error: e);
       Get.snackbar('错误', '保存失败');
@@ -625,6 +637,313 @@ class AppUsageController extends GetxController {
   /// 刷新数据
   Future<void> onRefresh() async {
     await _loadData();
+  }
+  
+  // ==================== 调试方法 ====================
+  
+  /// 初始化上报服务（自动采集所有应用）
+  Future<void> initializeReportService() async {
+    try {
+      await _reportService.initialize();
+      logger.info('上报服务已初始化（自动采集所有应用）', tag: 'AppUsage');
+    } catch (e) {
+      logger.error('初始化上报服务失败: $e', tag: 'AppUsage', error: e);
+    }
+  }
+  
+  /// 停止上报服务
+  void stopReportService() {
+    _reportService.stop();
+  }
+  
+  /// 查看待上报数据
+  Future<void> debugViewPendingData() async {
+    try {
+      final result = await _reportService.debugViewPendingData();
+      
+      if (!result['success']) {
+        Get.snackbar('提示', result['message']);
+        return;
+      }
+      
+      final allData = result['allData'] as List<AppUsageRecord>;
+      final incrementalData = result['incrementalData'] as List<AppUsageRecord>;
+      final lastReported = result['lastReportedSessions'] as Map<String, int>;
+      
+      // 显示对话框
+      Get.dialog(
+        _buildDebugDataDialog(allData, incrementalData, lastReported),
+        barrierDismissible: true,
+      );
+    } catch (e) {
+      logger.error('查看待上报数据失败: $e', tag: 'AppUsage', error: e);
+      Get.snackbar('错误', '查看失败: $e');
+    }
+  }
+  
+  /// 全量上报
+  Future<void> debugFullReport() async {
+    try {
+      isReporting.value = true;
+      
+      final result = await _reportService.debugFullReport();
+      
+      if (result['success']) {
+        final records = result['data'] as List<AppUsageRecord>;
+        Get.snackbar(
+          '成功',
+          '全量上报成功: ${records.length}个应用',
+          backgroundColor: Colors.green.withOpacity(0.8),
+          colorText: Colors.white,
+        );
+      } else {
+        Get.snackbar('提示', result['message']);
+      }
+    } catch (e) {
+      logger.error('全量上报失败: $e', tag: 'AppUsage', error: e);
+      Get.snackbar('错误', '上报失败: $e');
+    } finally {
+      isReporting.value = false;
+    }
+  }
+  
+  /// 增量上报
+  Future<void> debugIncrementalReport() async {
+    try {
+      isReporting.value = true;
+      
+      final result = await _reportService.debugIncrementalReport();
+      
+      if (result['success']) {
+        final records = result['data'] as List<AppUsageRecord>;
+        Get.snackbar(
+          '成功',
+          '增量上报成功: ${records.length}个应用',
+          backgroundColor: Colors.green.withOpacity(0.8),
+          colorText: Colors.white,
+        );
+      } else {
+        Get.snackbar('提示', result['message']);
+      }
+    } catch (e) {
+      logger.error('增量上报失败: $e', tag: 'AppUsage', error: e);
+      Get.snackbar('错误', '上报失败: $e');
+    } finally {
+      isReporting.value = false;
+    }
+  }
+  
+  /// 清空本地记录
+  Future<void> debugClearLocalData() async {
+    try {
+      await _reportService.debugClearLocalData();
+      Get.snackbar(
+        '成功',
+        '本地记录已清空',
+        backgroundColor: Colors.green.withOpacity(0.8),
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      logger.error('清空本地记录失败: $e', tag: 'AppUsage', error: e);
+      Get.snackbar('错误', '清空失败: $e');
+    }
+  }
+  
+  /// 构建调试数据对话框
+  Widget _buildDebugDataDialog(
+    List<AppUsageRecord> allData,
+    List<AppUsageRecord> incrementalData,
+    Map<String, int> lastReported,
+  ) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: double.maxFinite,
+        constraints: const BoxConstraints(maxHeight: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 标题
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF839E),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '待上报数据',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Get.back(),
+                  ),
+                ],
+              ),
+            ),
+            
+            // 统计信息
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: const Color(0xFFFFF5F7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildDebugStatCard('全量数据', '${allData.length}个'),
+                  Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
+                  _buildDebugStatCard('增量数据', '${incrementalData.length}个'),
+                  Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
+                  _buildDebugStatCard('已上报', '${lastReported.length}个'),
+                ],
+              ),
+            ),
+            
+            // 数据列表
+            Expanded(
+              child: DefaultTabController(
+                length: 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const TabBar(
+                      labelColor: Color(0xFFFF839E),
+                      unselectedLabelColor: Color(0xFF999999),
+                      indicatorColor: Color(0xFFFF839E),
+                      tabs: [
+                        Tab(text: '全量数据'),
+                        Tab(text: '增量数据'),
+                      ],
+                    ),
+                    Flexible(
+                      child: TabBarView(
+                        children: [
+                          _buildDebugDataList(allData),
+                          _buildDebugDataList(incrementalData),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // 底部按钮
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Get.back(),
+                    child: const Text(
+                      '关闭',
+                      style: TextStyle(fontSize: 16, color: Color(0xFFFF839E)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDebugStatCard(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFFF839E),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildDebugDataList(List<AppUsageRecord> records) {
+    if (records.isEmpty) {
+      return const Center(
+        child: Text(
+          '暂无数据',
+          style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+        ),
+      );
+    }
+    
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: records.length,
+      separatorBuilder: (context, index) => const Divider(height: 16),
+      itemBuilder: (context, index) {
+        final record = records[index];
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                record.appName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                record.packageName,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 14, color: Color(0xFF999999)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${(record.totalDuration / 60000).toStringAsFixed(1)}分钟',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.touch_app, size: 14, color: Color(0xFF999999)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${record.sessionCount}次',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

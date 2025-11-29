@@ -63,17 +63,27 @@ class _AboutUsPageState extends State<AboutUsPage> {
   Widget _buildItem(String title, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF333333),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            Image.asset("assets/images/kissu_mine_arrow.webp", width: 16, height: 16),
+            const SizedBox(width: 8),
+            Image.asset(
+              "assets/images/kissu_mine_arrow.webp",
+              width: 16,
+              height: 16,
+            ),
           ],
         ),
       ),
@@ -83,11 +93,16 @@ class _AboutUsPageState extends State<AboutUsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
         children: [
           // 背景图
           Positioned.fill(
-            child: Image.asset("assets/images/kissu_mine_bg.webp", fit: BoxFit.cover),
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
           ),
 
           Column(
@@ -120,52 +135,124 @@ class _AboutUsPageState extends State<AboutUsPage> {
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
 
-              // App 图标
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset("assets/3.0/kissu3_love_avater.webp", width: 80, height: 80),
+              // App 图标 - 添加动画效果
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: child,
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFEA39C).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      "assets/3.0/kissu3_love_avater.webp",
+                      width: 90,
+                      height: 90,
+                    ),
+                  ),
+                ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // 应用名称
+              const Text(
+                "KISSU",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
+                  letterSpacing: 1.5,
+                ),
+              ),
+
+              const SizedBox(height: 8),
 
               // 版本号
-              Text(
-                "当前版本:$_version",
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEA39C).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "v$_version",
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFFFEA39C),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
 
-              const SizedBox(height: 27),
+              const SizedBox(height: 32),
 
               // 列表
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    image: const DecorationImage(
-                      image: AssetImage("assets/images/kissu_setting_aboutus.webp"),
-                      fit: BoxFit.fill,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeOut,
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      image: const DecorationImage(
+                        image: AssetImage("assets/images/kissu_setting_aboutus.webp"),
+                        fit: BoxFit.fill,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 15,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildItem("隐私协议", () {
-                        AgreementUtils.toPrivacyAgreement();
-                      }),
-                      _buildDashedDivider(),
-                      _buildItem("用户协议", () {
-                        AgreementUtils.toUserAgreement();
-                      }),
-                      _buildDashedDivider(),
-                      _buildItem("检查更新", () {
-                        final versionService = Get.find<VersionService>();
-                        versionService.checkVersionForAboutPage(context);
-                      }),
-                    ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildItem("隐私协议", () {
+                          AgreementUtils.toPrivacyAgreement();
+                        }),
+                        _buildDashedDivider(),
+                        _buildItem("用户协议", () {
+                          AgreementUtils.toUserAgreement();
+                        }),
+                        _buildDashedDivider(),
+                        _buildItem("检查更新", () {
+                          final versionService = Get.find<VersionService>();
+                          versionService.checkVersionForAboutPage(context);
+                        }),
+                      ],
+                    ),
                   ),
                 ),
               ),

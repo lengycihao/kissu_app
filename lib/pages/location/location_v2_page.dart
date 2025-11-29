@@ -100,9 +100,10 @@ class _LocationPageContentState extends State<_LocationPageContent>
     widget.controller.pageContext = context;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(color: Color(0xFFFFF6EF)),
+        decoration: const BoxDecoration(color: Color(0xFFFFF6EF)),
         child: Stack(
           children: [
+            // 地图Widget（内部已有RepaintBoundary优化）
             Positioned.fill(
               child: CachedMapWidget(controller: widget.controller),
             ),
@@ -249,6 +250,12 @@ class _LocationPageContentState extends State<_LocationPageContent>
             const SizedBox(height: 5),
            Expanded(child:  CustomScrollView(
               controller: scrollController,
+              // 添加iOS风格的弹性滚动效果
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              // 缓存区域扩展，提升列表滚动性能
+              cacheExtent: 500,
               slivers: [
                 SliverToBoxAdapter(
                   child: Stack(

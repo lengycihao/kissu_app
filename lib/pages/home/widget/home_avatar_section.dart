@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
@@ -290,20 +291,12 @@ class HomeAvatarSection extends StatelessWidget {
                                 controller.activityLink.value,
                               );
                             },
-                            child: Image.network(
-                              controller.activityIcon.value,
+                            child: NetworkImageHelper.loadImage(
+                              imageUrl: controller.activityIcon.value,
                               width: 50,
                               height: 50,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const SizedBox.shrink();
-                              },
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null)
-                                      return child;
-                                    return const SizedBox.shrink();
-                                  },
+                              errorWidget: const SizedBox.shrink(),
                             ),
                           ),
                         ],

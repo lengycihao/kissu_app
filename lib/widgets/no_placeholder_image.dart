@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 
 /// 智能图片组件
 /// 
@@ -54,46 +55,18 @@ class NoPlaceholderImage extends StatelessWidget {
       return localImage;
     }
     
-    // 🚀 优化2：计算缓存尺寸，避免Infinity导致的错误
-    int? cacheWidth;
-    int? cacheHeight;
-    
-    if (width != double.infinity && width.isFinite) {
-      cacheWidth = (width * MediaQuery.of(context).devicePixelRatio).round();
-    }
-    
-    if (height != double.infinity && height.isFinite) {
-      cacheHeight = (height * MediaQuery.of(context).devicePixelRatio).round();
-    }
-    
-    // 🚀 优化3：网络图片加载，带缓存和错误处理
-    Widget imageWidget = Image.network(
-      imageUrl,
+    // 🚀 优化2：网络图片加载，带缓存和错误处理（NetworkImageHelper 内部已处理缓存）
+    Widget imageWidget = NetworkImageHelper.loadImage(
+      imageUrl: imageUrl,
       width: width,
       height: height,
       fit: fit,
-      // 优化缓存策略，减少内存占用
-      cacheWidth: cacheWidth,
-      cacheHeight: cacheHeight,
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('⚠️ 图片加载失败: $imageUrl, 错误: $error');
-        return Image.asset(
-          defaultAssetPath,
-          width: width,
-          height: height,
-          fit: fit,
-        );
-      },
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        // 🚀 优化4：加载过程中显示默认图片（立即显示，不留空白）
-        return Image.asset(
-          defaultAssetPath,
-          width: width,
-          height: height,
-          fit: fit,
-        );
-      },
+      errorWidget: Image.asset(
+        defaultAssetPath,
+        width: width,
+        height: height,
+        fit: fit,
+      ),
     );
 
     if (borderRadius != null) {

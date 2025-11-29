@@ -277,13 +277,15 @@ class FeedbackPage extends StatelessWidget {
     final controller = Get.put(FeedbackController());
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
         children: [
           // 背景
           Positioned.fill(
             child: Image.asset(
-              "assets/images/kissu_mine_bg.webp",
-              fit: BoxFit.cover,
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
             ),
           ),
 
@@ -328,6 +330,7 @@ class FeedbackPage extends StatelessWidget {
                     Expanded(
                       child: ListView(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
+                        physics: const BouncingScrollPhysics(),
                         children: [
                           // 问题和意见
                           Container(
@@ -335,53 +338,81 @@ class FeedbackPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  "问题和意见（必填）",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF333333),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      "问题和意见",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF333333),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      "*",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Color(0xFFFEA39C),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8F8F8),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: TextField(
+                                    maxLength: 200,
+                                    maxLines: 6,
+                                    onChanged: (val) =>
+                                        controller.content.value = val,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF333333),
+                                      height: 1.5,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      hintText: "期待您写下宝贵的意见~",
+                                      hintStyle: TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF999999),
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      isDense: true,
+                                      counterText: "",
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                TextField(
-                                  maxLength: 200,
-                                  maxLines: 6,
-                                  onChanged: (val) =>
-                                      controller.content.value = val,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF333333),
-                                    height: 1.2, // 设置行高确保垂直居中
-                                  ),
-                                  decoration: const InputDecoration(
-                                    hintText: "期待您写下宝贵的意见~",
-                                    hintStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF999999),
-                                      height: 1.2, // 设置占位符行高确保垂直居中
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 0,
-                                      vertical: 8, // 增加垂直内边距确保居中
-                                    ),
-                                    isDense: true, // 减少默认内边距
-                                    counterText: "",
-                                  ),
-                                ),
                                 Obx(
                                   () => Align(
                                     alignment: Alignment.bottomRight,
                                     child: Text(
                                       "${controller.content.value.length}/200",
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: Color(0xFF999999),
+                                        color: controller.content.value.length > 180
+                                            ? const Color(0xFFFEA39C)
+                                            : const Color(0xFF999999),
                                       ),
                                     ),
                                   ),
@@ -399,6 +430,13 @@ class FeedbackPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Obx(() {
                               return Column(
@@ -459,6 +497,13 @@ class FeedbackPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,23 +566,30 @@ class FeedbackPage extends StatelessWidget {
                           // 提交按钮
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFEA39C),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
+                            child: Obx(
+                              () => SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: controller.content.value.trim().isEmpty
+                                        ? const Color(0xFFCCCCCC)
+                                        : const Color(0xFFFEA39C),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    elevation: controller.content.value.trim().isEmpty ? 0 : 2,
                                   ),
-                                ),
-                                onPressed: controller.submit,
-                                child: const Text(
-                                  "提交",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                                  onPressed: controller.content.value.trim().isEmpty
+                                      ? null
+                                      : controller.submit,
+                                  child: const Text(
+                                    "提交",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),

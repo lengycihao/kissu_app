@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/services/amap_static_map_service.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'dart:math' as math;
@@ -54,57 +55,29 @@ class LocationMapSnapshot extends StatelessWidget {
         children: [
           // 背景地图
           Positioned.fill(
-            child: Image.network(
-              mapUrl,
+            child: NetworkImageHelper.loadImage(
+              imageUrl: mapUrl,
               fit: BoxFit.cover,
-              // 添加缓存配置，避免重复下载
-              cacheWidth: 800, // 缓存宽度
-              cacheHeight: 160, // 缓存高度
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) {
-                  // 移除频繁的日志输出
-                  // print('✅ 地图加载成功');
-                  return child;
-                }
-                // 移除频繁的日志输出
-                // print('⏳ 地图加载中: ${loadingProgress.cumulativeBytesLoaded} / ${loadingProgress.expectedTotalBytes}');
-                return Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
-                        : null,
-                    strokeWidth: 2,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF4D9FFF),
+              errorWidget: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.map_outlined,
+                      size: 32,
+                      color: Colors.grey[400],
                     ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                // 仅在错误时输出日志（保留）
-                debugPrint('❌ 地图加载失败: $error');
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.map_outlined,
-                        size: 32,
-                        color: Colors.grey[400],
+                    const SizedBox(height: 4),
+                    Text(
+                      '地图加载失败',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '地图加载失败',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           

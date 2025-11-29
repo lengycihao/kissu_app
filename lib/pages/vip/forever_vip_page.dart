@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'forever_vip_controller.dart';
 
 class ForeverVipPage extends GetView<ForeverVipController> {
@@ -17,32 +18,42 @@ class ForeverVipPage extends GetView<ForeverVipController> {
               fit: BoxFit.cover,
             ),
           ),
-          Padding(
-            padding: EdgeInsets.only(
-              left: 15,
-              top: MediaQuery.of(context).padding.top + 20,
-              right: 15,
-            ),
+          SafeArea(
             child: Column(
               children: [
                 // 自定义顶部导航栏
-                _buildTopBar(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
+                  child: _buildTopBar(),
+                ),
                 // 页面内容
                 Expanded(
                   child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     child: Column(
                       children: [
+                        const SizedBox(height: 10),
+                        // 会员信息组件 - 带动画
+                        _AnimatedCard(
+                          delay: 0,
+                          child: _buildAvatarAndNicknameSection(),
+                        ),
                         const SizedBox(height: 20),
-                        // 会员信息组件
-                        _buildAvatarAndNicknameSection(),
-                        // _buildInfoImage(),
+                        // Tips图片 - 带动画
+                        _AnimatedCard(
+                          delay: 100,
+                          child: _buildTipsImage(),
+                        ),
                         const SizedBox(height: 20),
-                        // Tips图片
-                        _buildTipsImage(),
-                        const SizedBox(height: 20),
-                        // 信息背景图片
-                        _buildInfoImage(),
-                        const SizedBox(height: 20),
+                        // 信息背景图片 - 带动画
+                        _AnimatedCard(
+                          delay: 200,
+                          child: _buildInfoImage(),
+                        ),
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
@@ -61,10 +72,13 @@ class ForeverVipPage extends GetView<ForeverVipController> {
       children: [
         GestureDetector(
           onTap: () => Get.back(),
-          child: Image.asset(
-            "assets/images/kissu_mine_back.webp",
-            width: 22,
-            height: 22,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            child: Image.asset(
+              "assets/images/kissu_mine_back.webp",
+              width: 22,
+              height: 22,
+            ),
           ),
         ),
         const Expanded(
@@ -79,25 +93,45 @@ class ForeverVipPage extends GetView<ForeverVipController> {
             ),
           ),
         ),
-        const SizedBox(width: 22), // 占位保持居中
+        const SizedBox(width: 30), // 占位保持居中
       ],
     );
   }
 
   // Tips图片
   Widget _buildTipsImage() {
-    return Container(
-      width: 164,
-      height: 22,
-      margin: const EdgeInsets.symmetric(horizontal: 18),
-      child: Image.asset("assets/images/kissu_vip_forver_tip.webp", fit: BoxFit.fill),
+    return Center(
+      child: Container(
+        width: 164,
+        height: 22,
+        child: Image.asset(
+          "assets/images/kissu_vip_forver_tip.webp",
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 
   // 信息背景图片
   Widget _buildInfoImage() {
     return Container(
-      child: Image.asset("assets/images/kissu_vip_info_bg.webp", fit: BoxFit.fill),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.asset(
+          "assets/images/kissu_vip_info_bg.webp",
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 
@@ -106,11 +140,19 @@ class ForeverVipPage extends GetView<ForeverVipController> {
     return Container(
       width: double.infinity,
       height: 130,
-      decoration: const BoxDecoration(
-        image: DecorationImage(
+      decoration: BoxDecoration(
+        image: const DecorationImage(
           image: AssetImage("assets/images/kissu_vip_back_info.webp"),
           fit: BoxFit.fill,
         ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Stack(
         children: [
@@ -215,36 +257,20 @@ class ForeverVipPage extends GetView<ForeverVipController> {
                         );
                       },
                     )
-                  : Image.network(
-                      controller.userAvatar.value,
+                  : NetworkImageHelper.loadImage(
+                      imageUrl: controller.userAvatar.value,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 56,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 56,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
+                      errorWidget: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 56,
+                          color: Colors.white,
+                        ),
+                      ),
                     )
             : Container(
                 decoration: BoxDecoration(
@@ -287,36 +313,20 @@ class ForeverVipPage extends GetView<ForeverVipController> {
                         );
                       },
                     )
-                  : Image.network(
-                      controller.partnerAvatar.value,
+                  : NetworkImageHelper.loadImage(
+                      imageUrl: controller.partnerAvatar.value,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 22,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 22,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
+                      errorWidget: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 22,
+                          color: Colors.white,
+                        ),
+                      ),
                     )
             : Container(
                 decoration: BoxDecoration(
@@ -398,6 +408,68 @@ class ForeverVipPage extends GetView<ForeverVipController> {
       ),
         ],
       )
+    );
+  }
+}
+
+/// 带动画效果的卡片组件
+class _AnimatedCard extends StatefulWidget {
+  final Widget child;
+  final int delay;
+
+  const _AnimatedCard({
+    required this.child,
+    this.delay = 0,
+  });
+
+  @override
+  State<_AnimatedCard> createState() => _AnimatedCardState();
+}
+
+class _AnimatedCardState extends State<_AnimatedCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    // 延迟启动动画
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: widget.child,
+      ),
     );
   }
 }

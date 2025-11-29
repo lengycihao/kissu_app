@@ -17,9 +17,18 @@ class LocationStateController extends GetxController {
   /// 页面滑动次数
   int _scrollCount = 0;
   
-  /// 增加滑动次数
+  /// 滑动防抖计时器
+  DateTime? _lastScrollTime;
+  
+  /// 增加滑动次数（防抖优化）
   void incrementScrollCount() {
-    _scrollCount++;
+    final now = DateTime.now();
+    // 防抖：每200ms最多记录一次
+    if (_lastScrollTime == null || 
+        now.difference(_lastScrollTime!).inMilliseconds > 200) {
+      _scrollCount++;
+      _lastScrollTime = now;
+    }
   }
   /// 当前用户状态（是否有状态）
   final hasStatus = false.obs;
@@ -101,26 +110,39 @@ class LocationStateController extends GetxController {
       isLoading.value = true;
       
       // 1. 先加载缓存数据
-      await _loadFromCache();
+      final hasCache = await _loadFromCache();
       
-      // 2. 同时请求接口获取最新数据
-      await _loadFaceStatusFromApi();
+      // 2. 如果有缓存，立即显示并关闭加载状态
+      if (hasCache) {
+        isLoading.value = false;
+        DebugUtil.info('✅ 缓存数据加载完成，页面可交互');
+      }
+      
+      // 3. 在后台请求接口获取最新数据
+      _loadFaceStatusFromApi().then((_) {
+        if (!hasCache) {
+          isLoading.value = false;
+        }
+      });
       
     } catch (e) {
       DebugUtil.error('❌ 加载表情状态数据异常: $e');
       OKToastUtil.showError('加载数据异常');
-    } finally {
       isLoading.value = false;
     }
   }
   
   /// 从缓存加载数据
-  Future<void> _loadFromCache() async {
+  /// 返回是否成功加载到缓存数据
+  Future<bool> _loadFromCache() async {
     try {
+      bool hasData = false;
+      
       // 加载缓存的表情分类数据
       final cachedCategories = await _cacheManager.getCachedEmojiCategories();
       if (cachedCategories != null && cachedCategories.isNotEmpty) {
         emojiCategories.value = cachedCategories;
+        hasData = true;
         DebugUtil.info('✅ 从缓存加载表情分类数据成功，共 ${cachedCategories.length} 个分类');
       }
       
@@ -131,8 +153,10 @@ class LocationStateController extends GetxController {
         DebugUtil.info('✅ 从缓存加载当前状态数据成功');
       }
       
+      return hasData;
     } catch (e) {
       DebugUtil.error('❌ 从缓存加载数据失败: $e');
+      return false;
     }
   }
   
