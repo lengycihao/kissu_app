@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 import 'package:kissu_app/model/setting/common_question_model/common_question_model.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 class QuestionPageInfo extends StatefulWidget {
   final CommonQuestionModel question;
@@ -83,18 +84,15 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
               const SizedBox(height: 40),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 16,
+                  horizontal: 6,
+                  vertical: 12,
                 ),
                 child: Row(
                   children: [
-                    GestureDetector(
+                    CommonBackButton(
                       onTap: () => Get.back(),
-                      child: Image.asset(
-                        "assets/images/kissu_mine_back.webp",
-                        width: 22,
-                        height: 22,
-                      ),
+                      assetPath: "assets/images/kissu_mine_back.webp",
+                      iconSize: 22,
                     ),
                     const Expanded(
                       child: Center(

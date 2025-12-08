@@ -44,6 +44,7 @@ class MineUserInfo extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 18,
                         color: Color(0xff333333),
+                        fontFamily: "AlimamaShuHeiTi",
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,

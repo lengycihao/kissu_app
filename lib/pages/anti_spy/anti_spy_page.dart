@@ -57,14 +57,14 @@ class AntiSpyPage extends GetView<AntiSpyController> {
   // 顶部导航栏
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           GestureDetector(
+            behavior: HitTestBehavior.translucent,
             onTap: controller.onBackTap,
             child: Padding(
               padding: const EdgeInsets.all(8.0).copyWith(left: 0),
-
               child: const Image(
                 image: AssetImage('assets/images/kissu_mine_back.webp'),
                 width: 22,

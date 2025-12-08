@@ -9,6 +9,7 @@ import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 位置提醒Controller
 class LocationReminderController extends GetxController {
@@ -228,20 +229,12 @@ class LocationReminderController extends GetxController {
         return true;
       } else {
         debugPrint('❌ 位置提醒保存失败: ${result.msg}');
-        Get.snackbar(
-          '保存失败',
-          result.msg ?? '未知错误',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        OKToastUtil.showError(result.msg ?? '未知错误');
         return false;
       }
     } catch (e) {
       debugPrint('❌ 保存位置提醒异常: $e');
-      Get.snackbar(
-        '保存失败',
-        '网络错误，请重试',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      OKToastUtil.showError('网络错误，请重试');
       return false;
     }
   }
@@ -263,20 +256,12 @@ class LocationReminderController extends GetxController {
         return true;
       } else {
         debugPrint('❌ 位置提醒删除失败: ${result.msg}');
-        Get.snackbar(
-          '删除失败',
-          result.msg ?? '未知错误',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        OKToastUtil.showError(result.msg ?? '未知错误');
         return false;
       }
     } catch (e) {
       debugPrint('❌ 删除位置提醒异常: $e');
-      Get.snackbar(
-        '删除失败',
-        '网络错误，请重试',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      OKToastUtil.showError('网络错误，请重试');
       return false;
     }
   }
@@ -304,20 +289,12 @@ class LocationReminderController extends GetxController {
         return true;
       } else {
         debugPrint('❌ 位置提醒更新失败: ${result.msg}');
-        Get.snackbar(
-          '更新失败',
-          result.msg ?? '未知错误',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        OKToastUtil.showError(result.msg ?? '未知错误');
         return false;
       }
     } catch (e) {
       debugPrint('❌ 更新位置提醒异常: $e');
-      Get.snackbar(
-        '更新失败',
-        '网络错误，请重试',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      OKToastUtil.showError('网络错误，请重试');
       return false;
     }
   }

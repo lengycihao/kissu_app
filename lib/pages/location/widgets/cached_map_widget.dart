@@ -65,6 +65,7 @@ class _CachedMapWidgetState extends State<CachedMapWidget> {
           return SafeAMapWidget(
             initialCameraPosition: controller.initialCameraPosition,
             onMapCreated: controller.onMapCreated,
+            onMapDisposed: controller.onMapDisposed,
             markers: _cachedMarkers ?? const {},
             polylines: _cachedPolylines ?? const {},
             compassEnabled: true,

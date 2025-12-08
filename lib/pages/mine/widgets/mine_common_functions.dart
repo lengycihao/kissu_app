@@ -66,8 +66,8 @@ class _MineCommonFunctionsState extends State<MineCommonFunctions>
                 "常用功能",
                 style: TextStyle(
                   fontSize: 15,
-                  color: Color(0xff000000),
-                  fontWeight: FontWeight.w600,
+                  color: Color(0xcc000000),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),

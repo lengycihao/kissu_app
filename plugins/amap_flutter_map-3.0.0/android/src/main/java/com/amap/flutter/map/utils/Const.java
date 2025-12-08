@@ -53,13 +53,15 @@ public class Const {
     public static final String METHOD_MARKER_STOP_BREATH_ANIMATION = "marker#stopBreathAnimation";
     public static final String METHOD_MARKER_START_RIPPLE_ANIMATION = "marker#startRippleAnimation";
     public static final String METHOD_MARKER_STOP_RIPPLE_ANIMATION = "marker#stopRippleAnimation";
+    public static final String METHOD_MARKER_MOVE_SMOOTHLY = "marker#moveMarkerSmoothly";
     public static final String[] METHOD_ID_LIST_FOR_MARKER = {
             METHOD_MARKER_UPDATE, 
             METHOD_SINGLE_MARKER_UPDATE,
             METHOD_MARKER_START_BREATH_ANIMATION,
             METHOD_MARKER_STOP_BREATH_ANIMATION,
             METHOD_MARKER_START_RIPPLE_ANIMATION,
-            METHOD_MARKER_STOP_RIPPLE_ANIMATION
+            METHOD_MARKER_STOP_RIPPLE_ANIMATION,
+            METHOD_MARKER_MOVE_SMOOTHLY
     };
 
     /**

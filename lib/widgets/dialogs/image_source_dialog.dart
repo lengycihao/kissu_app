@@ -30,7 +30,7 @@ class ImageSourceDialog {
   /// 构建图片来源选项
   static Widget _buildImageSourceOption(
     BuildContext context, {
-    required IconData icon,
+    required String icon,
     required String title,
     required VoidCallback onTap,
   }) {
@@ -40,7 +40,7 @@ class ImageSourceDialog {
         height: 50,
         margin: EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          border: Border.all(color: Color(0xffFFD4D0), width: 1),
+          border: Border.all(color: Color(0xffE5E5E5), width: 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -51,7 +51,7 @@ class ImageSourceDialog {
                 color: const Color(0xFFFEA39C).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: const Color(0xFFFEA39C), size: 18),
+              child: Image(image: AssetImage(icon),width: 14,height: 14,fit: BoxFit.fill,),
             ),
             SizedBox(width: 10),
             Text(
@@ -180,7 +180,7 @@ class _ImageSourceDialogContentState extends State<_ImageSourceDialogContent> {
             // 相册选择
             ImageSourceDialog._buildImageSourceOption(
               context,
-              icon: Icons.photo_library_outlined,
+              icon: 'assets/3.0/image_source.webp',
               title: '相册选择',
               onTap: () => Navigator.of(context).pop(
                 ImageSourceResult(imageSource: ImageSource.gallery),
@@ -191,7 +191,7 @@ class _ImageSourceDialogContentState extends State<_ImageSourceDialogContent> {
             // 相机拍照
             ImageSourceDialog._buildImageSourceOption(
               context,
-              icon: Icons.camera_alt_outlined,
+              icon: 'assets/3.0/camera_source.png',
               title: '相机拍照',
               onTap: () => Navigator.of(context).pop(
                 ImageSourceResult(imageSource: ImageSource.camera),
@@ -208,7 +208,7 @@ class _ImageSourceDialogContentState extends State<_ImageSourceDialogContent> {
                 height: 50,
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Color(0xffFFD4D0), width: 1),
+                  border: Border.all(color: Color(0xffE5E5E5), width: 1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'app_usage_controller.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// App使用记录采集调试页面
 class AppUsageDebugPage extends StatefulWidget {
@@ -40,14 +41,7 @@ class _AppUsageDebugPageState extends State<AppUsageDebugPage> {
       _hasAutoSelected = true;
       
       // 显示提示
-      Get.snackbar(
-        '自动筛选完成',
-        '已自动筛选 ${controller.apps.length} 个应用',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-        backgroundColor: const Color(0xFFFF839E).withOpacity(0.9),
-        colorText: Colors.white,
-      );
+      OKToastUtil.show('已自动筛选 ${controller.apps.length} 个应用');
     } else if (!controller.isLoading.value) {
       // 如果apps为空但不在加载中，可能需要刷新
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -97,6 +91,9 @@ class _AppUsageDebugPageState extends State<AppUsageDebugPage> {
                 case 'clear_local':
                   controller.debugClearLocalData();
                   break;
+                case 'upload_image':
+                  controller.debugUploadImage();
+                  break;
               }
             },
             itemBuilder: (context) => [
@@ -137,6 +134,15 @@ class _AppUsageDebugPageState extends State<AppUsageDebugPage> {
                     Icon(Icons.delete_outline, size: 20, color: Color(0xFFFF5252)),
                     SizedBox(width: 12),
                     Text('清空本地记录'),
+                  ],
+                ),
+              ),const PopupMenuItem(
+                value: 'upload_image',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20, color: Color(0xFFFF5252)),
+                    SizedBox(width: 12),
+                    Text('上传图片测试'),
                   ],
                 ),
               ),
@@ -300,18 +306,11 @@ class _AppUsageDebugPageState extends State<AppUsageDebugPage> {
               height: 48,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
-                return Container(
+                return Image.asset(
+                  'assets/images/kissu4_logo.png',
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8E8E8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.apps,
-                    size: 24,
-                    color: Color(0xFF999999),
-                  ),
+                  fit: BoxFit.cover,
                 );
               },
             ),

@@ -76,6 +76,7 @@ class LocationStatePage extends StatelessWidget {
               Positioned(
                 left: 0,
                 child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
                   onTap: () => controller.handleBack(),
                   child: Container(
                     padding: const EdgeInsets.all(8),

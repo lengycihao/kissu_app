@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/pages/mine/device_usage/models/phone_record_stat_model.dart' as api_model;
+import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
 import 'device_usage_page.dart';
 
 /// 用机记录控制器
@@ -44,11 +47,17 @@ class DeviceUsageController extends GetxController {
   // 用户会员状态
   var isUserVip = false.obs;
 
+  // 另一半用户设备信息
+  var halfUserData = Rxn<api_model.HalfUserData>();
+
   final _usageRecordApi = UsageRecordApi();
+  final _logoCacheService = AppLogoCacheService();
 
   @override
   void onInit() {
     super.onInit();
+    // 初始化 App Logo 缓存
+    _logoCacheService.initialize();
     // 初始化绑定状态和会员状态
     _updateBindStatus();
     _loadData(); // 加载真实数据
@@ -96,18 +105,18 @@ class DeviceUsageController extends GetxController {
     }
   }
   
-  /// 切换调试模式
-  void toggleDebugMode() {
-    isDebugEmptyMode.value = !isDebugEmptyMode.value;
+  // /// 切换调试模式
+  // void toggleDebugMode() {
+  //   isDebugEmptyMode.value = !isDebugEmptyMode.value;
     
-    if (isDebugEmptyMode.value) {
-      // 进入空数据模式
-      _resetData();
-    } else {
-      // 恢复真实数据
-      _loadData();
-    }
-  }
+  //   if (isDebugEmptyMode.value) {
+  //     // 进入空数据模式
+  //     _resetData();
+  //   } else {
+  //     // 恢复真实数据
+  //     _loadData();
+  //   }
+  // }
   
   /// 获取今天当前时间的分钟数（用于圆环图进度计算）
   int getTodayCurrentMinutes() {
@@ -115,11 +124,11 @@ class DeviceUsageController extends GetxController {
     return now.hour * 60 + now.minute;
   }
   
-  /// 获取圆环图进度（使用时长分钟数 / 今天当前时间的分钟数）
+  /// 获取圆环图进度（使用时长分钟数 / 24小时 = 1440分钟）
   double getCircularProgress() {
-    final currentMinutes = getTodayCurrentMinutes();
-    if (currentMinutes <= 0) return 0.0;
-    final progress = screenUsageTotalMinutes.value / currentMinutes;
+    const int totalMinutesInDay = 24 * 60; // 24小时 = 1440分钟
+    if (totalMinutesInDay <= 0) return 0.0;
+    final progress = screenUsageTotalMinutes.value / totalMinutesInDay;
     return progress > 1.0 ? 1.0 : progress;
   }
 
@@ -138,71 +147,96 @@ class DeviceUsageController extends GetxController {
       // 格式化日期参数
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
 
-      // 获取用机记录统计数据
-      final result = await _usageRecordApi.getMobileUsageRecordSta(date: dateStr);
+      // 调用新API：获取用机记录统计数据
+      final result = await _usageRecordApi.getPhoneRecordStat(date: dateStr);
       
       if (result.isSuccess && result.data != null) {
         final data = result.data!;
         
-        // 处理手机使用数据 (mobile字段)
-        final mobile = data.mobile;
-        
-        // 解析屏幕使用时长（从"2小时1分钟"格式中提取）
-        final (hours, minutes) = mobile.totalUseDuration.parseHoursAndMinutes();
-        screenUsageHours.value = hours;
-        screenUsageMinutes.value = minutes;
-        screenUsageTotalMinutes.value = mobile.totalUseDuration.minute;
-        
-        // 最近使用时长
-        recentUsageMinutes.value = mobile.lastUseDuration.minute;
-        
-        // 解锁次数
-        unlockCount.value = mobile.totalUnlock.count;
-
-        // 处理App使用数据 (otherApp字段)
-        final otherApp = data.otherApp;
-        
-        // 最长使用App
-        if (otherApp.longestApp != null) {
-          final longestApp = otherApp.longestApp!;
-          longestAppName.value = longestApp.appName;
-          longestAppLogo.value = longestApp.appLogo;
-          final (longestHours, longestMinutes) = longestApp.parseHoursAndMinutes();
-          longestAppHours.value = longestHours;
-          longestAppMinutes.value = longestMinutes;
-        } else {
-          longestAppName.value = "";
-          longestAppLogo.value = "";
-          longestAppHours.value = 0;
-          longestAppMinutes.value = 0;
-        }
-        
-        // 打开次数最多的App
-        if (otherApp.openMostApp != null) {
-          final openMostApp = otherApp.openMostApp!;
-          openMostAppName.value = openMostApp.appName;
-          openMostAppLogo.value = openMostApp.appLogo;
-          openMostAppCount.value = openMostApp.count ?? 0;
-        } else {
-          openMostAppName.value = "";
-          openMostAppLogo.value = "";
-          openMostAppCount.value = 0;
-        }
-        
-        // 最近使用的App
-        if (otherApp.lastUseApp != null) {
-          final lastUseApp = otherApp.lastUseApp!;
-          lastUseAppName.value = lastUseApp.appName;
-          lastUseAppLogo.value = lastUseApp.appLogo;
-          lastUseAppTime.value = lastUseApp.time;
-        } else {
-          lastUseAppName.value = "";
-          lastUseAppLogo.value = "";
-          lastUseAppTime.value = "";
+        // 处理手机使用记录数据
+        if (data.mobileUseRecord != null) {
+          final mobileRecord = data.mobileUseRecord!;
+          
+          // 屏幕使用时长
+          screenUsageHours.value = mobileRecord.screenUseDuration.hours;
+          screenUsageMinutes.value = mobileRecord.screenUseDuration.minutes;
+          screenUsageTotalMinutes.value = 
+              mobileRecord.screenUseDuration.hours * 60 + 
+              mobileRecord.screenUseDuration.minutes;
+          
+          // 最近使用时长（秒转分钟）
+          recentUsageMinutes.value = mobileRecord.latelyUseDuration;
+          
+          // 解锁次数
+          unlockCount.value = mobileRecord.unlockPhoneNumbers;
         }
 
-        // 敏感操作记录暂时不处理
-        sensitiveRecords.value = [];
+        // 处理App使用记录数据
+        if (data.appUseRecord != null) {
+          final appRecord = data.appUseRecord!;
+          
+          // 最长使用App
+          if (appRecord.longestAppUseDurationData != null) {
+            final longestApp = appRecord.longestAppUseDurationData!;
+            final longestPkg = longestApp.appPkg;
+            longestAppLogo.value = _getLogoForPackage(longestPkg, longestApp.appLogo);
+            longestAppHours.value = longestApp.hours;
+            longestAppMinutes.value = longestApp.minutes;
+            // 注意：新API不提供app_name，只有logo
+            longestAppName.value = "";
+          } else {
+            longestAppName.value = "";
+            longestAppLogo.value = "";
+            longestAppHours.value = 0;
+            longestAppMinutes.value = 0;
+          }
+          
+          // 打开次数最多的App
+          if (appRecord.maxAppOpenNumberData != null) {
+            final openMostApp = appRecord.maxAppOpenNumberData!;
+            final openMostPkg = openMostApp.appPkg;
+            openMostAppLogo.value = _getLogoForPackage(openMostPkg, openMostApp.appLogo);
+            openMostAppCount.value = openMostApp.openAppNumber;
+            // 注意：新API不提供app_name，只有logo
+            openMostAppName.value = "";
+          } else {
+            openMostAppName.value = "";
+            openMostAppLogo.value = "";
+            openMostAppCount.value = 0;
+          }
+          
+          // 最近打开的App
+          if (appRecord.latelyOpenAppTimeData != null) {
+            final lastUseApp = appRecord.latelyOpenAppTimeData!;
+            final lastUsePkg = lastUseApp.appPkg;
+            lastUseAppLogo.value = _getLogoForPackage(lastUsePkg, lastUseApp.appLogo);
+            lastUseAppTime.value = lastUseApp.latelyOpenTime;
+            // 注意：新API不提供app_name，只有logo
+            lastUseAppName.value = "";
+          } else {
+            lastUseAppName.value = "";
+            lastUseAppLogo.value = "";
+            lastUseAppTime.value = "";
+          }
+        }
+
+        // 处理敏感记录数据
+        if (data.sensitiveRecord.isNotEmpty) {
+          // 将新API的SensitiveRecord转换为页面使用的SensitiveRecord类型
+          sensitiveRecords.value = data.sensitiveRecord.map((record) {
+            return SensitiveRecord(
+              iconPath: record.icon,
+              content: record.content,
+              time: record.createTime,
+              subtitle: record.ext.subContent,
+            );
+          }).toList();
+        } else {
+          sensitiveRecords.value = [];
+        }
+
+        // 保存另一半用户设备信息
+        halfUserData.value = data.halfUserData;
 
         logInfo('用机记录数据加载成功', tag: 'DeviceUsage');
       } else {
@@ -238,11 +272,36 @@ class DeviceUsageController extends GetxController {
     lastUseAppTime.value = "";
     
     sensitiveRecords.value = [];
+    halfUserData.value = null;
   }
 
   /// 刷新数据（供外部调用）
   Future<void> refreshData() async {
     await _loadData();
+  }
+
+  /// 根据包名优先从缓存获取 Logo，缓存没有再使用接口返回的 Logo
+  String _getLogoForPackage(String? packageName, String currentLogo) {
+    final pkg = packageName ?? '';
+    if (pkg.isEmpty) {
+      return currentLogo;
+    }
+
+    // 1）优先使用本地缓存里的 logo
+    final cached = _logoCacheService.getCachedLogoUrl(pkg);
+    if (cached != null && cached.isNotEmpty) {
+      // 如果接口里的 logo 也有值且和缓存不一致，顺手用最新接口值更新缓存
+      if (currentLogo.isNotEmpty && currentLogo != cached) {
+        unawaited(_logoCacheService.cacheLogoUrl(pkg, currentLogo));
+      }
+      return cached;
+    }
+
+    // 2）缓存里没有，再用接口里的，并写入缓存
+    if (currentLogo.isNotEmpty) {
+      unawaited(_logoCacheService.cacheLogoUrl(pkg, currentLogo));
+    }
+    return currentLogo;
   }
   
   /// 设置日期并重新加载数据

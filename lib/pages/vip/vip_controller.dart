@@ -65,6 +65,9 @@ class VipController extends GetxController {
   // 页面是否可见
   var isPageVisible = false.obs;
 
+  // 会员状态（响应式，用于更新UI）
+  var isVipStatus = false.obs;
+
   // 是否已经初始化过
   var _isInitialized = false;
 
@@ -137,6 +140,9 @@ class VipController extends GetxController {
 
     // 标记页面为可见状态
     isPageVisible.value = true;
+
+    // 初始化会员状态
+    isVipStatus.value = UserManager.isVip;
 
     // 添加支付状态监听（通过定时器检查状态变化）
     Timer.periodic(const Duration(milliseconds: 500), (timer) {
@@ -342,9 +348,9 @@ class VipController extends GetxController {
       return;
     }
 
-    // 获取第一个套餐
-    final firstPackage = vipPackages.first;
-    debugPrint('💫 选择第一个套餐: ${firstPackage.title}');
+    // 获取默认套餐（type = 4，如果没有则使用第一个）
+    final defaultPackage = _getDefaultPackage();
+    debugPrint('💫 选择默认套餐: ${defaultPackage.title}');
 
     // 设置支付方式为微信
     selectedPaymentMethod.value = 0;
@@ -352,20 +358,20 @@ class VipController extends GetxController {
 
     // 标记为从挽留弹窗入口支付
     isFromRetentionDialog = true;
-    retentionDialogPackage = firstPackage;
+    retentionDialogPackage = defaultPackage;
 
     // 上报挽留弹窗埋点 - 点击"全部解锁"
-    await _trackRetentionDialogUnlock(firstPackage, '点击支付');
+    await _trackRetentionDialogUnlock(defaultPackage, '点击支付');
 
     // 设置正在购买标志
     isPurchasing.value = true;
 
     try {
       // 上报埋点
-      await _trackMembershipOpen(firstPackage, '点击支付');
+      await _trackMembershipOpen(defaultPackage, '点击支付');
 
       // 执行支付
-      await _processPurchase(firstPackage);
+      await _processPurchase(defaultPackage);
     } catch (e) {
       debugPrint('❌ 从挽留弹窗购买失败: $e');
       // 错误提示已在_processPurchase中处理
@@ -736,18 +742,33 @@ class VipController extends GetxController {
           }
         }
         _updateLifetimeActivity(lifetimePlan);
-        // 如果有数据，默认选中第一个套餐
+        // 如果有数据，默认选中 type = 4 的套餐，如果没有则选中第一个
         if (vipPackages.isNotEmpty) {
-          selectedPriceIndex.value = 0;
+          // 查找 type = 4 的套餐索引
+          int defaultIndex = 0;
+          for (int i = 0; i < vipPackages.length; i++) {
+            if (vipPackages[i].type == 4) {
+              defaultIndex = i;
+              break;
+            }
+          }
+          selectedPriceIndex.value = defaultIndex;
 
-          // 检查第一个套餐是否有折扣，如果有则显示弹窗
-          final firstPackage = vipPackages[0];
-          if (firstPackage.hasDiscount) {
+          // 延迟滚动到选中的套餐，确保UI已经渲染
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (!_isDisposed && isPageVisible.value) {
+              _scrollToSelectedPrice(defaultIndex);
+            }
+          });
+
+          // 检查默认选中的套餐是否有折扣，如果有则显示弹窗
+          final defaultPackage = vipPackages[defaultIndex];
+          if (defaultPackage.hasDiscount) {
             // 延迟一点显示弹窗，确保页面已经渲染完成
             Future.delayed(const Duration(milliseconds: 500), () {
               if (!_isDisposed && isPageVisible.value) {
-                debugPrint('🎯 默认套餐有折扣，显示折扣弹窗: ${firstPackage.title}');
-                _showDiscountDialog(firstPackage);
+                debugPrint('🎯 默认套餐有折扣，显示折扣弹窗: ${defaultPackage.title}');
+                _showDiscountDialog(defaultPackage);
               }
             });
           }
@@ -770,6 +791,36 @@ class VipController extends GetxController {
       return vipPackages[selectedPriceIndex.value];
     }
     return null;
+  }
+
+  /// 获取默认套餐（type = 4，如果没有则返回第一个）
+  VipPackageModel _getDefaultPackage() {
+    if (vipPackages.isEmpty) {
+      throw StateError('套餐列表为空');
+    }
+    // 查找 type = 4 的套餐
+    for (final package in vipPackages) {
+      if (package.type == 4) {
+        return package;
+      }
+    }
+    // 如果没有 type = 4 的套餐，返回第一个
+    return vipPackages.first;
+  }
+
+  /// 获取默认套餐或null（如果没有套餐则返回null）
+  VipPackageModel? _getDefaultPackageOrNull() {
+    if (vipPackages.isEmpty) {
+      return null;
+    }
+    // 查找 type = 4 的套餐
+    for (final package in vipPackages) {
+      if (package.type == 4) {
+        return package;
+      }
+    }
+    // 如果没有 type = 4 的套餐，返回第一个
+    return vipPackages.first;
   }
 
   /// 获取当前选中的价格文本
@@ -964,10 +1015,8 @@ class VipController extends GetxController {
           selectedPriceIndex.value < vipPackages.length) {
         package = vipPackages[selectedPriceIndex.value];
       } else {
-        // 如果没有选中套餐，可能是从挽留弹窗支付的，使用挽留弹窗套餐
-        package =
-            retentionDialogPackage ??
-            (vipPackages.isNotEmpty ? vipPackages.first : null);
+        // 如果没有选中套餐，可能是从挽留弹窗支付的，使用挽留弹窗套餐或默认套餐
+        package = retentionDialogPackage ?? _getDefaultPackageOrNull();
       }
 
       if (package == null) {
@@ -1020,6 +1069,8 @@ class VipController extends GetxController {
               selectedPriceIndex.value < vipPackages.length) {
             final package = vipPackages[selectedPriceIndex.value];
             OKToastUtil.show('支付成功');
+            // 更新会员状态
+            isVipStatus.value = UserManager.isVip;
             _updateVipStatus(package);
             _handlePaymentSuccess(package);
           }
@@ -1128,6 +1179,8 @@ class VipController extends GetxController {
     // 这里应该更新用户的VIP状态
     // 例如保存到本地存储或更新用户管理器中的状态
     debugPrint('VIP购买成功: ${package.title}');
+    // 更新响应式会员状态
+    isVipStatus.value = UserManager.isVip;
   }
 
   /// 支付成功后的处理
@@ -1161,6 +1214,9 @@ class VipController extends GetxController {
       // 等待用户信息刷新完成（支付服务中已经处理）
       // 这里稍等片刻，让支付服务的刷新操作完成
       await Future.delayed(const Duration(milliseconds: 500));
+
+      // 更新会员状态
+      isVipStatus.value = UserManager.isVip;
 
       // 显示VIP开通成功弹窗，点击"去体验"后再返回
       if (Get.context != null) {
@@ -1271,13 +1327,13 @@ class VipController extends GetxController {
   /// 上报挽留弹窗埋点 - 点击"下次再说"
   Future<void> _trackRetentionDialogCancel() async {
     try {
-      // 获取当前选中的套餐，如果没有则使用第一个
+      // 获取当前选中的套餐，如果没有则使用默认套餐
       VipPackageModel? package;
       if (selectedPriceIndex.value >= 0 &&
           selectedPriceIndex.value < vipPackages.length) {
         package = vipPackages[selectedPriceIndex.value];
-      } else if (vipPackages.isNotEmpty) {
-        package = vipPackages.first;
+      } else {
+        package = _getDefaultPackageOrNull();
       }
 
       // 如果没有套餐数据，使用默认值

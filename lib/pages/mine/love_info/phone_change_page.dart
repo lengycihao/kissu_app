@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'dart:async';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
+import '../../../utils/login_navigation_lock.dart';
 import '../../../widgets/custom_toast_widget.dart';
 import '../../../widgets/loading_dots_widget.dart';
 
@@ -47,7 +49,7 @@ class PhoneChangeController extends GetxController {
     if (isCountdownActive) {
       return '${countdownTime.value}秒后重试';
     }
-    return '获取验证码';
+    return '发送验证码';
   }
 
   void validatePhoneNumber() {
@@ -107,8 +109,8 @@ class PhoneChangeController extends GetxController {
   }
 
   Future<void> changePhone() async {
-    String phone = phoneController.text.trim();
-    String code = codeController.text.trim();
+    final phone = phoneController.text.trim();
+    final code = codeController.text.trim();
 
     if (phone.isEmpty) {
       CustomToast.show(Get.context!, '请输入手机号');
@@ -153,14 +155,21 @@ class PhoneChangeController extends GetxController {
   /// 退出账号并跳转到登录页
   Future<void> _logoutAndNavigateToLogin() async {
     try {
-      // 执行退出操作
-      await UserManager.logout();
+      // 🔧 使用登录页导航锁，防止重复跳转导致闪烁
+      // 先尝试获取锁并跳转到登录页
+      final navigated = LoginNavigationLock.navigateToLoginSafely();
+      if (!navigated) {
+        // 如果已经有其他线程正在导航，直接返回
+        return;
+      }
 
-      // 跳转到登录页面并清除所有页面栈
-      Get.offAllNamed(KissuRoutePath.login);
+      // 然后在后台调用退出登录API（不阻塞UI）
+      UserManager.logout().catchError((e) {
+        // 退出登录API失败不影响UI，因为已经跳转到登录页了
+      });
     } catch (e) {
-      // 即使退出失败也要跳转到登录页
-      Get.offAllNamed(KissuRoutePath.login);
+      // 即使出错也要尝试跳转到登录页（使用导航锁）
+      LoginNavigationLock.navigateToLoginSafely();
     }
   }
 }
@@ -193,24 +202,16 @@ class PhoneChangePage extends StatelessWidget {
                   // 页面顶部的标题和返回按钮
                   Row(
                     children: [
-                      GestureDetector(
+                      CommonBackButton(
                         onTap: () => Get.back(),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          alignment: Alignment.centerLeft,
-                          child: Image.asset(
-                            'assets/images/kissu_mine_back.webp',
-                            width: 24,
-                            height: 24,
-                          ),
-                        ),
+                        assetPath: 'assets/images/kissu_mine_back.webp',
+                        iconSize: 24,
                       ),
                       Expanded(
-                        child: Text(
+                        child: const Text(
                           '更换手机号绑定',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Color(0xFF333333),
                             fontSize: 18,
                             fontWeight: FontWeight.w400,
@@ -242,6 +243,7 @@ class PhoneChangePage extends StatelessWidget {
                           false,
                           controller.phoneNumber,
                           context,
+                          phoneChangeController: controller,
                           focusNode: controller.phoneFocusNode,
                           controller: controller.phoneController,
                         ),
@@ -251,6 +253,7 @@ class PhoneChangePage extends StatelessWidget {
                           true,
                           controller.verificationCode,
                           context,
+                          phoneChangeController: controller,
                           focusNode: controller.codeFocusNode,
                           controller: controller.codeController,
                         ),
@@ -261,7 +264,7 @@ class PhoneChangePage extends StatelessWidget {
                           onTap: () async {
                             // 如果正在加载，防止重复点击
                             if (controller.isLoading.value) return;
-                            
+
                             // 释放所有焦点并收起键盘
                             controller.phoneFocusNode.unfocus();
                             controller.codeFocusNode.unfocus();
@@ -281,9 +284,9 @@ class PhoneChangePage extends StatelessWidget {
                                         color: Colors.white,
                                         size: 4.0,
                                       )
-                                    : Text(
+                                    : const Text(
                                         '完成',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white,
                                           fontSize: 18,
                                           fontWeight: FontWeight.w500,
@@ -310,11 +313,10 @@ class PhoneChangePage extends StatelessWidget {
     bool isCodeField,
     RxString field,
     BuildContext context, {
+    required PhoneChangeController phoneChangeController,
     required FocusNode focusNode,
     required TextEditingController controller,
   }) {
-    final phoneController = Get.find<PhoneChangeController>();
-
     return TextField(
       controller: controller,
       focusNode: focusNode,
@@ -356,18 +358,18 @@ class PhoneChangePage extends StatelessWidget {
                   GestureDetector(
                     onTap: () {
                       // 释放所有焦点并收起键盘
-                      phoneController.phoneFocusNode.unfocus();
-                      phoneController.codeFocusNode.unfocus();
+                      phoneChangeController.phoneFocusNode.unfocus();
+                      phoneChangeController.codeFocusNode.unfocus();
                       FocusScope.of(context).unfocus();
-                      phoneController.validatePhoneNumber();
+                      phoneChangeController.validatePhoneNumber();
                     },
                     child: Obx(
                       () => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 21),
                         child: Text(
-                          phoneController.codeButtonText,
+                          phoneChangeController.codeButtonText,
                           style: TextStyle(
-                            color: phoneController.isCountdownActive
+                            color: phoneChangeController.isCountdownActive
                                 ? const Color(0xFF999999)
                                 : const Color(0xFFFF839E),
                             fontSize: 15,

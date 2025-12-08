@@ -56,6 +56,10 @@ class TrackMarkerManager {
   /// 获取临时 InfoWindow 标记
   Marker? get tempInfoWindowMarker => _tempInfoWindowMarker;
   
+  // 🚀 防抖机制：避免频繁更新地图，减少卡顿
+  Timer? _mapUpdateTimer;
+  bool _pendingMapUpdate = false;
+  
   /// 初始坐标信息（从定位页面传递）
   final Rx<InitialCoordinateInfo?> initialCoordinateInfo = Rx<InitialCoordinateInfo?>(null);
   
@@ -220,35 +224,17 @@ class TrackMarkerManager {
   }
   
   /// 显示停留点信息
+  /// 🎯 直接使用标记的 showInfoWindow 方法，这样会使用标记已设置的自定义 InfoWindow
+  /// 🎯 注意：高德地图 SDK 的 showInfoWindow() 可能不会触发适配器，所以使用临时 Marker 方式
   Future<void> _showStopPointInfo(dynamic stopPoint) async {
     try {
       DebugUtil.info('🎯 显示停留点InfoWindow: ${stopPoint.title}');
       
-      // 先隐藏所有 InfoWindow
-      final mapController = getMapController?.call();
-      if (mapController == null) {
-        DebugUtil.error('❌ 地图控制器未准备好');
-        return;
-      }
+      // 🎯 直接使用临时 Marker 方式，因为直接调用 showInfoWindow() 可能不会触发适配器
+      // 临时 Marker 会在创建时自动显示 InfoWindow（如果设置了 autoShowCustomInfoWindow: true）
+      await showInfoWindowForStopPoint(stopPoint);
       
-      await mapController.hideAllInfoWindows();
-      DebugUtil.info('✅ 已隐藏所有InfoWindow');
-      
-      // 找到对应的 Marker ID
-      // stopPoint.index 对应 stopMarkers 列表中的索引
-      if (stopPoint.index >= 0 && stopPoint.index < stopMarkers.length) {
-        final marker = stopMarkers[stopPoint.index];
-        final markerId = marker.id;
-        
-        DebugUtil.info('🎯 准备显示 Marker [$markerId] 的 InfoWindow');
-        
-        // 使用原生API显示 InfoWindow
-        await mapController.showInfoWindow(markerId);
-        
-        DebugUtil.success('✅ InfoWindow 已通过原生API显示');
-      } else {
-        DebugUtil.error('❌ 找不到对应的停留点标记，index: ${stopPoint.index}');
-      }
+      DebugUtil.success('✅ InfoWindow 已通过临时 Marker 方式显示');
     } catch (e) {
       DebugUtil.error('❌ 显示停留点InfoWindow失败: $e');
     }
@@ -347,7 +333,32 @@ class TrackMarkerManager {
   }
   
   /// 强制地图更新，确保UI同步
+  /// 🚀 防抖版本的地图更新，避免频繁更新导致卡顿
   void _forceMapUpdate() {
+    // 如果已经有待处理的更新，标记需要更新但不立即执行
+    if (_mapUpdateTimer != null && _mapUpdateTimer!.isActive) {
+      _pendingMapUpdate = true;
+      return;
+    }
+
+    // 立即执行一次更新，然后设置防抖定时器
+    _pendingMapUpdate = false;
+    _mapUpdateTimer?.cancel();
+    _mapUpdateTimer = Timer(const Duration(milliseconds: 150), () {
+      // 如果防抖期间有新的更新请求，执行最后一次更新
+      if (_pendingMapUpdate) {
+        _pendingMapUpdate = false;
+        _performMapUpdate();
+      }
+      _mapUpdateTimer = null;
+    });
+
+    // 立即执行更新
+    _performMapUpdate();
+  }
+
+  /// 执行实际的地图更新操作
+  void _performMapUpdate() {
     DebugUtil.info('🔄 [ForceMapUpdate] 开始强制更新地图');
     
     // 强制刷新所有响应式变量，让UI重新构建
@@ -356,6 +367,12 @@ class TrackMarkerManager {
     highlightCircles.refresh(); // 🎯 刷新高亮圆圈
     
     DebugUtil.success('✅ [ForceMapUpdate] 地图更新完成（包含圆圈）');
+  }
+  
+  /// 清理资源
+  void dispose() {
+    _mapUpdateTimer?.cancel();
+    _mapUpdateTimer = null;
   }
   
   /// 🎯 解析停留点信息，提取位置名称、停留时长和停留时间
@@ -528,38 +545,34 @@ class TrackMarkerManager {
     LatLng? startPoint,
     LatLng? endPoint,
   }) async {
-    if (stopPoints.isEmpty) return [];
+    DebugUtil.info('🎯 [CreateStopMarkers] 开始创建停留点标记，输入数量: ${stopPoints.length}');
+    DebugUtil.info('🎯 [CreateStopMarkers] 起点: $startPoint, 终点: $endPoint');
     
-    DebugUtil.info('开始创建停留点标记，数量: ${stopPoints.length}');
+    if (stopPoints.isEmpty) {
+      DebugUtil.warning('⚠️ [CreateStopMarkers] stopPoints为空，不创建标记');
+      return [];
+    }
+    
     final markers = <Marker>[];
     
     try {
       for (int i = 0; i < stopPoints.length; i++) {
         final point = stopPoints[i];
         
+        DebugUtil.info('🎯 [CreateStopMarkers] 处理停留点[$i]: position=${point.position}, serialNumber=${point.serialNumber}');
+        
         try {
-          // 检查是否与起点或终点重复（距离小于30米则认为重复）
-          bool isNearStartPoint = false;
-          bool isNearEndPoint = false;
-          
-          if (startPoint != null) {
-            final distanceToStart = _calculateDistance(point.position, startPoint);
-            isNearStartPoint = distanceToStart < 30;
-          }
-          
-          if (endPoint != null) {
-            final distanceToEnd = _calculateDistance(point.position, endPoint);
-            isNearEndPoint = distanceToEnd < 30;
-          }
-          
-          // 如果停留点与起点或终点过近，则跳过创建停留点标记
-          if (isNearStartPoint || isNearEndPoint) {
-            DebugUtil.info('🚫 跳过停留点 $i：与起点/终点距离过近 (起点距离: ${isNearStartPoint ? _calculateDistance(point.position, startPoint!).toStringAsFixed(1) : "无"}, 终点距离: ${isNearEndPoint ? _calculateDistance(point.position, endPoint!).toStringAsFixed(1) : "无"})');
-            continue;
-          }
+          // 🎯 移除距离过滤逻辑，所有 point_type="stop" 的点都应该显示
           
           // 🎯 使用停留点的 serialNumber 作为显示编号（与列表保持一致）
           final displayNumber = point.serialNumber;
+          
+          if (displayNumber == null || displayNumber.isEmpty) {
+            DebugUtil.warning('⚠️ [CreateStopMarkers] 停留点[$i]的serialNumber为空，跳过创建');
+            continue;
+          }
+          
+          DebugUtil.info('🎯 [CreateStopMarkers] 停留点[$i] serialNumber=$displayNumber，开始创建marker');
           
           // 创建自定义停留点图标（粉色圆形/椭圆形，带数字）
           final customIcon = await _createCustomStopPointIcon(displayNumber);
@@ -571,9 +584,9 @@ class TrackMarkerManager {
             position: point.position,  // StayPoint 的 position 字段已经是 LatLng 类型
             icon: customIcon,
             onTap: (_) => onStopPointTap(point),
-            // 设置InfoWindow数据（但不自动显示）
+            // 设置InfoWindow数据（点击时自动显示自定义 InfoWindow）
             infoWindowEnable: true,
-            isTrackStyle: true, // 使用轨迹样式 InfoWindow
+            isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
             stayDuration: stopInfo['stayDuration'], // 停留时长
             stayTime: stopInfo['stayTime'], // 停留时间
             zIndex: 1.0, // 🎯 设置较低的层级，确保播放头像marker在停留点之上显示
@@ -605,19 +618,32 @@ class TrackMarkerManager {
     return markers;
   }
   
+  /// 🔧 计算适配后的尺寸（参考定位页面的DPI和屏幕缩放处理）
+  /// 基于375px设计稿的比例计算，确保在不同设备上按比例缩放
+  double _calculateAdaptedSize(double designSize) {
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr; // 逻辑像素宽度
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+    // 先按屏幕比例缩放，再乘以DPI
+    return designSize * screenScale * dpr;
+  }
+
   /// 创建自定义停留点图标（粉色圆形/椭圆形，带数字）
   /// 参数: number - 显示的数字
   /// 根据数字位数自适应宽度：个位数为圆形，多位数为椭圆形
   Future<BitmapDescriptor> _createCustomStopPointIcon(String number) async {
-    const double borderWidth = 2.0; // 白色边框宽度
-    const double minRadius = 30.0; // 最小半径（圆形）
-    const double fontSize = 32.0; // 字体大小
+    // 🔧 使用适配后的尺寸（设计稿：边框1.5px，最小半径10px，字体10px）
+    // 停留点应该明显比起点终点(44x46)小，所以直径约20px，半径10px
+    final borderWidth = _calculateAdaptedSize(1.5); // 白色边框宽度
+    final minRadius = _calculateAdaptedSize(10.0); // 最小半径（圆形），直径20px
+    final fontSize = _calculateAdaptedSize(10.0); // 字体大小
     
     // 先测量文本尺寸
     final textPainter = TextPainter(
       text: TextSpan(
         text: number,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
           fontSize: fontSize,
           fontWeight: FontWeight.bold,
@@ -631,9 +657,13 @@ class TrackMarkerManager {
     final textWidth = textPainter.width;
     final textHeight = textPainter.height;
     
+    // 🔧 使用适配后的边距（按比例缩小）
+    final horizontalPadding = _calculateAdaptedSize(2.5); // 左右边距
+    final verticalPadding = _calculateAdaptedSize(1.5); // 上下边距
+    
     // 计算所需的宽度和高度（刚好包裹数字+少量空间）
-    final requiredWidth = textWidth + 6; // 文本宽度 + 左右边距
-    final requiredHeight = textHeight + 4; // 文本高度 + 上下边距
+    final requiredWidth = textWidth + horizontalPadding; // 文本宽度 + 左右边距
+    final requiredHeight = textHeight + verticalPadding; // 文本高度 + 上下边距
     
     // 确定最终的宽度和高度（至少为圆形的直径）
     final width = max(requiredWidth, minRadius * 2);
@@ -700,8 +730,11 @@ class TrackMarkerManager {
       // 创建起点标记
       if (startPoint != null) {
         try {
+          // 🔧 使用适配后的尺寸（设计稿：44x46）
+          final adaptedWidth = _calculateAdaptedSize(44.0);
+          final adaptedHeight = _calculateAdaptedSize(46.0);
           final startIcon = await BitmapDescriptor.fromAssetImage(
-            const ImageConfiguration(size: Size(44, 46)),
+            ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
             'assets/images/kissu_location_start.webp',
           );
           
@@ -719,8 +752,9 @@ class TrackMarkerManager {
           DebugUtil.success('✅ 轨迹起点标记创建成功');
         } catch (e) {
           DebugUtil.error('❌ 创建起点标记失败: $e，使用降级方案');
-          // 降级方案：使用绿色圆点
-          final fallbackIcon = await _createColoredCircleIcon(Colors.green, 24);
+          // 降级方案：使用绿色圆点（使用适配后的尺寸）
+          final fallbackSize = _calculateAdaptedSize(24.0);
+          final fallbackIcon = await _createColoredCircleIcon(Colors.green, fallbackSize);
             markers.add(Marker(
               position: startPoint,
               icon: fallbackIcon,
@@ -734,47 +768,45 @@ class TrackMarkerManager {
         }
       }
       
-      // 创建终点标记（只有当起点和终点不是同一个点时）
-      if (endPoint != null && startPoint != null) {
-        final distance = _calculateDistance(startPoint, endPoint);
-        
-        // 只有当起点和终点距离超过50米时才显示终点标记
-        if (distance > 50) {
-          try {
-            final endIcon = await BitmapDescriptor.fromAssetImage(
-              const ImageConfiguration(size: Size(44, 46)),
-              'assets/images/kissu_location_end.webp',
-            );
-            
-            markers.add(Marker(
-              position: endPoint,
-              icon: endIcon,
-              anchor: const Offset(0.59, 0.83), // 设置锚点为图片的 (26, 38) 位置
-              infoWindow: const InfoWindow(title: '', snippet: ''),
-              zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在终点标记之上显示
-              onTap: (_) {
-                DebugUtil.info('点击了轨迹终点');
-                _moveMapToLocation(endPoint);
-              },
-            ));
-            DebugUtil.success('✅ 轨迹终点标记创建成功');
-          } catch (e) {
-            DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
-            // 降级方案：使用红色圆点
-            final fallbackIcon = await _createColoredCircleIcon(Colors.red, 24);
-            markers.add(Marker(
-              position: endPoint,
-              icon: fallbackIcon,
-              infoWindow: const InfoWindow(title: '', snippet: ''),
-              zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在终点标记之上显示
-              onTap: (_) {
-                DebugUtil.info('点击了轨迹终点');
-                _moveMapToLocation(endPoint);
-              },
-            ));
-          }
-        } else {
-          DebugUtil.info('📍 起点和终点距离过近(${distance.toStringAsFixed(2)}米)，不显示终点标记');
+      // 创建终点标记（只要endPoint不为null就显示，locations字段里只要数据大于1就肯定有起点和终点）
+      if (endPoint != null) {
+        // 🎯 移除距离限制，只要locations数量大于1就显示终点
+        try {
+          // 🔧 使用适配后的尺寸（设计稿：44x46）
+          final adaptedWidth = _calculateAdaptedSize(44.0);
+          final adaptedHeight = _calculateAdaptedSize(46.0);
+          final endIcon = await BitmapDescriptor.fromAssetImage(
+            ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+            'assets/images/kissu_location_end.webp',
+          );
+          
+          markers.add(Marker(
+            position: endPoint,
+            icon: endIcon,
+            anchor: const Offset(0.59, 0.83), // 设置锚点为图片的 (26, 38) 位置
+            infoWindow: const InfoWindow(title: '', snippet: ''),
+            zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在终点标记之上显示
+            onTap: (_) {
+              DebugUtil.info('点击了轨迹终点');
+              _moveMapToLocation(endPoint);
+            },
+          ));
+          DebugUtil.success('✅ 轨迹终点标记创建成功');
+        } catch (e) {
+          DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
+          // 降级方案：使用红色圆点（使用适配后的尺寸）
+          final fallbackSize = _calculateAdaptedSize(24.0);
+          final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
+          markers.add(Marker(
+            position: endPoint,
+            icon: fallbackIcon,
+            infoWindow: const InfoWindow(title: '', snippet: ''),
+            zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在终点标记之上显示
+            onTap: (_) {
+              DebugUtil.info('点击了轨迹终点');
+              _moveMapToLocation(endPoint);
+            },
+          ));
         }
       }
       
@@ -857,6 +889,16 @@ class TrackMarkerManager {
     // 添加轨迹起终点标记
     markers.addAll(trackStartEndMarkers);
     
+    // 🎯 添加临时 InfoWindow 标记（如果存在）
+    if (_tempInfoWindowMarker != null) {
+      try {
+        markers.add(_tempInfoWindowMarker!);
+        DebugUtil.info('✅ 已添加临时 InfoWindow 标记到地图');
+      } catch (e) {
+        DebugUtil.error('❌ 添加临时 InfoWindow 标记失败: $e');
+      }
+    }
+    
     // 添加播放头像标记（如果存在且正在播放或暂停）
     if (replayAvatarMarker != null) {
       try {
@@ -882,14 +924,17 @@ class TrackMarkerManager {
   }
   
   /// 处理停留点点击
+  /// 🎯 注意：当点击标记时，Android 原生代码会自动显示自定义 InfoWindow（因为标记已设置 isTrackStyle: true）
+  /// 所以这里不需要手动调用 _showStopPointInfo，只需要处理其他逻辑（移动地图、绘制圆圈等）
   void handleStopPointTap(dynamic stopPoint) {
     DebugUtil.info('停留点被点击: ${stopPoint.title}');
     
     // 上报停留点点击埋点
     _trackStopPointClick();
     
-    // 先清除之前的高亮（InfoWindow + 圆圈）
-    clearMapHighlights();
+    // 🎯 不清除 InfoWindow，因为标记会自动显示自定义 InfoWindow
+    // 只清除圆圈，然后重新绘制
+    clearAllHighlightCircles();
     
     // 延迟执行，避免与清除操作冲突
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -901,16 +946,11 @@ class TrackMarkerManager {
       Future.delayed(const Duration(milliseconds: 300), () {
         _moveMapToLocation(stopPoint.position);
         
-        // 3. 等待地图移动完成后显示InfoWindow
-        Future.delayed(const Duration(milliseconds: 500), () async {
-          // 显示停留点详情（InfoWindow）
-          await _showStopPointInfo(stopPoint);
-          
-          // 4. InfoWindow创建完成后再绘制高亮圆圈
-          Future.delayed(const Duration(milliseconds: 200), () {
-            DebugUtil.info('🎯 InfoWindow创建完成，现在绘制高亮圆圈');
-            drawHighlightCircle(stopPoint.position);
-          });
+        // 3. 等待地图移动完成后绘制高亮圆圈
+        // 🎯 不需要手动显示 InfoWindow，因为标记会自动显示自定义 InfoWindow
+        Future.delayed(const Duration(milliseconds: 500), () {
+          DebugUtil.info('🎯 地图移动完成，现在绘制高亮圆圈');
+          drawHighlightCircle(stopPoint.position);
         });
       });
     });

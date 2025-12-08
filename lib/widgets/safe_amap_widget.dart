@@ -37,6 +37,8 @@ class SafeAMapWidget extends StatefulWidget {
   final VoidCallback? onInfoWindowClose;
   /// 是否启用自定义地图样式
   final bool enableCustomStyle;
+  /// 外层可监听PlatformView销毁，及早释放Controller
+  final VoidCallback? onMapDisposed;
 
   const SafeAMapWidget({
     Key? key,
@@ -64,6 +66,7 @@ class SafeAMapWidget extends StatefulWidget {
     this.onPoiTouched,
     this.onInfoWindowClose,
     this.enableCustomStyle = true, // 默认启用自定义样式
+    this.onMapDisposed,
   }) : super(key: key);
 
   @override
@@ -119,6 +122,7 @@ class _SafeAMapWidgetState extends State<SafeAMapWidget> {
   @override
   void dispose() {
     logDebug('🗺️ SafeAMapWidget 销毁', tag: 'SafeAMapWidget');
+    widget.onMapDisposed?.call();
     super.dispose();
   }
 

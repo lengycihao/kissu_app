@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:kissu_app/services/version_service.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 class AboutUsPage extends StatefulWidget {
   const AboutUsPage({super.key});
@@ -109,16 +110,13 @@ class _AboutUsPageState extends State<AboutUsPage> {
             children: [
               // 自定义导航栏
               Padding(
-                padding: const EdgeInsets.only(top: 62, left: 20, right: 16),
+                padding:   EdgeInsets.only(top: MediaQuery.of(context).padding.top+12, left: 6, right: 16),
                 child: Row(
                   children: [
-                    GestureDetector(
+                    CommonBackButton(
                       onTap: () => Get.back(),
-                      child: Image.asset(
-                        "assets/images/kissu_mine_back.webp",
-                        width: 24,
-                        height: 24,
-                      ),
+                      assetPath: "assets/images/kissu_mine_back.webp",
+                      iconSize: 22,
                     ),
                     const Spacer(),
                     const Text(
@@ -162,7 +160,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      "assets/3.0/kissu3_love_avater.webp",
+                      "assets/3.0/kissu3_about_us_logo.webp",
                       width: 90,
                       height: 90,
                     ),
@@ -172,35 +170,17 @@ class _AboutUsPageState extends State<AboutUsPage> {
 
               const SizedBox(height: 16),
 
-              // 应用名称
-              const Text(
-                "KISSU",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF333333),
-                  letterSpacing: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: 8),
+               
 
               // 版本号
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEA39C).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "v$_version",
+              Text(
+                  "当前版本：v$_version",
                   style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFFFEA39C),
+                    fontSize: 16,
+                    color: Color(0xFF333333),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
 
               const SizedBox(height: 32),
 

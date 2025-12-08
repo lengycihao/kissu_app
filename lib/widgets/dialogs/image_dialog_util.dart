@@ -510,8 +510,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       ),
                     )
                   else
-                    SizedBox(height: 50),
-                  SizedBox(height: 13),
+                   
                   GestureDetector(
                     onTap: _isUploading ? null : () async {
                       if (_selectedImageFile == null) {
@@ -542,7 +541,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       ),
                     ),
                   ),
-                  SizedBox(height: 15),
+                  SizedBox(height: 23),
                   Text(
                     "*更多可自定义内容不断内测中...",
                     style: TextStyle(

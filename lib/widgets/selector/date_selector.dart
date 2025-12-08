@@ -11,27 +11,29 @@ class DateSelector extends StatelessWidget {
   DateSelector({Key? key, this.onSelect, this.externalSelectedIndex})
       : super(key: key);
 
-  /// 最近7天日期列表（今天及之前6天）
+  /// 最近7天日期列表（从6天前到今天），不包含未来日期
+  /// 今天始终在最右边
   List<DateTime> get recentDates {
     final now = DateTime.now();
-    // 反转顺序，让最左边是最早的，最右边是今天
+    // 生成最近7天：最左边是6天前，最右边是今天
     return List.generate(7, (index) => now.subtract(Duration(days: 6 - index)));
   }
 
-  /// 日期显示文本（今天/昨天/周几）
+  /// 日期显示文本：显示周几（周一、周二...周日）
   String getDateText(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date).inDays;
-
-    if (difference == 0) return '今天';
-    if (difference == 1) return '昨天';
-
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return weekdays[date.weekday % 7];
+    const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    // weekday: 1-7 映射到 0-6
+    return weekdays[date.weekday - 1];
   }
 
-  /// 日期数字
-  String getDateNumber(DateTime date) => date.day.toString();
+  /// 日期数字：今天显示“今”，其他显示具体日期数字
+  String getDateNumber(DateTime date) {
+    final now = DateTime.now();
+    final bool isToday =
+        now.year == date.year && now.month == date.month && now.day == date.day;
+    if (isToday) return '今';
+    return date.day.toString();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -9,7 +9,6 @@ import 'package:amap_flutter_location/amap_location_option.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:kissu_app/model/location_model/location_report_model.dart';
-import 'package:kissu_app/network/public/location_report_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
@@ -19,6 +18,7 @@ import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
+import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 // 枚举定义已简化
 
@@ -164,8 +164,10 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   // 6. 上报完成后清空收集池
   // 7. 直接使用原始定位数据
   List<LocationReportModel> _collectionBuffer = []; // 收集缓冲区
-  LocationReportModel? _lastReportedLocation; // 上次上报的位置
+  // ignore: unused_field
+  LocationReportModel? _lastReportedLocation; // 原生通道唯一后占位
   Timer? _reportTimer; // 上报定时器
+  // ignore: unused_field
   bool _isFirstLocationSuccess = true; // 是否首次定位成功
   bool _isReportStrategyRunning = false; // 上报策略是否正在运行
 
@@ -175,12 +177,14 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   // 🚀 核心策略参数 - 新的收集与上报分离策略
   static const Duration _reportInterval = Duration(minutes: 1); // 1分钟上报间隔
-  static const double _collectionDistance = 50.0; // 50米收集一个点位（不立即上报）
   // ⚠️ 关键修复：取消distanceFilter，让定位层保证数据完整性，距离过滤在上报层处理
   static const double _distanceFilter = -1; // 不做距离过滤（原50米），改由上报层过滤
   static const int _locationInterval = 5000; // 5秒定位间隔（提高响应性）
   // static const double _desiredAccuracy = 15.0; // 期望精度15米（平衡精度与功耗）
+  // ignore: unused_field
+  static const double _collectionDistance = 50.0; // 50米收集一个点位（不立即上报）
   static const int _maxCollectionBufferSize = 12; // 最大收集缓冲区大小（1分钟内最多12个点，5秒一个）
+  // ignore: unused_field
   static const int _maxHistorySize = 200; // 最大历史记录数
 
   // 智能参数已简化
@@ -1392,6 +1396,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   }
 
   /// 计算两点间距离（米）
+  // ignore: unused_element
   double _calculateDistance(
     double lat1,
     double lon1,
@@ -2257,27 +2262,13 @@ extension BackgroundTaskExtension on SimpleLocationService {
 
   /// 检查待上报数据
   void _checkPendingReports() {
-    // 检查是否有待上报的数据
-    if (_collectionBuffer.isNotEmpty) {
-      logger.info('保活检查：发现${_collectionBuffer.length}个待上报位置', tag: 'Location');
-      _reportCollectedLocations();
-    }
+    // Flutter 上报已禁用，跳过待上报检查
   }
 
   /// 上报收集的位置数据
+  // ignore: unused_element
   void _reportCollectedLocations() {
-    if (_collectionBuffer.isNotEmpty) {
-      final locationsToReport = List<LocationReportModel>.from(
-        _collectionBuffer,
-      );
-      _collectionBuffer.clear();
-
-      logger.debug('保活上报: ${locationsToReport.length}个位置点', tag: 'Location');
-      _reportMultipleLocations(locationsToReport, '保活检查上报');
-
-      // 已简化，不再记录上报时间
-      _lastReportedLocation = locationsToReport.last;
-    }
+    // Flutter 上报已禁用，跳过保活上报
   }
 
   /// 重启定位服务（智能增强版）
@@ -2443,6 +2434,13 @@ extension PermissionManagementExtension on SimpleLocationService {
       logger.info('权限状态更新:', tag: 'Location');
       logger.debug('前台定位: ${locationStatus.name}', tag: 'Location');
       logger.debug('后台定位: ${backgroundStatus.name}', tag: 'Location');
+      
+      // 更新 header 中的定位权限状态
+      bool isGranted = locationStatus.isGranted;
+      if (!isGranted) {
+        isGranted = backgroundStatus.isGranted;
+      }
+      BusinessHeaderInterceptor.updateLocationPermissionStatus(isGranted);
     } catch (e) {
       logger.error('更新权限状态失败: ', tag: 'Location');
     }
@@ -2490,10 +2488,14 @@ extension PermissionManagementExtension on SimpleLocationService {
       logger.info('前台定位权限已开启', tag: 'Location');
       // 上报定位开启事件
       SensitiveDataService.instance.reportLocationOpen();
+      // 更新 header 中的定位权限状态
+      BusinessHeaderInterceptor.updateLocationPermissionStatus(true);
     } else if (from.isGranted && to.isDenied) {
       logger.error('前台定位权限已关闭', tag: 'Location');
       // 上报定位关闭事件
       SensitiveDataService.instance.reportLocationClose();
+      // 更新 header 中的定位权限状态
+      BusinessHeaderInterceptor.updateLocationPermissionStatus(false);
       stopLocation(); // 自动停止定位服务
     }
   }
@@ -2507,12 +2509,32 @@ extension PermissionManagementExtension on SimpleLocationService {
 
     if (from.isDenied && to.isGranted) {
       logger.info('后台定位权限已开启，提升定位服务能力', tag: 'Location');
+      // 更新 header 中的定位权限状态（后台权限开启时，定位权限为开启状态）
+      BusinessHeaderInterceptor.updateLocationPermissionStatus(true);
       // 重新配置定位参数以支持更好的后台定位
       if (isLocationEnabled.value) {
         _restartContinuousLocation();
       }
     } else if (from.isGranted && to.isDenied) {
       logger.warning('后台定位权限已关闭，可能影响后台定位效果', tag: 'Location');
+      // 检查前台定位权限是否还开启，如果前台权限也关闭了，则更新 header
+      _updateLocationPermissionHeaderFromStatus();
+    }
+  }
+  
+  /// 根据当前权限状态更新 header 中的定位权限状态
+  Future<void> _updateLocationPermissionHeaderFromStatus() async {
+    try {
+      final locationStatus = await Permission.location.status;
+      bool isGranted = locationStatus.isGranted;
+      if (!isGranted) {
+        // 如果前台权限未开启，检查后台权限
+        final alwaysStatus = await Permission.locationAlways.status;
+        isGranted = alwaysStatus.isGranted;
+      }
+      BusinessHeaderInterceptor.updateLocationPermissionStatus(isGranted);
+    } catch (e) {
+      logger.error('更新定位权限 header 失败: $e', tag: 'Location');
     }
   }
 
@@ -2558,22 +2580,44 @@ extension PermissionManagementExtension on SimpleLocationService {
       _gpsStatusSubscription = SimpleLocationService._gpsStatusChannel
           .receiveBroadcastStream()
           .listen(
-            (dynamic isEnabled) {
-              if (isEnabled is bool) {
+            (dynamic data) {
+              bool? isEnabled;
+              
+              // 支持bool类型（标准格式）
+              if (data is bool) {
+                isEnabled = data;
+              } 
+              // 兼容Map类型（旧版本格式）
+              else if (data is Map) {
+                final mapData = Map<String, dynamic>.from(data);
+                isEnabled = mapData['isEnabled'] as bool?;
+                if (isEnabled == null) {
+                  logger.warning(
+                    'GPS状态Map格式错误，缺少isEnabled字段: $mapData',
+                    tag: 'Location',
+                  );
+                }
+              } 
+              // 其他类型，记录警告
+              else {
+                logger.warning(
+                  'GPS状态数据类型错误: ${data.runtimeType}，数据: $data',
+                  tag: 'Location',
+                );
+                return;
+              }
+              
+              // 处理GPS状态变化
+              if (isEnabled != null) {
                 logger.verbose(
                   '收到GPS状态变化通知: ${isEnabled ? "开启" : "关闭"}',
                   tag: 'Location',
                 );
                 _handleGpsStatusChange(isEnabled);
-              } else {
-                logger.warning(
-                  'GPS状态数据类型错误: ${isEnabled.runtimeType}',
-                  tag: 'Location',
-                );
               }
             },
             onError: (dynamic error) {
-              logger.error('GPS状态监听错误: rror', tag: 'Location');
+              logger.error('GPS状态监听错误: $error', tag: 'Location');
             },
             cancelOnError: false, // 发生错误时不取消订阅
           );
@@ -2610,10 +2654,14 @@ extension PermissionManagementExtension on SimpleLocationService {
       // GPS开启
       logger.info('GPS已开启，上报定位开启事件', tag: 'Location');
       SensitiveDataService.instance.reportLocationOpen();
+      // 更新 header 中的定位权限状态（需要检查实际权限状态）
+      _updateLocationPermissionHeaderFromStatus();
     } else {
       // GPS关闭
       logger.error('GPS已关闭，上报定位关闭事件', tag: 'Location');
       SensitiveDataService.instance.reportLocationClose();
+      // GPS关闭时，定位权限视为关闭
+      BusinessHeaderInterceptor.updateLocationPermissionStatus(false);
     }
   }
 }
@@ -2627,72 +2675,7 @@ extension LocationValidationExtension on SimpleLocationService {
   /// 4. 每1分钟上报一次收集池内容，上报完清空收集池
   /// 5. 直接使用原始位置数据
   void _handleLocationReporting(LocationReportModel location) {
-    logger.info(
-      '_handleLocationReporting: _isFirstLocationSuccess = $_isFirstLocationSuccess',
-      tag: 'Location',
-    );
-    logger.info('收集缓冲区当前大小: ${_collectionBuffer.length}', tag: 'Location');
-
-    // 🚀 策略1: 首次定位成功后验证有效性，有效才放入收集池
-    if (_isFirstLocationSuccess) {
-      // 首先验证首次定位是否有效
-      if (!_isBasicLocationValid(location)) {
-        logger.error(
-          '首次定位无效，抛弃并等待下次定位: ${location.latitude}, ${location.longitude}',
-          tag: 'Location',
-        );
-        return; // 抛弃无效的首次定位，保持_isFirstLocationSuccess为true，等待下次有效定位
-      }
-
-      // 首次定位有效，设置标记并放入收集池
-      _isFirstLocationSuccess = false;
-      logger.info(
-        '首次定位有效，放入收集池: ${location.latitude}, ${location.longitude}',
-        tag: 'Location',
-      );
-
-      // 放入收集池
-      _collectLocationToBuffer(location, 'app启动首次有效定位');
-
-      // 启动定时上报器（检查是否已运行）
-      if (!_isReportStrategyRunning) {
-        _startReportTimer();
-      }
-      return;
-    }
-
-    // 🚀 策略2: 简化的距离判断收集逻辑
-    bool shouldCollect = false;
-    String collectReason = '';
-
-    if (_collectionBuffer.isEmpty) {
-      // 收集池为空，直接放入
-      shouldCollect = true;
-      collectReason = '收集池为空，直接放入';
-    } else {
-      // 收集池不为空，计算与最新点的距离
-      final latestLocation = _collectionBuffer.last;
-      double distance = _calculateDistance(
-        double.parse(latestLocation.latitude),
-        double.parse(latestLocation.longitude),
-        double.parse(location.latitude),
-        double.parse(location.longitude),
-      );
-
-      if (distance >= SimpleLocationService._collectionDistance) {
-        shouldCollect = true;
-        collectReason = '距离${distance.toStringAsFixed(1)}m≥50m';
-      } else {
-        collectReason = '距离${distance.toStringAsFixed(1)}m<50m，抛弃';
-      }
-    }
-
-    // 执行收集或抛弃
-    if (shouldCollect) {
-      _collectLocationToBuffer(location, collectReason);
-    } else {
-      logger.verbose('位置更新被抛弃: $collectReason', tag: 'Location');
-    }
+    // 原生通道为唯一上报通道；Flutter 层不上报
   }
 
   /// 🚀 简化验证：只做基础的经纬度有效性检查
@@ -2726,6 +2709,7 @@ extension LocationValidationExtension on SimpleLocationService {
   // 运动状态检测和环境感知方法已删除，简化为基础的精度和距离过滤
 
   /// 🚀 收集位置到缓冲区
+  // ignore: unused_element
   void _collectLocationToBuffer(LocationReportModel location, String reason) {
     _collectionBuffer.add(location);
 
@@ -2757,6 +2741,7 @@ extension LocationValidationExtension on SimpleLocationService {
   }
 
   /// 🚀 启动定时上报器
+  // ignore: unused_element
   void _startReportTimer() {
     if (_isReportStrategyRunning) {
       logger.warning('上报策略已在运行，跳过重复启动', tag: 'Location');
@@ -2778,49 +2763,7 @@ extension LocationValidationExtension on SimpleLocationService {
 
   /// 🚀 执行定时上报
   void _performScheduledReport() {
-    final now = DateTime.now();
-
-    if (_collectionBuffer.isNotEmpty) {
-      // 获取收集池中的点位
-      final locationsToReport = List<LocationReportModel>.from(
-        _collectionBuffer,
-      );
-
-      // 🔥 重要：如果收集池只有一个点，将时间戳改为当前时间戳
-      if (locationsToReport.length == 1) {
-        final currentTimestamp = (now.millisecondsSinceEpoch ~/ 1000)
-            .toString();
-        final originalLocation = locationsToReport[0];
-
-        // 创建新的位置对象，修改时间戳
-        final updatedLocation = LocationReportModel(
-          longitude: originalLocation.longitude,
-          latitude: originalLocation.latitude,
-          locationTime: currentTimestamp, // 使用当前时间戳
-          speed: originalLocation.speed,
-          altitude: originalLocation.altitude,
-          locationName: originalLocation.locationName,
-          accuracy: originalLocation.accuracy,
-        );
-
-        locationsToReport[0] = updatedLocation;
-        logger.debug('单点上报：时间戳已修改为当前时间 $currentTimestamp', tag: 'Location');
-      } else {
-        logger.debug('多点上报：保持原始时间戳', tag: 'Location');
-      }
-
-      // 清空收集池
-      _collectionBuffer.clear();
-
-      logger.debug('定时上报: ${locationsToReport.length}个位置点', tag: 'Location');
-      _reportMultipleLocations(locationsToReport, '定时上报');
-
-      if (locationsToReport.isNotEmpty) {
-        _lastReportedLocation = locationsToReport.last;
-      }
-    } else {
-      logger.warning('定时上报跳过: 收集池为空', tag: 'Location');
-    }
+    // 原生为唯一上报通道，Flutter 定时上报逻辑已禁用
   }
 
   /// 🚀 批量位置上报
@@ -2828,49 +2771,7 @@ extension LocationValidationExtension on SimpleLocationService {
     List<LocationReportModel> locations,
     String reason,
   ) async {
-    if (isReporting.value) {
-      logger.warning('正在上报中，跳过本次批量上报', tag: 'Location');
-      return;
-    }
-
-    if (locations.isEmpty) {
-      logger.warning('批量上报列表为空', tag: 'Location');
-      return;
-    }
-
-    try {
-      isReporting.value = true;
-      logger.debug('开始批量上报: $reason', tag: 'Location');
-      logger.verbose('批量上报数量: ${locations.length}个位置点', tag: 'Location');
-
-      // 打印每个位置的简要信息
-      for (int i = 0; i < locations.length; i++) {
-        final loc = locations[i];
-        logger.debug(
-          '[$i] ${loc.latitude}, ${loc.longitude}, 精度: ${loc.accuracy}m',
-          tag: 'Location',
-        );
-      }
-
-      final api = LocationReportApi();
-      final result = await api.reportLocation(locations);
-
-      if (result.isSuccess) {
-        logger.info('批量位置上报成功: $reason', tag: 'Location');
-        logger.info('上报数量: ${locations.length}个位置点', tag: 'Location');
-        logger.info('服务器响应: ${result.msg}', tag: 'Location');
-      } else {
-        logger.error('批量位置上报失败: ${result.msg}', tag: 'Location');
-        logger.error('上报原因: $reason', tag: 'Location');
-        logger.error('上报数量: ${locations.length}个位置点', tag: 'Location');
-      }
-    } catch (e) {
-      logger.error('批量上报异常: ', tag: 'Location');
-      logger.error('上报原因: $reason', tag: 'Location');
-      logger.error('上报数量: ${locations.length}个位置点', tag: 'Location');
-    } finally {
-      isReporting.value = false;
-    }
+    // 原生为唯一上报通道，Flutter 层不上报（空实现防止误触）
   }
 
   /// 直接打开定位设置页面

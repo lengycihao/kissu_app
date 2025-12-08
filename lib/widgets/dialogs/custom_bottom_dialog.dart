@@ -87,7 +87,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 412, // 固定内容区域高度
+            height: 420, // 固定内容区域高度
             child: Container(
               decoration: const BoxDecoration(
                 borderRadius: BorderRadius.only(
@@ -194,8 +194,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
               child: Container(
                 // 内层：白色背景
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal: 60,
+                  vertical: 16,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,

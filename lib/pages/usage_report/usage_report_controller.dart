@@ -2,13 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:kissu_app/models/screen_time_model.dart';
-import 'package:kissu_app/models/unlock_record_model.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/network/public/phone_history_api.dart';
-import 'package:kissu_app/utils/usage_record_converter.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -17,6 +14,7 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
@@ -56,7 +54,7 @@ class UsageReportController extends GetxController {
   DateTime? _pageEnterTime;
 
   // 筛选选项（改为多选）
-  final selectedFilters = <String>[].obs; // 已选中的筛选项列表，空列表表示查询全部
+  final selectedFilters = <String>['位置轨迹', 'Kissu', '手机状态', 'App使用统计'].obs; // 已选中的筛选项列表，默认4个都勾选
   final tempSelectedFilters = <String>[].obs; // 临时选中的筛选项列表（用于对话框）
   final filterOptions = ['位置轨迹', 'Kissu', '手机状态', 'App使用统计'];
 
@@ -73,10 +71,28 @@ class UsageReportController extends GetxController {
   // 是否正在下拉刷新
   final isPullingRefresh = false.obs;
   
+  // 另一半用户设备信息
+  final halfUserData = Rxn<HalfUserData>();
+
+  /// 敏感操作记录引导图是否显示
+  final RxBool showGuideOverlay = false.obs;
+  
+  // 设备信息展开状态：null表示未展开，其他值表示当前展开的项类型
+  final selectedDeviceInfoType = Rxn<String>(); // 'distance', 'mobileModel', 'network', 'power'
+
+  // 设备信息悬浮提示的自动隐藏定时器
+  Timer? _deviceInfoTooltipTimer;
+  
   // 筛选类型映射：位置轨迹=4, Kissu=1, 手机状态=2, App使用统计=3
   // 返回逗号分隔的字符串，如 "1,2" 或 null（查询全部）
   String? get sensitiveClassify {
     if (selectedFilters.isEmpty) {
+      return null; // 全部
+    }
+    
+    // 如果所有选项都选中，等同于查询全部，返回 null
+    if (selectedFilters.length == filterOptions.length && 
+        selectedFilters.toSet().containsAll(filterOptions)) {
       return null; // 全部
     }
     
@@ -123,6 +139,9 @@ class UsageReportController extends GetxController {
       }
     });
 
+    // 检查并显示敏感操作记录引导图（首次进入立即检查，不再额外延迟）
+    _checkAndShowGuide();
+
     // // 检查并请求屏幕使用时长权限
     // _checkAndRequestPermission();
   }
@@ -160,7 +179,8 @@ class UsageReportController extends GetxController {
     // 上报页面浏览埋点（计算停留时长）
     _trackPageView();
 
-     _debounceTimer?.cancel();
+    _debounceTimer?.cancel();
+    _deviceInfoTooltipTimer?.cancel();
     debugPrint('📊 UsageReportController 销毁');
     super.onClose();
   }
@@ -242,7 +262,10 @@ class UsageReportController extends GetxController {
         // 刷新时直接替换数据，不清空再添加
         sensitiveRecordList.value = result.data!.list;
         hasMore.value = result.data!.hasMore;
+        // 保存设备信息
+        halfUserData.value = result.data!.halfUserData;
         debugPrint('📄 是否有更多数据: ${hasMore.value}');
+        debugPrint('📱 设备信息: ${result.data!.halfUserData?.mobileModel ?? "未知"}');
       } else {
         debugPrint('❌ 数据加载失败: ${result.msg}');
         _showToastSafely(result.msg ?? '数据加载失败');
@@ -255,6 +278,36 @@ class UsageReportController extends GetxController {
         isLoading.value = false;
       }
     }
+  }
+
+  /// 检查并显示敏感操作记录引导图
+  Future<void> _checkAndShowGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide =
+          prefs.getBool('has_shown_sensitive_record_guide') ?? false;
+
+      debugPrint('🔍 检查敏感操作记录引导图显示状态: $hasShownGuide');
+
+      if (!hasShownGuide) {
+        debugPrint('📱 首次进入敏感操作记录页面，显示引导图');
+
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_sensitive_record_guide', true);
+
+        // 直接显示覆盖层（不再延迟）
+        if (!isClosed) {
+          showGuideOverlay.value = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 检查敏感操作记录引导图状态失败: $e');
+    }
+  }
+
+  /// 隐藏敏感操作记录引导图
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
   }
 
   /// 加载更多数据
@@ -282,6 +335,10 @@ class UsageReportController extends GetxController {
         debugPrint('✅ 加载更多成功，新增${result.data!.list.length}条记录');
         sensitiveRecordList.addAll(result.data!.list);
         hasMore.value = result.data!.hasMore;
+        // 更新设备信息（加载更多时也可能更新）
+        if (result.data!.halfUserData != null) {
+          halfUserData.value = result.data!.halfUserData;
+        }
         debugPrint('📄 是否还有更多数据: ${hasMore.value}');
       } else {
         debugPrint('❌ 加载更多失败: ${result.msg}');
@@ -633,5 +690,36 @@ class UsageReportController extends GetxController {
       ),
       isScrollControlled: true,
     );
+  }
+  
+  /// 清除设备信息提示（手动关闭 tip）
+  void clearSelectedDeviceInfo() {
+    _deviceInfoTooltipTimer?.cancel();
+    selectedDeviceInfoType.value = null;
+  }
+
+  /// 切换设备信息展开状态（并启动 2 秒自动隐藏计时）
+  void toggleDeviceInfo(String? type) {
+    // 先取消之前的定时器
+    _deviceInfoTooltipTimer?.cancel();
+
+    // 如果点击的是当前已展开的项，则收起并直接返回
+    if (selectedDeviceInfoType.value == type) {
+      selectedDeviceInfoType.value = null;
+      return;
+    }
+
+    // 切换到新的类型
+    selectedDeviceInfoType.value = type;
+
+    // 启动 2 秒自动隐藏
+    if (type != null) {
+      _deviceInfoTooltipTimer = Timer(const Duration(seconds: 2), () {
+        // 只在当前仍然是同一个类型时才隐藏，避免抢掉后续点击
+        if (selectedDeviceInfoType.value == type && !isClosed) {
+          selectedDeviceInfoType.value = null;
+        }
+      });
+    }
   }
 }

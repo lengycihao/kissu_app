@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 import 'forever_vip_controller.dart';
 
 class ForeverVipPage extends GetView<ForeverVipController> {
@@ -70,16 +71,10 @@ class ForeverVipPage extends GetView<ForeverVipController> {
   Widget _buildTopBar() {
     return Row(
       children: [
-        GestureDetector(
+        CommonBackButton(
           onTap: () => Get.back(),
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            child: Image.asset(
-              "assets/images/kissu_mine_back.webp",
-              width: 22,
-              height: 22,
-            ),
-          ),
+          assetPath: "assets/images/kissu_mine_back.webp",
+          iconSize: 22,
         ),
         const Expanded(
           child: Center(

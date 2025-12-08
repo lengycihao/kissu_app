@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:kissu_app/model/setting/common_question_model/common_question_model.dart';
 import 'package:kissu_app/network/public/setting_api.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page_info.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 class QuestionPage extends StatefulWidget {
   final int? targetProblemId; // 目标问题ID，如果提供则自动跳转到对应问题详情
@@ -16,6 +18,7 @@ class _QuestionPageState extends State<QuestionPage> {
   List<CommonQuestionModel> questions = [];
   bool isLoading = true;
   String? errorMessage;
+  final SettingApi _settingApi = SettingApi();
 
   @override
   void initState() {
@@ -30,8 +33,7 @@ class _QuestionPageState extends State<QuestionPage> {
 
   Future<void> _loadQuestions() async {
     try {
-      final settingApi = SettingApi();
-      final result = await settingApi.getProblemList();
+      final result = await _settingApi.getProblemList();
 
       if (result.isSuccess && result.data != null) {
         setState(() {
@@ -74,11 +76,7 @@ class _QuestionPageState extends State<QuestionPage> {
     } else {
       // 没有找到对应的问题，显示提示
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.snackbar(
-          '提示',
-          '未找到对应的问题信息',
-          snackPosition: SnackPosition.TOP,
-        );
+        OKToastUtil.show('未找到对应的问题信息');
       });
     }
   }
@@ -126,21 +124,18 @@ class _QuestionPageContent extends StatelessWidget {
           ),
           Column(
             children: [
-              const SizedBox(height: 40),
+                SizedBox(height: MediaQuery.of(context).padding.top+12),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 22,
                   vertical: 16,
-                ),
+                ).copyWith(left: 6,top: 0),
                 child: Row(
                   children: [
-                    GestureDetector(
+                    CommonBackButton(
                       onTap: () => Get.back(),
-                      child: Image.asset(
-                        "assets/images/kissu_mine_back.webp",
-                        width: 22,
-                        height: 22,
-                      ),
+                      assetPath: "assets/images/kissu_mine_back.webp",
+                      iconSize: 22,
                     ),
                     const Expanded(
                       child: Center(
@@ -157,85 +152,7 @@ class _QuestionPageContent extends StatelessWidget {
                   ],
                 ),
               ),
-              Expanded(
-                child: isLoading
-                    ? _buildSkeletonList()
-                    : errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              errorMessage!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: onRefresh,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFEA39C),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                              ),
-                              child: const Text('重试'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : questions.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inbox_outlined,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '暂无常见问题',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: onRefresh,
-                        color: const Color(0xFFFEA39C),
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(22),
-                          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                          itemCount: questions.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 14),
-                          itemBuilder: (context, index) {
-                            return _QuestionCard(
-                              question: questions[index],
-                              index: index,
-                            );
-                          },
-                        ),
-                      ),
-              ),
+              Expanded(child: _buildMainContent()),
             ],
           ),
         ],
@@ -246,7 +163,7 @@ class _QuestionPageContent extends StatelessWidget {
   /// 构建骨架屏列表
   Widget _buildSkeletonList() {
     return ListView.separated(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(22).copyWith(top: 0),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 6,
       separatorBuilder: (_, __) => const SizedBox(height: 14),
@@ -305,6 +222,105 @@ class _QuestionPageContent extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFFE0E0E0),
               borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 主内容区域（加载 / 错误 / 空数据 / 列表）
+  Widget _buildMainContent() {
+    if (isLoading) {
+      return _buildSkeletonList();
+    }
+
+    if (errorMessage != null) {
+      return _buildErrorView();
+    }
+
+    if (questions.isEmpty) {
+      return _buildEmptyView();
+    }
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: const Color(0xFFFEA39C),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(22).copyWith(top: 0),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        itemCount: questions.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) {
+          return _QuestionCard(
+            question: questions[index],
+            index: index,
+          );
+        },
+      ),
+    );
+  }
+
+  /// 错误视图
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            errorMessage ?? '加载失败',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: onRefresh,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFEA39C),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Text('重试'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 空数据视图
+  Widget _buildEmptyView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '暂无常见问题',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
             ),
           ),
         ],

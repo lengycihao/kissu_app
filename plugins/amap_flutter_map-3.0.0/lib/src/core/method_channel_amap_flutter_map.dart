@@ -194,6 +194,45 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     }
   }
 
+  /// 🎯 平滑移动Marker到目标位置（原生动画）
+  /// 
+  /// 使用高德地图原生平滑移动API，实现60fps流畅移动
+  /// 
+  /// [mapId] 地图ID
+  /// [markerId] Marker的ID（必须是已存在的Marker）
+  /// [targetPosition] 目标位置
+  /// [duration] 动画时长（毫秒）
+  /// [rotation] 可选的旋转角度（度数）
+  Future<bool> moveMarkerSmoothly({
+    required int mapId,
+    required String markerId,
+    required LatLng targetPosition,
+    int duration = 100,
+    double? rotation,
+  }) async {
+    try {
+      final params = <String, dynamic>{
+        'markerId': markerId,
+        'latitude': targetPosition.latitude,
+        'longitude': targetPosition.longitude,
+        'duration': duration,
+      };
+      
+      if (rotation != null) {
+        params['rotation'] = rotation;
+      }
+      
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#moveMarkerSmoothly',
+        params,
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('平滑移动Marker失败: $e');
+      return false;
+    }
+  }
+
   @override
   void dispose({required int id}) {
     if (_channels.containsKey(id)) {

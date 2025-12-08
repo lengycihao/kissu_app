@@ -206,6 +206,12 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     });
   }
 
+  /// 高德地图PlatformView销毁时回调，释放Controller引用避免继续发送指令
+  void onMapDisposed() {
+    DebugUtil.warning('🧹 足迹页面：地图PlatformView已销毁，清理控制器引用');
+    _mapManager.onMapDisposed();
+  }
+
   /// 检查并切换用户（从定位页面跳转时）
   void _checkAndSwitchUserForInitialCoordinates() {
     final initialInfo = _markerManager.getInitialCoordinateInfo();
@@ -746,6 +752,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     _mapManager.dispose();
     _dataManager.clearCache();
     _markerManager.clearAllMarkers();
+    _markerManager.dispose(); // 🚀 清理防抖定时器
 
     // 手动调用继承 GetxController 的管理器的 onClose() 方法
     _uiManager.onClose();

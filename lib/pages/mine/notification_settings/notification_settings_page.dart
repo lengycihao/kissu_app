@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 import 'notification_settings_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:kissu_app/widgets/skeleton/notification_settings_skeleton.dart';
@@ -66,17 +67,14 @@ class NotificationSettingsPage extends GetView<NotificationSettingsController> {
         children: [
           // 返回按钮
           Positioned(
-            left: 16,
+            left: 6,
             top: 0,
             bottom: 0,
-            child: GestureDetector(
-              onTap: () => Get.back(),
-              child: Center(
-                child: Image.asset(
-                  "assets/4.0/kissu4_back.webp",
-                  width: 24,
-                  height: 24,
-                ),
+            child: Center(
+              child: CommonBackButton(
+                onTap: () => Get.back(),
+                assetPath: "assets/4.0/kissu4_back.webp",
+                iconSize: 24,
               ),
             ),
           ),

@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:jpush_flutter/jpush_flutter.dart';
 import 'package:jpush_flutter/jpush_interface.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:flutter/services.dart';
 
 class JPushService extends GetxService {
   static JPushService get to => Get.find();
   
+  // 通过 MethodChannel 请求原生将任务栈前置
+  static const MethodChannel _bringToFrontChannel = MethodChannel('app.push/bring_to_front');
+
   late JPushFlutterInterface _jpush;
   
   // 推送状态
@@ -115,6 +118,13 @@ class JPushService extends GetxService {
     debugPrint('点击通知: $message');
     _lastNotification.value = message;
     
+    // 先请求原生把任务栈拉到前台，解决部分 ROM 拦截后台启动 Activity 的问题
+    try {
+      await _bringToFrontChannel.invokeMethod('bringToFront');
+    } catch (e) {
+      debugPrint('bringToFront 调用失败: $e');
+    }
+    
     // 处理点击通知的跳转逻辑
     _handleNotificationClick(message);
   }
@@ -130,12 +140,12 @@ class JPushService extends GetxService {
   
   
   /// 显示应用内通知（已废弃，前台不再显示Toast）
-  @Deprecated('前台推送不再显示Toast，改为静默处理')
-  void _showInAppNotification(String title, String content) {
-    // 🔥 前台推送不显示Toast
-    // 如果需要提示用户，应该通过消息中心红点或其他非侵入方式
-    debugPrint('收到推送但不显示Toast - 标题: $title, 内容: $content');
-  }
+  // @Deprecated('前台推送不再显示Toast，改为静默处理')
+  // void _showInAppNotification(String title, String content) {
+  //   // 🔥 前台推送不显示Toast
+  //   // 如果需要提示用户，应该通过消息中心红点或其他非侵入方式
+  //   debugPrint('收到推送但不显示Toast - 标题: $title, 内容: $content');
+  // }
   
   /// 处理通知点击
   void _handleNotificationClick(Map<String, dynamic> message) {

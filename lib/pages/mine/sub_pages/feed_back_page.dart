@@ -11,6 +11,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 控制器
 class FeedbackController extends GetxController {
@@ -20,8 +21,9 @@ class FeedbackController extends GetxController {
   var isSubmitting = false.obs; // 是否正在提交
   var loadingText = "正在提交反馈...".obs; // loading文案
 
-  // 添加焦点控制器
+  // 联系方式输入相关
   final FocusNode contactFocusNode = FocusNode();
+  final TextEditingController contactTextController = TextEditingController();
 
   final picker = ImagePicker();
   final fileUploadApi = FileUploadApi();
@@ -31,17 +33,21 @@ class FeedbackController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    
+
     // 自动填入用户手机号到联系方式输入框
     if (UserManager.userPhone != null && UserManager.userPhone!.isNotEmpty) {
       contact.value = UserManager.userPhone!;
       logDebug('✅ 意见反馈: 已自动填入用户手机号 ${UserManager.userPhone}', tag: 'Feedback');
     }
+
+    // 同步到 TextEditingController，确保初始值展示正确
+    contactTextController.text = contact.value;
   }
 
   @override
   void onClose() {
     contactFocusNode.dispose();
+    contactTextController.dispose();
     super.onClose();
   }
 
@@ -143,10 +149,10 @@ class FeedbackController extends GetxController {
 
       if (result.isSuccess && result.data != null) {
         return result.data!;
-      } else {
-        return null;
       }
+      return null;
     } catch (e) {
+      logError('❌ 意见反馈: 图片上传失败 - $e', tag: 'Feedback', error: e);
       return null;
     }
   }
@@ -158,14 +164,16 @@ class FeedbackController extends GetxController {
       return;
     }
 
-    if (content.value.trim().isEmpty) {
+    final trimmedContent = content.value.trim();
+    if (trimmedContent.isEmpty) {
       CustomToast.show(Get.context!, "请填写问题和意见");
       return;
     }
 
     // 验证联系方式格式
-    if (contact.value.isNotEmpty) {
-      final error = validateContact(contact.value.trim());
+    final trimmedContact = contact.value.trim();
+    if (trimmedContact.isNotEmpty) {
+      final error = validateContact(trimmedContact);
       if (error != null) {
         CustomToast.show(Get.context!, error);
         return;
@@ -190,8 +198,8 @@ class FeedbackController extends GetxController {
       }
 
       // 确定联系方式：如果用户没有填写，则使用用户手机号
-      String contactWay = contact.value.isNotEmpty
-          ? contact.value.trim()
+      String contactWay = trimmedContact.isNotEmpty
+          ? trimmedContact
           : (UserManager.userPhone ?? '');
 
       final result = await settingApi.submitFeedback(
@@ -204,10 +212,11 @@ class FeedbackController extends GetxController {
         loadingText.value = "提交成功";
 
         // 延迟后执行清空和返回操作
-        Timer(Duration(milliseconds: 1000), () {
+        Timer(const Duration(milliseconds: 1000), () {
           // 清空表单
           content.value = "";
           contact.value = "";
+          contactTextController.clear();
           selectedImage.value = null;
 
           // 关闭loading
@@ -272,6 +281,21 @@ class ImageItem extends StatelessWidget {
 class FeedbackPage extends StatelessWidget {
   const FeedbackPage({super.key});
 
+  /// 统一卡片外层装饰，保证阴影和圆角风格一致
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(FeedbackController());
@@ -296,18 +320,15 @@ class FeedbackPage extends StatelessWidget {
                     // 导航栏
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: 6,
                         vertical: 10,
-                      ),
+                      ).copyWith(right: 16),
                       child: Row(
                         children: [
-                          GestureDetector(
+                          CommonBackButton(
                             onTap: () => Get.back(),
-                            child: Image.asset(
-                              "assets/images/kissu_mine_back.webp",
-                              width: 24,
-                              height: 24,
-                            ),
+                            assetPath: "assets/images/kissu_mine_back.webp",
+                            iconSize: 24,
                           ),
                           const Spacer(),
                           const Text(
@@ -324,7 +345,7 @@ class FeedbackPage extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
 
                     // 内容区域
                     Expanded(
@@ -335,17 +356,7 @@ class FeedbackPage extends StatelessWidget {
                           // 问题和意见
                           Container(
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                            decoration: _cardDecoration(),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -427,17 +438,7 @@ class FeedbackPage extends StatelessWidget {
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                            decoration: _cardDecoration(),
                             child: Obx(() {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,17 +495,7 @@ class FeedbackPage extends StatelessWidget {
                           // 联系方式
                           Container(
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                            decoration: _cardDecoration(),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -516,47 +507,50 @@ class FeedbackPage extends StatelessWidget {
                                     color: Color(0xFF333333),
                                   ),
                                 ),
-                                Obx(() => TextField(
-                                  focusNode: controller.contactFocusNode,
-                                  controller: TextEditingController(text: controller.contact.value)
-                                    ..selection = TextSelection.fromPosition(
-                                      TextPosition(offset: controller.contact.value.length),
-                                    ),
-                                  onChanged: (val) =>
-                                      controller.contact.value = val,
-                                  onSubmitted: (_) =>
-                                      controller.onContactFocusLost(),
-                                  onTapOutside: (_) =>
-                                      controller.onContactFocusLost(),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF333333),
-                                    height: 1.0, // 设置行高确保垂直居中
-                                  ),
-                                  keyboardType: TextInputType.emailAddress,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                      RegExp(r'[0-9a-zA-Z@._\-]'),
-                                    ),
-                                    LengthLimitingTextInputFormatter(
-                                      50,
-                                    ), // 限制最大长度
-                                  ],
-                                  decoration: const InputDecoration(
-                                    hintText: "请输入您的手机号/邮箱",
-                                    hintStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF999999),
-                                      height: 1.0, // 设置占位符行高确保垂直居中
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 0,
-                                      vertical: 8, // 增加垂直内边距确保居中
-                                    ),
-                                    isDense: true, // 减少默认内边距
-                                  ),
-                                )),
+                                Obx(
+                                  () {
+                                    // 访问可观察变量，确保 Obx 能正确追踪
+                                    final _ = controller.contact.value;
+                                    return TextField(
+                                      focusNode: controller.contactFocusNode,
+                                      controller: controller.contactTextController,
+                                      onChanged: (val) =>
+                                          controller.contact.value = val,
+                                      onSubmitted: (_) =>
+                                          controller.onContactFocusLost(),
+                                      onTapOutside: (_) =>
+                                          controller.onContactFocusLost(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF333333),
+                                        height: 1.0, // 设置行高确保垂直居中
+                                      ),
+                                      keyboardType: TextInputType.emailAddress,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9a-zA-Z@._\\-]'),
+                                        ),
+                                        LengthLimitingTextInputFormatter(
+                                          50,
+                                        ), // 限制最大长度
+                                      ],
+                                      decoration: const InputDecoration(
+                                        hintText: "请输入您的手机号/邮箱",
+                                        hintStyle: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF999999),
+                                          height: 1.0, // 设置占位符行高确保垂直居中
+                                        ),
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 0,
+                                          vertical: 8, // 增加垂直内边距确保居中
+                                        ),
+                                        isDense: true, // 减少默认内边距
+                                      ),
+                                    );
+                                  },
+                                ),
                               ],
                             ),
                           ),

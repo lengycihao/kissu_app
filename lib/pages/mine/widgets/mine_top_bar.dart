@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 我的页面-顶部导航栏
 class MineTopBar extends StatelessWidget {
@@ -15,24 +16,20 @@ class MineTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 16,
-      ).copyWith(bottom: 20),
+        horizontal: 12,
+        vertical: 12,
+      ).copyWith(bottom: 0,left: 6,right: 15),
       child: Row(
         children: [
-          GestureDetector(
+          CommonBackButton(
             onTap: onBackTap,
-            child: Image.asset(
-              "assets/images/kissu_mine_back.webp",
-              width: 22,
-              height: 22,
-            ),
+            assetPath: "assets/images/kissu_mine_back.webp",
           ),
           const Expanded(
             child: Center(
               child: Text(
                 "我的",
-                style: TextStyle(fontSize: 18, color: Color(0xff333333)),
+                style: TextStyle(fontSize: 18, color: Color(0xff333333),fontWeight: FontWeight.w500),
               ),
             ),
           ),

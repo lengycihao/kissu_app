@@ -39,9 +39,9 @@ class LocationHandler(private val activity: Activity) {
                 gpsStatusEventSink = events
                 registerGpsStatusReceiver()
                 
-                // 立即发送当前GPS状态
+                // 立即发送当前GPS状态（直接发送bool值，不是Map）
                 val isEnabled = isGpsEnabled()
-                gpsStatusEventSink?.success(mapOf("isEnabled" to isEnabled))
+                gpsStatusEventSink?.success(isEnabled)
             }
             
             override fun onCancel(arguments: Any?) {
@@ -81,6 +81,10 @@ class LocationHandler(private val activity: Activity) {
             }
             "openAppSettings" -> {
                 openAppSettings()
+                result.success(null)
+            }
+            "openSystemSettings" -> {
+                openSystemSettings()
                 result.success(null)
             }
             "openWifiSettings" -> {
@@ -153,7 +157,7 @@ class LocationHandler(private val activity: Activity) {
     }
     
     /**
-     * 打开应用设置页面
+     * 打开应用设置页面（单个 App 详情）
      */
     private fun openAppSettings() {
         try {
@@ -163,6 +167,20 @@ class LocationHandler(private val activity: Activity) {
             activity.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开应用设置失败", e)
+        }
+    }
+
+    /**
+     * 打开手机系统设置主页
+     */
+    private fun openSystemSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            activity.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "打开系统设置失败", e)
         }
     }
     
@@ -228,7 +246,8 @@ class LocationHandler(private val activity: Activity) {
             if (intent?.action == LocationManager.PROVIDERS_CHANGED_ACTION) {
                 val isEnabled = isGpsEnabled()
                 Log.d(TAG, "GPS状态变化: $isEnabled")
-                gpsStatusEventSink?.success(mapOf("isEnabled" to isEnabled))
+                // 直接发送bool值，不是Map（与Dart端期望的类型一致）
+                gpsStatusEventSink?.success(isEnabled)
             }
         }
     }

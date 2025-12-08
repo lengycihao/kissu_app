@@ -1,6 +1,8 @@
 package com.yuluo.kissu
 
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
@@ -14,6 +16,7 @@ import com.umeng.commonsdk.UMConfigure
 import com.umeng.socialize.PlatformConfig
 import com.umeng.socialize.UMShareAPI
 import com.yuluo.kissu.handlers.*
+import com.amap.api.maps.MapsInitializer
 
 class MainActivity : FlutterActivity(), IWXAPIEventHandler {
    companion object {
@@ -37,6 +40,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         private const val SCREEN_LOCK_CHANNEL = "kissu_app/screen_lock"
         private const val APP_USAGE_CHANNEL = "app_usage_channel"
         private const val APP_ICON_CHANNEL = "app_icon_channel"
+        private const val PUSH_BRING_FRONT_CHANNEL = "app.push/bring_to_front"
     }
     
     // 各功能处理器
@@ -44,7 +48,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private lateinit var shareHandler: ShareHandler
     private lateinit var appUsageHandler: AppUsageHandler
     private lateinit var locationHandler: LocationHandler
-    private lateinit var appInfoHandler: AppInfoHandler
+    // private lateinit var appInfoHandler: AppInfoHandler
     private lateinit var systemHandler: SystemHandler
     private lateinit var analyticsHandler: AnalyticsHandler
     private lateinit var foregroundServiceHandler: ForegroundServiceHandler
@@ -55,10 +59,96 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 初始化友盟
-        initUmeng()
+        // 🔥 禁用MainActivity的LAUNCHER能力，避免与MainActivityDefault冲突导致双图标
+         
+        // 🔒 高德地图隐私合规（SDK 8.1.0+ 强制要求）
+        // 📝 必须在使用任何高德SDK功能之前调用
+        initAmapPrivacy()
+        
+        // 处理从通知启动的情况
+        handleNotificationIntent(intent)
         
         Log.d(TAG, "MainActivity onCreate")
+    }
+    
+    /**
+     * 处理从通知启动的Intent
+     * 用于处理小米厂商通道等离线通知点击
+     * 参考极光官方文档：厂商通道使用 JMessageExtra 获取参数
+     */
+    private fun handleNotificationIntent(intent: Intent?) {
+        intent?.let {
+            var jpushExtras: String? = null
+            
+            // 1. 优先检查厂商通道参数（小米、vivo、OPPO、FCM、魅族、荣耀、极光通道）
+            // SDK ≥ 4.6.0 版本，厂商通道使用 JMessageExtra
+            val jMessageExtra = it.extras?.getString("JMessageExtra")
+            if (!jMessageExtra.isNullOrEmpty()) {
+                jpushExtras = jMessageExtra
+                Log.d(TAG, "从通知启动（厂商通道）- JMessageExtra: $jpushExtras")
+            }
+            
+            // 2. 检查华为通道参数（使用 getData）
+            if (jpushExtras.isNullOrEmpty() && it.data != null) {
+                jpushExtras = it.data.toString()
+                Log.d(TAG, "从通知启动（华为通道）- getData: $jpushExtras")
+            }
+            
+            // 3. 检查极光通道参数（自定义的 jpush_extras）
+            if (jpushExtras.isNullOrEmpty()) {
+                jpushExtras = it.getStringExtra("jpush_extras")
+                if (!jpushExtras.isNullOrEmpty()) {
+                    Log.d(TAG, "从通知启动（极光通道）- jpush_extras: $jpushExtras")
+                }
+            }
+            
+            // 4. 检查其他可能的参数
+            if (jpushExtras.isNullOrEmpty()) {
+                val extras = it.extras
+                if (extras != null) {
+                    // 尝试从 extras 中获取所有可能的极光相关参数
+                    for (key in extras.keySet()) {
+                        if (key.contains("jpush", ignoreCase = true) || 
+                            key.contains("JPush", ignoreCase = true) ||
+                            key.contains("extra", ignoreCase = true)) {
+                            val value = extras.get(key)?.toString()
+                            if (!value.isNullOrEmpty()) {
+                                Log.d(TAG, "从通知启动 - 找到参数: $key = $value")
+                                if (jpushExtras.isNullOrEmpty()) {
+                                    jpushExtras = value
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!jpushExtras.isNullOrEmpty()) {
+                Log.d(TAG, "最终获取到的通知参数: $jpushExtras")
+                // 这里可以将数据传递给Flutter层处理
+                // 可以通过MethodChannel或者EventChannel传递给Flutter
+            } else {
+                Log.d(TAG, "未找到通知参数，可能是普通启动")
+            }
+        }
+    }
+    
+ 
+    
+    /**
+     * 初始化高德地图隐私合规
+     * 📝 SDK 8.1.0+ 强制要求，否则地图无法正常使用
+     */
+    private fun initAmapPrivacy() {
+        try {
+            // 设置已经显示隐私政策（true表示已向用户展示）
+            MapsInitializer.updatePrivacyShow(this, true, true)
+            // 设置已经同意隐私政策（true表示用户已同意）
+            MapsInitializer.updatePrivacyAgree(this, true)
+            Log.d(TAG, "✅ 高德地图隐私合规初始化成功")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 高德地图隐私合规初始化失败", e)
+        }
     }
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -84,7 +174,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         shareHandler = ShareHandler(this)
         appUsageHandler = AppUsageHandler(this)
         locationHandler = LocationHandler(this)
-        appInfoHandler = AppInfoHandler(this)
+        // appInfoHandler = AppInfoHandler(this)
         systemHandler = SystemHandler(this)
         analyticsHandler = AnalyticsHandler(this)
         foregroundServiceHandler = ForegroundServiceHandler(this)
@@ -175,10 +265,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             paymentHandler.handleMethodCall(call, result)
         }
         
-        // 应用信息通道
-        MethodChannel(messenger, APP_INFO_CHANNEL).setMethodCallHandler { call, result ->
-            appInfoHandler.handleMethodCall(call, result)
-        }
+        // // 应用信息通道
+        // MethodChannel(messenger, APP_INFO_CHANNEL).setMethodCallHandler { call, result ->
+        //     appInfoHandler.handleMethodCall(call, result)
+        // }
         
         // 白名单通道
         MethodChannel(messenger, WHITELIST_CHANNEL).setMethodCallHandler { call, result ->
@@ -190,10 +280,118 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             appUsageHandler.handleMethodCall(call, result)
         }
         
-        // 应用图标通道
+        // 应用图标通道（动态切换桌面图标）
         MethodChannel(messenger, APP_ICON_CHANNEL).setMethodCallHandler { call, result ->
-            appInfoHandler.handleMethodCall(call, result)
+            when (call.method) {
+                "getCurrentIcon" -> {
+                    val current = getCurrentIconId()
+                    result.success(current)
+                }
+                "changeIcon" -> {
+                    val iconId = call.argument<String>("iconId")
+                    if (iconId.isNullOrEmpty()) {
+                        result.error("INVALID_ARGS", "iconId is required", null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val ok = changeAppIcon(iconId)
+                        result.success(ok)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "切换图标失败", e)
+                        result.success(false)
+                    }
+                }
+                else -> result.notImplemented()
+            }
         }
+
+        // 推送点击后把任务栈前置（配合 JNotifyActivity 回调）
+        MethodChannel(messenger, PUSH_BRING_FRONT_CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "bringToFront") {
+                try {
+                    // 尝试复用已有任务栈，避免总是重启显示冷启动页
+                    val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                    if (launchIntent != null) {
+                        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+                        launchIntent.flags =
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        startActivity(launchIntent)
+                    } else {
+                        // 兜底：若获取失败，再用重启任务方式
+                        val component = ComponentName(packageName, "com.yuluo.kissu.MainActivity")
+                        val intent = Intent.makeRestartActivityTask(component)
+                        startActivity(intent)
+                    }
+                    result.success(null)
+                } catch (e: Exception) {
+                    Log.e(TAG, "bringToFront 失败", e)
+                    result.error("START_FAIL", e.message, null)
+                }
+            } else {
+                result.notImplemented()
+            }
+        }
+    }
+    
+    /**
+     * Flutter 侧图标 id 与 Android activity-alias 映射
+     */
+    private val iconAliasMap: Map<String, String> = mapOf(
+        // 页面中的 kissu_icon（默认）
+        "default" to "com.yuluo.kissu.MainActivityDefault",
+        // kissu_logo_2 ~ kissu_logo_10
+        "logo_two" to "com.yuluo.kissu.MainActivityIcon2",
+        "logo_three" to "com.yuluo.kissu.MainActivityIcon3",
+        "logo_four" to "com.yuluo.kissu.MainActivityIcon4",
+        "logo_five" to "com.yuluo.kissu.MainActivityIcon5",
+        "logo_six" to "com.yuluo.kissu.MainActivityIcon6",
+        "logo_seven" to "com.yuluo.kissu.MainActivityIcon7",
+        "logo_eight" to "com.yuluo.kissu.MainActivityIcon8",
+        "logo_nine" to "com.yuluo.kissu.MainActivityIcon9",
+        "logo_ten" to "com.yuluo.kissu.MainActivityIcon10",
+    )
+
+    /**
+     * 获取当前启用的图标 id
+     */
+    private fun getCurrentIconId(): String {
+        val pm = packageManager
+        iconAliasMap.forEach { (id, aliasName) ->
+            val componentName = ComponentName(this, aliasName)
+            val state = pm.getComponentEnabledSetting(componentName)
+            if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                return id
+            }
+        }
+        // 如果都没有显式启用，认为是默认图标
+        return "default"
+    }
+
+    /**
+     * 切换桌面图标：
+     * - 只启用一个对应的 activity-alias
+     * - 其它全部禁用，避免桌面出现多个图标
+     */
+    private fun changeAppIcon(iconId: String): Boolean {
+        val targetAlias = iconAliasMap[iconId] ?: return false
+        val pm = packageManager
+
+        
+        iconAliasMap.forEach { (id, aliasName) ->
+             val componentName = ComponentName(this, aliasName)
+             val newState = if (id == iconId) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            pm.setComponentEnabledSetting(
+                componentName,
+                newState,
+                PackageManager.DONT_KILL_APP
+            )
+        }
+
+        Log.d(TAG, "桌面图标已切换为: $iconId ($targetAlias)")
+        return true
     }
     
     /**
@@ -202,11 +400,11 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private fun initUmeng() {
         // 初始化友盟SDK
         UMConfigure.init(
-            this,
+            applicationContext,
             "6879fba679267e0210b67bde",
             "Umeng",
             UMConfigure.DEVICE_TYPE_PHONE,
-            ""
+            null
         )
         
         // 设置友盟日志加密

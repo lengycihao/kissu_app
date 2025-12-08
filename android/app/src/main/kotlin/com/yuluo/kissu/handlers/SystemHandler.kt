@@ -1,12 +1,12 @@
 package com.yuluo.kissu.handlers
 
 import android.app.Activity
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.util.Log
 import com.yuluo.kissu.DeviceWhitelistHelper
+import com.yuluo.kissu.ScreenLockReceiver as NativeScreenLockReceiver
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.security.MessageDigest
@@ -25,8 +25,8 @@ class SystemHandler(private val activity: Activity) {
     // 屏幕锁定事件发送器
     private var screenLockEventSink: EventChannel.EventSink? = null
     
-    // 屏幕锁定监听器
-    private var screenLockReceiver: ScreenLockReceiver? = null
+    // 屏幕锁定监听器（使用原生增强版 ScreenLockReceiver）
+    private var screenLockReceiver: NativeScreenLockReceiver? = null
     
     /**
      * 初始化系统处理器
@@ -36,11 +36,15 @@ class SystemHandler(private val activity: Activity) {
         screenLockChannel.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 screenLockEventSink = events
+                // 将 EventSink 传递给原生增强版 ScreenLockReceiver
+                NativeScreenLockReceiver.setEventSink(events)
                 registerScreenLockReceiver()
             }
             
             override fun onCancel(arguments: Any?) {
                 unregisterScreenLockReceiver()
+                // 清理原生增强版 ScreenLockReceiver 的 EventSink
+                NativeScreenLockReceiver.setEventSink(null)
                 screenLockEventSink = null
             }
         })
@@ -88,14 +92,28 @@ class SystemHandler(private val activity: Activity) {
      */
     private fun registerScreenLockReceiver() {
         if (screenLockReceiver == null) {
-            screenLockReceiver = ScreenLockReceiver()
+            screenLockReceiver = NativeScreenLockReceiver()
             val filter = IntentFilter().apply {
-                addAction(Intent.ACTION_SCREEN_ON)
+                // 锁屏 / 亮屏 / 解锁相关广播
                 addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
                 addAction(Intent.ACTION_USER_PRESENT)
+                // Android 7.0+：包含设备启动后首次解锁等场景
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    addAction(Intent.ACTION_USER_UNLOCKED)
+                }
             }
-            activity.registerReceiver(screenLockReceiver, filter)
-            Log.d(TAG, "屏幕锁定监听器已注册")
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    activity.registerReceiver(screenLockReceiver, filter, Activity.RECEIVER_NOT_EXPORTED)
+                } else {
+                    activity.registerReceiver(screenLockReceiver, filter)
+                }
+                Log.d(TAG, "屏幕锁定监听器已注册（增强版）")
+            } catch (e: Exception) {
+                Log.e(TAG, "注册屏幕锁定监听器失败", e)
+            }
         }
     }
     
@@ -133,28 +151,6 @@ class SystemHandler(private val activity: Activity) {
             Log.e(TAG, "无法获取SHA1", e)
         } catch (e: Exception) {
             Log.e(TAG, "获取签名失败", e)
-        }
-    }
-    
-    /**
-     * 屏幕锁定广播接收器
-     */
-    private inner class ScreenLockReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                Intent.ACTION_SCREEN_OFF -> {
-                    Log.d(TAG, "屏幕关闭")
-                    screenLockEventSink?.success(mapOf("event" to "screen_off"))
-                }
-                Intent.ACTION_SCREEN_ON -> {
-                    Log.d(TAG, "屏幕亮起")
-                    screenLockEventSink?.success(mapOf("event" to "screen_on"))
-                }
-                Intent.ACTION_USER_PRESENT -> {
-                    Log.d(TAG, "用户解锁")
-                    screenLockEventSink?.success(mapOf("event" to "user_present"))
-                }
-            }
         }
     }
 }

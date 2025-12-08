@@ -142,21 +142,43 @@ class AppUsageHandler(private val activity: Activity) {
                 val appName = pm.getApplicationLabel(app).toString()
                 val iconDrawable = pm.getApplicationIcon(app)
                 
-                // 兼容各种图标类型（BitmapDrawable、VectorDrawable、AdaptiveIconDrawable等）
+                // 🔧 优化：使用更大的尺寸（512x512）来提高图标质量，但保持原图完整（包括背景）
+                val targetSize = 512
                 val bitmap = when (iconDrawable) {
-                    is BitmapDrawable -> iconDrawable.bitmap
+                    is BitmapDrawable -> {
+                        val originalBitmap = iconDrawable.bitmap
+                        // 如果原始图标尺寸合适，直接使用；否则缩放到目标尺寸
+                        if (originalBitmap.width == targetSize && originalBitmap.height == targetSize) {
+                            originalBitmap
+                        } else {
+                            // 使用高质量缩放算法
+                            android.graphics.Bitmap.createScaledBitmap(
+                                originalBitmap,
+                                targetSize,
+                                targetSize,
+                                true
+                            )
+                        }
+                    }
                     else -> {
-                        val width = if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else 192
-                        val height = if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else 192
-                        val bmp = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+                        // 对于所有类型的图标（包括AdaptiveIcon），完整绘制原图，保持背景色
+                        val width = if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else targetSize
+                        val height = if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else targetSize
+                        val bmp = android.graphics.Bitmap.createBitmap(
+                            targetSize,
+                            targetSize,
+                            android.graphics.Bitmap.Config.ARGB_8888
+                        )
                         val canvas = android.graphics.Canvas(bmp)
-                        iconDrawable.setBounds(0, 0, canvas.width, canvas.height)
+                        // 完整绘制图标，保持原图的背景色和所有内容
+                        iconDrawable.setBounds(0, 0, targetSize, targetSize)
                         iconDrawable.draw(canvas)
                         bmp
                     }
                 }
                 
                 val stream = ByteArrayOutputStream()
+                // 🔧 使用 PNG 格式，质量100（无损），确保图标质量
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
                 val byteArray = stream.toByteArray()
                 
@@ -238,19 +260,42 @@ class AppUsageHandler(private val activity: Activity) {
             appName = pm.getApplicationLabel(appInfo).toString()
             
             val iconDrawable = pm.getApplicationIcon(appInfo)
+            // 🔧 优化：使用更大的尺寸（512x512）来提高图标质量，但保持原图完整（包括背景）
+            val targetSize = 512
             val bitmap = when (iconDrawable) {
-                is BitmapDrawable -> iconDrawable.bitmap
+                is BitmapDrawable -> {
+                    val originalBitmap = iconDrawable.bitmap
+                    // 如果原始图标尺寸合适，直接使用；否则缩放到目标尺寸
+                    if (originalBitmap.width == targetSize && originalBitmap.height == targetSize) {
+                        originalBitmap
+                    } else {
+                        // 使用高质量缩放算法
+                        android.graphics.Bitmap.createScaledBitmap(
+                            originalBitmap,
+                            targetSize,
+                            targetSize,
+                            true
+                        )
+                    }
+                }
                 else -> {
-                    val width = if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else 192
-                    val height = if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else 192
-                    val bmp = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+                    // 对于所有类型的图标（包括AdaptiveIcon），完整绘制原图，保持背景色
+                    val width = if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else targetSize
+                    val height = if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else targetSize
+                    val bmp = android.graphics.Bitmap.createBitmap(
+                        targetSize,
+                        targetSize,
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
                     val canvas = android.graphics.Canvas(bmp)
-                    iconDrawable.setBounds(0, 0, canvas.width, canvas.height)
+                    // 完整绘制图标，保持原图的背景色和所有内容
+                    iconDrawable.setBounds(0, 0, targetSize, targetSize)
                     iconDrawable.draw(canvas)
                     bmp
                 }
             }
             val stream = ByteArrayOutputStream()
+            // 🔧 使用 PNG 格式，质量100（无损），确保图标质量
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
             val byteArray = stream.toByteArray()
             iconBase64 = android.util.Base64.encodeToString(byteArray, android.util.Base64.NO_WRAP)
@@ -304,13 +349,22 @@ class AppUsageHandler(private val activity: Activity) {
             ))
         }
         
+        // 使用清理后的会话数据（过滤+合并）
         val sessions = cleanupSessions(rawSessions)
         
         // 按小时分组统计
         val hourlyRecords = buildHourlyRecords(sessions, endTime)
         
+         // 这样可以确保date字段与实际数据的日期一致
         val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val date = dateFormat.format(java.util.Date(startTime))
+        val date = if (sessions.isNotEmpty()) {
+            // 找到最早的会话时间戳
+            val earliestTime = sessions.minOfOrNull { it["openTime"] as Long } ?: startTime
+            dateFormat.format(java.util.Date(earliestTime))
+        } else {
+            // 如果没有会话数据，使用当前日期（endTime对应的日期）
+            dateFormat.format(java.util.Date(endTime))
+        }
         
         return mapOf(
             "appName" to appName,
@@ -320,6 +374,65 @@ class AppUsageHandler(private val activity: Activity) {
             "totalSessions" to sessions.size,
             "hourlyRecords" to hourlyRecords
         )
+    }
+    
+    /**
+     * 清理会话数据
+     *
+     * 逻辑：
+     * 1. 先过滤掉时长小于3秒的会话
+     * 2. 再合并间隔小于10秒的会话
+     * 3. 最后再过滤一次，保留时长≥5秒的会话
+     */
+    private fun cleanupSessions(rawSessions: List<Map<String, Any>>): List<Map<String, Any>> {
+        if (rawSessions.isEmpty()) return emptyList()
+        
+        // 1. 过滤时长太短的会话（<3秒）
+        val MIN_DURATION = 3000L
+        val validSessions = rawSessions.filter { (it["duration"] as Long) >= MIN_DURATION }
+        
+        if (validSessions.isEmpty()) return emptyList()
+        
+        // 2. 合并间隔太短的会话（间隔≤10秒）
+        val MERGE_THRESHOLD = 10000L
+        val mergedSessions = mutableListOf<MutableMap<String, Any>>()
+        var currentSession = validSessions[0].toMutableMap()
+        
+        for (i in 1 until validSessions.size) {
+            val nextSession = validSessions[i]
+            val currentCloseTime = currentSession["closeTime"] as Long
+            val nextOpenTime = nextSession["openTime"] as Long
+            
+            if (currentCloseTime == -1L) {
+                mergedSessions.add(currentSession)
+                currentSession = nextSession.toMutableMap()
+                continue
+            }
+            
+            val gap = nextOpenTime - currentCloseTime
+            
+            if (gap <= MERGE_THRESHOLD) {
+                val nextCloseTime = nextSession["closeTime"] as Long
+                val currentOpenTime = currentSession["openTime"] as Long
+                
+                currentSession["closeTime"] = nextCloseTime
+                currentSession["duration"] = if (nextCloseTime == -1L) {
+                    currentSession["isRunning"] = true
+                    System.currentTimeMillis() - currentOpenTime
+                } else {
+                    nextCloseTime - currentOpenTime
+                }
+            } else {
+                mergedSessions.add(currentSession)
+                currentSession = nextSession.toMutableMap()
+            }
+        }
+        
+        mergedSessions.add(currentSession)
+        
+        // 3. 最终过滤：保留时长≥5秒的会话
+        val FINAL_MIN_DURATION = 5000L
+        return mergedSessions.filter { (it["duration"] as Long) >= FINAL_MIN_DURATION }
     }
     
     /**
@@ -412,57 +525,6 @@ class AppUsageHandler(private val activity: Activity) {
         
         Log.d(TAG, "获取到 ${result.size} 个有使用记录的应用")
         return result
-    }
-    
-    /**
-     * 清理会话数据
-     */
-    private fun cleanupSessions(rawSessions: List<Map<String, Any>>): List<Map<String, Any>> {
-        if (rawSessions.isEmpty()) return emptyList()
-        
-        val MIN_DURATION = 3000L
-        val validSessions = rawSessions.filter { (it["duration"] as Long) >= MIN_DURATION }
-        
-        if (validSessions.isEmpty()) return emptyList()
-        
-        val MERGE_THRESHOLD = 10000L
-        val mergedSessions = mutableListOf<MutableMap<String, Any>>()
-        var currentSession = validSessions[0].toMutableMap()
-        
-        for (i in 1 until validSessions.size) {
-            val nextSession = validSessions[i]
-            val currentCloseTime = currentSession["closeTime"] as Long
-            val nextOpenTime = nextSession["openTime"] as Long
-            
-            if (currentCloseTime == -1L) {
-                mergedSessions.add(currentSession)
-                currentSession = nextSession.toMutableMap()
-                continue
-            }
-            
-            val gap = nextOpenTime - currentCloseTime
-            
-            if (gap <= MERGE_THRESHOLD) {
-                val nextCloseTime = nextSession["closeTime"] as Long
-                val currentOpenTime = currentSession["openTime"] as Long
-                
-                currentSession["closeTime"] = nextCloseTime
-                currentSession["duration"] = if (nextCloseTime == -1L) {
-                    currentSession["isRunning"] = true
-                    System.currentTimeMillis() - currentOpenTime
-                } else {
-                    nextCloseTime - currentOpenTime
-                }
-            } else {
-                mergedSessions.add(currentSession)
-                currentSession = nextSession.toMutableMap()
-            }
-        }
-        
-        mergedSessions.add(currentSession)
-        
-        val FINAL_MIN_DURATION = 5000L
-        return mergedSessions.filter { (it["duration"] as Long) >= FINAL_MIN_DURATION }
     }
     
     /**

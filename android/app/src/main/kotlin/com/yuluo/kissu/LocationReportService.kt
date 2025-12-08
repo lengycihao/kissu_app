@@ -1,8 +1,14 @@
 package com.yuluo.kissu
 
+import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.os.Build
+import androidx.core.content.ContextCompat
 import com.amap.api.location.AMapLocation
 import io.flutter.Log
 import kotlinx.coroutines.*
@@ -39,8 +45,8 @@ class LocationReportService(private val context: Context) {
         
         // 与Flutter层保持一致的上报策略参数
         private const val COLLECTION_DISTANCE_METERS = 50 // 50米收集距离，与Flutter层 <50m 丢弃一致
-        private const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔，与Flutter层_reportInterval一致
-        private const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)，与Flutter层一致
+        private const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔
+        private const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)
     }
     
     private val sharedPreferences: SharedPreferences = 
@@ -199,16 +205,27 @@ class LocationReportService(private val context: Context) {
     
     /**
      * 检查是否需要收集定位
-     * 与Flutter层策略保持一致：
+     * 策略：
      * 1. 首次定位必收集
-     * 2. 与上次收集位置距离>=50米时收集
-     * 3. 每1分钟上报一次收集到的位置
+     * 2. 收集池为空时直接放入
+     * 3. 收集池不为空时，距离>=50米时收集，否则丢弃
+     * 4. 每1分钟上报一次收集到的位置
      */
     private fun shouldCollectLocation(location: AMapLocation): Boolean {
         // 检查定位是否有效
         if (location.errorCode != 0) {
             Log.d(TAG, "⚠️ 定位失败，错误码: ${location.errorCode}")
             return false
+        }
+        
+        // 🔥 修复：检查收集池是否为空，为空时直接放入（与Flutter层策略一致）
+        val isBufferEmpty: Boolean
+        synchronized(collectionBuffer) {
+            isBufferEmpty = collectionBuffer.isEmpty()
+        }
+        if (isBufferEmpty) {
+            Log.d(TAG, "📦 收集池为空，直接放入: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
+            return true
         }
         
         val lastReportTime = sharedPreferences.getLong(KEY_LAST_REPORT_TIME, 0)
@@ -246,13 +263,8 @@ class LocationReportService(private val context: Context) {
      */
     private fun buildLocationData(location: AMapLocation): JSONObject {
         // 转换为10位时间戳（秒）
-        val locationTime = if (location.time > 0) {
-            // 高德返回的是13位毫秒时间戳，转换为10位秒时间戳
-            (location.time / 1000).toString()
-        } else {
-            // 如果高德时间戳无效，使用当前时间
-            (System.currentTimeMillis() / 1000).toString()
-        }
+        // 为避免缓存定位返回的旧时间戳，这里统一使用当前上报时间
+        val locationTime = (System.currentTimeMillis() / 1000).toString()
         
         return JSONObject().apply {
             put("longitude", location.longitude.toString())
@@ -312,7 +324,12 @@ class LocationReportService(private val context: Context) {
                     "os" to "1", // 1 = Android
                     "model" to Build.MODEL,
                     "osversion" to Build.VERSION.RELEASE,
-                    "timestamp" to System.currentTimeMillis().toString()
+                    "timestamp" to System.currentTimeMillis().toString(),
+                    "mobile-model" to "${Build.BRAND} ${Build.MODEL}",
+                    "brand" to Build.BRAND,
+                    "network-name" to getCurrentNetworkHeaderValue(),
+                    "power" to getBatteryHeaderValue(),
+                    "is-open-location" to getLocationPermissionFlag()
                 )
                 
                 // 添加 userId（如果存在）
@@ -447,6 +464,89 @@ class LocationReportService(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "获取设备ID失败", e)
             "unknown"
+        }
+    }
+    
+    /**
+     * 获取当前网络头部信息
+     */
+    private fun getCurrentNetworkHeaderValue(): String {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val activeNetwork = cm.activeNetwork
+            if (activeNetwork != null) {
+                val capabilities = cm.getNetworkCapabilities(activeNetwork)
+                val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                if (hasInternet) {
+                    return when {
+                        capabilities!!.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                            val wifiManager =
+                                context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                            val info = wifiManager.connectionInfo
+                            val ssid = info?.ssid?.trim('"')
+                            if (!ssid.isNullOrBlank() && !ssid.equals("<unknown ssid>", true)) {
+                                "wifi_$ssid"
+                            } else {
+                                "wifi"
+                            }
+                        }
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "mobile"
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> "bluetooth"
+                        else -> "other"
+                    }
+                }
+            }
+
+            @Suppress("DEPRECATION")
+            val info = cm.activeNetworkInfo
+            if (info != null && info.isConnected) {
+                return when (info.type) {
+                    ConnectivityManager.TYPE_WIFI -> "wifi"
+                    ConnectivityManager.TYPE_MOBILE -> "mobile"
+                    ConnectivityManager.TYPE_ETHERNET -> "ethernet"
+                    ConnectivityManager.TYPE_BLUETOOTH -> "bluetooth"
+                    else -> "other"
+                }
+            }
+            "none"
+        } catch (e: Exception) {
+            Log.e(TAG, "获取网络头部信息失败: ${e.message}", e)
+            "unknown"
+        }
+    }
+    
+    /**
+     * 获取电池电量头部信息
+     */
+    private fun getBatteryHeaderValue(): String {
+        return try {
+            val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            val level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            if (level >= 0) level.toString() else "100"
+        } catch (e: Exception) {
+            Log.e(TAG, "获取电量信息失败: ${e.message}", e)
+            "100"
+        }
+    }
+    
+    /**
+     * 获取定位权限状态
+     */
+    private fun getLocationPermissionFlag(): String {
+        return try {
+            val fineGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            val coarseGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            if (fineGranted || coarseGranted) "1" else "0"
+        } catch (e: Exception) {
+            Log.e(TAG, "获取定位权限状态失败: ${e.message}", e)
+            "0"
         }
     }
     

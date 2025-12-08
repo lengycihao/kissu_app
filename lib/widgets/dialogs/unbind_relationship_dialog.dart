@@ -13,8 +13,7 @@ class UnbindRelationshipDialog extends StatefulWidget {
 
 class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   final TextEditingController _textController = TextEditingController();
-  // final String _requiredText = '我确认解除当前关系，如出现任何因我解除产生的问题，我也愿意承担';
-  final String _requiredText = '我';
+  final String _requiredText = '本人确认解除当前关系，出现任何问题由本人承担';
   @override
   void dispose() {
     _textController.dispose();
@@ -25,7 +24,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   String _getThreeDaysLaterDate() {
     final now = DateTime.now();
     final threeDaysLater = now.add(const Duration(days: 3));
-    return '${threeDaysLater.year}年${threeDaysLater.month}月${threeDaysLater.day}号';
+    return '${threeDaysLater.year} 年 ${threeDaysLater.month} 月 ${threeDaysLater.day} 日';
   }
 
   /// 确认解除关系
@@ -46,7 +45,6 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final threeDaysLaterDate = _getThreeDaysLaterDate();
     final screenSize = MediaQuery.of(context).size;
     final maxWidth = screenSize.width * 0.85; // 最大宽度为屏幕宽度的85%
     final dialogWidth = maxWidth > 320 ? 320.0 : maxWidth; // 在320和最大宽度之间选择较小值
@@ -89,7 +87,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
                   // 副标题
                   const Text(
-                    '双方账号绑定期间的回忆来之不易',
+                    '双方账号绑定期间的回忆十分珍贵。请您仔细阅读以下须知：',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -97,7 +95,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
                   // 内容
                   RichText(
@@ -108,18 +106,10 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                         height: 1.6,
                       ),
                       children: [
-                        const TextSpan(text: '点击确认解除后，双方的Kissu账号将会立即解除关系\n\n'),
-                        const TextSpan(text: '但是双方数据将会被保存'),
+                        const TextSpan(text: '点击确认后，双方 Kissu 账号将立即解除绑定关系。\n'),
                         TextSpan(
-                          text: '3日($threeDaysLaterDate)',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFFF408D),
-                          ),
-                        ),
-                        const TextSpan(text: '，在此期间重新绑定数据将会恢复，3日后双方数据将会被删除\n'),
-                        const TextSpan(
-                          text: '如在此期间，双方任一方选择绑定其他用户则双方数据也将会被提前删除',
+                          text:
+                              '解除后，双方相关数据将为您保留至 ${_getThreeDaysLaterDate()}（共 3 日）。在此期间，若双方重新绑定，数据可恢复。 在此期间，若双方中任意一方绑定其他用户，则双方数据将提前永久删除。 确认解除关系，请在下方输入框内输入以下文字。',
                         ),
                       ],
                     ),
@@ -144,7 +134,21 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                           ),
                         ),
                         TextSpan(
+                          text: '“',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF408D),
+                          ),
+                        ),
+                        TextSpan(
                           text: _requiredText,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF408D),
+                          ),
+                        ),
+                        TextSpan(
+                          text: '”',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFFFF408D),
@@ -192,7 +196,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                     children: [
                       // 我再想想按钮
                       GestureDetector(
-                        onTap: _cancelUnbind,
+                        onTap: _confirmUnbind,
                         child: Container(
                           width: 106,
                           height: 36,
@@ -205,7 +209,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                           ),
                           child: const Center(
                             child: Text(
-                              '我再想想',
+                              '确定',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Color(0xFF999999),
@@ -217,7 +221,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
                       // 确认解除按钮
                       GestureDetector(
-                        onTap: _confirmUnbind,
+                        onTap: _cancelUnbind,
                         child: Container(
                           width: 106,
                           height: 36,
@@ -227,7 +231,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                           ),
                           child: const Center(
                             child: Text(
-                              '确认解除',
+                              '我再想想',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white,

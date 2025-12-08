@@ -80,24 +80,32 @@ class BootCompletedReceiver : BroadcastReceiver() {
     /**
      * 处理开机完成事件
      */
-    private fun handleBootCompleted(context: Context) {
+    private fun handleBootCompleted(context: Context, triggeredByUserUnlock: Boolean = false) {
         try {
+            Log.d(TAG, "🔍 开始处理开机完成事件...")
+            
+            if (!triggeredByUserUnlock) {
+                resetFirstUnlockFlag(context)
+            }
+            
             // 检查用户上次是否启用了定位服务
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val wasLocationEnabled = prefs.getBoolean(KEY_LOCATION_SERVICE_ENABLED, false)
             
+            Log.d(TAG, "📊 定位服务状态检查: wasLocationEnabled=$wasLocationEnabled")
+            
             if (!wasLocationEnabled) {
-                Log.d(TAG, "用户上次未启用定位服务，跳过自动启动")
+                Log.d(TAG, "ℹ️ 用户上次未启用定位服务，跳过自动启动")
                 return
             }
             
-            Log.d(TAG, "用户上次已启用定位服务，准备自动启动...")
+            Log.d(TAG, "✅ 用户上次已启用定位服务，准备自动启动...")
             
             // 🔥 启动前台定位服务
             startForegroundLocationService(context)
             
         } catch (e: Exception) {
-            Log.e(TAG, "处理开机启动失败", e)
+            Log.e(TAG, "❌ 处理开机启动失败", e)
         }
     }
     
@@ -112,7 +120,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
             if (isFirstUnlock) {
                 Log.d(TAG, "首次解锁，尝试启动定位服务（厂商兼容）")
                 prefs.edit().putBoolean("first_unlock_after_boot", false).apply()
-                handleBootCompleted(context)
+                handleBootCompleted(context, triggeredByUserUnlock = true)
             }
         } catch (e: Exception) {
             Log.e(TAG, "处理用户解锁失败", e)
@@ -124,12 +132,23 @@ class BootCompletedReceiver : BroadcastReceiver() {
      */
     private fun startForegroundLocationService(context: Context) {
         try {
+            // 🔥 检查用户 Token 是否存在（用于定位上报）
+            val prefs = context.getSharedPreferences("kissu_preferences", Context.MODE_PRIVATE)
+            val token = prefs.getString("user_token", null)
+            val userId = prefs.getString("user_id", null)
+            
+            if (token.isNullOrEmpty()) {
+                Log.w(TAG, "⚠️ 用户Token不存在，定位服务将启动但无法上报数据（用户需要重新登录）")
+            } else {
+                Log.d(TAG, "✅ 用户Token存在: userId=$userId, token=${token.take(20)}...")
+            }
+            
             val serviceIntent = Intent(context, ForegroundLocationService::class.java).apply {
                 action = ForegroundLocationService.ACTION_START_FOREGROUND_SERVICE
                 
                 // 使用默认通知内容
-                putExtra("title", "Kissu定位服务")
-                putExtra("content", "正在为您提供位置服务...")
+                putExtra("title", "Kissu")
+                putExtra("content", "请不要关掉Kisssu后台进程\n当前正在为对方共享您的信息，请勿关闭")
                 putExtra("channelId", "kissu_location_service")
                 putExtra("notificationId", 1001)
                 putExtra("iconName", "ic_launcher")
@@ -154,7 +173,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
             // Flutter 的定位逻辑会通过 MethodChannel 与原生层通信
             
         } catch (e: Exception) {
-            Log.e(TAG, "启动前台定位服务失败", e)
+            Log.e(TAG, "❌ 启动前台定位服务失败", e)
         }
     }
 }

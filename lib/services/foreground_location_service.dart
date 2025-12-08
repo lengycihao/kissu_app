@@ -18,8 +18,8 @@ class ForegroundLocationService extends GetxService {
   
   // 前台服务配置
   static const String _channelId = 'kissu_location_service';
-  static const String _channelName = 'Kissu定位服务';
-  static const String _channelDescription = '为您提供持续的位置定位服务';
+  static const String _channelName = 'Kissu';
+  static const String _channelDescription = '请不要关掉Kisssu后台进程\n当前正在为对方共享您的信息，请勿关闭';
   static const int _notificationId = 1001;
   
   // 平台通道

@@ -92,7 +92,7 @@ class TrackReplayFloatingButton extends StatelessWidget {
       trackPoints: controller.trackPoints.toList(),
       stopPoints: controller.stopPoints.toList(),
       currentUserAvatar: _getCurrentUserAvatar(),
-      mapType: controller.mapType.value,
+      // mapType: controller.mapType.value,
     );
 
     // 注册控制器

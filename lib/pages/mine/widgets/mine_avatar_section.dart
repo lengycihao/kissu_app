@@ -95,7 +95,23 @@ class MineAvatarSection extends StatelessWidget {
   Widget _buildPartnerAvatar() {
     // 未绑定时不显示第二个头像
     if (!isBound) {
-      return const SizedBox.shrink();
+      return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFffffff), width: 2),
+      ),
+      child: ClipOval(
+        child: Image.asset(
+                'assets/4.0/kissu4_avair_add.webp',
+                fit: BoxFit.cover,
+                
+              )
+            
+      ),
+    );
     }
 
     return Container(

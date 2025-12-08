@@ -20,6 +20,7 @@ class HttpHeaderKey {
   static const String deviceId = 'deviceid';
   static const String mobileModel = 'mobile-model';
   static const String power = 'power';
+  static const String isOpenLocation = 'is-open-location';
   static const String brand = 'brand';
   static const String oaid = 'oaid';  // OAID（Open Anonymous Device Identifier）
 }

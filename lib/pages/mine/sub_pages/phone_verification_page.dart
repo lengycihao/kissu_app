@@ -146,7 +146,7 @@ class PhoneVerificationPage extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       controller.canResend.value
-                          ? '获取验证码'
+                          ? '发送验证码'
                           : '${controller.countdown.value}s',
                       style: TextStyle(
                         color: controller.canResend.value

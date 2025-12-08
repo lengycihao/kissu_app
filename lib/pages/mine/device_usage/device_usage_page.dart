@@ -6,8 +6,10 @@ import 'device_usage_controller.dart';
 import 'dart:math' as math;
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
+import 'package:kissu_app/widgets/dialogs/iphone_app_usage_dialog.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 新的用机记录页面
@@ -45,10 +47,32 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
       Future.microtask(() {
         if (mounted) {
           controller.updateBindStatus();
+          // 🎯 每次进入页面时，如果未绑定则自动弹出绑定弹窗
+          _checkAndShowBindingDialog();
         }
       });
     } else {
       _hasInitialized = true;
+      // 🎯 首次进入时，如果未绑定则自动弹出绑定弹窗
+      Future.microtask(() {
+        if (mounted) {
+          _checkAndShowBindingDialog();
+        }
+      });
+    }
+  }
+
+  /// 检查绑定状态并自动弹出绑定弹窗
+  void _checkAndShowBindingDialog() {
+    if (!controller.isUserBound.value && context.mounted) {
+      CustomBottomDialog.show(
+        context: context,
+        caller: BindingDialogCaller.deviceUsage,
+        onClose: () {
+          // 绑定弹窗关闭后，刷新状态并重新加载数据
+          controller.updateBindStatus();
+        },
+      );
     }
   }
 
@@ -71,28 +95,32 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               children: [
                 // 顶部导航栏
                 _buildTopBar(),
-                // 可滚动内容区域
+                // 可滚动内容区域（支持下拉刷新）
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    child: Column(
-                      children: [
-                        // 手机使用记录模块
-                        _buildPhoneUsageModule(),
-                        const SizedBox(height: 16),
-                        // App使用记录模块
-                        _buildAppUsageModule(),
-                        const SizedBox(height: 16),
-                        // 敏感操作记录模块
-                        _buildSensitiveRecordModule(),
-                        const SizedBox(height: 20),
-                      ],
+                  child: RefreshIndicator(
+                    onRefresh: () => controller.refreshData(),
+                    color: const Color(0xFFFF839E),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Column(
+                        children: [
+                          // 手机使用记录模块
+                          _buildPhoneUsageModule(),
+                          const SizedBox(height: 16),
+                          // App使用记录模块
+                          _buildAppUsageModule(),
+                          const SizedBox(height: 16),
+                          // 敏感操作记录模块
+                          _buildSensitiveRecordModule(),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -108,20 +136,19 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   Widget _buildTopBar() {
     return Container(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Row(
         children: [
-          // 返回按钮
-          GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              child: Image.asset(
-                "assets/4.0/kissu4_back.webp",
-                width: 24,
-                height: 24,
-              ),
-            ),
+          // 返回按钮（统一封装，点击区域更大且更灵敏）
+          CommonBackButton(
+            onTap: () {
+              // 使用 Navigator 返回，避免 GetX Snackbar 初始化错误
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
+            assetPath: "assets/4.0/kissu4_back.webp",
+            iconSize: 22,
           ),
           // 标题
           const Expanded(
@@ -136,18 +163,19 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               ),
             ),
           ),
-          // 调试按钮
-          GestureDetector(
-            onTap: () => controller.toggleDebugMode(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              child: const Icon(
-                Icons.bug_report,
-                size: 24,
-                color: Color(0xFF999999),
-              ),
-            ),
-          ),
+          const SizedBox(width: 45),
+          // // 调试按钮
+          // GestureDetector(
+          //   onTap: () => controller.toggleDebugMode(),
+          //   child: Container(
+          //     padding: const EdgeInsets.all(8),
+          //     child: const Icon(
+          //       Icons.bug_report,
+          //       size: 24,
+          //       color: Color(0xFF999999),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -157,8 +185,29 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   Widget _buildPhoneUsageModule() {
     return GestureDetector(
       onTap: () {
-        // 跳转到App使用记录详情页
-        Get.toNamed(KissuRoutePath.appUsageInfo);
+        // 未绑定时优先弹出绑定弹窗
+        if (!controller.isUserBound.value) {
+          _checkAndShowBindingDialog();
+          return;
+        }
+
+        // 检查会员状态
+        if (!controller.isUserVip.value) {
+          // 不是会员，跳转到VIP页面
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'previousPageName': '用机记录页面',
+              'previousPageId': 'device_usage',
+            },
+          )?.then((_) {
+            // 从VIP页面返回后，刷新状态
+            controller.updateBindStatus();
+          });
+        } else {
+          // 是会员，跳转到详情页
+          Get.toNamed(KissuRoutePath.appUsageInfo);
+        }
       },
       child: Container(
         height: 190,
@@ -297,8 +346,39 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   Widget _buildAppUsageModule() {
     return GestureDetector(
       onTap: () {
-        // 跳转到App使用统计页面
-        Get.toNamed(KissuRoutePath.appUsage);
+        // 未绑定时优先弹出绑定弹窗
+        if (!controller.isUserBound.value) {
+          _checkAndShowBindingDialog();
+          return;
+        }
+
+        // 检查对方是否是iPhone
+        // final halfUserData = controller.halfUserData.value;
+        // final isIOS = halfUserData?.isIOS ?? false;
+        
+        // // 如果对方是iPhone，显示提示对话框
+        // if (isIOS) {
+        //   IPhoneAppUsageDialog.show(context);
+        //   return;
+        // }
+        
+        // 检查会员状态
+        if (!controller.isUserVip.value) {
+          // 不是会员，跳转到VIP页面
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'previousPageName': '用机记录页面',
+              'previousPageId': 'device_usage',
+            },
+          )?.then((_) {
+            // 从VIP页面返回后，刷新状态
+            controller.updateBindStatus();
+          });
+        } else {
+          // 是会员，跳转到详情页
+          Get.toNamed(KissuRoutePath.appUsage);
+        }
       },
       child: Container(
         height: 190,
@@ -377,17 +457,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                 // 时长
                                 Obx(
                                   () =>
-                                      (controller.longestAppHours.value == 0 &&
-                                          controller.longestAppMinutes.value ==
-                                              0)
-                                      ? const Text(
-                                          "0小时00分钟",
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Color(0xFF999999),
-                                          ),
-                                        )
-                                      : Text.rich(
+                                       Text.rich(
                                           TextSpan(
                                             children: [
                                               TextSpan(
@@ -402,7 +472,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                               TextSpan(
                                                 text: "小时",
                                                 style: const TextStyle(
-                                                  fontSize: 12,
+                                                  fontSize: 13,
                                                   color: Color(0xcc333333),
                                                 ),
                                               ),
@@ -418,7 +488,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                               TextSpan(
                                                 text: "分钟",
                                                 style: const TextStyle(
-                                                  fontSize: 12,
+                                                  fontSize: 13,
                                                   color: Color(0xcc333333),
                                                 ),
                                               ),
@@ -707,11 +777,15 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                 ],
               ),
             ),
-            // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
+            // 毛玻璃蒙版（未绑定、已绑定未开会员、或对方是iPhone且已绑定已开会员时显示）
             Obx(() {
-              if (!controller.isUserBound.value ||
-                  (controller.isUserBound.value &&
-                      !controller.isUserVip.value)) {
+              final isBound = controller.isUserBound.value;
+              final isVip = controller.isUserVip.value;
+              final halfUserData = controller.halfUserData.value;
+              final isIOS = halfUserData?.isIOS ?? false;
+              
+              // 未绑定或已绑定未开会员：显示原有蒙版
+              if (!isBound || (isBound && !isVip)) {
                 return Positioned(
                   top: 40, // 标题高度 + 间距
                   left: 0,
@@ -719,10 +793,25 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                   bottom: 0,
                   child: _buildFrostedGlassMask(
                     "实时查看Ta的App详细使用记录",
-                    controller.isUserBound.value && !controller.isUserVip.value,
+                    isBound && !isVip,
                   ),
                 );
               }
+              
+              // // 已绑定已开会员，但对方是iPhone：显示iPhone内测提示
+              // if (isBound && isVip && isIOS) {
+              //   return Positioned(
+              //     top: 40, // 标题高度 + 间距
+              //     left: 0,
+              //     right: 0,
+              //     bottom: 0,
+              //     child: _buildFrostedGlassMask(
+              //       "iPhone处于内测阶段，您的对象为\niPhone用户。\"App使用记录\"暂时\n无法查看，我们将逐步开放，感谢\n您的理解！",
+              //       false, // 不显示VIP按钮
+              //     ),
+              //   );
+              // }
+              
               return const SizedBox.shrink();
             }),
           ],
@@ -735,7 +824,13 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   Widget _buildSensitiveRecordModule() {
     return GestureDetector(
       onTap: () {
-        // 跳转到敏感操作记录详情页
+        // 未绑定时优先弹出绑定弹窗（点击标题模块 & 整卡片均生效）
+        if (!controller.isUserBound.value) {
+          _checkAndShowBindingDialog();
+          return;
+        }
+
+        // 已绑定后，无论是否开通会员，均可进入敏感操作记录详情页
         Get.to(
           () => const UsageReportPage(),
           binding: UsageReportBinding(),
@@ -743,7 +838,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
         );
       },
       child: Container(
-        height: 238,
+        constraints: const BoxConstraints(minHeight: 240),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -754,62 +849,65 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // 模块标题
                   _buildModuleTitle("Ta的敏感操作记录"),
                   const SizedBox(height: 12),
                   // 操作记录列表
-                  Expanded(
-                    child: Obx(() {
-                      if (controller.sensitiveRecords.isEmpty ||
-                          controller.isDebugEmptyMode.value) {
-                        return _buildEmptySensitiveRecords();
-                      }
-                      return Column(
-                        children: List.generate(
-                          math.min(3, controller.sensitiveRecords.length),
-                          (index) => _buildSensitiveRecordItem(
-                            controller.sensitiveRecords[index],
-                            index <
-                                math.min(
-                                  2,
-                                  controller.sensitiveRecords.length - 1,
-                                ),
-                          ),
+                  Obx(() {
+                    if (controller.sensitiveRecords.isEmpty ||
+                        controller.isDebugEmptyMode.value) {
+                      return _buildEmptySensitiveRecords();
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        math.min(3, controller.sensitiveRecords.length),
+                        (index) => _buildSensitiveRecordItem(
+                          controller.sensitiveRecords[index],
+                          index <
+                              math.min(
+                                2,
+                                controller.sensitiveRecords.length - 1,
+                              ),
                         ),
-                      );
-                    }),
-                  ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
 
-            // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
-            Obx(() {
-              if (!controller.isUserBound.value ||
-                  (controller.isUserBound.value &&
-                      !controller.isUserVip.value)) {
-                return Positioned(
-                  top: 40, // 标题高度 + 间距
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _buildFrostedGlassMask(
-                    "实时查看Ta的敏感记录",
-                    controller.isUserBound.value && !controller.isUserVip.value,
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            }),
+            // // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
+            // Obx(() {
+            //   if (!controller.isUserBound.value ||
+            //       (controller.isUserBound.value &&
+            //           !controller.isUserVip.value)) {
+            //     return Positioned(
+            //       top: 40, // 标题高度 + 间距
+            //       left: 0,
+            //       right: 0,
+            //       bottom: 0,
+            //       child: _buildFrostedGlassMask(
+            //         "实时查看Ta的敏感记录",
+            //         controller.isUserBound.value && !controller.isUserVip.value,
+            //       ),
+            //     );
+            //   }
+            //   return const SizedBox.shrink();
+            // }),
           ],
         ),
       ),
     );
   }
 
-  /// 构建毛玻璃蒙版
+  // 构建毛玻璃蒙版
   Widget _buildFrostedGlassMask(String text, bool isVipButton) {
+    // 判断是否是iPhone内测提示（文本较长且不显示按钮）
+    // final isIPhoneHint = text.contains('iPhone处于内测阶段');
+    
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(12),
@@ -819,6 +917,9 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: GestureDetector(
           onTap: () {
+            // // iPhone提示不响应点击
+            // if (isIPhoneHint) return;
+            
             final currentContext = Get.context;
             if (currentContext != null) {
               if (isVipButton) {
@@ -863,53 +964,59 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               ),
             ),
             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 第一行：图标 + 文字
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 第一行：图标 + 文字
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Image.asset(
+                            'assets/images/kissu4_vip_hat.webp',
+                            width: 16,
+                            height: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                         Stack(
+                                  children: [
+                                    Positioned(
+                                      bottom: 2,
+                                      right: 0,
+                                      child: Image.asset(
+                                        'assets/images/kissu4_vip_line.webp',
+                                        width: 68,
+                                        height: 12,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Text(
+                                      text,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF333333),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                       Image.asset(
-                        'assets/images/kissu4_vip_hat.webp',
-                        width: 16,
-                        height: 14,
+                        isVipButton
+                            ? 'assets/images/kissu3_go_vip.webp'
+                            : 'assets/images/kissu3_go_bind.webp',
+                        width: isVipButton ? 129 : 109,
+                        height: 35,
                       ),
-                      const SizedBox(width: 6),
-                      Stack(
-                        children: [
-                          Positioned(
-                            bottom: 2,
-                            right: 0,
-                            child: Image.asset(
-                              'assets/images/kissu4_vip_line.webp',
-                              width: 68,
-                              height: 12,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Text(
-                            text,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // 第二行：按钮（根据状态显示不同的按钮）
-                  Image.asset(
-                    isVipButton
-                        ? 'assets/images/kissu3_go_vip.webp'
-                        : 'assets/images/kissu3_go_bind.webp',
-                    width: isVipButton ? 129 : 109,
-                    height: 35,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -966,7 +1073,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
 
   /// 圆环进度（双层圆环）
   Widget _buildCircularProgress(int hours, int minutes) {
-    // 使用 totalUseDuration.minute 对比今天当前时间的分钟数据
+    // 使用屏幕使用时长对比24小时（1440分钟）计算进度
     final progress = controller.getCircularProgress();
 
     return Stack(
@@ -1190,19 +1297,32 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
 
   /// 敏感操作记录项
   Widget _buildSensitiveRecordItem(SensitiveRecord record, bool showDivider) {
+    // 根据是否有subtitle判断高度：单行52，双行68
+    final itemHeight = record.subtitle.isNotEmpty ? 68.0 : 52.0;
+    
     return Column(
       children: [
         Container(
-          height: 52,
+          height: itemHeight,
           decoration: BoxDecoration(
             color: const Color(0xFFF9F9F9),
             borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
+            crossAxisAlignment: record.subtitle.isNotEmpty 
+                ? CrossAxisAlignment.center 
+                : CrossAxisAlignment.center,
             children: [
               // 图标
-              Image.asset(record.iconPath, width: 18, height: 18),
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: NetworkImageHelper.loadImage(
+                  imageUrl: record.iconPath,
+                  fit: BoxFit.contain,
+                ),
+              ),
               const SizedBox(width: 4),
               // 内容
               Expanded(
@@ -1223,7 +1343,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                         record.subtitle,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF999999),
+                          color: Color(0xcc333333),
                         ),
                       ),
                     ],

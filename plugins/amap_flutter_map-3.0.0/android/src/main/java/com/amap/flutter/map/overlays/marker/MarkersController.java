@@ -81,6 +81,9 @@ public class MarkersController
             case Const.METHOD_MARKER_STOP_RIPPLE_ANIMATION:
                 stopRippleAnimation(call, result);
                 break;
+            case Const.METHOD_MARKER_MOVE_SMOOTHLY:
+                moveMarkerSmoothly(call, result);
+                break;
         }
     }
 
@@ -151,15 +154,21 @@ public class MarkersController
                     marker.setClickable(ConvertUtil.toBoolean(clickable));
                 }
                 
-                // 处理自定义 InfoWindow
-                updateCustomInfoWindowData(marker.getId(), markerObj);
+                // 🚀 优化：只在有自定义 InfoWindow 或轨迹样式时才更新，减少不必要的调用
+                Object hasCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "hasCustomInfoWindow");
+                Object isTrackStyle = ConvertUtil.getKeyValueFromMapObject(markerObj, "isTrackStyle");
+                boolean needUpdateInfoWindow = (hasCustomInfoWindow != null && ConvertUtil.toBoolean(hasCustomInfoWindow))
+                    || (isTrackStyle != null && ConvertUtil.toBoolean(isTrackStyle));
+                if (needUpdateInfoWindow) {
+                    updateCustomInfoWindowData(marker.getId(), markerObj);
+                }
                 
                 MarkerController markerController = new MarkerController(marker);
                 controllerMapByDartId.put(dartMarkerId, markerController);
                 idMapByOverlyId.put(marker.getId(), dartMarkerId);
                 
                 // 如果有自定义 InfoWindow 且明确设置了自动显示，则在创建时就显示
-                Object hasCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "hasCustomInfoWindow");
+                // 🚀 复用上面已定义的 hasCustomInfoWindow 变量，避免重复定义
                 Object autoShowCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerObj, "autoShowCustomInfoWindow");
                 if (hasCustomInfoWindow != null && ConvertUtil.toBoolean(hasCustomInfoWindow) 
                     && autoShowCustomInfoWindow != null && ConvertUtil.toBoolean(autoShowCustomInfoWindow)) {
@@ -186,8 +195,14 @@ public class MarkersController
             if (null != markerController) {
                 MarkerUtil.interpretMarkerOptions(markerToChange, markerController);
                 
-                // 更新自定义 InfoWindow
-                updateCustomInfoWindowData(markerController.getMarkerId(), markerToChange);
+                // 🚀 优化：只在有自定义 InfoWindow 或轨迹样式时才更新，减少不必要的调用
+                Object hasCustomInfoWindow = ConvertUtil.getKeyValueFromMapObject(markerToChange, "hasCustomInfoWindow");
+                Object isTrackStyle = ConvertUtil.getKeyValueFromMapObject(markerToChange, "isTrackStyle");
+                boolean needUpdateInfoWindow = (hasCustomInfoWindow != null && ConvertUtil.toBoolean(hasCustomInfoWindow))
+                    || (isTrackStyle != null && ConvertUtil.toBoolean(isTrackStyle));
+                if (needUpdateInfoWindow) {
+                    updateCustomInfoWindowData(markerController.getMarkerId(), markerToChange);
+                }
             }
         }
     }
@@ -399,6 +414,9 @@ public class MarkersController
             infoData = new CustomInfoWindowAdapter.MarkerInfoData(hasCustomInfoWindow, locationName, address);
         }
         
+        // 🚀 优化：减少日志输出，只在真正需要时输出（调试模式）
+        // LogUtil.i(CLASS_NAME, "updateCustomInfoWindowData: markerId=" + markerId + ", hasCustomInfoWindow=" + hasCustomInfoWindow + ", isTrackStyle=" + isTrackStyle + ", locationName=" + locationName);
+        
         customInfoWindowAdapter.updateMarkerInfo(markerId, infoData);
     }
 
@@ -576,6 +594,64 @@ public class MarkersController
         } catch (Exception e) {
             LogUtil.e(CLASS_NAME, "停止波纹动画失败", e);
             result.error("ANIMATION_ERROR", "停止动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 🎯 平滑移动Marker到目标位置（原生动画）
+     * 
+     * 使用高德地图原生平滑移动API，实现60fps流畅移动
+     * 
+     * @param call 包含markerId、latitude、longitude、duration、rotation的参数
+     * @param result 回调结果
+     */
+    private void moveMarkerSmoothly(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+            Double latitude = call.argument("latitude");
+            Double longitude = call.argument("longitude");
+            Integer duration = call.argument("duration");
+            Double rotation = call.argument("rotation");
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+            if (latitude == null || longitude == null) {
+                result.error("INVALID_ARGUMENT", "latitude和longitude不能为空", null);
+                return;
+            }
+
+            // 设置默认值
+            long durationMs = duration != null ? duration.longValue() : 100L;
+            Float rotationFloat = rotation != null ? rotation.floatValue() : null;
+
+            // 获取MarkerController
+            MarkerController controller = controllerMapByDartId.get(markerId);
+            if (controller == null) {
+                result.error("MARKER_NOT_FOUND", "未找到markerId对应的Marker: " + markerId, null);
+                return;
+            }
+
+            // 创建目标位置
+            com.amap.api.maps.model.LatLng targetPosition = 
+                new com.amap.api.maps.model.LatLng(latitude, longitude);
+
+            // 平滑移动Marker
+            controller.moveMarkerSmoothly(targetPosition, durationMs, rotationFloat);
+            
+            // 降低日志频率（每10次记录一次）
+            // LogUtil.i(CLASS_NAME, String.format(
+            //     "✅ 平滑移动Marker: markerId=%s, target=(%.6f,%.6f), duration=%dms, rotation=%s",
+            //     markerId, latitude, longitude, durationMs, rotationFloat));
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "平滑移动Marker失败", e);
+            result.error("MOVE_ERROR", "平滑移动失败: " + e.getMessage(), null);
         }
     }
 

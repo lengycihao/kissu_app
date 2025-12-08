@@ -31,6 +31,10 @@ class ScreenLockService extends GetxService {
   
   // 是否已初始化
   bool _isInitialized = false;
+
+  // 轻量本地去重：记录上一次上报的事件类型与时间戳（秒）
+  String? _lastEventType;
+  int? _lastEventTimestampSeconds;
   
   @override
   void onInit() {
@@ -101,7 +105,7 @@ class ScreenLockService extends GetxService {
         DebugUtil.info('🔍 键值对: $key => $value (${value.runtimeType})');
       });
       
-      // 尝试提取字段
+      // 尝试提取字段（原生传入的事件类型与时间戳，时间戳为毫秒）
       dynamic rawEventType = eventMap['event_type'];
       dynamic rawTimestamp = eventMap['timestamp'];
       
@@ -110,7 +114,7 @@ class ScreenLockService extends GetxService {
       
       // 安全类型转换
       String? eventType;
-      int? timestamp;
+      int? timestampMillis;
       
       try {
         eventType = rawEventType as String?;
@@ -120,30 +124,49 @@ class ScreenLockService extends GetxService {
       }
       
       try {
-        // 注意 timestamp 可能是 double 或 num，最好统一成 int
-        timestamp = (rawTimestamp is num) ? rawTimestamp.toInt() : null;
-        DebugUtil.info('✅ timestamp转换成功: $timestamp');
+        // 注意 timestamp 可能是 double 或 num，这里统一转为毫秒整数
+        timestampMillis = (rawTimestamp is num) ? rawTimestamp.toInt() : null;
+        DebugUtil.info('✅ timestamp转换成功(毫秒): $timestampMillis');
       } catch (e) {
         DebugUtil.error('❌ timestamp转换失败: $e');
       }
       
       // 验证必要字段
-      if (eventType == null || timestamp == null) {
-        DebugUtil.warning('❌ 锁屏事件数据缺少必要字段 - eventType: $eventType, timestamp: $timestamp');
+      if (eventType == null || timestampMillis == null) {
+        DebugUtil.warning('❌ 锁屏事件数据缺少必要字段 - eventType: $eventType, timestampMillis: $timestampMillis');
         return;
       }
       
-      DebugUtil.success('✅ 收到有效锁屏事件: $eventType, 时间戳: $timestamp');
+      // 将毫秒时间戳转换为秒级时间戳，便于后端对齐
+      final timestampSeconds = timestampMillis ~/ 1000;
+      
+      DebugUtil.success('✅ 收到有效锁屏事件: $eventType, 时间戳(秒): $timestampSeconds');
+
+      // 轻量去重：同一类型事件在1秒内重复到达则丢弃，兜底部分ROM重复广播
+      if (_lastEventType != null &&
+          _lastEventTimestampSeconds != null &&
+          _lastEventType == eventType) {
+        final diff = (timestampSeconds - _lastEventTimestampSeconds!).abs();
+        if (diff <= 1) {
+          DebugUtil.warning(
+              '⚠️ 1秒内收到重复锁屏事件($eventType)，已忽略，本次: $timestampSeconds, 上次: ${_lastEventTimestampSeconds!}');
+          return;
+        }
+      }
+
+      // 更新本地事件缓存
+      _lastEventType = eventType;
+      _lastEventTimestampSeconds = timestampSeconds;
       
       // 根据事件类型触发相应的上报
       switch (eventType) {
         case 'unlock':
           DebugUtil.info('🔓 处理解锁事件');
-          _handleUnlockEvent();
+        _handleUnlockEvent(timestampSeconds);
           break;
         case 'lock':
           DebugUtil.info('🔒 处理锁屏事件');
-          _handleLockEvent();
+        _handleLockEvent(timestampSeconds);
           break;
         default:
           DebugUtil.warning('❌ 未知的锁屏事件类型: $eventType');
@@ -159,14 +182,14 @@ class ScreenLockService extends GetxService {
 
   
   /// 处理解锁事件
-  void _handleUnlockEvent() {
+  void _handleUnlockEvent([int? timestampSeconds]) {
     try {
       DebugUtil.info('处理手机解锁事件');
       
       // 检查敏感数据服务是否可用
       if (Get.isRegistered<SensitiveDataService>()) {
         final sensitiveDataService = SensitiveDataService.instance;
-        sensitiveDataService.reportScreenUnlock();
+        sensitiveDataService.reportScreenUnlock(timestampSeconds: timestampSeconds);
       } else {
         DebugUtil.warning('敏感数据服务未注册，无法上报解锁事件');
       }
@@ -176,14 +199,14 @@ class ScreenLockService extends GetxService {
   }
   
   /// 处理锁屏事件
-  void _handleLockEvent() {
+  void _handleLockEvent([int? timestampSeconds]) {
     try {
       DebugUtil.info('处理手机锁屏事件');
       
       // 检查敏感数据服务是否可用
       if (Get.isRegistered<SensitiveDataService>()) {
         final sensitiveDataService = SensitiveDataService.instance;
-        sensitiveDataService.reportScreenLock();
+        sensitiveDataService.reportScreenLock(timestampSeconds: timestampSeconds);
       } else {
         DebugUtil.warning('敏感数据服务未注册，无法上报锁屏事件');
       }

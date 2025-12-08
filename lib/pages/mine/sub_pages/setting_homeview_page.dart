@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/view_mode_service.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 class SettingHomeController extends GetxController {
   late ViewModeService viewModeService;
@@ -67,19 +68,13 @@ class SettingHomePage extends StatelessWidget {
               children: [
                 // 顶部导航
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
                   child: Row(
                     children: [
-                      GestureDetector(
+                      CommonBackButton(
                         onTap: controller.onBackTap,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          child: Image.asset(
-                            "assets/images/kissu_mine_back.webp",
-                            width: 22,
-                            height: 22,
-                          ),
-                        ),
+                        assetPath: "assets/images/kissu_mine_back.webp",
+                        iconSize: 22,
                       ),
                       const Expanded(
                         child: Center(
@@ -130,7 +125,7 @@ class SettingHomePage extends StatelessWidget {
 
                 // 底部两个按钮 - 带动画
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 65),
+                  padding: const EdgeInsets.only(bottom: 50),
                   child: Obx(
                     () => Row(
                       mainAxisAlignment: MainAxisAlignment.center,

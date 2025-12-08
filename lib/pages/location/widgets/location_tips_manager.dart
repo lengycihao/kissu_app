@@ -55,7 +55,7 @@ class LocationTipsManager extends GetxController {
       debugPrint('🔍 LocationTipsManager: 开始检查始终允许定位权限');
       
       // 检查始终允许定位权限状态（后台定位权限）
-      final alwaysStatus = await Permission.locationAlways.status;
+      final alwaysStatus = await Permission.location.status;
       final shouldShow = !alwaysStatus.isGranted;
       
       debugPrint('🔐 始终允许定位权限状态: $alwaysStatus');
@@ -121,29 +121,25 @@ class LocationTipsManager extends GetxController {
         final now = DateTime.now();
         final difference = endTime.difference(now);
         
-        if (difference.inDays <= 5 && difference.inDays >= 0) {
+        if (difference.inDays <= 7 && difference.inDays >= 0) {
           // 5天内到期（且未过期）
           showVipExpiryTip.value = true;
           
           if (difference.inDays >= 1) {
             // 显示天数（1-5天）
             vipExpiryDays.value = difference.inDays;
-            vipExpiryText.value = "${difference.inDays}天";
+            vipExpiryText.value = "你的会员还有${difference.inDays}天到期！";
             debugPrint('⏰ 会员${difference.inDays}天后到期');
-          } else if (difference.inHours > 0) {
+          }  else {
             // 显示小时数（小于1天且大于0小时）
             vipExpiryHours.value = difference.inHours;
-            vipExpiryText.value = "${difference.inHours}小时";
-            debugPrint('⏰ 会员${difference.inHours}小时后到期');
-          } else {
-            // 已过期或即将过期（0小时内）
-            vipExpiryText.value = "即将到期";
-            debugPrint('⏰ 会员即将到期或已过期');
-          }
+            vipExpiryText.value = "你的会员不足1天，请尽快续费！";
+            debugPrint('⏰ 会员不足1天，请尽快续费！');
+           }
         } else if (difference.inDays < 0) {
           // 已过期，仍然显示提示
           showVipExpiryTip.value = true;
-          vipExpiryText.value = "已过期";
+          vipExpiryText.value = "你的会员已过期${difference.inDays.abs()}天！";
           debugPrint('⏰ 会员已过期');
         } else {
           showVipExpiryTip.value = false;

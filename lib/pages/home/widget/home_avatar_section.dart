@@ -175,8 +175,8 @@ class HomeAvatarSection extends StatelessWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Color(0xffFFECEA)),
+                          color: Color(0xff5CC0FF),
+                          border: Border.all(color: Color(0xffffffff)),
                           borderRadius: BorderRadius.all(
                             Radius.circular(15),
                           ),
@@ -184,7 +184,7 @@ class HomeAvatarSection extends StatelessWidget {
                         child: Text(
                           "绑定另一半",
                           style: TextStyle(
-                            color: Color(0xff666666),
+                            color: Color(0xffffffff),
                             fontSize: 12,
                           ),
                         ),

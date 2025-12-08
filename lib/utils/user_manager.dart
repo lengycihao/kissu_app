@@ -6,6 +6,7 @@ import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 
 /// 全局用户数据管理工具类
@@ -132,12 +133,28 @@ class UserManager {
     // 停止定位服务
     stopLocationService();
     
+    // 停止App使用记录自动上报服务
+    _stopAppUsageAutoReport();
+    
     // 清除缓存
     clearPhoneHistoryCache();
     // clearLocationCache();
     // clearTrackDataCache();
     
     await _authService.logout();
+  }
+  
+  /// 停止App使用记录自动上报服务
+  static void _stopAppUsageAutoReport() {
+    try {
+      if (Get.isRegistered<AppUsageAutoReportService>()) {
+        final service = Get.find<AppUsageAutoReportService>();
+        service.stop();
+        DebugUtil.success('App使用记录自动上报服务已停止');
+      }
+    } catch (e) {
+      DebugUtil.error('停止App使用记录自动上报服务失败: $e');
+    }
   }
 
   /// 清除本地用户数据（用于注销后的数据清理，不调用退出登录API）

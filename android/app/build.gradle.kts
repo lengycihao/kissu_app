@@ -3,6 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // 华为 AGConnect 插件，读取 agconnect-services.json
+    id("com.huawei.agconnect")
 }
 
 // 添加本地 AAR 仓库
@@ -65,6 +67,22 @@ android {
         
         // OpenInstall配置
         manifestPlaceholders["OPENINSTALL_APPKEY"] = "eb24o3"
+
+        // 极光厂商通道（除华为/荣耀，华为需 agconnect-services.json 后再接入）
+        // 小米
+        manifestPlaceholders["JPUSH_MI_APPID"] = "2882303761520437827"
+        manifestPlaceholders["JPUSH_MI_APPKEY"] = "45ID1Ha8xH5MAzDuhT8zug=="
+        // OPPO
+        manifestPlaceholders["JPUSH_OPPO_APPID"] = "35641549"
+        manifestPlaceholders["JPUSH_OPPO_APPKEY"] = "40e53bd9fd784f50870afa706892f7c0"
+        manifestPlaceholders["JPUSH_OPPO_APPSECRET"] = "e879a0c19584495a8b014665b03d30da"
+        // vivo
+        manifestPlaceholders["JPUSH_VIVO_APPID"] = "105947238"
+        manifestPlaceholders["JPUSH_VIVO_APPKEY"] = "fa541d6f32b359e1d8c34d99e2d6d07a"
+        manifestPlaceholders["JPUSH_VIVO_APPSECRET"] = "187e2978-7d42-43ea-9ad5-5f26a0db7151"
+        // 魅族
+        manifestPlaceholders["JPUSH_MEIZU_APPID"] = "156177"
+        manifestPlaceholders["JPUSH_MEIZU_APPKEY"] = "c4e0fad84dec44f7b77408012ad62149"
     }
 
 
@@ -104,19 +122,57 @@ flutter {
 
 configurations.all {
     resolutionStrategy {
-        // 使用稳定版本组合 (JPush 5.7.0 + JCore 4.9.1)
-        force("cn.jiguang.sdk:jpush:5.7.0")
-        force("cn.jiguang.sdk:jcore:4.9.1")
+        // 已改用本地极光推送SDK，不再需要强制版本
+        // force("cn.jiguang.sdk:jpush:5.7.0")
+        // force("cn.jiguang.sdk:jcore:4.9.1")
     }
 
     // 排除 flutter_android_oaid_plugin 里远程引入的 OAID 依赖，避免和本地 AAR 重复
     exclude(group = "com.github.gzu-liyujiang", module = "Android_CN_OAID")
+    
+    // 排除 jpush_flutter 插件传递引入的远程极光推送SDK，使用本地SDK
+    exclude(group = "cn.jiguang.sdk", module = "jpush")
+    exclude(group = "cn.jiguang.sdk", module = "jcore")
+    exclude(group = "cn.jiguang.sdk", module = "jpush-xiaomi")
+    exclude(group = "cn.jiguang.sdk", module = "jpush-oppo")
+    exclude(group = "cn.jiguang.sdk", module = "jpush-vivo")
+    exclude(group = "cn.jiguang.sdk", module = "jpush-meizu")
+    exclude(group = "cn.jiguang.sdk", module = "jpush-huawei")
+    exclude(group = "cn.jiguang.sdk", module = "jpush-honor")
+    
+    // 🎯 已移除：不再排除高德地图SDK，因为已改回分离版本（3dmap + location）
+    // exclude(group = "com.amap.api", module = "3dmap")
+    // exclude(group = "com.amap.api", module = "location")
+    // exclude(group = "com.amap.api", module = "search")
 }
 
 dependencies {
-    // JPush 核心依赖 - 使用与Flutter插件匹配的版本
-    implementation("cn.jiguang.sdk:jpush:5.8.0")
-    implementation("cn.jiguang.sdk:jcore:2.9.7")
+    // 华为推送依赖（供极光华为通道使用）
+    implementation("com.huawei.hms:push:6.12.0.300")
+    // ================= 极光推送本地SDK依赖 =================
+    // JPush 核心依赖 - 使用本地文件
+    implementation(files("../libs/jiguang/libs/jcore-android-5.2.2.aar"))
+    implementation(files("../libs/jiguang/libs/jpush-android-5.9.0.jar"))
+    
+    // 极光推送厂商通道插件（SDK 5.0+ 需要单独引入）
+    // 小米推送通道
+    implementation(files("../libs/jiguang/libs/jpush-android-plugin-xiaomi-v5.9.0.jar"))
+    implementation(files("../libs/jiguang/libs/MiPush_SDK_Client_6_0_1-C.jar"))
+    // OPPO推送通道
+    implementation(files("../libs/jiguang/libs/jpush-android-plugin-oppo-v5.9.0.jar"))
+    implementation(files("../libs/jiguang/libs/com.heytap.msp_V3.7.1.aar"))
+    // vivo推送通道
+    implementation(files("../libs/jiguang/libs/jpush-android-plugin-vivo-v5.9.0.jar"))
+    implementation(files("../libs/jiguang/libs/push_sdk_v4.1.0.0_510.jar"))
+    implementation(files("../libs/jiguang/libs/push-internal-5.0.5.aar"))
+    // 魅族推送通道
+    implementation(files("../libs/jiguang/libs/jpush-android-plugin-meizu-v5.9.0.jar"))
+    // 华为推送通道
+    implementation(files("../libs/jiguang/libs/jpush-android-plugin-huawei-v5.9.0.jar"))
+    implementation(files("../libs/jiguang/libs/HiPushSDK-8.0.12.307.aar"))
+    // 荣耀推送通道
+    implementation(files("../libs/jiguang/libs/jpush-android-plugin-honor-v5.9.0.jar"))
+    // ================= 极光推送本地SDK依赖结束 =================
     
     // 友盟本地SDK依赖
     // 友盟基础组件
@@ -150,10 +206,11 @@ dependencies {
     
     // 微信支付SDK
     implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
-    
-    // 高德地图和定位SDK
+    // 高德地图和定位SDK - 使用与 feature_4.0 相同的版本，确保自定义 InfoWindow 正常工作
+    // 📝 注意：3dmap-location-search:latest.integration 版本可能不兼容自定义 InfoWindow
     implementation("com.amap.api:location:5.6.0")
     implementation("com.amap.api:3dmap:8.1.0")
+    // implementation("com.amap.api:3dmap-location-search:latest.integration") // 已禁用：此版本不兼容自定义 InfoWindow
 
     // 本地 OAID SDK（替代远程 com.github.gzu-liyujiang:Android_CN_OAID:4.2.9）
     implementation(files("../libs/Android_CN_OAID-4.2.9.aar"))

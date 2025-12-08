@@ -9,11 +9,13 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/toast_toalog.dart';
 import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
@@ -33,8 +35,8 @@ class LoginController extends GetxController {
   // 加载状态
   var isLoading = false.obs; // 是否正在登录
   var loadingText = "正在登录...".obs; // loading文案
-  var codeButtonText = "获取验证码".obs; // 验证码按钮文本
-  var codeButtonColor = const Color(0xFFFF839E).obs; // 验证码按钮颜色
+  var codeButtonText = "发送验证码".obs; // 验证码按钮文本
+  var codeButtonColor = const Color(0xFFFF9AD9).obs; // 验证码按钮颜色
 
   // 登录防抖
   DateTime? _lastLoginTime;
@@ -54,8 +56,7 @@ class LoginController extends GetxController {
     // 📊 上报登录页面浏览埋点
     _trackLoginPageView();
     
-    // 🔑 进入登录页面后静默上传 OAID/IDFA
-    _uploadOaidIdfa();
+  
   }
 
   /// 加载协议同意状态
@@ -190,7 +191,7 @@ class LoginController extends GetxController {
     _countdownTimer = null;
     isCountdownActive.value = false;
     countdownSeconds.value = 0;
-    codeButtonText.value = '获取验证码';
+    codeButtonText.value = '发送验证码';
     codeButtonColor.value = const Color(0xFFFF839E);
   }
 
@@ -310,6 +311,12 @@ class LoginController extends GetxController {
         // 保存VIP推广标识到SharedPreferences（无论是true还是false都要保存，覆盖旧值）
         await _saveVipPromoFlag(shouldShowVipPromo);
         
+        // 启动App使用记录自动上报服务（登录成功后）
+        _startAppUsageAutoReport();
+        
+        // 重置登录页导航锁（登录成功后）
+        LoginNavigationLock.reset();
+        
         // 首次登录请求定位权限
         //判断是否需要完善信息
         if (UserManager.needsPerfectInfo) {
@@ -417,36 +424,21 @@ class LoginController extends GetxController {
     TrackingService.trackAgreementOperation(isAgree: isAgree);
   }
 
-  /// 上传 OAID/IDFA
-  /// 只在第一次下载 APP 进入登录页面时调用一次
-  void _uploadOaidIdfa() {
-    // 异步执行，不阻塞页面加载
-    Future.microtask(() async {
-      try {
-        // 检查是否已经上传过
-        final prefs = await SharedPreferences.getInstance();
-        final hasUploaded = prefs.getBool('oaid_uploaded') ?? false;
-        
-        if (hasUploaded) {
-          logDebug('OAID/IDFA 已上传过，跳过', tag: 'Login');
-          return;
-        }
-        
-        logDebug('首次进入登录页，开始上传 OAID/IDFA', tag: 'Login');
-        
-        final result = await authApi.saveOaidIdfa();
-        
-        if (result.isSuccess) {
-          // 标记为已上传
-          await prefs.setBool('oaid_uploaded', true);
-          logInfo('✅ OAID/IDFA 上传成功，已标记', tag: 'Login');
-        } else {
-          logWarning('⚠️ OAID/IDFA 上传失败: ${result.msg}', tag: 'Login');
-        }
-      } catch (e) {
-        logError('❌ OAID/IDFA 上传异常: $e', tag: 'Login', error: e);
-        // 上传失败不影响登录流程
+ 
+  
+  /// 启动App使用记录自动上报服务（登录成功后）
+  void _startAppUsageAutoReport() {
+    try {
+      if (Get.isRegistered<AppUsageAutoReportService>()) {
+        final service = Get.find<AppUsageAutoReportService>();
+        // 登录时强制全量上报，确保换账号后也能正确上报
+        service.restart(forceFullReport: true);
+        logInfo('✅ App使用记录自动上报服务已重启（登录后，强制全量上报）', tag: 'Login');
+      } else {
+        logWarning('⚠️ App使用记录自动上报服务未注册', tag: 'Login');
       }
-    });
+    } catch (e) {
+      logError('❌ 启动App使用记录自动上报服务失败: $e', tag: 'Login', error: e);
+    }
   }
 }

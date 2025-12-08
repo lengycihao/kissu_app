@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:kissu_app/pages/location/widgets/mask_device_info_widget.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
@@ -410,7 +409,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
           // 顶部返回按钮（带旋转动画）
           Positioned(
             top: MediaQuery.of(context).padding.top + 16,
-            left: 20,
+            left: 16,
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.9),
@@ -424,6 +423,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
                 ],
               ),
               child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
                 onTap: () =>
                     widget.controller.handleBackButtonTap(_scrollController),
                 child: AnimatedBuilder(
@@ -434,10 +434,11 @@ class _TrackPageContentState extends State<_TrackPageContent>
                           widget.controller.backButtonRotationAnimation.value *
                           2 *
                           3.14159, // 转换为弧度
-                      child: Image.asset(
-                        'assets/images/kissu_mine_back.webp',
+                      child: const Image(
+                        image: AssetImage('assets/images/kissu_mine_back.webp'),
                         width: 24,
                         height: 24,
+                        fit: BoxFit.cover,
                       ),
                     );
                   },
@@ -460,9 +461,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
   // 统计栏组件
   Widget _buildStatisticsRow() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 1, vertical: 12),
-      margin: EdgeInsets.symmetric(horizontal: 5),
-
+      padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -512,7 +512,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
         children: [
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF333333),
               fontWeight: FontWeight.w600,
@@ -524,7 +524,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
           const SizedBox(height: 6),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               color: Color(0xFF000000),
               // fontWeight: FontWeight.w500,
@@ -542,8 +542,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
       // 如果已绑定，显示普通日期选择器
       if (widget.controller.isBindPartner.value) {
         return Container(
-          margin: EdgeInsets.symmetric(horizontal: 14),
-          padding: EdgeInsets.only(bottom: 10, top: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.only(bottom: 10, top: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: Colors.white,
@@ -560,7 +560,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
       // 未绑定时显示带背景图的绑定模块
       return Container(
-        margin: EdgeInsets.symmetric(horizontal: 14),
+        margin: const EdgeInsets.symmetric(horizontal: 14),
         height: 92,
 
         child: Stack(
@@ -583,11 +583,13 @@ class _TrackPageContentState extends State<_TrackPageContent>
                     widget.controller.selectDate(date);
                   },
                   showBorder: false,
-                  selectedBackgroundColor: Color(0xFFFF74A0).withOpacity(0.8),
+                  selectedBackgroundColor:
+                      const Color(0xFFFF74A0).withOpacity(0.8),
                   selectedTextColor: Colors.white,
-                  unselectedTextColor: Color(0xff333333),
+                  unselectedTextColor: const Color(0xff333333),
                   height: 50,
-                  margin: EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
                 ),
               ),
             ),
@@ -600,11 +602,11 @@ class _TrackPageContentState extends State<_TrackPageContent>
   /// 停留次数时间模块
   Widget _buildStayStatsModule() {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 14),
-      padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Color(0xffFFFAFA),
+        color: const Color(0xffFFFAFA),
       ),
       child: _buildStatisticsRow(),
     );
@@ -643,78 +645,102 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
       if (shouldShowMask) {
         return Positioned.fill(
-          child: Column(
+          child: Stack(
             children: [
-              // 顶部日期组件（清晰的，不模糊）
-              _buildDateModule(),
+              // 🔒 蒙版内容层：使用 AbsorbPointer 阻止触摸事件穿透
+              AbsorbPointer(
+                child: Column(
+                  children: [
+                    // 顶部日期组件（清晰的，不模糊）
+                    _buildDateModule(),
 
-              const SizedBox(height: 10),
-              // 原来的蒙版整体
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                    // const SizedBox(height: 20),
+                    // 原来的蒙版整体
+                    Expanded(
+                      child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(20),
                         ),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // 文字图片
-                            Image.asset(
-                              'assets/images/kissu3_go_label.webp',
-                              width: 216,
-                              height: 32,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(height: 20),
-                            // 按钮
-                            GestureDetector(
-                              onTap: () async {
-                                if (!isBindPartner) {
-                                  // 未绑定：显示绑定弹窗
-                                  await _trackBindNowButton();
-                                  if (mounted && context.mounted) {
-                                    CustomBottomDialog.show(
-                                      context: context,
-                                      caller: BindingDialogCaller.track,
-                                    ).then((_) {
-                                      widget.controller
-                                          .refreshCurrentUserData();
-                                    });
-                                  }
-                                } else {
-                                  // 已绑定但未开会员：跳转到VIP页面
-                                  await _trackOpenMembershipButton();
-                                  Get.toNamed(
-                                    KissuRoutePath.vip,
-                                    arguments: {
-                                      'previousPageName': '足迹页面',
-                                      'previousPageId': 'footprint_page',
-                                    },
-                                  );
-                                }
-                              },
-                              child: Image.asset(
-                                !isBindPartner
-                                    ? 'assets/images/kissu3_go_bind.webp' // 未绑定
-                                    : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
-                                width: 150,
-                                height: 48,
-                                fit: BoxFit.contain,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20),
                               ),
                             ),
-                          ],
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // 文字图片
+                                  Image.asset(
+                                    'assets/images/kissu3_go_label.webp',
+                                    width: 216,
+                                    height: 32,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // 按钮占位（实际按钮在上层）
+                                  SizedBox(
+                                    width: 150,
+                                    height: 48,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              // 按钮层：允许点击（放在上层，不受 AbsorbPointer 影响）
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 130), // 与文字图片对齐
+                        GestureDetector(
+                          onTap: () async {
+                            if (!isBindPartner) {
+                              // 未绑定：显示绑定弹窗
+                              await _trackBindNowButton();
+                              if (mounted && context.mounted) {
+                                CustomBottomDialog.show(
+                                  context: context,
+                                  caller: BindingDialogCaller.track,
+                                ).then((_) {
+                                  widget.controller.refreshCurrentUserData();
+                                });
+                              }
+                            } else {
+                              // 已绑定但未开会员：跳转到VIP页面
+                              await _trackOpenMembershipButton();
+                              Get.toNamed(
+                                KissuRoutePath.vip,
+                                arguments: {
+                                  'previousPageName': '足迹页面',
+                                  'previousPageId': 'footprint_page',
+                                },
+                              );
+                            }
+                          },
+                          child: Image.asset(
+                            !isBindPartner
+                                ? 'assets/images/kissu3_go_bind.webp' // 未绑定
+                                : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
+                            width: 150,
+                            height: 48,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -851,6 +877,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
       return SafeAMapWidget(
         initialCameraPosition: widget.controller.initialCameraPosition,
         onMapCreated: widget.controller.onMapCreated,
+        onMapDisposed: widget.controller.onMapDisposed,
         markers: _cachedMarkers,
         polylines: _cachedPolylines,
         circles: widget.controller.highlightCircles.toSet(),

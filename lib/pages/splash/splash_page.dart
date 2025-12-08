@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -23,12 +24,54 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  static const MethodChannel _appIconChannel = MethodChannel('app_icon_channel');
+
   bool _imagesLoaded = false;
+  String _currentIconId = 'default';
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentIcon();
     _preloadImagesAndNavigate();
+  }
+
+  /// 从原生获取当前正在使用的 App 图标 ID，用于匹配启动页 logo
+  Future<void> _loadCurrentIcon() async {
+    try {
+      final String? iconId =
+          await _appIconChannel.invokeMethod<String>('getCurrentIcon');
+      if (!mounted) return;
+      if (iconId != null && iconId.isNotEmpty) {
+        setState(() {
+          _currentIconId = iconId;
+        });
+      }
+    } catch (e) {
+      DebugUtil.error('获取当前 App 图标失败: $e');
+    }
+  }
+
+  /// 确保应用已完成初始化，带超时与异常保护
+  Future<void> _ensureAppInitialized({
+    required Duration timeout,
+    required String contextTag,
+  }) async {
+    if (AppInitializer.isInitialized) return;
+
+    DebugUtil.warning('应用尚未初始化完成（$contextTag），等待初始化...');
+    try {
+      await AppInitializer.initialize().timeout(
+        timeout,
+        onTimeout: () {
+          DebugUtil.error(
+            '⚠️ 应用初始化超时（${timeout.inSeconds}秒，$contextTag），强制继续',
+          );
+        },
+      );
+    } catch (e) {
+      DebugUtil.error('⚠️ 应用初始化失败（$contextTag）: $e，继续启动流程');
+    }
   }
 
   /// 预加载所有启动页图片，避免闪烁
@@ -50,6 +93,43 @@ class _SplashPageState extends State<SplashPage> {
           const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'),
           context,
         ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon2.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon3.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon4.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon5.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon6.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon7.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon8.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon9.webp'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/mipmap-xxhdpi/flash_icon10.webp'),
+          context,
+        ),
+
         // 🚀 在启动页执行所有应用初始化（带超时保护）
         AppInitializer.initialize().timeout(
           const Duration(seconds: 10),
@@ -92,19 +172,10 @@ class _SplashPageState extends State<SplashPage> {
 
     try {
       // 🚀 确保应用已初始化（关键！必须在访问任何服务之前）
-      if (!AppInitializer.isInitialized) {
-        DebugUtil.warning('⚠️ 应用尚未初始化完成，等待初始化...');
-        try {
-          await AppInitializer.initialize().timeout(
-            const Duration(seconds: 8),
-            onTimeout: () {
-              DebugUtil.error('⚠️ 应用初始化超时（8秒），强制继续');
-            },
-          );
-        } catch (e) {
-          DebugUtil.error('⚠️ 应用初始化失败: $e，尝试继续启动');
-        }
-      }
+      await _ensureAppInitialized(
+        timeout: const Duration(seconds: 8),
+        contextTag: '首次初始化',
+      );
 
       // 🔑 现在可以安全访问服务了（带异常保护）
       try {
@@ -141,20 +212,11 @@ class _SplashPageState extends State<SplashPage> {
   /// 继续登录状态检查（隐私政策同意后）
   Future<void> _continueLoginStatusCheck() async {
     try {
-      // 🚀 确保应用已初始化（带超时保护）
-      if (!AppInitializer.isInitialized) {
-        DebugUtil.warning('应用尚未初始化完成，等待初始化...');
-        try {
-          await AppInitializer.initialize().timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              DebugUtil.error('⚠️ 二次初始化超时（5秒），强制继续启动');
-            },
-          );
-        } catch (e) {
-          DebugUtil.error('⚠️ 二次初始化失败: $e，继续启动流程');
-        }
-      }
+      // 🚀 再次确保应用已初始化（带超时保护）
+      await _ensureAppInitialized(
+        timeout: const Duration(seconds: 5),
+        contextTag: '二次初始化',
+      );
 
       // 🛡️ 安全获取AuthService（带异常保护）
       AuthService? authService;
@@ -399,6 +461,33 @@ class _SplashPageState extends State<SplashPage> {
     }
   }
 
+  /// 根据当前 App 图标选择启动页 logo 资源
+  String _getSplashLogoAsset() {
+    switch (_currentIconId) {
+      case 'logo_two':
+        return 'assets/mipmap-xxhdpi/flash_icon2.webp';
+      case 'logo_three':
+        return 'assets/mipmap-xxhdpi/flash_icon3.webp';
+      case 'logo_four':
+        return 'assets/mipmap-xxhdpi/flash_icon4.webp';
+      case 'logo_five':
+        return 'assets/mipmap-xxhdpi/flash_icon5.webp';
+      case 'logo_six':
+        return 'assets/mipmap-xxhdpi/flash_icon6.webp';
+      case 'logo_seven':
+        return 'assets/mipmap-xxhdpi/flash_icon7.webp';
+      case 'logo_eight':
+        return 'assets/mipmap-xxhdpi/flash_icon8.webp';
+      case 'logo_nine':
+        return 'assets/mipmap-xxhdpi/flash_icon9.webp';
+      case 'logo_ten':
+        return 'assets/mipmap-xxhdpi/flash_icon10.webp';
+      case 'default':
+      default:
+        return 'assets/mipmap-xxhdpi/flash_icon.webp';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 获取屏幕尺寸
@@ -439,11 +528,12 @@ class _SplashPageState extends State<SplashPage> {
           ),
           child: Stack(
             children: [
+              //logo
               Transform.translate(
                 offset: Offset(0, -135),
                 child: Center(
                   child: Image.asset(
-                    'assets/mipmap-xxhdpi/flash_icon.webp',
+                    _getSplashLogoAsset(),
                     width: titleWidth,
                     height: titleHeight,
                     fit: BoxFit.contain,

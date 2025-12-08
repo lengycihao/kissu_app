@@ -68,6 +68,20 @@ class PermissionHelper {
     }
   }
 
+  /// 打开手机系统设置主页
+  static Future<void> openSystemSettings() async {
+    try {
+      await _channel.invokeMethod('openSystemSettings');
+      logger.info("✅ 系统设置页面打开成功", tag: 'PermissionHelper');
+    } on PlatformException catch (e) {
+      logger.error("❌ 打开系统设置失败: ${e.message}",
+          tag: 'PermissionHelper', error: e);
+    } catch (e) {
+      logger.error("❌ 打开系统设置失败(未知错误): $e",
+          tag: 'PermissionHelper', error: e);
+    }
+  }
+
   /// 打开通用应用设置页面
   static Future<void> openAppSettings() async {
     try {

@@ -8,6 +8,7 @@ import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 位置提醒页面
 /// 
@@ -33,17 +34,12 @@ class LocationReminderPage extends GetView<LocationReminderController> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: Container(
-            margin: const EdgeInsets.only(left: 16),
-            child: Center(
-              child: Image.asset(
-                'assets/images/kissu_mine_back.webp',
-                width: 24,
-                height: 24,
-              ),
-            ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: CommonBackButton(
+            onTap: () => Get.back(),
+            assetPath: 'assets/images/kissu_mine_back.webp',
+            iconSize: 24,
           ),
         ),
         title: const Text(

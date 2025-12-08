@@ -84,7 +84,7 @@ class MinePage extends GetView<MineController> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            SizedBox(height: 10),
+                            SizedBox(height: 15),
                             Obx(() => MineUserInfo(
                                   nickname: controller.nickname.value,
                                   partnerNickname:

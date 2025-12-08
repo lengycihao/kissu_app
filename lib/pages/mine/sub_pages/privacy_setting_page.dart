@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/account_cancellation_page.dart';
 import 'package:kissu_app/pages/mine/love_info/phone_change_page.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 
@@ -33,28 +34,23 @@ class PrivacySettingPage extends StatelessWidget {
           ),
           SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(22).copyWith(left: 6,right: 6,top: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // 标题
               Row(
                 children: [
-                  GestureDetector(
+                  CommonBackButton(
                     onTap: () => Get.back(),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      child: Image.asset(
-                        "assets/images/kissu_mine_back.webp",
-                        width: 22,
-                        height: 22,
-                      ),
-                    ),
+                    assetPath: "assets/images/kissu_mine_back.webp",
+                    iconSize: 22,
                   ),
                   const Expanded(
                     child: Center(
                       child: Text(
-                        "账号及隐私安全",
+                        "设置",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
@@ -65,7 +61,7 @@ class PrivacySettingPage extends StatelessWidget {
                   const SizedBox(width: 30), // 占位保持居中
                 ],
               ),
-              const SizedBox(height: 35),
+              const SizedBox(height: 30),
 
               // Item 列表 - 带动画
               _AnimatedSettingItem(
@@ -90,7 +86,7 @@ class PrivacySettingPage extends StatelessWidget {
               _AnimatedSettingItem(
                 delay: 200,
                 iconPath: "assets/images/kissu_setting_account_sjh.webp",
-                title: "手机号",
+                title: "更换账号",
                 trailingText: phoneNumber,
                 onTap: () => _handlePhoneChange(context, phoneNumber),
               ),
@@ -98,8 +94,8 @@ class PrivacySettingPage extends StatelessWidget {
               const Spacer(),
 
               // 退出登录按钮
-              SizedBox(
-                width: double.infinity,
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 10),child: SizedBox(
+                width: double.maxFinite,
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -118,7 +114,7 @@ class PrivacySettingPage extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
+              ),),
               SizedBox(height: 60),
             ],
           ),
@@ -186,11 +182,18 @@ class PrivacySettingPage extends StatelessWidget {
   /// 执行退出登录
   void _performLogout() async {
     try {
-      // 清除本地用户数据（这里已经包含了API调用）
-      await UserManager.logout();
-
-      // 跳转到登录页面
-      Get.offAllNamed(KissuRoutePath.login);
+      // 🔧 使用登录页导航锁，防止重复跳转导致闪烁
+      // 先尝试获取锁并跳转到登录页
+      final navigated = LoginNavigationLock.navigateToLoginSafely();
+      if (!navigated) {
+        // 如果已经有其他线程正在导航，直接返回
+        return;
+      }
+      
+      // 然后在后台调用退出登录API（不阻塞UI）
+      UserManager.logout().catchError((e) {
+        // 退出登录API失败不影响UI，因为已经跳转到登录页了
+      });
 
       CustomToast.show(
         Get.context!,
@@ -270,25 +273,18 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
           onTap: widget.onTap,
           child: Container(
             height: 54,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              image: const DecorationImage(
-                image: AssetImage("assets/images/kissu_setting_account_itenbg.webp"),
-                fit: BoxFit.fill,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: const Color(0xFFFFD4D1),width: 1),
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+              
             ),
             child: Row(
               children: [
                 Image.asset(widget.iconPath, width: 34, height: 34),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     widget.title,
@@ -304,14 +300,14 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                     widget.trailingText!,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF999999),
+                      color: Color(0x46777777),
                     ),
                   ),
                 if (widget.trailingText != null) const SizedBox(width: 8),
                 const Icon(
                   Icons.arrow_forward_ios,
-                  size: 14,
-                  color: Color(0xFF999999),
+                  size: 16,
+                  color: Color(0xFF6D383E),
                 ),
               ],
             ),

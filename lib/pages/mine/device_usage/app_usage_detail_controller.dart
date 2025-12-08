@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
-import 'package:kissu_app/pages/mine/device_usage/models/screen_unlock_stat_model.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// App使用记录详情控制器
 class AppUsageDetailController extends GetxController {
   // API实例
   final _usageRecordApi = UsageRecordApi();
+  
+  // 防抖Timer
+  Timer? _debounceTimer;
 
   // 日期选择相关
   var selectedDateIndex = 6.obs; // 选中的日期索引（6表示今天，0表示6天前）
@@ -30,20 +34,41 @@ class AppUsageDetailController extends GetxController {
   var touchedScreenBarIndex = (-1).obs; // 屏幕使用时间被触摸的柱状图索引
   var touchedUnlockBarIndex = (-1).obs; // 解锁次数被触摸的柱状图索引
 
+  // 引导图显示状态
+  var showGuideOverlay = false.obs;
+
   @override
   void onInit() {
     super.onInit();
     // 加载今天的数据
     loadData();
+    // 检查并显示引导图
+    _checkAndShowGuide();
   }
 
   /// 切换日期
   void changeDate(DateTime date) {
+    // 如果选择的是相同日期，直接返回
+    final newDateStr = DateFormat('yyyy-MM-dd').format(date);
+    final currentDateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    
+    if (newDateStr == currentDateStr) {
+      DebugUtil.info('📊 相同日期，跳过切换: $newDateStr');
+      return;
+    }
+    
     selectedDate.value = date;
     touchedScreenBarIndex.value = -1; // 切换日期时清除触摸状态
     touchedUnlockBarIndex.value = -1;
-    // 加载选中日期的数据
-    loadData();
+    
+    // 取消之前的防抖Timer
+    _debounceTimer?.cancel();
+    
+    // 使用防抖加载数据，避免连续点击时多次请求
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      DebugUtil.info('📊 防抖Timer触发，开始加载数据: $newDateStr');
+      loadData();
+    });
   }
 
   /// 加载数据
@@ -65,10 +90,10 @@ class AppUsageDetailController extends GetxController {
         if (data.screenUseData != null) {
           final screenData = data.screenUseData!;
           
-          // 初始化24小时数据
+          // 初始化24小时数据（索引0-23对应0-23点）
           final screenUsageList = List<int>.filled(24, 0);
           
-          // 填充每小时数据
+          // 按hour字段填充每小时数据，确保索引与真实小时对齐
           for (var stat in screenData.hourlyUsageStat) {
             if (stat.hour >= 0 && stat.hour < 24) {
               screenUsageList[stat.hour] = stat.minutes;
@@ -86,10 +111,10 @@ class AppUsageDetailController extends GetxController {
         if (data.unlockPhoneData != null) {
           final unlockData = data.unlockPhoneData!;
           
-          // 初始化24小时数据
+          // 初始化24小时数据（索引0-23对应0-23点）
           final unlockCountList = List<int>.filled(24, 0);
           
-          // 填充每小时数据
+          // 按hour字段填充每小时数据，确保索引与真实小时对齐
           for (var stat in unlockData.unlockPhoneStat) {
             if (stat.hour >= 0 && stat.hour < 24) {
               unlockCountList[stat.hour] = stat.unlockNumber;
@@ -201,6 +226,45 @@ class AppUsageDetailController extends GetxController {
   /// 恢复模拟数据
   void restoreMockData() {
     _loadMockData();
+  }
+
+  /// 检查并显示引导图
+  Future<void> _checkAndShowGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide = prefs.getBool('has_shown_phone_history_guide') ?? false;
+      
+      DebugUtil.info('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+      
+      if (!hasShownGuide) {
+        DebugUtil.info('📱 首次进入用机记录页面，显示引导图');
+        
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_phone_history_guide', true);
+        
+        // 延迟显示引导图，确保页面完全加载
+        Future.delayed(const Duration(milliseconds: 800), () {
+          showGuideOverlay.value = true;
+        });
+      } else {
+        DebugUtil.info('ℹ️ 引导图已显示过');
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 检查引导图状态失败: $e');
+    }
+  }
+
+  /// 隐藏引导图
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
+    DebugUtil.info('📱 隐藏引导图');
+  }
+  
+  @override
+  void onClose() {
+    // 取消防抖Timer
+    _debounceTimer?.cancel();
+    super.onClose();
   }
 }
 

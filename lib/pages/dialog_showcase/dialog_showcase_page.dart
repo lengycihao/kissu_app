@@ -15,6 +15,7 @@ import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/partner_location_permission_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 弹窗展示页面
 class DialogShowcasePage extends StatelessWidget {
@@ -326,13 +327,10 @@ class DialogShowcasePage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       child: Row(
         children: [
-          GestureDetector(
+          CommonBackButton(
             onTap: () => Get.back(),
-            child: Image.asset(
-              "assets/images/kissu_mine_back.webp",
-              width: 22,
-              height: 22,
-            ),
+            assetPath: "assets/images/kissu_mine_back.webp",
+            iconSize: 22,
           ),
           const Expanded(
             child: Center(

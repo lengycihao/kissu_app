@@ -4,12 +4,16 @@ import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import com.yuluo.kissu.BootCompletedReceiver
 import com.yuluo.kissu.ForegroundLocationService
 import com.yuluo.kissu.LocationReportService
+import com.yuluo.kissu.AppUsageReportService
 import io.flutter.plugin.common.MethodChannel
 
 /**
@@ -57,9 +61,16 @@ class ForegroundServiceHandler(private val activity: Activity) {
                 }
                 
                 try {
+                    // 保存到定位上报服务
                     val locationReportService = LocationReportService(activity)
                     locationReportService.saveUserToken(token, userId)
                     locationReportService.saveBaseUrl(baseUrl)
+                    
+                    // 保存到App使用记录上报服务
+                    val appUsageReportService = AppUsageReportService(activity)
+                    appUsageReportService.saveUserToken(token, userId)
+                    appUsageReportService.saveBaseUrl(baseUrl)
+                    
                     Log.d(TAG, "✅ 用户Token和API配置已保存: userId=$userId, baseUrl=$baseUrl")
                     result.success(mapOf("success" to true, "message" to "Token saved successfully"))
                 } catch (e: Exception) {
@@ -70,8 +81,14 @@ class ForegroundServiceHandler(private val activity: Activity) {
             "clearUserToken" -> {
                 // 🔥 清除用户 Token（登出时调用）
                 try {
+                    // 清除定位上报服务的用户信息
                     val locationReportService = LocationReportService(activity)
                     locationReportService.clearUserInfo()
+                    
+                    // 清除App使用记录上报服务的用户信息
+                    val appUsageReportService = AppUsageReportService(activity)
+                    appUsageReportService.clearUserInfo()
+                    
                     Log.d(TAG, "用户Token已清除")
                     result.success(mapOf("success" to true, "message" to "Token cleared successfully"))
                 } catch (e: Exception) {
@@ -140,6 +157,44 @@ class ForegroundServiceHandler(private val activity: Activity) {
             else -> {
                 result.notImplemented()
             }
+        }
+    }
+
+    /**
+     * 引导用户将应用加入电池优化白名单，避免 Doze 杀死前台服务
+     * 每24小时最多提示一次
+     */
+    private fun maybeRequestBatteryOptimizationWhitelist() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return
+        }
+
+        val powerManager = activity.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(activity.packageName)) {
+            Log.d(TAG, "电池优化白名单已授权，跳过提示")
+            return
+        }
+
+        val prefs = activity.getSharedPreferences("kissu_location_prefs", Context.MODE_PRIVATE)
+        val lastPromptTime = prefs.getLong("battery_opt_prompt_time", 0L)
+        val now = System.currentTimeMillis()
+        val oneDayMillis = 24 * 60 * 60 * 1000L
+
+        if (now - lastPromptTime < oneDayMillis) {
+            Log.d(TAG, "24小时内已提示过电池优化，跳过")
+            return
+        }
+
+        prefs.edit().putLong("battery_opt_prompt_time", now).apply()
+
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:${activity.packageName}")
+            }
+            activity.startActivity(intent)
+            Log.d(TAG, "已请求忽略电池优化授权")
+        } catch (e: Exception) {
+            Log.e(TAG, "请求忽略电池优化授权失败", e)
         }
     }
 }

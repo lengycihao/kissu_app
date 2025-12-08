@@ -11,6 +11,7 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/location_permission_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
+import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/smart_background_location_reminder.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
@@ -29,6 +30,7 @@ import 'package:kissu_app/services/lottie_preload_service.dart';
 import 'package:kissu_app/utils/map_style_loader.dart';
 import 'package:kissu_app/services/map_preload_service.dart';
 import 'package:kissu_app/network/utils/log_util.dart';
+import 'package:kissu_app/network/public/auth_api.dart';
 
 /// 🚀 应用初始化器
 /// 在启动页执行所有耗时的初始化操作，避免阻塞app启动
@@ -171,6 +173,10 @@ class AppInitializer {
       Get.put(SensitiveDataService(), permanent: true);
       DebugUtil.success('敏感数据上报服务初始化完成');
       
+      // 步骤21.5: 初始化App使用记录自动上报服务
+      Get.put(AppUsageAutoReportService(), permanent: true);
+      DebugUtil.success('App使用记录自动上报服务初始化完成');
+      
       // 步骤22: 初始化锁屏监听服务
       Get.put(ScreenLockService(), permanent: true);
       DebugUtil.success('锁屏监听服务初始化完成');
@@ -217,6 +223,21 @@ class AppInitializer {
       // 步骤30: 初始化隐私合规管理器
       Get.put(PrivacyComplianceManager(), permanent: true);
       DebugUtil.success('隐私合规管理器初始化完成');
+      
+      // 步骤31: 调用App启动接口（非阻塞，后台执行）
+      Future.delayed(Duration.zero, () async {
+        try {
+          final authApi = AuthApi();
+          final result = await authApi.appStart();
+          if (result.isSuccess) {
+            DebugUtil.success('App启动接口调用成功');
+          } else {
+            DebugUtil.warning('App启动接口调用失败: ${result.msg}');
+          }
+        } catch (e) {
+          DebugUtil.error('App启动接口调用异常: $e');
+        }
+      });
       
       _isInitialized = true;
       DebugUtil.success('✅ 应用初始化完成，等待用户隐私政策确认后启用完整功能');

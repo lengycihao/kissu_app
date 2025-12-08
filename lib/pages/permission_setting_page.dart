@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../services/permission_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 权限设置页面
 /// 展示各种权限状态并提供设置入口
@@ -58,19 +58,9 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
     }
 
     if (result) {
-      Get.snackbar(
-        "权限获取成功",
-        _permissionService.getPermissionDescription(type),
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      OKToastUtil.showSuccess(_permissionService.getPermissionDescription(type));
     } else {
-      Get.snackbar(
-        "权限获取失败",
-        "请在设置中手动开启权限",
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-      );
+      OKToastUtil.showWarning("请在设置中手动开启权限");
     }
 
     // 重新检查权限状态
@@ -89,12 +79,11 @@ class _PermissionSettingPageState extends State<PermissionSettingPage> {
     int grantedCount = results.values.where((granted) => granted).length;
     int totalCount = results.length;
     
-    Get.snackbar(
-      "权限请求完成",
-      "已获取 $grantedCount/$totalCount 个权限",
-      backgroundColor: grantedCount == totalCount ? Colors.green : Colors.orange,
-      colorText: Colors.white,
-    );
+    if (grantedCount == totalCount) {
+      OKToastUtil.showSuccess("已获取 $grantedCount/$totalCount 个权限");
+    } else {
+      OKToastUtil.showWarning("已获取 $grantedCount/$totalCount 个权限");
+    }
 
     // 重新检查权限状态
     await _checkAllPermissions();

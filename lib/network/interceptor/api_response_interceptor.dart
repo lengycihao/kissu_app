@@ -6,9 +6,9 @@ import 'package:get/get.dart' as gg;
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:get_it/get_it.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/utils/login_navigation_lock.dart';
 
 /// API响应拦截器
 /// 处理统一的响应格式和错误处理
@@ -21,7 +21,9 @@ class ApiResponseInterceptor extends Interceptor {
   static void resetUnauthorizedState() {
     _isHandlingUnauthorized = false;
     _lastUnauthorizedTime = null;
-    logDebug('token失效处理状态已重置', tag: 'ApiInterceptor');
+    _hasNavigatedToLogin = false;
+    LoginNavigationLock.forceReset(); // 重置登录页导航锁
+    logDebug('token失效处理状态和跳转状态已重置', tag: 'ApiInterceptor');
   }
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
@@ -40,14 +42,20 @@ class ApiResponseInterceptor extends Interceptor {
 
       // 检查业务层面的错误码处理
       if (!processedResponse.isSuccess) {
-        // 检查各种错误码并给出相应处理
-        switch (processedResponse.code) {
-          case 43000:
-            // token失效或账号异常 - 跳到登录页
-            logWarning('检测到code 43000，token失效或账号异常，需要重新登录', tag: 'ApiInterceptor');
-            final message = processedResponse.msg ?? 'token失效或账号异常，请重新登录';
-            _handleTokenExpired(message);
-            return;
+        // 检查是否是退出登录API的响应（退出登录时，业务层已经处理了跳转，不需要拦截器再处理）
+        final requestPath = response.requestOptions.path;
+        if (requestPath.contains('/drop/out') || requestPath.contains('/logout')) {
+          logDebug('检测到退出登录API响应，跳过拦截器处理，由业务层处理', tag: 'ApiInterceptor');
+          // 继续处理响应，不拦截
+        } else {
+          // 检查各种错误码并给出相应处理
+          switch (processedResponse.code) {
+            case 43000:
+              // token失效或账号异常 - 跳到登录页
+              logWarning('检测到code 43000，token失效或账号异常，需要重新登录', tag: 'ApiInterceptor');
+              final message = processedResponse.msg ?? 'token失效或账号异常，请重新登录';
+              _handleTokenExpired(message);
+              return;
 
           case 41000:
             // header公共参数缺失
@@ -56,21 +64,22 @@ class ApiResponseInterceptor extends Interceptor {
             _showMessage(message);
             break;
 
-          case 51000:
-            // 签名错误
-            logError('检测到code 51000，签名错误', tag: 'ApiInterceptor');
-            final message = processedResponse.msg ?? '签名错误';
-            _showMessage(message);
-            break;
+            case 51000:
+              // 签名错误
+              logError('检测到code 51000，签名错误', tag: 'ApiInterceptor');
+              final message = processedResponse.msg ?? '签名错误';
+              _showMessage(message);
+              break;
 
-          case 1:
-            // 接口处理失败 - 一般业务错误，不需要特殊处理，让上层业务处理
-            logWarning('检测到code 1，接口处理失败: ${processedResponse.msg}', tag: 'ApiInterceptor');
-            break;
+            case 1:
+              // 接口处理失败 - 一般业务错误，不需要特殊处理，让上层业务处理
+              logWarning('检测到code 1，接口处理失败: ${processedResponse.msg}', tag: 'ApiInterceptor');
+              break;
 
-          default:
-            // 其他错误码不做特殊处理，让上层业务处理
-            break;
+            default:
+              // 其他错误码不做特殊处理，让上层业务处理
+              break;
+          }
         }
       }
 
@@ -139,9 +148,28 @@ class ApiResponseInterceptor extends Interceptor {
     _handleUnauthorized();
   }
 
+  // 标记是否已经跳转到登录页（防止重复跳转）- 已废弃，使用LoginNavigationLock代替
+  // 保留此字段以保持向后兼容，但不再使用
+  @Deprecated('使用LoginNavigationLock代替')
+  // ignore: unused_field
+  static bool _hasNavigatedToLogin = false;
+  
+  /// 重置跳转状态（应用启动时调用）
+  static void resetNavigationState() {
+    _hasNavigatedToLogin = false;
+    LoginNavigationLock.forceReset(); // 重置登录页导航锁
+    logDebug('跳转状态已重置', tag: 'ApiInterceptor');
+  }
+
   /// 处理未授权错误
   void _handleUnauthorized() async {
     logInfo('🔐 检测到token过期，开始清除用户数据并跳转到登录页', tag: 'ApiInterceptor');
+
+    // 使用登录页导航锁检查是否已经跳转过（防止重复跳转）
+    if (LoginNavigationLock.hasNavigated || LoginNavigationLock.isNavigating) {
+      logDebug('⏸️ 已经跳转到登录页或正在跳转，跳过重复跳转', tag: 'ApiInterceptor');
+      return;
+    }
 
     try {
       // 直接清除本地用户数据，不调用退出登录API（因为token已失效）
@@ -160,30 +188,12 @@ class ApiResponseInterceptor extends Interceptor {
       }
     }
 
-    // 跳转到登录页
-    try {
-      logDebug('🔄 准备跳转到登录页...', tag: 'ApiInterceptor');
-      
-      // 检查Get路由是否已经初始化
-      if (gg.Get.isRegistered<gg.GetMaterialController>()) {
-        gg.Get.offAllNamed(KissuRoutePath.login);
-        logDebug('✅ 已成功跳转到登录页', tag: 'ApiInterceptor');
-      } else {
-        logWarning('⚠️ Get路由尚未初始化，延迟跳转...', tag: 'ApiInterceptor');
-        // 延迟跳转，等待Get路由初始化完成
-        Future.delayed(const Duration(milliseconds: 500), () {
-          try {
-            gg.Get.offAllNamed(KissuRoutePath.login);
-            logDebug('✅ 延迟跳转到登录页成功', tag: 'ApiInterceptor');
-          } catch (delayedError) {
-            logError('❌ 延迟跳转也失败: $delayedError', tag: 'ApiInterceptor', error: delayedError);
-            _tryFallbackNavigation();
-          }
-        });
-      }
-    } catch (e) {
-      logError('❌ 导航到登录页失败: $e', tag: 'ApiInterceptor', error: e);
-      _tryFallbackNavigation();
+    // 使用登录页导航锁安全地跳转到登录页
+    final navigated = LoginNavigationLock.navigateToLoginSafely();
+    if (navigated) {
+      logDebug('✅ 已通过导航锁成功跳转到登录页', tag: 'ApiInterceptor');
+    } else {
+      logDebug('⏸️ 导航锁阻止了重复跳转', tag: 'ApiInterceptor');
     }
     
     // 延迟重置处理状态，确保跳转完成
@@ -193,25 +203,6 @@ class ApiResponseInterceptor extends Interceptor {
     });
   }
 
-  /// 尝试备用跳转方式
-  void _tryFallbackNavigation() {
-    logDebug('🔧 尝试备用跳转方式...', tag: 'ApiInterceptor');
-    
-    // 尝试多种跳转方式
-    final fallbackRoutes = ['/login', KissuRoutePath.login];
-    
-    for (final route in fallbackRoutes) {
-      try {
-        gg.Get.offAllNamed(route);
-        logDebug('✅ 备用跳转方式成功: $route', tag: 'ApiInterceptor');
-        return;
-      } catch (e) {
-        logWarning('❌ 备用跳转失败 ($route): $e', tag: 'ApiInterceptor', error: e);
-      }
-    }
-    
-    logError('🚨 所有跳转方式都失败了，将在应用下次启动时重定向到登录页', tag: 'ApiInterceptor');
-  }
 
   /// 处理API响应
   HttpResultN _processApiResponse(Response response) {

@@ -3,6 +3,8 @@ package com.yuluo.kissu.handlers
 import android.app.Activity
 import android.content.Intent
 import android.util.Log
+import com.umeng.commonsdk.UMConfigure
+import com.umeng.socialize.PlatformConfig
 import com.umeng.socialize.ShareAction
 import com.umeng.socialize.UMShareAPI
 import com.umeng.socialize.UMShareListener
@@ -27,6 +29,48 @@ class ShareHandler(private val activity: Activity) {
      */
     fun handleMethodCall(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            // 友盟分享 SDK 初始化（Flutter 侧在用户同意隐私之后调用）
+            // 目前主要依赖统计侧的 UMConfigure.init，这里不重复初始化，只做日志标记
+            "umInit" -> {
+                Log.d(TAG, "收到 umInit 调用（初始化在 AnalyticsHandler 中统一处理）")
+                result.success(null)
+            }
+
+            // 配置微信 / QQ 平台
+            // 为了不影响现有功能，这里仍然使用原来在 MainActivity.initUmeng 中的固定配置
+            "platformConfig" -> {
+                try {
+                    // 微信配置
+                    PlatformConfig.setWeixin(
+                        "wxca15128b8c388c13",
+                        "e0d2d1e8c3f4e5f6a7b8c9d0e1f2a3b4"
+                    )
+
+                    // QQ / QQ 空间配置
+                    PlatformConfig.setQQZone(
+                        "102797447",
+                        "c5KJ2VipiMRMCpJf"
+                    )
+
+                    Log.d(TAG, "友盟分享平台配置完成（WeChat / QQ）")
+                } catch (e: Exception) {
+                    Log.e(TAG, "配置友盟分享平台失败", e)
+                }
+                result.success(null)
+            }
+
+            // 设置隐私政策授权状态（目前授权结果主要在 AnalyticsHandler 中提交，这里仅做日志）
+            "setPrivacyPolicy" -> {
+                val granted = call.argument<Boolean>("granted") ?: false
+                try {
+                    UMConfigure.submitPolicyGrantResult(activity.applicationContext, granted)
+                    Log.d(TAG, "友盟分享隐私授权状态已设置: granted=$granted")
+                } catch (e: Exception) {
+                    Log.e(TAG, "设置友盟分享隐私授权状态失败", e)
+                }
+                result.success(null)
+            }
+
             "umCheckInstall" -> {
                 // 检查平台是否安装
                 val platform = call.argument<Int>("platform") ?: 0

@@ -3,12 +3,9 @@ import 'package:get/get.dart';
 import 'package:kissu_app/network/public/sensitive_data_api.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:battery_plus/battery_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/network/interceptor/business_header_interceptor.dart' as business_header_interceptor;
 
 /// 敏感数据上报服务
 /// 负责监听各种系统事件并上报敏感数据
@@ -16,24 +13,7 @@ class SensitiveDataService extends GetxService {
   static SensitiveDataService get instance => Get.find<SensitiveDataService>();
   
   final SensitiveDataApi _api = SensitiveDataApi();
-  final Connectivity _connectivity = Connectivity();
-  final Battery _battery = Battery();
   final NetworkInfo _networkInfo = NetworkInfo();
-  
-  // 网络状态监听
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  
-  // 电池状态监听
-  StreamSubscription<BatteryState>? _batterySubscription;
-  
-  // 当前网络状态
-  String _currentNetworkName = 'unknown';
-  
-  // 当前电池状态
-  BatteryState _currentBatteryState = BatteryState.unknown;
-  
-  // 是否正在充电
-  bool _isCharging = false;
   
   @override
   void onInit() {
@@ -61,8 +41,7 @@ class SensitiveDataService extends GetxService {
       return;
     }
     
-    _startNetworkMonitoring();
-    _startBatteryMonitoring();
+    // 网络/充电上报改由原生保活服务处理，Flutter 侧不再监听这两类广播
     
     // 启动锁屏/解锁事件监听（在隐私合规且已登录后）
     try {
@@ -75,116 +54,6 @@ class SensitiveDataService extends GetxService {
       DebugUtil.error('启动锁屏/解锁监听失败: $e');
     }
     DebugUtil.success('敏感数据监听已启动（用户已同意隐私政策）');
-  }
-  
-  /// 开始网络状态监听
-  void _startNetworkMonitoring() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-      (List<ConnectivityResult> results) {
-        _handleNetworkChange(results);
-      },
-    );
-  }
-  
-  /// 开始电池状态监听
-  void _startBatteryMonitoring() {
-    _batterySubscription = _battery.onBatteryStateChanged.listen(
-      (BatteryState state) {
-        _handleBatteryStateChange(state);
-      },
-    );
-  }
-  
-  /// 处理网络状态变化
-  void _handleNetworkChange(List<ConnectivityResult> results) async {
-    if (results.isEmpty) return;
-    
-    // 🔧 修复：网络状态变化时清除网络信息缓存，避免使用过期的缓存数据
-    try {
-      business_header_interceptor.BusinessHeaderInterceptor.clearNetworkCache();
-      DebugUtil.info('网络状态变化，已清除网络信息缓存');
-    } catch (e) {
-      DebugUtil.error('清除网络信息缓存失败: $e');
-    }
-    
-    final result = results.first;
-    String networkName = 'unknown';
-    bool isMobile = false;
-    
-    switch (result) {
-      case ConnectivityResult.wifi:
-        // 获取WiFi SSID
-        try {
-          final wifiName = await _networkInfo.getWifiName();
-          networkName = wifiName ?? 'wifi_unknown';
-        } catch (e) {
-          DebugUtil.error('获取WiFi SSID失败: $e');
-          networkName = '未知wifi';
-        }
-        isMobile = false;
-        break;
-      case ConnectivityResult.mobile:
-        networkName = 'mobile';
-        isMobile = true;
-        break;
-      case ConnectivityResult.ethernet:
-        networkName = 'ethernet';
-        isMobile = false;
-        break;
-      case ConnectivityResult.bluetooth:
-        networkName = 'bluetooth';
-        isMobile = false;
-        break;
-      case ConnectivityResult.vpn:
-        networkName = 'vpn';
-        isMobile = false;
-        break;
-      case ConnectivityResult.other:
-        networkName = 'other';
-        isMobile = false;
-        break;
-      case ConnectivityResult.none:
-        networkName = 'none';
-        isMobile = false;
-        break;
-    }
-    
-    // 如果网络名称发生变化，上报网络更换事件
-    if (_currentNetworkName != networkName) {
-      _currentNetworkName = networkName;
-      if (isMobile) {
-        await _reportMobileNetworkChange();
-      } else if (result == ConnectivityResult.wifi) {
-        await _reportWifiChange(networkName);
-      }
-    }
-  }
-  
-  /// 处理电池状态变化
-  void _handleBatteryStateChange(BatteryState state) async {
-    final wasCharging = _isCharging;
-    _isCharging = state == BatteryState.charging;
-    _currentBatteryState = state;
-    
-    // 🔧 修复：电池状态变化时清除电量缓存，确保获取最新电量
-    try {
-      business_header_interceptor.BusinessHeaderInterceptor.clearBatteryCache();
-      DebugUtil.info('电池状态变化，已清除电量缓存');
-    } catch (e) {
-      DebugUtil.error('清除电量缓存失败: $e');
-    }
-    
-    // 获取当前电量
-    final batteryLevel = await _battery.batteryLevel;
-    
-    // 如果充电状态发生变化，上报充电事件
-    if (wasCharging != _isCharging) {
-      if (_isCharging) {
-        await _reportChargingStart(batteryLevel);
-      } else {
-        await _reportChargingEnd(batteryLevel);
-      }
-    }
   }
   
   /// 上报APP打开事件
@@ -300,11 +169,11 @@ class SensitiveDataService extends GetxService {
   }
   
   /// 上报手机解锁事件
-  Future<void> reportScreenUnlock() async {
+  Future<void> reportScreenUnlock({int? timestampSeconds}) async {
     if (!_shouldReport()) return;
     
     try {
-      final result = await _api.reportScreenUnlock();
+      final result = await _api.reportScreenUnlock(timestampSeconds: timestampSeconds);
       if (result.isSuccess) {
         DebugUtil.success('敏感数据上报成功: 手机解锁');
       } else {
@@ -316,11 +185,11 @@ class SensitiveDataService extends GetxService {
   }
   
   /// 上报手机锁屏事件
-  Future<void> reportScreenLock() async {
+  Future<void> reportScreenLock({int? timestampSeconds}) async {
     if (!_shouldReport()) return;
     
     try {
-      final result = await _api.reportScreenLock();
+      final result = await _api.reportScreenLock(timestampSeconds: timestampSeconds);
       if (result.isSuccess) {
         DebugUtil.success('敏感数据上报成功: 手机锁屏');
       } else {
@@ -429,16 +298,13 @@ class SensitiveDataService extends GetxService {
   Map<String, dynamic> getServiceStatus() {
     return {
       'isInitialized': true,
-      'currentNetworkName': _currentNetworkName,
-      'currentBatteryState': _currentBatteryState.toString(),
-      'isCharging': _isCharging,
       'shouldReport': _shouldReport(),
+      'networkHandledByNative': true,
+      'chargingHandledByNative': true,
     };
   }
   
   /// 清理资源
   void _dispose() {
-    _connectivitySubscription?.cancel();
-    _batterySubscription?.cancel();
   }
 }

@@ -4,10 +4,12 @@
 class SensitiveRecordPageResponse {
   final bool hasMore;
   final List<SensitiveRecordItem> list;
+  final HalfUserData? halfUserData;
 
   SensitiveRecordPageResponse({
     required this.hasMore,
     required this.list,
+    this.halfUserData,
   });
 
   factory SensitiveRecordPageResponse.fromJson(Map<String, dynamic> json) {
@@ -17,8 +19,41 @@ class SensitiveRecordPageResponse {
               ?.map((e) => SensitiveRecordItem.fromJson(e))
               .toList() ??
           [],
+      halfUserData: json['half_user_data'] != null
+          ? HalfUserData.fromJson(json['half_user_data'])
+          : null,
     );
   }
+}
+
+/// 另一半用户设备信息
+class HalfUserData {
+  final String power;        // 电量（如 "75%" 或 "未知"）
+  final String networkName;  // 网络名称（WiFi名称或 "未知"）
+  final String mobileModel;  // 手机型号（如 "iPhone 14" 或 "未知"）
+  final String isWifi;       // 是否是WiFi（"0"表示移动网络，"1"表示WiFi）
+  final String distance;    // 距离（如 "100m" 或 "未知"）
+
+  HalfUserData({
+    required this.power,
+    required this.networkName,
+    required this.mobileModel,
+    required this.isWifi,
+    required this.distance,
+  });
+
+  factory HalfUserData.fromJson(Map<String, dynamic> json) {
+    return HalfUserData(
+      power: json['power']?.toString() ?? '未知',
+      networkName: json['network_name']?.toString() ?? '未知',
+      mobileModel: json['mobile_model']?.toString() ?? '未知',
+      isWifi: json['is_wifi']?.toString() ?? '0',
+      distance: json['distance']?.toString() ?? '未知',
+    );
+  }
+
+  /// 是否连接WiFi
+  bool get isConnectedToWifi => isWifi == '1';
 }
 
 /// 敏感记录单项

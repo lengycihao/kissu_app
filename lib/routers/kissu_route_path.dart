@@ -9,6 +9,12 @@ class KissuRoutePath {
   static const vip = '/kisssu_app/vip';
   static const foreverVip = '/kisssu_app/forever_vip';
   static const systemPermission = '/kisssu_app/system_permission';
+  static const systemPermissionPreventSleepGuide =
+      '/kisssu_app/system_permission/prevent_sleep';
+  static const systemPermissionLockGuide =
+      '/kisssu_app/system_permission/lock_guide';
+  static const systemPermissionBackgroundGuide =
+      '/kisssu_app/system_permission/background_guide';
   static const permissionSetting = '/kisssu_app/permission_setting';
   static const agreementWebView = '/kisssu_app/agreement_webview';
   static const qrScanPage = '/kisssu_app/qr_scan';

@@ -1,69 +1,30 @@
-{
-        "screen_use_data": {
-            "hours": 6,
-            "minutes": 48,
-            "trend": 2,
-            "trend_text": "比昨天多6小时48分钟",
-            "hourly_usage_stat": [
-                {
-                    "hour": 0,
-                    "duration": 0,
-                    "minutes": 0,
-                    "hour_label": [
-                        0,
-                        1
-                    ]
-                },
-                {
-                    "hour": 1,
-                    "duration": 0,
-                    "minutes": 0,
-                    "hour_label": [
-                        1,
-                        2
-                    ]
-                },
-                {
-                    "hour": 2,
-                    "duration": 0,
-                    "minutes": 0,
-                    "hour_label": [
-                        2,
-                        3
-                    ]
-                }
-                 
-            ]
-        },
-        "unlock_phone_data": {
-            "unlock_number": 3,
-            "trend": 2,
-            "trend_text": "比昨天多3次",
-            "unlock_phone_stat": [
-                {
-                    "hour": 0,
-                    "unlock_number": 0,
-                    "hour_label": [
-                        0,
-                        1
-                    ]
-                },
-                {
-                    "hour": 1,
-                    "unlock_number": 0,
-                    "hour_label": [
-                        1,
-                        2
-                    ]
-                },
-                {
-                    "hour": 2,
-                    "unlock_number": 0,
-                    "hour_label": [
-                        2,
-                        3
-                    ]
-                },
-            ]
-        }
-    }
+华为
+App ID ：114767361
+App Secret：b085bcaa31873d4088c2ba88dffe05c2c07f88d468b24df3aabd68f87b3cb1ee
+
+荣耀 
+App ID ：104512674
+App Secret：44c1e17612fae42534edbef97f3405664b669dc692d0eb77460e665cfc4087b1
+Client ID:  14d79d2776474068b8f3a173520e43a8
+Client Secret: 1UXlNKpD1PTZTdUsexhEinSJc1dHaFvL
+
+小米 
+App ID ：2882303761520437827
+App Key:45ID1Ha8xH5MAzDuhT8zug==
+App Secret：5152015546341
+
+
+魅族 
+App ID ：156177
+App Key: c4e0fad84dec44f7b77408012ad62149
+App Secret：8005b1d8a07542ffb325af4446f79914
+
+oppo 
+App ID ：35641549
+App Key: 40e53bd9fd784f50870afa706892f7c0
+App Secret：e879a0c19584495a8b014665b03d30da
+
+vivo 
+App ID ：105947238
+App Secret：187e2978-7d42-43ea-9ad5-5f26a0db7151
+App Key:fa541d6f32b359e1d8c34d99e2d6d07a
