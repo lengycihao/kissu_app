@@ -8,9 +8,18 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationCompat
 import com.amap.api.location.AMapLocation
 import io.flutter.Log
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ForegroundInfo
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -44,9 +53,14 @@ class LocationReportService(private val context: Context) {
         private const val KEY_LAST_REPORT_LNG = "last_report_longitude"
         
         // 与Flutter层保持一致的上报策略参数
-        private const val COLLECTION_DISTANCE_METERS = 50 // 50米收集距离，与Flutter层 <50m 丢弃一致
-        private const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔
-        private const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)
+        const val COLLECTION_DISTANCE_METERS = 50 // 50米收集距离，与Flutter层 <50m 丢弃一致
+        const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔
+        const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)
+        const val MAX_CACHE_POOL_SIZE = 200 // 防御性上限，避免失败时无限增长
+        const val WORK_UNIQUE_NAME = "location_report_restart"
+        // 与 ForegroundLocationService 保持一致的通知渠道与文案
+        const val WORKER_CHANNEL_ID = "kissu_location_service"
+        const val WORKER_CHANNEL_NAME = "定位服务"
     }
     
     private val sharedPreferences: SharedPreferences = 
@@ -56,6 +70,10 @@ class LocationReportService(private val context: Context) {
     
     // 收集缓冲区，与Flutter层策略保持一致
     private val collectionBuffer = mutableListOf<JSONObject>()
+    // 避免老数据循环：超过此时间窗口的旧点会在收集/上报前被清理
+    private val staleDurationMs = TimeUnit.HOURS.toMillis(1)
+    // 序列化上报，避免并发重复发送
+    private val isReporting = AtomicBoolean(false)
     private var reportTimer: Timer? = null
     private var isReportTimerRunning = false
     
@@ -68,6 +86,19 @@ class LocationReportService(private val context: Context) {
     fun reportLocation(location: AMapLocation) {
         coroutineScope.launch {
             try {
+                // 先判网络；断网则清空缓冲并跳过收集，避免离线旧数据循环
+                if (!isNetworkAvailable()) {
+                    synchronized(collectionBuffer) {
+                        if (collectionBuffer.isNotEmpty()) {
+                            collectionBuffer.clear()
+                            Log.w(TAG, "📡 无网络，已清空缓冲区并跳过收集")
+                        } else {
+                            Log.w(TAG, "📡 无网络，跳过收集")
+                        }
+                    }
+                    return@launch
+                }
+
                 // 检查是否需要收集定位
                 if (!shouldCollectLocation(location)) {
                     return@launch
@@ -78,7 +109,8 @@ class LocationReportService(private val context: Context) {
                 val userId = sharedPreferences.getString(KEY_USER_ID, null)
                 val baseUrl = sharedPreferences.getString(KEY_BASE_URL, null)
                 
-                Log.d(TAG, "🔑 读取用户信息: token=${if (token.isNullOrEmpty()) "空" else "已存在(${token.take(20)}...)"}, userId=$userId, baseUrl=$baseUrl")
+                val tokenInfo = if (token.isNullOrEmpty()) "空" else "已存在(${token.take(20)}...)"
+                Log.d(TAG, "🔑 读取用户信息: token=$tokenInfo, userId=$userId, baseUrl=$baseUrl")
                 
                 if (token.isNullOrEmpty()) {
                     Log.w(TAG, "⚠️ 用户未登录，无法收集定位数据")
@@ -88,6 +120,12 @@ class LocationReportService(private val context: Context) {
                 // 构建定位数据并加入收集缓冲区
                 val locationData = buildLocationData(location)
                 synchronized(collectionBuffer) {
+                    pruneStaleLocationsLocked()
+                    // 防御性上限：超过容量时丢弃最旧，防止无限增长
+                    if (collectionBuffer.size >= MAX_CACHE_POOL_SIZE) {
+                        collectionBuffer.removeAt(0)
+                        Log.w(TAG, "🧹 缓冲池超上限(${collectionBuffer.size + 1}/$MAX_CACHE_POOL_SIZE)，已丢弃最旧一个点")
+                    }
                     collectionBuffer.add(locationData)
                     Log.d(TAG, "📦 位置已收集到缓冲区 (${collectionBuffer.size}/${MAX_COLLECTION_BUFFER_SIZE}): ${location.latitude}, ${location.longitude}")
                     
@@ -98,7 +136,7 @@ class LocationReportService(private val context: Context) {
                     }
                 }
                 
-                // 启动定时上报器
+                // 启动定时上报器（60秒主频）
                 startReportTimer(token)
                 
                 // 更新最后收集的位置信息
@@ -111,23 +149,88 @@ class LocationReportService(private val context: Context) {
     }
     
     /**
-     * 启动定时上报器（与Flutter层1分钟间隔保持一致）
+     * 启动定时上报器（与Flutter�?分钟间隔保持一致）
      */
     private fun startReportTimer(token: String) {
-        if (isReportTimerRunning) {
+        // 已运行则不重复重启，避免频繁 cancel/recreate
+        if (reportTimer != null && isReportTimerRunning) {
             return
         }
+        // 防御：若 timer 引用存在但标记为 false，先清理
+        if (reportTimer != null && !isReportTimerRunning) {
+            reportTimer?.cancel()
+            reportTimer = null
+        }
         
-        reportTimer?.cancel()
+        // 创建新的定时器
+        // 🔥 关键修复：定时任务中每次都从SharedPreferences读取最新token，而不是使用创建时的token
+        // 这样切换账号后，定时器会自动使用新token
         reportTimer = Timer().apply {
             schedule(object : TimerTask() {
                 override fun run() {
-                    performScheduledReport(token)
+                    // 每次都从SharedPreferences读取最新token，确保切换账号后使用新token
+                    val currentToken = sharedPreferences.getString(KEY_USER_TOKEN, null)
+                    if (currentToken.isNullOrEmpty()) {
+                        Log.w(TAG, "⚠️ 定时上报：token为空，跳过上报")
+                        return
+                    }
+                    performScheduledReport(currentToken)
                 }
             }, REPORT_INTERVAL_SECONDS * 1000L, REPORT_INTERVAL_SECONDS * 1000L)
         }
         isReportTimerRunning = true
         Log.d(TAG, "⏰ 定时上报器已启动，间隔: ${REPORT_INTERVAL_SECONDS}秒")
+
+        // 启动 WorkManager 兜底：若定时器被杀，尝试重启服务与定时器
+        scheduleOneTimeRestartWork()
+    }
+    
+    /**
+     * 确保定时上报器在运行（供健康检查调用）
+     * 如果定时器未运行且有 token，则重新启动定时器
+     */
+    fun ensureReportTimerRunning() {
+        val token = sharedPreferences.getString(KEY_USER_TOKEN, null)
+        if (token.isNullOrEmpty()) {
+            Log.d(TAG, "🔍 保活检查：无 token，跳过定时器检查")
+            return
+        }
+        
+        // 检查定时器是否真的在运行
+        val timerRunning = reportTimer != null && isReportTimerRunning
+        
+        if (!timerRunning) {
+            Log.w(TAG, "⚠️ 保活检查：定时器未运行，重新启动")
+            // 强制重启定时器（即使 isReportTimerRunning 为 true，也可能定时器已被系统回收）
+            reportTimer?.cancel()
+            reportTimer = null
+            isReportTimerRunning = false
+            startReportTimer(token)
+            scheduleOneTimeRestartWork()
+        } else {
+            Log.d(TAG, "✅ 保活检查：定时器运行正常")
+        }
+    }
+
+    /**
+     * 使用 WorkManager 单次兜底，延迟短时间后尝试重启服务/定时器。
+     * 避免系统将周期 WorkManager 拉高到15分钟。
+     */
+    private fun scheduleOneTimeRestartWork() {
+        try {
+            val workRequest = OneTimeWorkRequestBuilder<LocationReportWorker>()
+                .setInitialDelay(2, TimeUnit.MINUTES) // 兜底延迟，避免与常规60s定时冲突
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                WORK_UNIQUE_NAME,
+                ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+            Log.d(TAG, "🛠️ 已调度 WorkManager 单次兜底任务（2分钟后尝试重启服务/定时器）")
+        } catch (e: Exception) {
+            Log.e(TAG, "调度 WorkManager 单次兜底失败", e)
+        }
     }
     
     /**
@@ -135,70 +238,90 @@ class LocationReportService(private val context: Context) {
      */
     private fun performScheduledReport(token: String) {
         coroutineScope.launch {
-            val locationsToReport: JSONArray
-            val bufferSize: Int
-            
-            // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
-            synchronized(collectionBuffer) {
-                if (collectionBuffer.isEmpty()) {
-                    Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
-                    return@launch
+            // 避免并发重复发送
+            if (!isReporting.compareAndSet(false, true)) {
+                Log.w(TAG, "⏰ 定时上报跳过：已有上报进行中")
+                return@launch
+            }
+            try {
+                val locationsToReport: JSONArray
+                val bufferSize: Int
+                
+                // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
+                synchronized(collectionBuffer) {
+                    pruneStaleLocationsLocked()
+                    if (collectionBuffer.isEmpty()) {
+                        Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
+                        return@launch
+                    }
+                    
+                    locationsToReport = JSONArray()
+                    collectionBuffer.forEach { locationData ->
+                        locationsToReport.put(locationData)
+                    }
+                    bufferSize = collectionBuffer.size
                 }
                 
-                locationsToReport = JSONArray()
-                collectionBuffer.forEach { locationData ->
-                    locationsToReport.put(locationData)
+                Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize")
+                
+                // 在synchronized块外调用挂起函数
+                val success = sendLocationToServer(token, locationsToReport)
+                
+                // 根据结果处理缓冲区
+                synchronized(collectionBuffer) {
+                    if (success) {
+                        collectionBuffer.clear()
+                        Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
+                    } else {
+                        Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
+                    }
                 }
-                bufferSize = collectionBuffer.size
-            }
-            
-            Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize")
-            
-            // 在synchronized块外调用挂起函数
-            val success = sendLocationToServer(token, locationsToReport)
-            
-            // 根据结果处理缓冲区
-            synchronized(collectionBuffer) {
-                if (success) {
-                    collectionBuffer.clear()
-                    Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
-                } else {
-                    Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
-                }
+            } finally {
+                isReporting.set(false)
             }
         }
     }
     
     /**
-     * 执行立即上报（缓冲区满时）
+     * 执行立即上报（缓冲区满时�?
      */
     private fun performImmediateReport(token: String) {
         coroutineScope.launch {
-            val locationsToReport: JSONArray
-            val bufferSize: Int
-            
-            // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
-            synchronized(collectionBuffer) {
-                locationsToReport = JSONArray()
-                collectionBuffer.forEach { locationData ->
-                    locationsToReport.put(locationData)
-                }
-                bufferSize = collectionBuffer.size
+            // 避免并发重复发送
+            if (!isReporting.compareAndSet(false, true)) {
+                Log.w(TAG, "⚡ 立即上报跳过：已有上报进行中")
+                return@launch
             }
-            
-            Log.d(TAG, "⚡ 执行立即上报，位置数量: $bufferSize")
-            
-            // 在synchronized块外调用挂起函数
-            val success = sendLocationToServer(token, locationsToReport)
-            
-            // 根据结果处理缓冲区
-            synchronized(collectionBuffer) {
-                if (success) {
-                    collectionBuffer.clear()
-                    Log.d(TAG, "✅ 立即上报成功，缓冲区已清空")
-                } else {
-                    Log.w(TAG, "❌ 立即上报失败，缓冲区保留数据")
+            try {
+                val locationsToReport: JSONArray
+                val bufferSize: Int
+                
+                // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
+                synchronized(collectionBuffer) {
+                    pruneStaleLocationsLocked()
+                    locationsToReport = JSONArray()
+                    collectionBuffer.forEach { locationData ->
+                        locationsToReport.put(locationData)
+                    }
+                    bufferSize = collectionBuffer.size
                 }
+                
+                Log.d(TAG, "⚡ 执行立即上报，位置数量: $bufferSize")
+                
+                // 在synchronized块外调用挂起函数
+                val success = sendLocationToServer(token, locationsToReport)
+                
+                // 根据结果处理缓冲区
+                synchronized(collectionBuffer) {
+                    if (success) {
+                        collectionBuffer.clear()
+                        Log.d(TAG, "✅ 立即上报成功，缓冲区已清空")
+                    } else {
+                        Log.w(TAG, "❌ 立即上报失败，缓冲区保留数据")
+                    }
+                }
+            } finally {
+                isReporting.set(false)
             }
         }
     }
@@ -256,6 +379,27 @@ class LocationReportService(private val context: Context) {
         }
         
         return false
+    }
+
+    /**
+     * 清理过期的定位点（持有锁时调用）
+     */
+    private fun pruneStaleLocationsLocked() {
+        if (collectionBuffer.isEmpty()) return
+        val nowSec = System.currentTimeMillis() / 1000
+        val iterator = collectionBuffer.iterator()
+        var removed = 0
+        while (iterator.hasNext()) {
+            val item = iterator.next()
+            val ts = item.optString("location_time").toLongOrNull()
+            if (ts != null && (nowSec - ts * 1L) * 1000 > staleDurationMs) {
+                iterator.remove()
+                removed++
+            }
+        }
+        if (removed > 0) {
+            Log.w(TAG, "🗑️ 已移除过期定位点: $removed 条")
+        }
     }
     
     /**
@@ -515,6 +659,24 @@ class LocationReportService(private val context: Context) {
             "unknown"
         }
     }
+
+    /**
+     * 判定当前是否有可用网络
+     */
+    private fun isNetworkAvailable(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH))
+        } catch (_: Exception) {
+            false
+        }
+    }
     
     /**
      * 获取电池电量头部信息
@@ -560,6 +722,18 @@ class LocationReportService(private val context: Context) {
             apply()
         }
         Log.d(TAG, "✅ 用户Token已保存: $userId")
+        
+        // 🔥 关键修复：保存token后，如果定时器正在运行，强制重启定时器以使用新token
+        // 这样切换账号后，定时器会立即使用新token
+        if (isReportTimerRunning && reportTimer != null) {
+            Log.d(TAG, "🔄 Token已更新，重启定时器以使用新token")
+            // 取消旧定时器
+            reportTimer?.cancel()
+            reportTimer = null
+            isReportTimerRunning = false
+            // 使用新token重新启动定时器
+            startReportTimer(token)
+        }
     }
     
     /**
@@ -685,4 +859,62 @@ class LocationReportService(private val context: Context) {
     }
 }
 
+/**
+ * WorkManager 单次兜底：重启服务/定时器，避免长时间停摆
+ */
+class LocationReportWorker(appContext: Context, params: androidx.work.WorkerParameters) :
+    androidx.work.CoroutineWorker(appContext, params) {
 
+    override suspend fun doWork(): Result {
+        return try {
+            setForeground(createForegroundInfo())
+
+            // 重启定时器（60秒主频），内部会自行检查 token 与运行状态
+            val service = LocationReportService(applicationContext)
+            service.ensureReportTimerRunning()
+            Log.d("LocationReportWorker", "兜底重启定时器/服务完成")
+            Result.success()
+        } catch (e: Exception) {
+            Log.e("LocationReportWorker", "兜底重启失败", e)
+            Result.retry()
+        }
+    }
+
+    private fun createForegroundInfo(): ForegroundInfo {
+        val channelId = LocationReportService.WORKER_CHANNEL_ID
+        val channelName = LocationReportService.WORKER_CHANNEL_NAME
+        val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                channelName,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                enableVibration(false)
+                enableLights(false)
+                setSound(null, null)
+                setShowBadge(false)
+            }
+            nm.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(applicationContext, channelId)
+            .setContentTitle("Kissu")
+            .setContentText("请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭")
+            .setSmallIcon(
+                applicationContext.resources.getIdentifier(
+                    "ic_launcher",
+                    "mipmap",
+                    applicationContext.packageName
+                ).takeIf { it != 0 } ?: android.R.drawable.ic_dialog_info
+            )
+            .setOngoing(true)
+            .setSound(null)
+            .setVibrate(null)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+
+        // 使用与前台服务相同的通知 ID，避免生成额外通知
+        return ForegroundInfo(1001, notification)
+    }
+}

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.app.PendingIntent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
@@ -21,6 +22,12 @@ import android.app.usage.UsageStatsManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
 import io.flutter.Log
 import com.amap.api.location.AMapLocation
 import com.amap.api.location.AMapLocationClient
@@ -28,6 +35,7 @@ import com.amap.api.location.AMapLocationClientOption
 import com.amap.api.location.AMapLocationListener
 import java.util.Timer
 import java.util.TimerTask
+import java.util.concurrent.TimeUnit
 
 /**
  * 前台定位服务
@@ -122,6 +130,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     // 🔥 原生定位相关
     private var locationClient: AMapLocationClient? = null
     private var locationReportService: LocationReportService? = null
+    private var healthCheckTimer: Timer? = null
+    private var heartbeatIntent: PendingIntent? = null
+    private var screenOffKeepAliveTimer: Timer? = null // 息屏时的额外保活定时器
+    private var screenOffHeartbeatIntent: PendingIntent? = null // 息屏时的额外心跳闹钟
     
     // 🔥 原生App使用记录上报相关
     private var appUsageReportService: AppUsageReportService? = null
@@ -148,21 +160,25 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         when (intent?.action) {
             ACTION_START_FOREGROUND_SERVICE -> {
                 // 🔥 关键修复：必须先调用 startForeground()，避免5秒超时崩溃
-                // 即使权限不足，也要先调用 startForeground()，否则会崩溃
+                // 即使权限不足，也必须先调用 startForeground()，然后再停止服务
                 createBasicForegroundNotification(intent)
-                // 标记服务期望保持运行，用于被系统杀死后的自恢复
-                markServiceEnabled(true)
                 
-                // Android 14+ 对前台定位服务校验严格；缺权限时停止服务
+                // 检查权限，有权限才能启动前台定位服务
                 if (!hasLocationPermissions()) {
-                    Log.e(TAG, "缺少前台定位或位置权限，停止启动前台服务")
-                    // 延迟停止，确保 startForeground() 已生效
+                    Log.w(TAG, "缺少前台定位或位置权限，无法启动前台服务")
+                    // 标记服务期望保持运行，等待用户授权后由健康检查拉起
+                    markServiceEnabled(true)
+                    // 延迟停止服务，避免立即崩溃（此时已调用 startForeground，不会超时）
                     Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        stopForeground(true)
                         stopSelf()
                         isServiceRunning = false
                     }, 100)
                     return START_NOT_STICKY
                 }
+                
+                // 标记服务期望保持运行，用于被系统杀死后的自恢复
+                markServiceEnabled(true)
                 
                 // ✅ 在 startForeground() 之后才进行其他初始化
                 initializeServiceComponents()
@@ -178,7 +194,8 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
             else -> {
                 // 处理其他情况（如系统重启后恢复服务）
-                // 也必须先调用 startForeground()
+                // 🔥 关键修复：必须先调用 startForeground()，避免5秒超时崩溃
+                // 即使权限不足，也必须先调用 startForeground()，然后再停止服务
                 if (intent != null) {
                     createBasicForegroundNotification(intent)
                 } else {
@@ -188,6 +205,29 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     }
                     createBasicForegroundNotification(basicIntent)
                 }
+                
+                // 检查权限，有权限才能启动前台定位服务
+                if (!hasLocationPermissions()) {
+                    Log.w(TAG, "缺少前台定位或位置权限，无法启动前台服务（else分支）")
+                    markServiceEnabled(true)
+                    // 延迟停止服务，避免立即崩溃（此时已调用 startForeground，不会超时）
+                    Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        stopForeground(true)
+                        stopSelf()
+                        isServiceRunning = false
+                    }, 100)
+                    return START_NOT_STICKY
+                }
+                
+                markServiceEnabled(true)
+                initializeServiceComponents()
+                
+                // 🔥 关键修复：else分支也需要启动定位和上报服务
+                // 因为系统重启恢复服务时，只初始化了组件但没有启动定位
+                startLocationTracking()
+                startAppUsageReporting()
+                
+                Log.d(TAG, "前台定位服务已恢复（else分支）")
             }
         }
         
@@ -199,9 +239,20 @@ class ForegroundLocationService : Service(), AMapLocationListener {
      * 初始化服务组件（在 startForeground() 之后调用）
      */
     private fun initializeServiceComponents() {
-        // 如果已经初始化过，跳过
-        if (locationClient != null) {
-            Log.d(TAG, "服务组件已初始化，跳过")
+        // 🔥 修复：即使 locationClient 已存在，也要确保其他组件（如上报服务）已初始化
+        // 因为服务可能被系统回收后恢复，某些组件可能丢失
+        var needInit = locationClient == null
+        
+        if (!needInit) {
+            // 检查其他关键组件是否也存在
+            if (locationReportService == null || appUsageReportService == null) {
+                Log.w(TAG, "服务组件部分丢失，需要重新初始化")
+                needInit = true
+            }
+        }
+        
+        if (!needInit) {
+            Log.d(TAG, "服务组件已完整初始化，跳过")
             return
         }
         
@@ -259,6 +310,20 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         
         // 🔥 初始化原生定位客户端
         initLocationClient()
+
+        // 🔥 启动原生保活健康检查（确保定位/上报组件存活）
+        startHealthCheck()
+        
+        // 🔥 检查屏幕状态，如果息屏则启动息屏保活机制
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isInteractive) {
+                Log.d(TAG, "服务启动时屏幕已关闭，启动息屏保活机制")
+                startScreenOffKeepAlive()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "检查屏幕状态失败", e)
+        }
     }
     
     override fun onBind(intent: Intent?): IBinder? {
@@ -273,6 +338,16 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         // 🔥 停止定位监听
         stopLocationTracking()
         
+        // 🔥 停止健康检查
+        healthCheckTimer?.cancel()
+        healthCheckTimer = null
+
+        // 🔥 停止心跳闹钟
+        stopHeartbeatAlarm()
+        
+        // 🔥 停止息屏保活机制
+        stopScreenOffKeepAlive()
+
         // 🔥 停止App使用记录上报
         stopAppUsageReporting()
 
@@ -299,6 +374,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
         // 🔥 无条件安排一次重启，防止厂商 ROM 杀死后不再拉起
         scheduleRestart(reason = "onDestroy")
+        scheduleWorkRestart(reason = "onDestroy")
         
         Log.d(TAG, "前台定位服务销毁")
     }
@@ -312,6 +388,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         Log.w(TAG, "⚠️ 应用任务被移除，尝试重启服务")
         
         scheduleRestart(reason = "onTaskRemoved")
+        scheduleWorkRestart(reason = "onTaskRemoved")
     }
     
     /**
@@ -359,7 +436,21 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 .build()
             
             // 🔥 关键：立即启动前台服务（必须在5秒内）
-            startForeground(notificationId, notification)
+            // Android 14+ (API 34+) 需要指定前台服务类型
+            // 如果权限不足，使用 DATA_SYNC 类型避免崩溃（临时方案）
+            if (Build.VERSION.SDK_INT >= 34) {
+                val hasLocationPerms = hasLocationPermissions()
+                val serviceType = if (hasLocationPerms) {
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                } else {
+                    // 权限不足时使用 DATA_SYNC 类型避免崩溃（AndroidManifest 中已声明此权限）
+                    Log.w(TAG, "⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（临时方案）")
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                }
+                startForeground(notificationId, notification, serviceType)
+            } else {
+                startForeground(notificationId, notification)
+            }
             isServiceRunning = true
             
             Log.d(TAG, "⚡ 前台服务已立即启动（避免5秒超时）")
@@ -389,7 +480,18 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     .setSmallIcon(android.R.drawable.ic_dialog_info)
                     .build()
                     
-                startForeground(DEFAULT_NOTIFICATION_ID, defaultNotification)
+                if (Build.VERSION.SDK_INT >= 34) {
+                    val hasLocationPerms = hasLocationPermissions()
+                    val serviceType = if (hasLocationPerms) {
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                    } else {
+                        Log.w(TAG, "⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（默认通知）")
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    }
+                    startForeground(DEFAULT_NOTIFICATION_ID, defaultNotification, serviceType)
+                } else {
+                    startForeground(DEFAULT_NOTIFICATION_ID, defaultNotification)
+                }
                 isServiceRunning = true
                 Log.d(TAG, "⚡ 使用默认通知启动前台服务")
             } catch (e2: Exception) {
@@ -402,7 +504,18 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         .setSmallIcon(android.R.drawable.ic_menu_info_details)
                         .setPriority(NotificationCompat.PRIORITY_MIN)
                         .build()
-                    startForeground(DEFAULT_NOTIFICATION_ID, emergencyNotification)
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        val hasLocationPerms = hasLocationPermissions()
+                        val serviceType = if (hasLocationPerms) {
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                        } else {
+                            Log.w(TAG, "⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（紧急通知）")
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                        }
+                        startForeground(DEFAULT_NOTIFICATION_ID, emergencyNotification, serviceType)
+                    } else {
+                        startForeground(DEFAULT_NOTIFICATION_ID, emergencyNotification)
+                    }
                     isServiceRunning = true
                     Log.d(TAG, "⚡ 使用紧急通知启动前台服务（避免崩溃）")
                 } catch (e3: Exception) {
@@ -457,8 +570,17 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 Log.e(TAG, "获取 WakeLock 失败", e)
             }
             
-            // 🔥 启动定位监听
+            // 🔥 确保组件已初始化（防止服务已存在但组件丢失的情况）
+            if (locationClient == null || locationReportService == null) {
+                Log.w(TAG, "检测到组件丢失，重新初始化")
+                initializeServiceComponents()
+            }
+            
+            // 🔥 启动定位监听（确保总是尝试启动，即使组件已存在）
             startLocationTracking()
+            
+            // 🔥 确保上报定时器在运行（防止定时器被系统回收）
+            locationReportService?.ensureReportTimerRunning()
             
             // 🔥 启动App使用记录上报
             startAppUsageReporting()
@@ -667,7 +789,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 action = ACTION_START_FOREGROUND_SERVICE
                 // 使用默认配置
                 putExtra("title", "Kissu")
-                putExtra("content", "请不要关掉Kisssu后台进程\n当前正在为对方共享您的信息，请勿关闭")
+                putExtra("content", "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭")
                 putExtra("channelId", "kissu_location_service")
                 putExtra("notificationId", 1001)
                 putExtra("iconName", "ic_launcher")
@@ -695,6 +817,27 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             Log.d(TAG, "🔄 已安排重启（$reason），delay=${delayMs}ms")
         } catch (e: Exception) {
             Log.e(TAG, "安排重启失败（$reason）", e)
+        }
+    }
+
+    /**
+     * 使用 WorkManager 兜底重启，防止 exact alarm 被省电策略拦截
+     */
+    private fun scheduleWorkRestart(reason: String) {
+        try {
+            val request = OneTimeWorkRequestBuilder<LocationServiceRestartWorker>()
+                .setInitialDelay(2, TimeUnit.SECONDS)
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+
+            WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                "foreground_location_restart",
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
+            Log.d(TAG, "🛠️ WorkManager 兜底重启已安排（$reason）")
+        } catch (e: Exception) {
+            Log.e(TAG, "安排 WorkManager 重启失败（$reason）", e)
         }
     }
 
@@ -803,6 +946,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     private fun startLocationTracking() {
         try {
             locationClient?.let { client ->
+                if (!hasLocationPermissions()) {
+                    Log.w(TAG, "缺少定位权限，暂不启动定位监听，等待后续授权")
+                    return
+                }
                 if (!client.isStarted) {
                     client.startLocation()
                     Log.d(TAG, "🚀 原生定位监听已启动（APP被杀后仍可工作）")
@@ -831,6 +978,266 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             locationReportService = null
         } catch (e: Exception) {
             Log.e(TAG, "停止定位监听失败", e)
+        }
+    }
+
+    /**
+     * 原生保活健康检查：降频到 60 秒，减少高频唤醒
+     */
+    private fun startHealthCheck() {
+        healthCheckTimer?.cancel()
+        healthCheckTimer = Timer().apply {
+            schedule(object : TimerTask() {
+                override fun run() {
+                    try {
+                        // 定位客户端存活且在运行
+                        if (locationClient == null) {
+                            initLocationClient()
+                        }
+                        locationClient?.let { client ->
+                            if (!client.isStarted) {
+                                if (!hasLocationPermissions()) {
+                                    Log.w(TAG, "保活：缺少定位权限，等待授权后再启动定位")
+                                    return
+                                }
+                                client.startLocation()
+                                Log.d(TAG, "💡 保活：重新启动定位客户端")
+                            }
+                        }
+
+                        // 上报服务存活
+                        if (locationReportService == null) {
+                            locationReportService = LocationReportService(this@ForegroundLocationService)
+                            Log.d(TAG, "💡 保活：重新创建上报服务")
+                        }
+                        
+                        // 🔥 确保上报定时器在运行（可能被系统回收）
+                        locationReportService?.ensureReportTimerRunning()
+
+                        // 确保心跳闹钟已设置
+                        ensureHeartbeatAlarm()
+                        
+                        // 🔥 息屏时确保 WAKE_LOCK 持续持有（防止被系统回收）
+                        try {
+                            wakeLock?.let {
+                                if (!it.isHeld) {
+                                    it.acquire()
+                                    Log.d(TAG, "💪 保活：重新获取 WAKE_LOCK（可能被系统回收）")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "保活时获取 WAKE_LOCK 失败", e)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "保活健康检查异常", e)
+                    }
+                }
+            }, 60_000L, 60_000L) // 60秒检查一次，降低被判高频唤醒风险
+        }
+        Log.d(TAG, "🚑 原生保活健康检查已启动（60秒）")
+    }
+
+    /**
+     * 心跳闹钟：每 3 分钟唤醒一次，降低高频唤醒风险
+     */
+    private fun ensureHeartbeatAlarm() {
+        try {
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(this, ForegroundLocationService::class.java).apply {
+                action = ACTION_START_FOREGROUND_SERVICE
+                // 使用统一的通知配置（与 BootCompletedReceiver 保持一致）
+                putExtra("title", "Kissu")
+                putExtra("content", "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭")
+                putExtra("channelId", "kissu_location_service")
+                putExtra("notificationId", 1001)
+                putExtra("iconName", "ic_launcher")
+                putExtra("priority", 2) // PRIORITY_HIGH
+                putExtra("ongoing", true)
+                putExtra("autoCancel", false)
+                putExtra("enableVibration", false)
+                putExtra("enableSound", false)
+            }
+            heartbeatIntent = PendingIntent.getService(
+                this,
+                2003,
+                intent,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+            )
+
+            val triggerAt = SystemClock.elapsedRealtime() + 180 * 1000L // 3分钟，降低高频唤醒风险
+            heartbeatIntent?.let { pi ->
+                am.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pi
+                )
+            }
+            Log.d(TAG, "❤️ 心跳闹钟已设置，3分钟后触发")
+        } catch (e: Exception) {
+            Log.e(TAG, "设置心跳闹钟失败", e)
+        }
+    }
+
+    /**
+     * 停止心跳闹钟
+     */
+    private fun stopHeartbeatAlarm() {
+        try {
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            heartbeatIntent?.let { am.cancel(it) }
+            heartbeatIntent = null
+            Log.d(TAG, "❤️ 心跳闹钟已停止")
+        } catch (e: Exception) {
+            Log.e(TAG, "停止心跳闹钟失败", e)
+        }
+    }
+    
+    /**
+     * 息屏时的额外保活机制：更频繁的检查和唤醒
+     */
+    private fun startScreenOffKeepAlive() {
+        try {
+            // 1. 启动保活定时器（每60秒检查一次，降低高频唤醒风险）
+            screenOffKeepAliveTimer?.cancel()
+            screenOffKeepAliveTimer = Timer().apply {
+                schedule(object : TimerTask() {
+                    override fun run() {
+                        try {
+                            // 确保 WAKE_LOCK 持续持有
+                            wakeLock?.let {
+                                if (!it.isHeld) {
+                                    it.acquire()
+                                    Log.d(TAG, "🌙 息屏保活：重新获取 WAKE_LOCK")
+                                }
+                            }
+                            
+                            // 检查定位客户端是否存活
+                            locationClient?.let { client ->
+                                if (!client.isStarted) {
+                                    if (hasLocationPermissions()) {
+                                        client.startLocation()
+                                        Log.d(TAG, "🌙 息屏保活：重新启动定位客户端")
+                                    }
+                                }
+                            }
+                            
+                            // 检查上报服务是否存活
+                            if (locationReportService == null) {
+                                locationReportService = LocationReportService(this@ForegroundLocationService)
+                                Log.d(TAG, "🌙 息屏保活：重新创建上报服务")
+                            }
+                            
+                            // 🔥 确保上报定时器在运行（可能被系统回收）
+                            locationReportService?.ensureReportTimerRunning()
+                            
+                            // 确保心跳闹钟已设置
+                            ensureHeartbeatAlarm()
+                            ensureScreenOffHeartbeatAlarm()
+                            
+                            Log.d(TAG, "🌙 息屏保活检查完成")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "息屏保活检查异常", e)
+                        }
+                    }
+                }, 60_000L, 60_000L) // 每60秒检查一次
+            }
+            
+            // 2. 设置息屏心跳闹钟（每120秒唤醒一次，平衡保活与耗电）
+            ensureScreenOffHeartbeatAlarm()
+            
+            Log.d(TAG, "🌙 息屏保活机制已启动（60秒检查 + 120秒心跳）")
+        } catch (e: Exception) {
+            Log.e(TAG, "启动息屏保活机制失败", e)
+        }
+    }
+    
+    /**
+     * 停止息屏保活机制
+     */
+    private fun stopScreenOffKeepAlive() {
+        try {
+            // 停止保活定时器
+            screenOffKeepAliveTimer?.cancel()
+            screenOffKeepAliveTimer = null
+            
+            // 停止息屏心跳闹钟
+            stopScreenOffHeartbeatAlarm()
+            
+            Log.d(TAG, "🌙 息屏保活机制已停止")
+        } catch (e: Exception) {
+            Log.e(TAG, "停止息屏保活机制失败", e)
+        }
+    }
+    
+    /**
+     * 息屏时的额外心跳闹钟：每120秒唤醒一次
+     */
+    private fun ensureScreenOffHeartbeatAlarm() {
+        try {
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(this, ForegroundLocationService::class.java).apply {
+                action = ACTION_START_FOREGROUND_SERVICE
+                // 使用统一的通知配置
+                putExtra("title", "Kissu")
+                putExtra("content", "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭")
+                putExtra("channelId", "kissu_location_service")
+                putExtra("notificationId", 1001)
+                putExtra("iconName", "ic_launcher")
+                putExtra("priority", 2)
+                putExtra("ongoing", true)
+                putExtra("autoCancel", false)
+                putExtra("enableVibration", false)
+                putExtra("enableSound", false)
+            }
+            screenOffHeartbeatIntent = PendingIntent.getService(
+                this,
+                2004, // 不同的requestCode，避免与普通心跳冲突
+                intent,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+            )
+
+            val triggerAt = SystemClock.elapsedRealtime() + 120 * 1000L // 120秒后触发
+            screenOffHeartbeatIntent?.let { pi ->
+                // 使用 setExactAndAllowWhileIdle 确保在 Doze 模式下也能触发
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pi
+                    )
+                } else {
+                    am.setExact(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pi
+                    )
+                }
+            }
+            Log.d(TAG, "🌙 息屏心跳闹钟已设置，120秒后触发")
+        } catch (e: Exception) {
+            Log.e(TAG, "设置息屏心跳闹钟失败", e)
+        }
+    }
+    
+    /**
+     * 停止息屏心跳闹钟
+     */
+    private fun stopScreenOffHeartbeatAlarm() {
+        try {
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            screenOffHeartbeatIntent?.let { am.cancel(it) }
+            screenOffHeartbeatIntent = null
+            Log.d(TAG, "🌙 息屏心跳闹钟已停止")
+        } catch (e: Exception) {
+            Log.e(TAG, "停止息屏心跳闹钟失败", e)
         }
     }
     
@@ -972,17 +1379,13 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 appUsageReportTimer = Timer().apply {
                     schedule(object : TimerTask() {
                         override fun run() {
-                            // 检查应用是否在后台或被杀死
-                            if (!isAppInForeground()) {
-                                Log.d(TAG, "📱 应用在后台，执行App使用记录采集和上报")
-                                service.collectAndReportUsageData()
-                            } else {
-                                Log.d(TAG, "⏸️ 应用在前台，跳过原生App使用记录上报（Flutter正在处理）")
-                            }
+                            // Flutter 上报已禁用，前台也由原生采集上报
+                            Log.d(TAG, "📱 执行App使用记录采集和上报（前台/后台统一原生）")
+                            service.collectAndReportUsageData()
                         }
                     }, 120000L, 120000L) // 2分钟间隔
                 }
-                Log.d(TAG, "🚀 App使用记录上报已启动（每2分钟采集一次）")
+                Log.d(TAG, "🚀 App使用记录上报已启动（每2分钟采集一次，前台/后台统一原生）")
             }
         } catch (e: Exception) {
             Log.e(TAG, "启动App使用记录上报失败", e)
@@ -1038,6 +1441,25 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     when (action) {
                         Intent.ACTION_SCREEN_OFF -> {
                             Log.d(TAG, "🌙 [Service] 收到锁屏广播 ACTION_SCREEN_OFF")
+                            
+                            // 🔥 息屏时加强保活：确保 WAKE_LOCK 持续持有
+                            try {
+                                wakeLock?.let {
+                                    if (!it.isHeld) {
+                                        it.acquire()
+                                        Log.d(TAG, "💪 息屏保活：重新获取 WAKE_LOCK")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "息屏时获取 WAKE_LOCK 失败", e)
+                            }
+                            
+                            // 🔥 息屏时立即设置心跳闹钟，确保1分钟后唤醒
+                            ensureHeartbeatAlarm()
+                            
+                            // 🔥 息屏时启动额外的保活机制：更频繁的检查和唤醒
+                            startScreenOffKeepAlive()
+                            
                             // Flutter 存活时交给 Flutter 处理
                             if (MainActivity.isFlutterEngineAlive) {
                                 Log.d(TAG, "Flutter 引擎存活，锁屏事件交由 Flutter 处理")
@@ -1060,8 +1482,63 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                             )
                         }
                         Intent.ACTION_SCREEN_ON -> {
-                            // 亮屏本身不直接上报，仅作为调试日志
                             Log.d(TAG, "💡 [Service] 收到亮屏广播 ACTION_SCREEN_ON")
+                            
+                            // 🔥 亮屏时停止息屏保活机制（节省资源）
+                            stopScreenOffKeepAlive()
+
+                            // 🔥 若服务标记为未运行（被系统回收），立刻自拉起
+                            if (!isServiceRunning) {
+                                try {
+                                    val restartIntent = Intent(
+                                        this@ForegroundLocationService,
+                                        ForegroundLocationService::class.java
+                                    ).apply {
+                                        setAction(ACTION_START_FOREGROUND_SERVICE)
+                                    }
+                                    ContextCompat.startForegroundService(
+                                        this@ForegroundLocationService,
+                                        restartIntent
+                                    )
+                                    Log.d(TAG, "💡 亮屏自拉起前台服务")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "亮屏自拉起前台服务失败", e)
+                                }
+                            }
+                            
+                            // 🔥 亮屏时检查服务状态并恢复
+                            try {
+                                // 检查定位客户端是否存活
+                                if (locationClient == null || !locationClient!!.isStarted) {
+                                    Log.w(TAG, "💡 亮屏检查：定位客户端异常，尝试恢复")
+                                    if (hasLocationPermissions()) {
+                                        initLocationClient()
+                                        startLocationTracking()
+                                    }
+                                }
+                                
+                                // 检查上报服务是否存活
+                                if (locationReportService == null) {
+                                    Log.w(TAG, "💡 亮屏检查：上报服务异常，尝试恢复")
+                                    locationReportService = LocationReportService(this@ForegroundLocationService)
+                                }
+                                
+                                // 🔥 确保上报定时器在运行（防止定时器被系统回收）
+                                locationReportService?.ensureReportTimerRunning()
+                                
+                                // 确保健康检查在运行
+                                if (healthCheckTimer == null) {
+                                    Log.w(TAG, "💡 亮屏检查：健康检查异常，尝试恢复")
+                                    startHealthCheck()
+                                }
+                                
+                                // 确保心跳闹钟已设置
+                                ensureHeartbeatAlarm()
+                                
+                                Log.d(TAG, "💡 亮屏检查完成，服务状态已恢复")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "亮屏时恢复服务失败", e)
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -1330,5 +1807,43 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
     private enum class NetworkState {
         NONE, WIFI, MOBILE, OTHER
+    }
+}
+
+/**
+ * 使用 WorkManager 兜底重启前台定位服务
+ */
+class LocationServiceRestartWorker(
+    appContext: Context,
+    params: WorkerParameters
+) : Worker(appContext, params) {
+
+    override fun doWork(): Result {
+        return try {
+            val intent = Intent(applicationContext, ForegroundLocationService::class.java).apply {
+                action = ForegroundLocationService.ACTION_START_FOREGROUND_SERVICE
+                putExtra("title", "Kissu")
+                putExtra("content", "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭")
+                putExtra("channelId", "kissu_location_service")
+                putExtra("notificationId", 1001)
+                putExtra("iconName", "ic_launcher")
+                putExtra("priority", 2)
+                putExtra("ongoing", true)
+                putExtra("autoCancel", false)
+                putExtra("enableVibration", false)
+                putExtra("enableSound", false)
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(intent)
+            } else {
+                applicationContext.startService(intent)
+            }
+            Log.d("LocationServiceRestartWorker", "已通过 WorkManager 触发前台服务重启")
+            Result.success()
+        } catch (e: Exception) {
+            Log.e("LocationServiceRestartWorker", "WorkManager 重启失败", e)
+            Result.retry()
+        }
     }
 }

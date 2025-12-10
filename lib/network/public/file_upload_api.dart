@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/http_managerN.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 
 class FileUploadApi {
   /// 上传文件
@@ -9,7 +10,7 @@ class FileUploadApi {
   Future<HttpResultN<String>> uploadFile(File file) async {
     try {
       final result = await HttpManagerN.instance.executePost(
-        '/file/upload',
+        ApiRequest.fileUpload,
         paths: {'file': file.path},
         paramEncrypt: false,
       );

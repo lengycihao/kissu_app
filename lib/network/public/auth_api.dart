@@ -118,6 +118,16 @@ class AuthApi {
     return result;
   }
 
+  /// 同步授权应用（首页进入时调用）
+  Future<HttpResultN> syncAuthApp() async {
+    final result = await HttpManagerN.instance.executePost(
+      ApiRequest.syncAuthApp,
+      jsonParam: const {},
+      paramEncrypt: false,
+    );
+    return result;
+  }
+
   /// 获取用户信息
   Future<HttpResultN<LoginModel>> getUserInfo() async {
     final result = await HttpManagerN.instance.executeGet(

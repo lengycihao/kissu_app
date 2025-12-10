@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/account_cancellation_page.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/love_info/phone_change_page.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -189,6 +190,8 @@ class PrivacySettingPage extends StatelessWidget {
         // 如果已经有其他线程正在导航，直接返回
         return;
       }
+
+      _clearLoveInfoController();
       
       // 然后在后台调用退出登录API（不阻塞UI）
       UserManager.logout().catchError((e) {
@@ -204,6 +207,12 @@ class PrivacySettingPage extends StatelessWidget {
         Get.context!,
         '退出登录失败：$e',
       );
+    }
+  }
+
+  void _clearLoveInfoController() {
+    if (Get.isRegistered<LoveInfoController>()) {
+      Get.delete<LoveInfoController>(force: true);
     }
   }
 }

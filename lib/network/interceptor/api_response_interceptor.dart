@@ -9,6 +9,7 @@ import 'package:get_it/get_it.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 /// API响应拦截器
 /// 处理统一的响应格式和错误处理
@@ -120,6 +121,12 @@ class ApiResponseInterceptor extends Interceptor {
     logWarning('⚠️ Token失效处理开始: $message', tag: 'ApiInterceptor');
     logDebug('📊 当前处理状态: _isHandlingUnauthorized=$_isHandlingUnauthorized', tag: 'ApiInterceptor');
     logDebug('⏰ 上次处理时间: $_lastUnauthorizedTime', tag: 'ApiInterceptor');
+
+    // 如果正在执行退出登录流程或已退出登录，直接跳过重复提示/导航
+    if (UserManager.isLoggingOut || !UserManager.isLoggedIn) {
+      logDebug('⏸️ 用户已退出或正在退出，跳过token失效处理', tag: 'ApiInterceptor');
+      return;
+    }
     
     // 检查是否正在处理中
     if (_isHandlingUnauthorized) {

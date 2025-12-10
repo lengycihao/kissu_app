@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_open_record_detail_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/hourly_app_record_data.dart';
+import 'package:kissu_app/pages/mine/app_usage/models/half_auth_app.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 应用使用记录上报API
@@ -30,7 +32,7 @@ class AppUsageApi {
       // 根据api.md说明，接口需要json格式，直接传递整个json对象
       // http_engine会自动将jsonParam转换为json字符串作为body
       final result = await HttpManagerN.instance.executePost(
-        '/v4/report/app/use/record',
+        ApiRequest.reportAppUseRecord,
         jsonParam: requestData, // 直接传递json对象
         paramEncrypt: false,
         isShowLoadingDialog: true,
@@ -73,7 +75,7 @@ class AppUsageApi {
       logger.info('获取使用记录历史: $startDate ~ $endDate', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
-        '/app-usage/history',
+        ApiRequest.appUsageHistory,
         queryParam: {
           'startDate': startDate,
           'endDate': endDate,
@@ -122,7 +124,7 @@ class AppUsageApi {
       logger.info('获取App使用统计数据: $date', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
-        '/v4/app/use/record/stat',
+        ApiRequest.appUsageStat,
         queryParam: {
           'date': date,
         },
@@ -179,7 +181,7 @@ class AppUsageApi {
       }
       
       final result = await HttpManagerN.instance.executeGet(
-        '/v4/open/app/record/detail',
+        ApiRequest.appOpenRecordDetail,
         queryParam: queryParam,
       );
       
@@ -219,6 +221,59 @@ class AppUsageApi {
       );
     }
   }
+
+  /// 获取Ta当前授权过的App列表
+  static Future<HttpResultN<List<HalfAuthApp>>> getHalfAuthorizedApps() async {
+    try {
+      logger.info('获取Ta当前授权过的App列表', tag: 'AppUsageApi');
+
+      final result = await HttpManagerN.instance.executeGet(
+        ApiRequest.getHalfAuthApp,
+      );
+
+      if (result.isSuccess) {
+        List<dynamic> appList = result.getListJson();
+
+        if (appList.isEmpty) {
+          final dynamicData = result.getDataDynamic();
+          if (dynamicData is List) {
+            appList = dynamicData;
+          }
+        }
+
+        final apps = appList
+            .map(
+              (e) => HalfAuthApp.fromJson(
+                Map<String, dynamic>.from(e as Map),
+              ),
+            )
+            .toList();
+
+        logger.info('获取Ta当前授权过的App成功: ${apps.length}个', tag: 'AppUsageApi');
+
+        return HttpResultN<List<HalfAuthApp>>(
+          isSuccess: true,
+          code: result.code,
+          msg: result.msg,
+          data: apps,
+        );
+      } else {
+        logger.error('获取Ta当前授权过的App失败: ${result.msg}', tag: 'AppUsageApi');
+        return HttpResultN<List<HalfAuthApp>>(
+          isSuccess: false,
+          code: result.code,
+          msg: result.msg,
+        );
+      }
+    } catch (e) {
+      logger.error('获取Ta当前授权过的App异常: $e', tag: 'AppUsageApi', error: e);
+      return HttpResultN<List<HalfAuthApp>>(
+        isSuccess: false,
+        code: -1,
+        msg: '获取失败: $e',
+      );
+    }
+  }
   
   /// 获取App使用记录统计（用于"统计"视图）
   /// [date] 日期 yyyy-MM-dd格式，如：2025-11-30
@@ -230,7 +285,7 @@ class AppUsageApi {
       logger.info('获取App使用记录统计: date=$date', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
-        '/v4/open/app/record/stat',
+        ApiRequest.appOpenRecordStat,
         queryParam: {
           'date': date,
         },

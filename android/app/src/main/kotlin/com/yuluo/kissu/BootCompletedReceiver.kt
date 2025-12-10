@@ -148,7 +148,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 
                 // 使用默认通知内容
                 putExtra("title", "Kissu")
-                putExtra("content", "请不要关掉Kisssu后台进程\n当前正在为对方共享您的信息，请勿关闭")
+                putExtra("content", "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭")
                 putExtra("channelId", "kissu_location_service")
                 putExtra("notificationId", 1001)
                 putExtra("iconName", "ic_launcher")

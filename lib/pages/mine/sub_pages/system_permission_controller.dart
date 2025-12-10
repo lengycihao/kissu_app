@@ -498,13 +498,11 @@ class SystemPermissionController extends GetxController
           }
           break;
         case SystemPermissionGuideType.allowBackgroundRun:
-          // if (currentBrand == SupportedBrand.vivo) {
-          //   await _permissionService.openAppSettingsPage();
-          // } else {
-          //   await _permissionService.openSystemSettingsPage();
-          // }
+          // 统一跳转到应用详情页，避免各品牌回退到系统首页
+          await _permissionService.openSystemSettingsPage();
+          break;
         case SystemPermissionGuideType.lockInBackground:
-          // 其他指引：保持原有行为，跳转到系统设置主页
+          // 其他指引：保持原有行为，跳转到应用详情页
           await _permissionService.openAppSettingsPage();
           break;
       }

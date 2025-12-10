@@ -518,7 +518,9 @@ class TencentIMService extends GetxService {
         // 根据消息类型播放对应的GIF动画
         switch (msgType) {
           case 'bindAndroid':
-            logger.info('🎉 收到 bindAndroid 绑定消息，A和B都会收到此消息，统一处理绑定逻辑', tag: 'TencentIMService');
+          // 兼容服务端可能返回的 msg_type = "bind"
+          case 'bind':
+            logger.info('🎉 收到绑定消息 (bindAndroid/bind)，A和B都会收到此消息，统一处理绑定逻辑', tag: 'TencentIMService');
             await _handleBindMessage(animationService);
             break;
           case 'unbind':

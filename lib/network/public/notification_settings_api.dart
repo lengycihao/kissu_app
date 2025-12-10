@@ -1,6 +1,7 @@
 import 'package:kissu_app/model/notification_settings_response.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 
 /// 通知设置API
 class NotificationSettingsApi {
@@ -8,7 +9,7 @@ class NotificationSettingsApi {
   Future<HttpResultN<List<NotificationSettingsResponse>>> getNotificationSettings() async {
     try {
       final result = await HttpManagerN.instance.executeGet(
-        '/v4/notification/set/info',
+        ApiRequest.notificationSettings,
         paramEncrypt: false,
       );
 

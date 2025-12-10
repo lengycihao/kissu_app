@@ -64,10 +64,20 @@ class AppUsageReportService(private val context: Context) {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val logoCacheManager = AppLogoCacheManager(context)
     
-    // 上报缓冲区
-    private val reportBuffer = mutableListOf<JSONObject>()
+    // 上报缓冲区，按日期分组，避免跨天数据被错误日期上报
+    private val reportBufferByDate = mutableMapOf<Int, MutableList<JSONObject>>()
     private var reportTimer: Timer? = null
     private var isReportTimerRunning = false
+
+    /**
+     * 获取当天日期（yyyyMMdd）
+     */
+    private fun getTodayDateInt(): Int {
+        val calendar = java.util.Calendar.getInstance()
+        return calendar.get(java.util.Calendar.YEAR) * 10000 +
+                (calendar.get(java.util.Calendar.MONTH) + 1) * 100 +
+                calendar.get(java.util.Calendar.DAY_OF_MONTH)
+    }
     
     /**
      * 检查是否有使用情况访问权限
@@ -149,12 +159,6 @@ class AppUsageReportService(private val context: Context) {
     fun collectAndReportUsageData() {
         coroutineScope.launch {
             try {
-                // 🔥 检查应用是否在前台，如果在前台则不执行上报（Flutter层会处理）
-                if (isAppInForeground()) {
-                    Log.d(TAG, "⏸️ 应用在前台，跳过原生上报（Flutter正在处理）")
-                    return@launch
-                }
-                
                 // 检查权限
                 if (!hasUsagePermission()) {
                     Log.w(TAG, "⚠️ 没有使用情况访问权限，无法采集数据")
@@ -178,6 +182,7 @@ class AppUsageReportService(private val context: Context) {
                 
                 // 采集使用数据
                 val usageData = collectUsageData()
+                val todayDate = getTodayDateInt()
                 
                 if (usageData.isEmpty()) {
                     Log.d(TAG, "📱 暂无使用记录需要上报")
@@ -188,12 +193,13 @@ class AppUsageReportService(private val context: Context) {
                 Log.d(TAG, "📱 采集到 ${usageData.size} 个应用的使用记录")
                 
                 // 添加到缓冲区
-                synchronized(reportBuffer) {
-                    reportBuffer.addAll(usageData)
+                synchronized(reportBufferByDate) {
+                    val bufferForDate = reportBufferByDate.getOrPut(todayDate) { mutableListOf() }
+                    bufferForDate.addAll(usageData)
                     
-                    // 如果缓冲区满了，立即上报
-                    if (reportBuffer.size >= MAX_BUFFER_SIZE) {
-                        Log.d(TAG, "⚠️ 缓冲区已满，触发立即上报")
+                    // 如果当日缓冲区满了，立即上报
+                    if (bufferForDate.size >= MAX_BUFFER_SIZE) {
+                        Log.d(TAG, "⚠️ 当日缓冲区已满，触发立即上报")
                         performImmediateReport(token)
                     }
                 }
@@ -604,10 +610,18 @@ class AppUsageReportService(private val context: Context) {
         }
         
         reportTimer?.cancel()
+        // 🔥 关键修复：定时任务中每次都从SharedPreferences读取最新token，而不是使用创建时的token
+        // 这样切换账号后，定时器会自动使用新token
         reportTimer = Timer().apply {
             schedule(object : TimerTask() {
                 override fun run() {
-                    performScheduledReport(token)
+                    // 每次都从SharedPreferences读取最新token，确保切换账号后使用新token
+                    val currentToken = sharedPreferences.getString(KEY_USER_TOKEN, null)
+                    if (currentToken.isNullOrEmpty()) {
+                        Log.w(TAG, "⚠️ 定时上报：token为空，跳过上报")
+                        return
+                    }
+                    performScheduledReport(currentToken)
                 }
             }, REPORT_INTERVAL_SECONDS * 1000L, REPORT_INTERVAL_SECONDS * 1000L)
         }
@@ -620,40 +634,38 @@ class AppUsageReportService(private val context: Context) {
      */
     private fun performScheduledReport(token: String) {
         coroutineScope.launch {
-            val dataToReport: JSONArray
-            val bufferSize: Int
+            val bufferSnapshot: Map<Int, List<JSONObject>>
             
-            // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
-            synchronized(reportBuffer) {
-                if (reportBuffer.isEmpty()) {
+            // 拷贝按日期分组的数据，避免在同步块内做网络请求
+            synchronized(reportBufferByDate) {
+                if (reportBufferByDate.isEmpty()) {
                     Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
                     return@launch
                 }
-                
-                dataToReport = JSONArray()
-                reportBuffer.forEach { appData ->
-                    dataToReport.put(appData)
+                bufferSnapshot = reportBufferByDate.mapValues { (_, list) -> list.toList() }
                 }
-                bufferSize = reportBuffer.size
+                
+            bufferSnapshot.forEach { (dateInt, appList) ->
+                val dataToReport = JSONArray()
+                appList.forEach { appData ->
+                    dataToReport.put(appData)
             }
             
-            Log.d(TAG, "⏰ 执行定时上报，应用数量: $bufferSize")
+                Log.d(TAG, "⏰ 执行定时上报，日期: $dateInt，应用数量: ${appList.size}")
             
-            // 在synchronized块外调用挂起函数
-            val success = sendUsageDataToServer(token, dataToReport)
+                val success = sendUsageDataToServer(token, dataToReport, dateInt)
             
-            // 根据结果处理缓冲区
-            synchronized(reportBuffer) {
+                synchronized(reportBufferByDate) {
                 if (success) {
-                    reportBuffer.clear()
-                    Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
+                        reportBufferByDate.remove(dateInt)
+                        Log.d(TAG, "✅ 定时上报成功，日期: $dateInt 缓冲区已清空")
                 } else {
-                    Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
+                        Log.w(TAG, "❌ 定时上报失败，日期: $dateInt 缓冲区保留数据")
                 }
                 
-                // 如果缓冲区为空，清除上报标记
-                if (reportBuffer.isEmpty()) {
+                    if (reportBufferByDate.isEmpty()) {
                     setNativeReportingFlag(false)
+                    }
                 }
             }
         }
@@ -664,35 +676,37 @@ class AppUsageReportService(private val context: Context) {
      */
     private fun performImmediateReport(token: String) {
         coroutineScope.launch {
-            val dataToReport: JSONArray
-            val bufferSize: Int
+            val bufferSnapshot: Map<Int, List<JSONObject>>
             
-            // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
-            synchronized(reportBuffer) {
-                dataToReport = JSONArray()
-                reportBuffer.forEach { appData ->
-                    dataToReport.put(appData)
+            synchronized(reportBufferByDate) {
+                if (reportBufferByDate.isEmpty()) {
+                    Log.d(TAG, "📦 缓冲区为空，跳过立即上报")
+                    return@launch
                 }
-                bufferSize = reportBuffer.size
+                bufferSnapshot = reportBufferByDate.mapValues { (_, list) -> list.toList() }
             }
             
-            Log.d(TAG, "⚡ 执行立即上报，应用数量: $bufferSize")
+            bufferSnapshot.forEach { (dateInt, appList) ->
+                val dataToReport = JSONArray()
+                appList.forEach { appData ->
+                    dataToReport.put(appData)
+            }
             
-            // 在synchronized块外调用挂起函数
-            val success = sendUsageDataToServer(token, dataToReport)
+                Log.d(TAG, "⚡ 执行立即上报，日期: $dateInt，应用数量: ${appList.size}")
             
-            // 根据结果处理缓冲区
-            synchronized(reportBuffer) {
+                val success = sendUsageDataToServer(token, dataToReport, dateInt)
+            
+                synchronized(reportBufferByDate) {
                 if (success) {
-                    reportBuffer.clear()
-                    Log.d(TAG, "✅ 立即上报成功，缓冲区已清空")
+                        reportBufferByDate.remove(dateInt)
+                        Log.d(TAG, "✅ 立即上报成功，日期: $dateInt 缓冲区已清空")
                 } else {
-                    Log.w(TAG, "❌ 立即上报失败，缓冲区保留数据")
+                        Log.w(TAG, "❌ 立即上报失败，日期: $dateInt 缓冲区保留数据")
                 }
                 
-                // 如果缓冲区为空，清除上报标记
-                if (reportBuffer.isEmpty()) {
+                    if (reportBufferByDate.isEmpty()) {
                     setNativeReportingFlag(false)
+                    }
                 }
             }
         }
@@ -701,7 +715,11 @@ class AppUsageReportService(private val context: Context) {
     /**
      * 发送App使用数据到服务器
      */
-    private suspend fun sendUsageDataToServer(token: String, appUsageArray: JSONArray): Boolean {
+    private suspend fun sendUsageDataToServer(
+        token: String,
+        appUsageArray: JSONArray,
+        dateInt: Int
+    ): Boolean {
         return withContext(Dispatchers.IO) {
             var connection: HttpURLConnection? = null
             try {
@@ -709,12 +727,6 @@ class AppUsageReportService(private val context: Context) {
                 val baseUrl = sharedPreferences.getString(KEY_BASE_URL, "https://service-api.ikissu.cn")
                 val apiUrl = "$baseUrl/v4/report/app/use/record"
                 val userId = sharedPreferences.getString(KEY_USER_ID, "")
-                
-                // 获取今天的日期（yyyyMMdd格式）
-                val calendar = java.util.Calendar.getInstance()
-                val dateInt = calendar.get(java.util.Calendar.YEAR) * 10000 +
-                        (calendar.get(java.util.Calendar.MONTH) + 1) * 100 +
-                        calendar.get(java.util.Calendar.DAY_OF_MONTH)
                 
                 Log.d(TAG, "🚀 开始上报App使用记录")
                 Log.d(TAG, "📡 API地址: $apiUrl")
@@ -938,6 +950,18 @@ class AppUsageReportService(private val context: Context) {
             apply()
         }
         Log.d(TAG, "✅ 用户Token已保存: $userId")
+        
+        // 🔥 关键修复：保存token后，如果定时器正在运行，强制重启定时器以使用新token
+        // 这样切换账号后，定时器会立即使用新token
+        if (isReportTimerRunning && reportTimer != null) {
+            Log.d(TAG, "🔄 Token已更新，重启定时器以使用新token")
+            // 取消旧定时器
+            reportTimer?.cancel()
+            reportTimer = null
+            isReportTimerRunning = false
+            // 使用新token重新启动定时器
+            startReportTimer(token)
+        }
     }
     
     /**
@@ -961,8 +985,8 @@ class AppUsageReportService(private val context: Context) {
         isReportTimerRunning = false
         
         // 清空缓冲区
-        synchronized(reportBuffer) {
-            reportBuffer.clear()
+        synchronized(reportBufferByDate) {
+            reportBufferByDate.clear()
         }
         
         // 清除SharedPreferences
@@ -1046,8 +1070,8 @@ class AppUsageReportService(private val context: Context) {
         isReportTimerRunning = false
         
         // 清空缓冲区
-        synchronized(reportBuffer) {
-            reportBuffer.clear()
+        synchronized(reportBufferByDate) {
+            reportBufferByDate.clear()
         }
         
         // 取消协程

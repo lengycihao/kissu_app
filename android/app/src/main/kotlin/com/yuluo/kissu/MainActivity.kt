@@ -65,10 +65,63 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         // 📝 必须在使用任何高德SDK功能之前调用
         initAmapPrivacy()
         
+        // 🔥 处理OpenInstall的Intent（必须在handleNotificationIntent之前）
+        handleOpenInstallIntent(intent)
+        
         // 处理从通知启动的情况
         handleNotificationIntent(intent)
         
         Log.d(TAG, "MainActivity onCreate")
+
+        // 🔥 兜底：应用启动即尝试拉起前台定位/上报服务（即使 Flutter 未调用）
+        try {
+            val config = mapOf(
+                "title" to "Kissu",
+                "content" to "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭",
+                "channel_id" to "kissu_location_service",
+                "channel_name" to "定位服务",
+                "channel_description" to "位置与事件上报保活",
+                "notification_id" to 1001,
+                "icon" to "ic_launcher",
+                "priority" to 2,
+                "importance" to "high",
+                "ongoing" to true,
+                "auto_cancel" to false,
+                "enable_vibration" to false,
+                "enable_sound" to false
+            )
+            ForegroundLocationService.startService(this, config)
+            Log.d(TAG, "兜底启动前台定位服务已触发")
+        } catch (e: Exception) {
+            Log.e(TAG, "兜底启动前台定位服务失败", e)
+        }
+    }
+    
+    /**
+     * 处理OpenInstall的Intent
+     * 用于处理通过OpenInstall链接打开应用的情况
+     */
+    private fun handleOpenInstallIntent(intent: Intent?) {
+        intent?.let {
+            // 检查是否是OpenInstall的scheme
+            val data = it.data
+            if (data != null && data.scheme == "eb24o3") {
+                Log.d(TAG, "🔔 检测到OpenInstall Intent")
+                Log.d(TAG, "  - Scheme: ${data.scheme}")
+                Log.d(TAG, "  - Host: ${data.host}")
+                Log.d(TAG, "  - Path: ${data.path}")
+                Log.d(TAG, "  - Query: ${data.query}")
+                Log.d(TAG, "  - Full URI: ${data.toString()}")
+                
+                // 打印所有extras
+                it.extras?.let { extras ->
+                    Log.d(TAG, "  - Extras:")
+                    for (key in extras.keySet()) {
+                        Log.d(TAG, "    - $key: ${extras.get(key)}")
+                    }
+                }
+            }
+        }
     }
     
     /**

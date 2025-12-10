@@ -41,6 +41,54 @@ void main() async {
   ));
 }
 
+/// 处理未知路由的Widget
+/// 当路由不存在时，自动跳转到启动页
+class _UnknownRouteHandler extends StatefulWidget {
+  @override
+  State<_UnknownRouteHandler> createState() => _UnknownRouteHandlerState();
+}
+
+class _UnknownRouteHandlerState extends State<_UnknownRouteHandler> {
+  bool _hasRedirected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 在下一帧跳转，避免在build过程中跳转
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasRedirected && mounted) {
+        _hasRedirected = true;
+        // 延迟跳转，确保路由系统已完全初始化
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            try {
+              Get.offAllNamed(KissuRoutePath.splash);
+            } catch (e) {
+              // 如果跳转失败，忽略错误（应用可能还在启动中）
+            }
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            const Text('正在加载...'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -66,9 +114,14 @@ class MyApp extends StatelessWidget {
       locale: const Locale('zh', 'CN'), // 👈 默认中文
       getPages: KissuRoute.routes,
       initialRoute: KissuRoutePath.splash, // 启动页
+      // 🔥 修改unknownRoute处理：当路由不存在时，自动跳转到启动页
+      // 这样可以避免OpenInstall等deep link跳转到不存在路由时显示错误页面
       unknownRoute: GetPage(
         name: '/notfound',
-        page: () => Scaffold(body: Center(child: Text('页面不存在'))),
+        page: () {
+          // 使用StatefulWidget来避免在build过程中跳转
+          return _UnknownRouteHandler();
+        },
       ),
       // 全局 builder，用于在所有页面上叠加截图反馈按钮
       builder: (context, child) {

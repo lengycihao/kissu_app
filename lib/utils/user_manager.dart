@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
-import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
@@ -12,6 +11,10 @@ import 'package:kissu_app/utils/debug_util.dart';
 /// 全局用户数据管理工具类
 /// 提供便捷的用户数据访问方法
 class UserManager {
+  // 标记是否正在执行退出登录/清理流程，避免重复提示
+  static bool _isLoggingOut = false;
+  static bool get isLoggingOut => _isLoggingOut;
+  
   // 🚀 优化：延迟获取AuthService，避免在服务未注册时访问
   static AuthService get _authService {
     try {
@@ -130,18 +133,23 @@ class UserManager {
 
   /// 用户登出
   static Future<void> logout() async {
-    // 停止定位服务
-    stopLocationService();
-    
-    // 停止App使用记录自动上报服务
-    _stopAppUsageAutoReport();
-    
-    // 清除缓存
-    clearPhoneHistoryCache();
-    // clearLocationCache();
-    // clearTrackDataCache();
-    
-    await _authService.logout();
+    _isLoggingOut = true;
+    try {
+      // 停止定位服务
+      stopLocationService();
+      
+      // 停止App使用记录自动上报服务
+      _stopAppUsageAutoReport();
+      
+      // 清除缓存
+      // clearPhoneHistoryCache();
+      // clearLocationCache();
+      // clearTrackDataCache();
+      
+      await _authService.logout();
+    } finally {
+      _isLoggingOut = false;
+    }
   }
   
   /// 停止App使用记录自动上报服务
@@ -159,36 +167,41 @@ class UserManager {
 
   /// 清除本地用户数据（用于注销后的数据清理，不调用退出登录API）
   static Future<void> clearLocalUserData() async {
-    // 停止定位服务
-    stopLocationService();
-    
-    // 清除缓存
-    clearPhoneHistoryCache();
-    // clearLocationCache();
-    // clearTrackDataCache();
-    
-    // 清除协议同意状态（注销时需要重新同意协议）
-    await LoginController.clearAgreementStatus();
-    
-    // 🔑 清除隐私合规状态
+    _isLoggingOut = true;
     try {
-      if (Get.isRegistered<PrivacyComplianceManager>()) {
-        final privacyManager = Get.find<PrivacyComplianceManager>();
-        await privacyManager.clearPrivacyStatus();
-        DebugUtil.success('隐私合规状态已清除');
+      // 停止定位服务
+      stopLocationService();
+      
+      // 清除缓存
+      // clearPhoneHistoryCache();
+      // clearLocationCache();
+      // clearTrackDataCache();
+      
+      // 清除协议同意状态（注销时需要重新同意协议）
+      await LoginController.clearAgreementStatus();
+      
+      // 🔑 清除隐私合规状态
+      try {
+        if (Get.isRegistered<PrivacyComplianceManager>()) {
+          final privacyManager = Get.find<PrivacyComplianceManager>();
+          await privacyManager.clearPrivacyStatus();
+          DebugUtil.success('隐私合规状态已清除');
+        }
+      } catch (e) {
+        DebugUtil.error('清除隐私合规状态失败: $e');
       }
-    } catch (e) {
-      DebugUtil.error('清除隐私合规状态失败: $e');
+
+      // 清除用户数据
+      await _authService.clearLocalUserData();
+    } finally {
+      _isLoggingOut = false;
     }
-
-    // 清除用户数据
-    await _authService.clearLocalUserData();
   }
 
-  /// 清除当前用户的通话记录缓存
-  static void clearPhoneHistoryCache() {
-    PhoneHistoryApi.clearCurrentUserCache();
-  }
+  // /// 清除当前用户的通话记录缓存
+  // static void clearPhoneHistoryCache() {
+  //   PhoneHistoryApi.clearCurrentUserCache();
+  // }
 
   // /// 清除当前用户的位置数据缓存
   // static void clearLocationCache() {

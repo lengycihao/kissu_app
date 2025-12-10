@@ -129,6 +129,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
               tipsManager: widget.controller.tipsManager,
               screenHeight: screenHeight,
             ),
+            _buildOfflineTipOverlay(),
             _buildDraggableSheet(),
             // 地图logo - 悬浮在地图上，位置跟随下半屏移动
             _buildMapLogo(),
@@ -264,7 +265,6 @@ class _LocationPageContentState extends State<_LocationPageContent>
                         Column(
                           children: [
                             _buildVirtualDataTip(),
-                            _buildOfflineTip(),
                             DeviceInfoSection(controller: widget.controller),
                             const SizedBox(height: 10),
                             LocationInfoSection(controller: widget.controller),
@@ -288,7 +288,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
     return const SizedBox.shrink();
   }
 
-  Widget _buildOfflineTip() {
+  Widget _buildOfflineTip({EdgeInsets? margin}) {
     return Obx(() {
       if (widget.controller.isBindPartner.value &&
           widget.controller.partnerOnlineStatus.value != null &&
@@ -307,7 +307,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
           },
           child: Container(
             width: double.infinity,
-            margin: EdgeInsets.only(left: 14, right: 14, bottom: 10),
+            margin: margin ?? EdgeInsets.only(left: 14, right: 14, bottom: 10),
             padding: EdgeInsets.only(left: 10, right: 10),
             height: 28,
             decoration: BoxDecoration(
@@ -423,8 +423,6 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   children: [
                     // 顶部占位：与指示条高度对齐（5px padding + 7px 指示条 + 5px spacing = 17px）
                     const SizedBox(height: 17),
-                    // 顶部离线提示（清晰的，不模糊）
-                    _buildOfflineTip(),
                     // DeviceInfoSection(controller: widget.controller),
                     // 设备信息模块（白色背景，显示设备型号、电量、网络）
                     MaskDeviceInfoWidget(controller: widget.controller),
@@ -477,14 +475,14 @@ class _LocationPageContentState extends State<_LocationPageContent>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.controller.isBindPartner.value &&
-                            widget.controller.partnerOnlineStatus.value !=
-                                null &&
-                            widget
-                                    .controller
-                                    .partnerOnlineStatus
-                                    .value!
-                                    .status ==
-                                0)
+                                  widget.controller.partnerOnlineStatus.value !=
+                                      null &&
+                                  widget
+                                          .controller
+                                          .partnerOnlineStatus
+                                          .value!
+                                          .status ==
+                                      0)
                           const SizedBox(height: 175)
                         else
                           const SizedBox(height: 140),
@@ -521,6 +519,53 @@ class _LocationPageContentState extends State<_LocationPageContent>
         );
       }
       return const SizedBox.shrink();
+    });
+  }
+
+  Widget _buildOfflineTipOverlay() {
+    return Obx(() {
+      if (!(widget.controller.isBindPartner.value &&
+          widget.controller.partnerOnlineStatus.value != null &&
+          widget.controller.partnerOnlineStatus.value!.status == 0)) {
+        return const SizedBox.shrink();
+      }
+
+      final sheetPercent = widget.controller.sheetPercent.value;
+      final isBindPartner = widget.controller.isBindPartner.value;
+      // 与右侧按钮一致的渐隐规则
+      final middleSnapSize = isBindPartner
+          ? 0.5 + (21 / screenHeight)
+          : 0.5 + (57 / screenHeight);
+      final maxPercent = (screenHeight - 100) / screenHeight;
+      double opacity;
+      if (sheetPercent <= middleSnapSize) {
+        opacity = 1.0;
+      } else if (sheetPercent >= maxPercent) {
+        opacity = 0.0;
+      } else {
+        opacity =
+            1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+      }
+      opacity = opacity.clamp(0.0, 1.0);
+
+      // DraggableSheet 顶部位置 = screenHeight * (1 - sheetPercent)
+      // 贴近下半屏顶部（略往上偏移 8px）
+      final bottom = (screenHeight * sheetPercent) + 8;
+
+      return Positioned(
+        left: 0,
+        right: 0,
+        bottom: bottom,
+        child: Opacity(
+          opacity: opacity,
+          child: IgnorePointer(
+            ignoring: opacity == 0.0,
+            child: _buildOfflineTip(
+              margin: const EdgeInsets.symmetric(horizontal: 14),
+            ),
+          ),
+        ),
+      );
     });
   }
 
@@ -579,11 +624,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
     return Obx(() {
       final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
 
-      // 右侧按钮的bottom位置
-      final buttonBottom = sheetHeight + 70;
-
-      // logo在按钮下方60px，按钮高度50px，所以logo的bottom = buttonBottom - 50 - 60
-      final logoBottom = buttonBottom - 50 - 15;
+      // logo 贴近下半屏顶部上方，避免与离线提示重叠
+      final logoBottom = sheetHeight + 50;
 
       // 根据绑定状态动态计算中间吸顶位置
       final isBindPartner = widget.controller.isBindPartner.value;

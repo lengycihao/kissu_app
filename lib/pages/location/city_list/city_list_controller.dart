@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/city_model.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 import 'package:kissu_app/services/city_storage_service.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 
@@ -81,7 +82,7 @@ class CityListController extends GetxController {
       isLoading.value = true;
       
       // 从后端API获取城市列表
-      final result = await HttpManagerN.instance.executeGet('/get/region');
+      final result = await HttpManagerN.instance.executeGet(ApiRequest.getRegion);
       
       if (result.isSuccess && result.dataJson != null) {
         final cityListResponse = CityListResponse.fromJson(result.dataJson);

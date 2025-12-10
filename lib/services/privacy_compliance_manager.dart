@@ -11,6 +11,7 @@ import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 安全的隐私合规管理器
 /// 采用渐进式初始化策略，确保第三方SDK功能不受影响
@@ -302,6 +303,15 @@ class PrivacyComplianceManager extends GetxService {
       // 🔒 在用户同意隐私政策后才初始化OpenInstall
       await OpenInstallService.init(enableClipboard: false); // 仍然禁用剪贴板
       
+      // 🔥 注册唤醒处理器，处理通过OpenInstall链接打开应用的情况
+      // 注意：唤醒处理器会在应用启动时被调用，但我们需要确保应用完全启动后再处理路由跳转
+      OpenInstallService.registerWakeupHandler((Map<String, dynamic> data) {
+        if (kDebugMode) {
+          DebugUtil.info('🔔 OpenInstall唤醒回调被触发（应用可能还在启动中）');
+        }
+        _handleOpenInstallWakeup(data);
+      });
+      
       // 获取邀请码（不涉及敏感权限）
       try {
         final inviteCode = await OpenInstallService.getInviteCode();
@@ -317,12 +327,207 @@ class PrivacyComplianceManager extends GetxService {
       }
       
       if (kDebugMode) {
-        DebugUtil.success('OpenInstall服务初始化完成（剪贴板已禁用）');
+        DebugUtil.success('OpenInstall服务初始化完成（剪贴板已禁用，唤醒处理器已注册）');
       }
     } catch (e) {
       if (kDebugMode) {
         DebugUtil.error('OpenInstall服务初始化失败: $e');
       }
+    }
+  }
+  
+  /// 处理OpenInstall唤醒参数
+  /// [data] 唤醒参数，可能包含 path、channelCode、bindData 等字段
+  void _handleOpenInstallWakeup(Map<String, dynamic> data) {
+    try {
+      if (kDebugMode) {
+        DebugUtil.info('🔔 OpenInstall唤醒参数: $data');
+        // 打印所有键值对，方便调试
+        data.forEach((key, value) {
+          DebugUtil.info('  - $key: $value');
+        });
+      }
+      
+      // 🔥 重要：延迟处理，确保应用已完全启动
+      // OpenInstall的唤醒回调可能在应用启动时就被调用，此时路由系统可能还未完全初始化
+      // 延迟时间增加到2秒，确保应用完全启动
+      Future.delayed(const Duration(seconds: 2), () {
+        try {
+          // 检查路由系统是否可用
+          final context = Get.key.currentContext;
+          if (context != null) {
+            _processWakeupData(data);
+          } else {
+            if (kDebugMode) {
+              DebugUtil.warning('⚠️ 应用尚未完全启动（context为null），延迟处理OpenInstall唤醒参数');
+            }
+            // 再延迟1秒后重试
+            Future.delayed(const Duration(seconds: 1), () {
+              _processWakeupData(data);
+            });
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            DebugUtil.error('检查应用启动状态失败: $e，直接处理唤醒数据');
+          }
+          // 即使检查失败，也尝试处理（可能应用已经启动）
+          _processWakeupData(data);
+        }
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('处理OpenInstall唤醒参数失败: $e');
+      }
+    }
+  }
+  
+  /// 实际处理唤醒数据
+  void _processWakeupData(Map<String, dynamic> data) {
+    try {
+      // 获取路径参数（OpenInstall可能使用不同的字段名）
+      String? path = data['path'] as String?;
+      if (path == null) {
+        // 尝试其他可能的字段名
+        path = data['page'] as String?;
+        path ??= data['route'] as String?;
+        path ??= data['url'] as String?;
+        path ??= data['target'] as String?;
+      }
+      
+      // 如果没有路径参数，直接返回（应用会正常启动到首页）
+      if (path == null || path.isEmpty) {
+        if (kDebugMode) {
+          DebugUtil.info('✅ OpenInstall唤醒参数中没有路径信息，应用正常启动到首页');
+        }
+        return;
+      }
+      
+      if (kDebugMode) {
+        DebugUtil.info('📋 从OpenInstall唤醒参数中提取到路径: $path');
+      }
+      
+      // 根据路径跳转到对应页面
+      String routePath = _convertOpenInstallPathToRoute(path);
+      
+      if (kDebugMode) {
+        DebugUtil.info('🔄 准备跳转到路由: $routePath (原始路径: $path)');
+      }
+      
+      // 检查路由是否存在
+      if (!_isRouteExists(routePath)) {
+        if (kDebugMode) {
+          DebugUtil.warning('⚠️ 路由不存在: $routePath，应用正常启动到首页');
+        }
+        return;
+      }
+      
+      // 执行跳转
+      try {
+        // 使用 offAllNamed 确保清除之前的页面栈，避免"页面不存在"的问题
+        Get.offAllNamed(routePath);
+        if (kDebugMode) {
+          DebugUtil.success('✅ OpenInstall唤醒跳转成功: $routePath');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          DebugUtil.error('❌ OpenInstall唤醒跳转失败: $e，路由: $routePath');
+        }
+        // 跳转失败时，应用会正常启动到首页
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('处理唤醒数据失败: $e');
+      }
+    }
+  }
+  
+  /// 检查路由是否存在
+  bool _isRouteExists(String routePath) {
+    try {
+      // 检查路由是否在路由表中
+      if (routePath == '/notfound' || routePath == '/notFound' || routePath == '/NotFound') {
+        if (kDebugMode) {
+          DebugUtil.warning('⚠️ 检测到尝试跳转到 /notfound 路由，这是unknownRoute，不应该跳转');
+        }
+        return false;
+      }
+      
+      final routes = Get.routeTree.routes;
+      final exists = routes.any((route) => route.name == routePath);
+      
+      if (kDebugMode) {
+        if (exists) {
+          DebugUtil.info('✅ 路由存在: $routePath');
+        } else {
+          DebugUtil.warning('⚠️ 路由不存在: $routePath');
+          DebugUtil.info('可用路由列表:');
+          routes.forEach((route) {
+            DebugUtil.info('  - ${route.name}');
+          });
+        }
+      }
+      
+      return exists;
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('检查路由是否存在失败: $e');
+      }
+      return false;
+    }
+  }
+  
+  /// 将OpenInstall的路径转换为应用路由路径
+  /// [openInstallPath] OpenInstall返回的路径，例如 "/home", "/login", "/vip" 等
+  /// 返回应用的路由路径
+  String _convertOpenInstallPathToRoute(String openInstallPath) {
+    // 移除开头的斜杠和尾部的斜杠
+    String path = openInstallPath.trim();
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+    if (path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+    
+    // 如果已经是完整的路由路径，直接返回
+    if (path.startsWith('/kisssu_app/')) {
+      return path;
+    }
+    
+    // 转换为小写以便匹配
+    path = path.toLowerCase();
+    
+    // 根据OpenInstall的路径映射到应用路由
+    // 你可以根据OpenInstall控制台配置的实际路径来调整这个映射
+    switch (path) {
+      case 'home':
+      case 'index':
+      case '':
+        return KissuRoutePath.home;
+      case 'login':
+        return KissuRoutePath.login;
+      case 'vip':
+        return KissuRoutePath.vip;
+      case 'location':
+        return KissuRoutePath.location;
+      case 'mine':
+        return KissuRoutePath.mine;
+      case 'info_setting':
+      case 'info-setting':
+      case 'infosetting':
+        return KissuRoutePath.infoSetting;
+      case 'track':
+        return KissuRoutePath.track;
+      case 'message':
+      case 'message_list':
+      case 'messagelist':
+        return KissuRoutePath.messageList;
+      default:
+        // 如果路径不匹配，返回首页（而不是尝试跳转到不存在的路由）
+        if (kDebugMode) {
+          DebugUtil.warning('⚠️ 未知的OpenInstall路径: $openInstallPath，将跳转到首页');
+        }
+        return KissuRoutePath.home;
     }
   }
   

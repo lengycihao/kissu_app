@@ -164,6 +164,9 @@ class HomeController extends GetxController {
     
     debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: $_hasShownBindingDialogThisSession');
     
+    // 进入首页即同步授权应用
+    _syncAuthApp();
+    
     // 埋点：开始记录页面停留时长
     _startPageTracking();
     
@@ -261,9 +264,20 @@ class HomeController extends GetxController {
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
     debugPrint('🏠 首页重新获得焦点，静默刷新用户信息');
+    _syncAuthApp();
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
+  }
+
+  /// 调用同步授权应用接口
+  Future<void> _syncAuthApp() async {
+    try {
+      await _authService.syncAuthApp();
+      debugPrint('🔄 同步授权应用完成');
+    } catch (e) {
+      debugPrint('❌ 同步授权应用失败: $e');
+    }
   }
   
   /// 静默刷新用户信息（不阻塞UI）

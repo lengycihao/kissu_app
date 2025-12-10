@@ -200,6 +200,16 @@ class ShareHandler(private val activity: Activity) {
         try {
             Log.d(TAG, "分享到QQ: title=$title")
             
+            // 🔥 关键修复：在分享前设置QQ权限（解决2003错误）
+            try {
+                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                setIsPermissionGrantedMethod.invoke(null, true)
+                Log.d(TAG, "✅ QQ分享权限预设置成功")
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ QQ分享权限预设置失败: ${e.message}")
+            }
+            
             val web = UMWeb(webUrl)
             web.title = title
             web.description = description
@@ -211,6 +221,18 @@ class ShareHandler(private val activity: Activity) {
                 .setCallback(object : UMShareListener {
                     override fun onStart(platform: SHARE_MEDIA?) {
                         Log.d(TAG, "分享开始: $platform")
+                        
+                        // 🔥 关键修复：如果是QQ分享，在开始前设置权限（解决2003错误）
+                        if (platform == SHARE_MEDIA.QQ || platform == SHARE_MEDIA.QZONE) {
+                            try {
+                                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                                setIsPermissionGrantedMethod.invoke(null, true)
+                                Log.d(TAG, "✅ QQ分享前权限设置成功")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "⚠️ QQ分享前权限设置失败: ${e.message}")
+                            }
+                        }
                     }
                     
                     override fun onResult(platform: SHARE_MEDIA?) {
@@ -248,6 +270,16 @@ class ShareHandler(private val activity: Activity) {
         try {
             Log.d(TAG, "分享到QQ空间: title=$title")
             
+            // 🔥 关键修复：在分享前设置QQ权限（解决2003错误）
+            try {
+                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                setIsPermissionGrantedMethod.invoke(null, true)
+                Log.d(TAG, "✅ QQ空间分享权限预设置成功")
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ QQ空间分享权限预设置失败: ${e.message}")
+            }
+            
             val web = UMWeb(webUrl)
             web.title = title
             web.description = description
@@ -259,6 +291,18 @@ class ShareHandler(private val activity: Activity) {
                 .setCallback(object : UMShareListener {
                     override fun onStart(platform: SHARE_MEDIA?) {
                         Log.d(TAG, "分享开始: $platform")
+                        
+                        // 🔥 关键修复：如果是QQ分享，在开始前设置权限（解决2003错误）
+                        if (platform == SHARE_MEDIA.QQ || platform == SHARE_MEDIA.QZONE) {
+                            try {
+                                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
+                                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
+                                setIsPermissionGrantedMethod.invoke(null, true)
+                                Log.d(TAG, "✅ QQ空间分享前权限设置成功")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "⚠️ QQ空间分享前权限设置失败: ${e.message}")
+                            }
+                        }
                     }
                     
                     override fun onResult(platform: SHARE_MEDIA?) {

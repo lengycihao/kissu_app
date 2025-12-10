@@ -25,8 +25,8 @@ class FloatingActionButtons extends StatelessWidget {
       // 计算下半屏当前的顶部位置（从屏幕底部算起）
       final sheetHeight = screenHeight * sheetPercent;
       
-      // 按钮固定在下半屏上方100px处
-      final buttonBottom = sheetHeight + 20;
+      // 按钮固定在下半屏上方更高位置，避免与离线提示重叠
+      final buttonBottom = sheetHeight + 60;
 
       // 🔧 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final isBindPartner = controller.isBindPartner.value;

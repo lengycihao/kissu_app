@@ -1,6 +1,7 @@
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/enum/cache_control.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 
 /// 首页数据响应模型
@@ -312,7 +313,7 @@ class IndexApi {
       DebugUtil.info('🏠 开始请求首页数据...');
 
       final result = await HttpManagerN.instance.executeGet(
-        '/index',
+        ApiRequest.index,
         paramEncrypt: false,
         networkDebounce: false, // 首页请求不去抖，确保实时性
         cacheControl: CacheControl.noCache, // 首页数据不使用缓存，确保最新

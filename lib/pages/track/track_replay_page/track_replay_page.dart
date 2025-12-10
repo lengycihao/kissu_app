@@ -222,8 +222,7 @@ class _ReplayControlBar extends StatelessWidget {
                     width: 40,
                     height: 40,
                     padding: const EdgeInsets.all(13) ,
-                    color: Colors.red,
-                    alignment: Alignment.center,
+                     alignment: Alignment.center,
                     child: Image(
                       image: AssetImage(
                         controller.isReplaying.value

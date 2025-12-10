@@ -510,11 +510,12 @@
             android:stopWithTask="false" />
         
         <!-- 前台定位服务 -->
+        <!-- 同时声明 location 和 dataSync 类型，用于权限不足时的降级处理 -->
         <service
             android:name="com.yuluo.kissu.ForegroundLocationService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="location"
+            android:foregroundServiceType="location|dataSync"
             android:stopWithTask="false" />
         
         <!-- 极光推送Activity -->

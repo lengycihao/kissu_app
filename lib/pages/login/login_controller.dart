@@ -12,6 +12,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
@@ -313,6 +314,9 @@ class LoginController extends GetxController {
         
         // 启动App使用记录自动上报服务（登录成功后）
         _startAppUsageAutoReport();
+
+        // 清理恋爱信息控制器，避免跨账号复用旧的本地数据
+        _clearLoveInfoController();
         
         // 重置登录页导航锁（登录成功后）
         LoginNavigationLock.reset();
@@ -340,6 +344,13 @@ class LoginController extends GetxController {
     } finally {
       // 结束加载状态
       isLoading.value = false;
+    }
+  }
+
+  void _clearLoveInfoController() {
+    if (Get.isRegistered<LoveInfoController>()) {
+      Get.delete<LoveInfoController>(force: true);
+      logDebug('🧹 登录成功，恋爱信息控制器已重置', tag: 'Login');
     }
   }
 

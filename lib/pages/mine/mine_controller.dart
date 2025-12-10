@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
@@ -885,6 +886,9 @@ class MineController extends GetxController {
   Future<void> performLogout() async {
     Get.back(); // 关闭对话框
 
+    // 清理恋爱信息控制器，防止跨账号复用旧数据
+    _clearLoveInfoController();
+
     try {
       // 🔧 使用登录页导航锁，防止重复跳转导致闪烁
       // 先尝试获取锁并跳转到登录页
@@ -904,6 +908,13 @@ class MineController extends GetxController {
       OKToastUtil.show('已退出登录');
     } catch (e) {
       OKToastUtil.showError('退出登录失败：$e');
+    }
+  }
+
+  void _clearLoveInfoController() {
+    if (Get.isRegistered<LoveInfoController>()) {
+      Get.delete<LoveInfoController>(force: true);
+      logDebug('🧹 恋爱信息控制器已清理', tag: 'Mine');
     }
   }
 

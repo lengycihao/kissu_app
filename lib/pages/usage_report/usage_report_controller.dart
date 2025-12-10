@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
-import 'package:kissu_app/network/public/phone_history_api.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -18,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
-  final PhoneHistoryApi _phoneHistoryApi = PhoneHistoryApi();
+  // final PhoneHistoryApi _phoneHistoryApi = PhoneHistoryApi();
 
   // 防抖Timer
   Timer? _debounceTimer;
@@ -452,21 +451,21 @@ class UsageReportController extends GetxController {
   }
 
   /// 获取系统信息设置
-  Future<void> loadSystemInfo() async {
-    isSystemInfoLoading.value = true;
-    try {
-      final result = await _phoneHistoryApi.getSystemInfo();
-      if (result.isSuccess && result.data != null) {
-        systemInfo.value = result.data!;
-      } else {
-        OKToastUtil.show('获取系统设置失败: ${result.msg}');
-      }
-    } catch (e) {
-      OKToastUtil.show('获取系统设置异常: $e');
-    } finally {
-      isSystemInfoLoading.value = false;
-    }
-  }
+  // Future<void> loadSystemInfo() async {
+  //   isSystemInfoLoading.value = true;
+  //   try {
+  //     final result = await _phoneHistoryApi.getSystemInfo();
+  //     if (result.isSuccess && result.data != null) {
+  //       systemInfo.value = result.data!;
+  //     } else {
+  //       OKToastUtil.show('获取系统设置失败: ${result.msg}');
+  //     }
+  //   } catch (e) {
+  //     OKToastUtil.show('获取系统设置异常: $e');
+  //   } finally {
+  //     isSystemInfoLoading.value = false;
+  //   }
+  // }
 
   /// 更新用户绑定状态
   void _updateUserBindStatus() {

@@ -538,9 +538,8 @@ class CustomBottomDialogController extends GetxController {
           if (shareResult['success'] == true) {
             OKToastUtil.show('QQ分享成功');
           } else {
-            // final errorMsg = shareResult['message'] ?? '分享失败';
-            // print('QQ分享失败: $errorMsg');
-            // OKToastUtil.show('QQ分享失败: $errorMsg');
+            final errorMsg = shareResult['message'] ?? '分享失败';
+            OKToastUtil.show('QQ分享失败: $errorMsg');
           }
         } catch (e) {
           logError('QQ分享异常: $e', tag: 'BindingDialog', error: e);

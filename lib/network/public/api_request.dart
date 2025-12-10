@@ -69,4 +69,18 @@ class ApiRequest {
   
   // App启动相关 API
   static const appStart = '/v4/app/start';
-}
+
+  // App使用记录 API
+  static const reportAppUseRecord = '/v4/report/app/use/record';
+  static const appUsageHistory =  '/app-usage/history';
+   static const appOpenRecordDetail = '/v4/open/app/record/detail';
+   static const getHalfAuthApp = '/get/half/auth/app';
+  static const appOpenRecordStat = '/v4/open/app/record/stat';
+  static const appUsageStat = '/v4/app/use/record/stat';
+
+  static const index = '/index';
+  static const notificationSettings = '/v4/notification/set/info';
+  static const getRegion = '/get/region';
+  static const syncAuthApp = '/sync/auth/app';
+  static const fileUpload = '/file/upload';
+  }

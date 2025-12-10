@@ -106,6 +106,18 @@ class _AppUsagePageState extends State<AppUsagePage> {
                             },
                           ),
                         ),
+                        // Ta当前授权过的App
+                        Obx(() {
+                          final apps = controller.halfAuthorizedApps;
+                          if (apps.isEmpty) {
+                            return const SliverToBoxAdapter(
+                              child: SizedBox.shrink(),
+                            );
+                          }
+                          return SliverToBoxAdapter(
+                            child: _buildHalfAuthorizedApps(controller),
+                          );
+                        }),
 
                         const SliverToBoxAdapter(
                           child: SizedBox(height: 14),
@@ -257,6 +269,124 @@ class _AppUsagePageState extends State<AppUsagePage> {
                   Icons.arrow_forward_ios,
                   color: Color(0xe6000000),
                   size: 12,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Ta当前授权过的App模块
+  Widget _buildHalfAuthorizedApps(AppUsageController controller) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16).copyWith(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Stack(
+                children: [
+                  Image.asset(
+                    'assets/4.0/kissu4_app_use_late_tip.webp',
+                    width: 130,
+                    height: 16,
+                    fit: BoxFit.fitWidth,
+                  ),
+                  const Text(
+                    'Ta当前授权过的App',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'AlimamaShuHeiTi',
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+              Transform.translate(
+                offset: const Offset(-2, -5),
+                child: Image.asset(
+                  'assets/4.0/kissu4_app_use_tip.webp',
+                  width: 13,
+                  height: 17,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 52,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: controller.halfAuthorizedApps
+                        .map(
+                          (app) => Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x11000000),
+                                  blurRadius: 4,
+                                  offset: Offset(1, 1),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: NetworkImageHelper.loadImage(
+                                imageUrl: app.appLogo,
+                                width: 42,
+                                height: 42,
+                                fit: BoxFit.cover,
+                                errorWidget: Image.asset(
+                                  'assets/images/kissu4_logo.png',
+                                  width: 42,
+                                  height: 42,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 24,
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.white.withOpacity(0),
+                            Colors.white,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

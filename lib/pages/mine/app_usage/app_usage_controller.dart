@@ -10,6 +10,7 @@ import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_open_record_detail_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/hourly_app_record_data.dart';
+import 'package:kissu_app/pages/mine/app_usage/models/half_auth_app.dart';
 import 'package:kissu_app/pages/mine/app_usage/api/app_usage_api.dart';
 import 'package:kissu_app/pages/mine/app_usage/services/app_usage_report_service.dart';
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
@@ -76,6 +77,9 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   // 时间轴视图数据：App打开记录详情列表
   var appOpenRecordDetail = <AppOpenRecordDetail>[].obs;
+
+  // Ta当前授权过的App列表
+  var halfAuthorizedApps = <HalfAuthApp>[].obs;
   
   // 时间轴数据加载状态
   var isLoadingTimelineData = false.obs;
@@ -131,6 +135,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     _loadData();
     _checkPermission();
     _loadUsageData();
+    loadHalfAuthorizedApps();
     
     // 进入页面后立即加载时间轴数据和统计数据（提前准备数据）
     loadTimelineData();
@@ -1071,6 +1076,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     
     // 重新加载使用统计数据
     await _loadUsageData();
+    await loadHalfAuthorizedApps();
     
     // 根据当前视图加载对应数据
     if (showTimeline.value) {
@@ -1083,6 +1089,23 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     } else {
       // 如果当前显示的是统计视图，重新加载统计数据
       await loadStatisticsData();
+    }
+  }
+
+  /// 获取Ta当前授权过的App列表
+  Future<void> loadHalfAuthorizedApps() async {
+    try {
+      final result = await AppUsageApi.getHalfAuthorizedApps();
+      if (result.isSuccess && result.data != null) {
+        halfAuthorizedApps.value = result.data!;
+        logger.info('加载半授权App成功: ${halfAuthorizedApps.length}', tag: 'AppUsage');
+      } else {
+        halfAuthorizedApps.value = [];
+        logger.error('加载半授权App失败: ${result.msg}', tag: 'AppUsage');
+      }
+    } catch (e) {
+      halfAuthorizedApps.value = [];
+      logger.error('加载半授权App异常: $e', tag: 'AppUsage', error: e);
     }
   }
   
