@@ -54,6 +54,13 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           debugPrint('💬 检测到shouldClose标志，准备关闭绑定弹窗');
           if (Navigator.of(context).canPop()) {
+             // 调用onClose回调（如果存在）
+            if (onClose != null) {
+              onClose!();
+            }
+            // 重置关闭标志
+            controller.shouldClose.value = false;
+            // 关闭弹窗
             Navigator.of(context).pop();
             debugPrint('✅ 绑定弹窗已自动关闭（通过Navigator）');
           }

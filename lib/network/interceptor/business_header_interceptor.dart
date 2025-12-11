@@ -78,8 +78,10 @@ class BusinessHeaderInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     try {
-      // 确保设备信息已初始化
-      await _initializeDeviceInfo();
+      // 🚀 优化：如果设备信息未初始化，才初始化（通常已在AppInitializer中预初始化）
+      if (_deviceInfo == null || _packageInfo == null) {
+        await _initializeDeviceInfo();
+      }
 
       // 添加 token（如果用户已登录）
       await _addTokenHeader(options);
@@ -109,14 +111,28 @@ class BusinessHeaderInterceptor extends Interceptor {
     handler.next(options);
   }
 
-  /// 初始化设备信息
-  Future<void> _initializeDeviceInfo() async {
+  /// 初始化设备信息（优化：预初始化，避免每次请求都初始化）
+  /// 公开方法，供AppInitializer调用
+  static Future<void> preInitializeDeviceInfo() async {
     if (_deviceInfo == null) {
       _deviceInfo = DeviceInfoPlugin();
     }
 
     if (_packageInfo == null) {
       _packageInfo = await PackageInfo.fromPlatform();
+      // 预缓存版本信息
+      if (_packageInfo != null) {
+        _cachedVersion = _packageInfo!.version;
+        _cachedPkg = _packageInfo!.packageName;
+      }
+    }
+  }
+
+  /// 初始化设备信息（兼容旧接口）
+  Future<void> _initializeDeviceInfo() async {
+    // 🚀 优化：如果设备信息未初始化，才初始化（通常已在AppInitializer中预初始化）
+    if (_deviceInfo == null || _packageInfo == null) {
+      await preInitializeDeviceInfo();
     }
   }
 

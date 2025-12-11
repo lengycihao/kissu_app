@@ -31,6 +31,7 @@ import 'package:kissu_app/utils/map_style_loader.dart';
 import 'package:kissu_app/services/map_preload_service.dart';
 import 'package:kissu_app/network/utils/log_util.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
+import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 /// 🚀 应用初始化器
 /// 在启动页执行所有耗时的初始化操作，避免阻塞app启动
@@ -47,43 +48,59 @@ class AppInitializer {
     try {
       DebugUtil.info('🚀 开始在启动页执行应用初始化...');
       
-      // ========== 第一阶段：基础初始化 ==========
+      // ========== 第一阶段：基础初始化（关键路径，必须快速完成）==========
       
-      // 步骤1: 初始化日志工具（带超时保护）
-      await LogUtil.instance.init().timeout(
+      // 🚀 优化：并行执行不相互依赖的初始化步骤
+      await Future.wait([
+        // 步骤1: 初始化应用配置（同步操作，很快）
+        AppConfigN.configuration().timeout(
+          const Duration(seconds: 1),
+          onTimeout: () => DebugUtil.warning('应用配置初始化超时'),
+        ),
+        
+        // 步骤2: 初始化服务定位器
+        setupServiceLocator().timeout(
         const Duration(seconds: 2),
-        onTimeout: () => DebugUtil.warning('日志工具初始化超时'),
-      );
-      DebugUtil.success('日志工具初始化完成');
-      
-      // 步骤2: 初始化应用配置（带超时保护）
-      await AppConfigN.configuration().timeout(
-        const Duration(seconds: 3),
-        onTimeout: () => DebugUtil.error('应用配置初始化超时'),
-      );
-      DebugUtil.success('应用配置初始化完成，API地址: ${AppConfigN.baseApiUrl}');
-      
-      // 步骤3: 初始化服务定位器（带超时保护）
-      await setupServiceLocator().timeout(
-        const Duration(seconds: 3),
         onTimeout: () => DebugUtil.error('服务定位器初始化超时'),
-      );
-      DebugUtil.success('服务定位器初始化完成');
+        ),
+      ]);
+      DebugUtil.success('应用配置和服务定位器初始化完成');
 
-      // 步骤4: 预加载用户数据（带超时保护）
+      // 步骤3: 预加载用户数据（必须在服务定位器之后）
       final authService = getIt<AuthService>();
       await authService.loadCurrentUser().timeout(
-        const Duration(seconds: 2),
+        const Duration(seconds: 1),
         onTimeout: () => DebugUtil.warning('用户数据加载超时'),
       );
       DebugUtil.info('用户数据预加载完成，登录状态: ${authService.isLoggedIn}');
 
-      // 步骤5: 初始化HTTP管理器（带超时保护）
+      // 步骤4: 初始化HTTP管理器（必须在用户数据加载之后）
       await HttpManagerExample.initializeHttpManager().timeout(
-        const Duration(seconds: 2),
+        const Duration(seconds: 1),
         onTimeout: () => DebugUtil.warning('HTTP管理器初始化超时'),
       );
       DebugUtil.success('HTTP管理器初始化完成');
+
+      // 🚀 优化：预初始化拦截器设备信息，避免每次请求都初始化
+      try {
+        await BusinessHeaderInterceptor.preInitializeDeviceInfo().timeout(
+          const Duration(seconds: 1),
+          onTimeout: () => DebugUtil.warning('设备信息预初始化超时'),
+        );
+        DebugUtil.success('设备信息预初始化完成');
+      } catch (e) {
+        DebugUtil.warning('设备信息预初始化失败: $e，将在首次请求时初始化');
+      }
+
+      // 🚀 优化：日志工具初始化移到后台，不阻塞启动
+      LogUtil.instance.init().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => DebugUtil.warning('日志工具初始化超时'),
+      ).then((_) {
+        DebugUtil.success('日志工具初始化完成');
+      }).catchError((e) {
+        DebugUtil.error('日志工具初始化失败: $e');
+      });
 
       // 步骤6: 重置token失效处理状态，确保拦截器正常工作
       ApiResponseInterceptor.resetUnauthorizedState();
