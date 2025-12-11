@@ -76,19 +76,62 @@ class _SplashPageState extends State<SplashPage> {
 
   /// 预加载所有启动页图片，避免闪烁
   Future<void> _preloadImagesAndNavigate() async {
+    // 🚀 优化：立即显示启动页图片，不等待加载
+    if (mounted) {
+      setState(() {
+        _imagesLoaded = true;
+      });
+    }
+
     try {
-      // 🚀 关键优化：并行执行图片预加载和应用初始化
-      // ⚠️ 使用 Future.wait 但不等待初始化完成，避免卡住
-      await Future.wait([
-        // 预加载启动页图片
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'),
-          context,
-        ),
+      // 🚀 关键优化：只预加载关键图片，其他图片后台加载
+      // 先预加载最关键的背景图和logo
+      Future<void> criticalImages;
+      try {
+        criticalImages = Future.wait([
+          precacheImage(
+            const AssetImage('assets/mipmap-xxhdpi/flash.webp'),
+            context,
+          ),
+          precacheImage(
+            const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'),
+            context,
+          ),
+          precacheImage(
+            AssetImage(_getSplashLogoAsset()),
+            context,
+          ),
+        ]).timeout(
+          const Duration(seconds: 2),
+        );
+      } catch (e) {
+        DebugUtil.warning('关键图片预加载超时，继续启动: $e');
+        criticalImages = Future.value();
+      }
+
+      // 🚀 应用初始化在后台执行，不阻塞启动页显示
+      final initFuture = AppInitializer.initialize().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          DebugUtil.warning('⚠️ 应用初始化超时（8秒），继续启动流程');
+        },
+      ).catchError((e) {
+        DebugUtil.error('应用初始化失败: $e，继续启动');
+      });
+
+      // 等待关键图片加载完成（最多2秒）
+      await criticalImages;
+
+      // 继续导航逻辑，不等待完整初始化完成
+      await _checkLoginStatusAndNavigate();
+
+      // 后台继续初始化（不阻塞）
+      initFuture.then((_) {
+        DebugUtil.success('应用初始化完成');
+      });
+
+      // 后台预加载其他图标（不阻塞）
+      Future.wait([
         precacheImage(
           const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'),
           context,
@@ -129,51 +172,26 @@ class _SplashPageState extends State<SplashPage> {
           const AssetImage('assets/mipmap-xxhdpi/flash_icon10.webp'),
           context,
         ),
-
-        // 🚀 在启动页执行所有应用初始化（带超时保护）
-        AppInitializer.initialize().timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            DebugUtil.warning('⚠️ 应用初始化超时（10秒），继续启动流程');
-          },
-        ),
-      ]).timeout(
-        const Duration(seconds: 12),
-        onTimeout: () {
-          DebugUtil.warning('⚠️ 启动页初始化总超时（12秒），强制继续');
-          return List.filled(4, null);
-        },
-      );
-
-      // 图片加载完成，更新状态
-      if (mounted) {
-        setState(() {
-          _imagesLoaded = true;
-        });
-      }
-
-      // 继续原有的导航逻辑
-      await _checkLoginStatusAndNavigate();
+      ]).then((_) {
+        // 预加载完成
+      }).catchError((e) {
+        DebugUtil.warning('其他图标预加载失败: $e');
+      });
     } catch (e) {
-      DebugUtil.error('预加载启动页图片或初始化失败: $e');
+      DebugUtil.error('预加载启动页图片失败: $e');
       // ✅ 即使预加载失败，也继续执行，不会卡住
-      if (mounted) {
-        setState(() {
-          _imagesLoaded = true;
-        });
-      }
       await _checkLoginStatusAndNavigate();
     }
   }
 
   Future<void> _checkLoginStatusAndNavigate() async {
-    // 延迟2秒显示启动页面
-    await Future.delayed(const Duration(seconds: 2));
-
+    // 🚀 优化：移除固定延迟，立即检查登录状态
+    // 只在初始化未完成时等待，最多等待3秒
     try {
       // 🚀 确保应用已初始化（关键！必须在访问任何服务之前）
+      // 优化：减少等待时间，最多等待3秒
       await _ensureAppInitialized(
-        timeout: const Duration(seconds: 8),
+        timeout: const Duration(seconds: 3),
         contextTag: '首次初始化',
       );
 
@@ -213,8 +231,9 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _continueLoginStatusCheck() async {
     try {
       // 🚀 再次确保应用已初始化（带超时保护）
+      // 优化：减少等待时间，最多等待2秒
       await _ensureAppInitialized(
-        timeout: const Duration(seconds: 5),
+        timeout: const Duration(seconds: 2),
         contextTag: '二次初始化',
       );
 

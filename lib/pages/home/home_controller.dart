@@ -164,14 +164,14 @@ class HomeController extends GetxController {
     
     debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: $_hasShownBindingDialogThisSession');
     
+    // 🚀 关键修复：先初始化认证服务，再同步/刷新用户信息
+    _authService = getIt<AuthService>();
+    
     // 进入首页即同步授权应用
     _syncAuthApp();
     
     // 埋点：开始记录页面停留时长
     _startPageTracking();
-    
-    // 🚀 关键修复：先初始化认证服务，再刷新用户信息
-    _authService = getIt<AuthService>();
     
     // 先加载本地用户信息（立即显示）
     loadUserInfo();

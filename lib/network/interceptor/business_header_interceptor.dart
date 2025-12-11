@@ -78,8 +78,10 @@ class BusinessHeaderInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     try {
-      // 确保设备信息已初始化
-      await _initializeDeviceInfo();
+      // 🚀 优化：如果设备信息未初始化，才初始化（通常已在AppInitializer中预初始化）
+      if (_deviceInfo == null || _packageInfo == null) {
+        await _initializeDeviceInfo();
+      }
 
       // 添加 token（如果用户已登录）
       await _addTokenHeader(options);
@@ -109,15 +111,31 @@ class BusinessHeaderInterceptor extends Interceptor {
     handler.next(options);
   }
 
-  /// 初始化设备信息
-  Future<void> _initializeDeviceInfo() async {
+  /// 初始化设备信息（优化：预初始化，避免每次请求都初始化）
+  /// 公开方法，供AppInitializer调用
+  static Future<void> preInitializeDeviceInfo() async {
     if (_deviceInfo == null) {
       _deviceInfo = DeviceInfoPlugin();
     }
 
     if (_packageInfo == null) {
       _packageInfo = await PackageInfo.fromPlatform();
+      // 预缓存版本信息
+      if (_packageInfo != null) {
+        _cachedVersion = _packageInfo!.version;
+        _cachedPkg = _packageInfo!.packageName;
+      }
     }
+  }
+
+  /// 内部初始化方法（调用公开方法）
+  static Future<void> _preInitializeDeviceInfo() async {
+    await preInitializeDeviceInfo();
+  }
+
+  /// 初始化设备信息（兼容旧接口）
+  Future<void> _initializeDeviceInfo() async {
+    await _preInitializeDeviceInfo();
   }
 
   /// 添加 token 请求头
@@ -219,7 +237,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     // 设置默认渠道（可以根据实际需求修改）
     // 打包时请修改这里的渠道值：
     // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝> kissu_wdj  <豌豆荚>
-    _cachedChannel ??= Platform.isAndroid ? 'kissu_default' : 'kissu_default';
+    _cachedChannel ??= Platform.isAndroid ? 'kissu_xiaomi' : 'kissu_default';
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
 
