@@ -476,12 +476,6 @@
         
         <!-- 高德定位服务 -->
         <service android:name="com.amap.api.location.APSService" />
-
-        <!-- WorkManager 前台服务类型声明（Android 14+ 要求） -->
-        <service
-            android:name="androidx.work.impl.foreground.SystemForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
         
         <!-- 极光推送核心服务 - 这是关键的服务 -->
         <service

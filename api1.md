@@ -1,1 +1,15 @@
-{"app_use_record_data":[{"app_logo":"https://kissustatic.yuluojishu.com/uploads/2025/12/06/dbab3da7727f1d2a20f1f0f970da4d25.png","app_name":"u5faeu4fe1","app_pkg":"com.tencent.mm","record":[{"operate_time":1765356651,"operate_type":0},{"operate_time":1765356665,"operate_type":1},{"operate_time":1765356690,"operate_type":0},{"operate_time":1765356704,"operate_type":1}]},{"app_logo":"https://kissustatic.yuluojishu.com/uploads/2025/12/06/994f3c3ead9dd9fd3050d9c074adf5c1.png","app_name":"u6296u97f3","app_pkg":"com.ss.android.ugc.aweme","record":[{"operate_time":1765356651,"operate_type":1},{"operate_time":1765356664,"operate_type":0},{"operate_time":1765356690,"operate_type":1},{"operate_time":1765356704,"operate_type":0}]},{"app_logo":"https://kissustatic.yuluojishu.com/uploads/2025/12/06/dbab3da7727f1d2a20f1f0f970da4d25.png","app_name":"u5faeu4fe1","app_pkg":"com.tencent.mm","record":[{"operate_time":1765356651,"operate_type":0},{"operate_time":1765356665,"operate_type":1},{"operate_time":1765356690,"operate_type":0},{"operate_time":1765356704,"operate_type":1},{"operate_time":1765356733,"operate_type":0}]},{"app_logo":"https://kissustatic.yuluojishu.com/uploads/2025/12/06/994f3c3ead9dd9fd3050d9c074adf5c1.png","app_name":"u6296u97f3","app_pkg":"com.ss.android.ugc.aweme","record":[{"operate_time":1765356651,"operate_type":1},{"operate_time":1765356664,"operate_type":0},{"operate_time":1765356690,"operate_type":1},{"operate_time":1765356704,"operate_type":0}]}],"date":20251210}
+[
+        {
+            "_id": "693793a0e898f3145038620c",
+            "app_name": "快手",
+            "app_logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/45/fe/0b/45fe0b80-9625-ff28-b1c8-e5dc69a504b0/AppIcon-0-0-1x_U007emarketing-0-8-0-0-sRGB-85-220.png/100x100bb.jpg",
+            "app_pkg": "com.jiangjia.gif"
+        },
+        {
+            "_id": "693793befd25db42880f2716",
+            "app_name": "高德地图-高德打车,导航公交地铁出行",
+            "app_logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/52/ed/68/52ed68fd-6762-feff-8d13-21e222039464/AppIcon-0-0-1x_U007epad-0-1-0-0-85-220.png/100x100bb.jpg",
+            "app_pkg": "com.autonavi.amap"
+        },
+       
+    ]

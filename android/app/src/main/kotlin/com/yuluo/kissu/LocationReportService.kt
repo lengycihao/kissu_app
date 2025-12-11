@@ -10,7 +10,6 @@ import android.os.BatteryManager
 import android.os.Build
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.pm.ServiceInfo
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import com.amap.api.location.AMapLocation
@@ -916,14 +915,6 @@ class LocationReportWorker(appContext: Context, params: androidx.work.WorkerPara
             .build()
 
         // 使用与前台服务相同的通知 ID，避免生成额外通知
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(
-                1001,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            )
-        } else {
-            ForegroundInfo(1001, notification)
-        }
+        return ForegroundInfo(1001, notification)
     }
 }

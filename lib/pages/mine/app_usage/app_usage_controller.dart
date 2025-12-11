@@ -483,14 +483,15 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   /// 选择时间轴视图中的App
   void selectAppForTimeline(String packageName) {
-    // 避免重复点击已选中的第一个 item 触发清空数据
     if (selectedAppForTimeline.value == packageName) {
-      return;
+      selectedAppForTimeline.value = '';
+      // 取消选中时，加载默认数据（不传appPkg）
+      loadTimelineData();
+    } else {
+      selectedAppForTimeline.value = packageName;
+      // 选中App时，加载该App的详细记录
+      loadTimelineData(appPkg: packageName);
     }
-
-    selectedAppForTimeline.value = packageName;
-    // 选中App时，加载该App的详细记录
-    loadTimelineData(appPkg: packageName);
   }
   
   /// 加载时间轴数据（公开方法，供外部调用）
@@ -825,8 +826,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       logger.info('准备上报 ${records.length} 个应用的使用记录', tag: 'AppUsage');
       
       // 处理每个应用的logo上传和数据转换
-      // 使用 map 按包名归并，避免同一 app 重复上报
-      final appUseRecordDataMap = <String, Map<String, dynamic>>{};
+      final appUseRecordData = <Map<String, dynamic>>[];
       int? dateInt;
       
       for (final record in records) {
@@ -848,32 +848,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         
         // 转换数据格式
         final convertedData = _convertRecordToReportFormat(record, logoUrl);
-
-        // 合并相同包名的数据，去重 operate_time/operate_type 组合
-        final existing = appUseRecordDataMap[record.packageName];
-        if (existing == null) {
-          appUseRecordDataMap[record.packageName] = convertedData;
-        } else {
-          // 合并 record 列表
-          final existingRecords = (existing['record'] as List<dynamic>).cast<Map<String, dynamic>>();
-          final newRecords = (convertedData['record'] as List<dynamic>).cast<Map<String, dynamic>>();
-          existingRecords.addAll(newRecords);
-
-          // 去重并按时间排序
-          final seen = <String>{};
-          existing['record'] = existingRecords.where((item) {
-            final key = '${item['operate_time']}_${item['operate_type']}';
-            if (seen.contains(key)) return false;
-            seen.add(key);
-            return true;
-          }).toList()
-            ..sort((a, b) => (a['operate_time'] as int).compareTo(b['operate_time'] as int));
-
-          // 如果之前没有 logo，使用新的 logo
-          if ((existing['app_logo'] as String? ?? '').isEmpty && (convertedData['app_logo'] as String? ?? '').isNotEmpty) {
-            existing['app_logo'] = convertedData['app_logo'];
-          }
-        }
+        appUseRecordData.add(convertedData);
         
         // 获取日期（使用第一个记录的日期）
         if (dateInt == null) {
@@ -882,7 +857,6 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         }
       }
       
-      final appUseRecordData = appUseRecordDataMap.values.toList();
       if (appUseRecordData.isEmpty) {
         OKToastUtil.show('没有可上报的数据');
         return;
