@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/payment_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:logger/logger.dart';
 
 /// 支付状态监控工具
@@ -112,24 +113,10 @@ class _PaymentStatusMonitorState extends State<PaymentStatusMonitor> {
       final wechatAvailable = availability['wechat'] ?? false;
       final alipayAvailable = availability['alipay'] ?? false;
       
-      Get.snackbar(
-        '支付可用性',
-        '微信: ${wechatAvailable ? "可用" : "不可用"}\n支付宝: ${alipayAvailable ? "可用" : "不可用"}',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.blue,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
+      OKToastUtil.showInfo('微信: ${wechatAvailable ? "可用" : "不可用"}\n支付宝: ${alipayAvailable ? "可用" : "不可用"}');
     } catch (e) {
       _logger.e('检查支付可用性失败: $e');
-      Get.snackbar(
-        '错误',
-        '检查支付可用性失败: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
+      OKToastUtil.showError('检查支付可用性失败: $e');
     }
   }
 }

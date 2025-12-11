@@ -4,6 +4,7 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 import 'track_replay_controller.dart';
 
 /// 轨迹播放页面
@@ -85,6 +86,7 @@ class _MapWidgetState extends State<_MapWidget> {
       return SafeAMapWidget(
         initialCameraPosition: widget.controller.initialCameraPosition,
         onMapCreated: widget.controller.onMapCreated,
+        onMapDisposed: widget.controller.onMapDisposed,
         markers: allMarkers,
         polylines: _cachedPolylines,
         mapType: widget.controller.mapTypeValue.value == 1
@@ -166,13 +168,10 @@ class _BackButton extends StatelessWidget {
           ),
         ],
       ),
-      child: GestureDetector(
+      child: CommonBackButton(
         onTap: () => Get.back(),
-        child: Image.asset(
-          'assets/images/kissu_mine_back.webp',
-          width: 24,
-          height: 24,
-        ),
+        assetPath: 'assets/images/kissu_mine_back.webp',
+        iconSize: 24,
       ),
     );
   }
@@ -190,8 +189,8 @@ class _ReplayControlBar extends StatelessWidget {
       margin: const EdgeInsets.only(left: 14, right: 14, bottom: 30),
       padding: const EdgeInsets.symmetric(
         horizontal: 0,
-        vertical: 12,
-      ).copyWith(left: 20),
+        // vertical: 12,
+      ).copyWith(left: 5),
       decoration: BoxDecoration(
         color: const Color(0xffF7F7F7),
         borderRadius: BorderRadius.circular(12),
@@ -220,9 +219,10 @@ class _ReplayControlBar extends StatelessWidget {
                 },
                 child: Obx(
                   () => Container(
-                    width: 20,
-                    height: 20,
-                    padding: const EdgeInsets.all(4),
+                    width: 40,
+                    height: 40,
+                    padding: const EdgeInsets.all(13) ,
+                     alignment: Alignment.center,
                     child: Image(
                       image: AssetImage(
                         controller.isReplaying.value
@@ -236,7 +236,7 @@ class _ReplayControlBar extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              // const SizedBox(width: 8),
 
               // 进度条
               Expanded(

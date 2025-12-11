@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -451,8 +452,8 @@ class CustomBottomDialogController extends GetxController {
                       height: 262,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          qrCodeUrl.value,
+                        child: NetworkImageHelper.loadImage(
+                          imageUrl: qrCodeUrl.value,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -537,9 +538,8 @@ class CustomBottomDialogController extends GetxController {
           if (shareResult['success'] == true) {
             OKToastUtil.show('QQ分享成功');
           } else {
-            // final errorMsg = shareResult['message'] ?? '分享失败';
-            // print('QQ分享失败: $errorMsg');
-            // OKToastUtil.show('QQ分享失败: $errorMsg');
+            final errorMsg = shareResult['message'] ?? '分享失败';
+            OKToastUtil.show('QQ分享失败: $errorMsg');
           }
         } catch (e) {
           logError('QQ分享异常: $e', tag: 'BindingDialog', error: e);

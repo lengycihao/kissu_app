@@ -95,20 +95,22 @@ class SensitiveDataApi {
   }
   
   /// 上报手机解锁事件
-  Future<HttpResultN> reportScreenUnlock() async {
-    final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
+  /// [timestampSeconds] 可选，若传入则使用原生锁屏事件的时间戳，否则使用当前时间
+  Future<HttpResultN> reportScreenUnlock({int? timestampSeconds}) async {
+    final ts = timestampSeconds ?? (DateTime.now().millisecondsSinceEpoch / 1000).floor();
     return await reportSensitiveData(
       eventType: 14,
-      ext: "{\"timestamp\": ${timestamp.toString()}}",
+      ext: "{\"timestamp\": ${ts.toString()}}",
     );
   }
   
   /// 上报手机锁屏事件
-  Future<HttpResultN> reportScreenLock() async {
-    final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
+  /// [timestampSeconds] 可选，若传入则使用原生锁屏事件的时间戳，否则使用当前时间
+  Future<HttpResultN> reportScreenLock({int? timestampSeconds}) async {
+    final ts = timestampSeconds ?? (DateTime.now().millisecondsSinceEpoch / 1000).floor();
     return await reportSensitiveData(
       eventType: 15,
-      ext: "{\"timestamp\": ${timestamp.toString()}}",
+      ext: "{\"timestamp\": ${ts.toString()}}",
     );
   }
   

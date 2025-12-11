@@ -100,9 +100,10 @@ class _LocationPageContentState extends State<_LocationPageContent>
     widget.controller.pageContext = context;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(color: Color(0xFFFFF6EF)),
+        decoration: const BoxDecoration(color: Color(0xFFFFF6EF)),
         child: Stack(
           children: [
+            // 地图Widget（内部已有RepaintBoundary优化）
             Positioned.fill(
               child: CachedMapWidget(controller: widget.controller),
             ),
@@ -128,6 +129,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
               tipsManager: widget.controller.tipsManager,
               screenHeight: screenHeight,
             ),
+            _buildOfflineTipOverlay(),
             _buildDraggableSheet(),
             // 地图logo - 悬浮在地图上，位置跟随下半屏移动
             _buildMapLogo(),
@@ -247,27 +249,34 @@ class _LocationPageContentState extends State<_LocationPageContent>
               ),
             ),
             const SizedBox(height: 5),
-           Expanded(child:  CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Stack(
-                    children: [
-                      Column(
-                        children: [
-                          _buildVirtualDataTip(),
-                          _buildOfflineTip(),
-                          DeviceInfoSection(controller: widget.controller),
-                          const SizedBox(height: 10),
-                          LocationInfoSection(controller: widget.controller),
-                        ],
-                      ),
-                    ],
-                  ),
+            Expanded(
+              child: CustomScrollView(
+                controller: scrollController,
+                // 添加iOS风格的弹性滚动效果
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
                 ),
-                _buildLocationRecordsList(),
-              ],
-            ),)
+                // 缓存区域扩展，提升列表滚动性能
+                cacheExtent: 500,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Stack(
+                      children: [
+                        Column(
+                          children: [
+                            _buildVirtualDataTip(),
+                            DeviceInfoSection(controller: widget.controller),
+                            const SizedBox(height: 10),
+                            LocationInfoSection(controller: widget.controller),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildLocationRecordsList(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -279,7 +288,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
     return const SizedBox.shrink();
   }
 
-  Widget _buildOfflineTip() {
+  Widget _buildOfflineTip({EdgeInsets? margin}) {
     return Obx(() {
       if (widget.controller.isBindPartner.value &&
           widget.controller.partnerOnlineStatus.value != null &&
@@ -298,7 +307,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
           },
           child: Container(
             width: double.infinity,
-            margin: EdgeInsets.only(left: 14, right: 14, bottom: 10),
+            margin: margin ?? EdgeInsets.only(left: 14, right: 14, bottom: 10),
             padding: EdgeInsets.only(left: 10, right: 10),
             height: 28,
             decoration: BoxDecoration(
@@ -406,70 +415,101 @@ class _LocationPageContentState extends State<_LocationPageContent>
 
       if (shouldShowMask) {
         return Positioned.fill(
-          child: Column(
+          child: Stack(
             children: [
-              // 顶部占位：与指示条高度对齐（5px padding + 7px 指示条 + 5px spacing = 17px）
-              const SizedBox(height: 17),
-              // 顶部离线提示（清晰的，不模糊）
-              _buildOfflineTip(),
-              // DeviceInfoSection(controller: widget.controller),
-              // 设备信息模块（白色背景，显示设备型号、电量、网络）
-              MaskDeviceInfoWidget(controller: widget.controller),
-              const SizedBox(height: 10),
-              // 蒙版整体
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
+              // 🔒 蒙版内容层：使用 AbsorbPointer 阻止触摸事件穿透
+              AbsorbPointer(
+                child: Column(
+                  children: [
+                    // 顶部占位：与指示条高度对齐（5px padding + 7px 指示条 + 5px spacing = 17px）
+                    const SizedBox(height: 17),
+                    // DeviceInfoSection(controller: widget.controller),
+                    // 设备信息模块（白色背景，显示设备型号、电量、网络）
+                    MaskDeviceInfoWidget(controller: widget.controller),
+                    const SizedBox(height: 10),
+                    // 蒙版整体
+                    Expanded(
+                      child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(20),
                         ),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // 文字图片
-                            Image.asset(
-                              'assets/images/kissu3_go_label.webp',
-                              width: 216,
-                              height: 32,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(height: 20),
-                            // 按钮
-                            GestureDetector(
-                              onTap: () async {
-                                if (!isBindPartner) {
-                                  // 未绑定：显示绑定弹窗
-                                  // 上报埋点：定位-立刻去绑定
-                                  await TrackingService.trackLocationToBind();
-                                  widget.controller.performBindAction();
-                                } else {
-                                  // 已绑定但未开会员：跳转到VIP页面
-                                  // 上报埋点：定位-立刻开通会员
-                                  await TrackingService.trackLocationToVip();
-                                  widget.controller.onOpenMembershipButtonTap();
-                                }
-                              },
-                              child: Image.asset(
-                                !isBindPartner
-                                    ? 'assets/images/kissu3_go_bind.webp' // 未绑定
-                                    : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
-                                width: 150,
-                                height: 48,
-                                fit: BoxFit.contain,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20),
                               ),
                             ),
-                          ],
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // 文字图片
+                                  Image.asset(
+                                    'assets/images/kissu3_go_label.webp',
+                                    width: 216,
+                                    height: 32,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // 按钮占位（实际按钮在上层）
+                                  SizedBox(width: 150, height: 48),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              // 按钮层：允许点击（放在上层，不受 AbsorbPointer 影响）
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (widget.controller.isBindPartner.value &&
+                                  widget.controller.partnerOnlineStatus.value !=
+                                      null &&
+                                  widget
+                                          .controller
+                                          .partnerOnlineStatus
+                                          .value!
+                                          .status ==
+                                      0)
+                          const SizedBox(height: 175)
+                        else
+                          const SizedBox(height: 140),
+                        GestureDetector(
+                          onTap: () async {
+                            if (!isBindPartner) {
+                              // 未绑定：显示绑定弹窗
+                              // 上报埋点：定位-立刻去绑定
+                              await TrackingService.trackLocationToBind();
+                              widget.controller.performBindAction();
+                            } else {
+                              // 已绑定但未开会员：跳转到VIP页面
+                              // 上报埋点：定位-立刻开通会员
+                              await TrackingService.trackLocationToVip();
+                              widget.controller.onOpenMembershipButtonTap();
+                            }
+                          },
+                          child: Image.asset(
+                            !isBindPartner
+                                ? 'assets/images/kissu3_go_bind.webp' // 未绑定
+                                : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
+                            width: 150,
+                            height: 48,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -479,6 +519,53 @@ class _LocationPageContentState extends State<_LocationPageContent>
         );
       }
       return const SizedBox.shrink();
+    });
+  }
+
+  Widget _buildOfflineTipOverlay() {
+    return Obx(() {
+      if (!(widget.controller.isBindPartner.value &&
+          widget.controller.partnerOnlineStatus.value != null &&
+          widget.controller.partnerOnlineStatus.value!.status == 0)) {
+        return const SizedBox.shrink();
+      }
+
+      final sheetPercent = widget.controller.sheetPercent.value;
+      final isBindPartner = widget.controller.isBindPartner.value;
+      // 与右侧按钮一致的渐隐规则
+      final middleSnapSize = isBindPartner
+          ? 0.5 + (21 / screenHeight)
+          : 0.5 + (57 / screenHeight);
+      final maxPercent = (screenHeight - 100) / screenHeight;
+      double opacity;
+      if (sheetPercent <= middleSnapSize) {
+        opacity = 1.0;
+      } else if (sheetPercent >= maxPercent) {
+        opacity = 0.0;
+      } else {
+        opacity =
+            1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+      }
+      opacity = opacity.clamp(0.0, 1.0);
+
+      // DraggableSheet 顶部位置 = screenHeight * (1 - sheetPercent)
+      // 贴近下半屏顶部（略往上偏移 8px）
+      final bottom = (screenHeight * sheetPercent) + 8;
+
+      return Positioned(
+        left: 0,
+        right: 0,
+        bottom: bottom,
+        child: Opacity(
+          opacity: opacity,
+          child: IgnorePointer(
+            ignoring: opacity == 0.0,
+            child: _buildOfflineTip(
+              margin: const EdgeInsets.symmetric(horizontal: 14),
+            ),
+          ),
+        ),
+      );
     });
   }
 
@@ -499,6 +586,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
           ],
         ),
         child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
           onTap: () => widget.controller.handleBackButtonTap(_scrollController),
           child: AnimatedBuilder(
             animation: widget.controller.backButtonRotationAnimation,
@@ -508,10 +596,11 @@ class _LocationPageContentState extends State<_LocationPageContent>
                     widget.controller.backButtonRotationAnimation.value *
                     2 *
                     3.14159,
-                child: Image.asset(
-                  'assets/images/kissu_mine_back.webp',
+                child: const Image(
+                  image: AssetImage('assets/images/kissu_mine_back.webp'),
                   width: 24,
                   height: 24,
+                  fit: BoxFit.cover,
                 ),
               );
             },
@@ -535,11 +624,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
     return Obx(() {
       final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
 
-      // 右侧按钮的bottom位置
-      final buttonBottom = sheetHeight + 70;
-
-      // logo在按钮下方60px，按钮高度50px，所以logo的bottom = buttonBottom - 50 - 60
-      final logoBottom = buttonBottom - 50 - 15;
+      // logo 贴近下半屏顶部上方，避免与离线提示重叠
+      final logoBottom = sheetHeight + 50;
 
       // 根据绑定状态动态计算中间吸顶位置
       final isBindPartner = widget.controller.isBindPartner.value;
@@ -567,7 +653,11 @@ class _LocationPageContentState extends State<_LocationPageContent>
         left: 16,
         child: Opacity(
           opacity: opacity,
-          child: Image.asset('assets/images/map_logo.webp', width: 68, height: 22),
+          child: Image.asset(
+            'assets/images/map_logo.webp',
+            width: 68,
+            height: 22,
+          ),
         ),
       );
     });

@@ -1,329 +1,257 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import 'package:kissu_app/widgets/common_back_button.dart';
+import 'package:kissu_app/widgets/custom_refresh_header.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
+
 import 'usage_report_controller.dart';
-import 'widgets/sensitive_record_page.dart';
-import 'widgets/unlock_record_detail_page.dart';
-import 'widgets/screen_time_detail_page.dart';
-import 'widgets/location_anomaly_page.dart';
-import 'widgets/all_records_page.dart';
+import 'widgets/usage_record_item.dart';
 
 class UsageReportPage extends GetView<UsageReportController> {
   const UsageReportPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 保存context到controller，用于Overlay
     controller.pageContext = context;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          _buildBackground(),
-          SafeArea(child: _buildMainContent()),
-          // 底部白色渐变蒙版
-          Positioned(
-            bottom: 90, // 底部信息栏高度
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: 20,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Color(0xffF2F2F7),
-                      Color(0xffF2F2F7).withOpacity(0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+      body: Listener(
+        // 点击页面任意位置时，主动关闭设备信息 tip
+        onPointerDown: (_) => controller.clearSelectedDeviceInfo(),
+        child: Stack(
+          children: [
+            _buildBackground(),
+            SafeArea(child: _buildMainContent()),
+            // 敏感操作记录引导图覆盖层（全屏，包含状态栏区域）
+            Obx(() => _buildGuideOverlay()),
+          ],
+        ),
       ),
     );
   }
 
   // 背景图
   Widget _buildBackground() {
-    return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage(
-            'assets/phone_history/kissu3_phone_history_bg.webp',
+    return Column(
+      children: [
+        Container(
+          height: 140,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                'assets/phone_history/kissu3_phone_history_bg.webp',
+              ),
+              fit: BoxFit.fill,
+              alignment: Alignment.topCenter,
+            ),
           ),
-          fit: BoxFit.fill,
         ),
-      ),
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0, 0.1, 1],
+                colors: [Colors.white, Color(0xFFF6F6F6), Color(0xFFF6F6F6)],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   // 主内容
   Widget _buildMainContent() {
-    return Column(
-      children: [
-        _buildHeader(),
-        _buildDateSelector(),
-        const SizedBox(height: 16),
-        _buildTabBarWithFilter(),
-        Expanded(child: _buildPageView()),
-        // 底部信息栏
-        _buildBottomInfo(),
-      ],
-    );
-  }
-
-  // 构建标签栏和筛选按钮
-  Widget _buildTabBarWithFilter() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(child: _buildTabBar()),
-          const SizedBox(width: 8),
-          _buildFilterButton(),
-        ],
-      ),
-    );
-  }
-
-  // 构建标签栏
-  Widget _buildTabBar() {
-    return Container(
-      height: 42,
-      // padding: EdgeInsets.symmetric(horizontal: 3),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFFFB6E3), width: 1),
-      ),
-      clipBehavior: Clip.antiAlias, // 裁剪超出圆角边界的内容
-      child: Stack(
-        children: [
-          // 标签列表
-          Obx(() {
-            final tabs = controller.visibleTabs;
-            final selectedIndex =
-                controller.selectedTabIndex.value; // 在 Obx 内部获取
-            return ListView(
-              controller: controller.tabScrollController, // 添加滚动控制器
-              scrollDirection: Axis.horizontal,
-              children: [
-                const SizedBox(width: 2), // 左侧占位
-                ...List.generate(tabs.length, (index) {
-                  final isSelected = selectedIndex == index;
-                  return GestureDetector(
-                    key: controller.tabKeys[index], // 添加 GlobalKey
-                    onTap: () => controller.changeTab(index),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 2,
-                        vertical: 3,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFFF9AD8)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        tabs[index],
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF333333),
-                          fontWeight: isSelected
-                              ? FontWeight.w500
-                              : FontWeight.normal,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.visible,
-                        softWrap: false,
-                      ),
-                    ),
-                  );
-                }),
-                // const SizedBox(width: 47), // 右侧占位（31px渐变蒙版 + 16px间距）
-              ],
-            );
-          }),
-          // 右侧渐变蒙版
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: IgnorePointer(
-              child: Container(
-                width: 31,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.white.withOpacity(0),
-                      Colors.white.withOpacity(1),
-                    ],
-                    stops: const [0.0, 1.0],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(22),
-                    bottomRight: Radius.circular(22),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 构建筛选按钮
-  Widget _buildFilterButton() {
-    return Obx(() {
-      final isFilterOpen = controller.isFilterDrawerVisible.value;
-
-      return GestureDetector(
-        onTap: () => controller.toggleFilterDrawer(),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFFFB6E3), width: 1),
-          ),
-          alignment: Alignment.center,
-          child: Image.asset(
-            isFilterOpen
-                ? 'assets/phone_history/kissu3_history_seting_more.webp'
-                : 'assets/phone_history/kissu3_history_seting_more_close.webp',
-            width: 16,
-            height: 16,
-          ),
-        ),
-      );
-    });
-  }
-
-  // 构建 PageView
-  Widget _buildPageView() {
     return Stack(
       children: [
-        // 未绑定状态的背景图
-        GestureDetector(
-          onTap: () {
-            // 点击页面时隐藏筛选抽屉
-            controller.hideFilterDrawer();
-          },
-          onPanDown: (_) {
-            // 开始滑动时隐藏筛选抽屉
-            controller.hideFilterDrawer();
-          },
-          child: Obx(() {
-            final tabs = controller.visibleTabs;
-            return PageView.builder(
-              controller: controller.pageController,
-              itemCount: tabs.length,
-              onPageChanged: controller.onPageChanged,
-              itemBuilder: (context, index) {
-                return _buildTabContent(tabs[index]);
-              },
-            );
-          }),
+        Column(
+          children: [
+            _buildHeader(),
+            _buildBottomInfo(),
+            _buildDateSelector(),
+            const SizedBox(height: 16),
+            Expanded(child: _buildRecordList()),
+          ],
         ),
-        // 筛选抽屉
-        Obx(() {
-          if (!controller.isFilterDrawerVisible.value) {
-            return const SizedBox.shrink();
-          }
-          return _buildFilterDrawer();
-        }),
+        _buildFloatingFilterButton(),
       ],
     );
   }
 
-  // 构建标签内容
-  Widget _buildTabContent(String tabName) {
-    // 获取标签的基础名称（去除数量信息）
-    final baseTabName = _getBaseTabName(tabName);
-
-    switch (baseTabName) {
-      case '全部记录':
-        return const AllRecordsPage();
-      case '敏感记录':
-        return const SensitiveRecordPage();
-      case '解锁记录':
-        return const UnlockRecordDetailPage();
-      case '屏幕使用时长':
-        return const ScreenTimeDetailPage();
-      case '定位/足迹异常':
-        return const LocationAnomalyPage();
-      default:
-        return _buildPlaceholderPage(tabName);
+  /// 格式化时间（对外给 item 复用）
+  static String formatTime(String createTime) {
+    try {
+      final dateTime = DateTime.parse(createTime);
+      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return createTime;
     }
   }
 
-  /// 获取标签的基础名称（去除数量信息）
-  String _getBaseTabName(String tabName) {
-    // 移除括号中的数量信息，例如 "敏感记录(12)" -> "敏感记录"
-    final regex = RegExp(r'\(\d+\)$');
-    return tabName.replaceAll(regex, '');
-  }
+  // 构建记录列表
+  Widget _buildRecordList() {
+    return Obx(() {
+      final records = controller.sensitiveRecordList;
+      final isLoading = controller.isLoading.value;
+      final isLoadingMore = controller.isLoadingMore.value;
+      final hasMore = controller.hasMore.value;
 
-  // 占位页面
-  Widget _buildPlaceholderPage(String title) {
-    return Center(
-      child: Text(
-        '$title内容开发中...',
-        style: const TextStyle(fontSize: 16, color: Color(0xFF999999)),
-      ),
-    );
-  }
+      if (isLoading && records.isEmpty) {
+        return const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF6B9D)),
+        );
+      }
 
-  // 构建筛选抽屉
-  Widget _buildFilterDrawer() {
-    return Positioned(
-      top: 0,
-      right: 16,
-      child: GestureDetector(
-        onTap: () => controller.toggleFilterDrawer(),
-        child: Container(
-          color: Colors.transparent,
-          child: GestureDetector(
-            onTap: () {}, // 阻止事件冒泡
-            child: Container(
-              width: 125,
-              height: 242,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(
-                    'assets/phone_history/kissu3_history_seting_more_bg.webp',
+      return RefreshIndicator(
+        onRefresh: controller.onRefresh,
+        color: const Color(0xFFFF6B9D),
+        child: records.isEmpty
+            ? Builder(
+                builder: (context) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                  fit: BoxFit.fill,
+                  child: Container(
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height - 200,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 150),
+                        Image.asset(
+                          'assets/phone_history/kissu_phone_list_empty.webp',
+                          width: 120,
+                          height: 120,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          '暂无使用数据哦',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification scrollInfo) {
+                  if (scrollInfo.metrics.pixels >=
+                      scrollInfo.metrics.maxScrollExtent - 300) {
+                    if (hasMore && !isLoadingMore) {
+                      controller.loadMoreData();
+                    }
+                  }
+                  return false;
+                },
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                  ).copyWith(bottom: 80),
+                  // +1 for refresh time hint
+                  itemCount: records.length + (hasMore ? 1 : 0) + 1,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  cacheExtent: 500,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return Obx(
+                        () => RefreshTimeHint(
+                          lastRefreshTime: controller.lastRefreshTime.value,
+                          isPulling: controller.isPullingRefresh.value,
+                        ),
+                      );
+                    }
+
+                    final recordIndex = index - 1;
+
+                    if (recordIndex == records.length) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        alignment: Alignment.center,
+                        child: isLoadingMore
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFFFF6B9D),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      );
+                    }
+
+                    final record = records[recordIndex];
+                    return RepaintBoundary(
+                      child: UsageRecordItem(
+                        record: record,
+                        onTap: () => controller.handleRecordItemClick(record),
+                        onJumpTap: () =>
+                            controller.handleJumpPageClick(record.jumpPage),
+                      ),
+                    );
+                  },
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildFilterItem('敏感记录', 'sensitiveRecord'),
-                  _buildFilterItem('解锁记录', 'unlockRecord'),
-                  _buildFilterItem('屏幕使用时长', 'screenTime'),
-                  _buildFilterItem('定位/足迹异常', 'locationAnomaly'),
-                  const Divider(color: Color(0xFFEEEEEE), height: 1),
-                  _buildFilterItem('高敏感', 'highSensitive'),
-                  _buildFilterItem('中敏感', 'mediumSensitive'),
-                  _buildFilterItem('低敏感', 'lowSensitive'),
-                  _buildFilterItem('显示数据数值', 'showDataCount'),
-                ],
-              ),
+      );
+    });
+  }
+
+  // 构建底部悬浮筛选按钮
+  Widget _buildFloatingFilterButton() {
+    return Positioned(
+      bottom: 60,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: () => controller.showFilterDialog(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xffffffff),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xffFF9AD9)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xff000000).withOpacity(0.1),
+                  offset: const Offset(0, 0),
+                  blurRadius: 2,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Image(
+                  image: AssetImage(
+                    'assets/phone_history/kissu_phone_selecter.webp',
+                  ),
+                  width: 14,
+                  height: 14,
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  '筛选',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF000000),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -331,100 +259,130 @@ class UsageReportPage extends GetView<UsageReportController> {
     );
   }
 
-  // 构建筛选项
-  Widget _buildFilterItem(String label, String filterKey) {
-    return Obx(() {
-      bool isSelected = false;
-      switch (filterKey) {
-        case 'sensitiveRecord':
-          isSelected = controller.filterSensitiveRecord.value;
-          break;
-        case 'unlockRecord':
-          isSelected = controller.filterUnlockRecord.value;
-          break;
-        case 'screenTime':
-          isSelected = controller.filterScreenTime.value;
-          break;
-        case 'locationAnomaly':
-          isSelected = controller.filterLocationAnomaly.value;
-          break;
-        case 'highSensitive':
-          isSelected = controller.filterHighSensitive.value;
-          break;
-        case 'mediumSensitive':
-          isSelected = controller.filterMediumSensitive.value;
-          break;
-        case 'lowSensitive':
-          isSelected = controller.filterLowSensitive.value;
-          break;
-        case 'showDataCount':
-          isSelected = controller.filterShowDataCount.value;
-          break;
-      }
+  /// 构建敏感操作记录引导图覆盖层
+  Widget _buildGuideOverlay() {
+    if (!controller.showGuideOverlay.value) {
+      return const SizedBox.shrink();
+    }
 
-      // 根据敏感级别设置不同的选中图标和文字颜色
-      String selectedIcon;
-      Color textColor;
-
-      switch (filterKey) {
-        case 'highSensitive':
-          selectedIcon =
-              'assets/phone_history/kissu3_history_seting_high_sel.webp';
-          textColor = const Color(0xFFFF0000); // 红色
-          break;
-        case 'mediumSensitive':
-          selectedIcon =
-              'assets/phone_history/kissu3_history_seting_middle_sel.webp';
-          textColor = const Color(0xFFFFA100); // 橙色
-          break;
-        case 'lowSensitive':
-          selectedIcon = 'assets/phone_history/kissu3_history_seting_sel.webp';
-          textColor = const Color(0xFF3B86FF); // 蓝色
-          break;
-        default:
-          selectedIcon = 'assets/phone_history/kissu3_history_seting_sel.webp';
-          textColor = const Color(0xFF333333); // 蓝色
-          break;
-      }
-
-      return GestureDetector(
-        onTap: () => controller.toggleFilter(filterKey),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(fontSize: 12, color: textColor),
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.7),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => controller.hideGuideOverlay(),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 35,
+                right: 10,
+                child: Image.asset(
+                  'assets/setting/kissu_guide_setting.webp',
+                  width: 32,
+                  height: 52,
+                  fit: BoxFit.contain,
+                ),
               ),
-            ),
-            Image.asset(
-              isSelected
-                  ? selectedIcon
-                  : 'assets/phone_history/kissu3_history_seting_unsel.webp',
-              width: 12,
-              height: 12,
-            ),
-          ],
+              Positioned(
+                top: 82,
+                right: 44,
+                child: // 竖线
+                Image.asset(
+                  'assets/setting/kissu_guide_line.webp',
+                  width: 44,
+                  height: 32,
+                  fit: BoxFit.contain,
+                ),
+              ),
+               Positioned(
+                top: 120,
+                right: 240,
+                child: // 竖线
+                Image.asset(
+                  'assets/setting/kissu_guide_laba.webp',
+                  width: 14,
+                  height: 14,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              // 引导图：参考系统权限引导的样式，放在右上角区域
+              Positioned(
+                top: 125, // 适配头部和筛选区域高度
+                right: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    // 气泡 + 提示文字
+                    Text(
+                      '敏感信息接收设置都在这里哦~',
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: 'AlimamaShuHeiTi',
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Image.asset(
+                          'assets/setting/kissu_guide_tips.webp',
+                          width: 53,
+                          height: 18,
+                          fit: BoxFit.contain,
+                        ),
+                        SizedBox(width: 8),
+                        const Text(
+                          '可以手动设置提示的类型',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                   
+                  ],
+                ),
+               const SizedBox(height: 20),
+                 GestureDetector(
+                      onTap: () => controller.hideGuideOverlay(),
+                      child: Image.asset(
+                        'assets/setting/kissu_guide_know.webp',
+                        width: 90,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ],
+                )
+              ),
+            ],
+          ),
         ),
-      );
-    });
+      ),
+    );
   }
 
   // 构建顶部标题栏
   Widget _buildHeader() {
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 6).copyWith(right: 12),
       child: Row(
         children: [
-          GestureDetector(
+          CommonBackButton(
             onTap: () => Get.back(),
-            child: Image.asset(
-              'assets/images/kissu_mine_back.webp',
-              width: 24,
-              height: 24,
-            ),
+            assetPath: 'assets/images/kissu_mine_back.webp',
+            iconSize: 22,
           ),
           const Expanded(
             child: Center(
@@ -453,181 +411,320 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   // 构建日期选择器
   Widget _buildDateSelector() {
-    return DateSelector(
-      externalSelectedIndex: controller.selectedDateIndex,
-      onSelect: (date) {
-        controller.changeDate(date);
-      },
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: DateSelector(
+        externalSelectedIndex: controller.selectedDateIndex,
+        onSelect: controller.changeDate,
+      ),
     );
   }
 
   /// 构建底部信息栏
   Widget _buildBottomInfo() {
     return Container(
-      height: 90,
-      padding: EdgeInsets.only(top: 5),
-      decoration: const BoxDecoration(color: Color(0xffF2F2F7)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 距离信息
-          _buildDistanceInfo(),
-          // 分割线
-          SizedBox(width: 15),
-          // 设备信息
-          Expanded(child: _buildDeviceInfo()), SizedBox(width: 16),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 15,
+      ).copyWith(bottom: 16, top: 12),
+      child: _buildDeviceInfo(),
     );
-  }
-
-  /// 构建距离信息
-  Widget _buildDistanceInfo() {
-    return Obx(() {
-      final isUserBound = controller.isUserBound.value;
-
-      return InkWell(
-        onTap: () {
-          controller.handleDistanceButtonClick();
-        },
-        child: Container(
-          width: 60,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Color(0xffFCFCFD),
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(24),
-              bottomRight: Radius.circular(24),
-            ),
-            border: Border.all(color: Color(0xFFF4E6FF), width: 1),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isUserBound) ...[
-                // 已绑定状态：显示距离图标
-                Image.asset(
-                  'assets/phone_history/kissu3_history_diatance.webp',
-                  width: 16,
-                  height: 16,
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  '距离',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF333333)),
-                ),
-              ] else ...[
-                // 未绑定状态：显示加号图标
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Color(0xFFFF577C),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.add, size: 10, color: Colors.white),
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  '去绑定',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF333333)),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    });
   }
 
   /// 构建设备信息
   Widget _buildDeviceInfo() {
     return Obx(() {
-      final deviceInfo = controller.deviceInfo.value;
-
       // 获取设备信息，如果没有则显示默认值
-      final mobileModel = deviceInfo?.mobileModel ?? '未知';
-      final networkName = deviceInfo?.networkName ?? '未知';
-      final power = deviceInfo?.power ?? '未知';
-      final isWifi = deviceInfo?.isConnectedToWifi ?? false;
+      final deviceData = controller.halfUserData.value;
+      final distance = deviceData?.distance ?? '未知';
+      final mobileModel = deviceData?.mobileModel ?? '未知';
+      final networkName = deviceData?.networkName ?? '未知';
+      final power = deviceData?.power ?? '未知';
+      final selectedType = controller.selectedDeviceInfoType.value;
 
       return Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 65,
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xffFCFCFD),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Color(0xFFF4E6FF), width: 1),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 手机型号
-            if (mobileModel.isNotEmpty) ...[
-              _buildDeviceInfoItem(
-                icon: 'assets/phone_history/kissu_phone_type.webp',
-                text: mobileModel,
-                maxLength: 4,
-              ),
-              const Spacer(),
-            ],
-            // 网络信息
-            _buildDeviceInfoItem(
-              icon: 'assets/phone_history/kissu_phone_wifi.webp',
-              text: isWifi && networkName.isNotEmpty ? networkName : '移动网络',
-              maxLength: 4,
+          color: const Color(0xffffffff),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xff000000).withOpacity(0.06),
+              offset: const Offset(0, 0),
+              blurRadius: 8,
             ),
-            const Spacer(),
-            // 电量信息
-            if (power.isNotEmpty) ...[
-              _buildDeviceInfoItem(
-                icon: 'assets/phone_history/kissu_phone_barry.webp',
-                text: power,
-                maxLength: null, // 电量不截断
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // 底部四个设备信息项
+            _buildNormalDeviceInfo(
+              distance: distance,
+              mobileModel: mobileModel,
+              networkName: networkName,
+              power: power,
+            ),
+            // 顶部悬浮黑色气泡样式详情（根据选中项浮在对应图标正上方）
+            if (selectedType != null)
+              _buildDeviceInfoTooltip(
+                type: selectedType,
+                distance: distance,
+                mobileModel: mobileModel,
+                networkName: networkName,
+                power: power,
               ),
-            ],
           ],
         ),
       );
     });
   }
 
-  /// 构建设备信息项（带长按显示详情）
-  Widget _buildDeviceInfoItem({
-    required String icon,
-    required String text,
-    int? maxLength,
+  /// 构建正常状态的设备信息（4个模块并排）
+  Widget _buildNormalDeviceInfo({
+    required String distance,
+    required String mobileModel,
+    required String networkName,
+    required String power,
   }) {
-    final displayText = maxLength != null && text.length > maxLength
-        ? '${text.substring(0, maxLength)}...'
-        : text;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 距离信息
+        Expanded(
+          child: _buildDeviceInfoItem(
+            icon: 'assets/phone_history/kissu_phone_distance.webp',
+            text: distance,
+            maxLength: 6,
+            type: 'distance',
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 手机型号
+        Expanded(
+          child: _buildDeviceInfoItem(
+            icon: 'assets/phone_history/kissu_phone_type.webp',
+            text: mobileModel,
+            maxLength: 6,
+            type: 'mobileModel',
+          ),
+        ),
+        const SizedBox(width: 8),
+        
+        // 网络信息
+        Expanded(
+          child: _buildDeviceInfoItem(
+            icon: 'assets/phone_history/kissu_phone_wifi.webp',
+            text: networkName.isNotEmpty && networkName != '未知'
+                ? networkName
+                : '未知',
+            maxLength: 8,
+            type: 'network',
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 电量信息
+        Expanded(
+          child: _buildDeviceInfoItem(
+            icon: 'assets/phone_history/kissu_phone_barry.webp',
+            text: power,
+            maxLength: null,
+            type: 'power',
+          ),
+        ),
+      ],
+    );
+  }
 
-    return GestureDetector(
-      onLongPressStart: (details) {
-        // 使用 globalPosition 直接获取触摸位置，向上偏移一点避免遮挡手指
-        controller.showTooltip(
-          text,
-          details.globalPosition + const Offset(0, -40),
-        );
-      },
-      child: Container(
-        color: Colors.transparent, // 确保整个区域可以响应手势
+  /// 构建设备信息悬浮气泡（黑色背景 + 小三角），浮在对应图标正上方
+  /// 使用与底部完全相同的 Row 结构，确保精确对齐
+  Widget _buildDeviceInfoTooltip({
+    required String type,
+    required String distance,
+    required String mobileModel,
+    required String networkName,
+    required String power,
+  }) {
+    String content;
+    switch (type) {
+      case 'distance':
+        content = distance;
+        break;
+      case 'mobileModel':
+        content = mobileModel;
+        break;
+      case 'network':
+        content =
+            networkName.isNotEmpty && networkName != '未知' ? networkName : '未知';
+        break;
+      case 'power':
+        content = power;
+        break;
+      default:
+        content = '';
+        break;
+    }
+
+    if (content.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // 使用与 _buildNormalDeviceInfo 完全相同的 Row 结构，保证对齐
+    Widget buildBubble(String bubbleType, String bubbleText) {
+      if (bubbleType != type || bubbleText.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      // 在这一列内部居中，气泡的三角正对下面图标的中心
+      // 使用 Align 而不是 Center，允许气泡宽度超出列宽
+      return Align(
+        alignment: Alignment.center,
+        child: _DeviceInfoTooltipBubble(text: bubbleText),
+      );
+    }
+
+    return Positioned(
+      top: -40,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        ignoring: true,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(icon, width: 16, height: 16),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                displayText,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+            Expanded(child: buildBubble('distance', distance)),
+            const SizedBox(width: 8),
+            Expanded(child: buildBubble('mobileModel', mobileModel)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: buildBubble(
+                'network',
+                networkName.isNotEmpty && networkName != '未知'
+                    ? networkName
+                    : '未知',
               ),
             ),
+            const SizedBox(width: 8),
+            Expanded(child: buildBubble('power', power)),
           ],
         ),
       ),
     );
   }
+
+  /// 构建设备信息项（带点击展开功能）
+  Widget _buildDeviceInfoItem({
+    required String icon,
+    required String text,
+    int? maxLength,
+    required String type,
+  }) {
+    final displayText = maxLength != null && text.length > maxLength
+        ? '${text.substring(0, maxLength)}...'
+        : text;
+
+    return Obx(() {
+      final selectedType = controller.selectedDeviceInfoType.value;
+      final isSelected = selectedType == type;
+
+      return GestureDetector(
+        onTap: () => controller.toggleDeviceInfo(type),
+        child: Container(
+          color: Colors.transparent,
+          // padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            // mainAxisSize: MainAxisSize.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Hero(
+                tag: 'device_info_icon_$type',
+                child: Image.asset(icon, width: 22, height: 22),
+              ),
+               Flexible(
+                child: Hero(
+                  tag: 'device_info_content_$type',
+                  child: Material(
+                    color: Colors.transparent,
+                  child: Text(
+                    displayText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: const Color(0xFF333333),
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// 单个设备信息的悬浮提示气泡
+class _DeviceInfoTooltipBubble extends StatelessWidget {
+  final String text;
+
+  const _DeviceInfoTooltipBubble({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return UnconstrainedBox(
+      constrainedAxis: Axis.vertical,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF333333),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white,
+              ),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+            ),
+          ),
+          CustomPaint(
+            size: const Size(12, 6),
+            painter: _TooltipArrowPainter(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 气泡底部的小三角形
+class _TooltipArrowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF333333)
+      ..style = PaintingStyle.fill;
+
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

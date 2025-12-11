@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
@@ -22,6 +23,7 @@ import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
+
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -66,7 +68,7 @@ class InfoSettingController extends GetxController {
         uploadedHeadPortrait.value = user.headPortrait!;
       } else {
         // 如果没有头像，使用默认头像背景
-        avatarUrl.value = 'assets/images/kissu_info_setting_headerbg.webp';
+        avatarUrl.value = 'assets/3.0/kissu3_love_avater.webp';
       }
 
       // 设置昵称
@@ -98,7 +100,7 @@ class InfoSettingController extends GetxController {
     } else {
       logDebug('用户信息为空，使用默认值', tag: 'InfoSetting');
       // 如果没有用户信息，设置默认值
-      avatarUrl.value = 'assets/images/kissu_info_setting_headerbg.webp';
+      avatarUrl.value = 'assets/3.0/kissu3_love_avater.webp';
       selectedDate.value = DateTime(2007, 1, 1);
     }
   }
@@ -146,20 +148,18 @@ class InfoSettingController extends GetxController {
                     child: InteractiveViewer(
                       minScale: 0.5,
                       maxScale: 4.0,
-                      child: Image.network(
-                        imageUrl,
+                      child: NetworkImageHelper.loadImage(
+                        imageUrl: imageUrl,
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Text(
-                              '图片加载失败',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
+                        errorWidget: Center(
+                          child: Text(
+                            '图片加载失败',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                     ),
                   ),

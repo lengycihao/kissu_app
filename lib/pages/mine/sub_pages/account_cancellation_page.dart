@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'account_cancellation_controller.dart';
 
 class AccountCancellationPage extends StatelessWidget {
@@ -10,8 +11,18 @@ class AccountCancellationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF5F0),
-      body: SafeArea(
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: Stack(
+        children: [
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          SafeArea(
         child: Column(
           children: [
             // 顶部导航栏
@@ -19,6 +30,9 @@ class AccountCancellationPage extends StatelessWidget {
 
             Expanded(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
@@ -42,6 +56,8 @@ class AccountCancellationPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+        ],
       ),
     );
   }
@@ -166,24 +182,22 @@ class AccountCancellationPage extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         child: ClipOval(
           child: controller.userAvatar.value.isNotEmpty
-              ? Image.network(
-                  controller.userAvatar.value,
+              ? NetworkImageHelper.loadImage(
+                  imageUrl: controller.userAvatar.value,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40),
-                        color: const Color(0xFFE8B4CB),
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
+                  errorWidget: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(40),
+                      color: const Color(0xFFE8B4CB),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Colors.white,
+                    ),
+                  ),
                 )
               : Container(
                   decoration: BoxDecoration(

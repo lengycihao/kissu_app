@@ -1,33 +1,154 @@
+import 'dart:async';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:kissu_app/network/public/usage_record_api.dart';
+import 'package:kissu_app/utils/debug_util.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// App使用记录详情控制器
 class AppUsageDetailController extends GetxController {
-  // tab选择：0-当天，1-本周
-  var selectedTab = 1.obs;
+  // API实例
+  final _usageRecordApi = UsageRecordApi();
+  
+  // 防抖Timer
+  Timer? _debounceTimer;
+
+  // 日期选择相关
+  var selectedDateIndex = 6.obs; // 选中的日期索引（6表示今天，0表示6天前）
+  var selectedDate = DateTime.now().obs; // 当前选中的日期
 
   // 当天数据（按小时，0-23点）
   var todayScreenUsage = <int>[].obs; // 屏幕使用时间（分钟）
   var todayUnlockCount = <int>[].obs; // 解锁次数
 
-  // 本周数据（周日-周六）
-  var weekScreenUsage = <int>[].obs; // 屏幕使用时间（分钟）
-  var weekUnlockCount = <int>[].obs; // 解锁次数
+  // 趋势数据
+  var screenTrend = 0.obs; // 0持平 1下降 2上升
+  var screenTrendText = ''.obs;
+  var unlockTrend = 0.obs; // 0持平 1下降 2上升
+  var unlockTrendText = ''.obs;
+
+  // 加载状态
+  var isLoading = false.obs;
 
   // 触摸交互相关
   var touchedScreenBarIndex = (-1).obs; // 屏幕使用时间被触摸的柱状图索引
   var touchedUnlockBarIndex = (-1).obs; // 解锁次数被触摸的柱状图索引
 
+  // 引导图显示状态
+  var showGuideOverlay = false.obs;
+
   @override
   void onInit() {
     super.onInit();
-    _loadMockData();
+    // 加载今天的数据
+    loadData();
+    // 检查并显示引导图
+    _checkAndShowGuide();
   }
 
-  /// 切换tab
-  void switchTab(int index) {
-    selectedTab.value = index;
-    touchedScreenBarIndex.value = -1; // 切换tab时清除触摸状态
+  /// 切换日期
+  void changeDate(DateTime date) {
+    // 如果选择的是相同日期，直接返回
+    final newDateStr = DateFormat('yyyy-MM-dd').format(date);
+    final currentDateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    
+    if (newDateStr == currentDateStr) {
+      DebugUtil.info('📊 相同日期，跳过切换: $newDateStr');
+      return;
+    }
+    
+    selectedDate.value = date;
+    touchedScreenBarIndex.value = -1; // 切换日期时清除触摸状态
     touchedUnlockBarIndex.value = -1;
+    
+    // 取消之前的防抖Timer
+    _debounceTimer?.cancel();
+    
+    // 使用防抖加载数据，避免连续点击时多次请求
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      DebugUtil.info('📊 防抖Timer触发，开始加载数据: $newDateStr');
+      loadData();
+    });
+  }
+
+  /// 加载数据
+  Future<void> loadData() async {
+    try {
+      isLoading.value = true;
+      
+      // 格式化日期
+      final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+      DebugUtil.info('📊 加载屏幕解锁统计数据: $dateStr');
+      
+      // 调用API
+      final result = await _usageRecordApi.getScreenUnlockStat(date: dateStr);
+      
+      if (result.isSuccess && result.data != null) {
+        final data = result.data!;
+        
+        // 处理屏幕使用数据
+        if (data.screenUseData != null) {
+          final screenData = data.screenUseData!;
+          
+          // 初始化24小时数据（索引0-23对应0-23点）
+          final screenUsageList = List<int>.filled(24, 0);
+          
+          // 按hour字段填充每小时数据，确保索引与真实小时对齐
+          for (var stat in screenData.hourlyUsageStat) {
+            if (stat.hour >= 0 && stat.hour < 24) {
+              screenUsageList[stat.hour] = stat.minutes;
+            }
+          }
+          
+          todayScreenUsage.value = screenUsageList;
+          screenTrend.value = screenData.trend;
+          screenTrendText.value = screenData.trendText;
+          
+          DebugUtil.success('✅ 屏幕使用数据加载成功: ${screenData.hours}小时${screenData.minutes}分');
+        }
+        
+        // 处理解锁数据
+        if (data.unlockPhoneData != null) {
+          final unlockData = data.unlockPhoneData!;
+          
+          // 初始化24小时数据（索引0-23对应0-23点）
+          final unlockCountList = List<int>.filled(24, 0);
+          
+          // 按hour字段填充每小时数据，确保索引与真实小时对齐
+          for (var stat in unlockData.unlockPhoneStat) {
+            if (stat.hour >= 0 && stat.hour < 24) {
+              unlockCountList[stat.hour] = stat.unlockNumber;
+            }
+          }
+          
+          todayUnlockCount.value = unlockCountList;
+          unlockTrend.value = unlockData.trend;
+          unlockTrendText.value = unlockData.trendText;
+          
+          DebugUtil.success('✅ 解锁数据加载成功: ${unlockData.unlockNumber}次');
+        }
+      } else {
+        DebugUtil.warning('❌ 数据加载失败: ${result.msg}');
+        // 加载失败时使用空数据
+        todayScreenUsage.value = List.filled(24, 0);
+        todayUnlockCount.value = List.filled(24, 0);
+        screenTrend.value = 0;
+        screenTrendText.value = '';
+        unlockTrend.value = 0;
+        unlockTrendText.value = '';
+      }
+    } catch (e) {
+      DebugUtil.error('💥 数据加载异常: $e');
+      // 异常时使用空数据
+      todayScreenUsage.value = List.filled(24, 0);
+      todayUnlockCount.value = List.filled(24, 0);
+      screenTrend.value = 0;
+      screenTrendText.value = '';
+      unlockTrend.value = 0;
+      unlockTrendText.value = '';
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   /// 设置屏幕使用时间触摸的柱状图索引
@@ -56,22 +177,9 @@ class AppUsageDetailController extends GetxController {
         todayUnlockCount.any((element) => element > 0);
   }
 
-  bool get hasWeekData {
-    return weekScreenUsage.any((element) => element > 0) ||
-        weekUnlockCount.any((element) => element > 0);
-  }
-
   /// 获取当天屏幕使用总时长（小时和分钟）
   String get todayTotalScreenTime {
     int totalMinutes = todayScreenUsage.fold(0, (sum, item) => sum + item);
-    int hours = totalMinutes ~/ 60;
-    int minutes = totalMinutes % 60;
-    return "$hours小时${minutes.toString().padLeft(2, '0')}分";
-  }
-
-  /// 获取本周屏幕使用总时长（小时和分钟）
-  String get weekTotalScreenTime {
-    int totalMinutes = weekScreenUsage.fold(0, (sum, item) => sum + item);
     int hours = totalMinutes ~/ 60;
     int minutes = totalMinutes % 60;
     return "$hours小时${minutes.toString().padLeft(2, '0')}分";
@@ -82,12 +190,7 @@ class AppUsageDetailController extends GetxController {
     return todayUnlockCount.fold(0, (sum, item) => sum + item);
   }
 
-  /// 获取本周解锁总次数
-  int get weekTotalUnlockCount {
-    return weekUnlockCount.fold(0, (sum, item) => sum + item);
-  }
-
-  /// 加载模拟数据
+  /// 加载模拟数据（用于测试）
   void _loadMockData() {
     // 当天数据（24小时）
     todayScreenUsage.value = [
@@ -107,40 +210,61 @@ class AppUsageDetailController extends GetxController {
       25, 0, 0, 0, // 14-17点
       15, 20, 15, 0, 0, 0, // 18-23点
     ];
-
-    // 本周数据（周日-周六）
-    weekScreenUsage.value = [
-      60, // 周日
-      350, // 周一
-      50, // 周二
-      220, // 周三
-      60, // 周四
-      280, // 周五
-      80, // 周六
-    ];
-
-    weekUnlockCount.value = [
-      30, // 周日
-      95, // 周一
-      30, // 周二
-      60, // 周三
-      30, // 周四
-      55, // 周五
-      20, // 周六
-    ];
+    
+    screenTrend.value = 2;
+    screenTrendText.value = '比昨天多3小时43分';
+    unlockTrend.value = 1;
+    unlockTrendText.value = '比昨天少5次';
   }
 
   /// 切换到空数据模式（用于测试）
   void switchToEmptyMode() {
     todayScreenUsage.value = List.filled(24, 0);
     todayUnlockCount.value = List.filled(24, 0);
-    weekScreenUsage.value = List.filled(7, 0);
-    weekUnlockCount.value = List.filled(7, 0);
   }
 
   /// 恢复模拟数据
   void restoreMockData() {
     _loadMockData();
+  }
+
+  /// 检查并显示引导图
+  Future<void> _checkAndShowGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide = prefs.getBool('has_shown_phone_history_guide') ?? false;
+      
+      DebugUtil.info('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+      
+      if (!hasShownGuide) {
+        DebugUtil.info('📱 首次进入用机记录页面，显示引导图');
+        
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_phone_history_guide', true);
+        
+        // 延迟显示引导图，确保页面完全加载
+        Future.delayed(const Duration(milliseconds: 800), () {
+          showGuideOverlay.value = true;
+        });
+      } else {
+        DebugUtil.info('ℹ️ 引导图已显示过');
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 检查引导图状态失败: $e');
+    }
+  }
+
+  /// 隐藏引导图
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
+    DebugUtil.info('📱 隐藏引导图');
+  }
+  
+  @override
+  void onClose() {
+    // 取消防抖Timer
+    _debounceTimer?.cancel();
+    super.onClose();
   }
 }
 

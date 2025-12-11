@@ -1,13 +1,12 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
 import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
-import 'package:kissu_app/utils/agreement_utils.dart';
-import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
-import 'package:lottie/lottie.dart';
+import 'components/vip_comment_item.dart';
+import 'components/vip_payment_component.dart';
 
 class VipPage extends GetView<VipController> {
   const VipPage({super.key});
@@ -46,7 +45,9 @@ class VipPage extends GetView<VipController> {
               },
               child: SingleChildScrollView(
                 controller: controller.mainScrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 child: Padding(
                   padding: EdgeInsets.only(
                     bottom: paymentComponentHeight,
@@ -62,7 +63,7 @@ class VipPage extends GetView<VipController> {
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Color(0xFFFDE0F9), Color(0xFFFFFFFF)],
+                            colors: [Color(0x80FDE0F9), Color(0xFFFFFFFF)],
                           ),
                         ),
                         child: Padding(
@@ -176,10 +177,10 @@ class VipPage extends GetView<VipController> {
               left: 20,
               top: 55,
               child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
                 onTap: controller.onBackTap,
                 child: Padding(
                   padding: EdgeInsets.all(8.0).copyWith(top: 0),
-
                   child: Image(
                     image: AssetImage('assets/images/kissu_mine_back.webp'),
                     width: 22,
@@ -190,12 +191,11 @@ class VipPage extends GetView<VipController> {
               ),
             ),
 
-            // 固定在底部的支付组件
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: _buildPaymentComponent(),
+              child: const VipPaymentComponent(),
             ),
           ],
         ),
@@ -239,17 +239,11 @@ class VipPage extends GetView<VipController> {
 
   // 静态图片项
   Widget _buildImageItem(String imageAssetPath) {
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.asset(
-          imageAssetPath,
-          width: double.infinity,
-          height: 248,
-          fit: BoxFit.fitHeight,
-        ),
-      ),
+    return Image.asset(
+      imageAssetPath,
+      width: double.infinity,
+      height: 248,
+      fit: BoxFit.fitHeight,
     );
   }
 
@@ -259,24 +253,16 @@ class VipPage extends GetView<VipController> {
       return _buildImageItem('assets/kissu4_vip_banner_location.webp');
     }
 
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          displayUrl,
-          width: double.infinity,
-          height: 248,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Image.asset(
-              'assets/images/kissu4_vip_banner_location.webp',
-              width: double.infinity,
-              height: 248,
-              fit: BoxFit.fitHeight,
-            );
-          },
-        ),
+    return NetworkImageHelper.loadImage(
+      imageUrl: displayUrl,
+      width: double.infinity,
+      height: 248,
+      fit: BoxFit.cover,
+      errorWidget: Image.asset(
+        'assets/images/kissu4_vip_banner_location.webp',
+        width: double.infinity,
+        height: 248,
+        fit: BoxFit.fitHeight,
       ),
     );
   }
@@ -328,15 +314,15 @@ class VipPage extends GetView<VipController> {
                 child: hasRemoteData && iconUrl.isNotEmpty
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          iconUrl,
+                        child: NetworkImageHelper.loadImage(
+                          imageUrl: iconUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            final fallback = isSelected
+                          errorWidget: Image.asset(
+                            isSelected
                                 ? fallbackPair['selected']!
-                                : fallbackPair['unselected']!;
-                            return Image.asset(fallback, fit: BoxFit.cover);
-                          },
+                                : fallbackPair['unselected']!,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       )
                     : Image.asset(
@@ -369,7 +355,7 @@ class VipPage extends GetView<VipController> {
   // 开通提示图片
   Widget _buildOpenTipImage() {
     return Image.asset(
-      "assets/images/kissu_vip_top_tip.webp",
+      'assets/images/kissu_vip_top_tip.webp',
       height: 20,
       width: double.infinity,
       fit: BoxFit.cover,
@@ -560,13 +546,14 @@ class VipPage extends GetView<VipController> {
                 ),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       plan.package.title,
                       style: const TextStyle(
                         fontSize: 16,
-                        color: Color(0xff000000),
-                        fontWeight: FontWeight.w500,
+                        color: Color(0xcc000000),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const Text(
@@ -575,13 +562,28 @@ class VipPage extends GetView<VipController> {
                     ),
                   ],
                 ),
-                Container(
-                  width: 80,
-                  height: 26,
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage("assets/4.0/kissu4_vip_open_bt.webp"),
-                      fit: BoxFit.contain,
+                GestureDetector(
+                  onTap: () {
+                    final packages = controller.vipPackages;
+                    if (packages.isEmpty) {
+                      return;
+                    }
+                    final index =
+                        packages.indexWhere((element) => element.type == 4);
+                    if (index == -1) {
+                      return;
+                    }
+                    controller.selectedPriceIndex.value = index;
+                    controller.purchaseVip();
+                  },
+                  child: Container(
+                    width: 80,
+                    height: 26,
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage("assets/4.0/kissu4_vip_open_bt.webp"),
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
@@ -692,8 +694,8 @@ class VipPage extends GetView<VipController> {
               plan.package.title,
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xff000000),
-                fontWeight: FontWeight.w500,
+                color: Color(0xcc000000),
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 4),
@@ -764,7 +766,7 @@ class VipPage extends GetView<VipController> {
   // 信息背景图片
   Widget _buildInfoBackground() {
     return Image.asset(
-      "assets/images/kissu_vip_info_bg.webp",
+      'assets/images/kissu_vip_info_bg.webp',
       width: double.infinity,
       fit: BoxFit.fitWidth,
     );
@@ -772,12 +774,10 @@ class VipPage extends GetView<VipController> {
 
   // 提示文字
   Widget _buildHintText() {
-    // 检查当前渠道是否需要显示定位功能提示
     final currentChannel = BusinessHeaderInterceptor.getCurrentChannel();
     final shouldShowLocationHint = _shouldShowLocationHint(currentChannel);
 
     if (!shouldShowLocationHint) {
-      // 如果不需要显示定位提示，返回空的容器
       return const SizedBox.shrink();
     }
 
@@ -815,9 +815,9 @@ class VipPage extends GetView<VipController> {
   // 用户评价标题
   Widget _buildUserCommonTitle() {
     return Align(
-      alignment: AlignmentGeometry.centerLeft,
-      child: Text(
-        "会员用户五星评价",
+      alignment: Alignment.centerLeft,
+      child: const Text(
+        '会员用户五星评价',
         style: TextStyle(
           color: Color(0xff000000),
           fontSize: 16,
@@ -851,11 +851,11 @@ class VipPage extends GetView<VipController> {
             itemBuilder: (context, index) {
               final comment = commentList[index];
               return Container(
-                width: 266, // 固定item宽度266px
+                width: 266,
                 margin: EdgeInsets.only(
-                  left: index == 0 ? 0 : 13, // 第一个item左边距0px，其他item左边距13px
+                  left: index == 0 ? 0 : 13,
                 ),
-                child: _buildCommentItem(comment),
+                child: VipCommentItem(comment: comment),
               );
             },
           ),
@@ -864,328 +864,6 @@ class VipPage extends GetView<VipController> {
     });
   }
 
-  // 单个评价项
-  Widget _buildCommentItem(CommentItem comment) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFDCDBD7), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // 头像
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: comment.hasAvatar
-                    ? Image.network(
-                        comment.avatar,
-                        width: 24,
-                        height: 24,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return SizedBox.shrink();
-                        },
-                      )
-                    : SizedBox.shrink(),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                comment.nickname,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 8),
-              //vip标识
-              if (comment.hasVipIcon)
-                Image.network(
-                  comment.vipIcon,
-                  width: 60,
-                  height: 18,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const SizedBox(width: 24, height: 24);
-                  },
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-
-          Expanded(
-            child: Text(
-              comment.content,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          //星星
-          if (comment.hasStarImage)
-            Image.network(
-              comment.starImage,
-              width: 100,
-              height: 20,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox(width: 100, height: 20);
-              },
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  // 支付组件
-  Widget _buildPaymentComponent() {
-    // 获取底部安全区域高度
-    final bottomPadding = MediaQuery.of(Get.context!).padding.bottom;
-    // 计算实际底部内边距：基础25px + 底部安全区域高度
-    final actualBottomPadding = 25.0 + bottomPadding;
-
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(12),
-          topRight: Radius.circular(12),
-        ),
-      ),
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 10,
-        bottom: actualBottomPadding,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 支付方式选择
-          Obx(
-            () => Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildPaymentOption(
-                  'assets/4.0/kissu4_wechat.webp',
-                  '微信支付',
-                  controller.selectedPaymentMethod.value == 0,
-                  () => controller.selectPaymentMethod(0),
-                ),
-                _buildPaymentOption(
-                  'assets/4.0/kissu4_zhifubao.webp',
-                  '支付宝支付',
-                  controller.selectedPaymentMethod.value == 1,
-                  () => controller.selectPaymentMethod(1),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // 立即开通/继续续费按钮
-          Obx(() {
-            final periodLabel = controller.getCurrentPeriodLabel();
-            final periodText = periodLabel.isNotEmpty ? '/$periodLabel' : '';
-            return GestureDetector(
-              onTap: () {
-                if (!controller.agreementChecked.value) {
-                  // 如果未勾选协议，显示提示并返回
-                  controller.showAgreementWarning();
-                  return;
-                }
-                // 已勾选协议，执行购买
-                controller.purchaseVip();
-              },
-              child: Container(
-                width: double.infinity,
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(right: 0),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xffFF93ED), Color(0xffFFF6FD)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.all(Radius.circular(22)),
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: '￥',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            TextSpan(
-                              text: controller.getCurrentPrice(),
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'AlimamaShuHeiTi',
-                                color: Colors.black,
-                              ),
-                            ),
-                            //支付价格提示
-                            TextSpan(
-                              text: periodText,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Spacer(),
-                    SizedBox(
-                      width: 150,
-                      height: 44,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Lottie.asset(
-                            'assets/json/recharge_btn.json',
-                            width: 150,
-                            height: 44,
-                            fit: BoxFit.cover,
-                            repeat: true,
-                          ),
-                          // Text(
-                          //   UserManager.isVip ? "立即续费" : "立即开通",
-                          //   style: const TextStyle(
-                          //     fontSize: 18,
-                          //     fontWeight: FontWeight.bold,
-                          //     fontFamily: 'AlimamaShuHeiTi',
-                          //     color: Colors.white,
-                          //   ),
-                          // ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-
-          const SizedBox(height: 15),
-
-          // 服务协议勾选
-          Obx(
-            () => Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                GestureDetector(
-                  onTap: controller.toggleAgreement,
-                  child: Image.asset(
-                    controller.agreementChecked.value
-                        ? "assets/images/kissu_vip_agree.webp"
-                        : "assets/images/kissu_select_circle.webp",
-                    width: 13,
-                    height: 13,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => AgreementUtils.toVipAgreement(),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '阅读并同意',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF666666),
-                          ),
-                        ),
-                        TextSpan(
-                          text: '《会员服务协议》',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF63A9EA), // 高亮蓝色
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () async {
-                              // 上报服务协议点击埋点
-                              await controller.onServiceAgreementTap();
-                              AgreementUtils.toVipAgreement();
-                            },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 支付方式选项
-  Widget _buildPaymentOption(
-    String iconPath,
-    String title,
-    bool isSelected,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image(
-              image: AssetImage(iconPath),
-              width: 18,
-              height: 18,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(width: 8),
-            // 支付方式图标
-            Container(
-              width: 13,
-              height: 13,
-              child: Image.asset(
-                isSelected
-                    ? 'assets/images/kissu_vip_agree.webp'
-                    : 'assets/images/kissu_select_circle.webp',
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // 顶部轮播图指示条
   Widget _buildTopCarouselIndicators() {

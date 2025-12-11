@@ -83,21 +83,41 @@ class TrackDataManager {
   }
   
   /// 停留点列表（从当前数据实时计算）
+  /// 🎯 只返回 trace.stops 中 point_type="stop" 的数据，序号使用 serial_number
   List<StayPoint> get stopPoints {
+    if (currentData == null || currentData!.trace?.stops == null) {
+      DebugUtil.info('📍 [StopPoints] currentData或trace.stops为null');
+      return [];
+    }
     
-    if (currentData == null || currentData!.trace?.stops == null) return [];
+    final allStops = currentData!.trace!.stops;
+    DebugUtil.info('📍 [StopPoints] 总停留点数: ${allStops.length}');
+    
+    // 🎯 只筛选 point_type="stop" 的停留点
+    final stopTypeStops = allStops.where((stop) {
+      final isValid = stop.lat != 0.0 && stop.lng != 0.0;
+      final isStopType = stop.pointType == "stop";
+      DebugUtil.info('📍 [StopPoints] 检查停留点: lat=${stop.lat}, lng=${stop.lng}, pointType=${stop.pointType}, serialNumber=${stop.serialNumber}, isValid=$isValid, isStopType=$isStopType');
+      return isValid && isStopType;
+    }).toList();
+    
+    DebugUtil.info('📍 [StopPoints] point_type="stop"的停留点数: ${stopTypeStops.length}');
     
     int index = 0;
-    return currentData!.trace!.stops
-        .where((stop) => stop.lat != 0.0 && stop.lng != 0.0)
-        .map((stop) => StayPoint(
-              position: LatLng(stop.lat, stop.lng),
-              title: stop.locationName ?? '未知位置',
-              duration: stop.duration ?? '',
-              index: index++,
-              serialNumber: stop.serialNumber ?? '', // 🎯 从API获取序列号
-            ))
-        .toList();
+    final result = stopTypeStops.map((stop) {
+      final stayPoint = StayPoint(
+        position: LatLng(stop.lat, stop.lng),
+        title: stop.locationName ?? '未知位置',
+        duration: stop.duration ?? '',
+        index: index++,
+        serialNumber: stop.serialNumber ?? '', // 🎯 使用 serial_number 作为序号
+      );
+      DebugUtil.info('📍 [StopPoints] 创建StayPoint: serialNumber=${stayPoint.serialNumber}, position=${stayPoint.position}');
+      return stayPoint;
+    }).toList();
+    
+    DebugUtil.info('📍 [StopPoints] 最终返回停留点数: ${result.length}');
+    return result;
   }
   
   /// 加载两个用户的位置数据
@@ -216,21 +236,32 @@ class TrackDataManager {
   }
   
   /// 获取起点坐标
+  /// 🎯 从 locations 字段的第一个数据获取
   LatLng? getStartPoint() {
-    if (currentData?.trace?.startPoint == null) return null;
-    final start = currentData!.trace!.startPoint;
-    if (start.lat != 0.0 && start.lng != 0.0) {
-      return LatLng(start.lat, start.lng);
+    if (currentData?.locations == null || currentData!.locations!.isEmpty) {
+      return null;
+    }
+    final firstLocation = currentData!.locations!.first;
+    if (firstLocation.lat != 0.0 && firstLocation.lng != 0.0) {
+      return LatLng(firstLocation.lat, firstLocation.lng);
     }
     return null;
   }
   
   /// 获取终点坐标
+  /// 🎯 从 locations 字段的最后一个数据获取
+  /// 🎯 当 locations 只有一个点时，不显示终点（只显示起点）
   LatLng? getEndPoint() {
-    if (currentData?.trace?.endPoint == null) return null;
-    final end = currentData!.trace!.endPoint;
-    if (end.lat != 0.0 && end.lng != 0.0) {
-      return LatLng(end.lat, end.lng);
+    if (currentData?.locations == null || currentData!.locations!.isEmpty) {
+      return null;
+    }
+    // 🎯 当只有一个点时，不显示终点
+    if (currentData!.locations!.length <= 1) {
+      return null;
+    }
+    final lastLocation = currentData!.locations!.last;
+    if (lastLocation.lat != 0.0 && lastLocation.lng != 0.0) {
+      return LatLng(lastLocation.lat, lastLocation.lng);
     }
     return null;
   }

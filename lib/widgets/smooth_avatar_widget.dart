@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 
 /// 平滑加载头像组件
 /// 特点：延迟500ms后再显示伴侣头像，避免显示占位图
@@ -153,36 +154,21 @@ class _SmoothAvatarWidgetState extends State<SmoothAvatarWidget> {
       }
       
       // 延迟时间到了，显示网络头像
-      return Image.network(
-        widget.avatarUrl!,
+      // 调用回调通知图片已加载
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onImageLoaded?.call();
+      });
+      return NetworkImageHelper.loadImage(
+        imageUrl: widget.avatarUrl!,
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
         // 如果网络图片加载失败，显示透明占位
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: widget.width,
-            height: widget.height,
-            color: Colors.transparent,
-          );
-        },
-        // 加载过程中显示透明占位
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
-            // 图片加载完成，显示图片
-            // 调用回调通知图片已加载
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              widget.onImageLoaded?.call();
-            });
-            return child;
-          }
-          // 加载中显示透明占位
-          return Container(
-            width: widget.width,
-            height: widget.height,
-            color: Colors.transparent,
-          );
-        },
+        errorWidget: Container(
+          width: widget.width,
+          height: widget.height,
+          color: Colors.transparent,
+        ),
       );
     }
     

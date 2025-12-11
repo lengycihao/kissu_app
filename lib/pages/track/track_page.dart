@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:kissu_app/pages/location/widgets/mask_device_info_widget.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
@@ -185,6 +184,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
     // 初始化底部面板控制器
     _draggableController = DraggableScrollableController();
     widget.controller.setDraggableController(_draggableController);
+
+    // 🔧 修复：初始化sheetPercent为正确的初始值，避免第一次加载时按钮和logo位置跳变
+    widget.controller.sheetPercent.value = initialHeight / screenHeight;
   }
 
   @override
@@ -284,84 +286,108 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                   }
                                   return false;
                                 },
-                                child: CustomScrollView(
-                                  controller: scrollController,
-                                  slivers: [
-                                    // 顶部固定区域 - 前两个模块
-                                    SliverToBoxAdapter(
-                                      child: Column(
-                                        children: [
-                                          // 日期模块
-                                          _buildDateModule(),
-                                          const SizedBox(height: 10),
-                                          // 停留次数时间模块
-                                          _buildStayStatsModule(),
-                                        ],
+                                child: Container(
+                                  color: const Color(0xFFF6F6F6),
+                                  padding: const EdgeInsets.only(top: 5),
+                                  child: Column(
+                                    children: [
+                                      // 指示条
+                                      Container(
+                                        width: 46,
+                                        height: 7,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(3.5),
+                                          color: const Color(0xFFD9D9D9),
+                                        ),
                                       ),
-                                    ),
-
-                                    // 停留点模块 + 背景色 - 使用 SliverFillRemaining 确保填充到底部
-                                    SliverFillRemaining(
-                                      hasScrollBody: false,
-                                      child: Stack(
-                                        children: [
-                                          Container(
-                                            margin: EdgeInsets.only(
-                                              left: 14,
-                                              right: 14,
-                                              top: 10,
-                                              bottom: 15,
-                                            ),
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 15,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: Obx(() {
-                                              if (widget
-                                                  .controller
-                                                  .stopRecords
-                                                  .isEmpty) {
-                                                return Container(
-                                                  width: double.infinity,
-                                                  padding: EdgeInsets.symmetric(
-                                                    vertical: 40,
-                                                  ),
-                                                  child: Column(
-                                                    children: [
-                                                      Image.asset(
-                                                        'assets/images/kissu_track_empty.webp',
-                                                        width: 128,
-                                                        height: 128,
-                                                      ),
-                                                      SizedBox(height: 16),
-                                                      Text(
-                                                        '对方目前还没有足迹内容哦～',
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color: Color(
-                                                            0xff666666,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              }
-
-                                              return _OptimizedStopRecordsListWithBackground(
-                                                controller: widget.controller,
-                                              );
-                                            }),
+                                      const SizedBox(height: 5),
+                                      Expanded(
+                                        child: CustomScrollView(
+                                          controller: scrollController,
+                                          physics: const BouncingScrollPhysics(
+                                            parent: AlwaysScrollableScrollPhysics(),
                                           ),
-                                        ],
+                                          cacheExtent: 500,
+                                          slivers: [
+                                            // 顶部固定区域 - 前两个模块
+                                            SliverToBoxAdapter(
+                                              child: Column(
+                                                children: [
+                                                  // 日期模块
+                                                  _buildDateModule(),
+                                                  const SizedBox(height: 10),
+                                                  // 停留次数时间模块
+                                                  _buildStayStatsModule(),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // 停留点模块 + 背景色 - 使用 SliverFillRemaining 确保填充到底部
+                                            SliverFillRemaining(
+                                              hasScrollBody: false,
+                                              child: Stack(
+                                                children: [
+                                                  Container(
+                                                    margin: const EdgeInsets.only(
+                                                      left: 14,
+                                                      right: 14,
+                                                      top: 10,
+                                                      bottom: 15,
+                                                    ),
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 15,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      borderRadius:
+                                                          BorderRadius.circular(20),
+                                                    ),
+                                                    child: Obx(() {
+                                                      if (widget
+                                                          .controller
+                                                          .stopRecords
+                                                          .isEmpty) {
+                                                        return Container(
+                                                          width: double.infinity,
+                                                          padding: const EdgeInsets.symmetric(
+                                                            vertical: 40,
+                                                          ),
+                                                          child: Column(
+                                                            children: [
+                                                              Image.asset(
+                                                                'assets/images/kissu_track_empty.webp',
+                                                                width: 128,
+                                                                height: 128,
+                                                              ),
+                                                              const SizedBox(height: 16),
+                                                              const Text(
+                                                                '对方目前还没有足迹内容哦～',
+                                                                style: TextStyle(
+                                                                  fontSize: 14,
+                                                                  color: Color(
+                                                                    0xff666666,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      }
+
+                                                      return _OptimizedStopRecordsListWithBackground(
+                                                        controller: widget.controller,
+                                                      );
+                                                    }),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                               // 统一的蒙版层（未绑定 或 已绑定但未开会员）
@@ -383,7 +409,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
           // 顶部返回按钮（带旋转动画）
           Positioned(
             top: MediaQuery.of(context).padding.top + 16,
-            left: 20,
+            left: 16,
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.9),
@@ -397,6 +423,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
                 ],
               ),
               child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
                 onTap: () =>
                     widget.controller.handleBackButtonTap(_scrollController),
                 child: AnimatedBuilder(
@@ -407,10 +434,11 @@ class _TrackPageContentState extends State<_TrackPageContent>
                           widget.controller.backButtonRotationAnimation.value *
                           2 *
                           3.14159, // 转换为弧度
-                      child: Image.asset(
-                        'assets/images/kissu_mine_back.webp',
+                      child: const Image(
+                        image: AssetImage('assets/images/kissu_mine_back.webp'),
                         width: 24,
                         height: 24,
+                        fit: BoxFit.cover,
                       ),
                     );
                   },
@@ -433,9 +461,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
   // 统计栏组件
   Widget _buildStatisticsRow() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 1, vertical: 12),
-      margin: EdgeInsets.symmetric(horizontal: 5),
-
+      padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -485,7 +512,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
         children: [
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF333333),
               fontWeight: FontWeight.w600,
@@ -497,7 +524,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
           const SizedBox(height: 6),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               color: Color(0xFF000000),
               // fontWeight: FontWeight.w500,
@@ -515,8 +542,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
       // 如果已绑定，显示普通日期选择器
       if (widget.controller.isBindPartner.value) {
         return Container(
-          margin: EdgeInsets.symmetric(horizontal: 14),
-          padding: EdgeInsets.only(bottom: 10, top: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.only(bottom: 10, top: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: Colors.white,
@@ -533,7 +560,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
       // 未绑定时显示带背景图的绑定模块
       return Container(
-        margin: EdgeInsets.symmetric(horizontal: 14),
+        margin: const EdgeInsets.symmetric(horizontal: 14),
         height: 92,
 
         child: Stack(
@@ -556,11 +583,13 @@ class _TrackPageContentState extends State<_TrackPageContent>
                     widget.controller.selectDate(date);
                   },
                   showBorder: false,
-                  selectedBackgroundColor: Color(0xFFFF74A0).withOpacity(0.8),
+                  selectedBackgroundColor:
+                      const Color(0xFFFF74A0).withOpacity(0.8),
                   selectedTextColor: Colors.white,
-                  unselectedTextColor: Color(0xff333333),
+                  unselectedTextColor: const Color(0xff333333),
                   height: 50,
-                  margin: EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
                 ),
               ),
             ),
@@ -573,11 +602,11 @@ class _TrackPageContentState extends State<_TrackPageContent>
   /// 停留次数时间模块
   Widget _buildStayStatsModule() {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 14),
-      padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Color(0xffFFFAFA),
+        color: const Color(0xffFFFAFA),
       ),
       child: _buildStatisticsRow(),
     );
@@ -616,78 +645,102 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
       if (shouldShowMask) {
         return Positioned.fill(
-          child: Column(
+          child: Stack(
             children: [
-              // 顶部日期组件（清晰的，不模糊）
-              _buildDateModule(),
+              // 🔒 蒙版内容层：使用 AbsorbPointer 阻止触摸事件穿透
+              AbsorbPointer(
+                child: Column(
+                  children: [
+                    // 顶部日期组件（清晰的，不模糊）
+                    _buildDateModule(),
 
-              const SizedBox(height: 10),
-              // 原来的蒙版整体
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                    // const SizedBox(height: 20),
+                    // 原来的蒙版整体
+                    Expanded(
+                      child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(20),
                         ),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // 文字图片
-                            Image.asset(
-                              'assets/images/kissu3_go_label.webp',
-                              width: 216,
-                              height: 32,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(height: 20),
-                            // 按钮
-                            GestureDetector(
-                              onTap: () async {
-                                if (!isBindPartner) {
-                                  // 未绑定：显示绑定弹窗
-                                  await _trackBindNowButton();
-                                  if (mounted && context.mounted) {
-                                    CustomBottomDialog.show(
-                                      context: context,
-                                      caller: BindingDialogCaller.track,
-                                    ).then((_) {
-                                      widget.controller
-                                          .refreshCurrentUserData();
-                                    });
-                                  }
-                                } else {
-                                  // 已绑定但未开会员：跳转到VIP页面
-                                  await _trackOpenMembershipButton();
-                                  Get.toNamed(
-                                    KissuRoutePath.vip,
-                                    arguments: {
-                                      'previousPageName': '足迹页面',
-                                      'previousPageId': 'footprint_page',
-                                    },
-                                  );
-                                }
-                              },
-                              child: Image.asset(
-                                !isBindPartner
-                                    ? 'assets/images/kissu3_go_bind.webp' // 未绑定
-                                    : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
-                                width: 150,
-                                height: 48,
-                                fit: BoxFit.contain,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20),
                               ),
                             ),
-                          ],
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // 文字图片
+                                  Image.asset(
+                                    'assets/images/kissu3_go_label.webp',
+                                    width: 216,
+                                    height: 32,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // 按钮占位（实际按钮在上层）
+                                  SizedBox(
+                                    width: 150,
+                                    height: 48,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              // 按钮层：允许点击（放在上层，不受 AbsorbPointer 影响）
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 130), // 与文字图片对齐
+                        GestureDetector(
+                          onTap: () async {
+                            if (!isBindPartner) {
+                              // 未绑定：显示绑定弹窗
+                              await _trackBindNowButton();
+                              if (mounted && context.mounted) {
+                                CustomBottomDialog.show(
+                                  context: context,
+                                  caller: BindingDialogCaller.track,
+                                ).then((_) {
+                                  widget.controller.refreshCurrentUserData();
+                                });
+                              }
+                            } else {
+                              // 已绑定但未开会员：跳转到VIP页面
+                              await _trackOpenMembershipButton();
+                              Get.toNamed(
+                                KissuRoutePath.vip,
+                                arguments: {
+                                  'previousPageName': '足迹页面',
+                                  'previousPageId': 'footprint_page',
+                                },
+                              );
+                            }
+                          },
+                          child: Image.asset(
+                            !isBindPartner
+                                ? 'assets/images/kissu3_go_bind.webp' // 未绑定
+                                : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
+                            width: 150,
+                            height: 48,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -709,8 +762,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
       // 右侧轨迹回放按钮的bottom位置
       final buttonBottom = sheetHeight + 70;
 
-      // logo在按钮下方，按钮高度50px
-      final logoBottom = buttonBottom - 30;
+      // logo在按钮下方，按钮高度50px，logo距离按钮15px
+      // 所以logo的bottom = buttonBottom - 50 - 15
+      final logoBottom = buttonBottom - 50 - 15;
 
       // 根据绑定状态动态计算中间吸顶位置
       final actualBindStatus = widget.controller.getActualBindStatus();
@@ -823,6 +877,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
       return SafeAMapWidget(
         initialCameraPosition: widget.controller.initialCameraPosition,
         onMapCreated: widget.controller.onMapCreated,
+        onMapDisposed: widget.controller.onMapDisposed,
         markers: _cachedMarkers,
         polylines: _cachedPolylines,
         circles: widget.controller.highlightCircles.toSet(),
@@ -1272,7 +1327,7 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
 }
 
 // 全屏渐变背景遮罩 - 从中间滑到顶部时显示
-class _GradientBackgroundOverlay extends StatelessWidget {
+class _GradientBackgroundOverlay extends StatefulWidget {
   final TrackController controller;
   final double screenHeight;
   final double initialHeight;
@@ -1286,45 +1341,67 @@ class _GradientBackgroundOverlay extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // 计算中间位置（屏幕中间）
-      final middlePosition = 0.5; // 屏幕中间位置
-      final maxPosition = maxHeight / screenHeight;
-      final currentPercent = controller.sheetPercent.value;
+  State<_GradientBackgroundOverlay> createState() =>
+      _GradientBackgroundOverlayState();
+}
 
-      // 只在从中间位置滑到顶部时显示渐变背景
-      // 当 currentPercent > middlePosition 时开始显示
-      double opacity = 0.0;
-      if (currentPercent > middlePosition) {
-        // 从中间到顶部的进度：0 到 1
-        final progress =
-            (currentPercent - middlePosition) / (maxPosition - middlePosition);
-        opacity = progress.clamp(0.0, 1.0);
+class _GradientBackgroundOverlayState
+    extends State<_GradientBackgroundOverlay> {
+  double _opacity = 0.0;
+  double _lastPercent = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.sheetPercent.listen((percent) {
+      if ((percent - _lastPercent).abs() > 0.02) {
+        _lastPercent = percent;
+        _updateOpacity(percent);
       }
+    });
+  }
 
-      return Positioned.fill(
-        child: IgnorePointer(
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: opacity,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFFEF6F0), // 顶部颜色
-                    Color(0xFFFFFFFF), // 中间颜色
-                    Color(0xFFF6F6F6), // 底部颜色
-                  ],
-                ),
+  void _updateOpacity(double currentPercent) {
+    final middlePosition = 0.5;
+    final maxPosition = widget.maxHeight / widget.screenHeight;
+
+    double newOpacity = 0.0;
+    if (currentPercent > middlePosition) {
+      final progress =
+          (currentPercent - middlePosition) / (maxPosition - middlePosition);
+      newOpacity = progress.clamp(0.0, 1.0);
+    }
+
+    if (mounted && newOpacity != _opacity) {
+      setState(() {
+        _opacity = newOpacity;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: _opacity,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFF6F6F6),
+                  Color(0xFFFFFFFF),
+                  Color(0xFFF6F6F6),
+                ],
               ),
             ),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 }
 

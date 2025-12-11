@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
-import 'package:kissu_app/pages/mine/app_usage/app_usage_debug_page.dart';
-import 'package:kissu_app/pages/mine/app_usage/app_usage_test_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
@@ -9,27 +8,26 @@ import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
 // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
-import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/utils/oaid_util.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../usage_report/usage_report_controller.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
-import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
-import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart';
-import 'package:kissu_app/services/screen_usage_service.dart';
 import 'package:kissu_app/services/tracking_service.dart';
-import 'package:kissu_app/pages/debug/screen_lock_debug_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 import 'package:kissu_app/services/permission_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:get/get_utils/src/platform/platform.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -90,8 +88,46 @@ class MineController extends GetxController {
   var hasScrolled = false.obs; // 是否滑动过
 
   // 权限状态
-  var areAllPermissionsGranted = false.obs; // 4个权限是否全部开启
+  /// 是否已经完成「系统权限」页面中所有需要开启的权限 / 教程项
+  /// - 包括：实时定位、通知、使用情况访问、电池优化
+  /// - 以及：允许后台运行、防止程序休眠、让程序锁在后台（部分机型为 5 项）
+  var areAllPermissionsGranted = false.obs;
   final PermissionService _permissionService = PermissionService();
+
+  // 与系统权限页保持一致的教程完成状态持久化 key
+  static const String _guidePreventSleepKey =
+      'system_permission_guide_prevent_sleep_completed';
+  static const String _guideBackgroundRunKey =
+      'system_permission_guide_background_run_completed';
+  static const String _guideLockBackgroundKey =
+      'system_permission_guide_lock_background_completed';
+
+  // 机型信息（用于判断是否是小米系机型，从而决定是否需要“让程序锁在后台”这一项）
+  final DeviceInfoPlugin _deviceInfoPlugin = DeviceInfoPlugin();
+  bool _isXiaomiDevice = false;
+  bool _deviceBrandInited = false;
+
+  Future<void> _initDeviceBrandIfNeeded() async {
+    if (_deviceBrandInited) return;
+
+    _deviceBrandInited = true;
+
+    if (!GetPlatform.isAndroid) {
+      _isXiaomiDevice = false;
+      return;
+    }
+
+    try {
+      final androidInfo = await _deviceInfoPlugin.androidInfo;
+      final brand = (androidInfo.brand).toLowerCase();
+      _isXiaomiDevice = brand.contains('xiaomi') ||
+          brand.contains('mi') ||
+          brand.contains('redmi');
+    } catch (e) {
+      // 获取品牌失败时，默认按非小米处理，保证逻辑可用
+      _isXiaomiDevice = false;
+    }
+  }
 
   @override
   void onInit() {
@@ -184,27 +220,48 @@ class MineController extends GetxController {
   /// 检查所有权限状态
   Future<void> checkAllPermissions() async {
     try {
+      // 1. 检查系统级权限状态（与系统权限页保持一致）
       final permissions = await _permissionService.checkAllPermissions();
 
-      // 检查4个关键权限是否全部开启
       final isLocationGranted = permissions[PermissionType.location] ?? false;
       final isNotificationGranted =
           permissions[PermissionType.notification] ?? false;
       final isBatteryOptimized = permissions[PermissionType.battery] ?? false;
       final isUsageAccessGranted = permissions[PermissionType.usage] ?? false;
 
-      // 只有当4个权限都开启时，才设置为true
-      areAllPermissionsGranted.value =
-          isLocationGranted &&
+      // 2. 读取「教程类」开关的完成状态（与系统权限页使用同一份本地缓存）
+      final prefs = await SharedPreferences.getInstance();
+      final preventSleepCompleted =
+          prefs.getBool(_guidePreventSleepKey) ?? false;
+      final backgroundRunCompleted =
+          prefs.getBool(_guideBackgroundRunKey) ?? false;
+      final lockBackgroundCompleted =
+          prefs.getBool(_guideLockBackgroundKey) ?? false;
+
+      // 3. 初始化机型信息，用于处理“小米机型只有 5 项”的情况
+      await _initDeviceBrandIfNeeded();
+
+      // 系统权限页总体有 6 项开关（部分小米机型隐藏“让程序锁在后台”，变为 5 项）
+      // 这里的「全部开启」含义完全对齐系统权限页：
+      // - 所有权限型 item 的按钮文案为“已开启”
+      // - 所有教程型 item 已被标记为完成（按钮文案为“已开启”）
+      final allGuidesCompleted = preventSleepCompleted &&
+          backgroundRunCompleted &&
+          (_isXiaomiDevice ? true : lockBackgroundCompleted);
+
+      areAllPermissionsGranted.value = isLocationGranted &&
           isNotificationGranted &&
           isBatteryOptimized &&
-          isUsageAccessGranted;
+          isUsageAccessGranted &&
+          allGuidesCompleted;
 
       logDebug(
-        '权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted',
+        '权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted, '
+        '防休眠=$preventSleepCompleted, 后台运行指引=$backgroundRunCompleted, 锁后台指引=$lockBackgroundCompleted, '
+        '是否小米系=$_isXiaomiDevice',
         tag: 'Mine',
       );
-      logDebug('所有权限是否全部开启: ${areAllPermissionsGranted.value}', tag: 'Mine');
+      logDebug('系统权限开关是否全部开启: ${areAllPermissionsGranted.value}', tag: 'Mine');
     } catch (e) {
       logError('检查权限状态失败: $e', tag: 'Mine', error: e);
       // 出错时默认显示图标（保守策略）
@@ -441,27 +498,23 @@ class MineController extends GetxController {
       //   title: "防偷拍检测",
       //   onTap: () => _onAntiSpyTap(),
       // ),
-      // SettingItem(
-      //   icon: "assets/kissu_mine_item_gywm.webp",
-      //   title: "Banner预览",
-      //   onTap: () => _onBannerPreviewTap(),
-      // ),
       SettingItem(
         icon: "assets/4.0/kissu4_share.webp",
         title: "分享APP",
         onTap: () => _onShareAppTap(),
       ),
+      SettingItem(
+        icon: "assets/4.0/kissu4_notice.webp",
+        title: "通知设置",
+        onTap: () => _onNotificationSettingsTap(),
+      ),
+
       // SettingItem(
       //   icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
       //   title: "弹窗展示",
       //   onTap: () => Get.to(() => const DialogShowcasePage()),
       // ),
 
-      // SettingItem(
-      //   icon: "assets/images/kissu_home_tab_history.webp",
-      //   title: "🔧 锁屏监听调试",
-      //   onTap: () => _onScreenLockDebugTap(),
-      // ),
       // SettingItem(
       //   icon: "assets/images/kissu_home_tab_history.webp",
       //   title: "用机记录",
@@ -482,13 +535,6 @@ class MineController extends GetxController {
       //       SettingHomePage(),
       //       transition: Transition.rightToLeft,
       //     );
-      //   },
-      // ),
-      // SettingItem(
-      //   icon: "assets/4.0/kissu4_notice.webp",
-      //   title: "测试 OAID",
-      //   onTap: () async {
-      //     await _testOaid();
       //   },
       // ),
       SettingItem(
@@ -536,20 +582,6 @@ class MineController extends GetxController {
     ];
   }
 
-  /// 打开 Banner 预览页面
-  void _onBannerPreviewTap() {
-    // Get.to(() => const BannerPreviewPage());
-    // 测试页面已移除
-  }
-
-  /// 打开锁屏监听调试页面
-  void _onScreenLockDebugTap() {
-    Get.to(
-      () => const ScreenLockDebugPage(),
-      transition: Transition.rightToLeft,
-    );
-  }
-
   // /// 屏幕使用测试
   // Future<void> _onScreenUsageTestTap() async {
   //   final permissionService = PermissionService();
@@ -595,115 +627,6 @@ class MineController extends GetxController {
   //   _showScreenUsageData();
   // }
 
-  /// 显示屏幕使用数据
-  Future<void> _showScreenUsageData() async {
-    final screenUsageService = ScreenUsageService();
-
-    // 显示加载中
-    Get.dialog(
-      const Center(child: CircularProgressIndicator()),
-      barrierDismissible: false,
-    );
-
-    try {
-      // 获取今日屏幕使用时长
-      final todayMs = await screenUsageService.getTodayScreenTime();
-      final todayMinutes = (todayMs / (1000 * 60)).round();
-      final todayHours = todayMinutes ~/ 60;
-      final todayMins = todayMinutes % 60;
-
-      // 获取今日应用使用详情（前5个）
-      final appStats = await screenUsageService.getTodayAppUsageStats(limit: 5);
-
-      // 获取今日解锁次数
-      final unlockCount = await screenUsageService.getTodayUnlockCount();
-
-      // 关闭加载
-      Get.back();
-
-      // 构建应用列表文本
-      String appListText = '';
-      if (appStats.isNotEmpty) {
-        for (var i = 0; i < appStats.length; i++) {
-          final stat = appStats[i];
-          final appName = stat.appName; // 使用真实的应用名称
-          final minutes = (stat.totalTimeInForeground / (1000 * 60)).round();
-          appListText += '\n${i + 1}. $appName: ${minutes}分钟';
-        }
-      } else {
-        appListText = '\n暂无应用使用数据';
-      }
-
-      // 显示结果
-      Get.dialog(
-        AlertDialog(
-          title: const Text('📊 屏幕使用统计'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '今日总使用时长：',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${todayHours}小时${todayMins}分钟',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    color: Color(0xFFFF839E),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '今日解锁次数：$unlockCount 次',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '应用使用排行 TOP 5：',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                Text(appListText, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Get.back(), child: const Text('关闭')),
-            TextButton(
-              onPressed: () {
-                Get.back();
-                Get.to(
-                  () => const UsageReportPage(),
-                  binding: UsageReportBinding(),
-                  transition: Transition.rightToLeft,
-                );
-              },
-              child: const Text('查看详情'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      // 关闭加载
-      Get.back();
-
-      // 显示错误
-      Get.dialog(
-        AlertDialog(
-          title: const Text('错误'),
-          content: Text('获取屏幕使用数据失败：\n$e'),
-          actions: [
-            TextButton(onPressed: () => Get.back(), child: const Text('确定')),
-          ],
-        ),
-      );
-    }
-  }
 
   /// 打开联系渠道（企业微信客服）
   Future<void> openContact() async {
@@ -963,17 +886,35 @@ class MineController extends GetxController {
   Future<void> performLogout() async {
     Get.back(); // 关闭对话框
 
-    try {
-      // 🔧 修复：直接调用 UserManager.logout()，内部会处理API调用
-      // 避免重复调用退出登录API导致两次跳转到登录页
-      await UserManager.logout();
+    // 清理恋爱信息控制器，防止跨账号复用旧数据
+    _clearLoveInfoController();
 
-      // 跳转到登录页面
-      Get.offAllNamed('/login');
+    try {
+      // 🔧 使用登录页导航锁，防止重复跳转导致闪烁
+      // 先尝试获取锁并跳转到登录页
+      final navigated = LoginNavigationLock.navigateToLoginSafely();
+      if (!navigated) {
+        // 如果已经有其他线程正在导航，直接返回
+        logDebug('⏸️ 正在导航到登录页，跳过重复操作', tag: 'Mine');
+        return;
+      }
+      
+      // 然后在后台调用退出登录API（不阻塞UI）
+      UserManager.logout().catchError((e) {
+        // 退出登录API失败不影响UI，因为已经跳转到登录页了
+        logError('退出登录API调用失败: $e', tag: 'Mine');
+      });
 
       OKToastUtil.show('已退出登录');
     } catch (e) {
       OKToastUtil.showError('退出登录失败：$e');
+    }
+  }
+
+  void _clearLoveInfoController() {
+    if (Get.isRegistered<LoveInfoController>()) {
+      Get.delete<LoveInfoController>(force: true);
+      logDebug('🧹 恋爱信息控制器已清理', tag: 'Mine');
     }
   }
 
@@ -997,6 +938,11 @@ class MineController extends GetxController {
     ShareBottomSheet.showShareApp(Get.context!);
   }
 
+  /// 通知设置点击事件
+  void _onNotificationSettingsTap() {
+    Get.toNamed(KissuRoutePath.notificationSettings);
+  }
+
   /// 防偷拍检测点击事件
   void _onAntiSpyTap() async {
     // 上报防偷拍检查点击埋点
@@ -1012,7 +958,47 @@ class MineController extends GetxController {
   }
 
   /// app使用记录点击事件
-  void _onAppUsageRecordTap() {
+  Future<void> _onAppUsageRecordTap() async {
+    // 1. 未绑定：先引导绑定
+    if (!isBound.value) {
+      logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
+
+      // 上报绑定页面点击埋点
+      await TrackingService.trackMyBindPage();
+
+      if (Get.context != null) {
+        await CustomBottomDialog.show(
+          context: Get.context!,
+          caller: BindingDialogCaller.mine,
+          isDismissible: false, // 禁用点击背景关闭
+          enableDrag: false, // 禁用向下滑动关闭
+          onCloseConfirm: () async {
+            // 复用 VIP 逻辑中的二次确认弹窗
+            return await _showBindingCloseConfirmDialog();
+          },
+        );
+
+        // 绑定弹窗关闭后，刷新页面数据（可能已经完成绑定）
+        onPageResumed();
+      }
+      return;
+    }
+
+    // 2. 已绑定但非会员：跳转到开通会员页面
+    if (!UserManager.isVip) {
+      logDebug('app使用记录：已绑定但非会员，跳转到开通会员页面', tag: 'Mine');
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {
+          'previousPageName': '我的-APP使用记录',
+          'previousPageId': 'mine_app_usage',
+        },
+      );
+      return;
+    }
+
+    // 3. 已绑定且是会员：进入 App 使用记录页面
+    logDebug('app使用记录：已绑定且为会员，进入App使用记录页面', tag: 'Mine');
     Get.to(
       () => const AppUsagePage(),
       binding: AppUsageBinding(),
@@ -1022,16 +1008,8 @@ class MineController extends GetxController {
 
   /// 个性化首页点击事件
   void _onPersonalizedHomeTap() {
-    // // TODO: 实现个性化首页功能
-    // OKToastUtil.show('个性化首页功能开发中');
-
-    // 调试：跳转到 App 使用记录测试页面
-    // 需要先注入 AppUsageController，否则页面中 Get.find<AppUsageController>() 会报错
-    Get.to(
-      () => const AppUsageDebugPage(),
-      binding: AppUsageBinding(),
-      transition: Transition.rightToLeft,
-    );
+    // 改为简单的 Toast 提示，而不是弹窗
+    OKToastUtil.show('敬请期待！');
   }
 
   /// 更换首页视图点击事件
@@ -1045,32 +1023,6 @@ class MineController extends GetxController {
     Get.toNamed(KissuRoutePath.appIconSelector);
   }
 
-  /// 测试 OAID 获取
-  Future<void> _testOaid() async {
-    try {
-      OKToastUtil.show('正在获取 OAID...');
-
-      final oaid = await OaidUtil.instance.getOaid();
-
-      if (oaid != null && oaid.isNotEmpty) {
-        logger.info('OAID 获取成功: $oaid');
-        Get.dialog(
-          AlertDialog(
-            title: const Text('OAID 获取成功'),
-            content: SelectableText('OAID: $oaid'),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text('确定')),
-            ],
-          ),
-        );
-      } else {
-        OKToastUtil.show('OAID 获取失败');
-      }
-    } catch (e) {
-      logger.error('OAID 获取异常: $e');
-      OKToastUtil.show('OAID 获取异常: $e');
-    }
-  }
 }
 
 class SettingItem {

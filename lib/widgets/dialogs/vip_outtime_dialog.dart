@@ -123,8 +123,8 @@ class VipOuttimeDialog extends BaseDialog {
             child: const Text(
               '下次再说',
               style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF999999),
+                fontSize: 14,
+                color: Color(0xccffffff),
                 fontWeight: FontWeight.normal, // 正常字体
               ),
             ),

@@ -91,6 +91,7 @@ class MineVipCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     color: Color(0xffffffff),
+                    fontFamily: "AlimamaShuHeiTi",
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -109,95 +110,115 @@ class MineVipCard extends StatelessWidget {
                 ),
               ],
             ),
-            Text(
-              "双人永久会员",
-              style: TextStyle(
-                fontSize: 11,
-                color: Color(0xffffffff),
+             
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: "双人 ",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xffffffff),
+                    ),
+                  ),
+                  TextSpan(
+                    text:  "永久",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xffFF94D6),
+                    ),
+                  ),
+                  TextSpan(
+                    text: "会员",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xffffffff),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         );
       case VipCardType.normalVip:
-        return Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "kissu 会员中心",
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xffffffff),
-                   fontWeight: FontWeight.bold,
-                ),
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "kissu 会员中心",
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xffffffff),
+                fontFamily: "AlimamaShuHeiTi",
+                fontWeight: FontWeight.bold,
               ),
-              SizedBox(height: 3),
-              // 进度条
-              Container(
-                height: 4,
-                margin: EdgeInsets.only(right: 16),
-                child: Stack(
-                  children: [
-                    // 背景
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Color(0xFFD9D9D9),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+            ),
+            SizedBox(height: 3),
+            // // 进度条
+            // Container(
+            //   height: 4,
+            //   margin: EdgeInsets.only(right: 16),
+            //   child: Stack(
+            //     children: [
+            //       // 背景
+            //       Container(
+            //         decoration: BoxDecoration(
+            //           color: Color(0xFFD9D9D9),
+            //           borderRadius: BorderRadius.circular(2),
+            //         ),
+            //       ),
+            //       // 进度
+            //       FractionallySizedBox(
+            //         alignment: Alignment.centerLeft,
+            //         widthFactor: 0.5, // 暂时显示50%的进度
+            //         child: Container(
+            //           height: 4,
+            //           decoration: BoxDecoration(
+            //             gradient: LinearGradient(
+            //               colors: [
+            //                 Color(0xFF3AD9F7),
+            //                 Color(0xFFF66D9F),
+            //               ],
+            //               begin: Alignment.centerLeft,
+            //               end: Alignment.centerRight,
+            //             ),
+            //             borderRadius: BorderRadius.circular(2),
+            //           ),
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
+            // SizedBox(height: 3),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: "双人月度会员 ",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xffffffff),
                     ),
-                    // 进度
-                    FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: 0.5, // 暂时显示50%的进度
-                      child: Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF3AD9F7),
-                              Color(0xFFF66D9F),
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
+                  ),
+                  TextSpan(
+                    text: vipEndDate ?? "",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xffFF94D6),
                     ),
-                  ],
-                ),
+                  ),
+                  TextSpan(
+                    text: " 到期",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xffffffff),
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 3),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "双人月度会员 ",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xffffffff),
-                      ),
-                    ),
-                    TextSpan(
-                      text: vipEndDate ?? "",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xffFF94D6),
-                      ),
-                    ),
-                    TextSpan(
-                      text: " 到期",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xffffffff),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       case VipCardType.unbound:
         return Column(
@@ -209,6 +230,7 @@ class MineVipCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 color: Color(0xffffffff),
+                fontFamily: "AlimamaShuHeiTi",
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -251,6 +273,7 @@ class MineVipCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 color: Color(0xffffffff),
+                fontFamily: "AlimamaShuHeiTi",
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -333,7 +356,7 @@ class MineVipCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   color: Color(0xff333333),
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               Spacer(),
@@ -348,7 +371,7 @@ class MineVipCard extends StatelessWidget {
                   image: AssetImage(
                     "assets/4.0/kissu4_notice_setting_new.webp",
                   ),
-                  width: 10,
+                   width: 10,
                   height: 10,
                 ),
               ],

@@ -22,6 +22,7 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
@@ -58,7 +59,20 @@ class HomeController extends GetxController {
   
   // VIP购买弹窗控制标志位 - 静态变量，确保整个app会话期间只显示一次
   static bool _hasShownVipDialogThisSession = false;
+
+  // VIP到期弹窗检查标志位 - 确保整个会话期间只检查一次
+  static bool _hasCheckedVipOuttimeDialogThisSession = false;
   
+  // 保存VIP数据，用于在onReady中检查
+  VipData? _cachedVipData;
+  
+  // VIP到期弹窗检查重试次数
+  int _vipOuttimeDialogCheckRetryCount = 0;
+  static const int _maxVipOuttimeDialogCheckRetries = 5; // 最多重试5次
+  
+  // VIP到期弹窗显示时的重试定时器（用于context为null时的延迟重试）
+  Timer? _vipOuttimeDialogRetryTimer;
+
   // 防重复刷新用户信息的变量
   bool _isRefreshingUserInfo = false;
   DateTime? _lastUserInfoRefreshTime;
@@ -150,6 +164,9 @@ class HomeController extends GetxController {
     
     debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: $_hasShownBindingDialogThisSession');
     
+    // 进入首页即同步授权应用
+    _syncAuthApp();
+    
     // 埋点：开始记录页面停留时长
     _startPageTracking();
     
@@ -189,14 +206,78 @@ class HomeController extends GetxController {
     // 立即检查定位权限并开始弹窗流程（不等待数据加载完成）
     // 弹窗流程优先级：定位权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图
     _checkLocationPermissionAndShowBindingDialog();
+    
+    // 启动App使用记录自动上报服务
+    _startAppUsageAutoReport();
+    
+    // 延迟检查VIP到期弹窗（等待数据加载完成，且整个会话期间只检查一次）
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _checkVipOuttimeDialogOnce();
+    });
+  }
+  
+  /// 检查VIP到期弹窗（整个会话期间只执行一次）
+  void _checkVipOuttimeDialogOnce() {
+    // 如果已经检查过，直接返回
+    if (_hasCheckedVipOuttimeDialogThisSession) {
+      debugPrint('📱 VIP到期弹窗今天已检查过，跳过');
+      return;
+    }
+    
+    // 如果还没有VIP数据，等待一下再试（最多重试5次）
+    if (_cachedVipData == null) {
+      if (_vipOuttimeDialogCheckRetryCount >= _maxVipOuttimeDialogCheckRetries) {
+        debugPrint('📱 VIP数据加载超时，放弃检查VIP到期弹窗');
+        _hasCheckedVipOuttimeDialogThisSession = true; // 标记为已检查，避免继续重试
+        return;
+      }
+      _vipOuttimeDialogCheckRetryCount++;
+      debugPrint('📱 VIP数据还未加载，延迟检查VIP到期弹窗 (重试 $_vipOuttimeDialogCheckRetryCount/$_maxVipOuttimeDialogCheckRetries)');
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        _checkVipOuttimeDialogOnce();
+      });
+      return;
+    }
+    
+    // 标记为已检查
+    _hasCheckedVipOuttimeDialogThisSession = true;
+    
+    // 检查并显示VIP到期弹窗
+    _checkAndShowVipOuttimeDialog(_cachedVipData);
+  }
+  
+  /// 启动App使用记录自动上报服务
+  void _startAppUsageAutoReport() {
+    try {
+      if (Get.isRegistered<AppUsageAutoReportService>()) {
+        final service = Get.find<AppUsageAutoReportService>();
+        service.start();
+        debugPrint('✅ App使用记录自动上报服务已启动');
+      } else {
+        debugPrint('⚠️ App使用记录自动上报服务未注册');
+      }
+    } catch (e) {
+      debugPrint('❌ 启动App使用记录自动上报服务失败: $e');
+    }
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
     debugPrint('🏠 首页重新获得焦点，静默刷新用户信息');
+    _syncAuthApp();
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
+  }
+
+  /// 调用同步授权应用接口
+  Future<void> _syncAuthApp() async {
+    try {
+      await _authService.syncAuthApp();
+      debugPrint('🔄 同步授权应用完成');
+    } catch (e) {
+      debugPrint('❌ 同步授权应用失败: $e');
+    }
   }
   
   /// 静默刷新用户信息（不阻塞UI）
@@ -581,8 +662,8 @@ class HomeController extends GetxController {
         // 更新天气数据
         _updateWeatherData(indexData.weather);
         
-        // 检查是否需要弹出VIP到期弹窗
-        _checkAndShowVipOuttimeDialog(indexData.vipData);
+        // 缓存VIP数据，用于在onReady中检查（只检查一次）
+        _cachedVipData = indexData.vipData;
         
         debugPrint('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
       } else {
@@ -1695,22 +1776,54 @@ class HomeController extends GetxController {
         return;
       }
 
+      // 在显示弹窗前就立即写入缓存，防止并发时重复弹窗
+      await prefs.setString('vip_outtime_dialog_last_show_date', today);
+      debugPrint('✅ VIP到期弹窗已提前记录: $today');
+
       // 获取当前上下文
       final context = Get.context;
       if (context == null) {
         debugPrint('⚠️ 无法获取上下文，延迟显示VIP到期弹窗');
-        // 延迟一下再试
-        Future.delayed(const Duration(milliseconds: 500), () {
-          _checkAndShowVipOuttimeDialog(vipData);
+        // 取消之前的重试定时器
+        _vipOuttimeDialogRetryTimer?.cancel();
+        // 延迟一下再试，最多重试6次（3秒）
+        int retryCount = 0;
+        _vipOuttimeDialogRetryTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+          retryCount++;
+          final currentContext = Get.context;
+          if (currentContext != null) {
+            timer.cancel();
+            _vipOuttimeDialogRetryTimer = null;
+            // 直接执行显示逻辑
+            _showVipOuttimeDialog(currentContext, vipData.expireDays);
+          } else if (retryCount >= 6) {
+            // 最多重试6次（3秒），如果还是无法获取上下文，放弃
+            timer.cancel();
+            _vipOuttimeDialogRetryTimer = null;
+            debugPrint('⚠️ VIP到期弹窗：无法获取上下文，已放弃显示');
+          }
         });
         return;
       }
 
       // 显示弹窗
-      debugPrint('📱 显示VIP到期弹窗: expireDays=${vipData.expireDays}');
+      await _showVipOuttimeDialog(context, vipData.expireDays);
+    } catch (e) {
+      debugPrint('❌ 检查VIP到期弹窗异常: $e');
+    } finally {
+      // 确保定时器被清理
+      _vipOuttimeDialogRetryTimer?.cancel();
+      _vipOuttimeDialogRetryTimer = null;
+    }
+  }
+
+  /// 显示VIP到期弹窗（辅助方法）
+  Future<void> _showVipOuttimeDialog(BuildContext context, int expireDays) async {
+    try {
+      debugPrint('📱 显示VIP到期弹窗: expireDays=$expireDays');
       final result = await VipOuttimeDialog.show(
         context: context,
-        expireDays: vipData.expireDays,
+        expireDays: expireDays,
         onRenew: () {
           debugPrint('📱 用户点击立即续费，跳转到VIP页面');
           // 跳转到VIP页面
@@ -1727,13 +1840,13 @@ class HomeController extends GetxController {
         },
       );
 
-      // 记录今天已显示
+      // 如果用户关闭了弹窗但没有点击按钮，可能需要处理
+      // 但缓存已经写入，所以不会重复弹窗
       if (result != null) {
-        await prefs.setString('vip_outtime_dialog_last_show_date', today);
-        debugPrint('✅ VIP到期弹窗已记录: $today');
+        debugPrint('✅ VIP到期弹窗用户操作完成');
       }
     } catch (e) {
-      debugPrint('❌ 检查VIP到期弹窗异常: $e');
+      debugPrint('❌ 显示VIP到期弹窗异常: $e');
     }
   }
   

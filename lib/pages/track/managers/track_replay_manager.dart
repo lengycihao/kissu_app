@@ -58,8 +58,8 @@ class TrackReplayManager extends GetxController {
 
   /// 播放相关参数 - 基于距离的匀速移动
   static const Duration _frameInterval = Duration(
-    milliseconds: 16,
-  ); // 60fps (1000/60≈16ms) - 流畅播放
+    milliseconds: 50,
+  ); // 20fps更新频率，原生动画填充中间帧实现60fps视觉效果
 
   /// 🎯 匀速移动参数
   DateTime? _playbackStartTime;
@@ -102,6 +102,14 @@ class TrackReplayManager extends GetxController {
   /// 设置地图控制器（用于原生动画）
   void setMapController(AMapController? controller) {
     _mapController = controller;
+  }
+
+  /// 地图PlatformView销毁时的清理逻辑
+  void onMapDisposed() {
+    DebugUtil.warning('🧹 轨迹播放：地图控制器已销毁，停止回放定时器');
+    _mapController = null;
+    _replayTimer?.cancel();
+    _replayTimer = null;
   }
 
   /// 获取轨迹点列表
@@ -174,34 +182,40 @@ class TrackReplayManager extends GetxController {
     }
   }
 
-  /// 更新播放头像标记位置 - 同步版本（性能优化）
-  void _updateReplayAvatarMarkerSync(LatLng position) {
+  /// 🎯 使用原生平滑移动API更新播放头像标记位置（性能优化）
+  void _updateReplayAvatarMarkerSync(LatLng position) async {
     if (replayAvatarMarker.value == null) {
       // 如果标记不存在，异步创建新标记
       _createReplayAvatarMarker(position);
-    } else {
-      try {
-        // 同步更新现有标记的位置
-        final currentMarker = replayAvatarMarker.value!;
-        final updatedMarker = Marker(
-          position: position,
-          icon: currentMarker.icon,
-          infoWindow: currentMarker.infoWindow,
-          zIndex: 1000.0, // 🎯 确保播放头像在停留点之上显示
+      return;
+    }
+    
+    // 🎯 关键：完全依赖原生动画，不更新任何会触发UI重建的value
+    if (_mapController == null) {
+      DebugUtil.warning('⚠️ MapController未初始化，跳过marker更新');
+      return;
+    }
+    
+    try {
+      // 🎯 使用原生平滑移动API，让原生层处理所有动画
+      // 不await，避免阻塞，让原生层异步处理
+      _mapController!.moveMarkerSmoothly(
+        markerId: 'replay_avatar_marker',
+        targetPosition: position,
+        duration: _frameInterval.inMilliseconds,
+      );
+      
+      // 🎯 关键：不更新currentPosition.value，避免触发Obx重建
+      // 原生动画会自动处理marker的位置更新
+      
+      // 降低日志频率
+      if ((currentReplayIndex.value % 100) == 0) {
+        DebugUtil.info(
+          '🎯 原生平滑移动头像: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
         );
-        // 🎯 保持marker的ID，确保动画不丢失
-        updatedMarker.setIdForCopy('replay_avatar_marker');
-        replayAvatarMarker.value = updatedMarker;
-
-        // 添加调试信息，但降低频率避免日志过多
-        if ((currentReplayIndex.value % 20) == 0) {
-          DebugUtil.info(
-            '🎯 平滑更新头像位置: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
-          );
-        }
-      } catch (e) {
-        DebugUtil.error('❌ 更新播放头像标记位置失败: $e');
       }
+    } catch (e) {
+      DebugUtil.error('❌ 原生平滑移动失败: $e');
     }
   }
 
@@ -238,8 +252,8 @@ class TrackReplayManager extends GetxController {
     }
   }
 
-  /// 🎯 更新播放底座标记位置和旋转（同步版本）
-  void _updateReplayPedestalMarkerSync(LatLng position) {
+  /// 🎯 使用原生API更新播放底座标记位置和旋转（同步版本）
+  void _updateReplayPedestalMarkerSync(LatLng position) async {
     if (replayPedestalMarker.value == null && _cachedPedestalIcon == null) {
       // 🎯 只创建一次，防止重复异步创建
       if (!_isCreatingPedestal) {
@@ -248,29 +262,31 @@ class TrackReplayManager extends GetxController {
           _isCreatingPedestal = false;
         });
       }
-    } else if (_cachedPedestalIcon != null) {
-      try {
-        // 计算旋转角度（基于运动方向）
-        final rotation = _calculateMovementRotation(position);
+      return;
+    }
+    
+    if (_cachedPedestalIcon == null || _mapController == null) {
+      return;
+    }
+    
+    try {
+      // 计算旋转角度（基于运动方向）
+      final rotation = _calculateMovementRotation(position);
 
-        final updatedMarker = Marker(
-          position: position,
-          icon: _cachedPedestalIcon!,
-          anchor: _cachedAnchor ?? const ui.Offset(0.5, 0.5),
-          rotation: rotation,
-          zIndex: 999.0,
-          clickable: false,
-        );
-        updatedMarker.setIdForCopy('replay_pedestal_marker');
-        replayPedestalMarker.value = updatedMarker;
-
-        // 降低日志频率
-        if ((currentReplayIndex.value % 30) == 0) {
-          DebugUtil.info('🎯 底座旋转: ${rotation.toStringAsFixed(1)}°');
-        }
-      } catch (e) {
-        DebugUtil.error('❌ 更新播放底座标记失败: $e');
+      // 🎯 使用原生平滑移动API，不await避免阻塞
+      _mapController!.moveMarkerSmoothly(
+        markerId: 'replay_pedestal_marker',
+        targetPosition: position,
+        duration: _frameInterval.inMilliseconds,
+        rotation: rotation,
+      );
+      
+      // 降低日志频率
+      if ((currentReplayIndex.value % 100) == 0) {
+        DebugUtil.info('🎯 原生平滑移动底座，旋转: ${rotation.toStringAsFixed(1)}°');
       }
+    } catch (e) {
+      DebugUtil.error('❌ 更新播放底座标记失败: $e');
     }
   }
 
@@ -425,7 +441,7 @@ class TrackReplayManager extends GetxController {
 
   /// 根据轨迹长度动态计算播放时间
   Duration _calculateOptimalReplayDuration() {
-    return _totalPlaybackDuration ?? Duration(seconds: 10);
+    return _totalPlaybackDuration ?? const Duration(seconds: 10);
   }
 
   /// 更新播放状态（距离、时间、速度，但不更新进度因为已实时更新）
@@ -909,13 +925,13 @@ class TrackReplayManager extends GetxController {
 
   /// 🎯 切换相机跟随模式（已禁用）
   void toggleCameraFollow() {
-    // 相机跟随功能已禁用，不执行任何操作
+    // 相机跟随功能已禁用，不执行任何操作（保留方法签名以兼容未来扩展）
     DebugUtil.info('🎯 相机跟随功能已禁用');
   }
 
   /// 🎯 设置相机跟随模式（已禁用）
   void setCameraFollow(bool enabled) {
-    // 相机跟随功能已禁用，强制保持关闭状态
+    // 相机跟随功能已禁用，强制保持关闭状态（保留方法签名以兼容未来扩展）
     enableCameraFollow.value = false;
     DebugUtil.info('🎯 相机跟随功能已禁用，忽略设置请求');
   }

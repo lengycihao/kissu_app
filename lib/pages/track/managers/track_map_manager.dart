@@ -337,4 +337,12 @@ class TrackMapManager {
     _debounceTimer?.cancel();
     mapController = null;
   }
+
+  /// PlatformView销毁时清理状态，避免持有失效的Controller引用
+  void onMapDisposed() {
+    DebugUtil.warning('🧹 地图PlatformView已销毁，重置地图控制器状态');
+    _debounceTimer?.cancel();
+    mapController = null;
+    setMapReady(false);
+  }
 }

@@ -118,6 +118,16 @@ class AuthApi {
     return result;
   }
 
+  /// 同步授权应用（首页进入时调用）
+  Future<HttpResultN> syncAuthApp() async {
+    final result = await HttpManagerN.instance.executePost(
+      ApiRequest.syncAuthApp,
+      jsonParam: const {},
+      paramEncrypt: false,
+    );
+    return result;
+  }
+
   /// 获取用户信息
   Future<HttpResultN<LoginModel>> getUserInfo() async {
     final result = await HttpManagerN.instance.executeGet(
@@ -153,6 +163,7 @@ class AuthApi {
   }
 
   /// 获取解绑原因列表
+  /// 返回的数据结构是数组，不是包含 list 的对象
   Future<HttpResultN<UnbindReasonModel>> getUnbindReasons() async {
     final result = await HttpManagerN.instance.executeGet(
       ApiRequest.unbindReasonSelect,
@@ -160,20 +171,44 @@ class AuthApi {
     );
 
     if (result.isSuccess) {
-      final dataJson = result.getDataJson();
-      if (dataJson.containsKey('list') && dataJson['list'] != null) {
-        final List<dynamic> listJson = dataJson['list'] as List<dynamic>;
-        final reasons = listJson
-            .map((e) => UnbindReasonModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-        return HttpResultN<UnbindReasonModel>.success(
-          dataList: reasons,
-          code: result.code,
-          msg: result.msg,
-          listJson: listJson,
-        );
+      // 优先从 listJson 取数据（HttpManagerN 对纯数组响应会写到 listJson）
+      List<dynamic> listJson = result.getListJson();
+
+      // 如果 listJson 为空，再从 dataJson 中做兼容处理
+      if (listJson.isEmpty) {
+        final rawData = result.getDataDynamic();
+
+        if (rawData is List) {
+          // 如果返回的是数组（新格式）
+          listJson = rawData;
+        } else if (rawData is Map<String, dynamic>) {
+          // 兼容旧格式：包含 list 字段的对象
+          if (rawData.containsKey('list') && rawData['list'] != null) {
+            listJson = rawData['list'] as List<dynamic>;
+          } else {
+            return HttpResultN<UnbindReasonModel>.failure(
+              -1,
+              '数据格式错误：未找到原因列表',
+            );
+          }
+        } else {
+          return HttpResultN<UnbindReasonModel>.failure(
+            -1,
+            '数据格式错误：未找到原因列表',
+          );
+        }
       }
-      return HttpResultN<UnbindReasonModel>.failure(-1, '数据格式错误');
+      
+      final reasons = listJson
+          .map((e) => UnbindReasonModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+      
+      return HttpResultN<UnbindReasonModel>.success(
+        dataList: reasons,
+        code: result.code,
+        msg: result.msg,
+        listJson: listJson,
+      );
     }
 
     return HttpResultN<UnbindReasonModel>.failure(
@@ -200,14 +235,14 @@ class AuthApi {
     return result;
   }
 
-  /// 上传 OAID/IDFA
-  /// 在用户同意隐私政策后调用，上传设备标识符
-  Future<HttpResultN> saveOaidIdfa() async {
+  /// App启动接口
+  Future<HttpResultN> appStart() async {
     final result = await HttpManagerN.instance.executePost(
-      ApiRequest.saveOaidIdfa,
+      ApiRequest.appStart,
       jsonParam: {},
       paramEncrypt: false,
     );
     return result;
   }
+ 
 }

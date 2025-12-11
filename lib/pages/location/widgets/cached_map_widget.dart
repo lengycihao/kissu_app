@@ -26,53 +26,60 @@ class _CachedMapWidgetState extends State<CachedMapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      // 使用公共getter获取集合长度，避免频繁重建
-      final markersLength = widget.controller.markersLength;
-      final polylinesLength = widget.controller.polylinesLength;
+    // 使用GetBuilder替代Obx，实现精准更新（API文档推荐）
+    // 只监听markers和polylines的变化，不监听其他状态
+    return GetBuilder<LocationV2Controller>(
+      id: LocationV2Controller.markersUpdateId,
+      builder: (controller) {
+        // 使用公共getter获取集合长度，避免频繁重建
+        final markersLength = controller.markersLength;
+        final polylinesLength = controller.polylinesLength;
 
-      // 只有当标记或连接线数量发生变化时才重新构建
-      if (_lastMarkersLength != markersLength ||
-          _lastPolylinesLength != polylinesLength) {
-        _cachedMarkers = widget.controller.markers;
-        _cachedPolylines = widget.controller.polylines;
-        _lastMarkersLength = markersLength;
-        _lastPolylinesLength = polylinesLength;
+        // 只有当标记或连接线数量发生变化时才重新构建
+        if (_lastMarkersLength != markersLength ||
+            _lastPolylinesLength != polylinesLength) {
+          _cachedMarkers = controller.markers;
+          _cachedPolylines = controller.polylines;
+          _lastMarkersLength = markersLength;
+          _lastPolylinesLength = polylinesLength;
 
-        logDebug(
-          '🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}',
-          tag: 'CachedMapWidget',
-        );
-        if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
           logDebug(
-            '🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}',
+            '🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}',
             tag: 'CachedMapWidget',
           );
+          if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
+            logDebug(
+              '🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}',
+              tag: 'CachedMapWidget',
+            );
+          }
         }
-      }
 
-      // 根据控制器的mapType值转换为AMap的MapType
-      final mapType = widget.controller.mapType.value == 2
-          ? MapType.satellite
-          : MapType.normal;
+        // mapType使用Obx单独监听，避免影响地图主体
+        return Obx(() {
+          final mapType = controller.mapType.value == 2
+              ? MapType.satellite
+              : MapType.normal;
 
-      return RepaintBoundary(
-        child: SafeAMapWidget(
-          initialCameraPosition: widget.controller.initialCameraPosition,
-          onMapCreated: widget.controller.onMapCreated,
-          markers: _cachedMarkers ?? {},
-          polylines: _cachedPolylines ?? {},
-          compassEnabled: true,
-          scaleEnabled: true,
-          zoomGesturesEnabled: true,
-          scrollGesturesEnabled: true,
-          rotateGesturesEnabled: true,
-          tiltGesturesEnabled: true,
-          mapType: mapType,
-          buildingsEnabled: false, // 隐藏3D建筑物
-          // labelsEnabled: false, // 隐藏底图文字标注
-        ),
-      );
-    });
+          // 直接返回地图Widget，避免RepaintBoundary与硬件加速冲突
+          return SafeAMapWidget(
+            initialCameraPosition: controller.initialCameraPosition,
+            onMapCreated: controller.onMapCreated,
+            onMapDisposed: controller.onMapDisposed,
+            markers: _cachedMarkers ?? const {},
+            polylines: _cachedPolylines ?? const {},
+            compassEnabled: true,
+            scaleEnabled: true,
+            zoomGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            rotateGesturesEnabled: true,
+            tiltGesturesEnabled: true,
+            mapType: mapType,
+            buildingsEnabled: false, // 隐藏3D建筑物提升性能
+            // labelsEnabled: false, // 隐藏底图文字标注
+          );
+        });
+      },
+    );
   }
 }

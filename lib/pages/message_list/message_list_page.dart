@@ -25,6 +25,7 @@ class MessageListPage extends GetView<MessageListController> {
             children: [
               // 返回按钮
               GestureDetector(
+                behavior: HitTestBehavior.translucent,
                 onTap: controller.onBackTap,
                 child: Padding(
                   padding: const EdgeInsets.all(8),
@@ -190,6 +191,9 @@ class MessageListPage extends GetView<MessageListController> {
           // 内容区域
           Expanded(
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               child: Column(
                 children: [
                   // 通知开启提示

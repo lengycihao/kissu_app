@@ -72,6 +72,7 @@ class _KissuHomePageState extends State<KissuHomePage>
           // 背景图片的可滑动容器
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             controller: controller.scrollController,
             child: SizedBox(
               width: ScreenAdaptation.getDynamicContainerSize()

@@ -121,18 +121,6 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
                   // 选项列表
                   ..._buildReasonOptions(),
 
-                  const SizedBox(height: 16),
-
-                  // 其他原因输入框（一直显示）
-                  Text(
-                    _selectedReason?.needSupplement == true
-                        ? '补充说明（必填）'
-                        : '补充说明（选填）',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF666666),
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   Container(
                     height: 80,
@@ -280,32 +268,31 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
         children: [
           // 单选圆圈
           Container(
-            width: 18,
-            height: 18,
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected
-                    ? const Color(0xFFFF9DC4)
-                    : const Color(0xFFDDDDDD),
-                width: 2,
-              ),
+               
               color: Colors.white,
             ),
             child: isSelected
-                ? Center(
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFFFF9DC4),
-                      ),
+                ? Image(
+                    image: AssetImage(
+                      'assets/images/kissu_login_privite_sel.webp',
                     ),
+                    width: 12,
+                    height: 12,
+                    color: Color(0xffFF408D),
                   )
-                : null,
+                : Image(
+                    image: AssetImage(
+                      'assets/images/kissu_login_privite_unsel.webp',
+                    ),
+                    width: 12,
+                    height: 12,
+                    color: Color(0xffFF408D),
+                  )
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           // 选项文字
           Flexible(
             child: Text(

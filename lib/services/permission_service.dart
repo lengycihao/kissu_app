@@ -3,6 +3,7 @@ import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 
 /// 权限类型枚举
@@ -22,6 +23,9 @@ class PermissionService {
   static final PermissionService _instance = PermissionService._internal();
   factory PermissionService() => _instance;
   PermissionService._internal();
+
+  final DeviceInfoPlugin _deviceInfoPlugin = DeviceInfoPlugin();
+  int? _cachedAndroidSdkInt;
 
   /// 检查位置权限状态
   Future<bool> isLocationPermissionGranted() async {
@@ -53,7 +57,7 @@ class PermissionService {
     if (Platform.isAndroid) {
       return await Permission.ignoreBatteryOptimizations.isGranted;
     }
-    return true; // iOS不需要电池优化设置
+    return true; // 
   }
 
   /// 检查使用情况访问权限状态（Android）
@@ -75,16 +79,18 @@ class PermissionService {
   /// 检查相册权限状态
   Future<bool> isPhotosPermissionGranted() async {
     try {
-      // 🔧 Android 9及以下优先检查 Permission.storage
-      final storagePermission = _getStoragePermission();
-      final storageStatus = await storagePermission.status;
+      // 🔧 仅在需要时才检查传统存储权限，避免 Android 13+ 出现兼容性提示
+      if (await _shouldRequestLegacyStoragePermission()) {
+        final storagePermission = _getStoragePermission();
+        final storageStatus = await storagePermission.status;
 
-      if (storageStatus.isGranted) {
-        logger.debug("存储权限已授予（Android 9及以下）", tag: 'PermissionService');
-        return true;
+        if (storageStatus.isGranted) {
+          logger.debug("存储权限已授予（Android 12及以下）", tag: 'PermissionService');
+          return true;
+        }
       }
 
-      // Android 10+ 检查 Permission.photos
+      // Android 13+ 检查 Permission.photos
       final permission = _getPhotosPermission();
       final status = await permission.status;
       logger.debug("相册权限检查: $status", tag: 'PermissionService');
@@ -113,6 +119,40 @@ class PermissionService {
   /// 获取存储权限（Android 9及以下使用）
   Permission _getStoragePermission() {
     return Permission.storage;
+  }
+
+  Future<int?> _getAndroidSdkInt() async {
+    if (!Platform.isAndroid) {
+      return null;
+    }
+
+    if (_cachedAndroidSdkInt != null) {
+      return _cachedAndroidSdkInt;
+    }
+
+    try {
+      final androidInfo = await _deviceInfoPlugin.androidInfo;
+      _cachedAndroidSdkInt = androidInfo.version.sdkInt;
+      return _cachedAndroidSdkInt;
+    } catch (e) {
+      logger.warning("获取 Android 版本失败，回退到旧版权限策略", tag: 'PermissionService', error: e);
+      return null;
+    }
+  }
+
+  Future<bool> _shouldRequestLegacyStoragePermission() async {
+    if (!Platform.isAndroid) {
+      return false;
+    }
+
+    final sdkInt = await _getAndroidSdkInt();
+    if (sdkInt == null) {
+      // 版本信息获取失败时，保持旧逻辑以确保低版本设备可用
+      return true;
+    }
+
+    // Android 13(API 33)+ 使用 READ_MEDIA_*，低版本继续使用 READ_EXTERNAL_STORAGE
+    return sdkInt <= 32;
   }
 
   /// 根据权限类型检查权限状态
@@ -218,25 +258,26 @@ class PermissionService {
   /// 请求相册权限
   Future<bool> requestPhotosPermission() async {
     try {
-      // 🔧 Android 9及以下需要使用 Permission.storage 权限
-      // 先尝试 Permission.storage（适用于Android 9及以下）
-      final storagePermission = _getStoragePermission();
-      final storageStatus = await storagePermission.status;
+      // 🔧 Android 12及以下需要使用 Permission.storage 权限
+      if (await _shouldRequestLegacyStoragePermission()) {
+        final storagePermission = _getStoragePermission();
+        final storageStatus = await storagePermission.status;
 
-      if (!storageStatus.isGranted && !storageStatus.isPermanentlyDenied) {
-        logger.debug("开始申请存储权限（Android 9及以下）", tag: 'PermissionService');
-        final storageResult = await storagePermission.request();
+        if (!storageStatus.isGranted && !storageStatus.isPermanentlyDenied) {
+          logger.debug("开始申请存储权限（Android 12及以下）", tag: 'PermissionService');
+          final storageResult = await storagePermission.request();
 
-        if (storageResult.isGranted) {
-          logger.info("存储权限已获取（适用于Android 9及以下）", tag: 'PermissionService');
+          if (storageResult.isGranted) {
+            logger.info("存储权限已获取（适用于Android 12及以下）", tag: 'PermissionService');
+            return true;
+          }
+        } else if (storageStatus.isGranted) {
+          logger.info("存储权限已经获得（Android 12及以下）", tag: 'PermissionService');
           return true;
         }
-      } else if (storageStatus.isGranted) {
-        logger.info("存储权限已经获得（Android 9及以下）", tag: 'PermissionService');
-        return true;
       }
 
-      // 然后尝试 Permission.photos（适用于Android 10+）
+      // 然后尝试 Permission.photos（适用于Android 13+）
 
       final permission = _getPhotosPermission();
       logger.debug("开始申请相册权限，权限类型: $permission", tag: 'PermissionService');
@@ -299,6 +340,17 @@ class PermissionService {
     } catch (e) {
       logger.error('跳转应用设置失败: $e', tag: 'PermissionService', error: e);
       throw Exception('无法打开应用设置页面');
+    }
+  }
+
+  /// 跳转到手机系统设置主页
+  Future<void> openSystemSettingsPage() async {
+    try {
+      await PermissionHelper.openSystemSettings();
+    } catch (e) {
+      logger.error('跳转系统设置失败: $e',
+          tag: 'PermissionService', error: e);
+      throw Exception('无法打开系统设置页面');
     }
   }
 

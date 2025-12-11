@@ -24,7 +24,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/kissu_toast_bg.webp'), // 弹窗背景图
+                image: AssetImage('assets/dialog/kissu_toast_bg.webp'), // 弹窗背景图
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -68,7 +68,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/kissu_toast_bg.webp'), // 弹窗背景图
+                image: AssetImage('assets/dialog/kissu_toast_bg.webp'), // 弹窗背景图
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -112,7 +112,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/kissu_toast_bg.webp'),
+                image: AssetImage('assets/dialog/kissu_toast_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -163,7 +163,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/kissu_toast_bg.webp'),
+                image: AssetImage('assets/dialog/kissu_toast_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -217,7 +217,7 @@ class ToastDialog {
             height: height, // 设置弹窗的高度
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/kissu_toast_bg.webp'),
+                image: AssetImage('assets/dialog/kissu_toast_bg.webp'),
                 fit: BoxFit.cover,
               ),
               borderRadius: BorderRadius.circular(15),
@@ -482,7 +482,7 @@ class ToastDialog {
       alignment: Alignment.center,
       child: Text(
         title,
-        style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
+        style: TextStyle(fontSize: 14, color: Color(0xdd000000),fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -514,7 +514,7 @@ class ToastDialog {
         height: 45,
         margin: EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: Color(0xffFF7C98),
+          color: Color(0xffFF9AD9),
           borderRadius: BorderRadius.circular(25),
         ),
         child: Center(
@@ -565,7 +565,7 @@ class ToastDialog {
           child: Text(
             "放弃登录",
 
-            style: TextStyle(color: Color(0xffD4CECE), fontSize: 12),
+            style: TextStyle(color: Color(0xff999999), fontSize: 14),
           ),
         ),
       ),

@@ -250,15 +250,17 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
         return Stack(
           children: [
             Positioned(
-              top: 92,
-              right: 16,
+              top: 94,
+              right: 17,
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Color(0xffFFECEA)),
-                  borderRadius: BorderRadius.all(Radius.circular(15)),
-                ),
+                 decoration: BoxDecoration(
+                          color: Color(0xff5CC0FF),
+                          border: Border.all(color: Color(0xffffffff),width: 2),
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(15),
+                          ),
+                        ),
                 child: Text(
                   "在一起${controller.loveDays.value}天",
                   style: TextStyle(color: Color(0xff666666), fontSize: 12),
@@ -267,8 +269,8 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
             ),
             // 竖线
             Positioned(
-              top: 110,
-              right: 42,
+              top: 112,
+              right: 44,
               child: Image.asset(
                 'assets/3.0/kissu3_guide_line.webp',
                 width: 14,
@@ -279,7 +281,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
 
             // 文字和我知道了按钮
             Positioned(
-              top: 170,
+              top: 174,
               right: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,

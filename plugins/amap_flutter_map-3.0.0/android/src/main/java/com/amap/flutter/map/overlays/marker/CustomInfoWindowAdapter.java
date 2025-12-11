@@ -71,15 +71,28 @@ public class CustomInfoWindowAdapter implements AMap.InfoWindowAdapter {
         String markerId = marker.getId();
         MarkerInfoData infoData = markerInfoDataMap.get(markerId);
         
+        // 🎯 添加调试日志
+        android.util.Log.i("CustomInfoWindowAdapter", "getInfoWindow called for markerId: " + markerId);
+        android.util.Log.i("CustomInfoWindowAdapter", "markerInfoDataMap size: " + markerInfoDataMap.size());
+        android.util.Log.i("CustomInfoWindowAdapter", "infoData: " + (infoData != null ? "not null" : "null"));
+        if (infoData != null) {
+            android.util.Log.i("CustomInfoWindowAdapter", "hasCustomView: " + infoData.hasCustomView);
+            android.util.Log.i("CustomInfoWindowAdapter", "isTrackStyle: " + infoData.isTrackStyle);
+            android.util.Log.i("CustomInfoWindowAdapter", "locationName: " + infoData.locationName);
+        }
+        
         if (infoData == null || !infoData.hasCustomView) {
             // 没有自定义 InfoWindow，返回 null 使用默认样式
+            android.util.Log.w("CustomInfoWindowAdapter", "返回 null，使用系统默认 InfoWindow");
             return null;
         }
 
         // 根据样式类型返回不同的 InfoWindow
         if (infoData.isTrackStyle) {
+            android.util.Log.i("CustomInfoWindowAdapter", "创建轨迹样式 InfoWindow");
             return createTrackInfoWindow(infoData);
         } else {
+            android.util.Log.i("CustomInfoWindowAdapter", "创建普通样式 InfoWindow");
             return createCustomInfoWindow(infoData);
         }
     }

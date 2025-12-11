@@ -250,7 +250,7 @@ class FloatingTipsWidget extends StatelessWidget {
             children: [
               const SizedBox(width: 12),
               Image(
-                image: AssetImage('assets/4.0/kissu4_location_white.webp'),
+                image: AssetImage('assets/4.0/kissu4_location_vip.webp'),
                 width: 14,
                 height: 14,
               ),
@@ -261,7 +261,7 @@ class FloatingTipsWidget extends StatelessWidget {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '你的会员还有${tipsManager.vipExpiryText.value}到期！',
+                      tipsManager.vipExpiryText.value,
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFFffffff), // #333333

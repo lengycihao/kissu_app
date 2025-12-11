@@ -11,8 +11,10 @@ import 'package:kissu_app/pages/login/login_page.dart';
 import 'package:kissu_app/pages/vip/vip_page.dart';
 import 'package:kissu_app/pages/vip/forever_vip_page.dart';
 import 'package:kissu_app/pages/vip/forever_vip_controller.dart';
-import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/system_permission_binding.dart';
+import 'package:kissu_app/pages/mine/sub_pages/system_permission_controller.dart';
+import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/system_permission_guide_page.dart';
 import 'package:kissu_app/pages/permission_setting_page.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/pages/mine/love_info/avatar_preview_page.dart';
@@ -23,7 +25,6 @@ import 'package:kissu_app/pages/location/location_reminder/location_reminder_pag
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_binding.dart';
 import 'package:kissu_app/pages/anti_spy/anti_spy_page.dart';
 import 'package:kissu_app/pages/anti_spy/anti_spy_binding.dart';
-import 'package:kissu_app/pages/usage_settings/usage_settings_page.dart';
 import 'package:kissu_app/pages/message_list/message_list_page.dart';
 import 'package:kissu_app/pages/message_list/message_list_binding.dart';
 import 'package:kissu_app/pages/message_detail/message_detail_page.dart';
@@ -40,6 +41,8 @@ import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_page.dart';
 import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_binding.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
+import 'package:kissu_app/pages/mine/notification_settings/notification_settings_page.dart';
+import 'package:kissu_app/pages/mine/notification_settings/notification_settings_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -60,7 +63,8 @@ class KissuRoute {
       name: KissuRoutePath.home,
       page: () => KissuHomePage(),
       binding: HomeBinding(),
-      transition: Transition.leftToRight,
+      transition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 500),
     ),
     GetPage(
       name: KissuRoutePath.infoSetting,
@@ -96,6 +100,33 @@ class KissuRoute {
     GetPage(
       name: KissuRoutePath.systemPermission,
       page: () => const SystemPermissionPage(),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermissionPreventSleepGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.preventSleep,
+        title: '防止程序休眠',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermissionLockGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.lockInBackground,
+        title: '锁定程序后台',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermissionBackgroundGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.allowBackgroundRun,
+        title: '允许后台运行',
+      ),
       binding: SystemPermissionBinding(),
       transition: Transition.rightToLeft,
     ),
@@ -140,11 +171,11 @@ class KissuRoute {
       binding: AntiSpyBinding(),
       transition: Transition.rightToLeft,
     ),
-    GetPage(
-      name: KissuRoutePath.usageSettings,
-      page: () => const UsageSettingsPage(),
-      transition: Transition.rightToLeft,
-    ),
+    // GetPage(
+    //   name: KissuRoutePath.usageSettings,
+    //   page: () => const UsageSettingsPage(),
+    //   transition: Transition.rightToLeft,
+    // ),
     GetPage(
       name: KissuRoutePath.messageList,
       page: () => const MessageListPage(),
@@ -195,6 +226,12 @@ class KissuRoute {
       name: KissuRoutePath.appUsage,
       page: () => const AppUsagePage(),
       binding: AppUsageBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.notificationSettings,
+      page: () => const NotificationSettingsPage(),
+      binding: NotificationSettingsBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

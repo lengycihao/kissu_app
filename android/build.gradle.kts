@@ -25,9 +25,16 @@ buildscript {
             isAllowInsecureProtocol = false
         }
         
+        
         // Maven Central
         mavenCentral()
         gradlePluginPortal()
+    }
+    dependencies {
+        // Android Gradle Plugin（供 AGConnect 插件依赖检查）
+        classpath("com.android.tools.build:gradle:8.6.1")
+        // 华为 AGConnect 配置插件（用于 agconnect-services.json）
+        classpath("com.huawei.agconnect:agcp:1.9.1.301")
     }
 }
 
@@ -99,8 +106,8 @@ subprojects {
                 compileSdkVersion(36)  // Android 16 (API 36)
                 
                 defaultConfig {
-                    minSdk = 24  // 符合Flutter最新要求的最小SDK版本
-                    targetSdk = 36  // Android 16 (API 36)
+                    minSdkVersion(24)    // 符合Flutter最新要求的最小SDK版本
+                    targetSdkVersion(36) // Android 16 (API 36)
                 }
             }
         }

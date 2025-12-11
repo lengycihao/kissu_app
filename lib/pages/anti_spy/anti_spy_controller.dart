@@ -11,6 +11,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'widgets/radar_selector.dart';
 import '../../utils/permission_helper.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 信号量类，用于控制并发数量
 class Semaphore {
@@ -1373,12 +1374,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       // 如果原生方法失败，尝试使用 url_launcher 打开设置
       try {
         // 这里可以添加备用方案，比如显示提示信息
-        Get.snackbar(
-          "提示", 
-          "请手动前往系统设置 > WiFi 连接网络",
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 3),
-        );
+        OKToastUtil.show("请手动前往系统设置 > WiFi 连接网络");
       } catch (e2) {
         logError("显示提示信息也失败: $e2", tag: 'AntiSpy', error: e2);
       }

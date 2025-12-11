@@ -1,378 +1,283 @@
 package com.yuluo.kissu
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.provider.Settings
 import android.util.Log
-import android.app.usage.UsageStats
-import android.app.usage.UsageStatsManager
-import android.graphics.drawable.BitmapDrawable
-import java.io.ByteArrayOutputStream
-import java.net.URLEncoder
-import java.security.MessageDigest
-import java.security.NoSuchAlgorithmException
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.EventChannel
-import io.flutter.plugins.GeneratedPluginRegistrant
-import android.location.LocationManager
+import com.tencent.mm.opensdk.modelbase.BaseResp
+import com.tencent.mm.opensdk.openapi.IWXAPIEventHandler
 import com.umeng.analytics.MobclickAgent
 import com.umeng.commonsdk.UMConfigure
 import com.umeng.socialize.PlatformConfig
-import com.umeng.socialize.ShareAction
 import com.umeng.socialize.UMShareAPI
-import com.umeng.socialize.UMShareListener
-import com.umeng.socialize.bean.SHARE_MEDIA
-import com.umeng.socialize.media.UMImage
-import com.umeng.socialize.media.UMWeb
-// import com.amap.api.location.AMapLocationClient
-import com.alipay.sdk.app.PayTask
-import com.tencent.mm.opensdk.modelpay.PayReq
-import com.tencent.mm.opensdk.openapi.WXAPIFactory
-import com.tencent.mm.opensdk.openapi.IWXAPI
-import com.tencent.mm.opensdk.openapi.IWXAPIEventHandler
-import com.tencent.mm.opensdk.modelbase.BaseResp
-import com.tencent.mm.opensdk.modelpay.PayResp
-import com.tencent.mm.opensdk.constants.ConstantsAPI
-import kotlinx.coroutines.*
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.IntentFilter
+import com.yuluo.kissu.handlers.*
+import com.amap.api.maps.MapsInitializer
 
 class MainActivity : FlutterActivity(), IWXAPIEventHandler {
-    companion object {
-        // 🔥 Flutter 引擎存活标记
+   companion object {
+        private const val TAG = "MainActivity"
+        
+        // Flutter 引擎存活标记
         @Volatile
         var isFlutterEngineAlive = false
+        
+        // 通道名称
+        private const val CHANNEL = "app.location/settings"
+        private const val WECHAT_CHANNEL = "app.wechat/launch"
+        private const val FOREGROUND_SERVICE_CHANNEL = "kissu_app/foreground_service"
+        private const val SHARE_CHANNEL = "app.share/invoke"
+        private const val UMSHARE_CHANNEL = "umshare"
+        private const val UMENG_ANALYTICS_CHANNEL = "umeng_analytics"
+        private const val PAYMENT_CHANNEL = "kissu_payment"
+        private const val APP_INFO_CHANNEL = "kissu_app/app_info"
+        private const val WHITELIST_CHANNEL = "kissu_app/whitelist"
+        private const val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
+        private const val SCREEN_LOCK_CHANNEL = "kissu_app/screen_lock"
+        private const val APP_USAGE_CHANNEL = "app_usage_channel"
+        private const val APP_ICON_CHANNEL = "app_icon_channel"
+        private const val PUSH_BRING_FRONT_CHANNEL = "app.push/bring_to_front"
     }
     
-    private val CHANNEL = "app.location/settings"
-    private val WECHAT_CHANNEL = "app.wechat/launch"
-    private val FOREGROUND_SERVICE_CHANNEL = "kissu_app/foreground_service"
-    private val SHARE_CHANNEL = "app.share/invoke"
-    private val UMSHARE_CHANNEL = "umshare"
-    private val UMENG_ANALYTICS_CHANNEL = "umeng_analytics"
-    private val PAYMENT_CHANNEL = "kissu_payment"
-    private val APP_INFO_CHANNEL = "kissu_app/app_info"
-    private val WHITELIST_CHANNEL = "kissu_app/whitelist"
-    private val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
-    private val SCREEN_LOCK_CHANNEL = "kissu_app/screen_lock"
-    private val APP_USAGE_CHANNEL = "app_usage_channel"
-    private val APP_ICON_CHANNEL = "app_icon_channel"
+    // 各功能处理器
+    private lateinit var paymentHandler: PaymentHandler
+    private lateinit var shareHandler: ShareHandler
+    private lateinit var appUsageHandler: AppUsageHandler
+    private lateinit var locationHandler: LocationHandler
+    // private lateinit var appInfoHandler: AppInfoHandler
+    private lateinit var systemHandler: SystemHandler
+    private lateinit var analyticsHandler: AnalyticsHandler
+    private lateinit var foregroundServiceHandler: ForegroundServiceHandler
     
-    // 微信支付API
-    private var wxApi: IWXAPI? = null
+    // 微信 API 实例（用于企业微信客服）
+    private var wxApi: com.tencent.mm.opensdk.openapi.IWXAPI? = null
     
-    private var paymentMethodChannel: MethodChannel? = null
-    
-    // GPS状态监听器
-    private var gpsStatusReceiver: GpsStatusReceiver? = null
-    
-    // 锁屏/解锁状态监听器
-    private var screenLockReceiver: ScreenLockReceiver? = null
-    
-    // 支付结果等待器
-    private var paymentResultCompleter: ((Boolean, String) -> Unit)? = null
-    
-    // 🔧 支付超时定时器 Job（用于取消超时）
-    private var paymentTimeoutJob: Job? = null
-    
-    // 支付结果广播接收器
-    private val paymentResultReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "kissu.payment.result") {
-                val success = intent.getBooleanExtra("success", false)
-                val message = intent.getStringExtra("message") ?: ""
-                val timestamp = intent.getLongExtra("timestamp", 0)
-                val isRetry = intent.getBooleanExtra("retry", false)
-                
-                Log.d("MainActivity", "收到支付结果广播: success=$success, message=$message, timestamp=$timestamp, isRetry=$isRetry")
-                
-                // 立即处理支付结果，确保用户取消支付时能立即得到反馈
-                if (paymentResultCompleter != null) {
-                    Log.d("MainActivity", "立即通知支付结果: success=$success, message=$message")
-                    paymentResultCompleter?.invoke(success, message)
-                    paymentResultCompleter = null
-                } else {
-                    Log.w("MainActivity", "收到支付结果但无等待的回调: success=$success, message=$message")
-                    // 如果没有等待的回调，可能是状态异常，尝试通过MethodChannel直接通知Flutter
-                    if (!success) {
-                        Log.d("MainActivity", "尝试通过MethodChannel直接通知Flutter支付失败")
-                        try {
-                            runOnUiThread {
-                                paymentMethodChannel?.invokeMethod("onPaymentResult", mapOf(
-                                    "success" to success,
-                                    "message" to message
-                                ))
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "通过MethodChannel通知Flutter失败", e)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 🔥 标记 Flutter 引擎已启动
-        isFlutterEngineAlive = true
-        Log.d("MainActivity", "🚀 Flutter 引擎已启动")
+        // 🔥 禁用MainActivity的LAUNCHER能力，避免与MainActivityDefault冲突导致双图标
+         
+        // 🔒 高德地图隐私合规（SDK 8.1.0+ 强制要求）
+        // 📝 必须在使用任何高德SDK功能之前调用
+        initAmapPrivacy()
         
-        // 设置高德地图隐私合规
-        setupAmapPrivacyCompliance()
+        // 🔥 处理OpenInstall的Intent（必须在handleNotificationIntent之前）
+        handleOpenInstallIntent(intent)
         
-        // 打印SHA1值用于调试高德地图配置
-        printSHA1()
+        // 处理从通知启动的情况
+        handleNotificationIntent(intent)
         
-        // 设置QQ权限 - 关键配置！
+        Log.d(TAG, "MainActivity onCreate")
+
+        // 🔥 兜底：应用启动即尝试拉起前台定位/上报服务（即使 Flutter 未调用）
         try {
-            val tencentClass = Class.forName("com.tencent.tauth.Tencent")
-            val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-            setIsPermissionGrantedMethod.invoke(null, true)
-            Log.d("MainActivity", "QQ权限设置成功")
+            val config = mapOf(
+                "title" to "Kissu",
+                "content" to "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭",
+                "channel_id" to "kissu_location_service",
+                "channel_name" to "定位服务",
+                "channel_description" to "位置与事件上报保活",
+                "notification_id" to 1001,
+                "icon" to "ic_launcher",
+                "priority" to 2,
+                "importance" to "high",
+                "ongoing" to true,
+                "auto_cancel" to false,
+                "enable_vibration" to false,
+                "enable_sound" to false
+            )
+            ForegroundLocationService.startService(this, config)
+            Log.d(TAG, "兜底启动前台定位服务已触发")
         } catch (e: Exception) {
-            Log.e("MainActivity", "设置QQ权限失败", e)
-        }
-        
-        // 注册支付结果广播接收器
-        val filter = IntentFilter("kissu.payment.result")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ 需要明确指定RECEIVER_NOT_EXPORTED
-            registerReceiver(paymentResultReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(paymentResultReceiver, filter)
-        }
-        Log.d("MainActivity", "支付结果广播接收器已注册")
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        
-        // 🔥 标记 Flutter 引擎已销毁
-        isFlutterEngineAlive = false
-        Log.d("MainActivity", "💀 Flutter 引擎已销毁")
-        
-        try {
-            unregisterReceiver(paymentResultReceiver)
-            Log.d("MainActivity", "支付结果广播接收器已注销")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "注销广播接收器失败", e)
-        }
-        
-        // 注销GPS状态接收器
-        try {
-            gpsStatusReceiver?.let { 
-                unregisterReceiver(it)
-                gpsStatusReceiver = null
-                GpsStatusReceiver.eventSink = null
-                Log.d("MainActivity", "GPS状态接收器已注销")
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "注销GPS状态接收器失败", e)
-        }
-        
-        // 注销锁屏状态接收器
-        try {
-            screenLockReceiver?.let { 
-                unregisterReceiver(it)
-                screenLockReceiver = null
-                ScreenLockReceiver.setEventSink(null)
-                Log.d("MainActivity", "锁屏状态接收器已注销")
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "注销锁屏状态接收器失败", e)
+            Log.e(TAG, "兜底启动前台定位服务失败", e)
         }
     }
     
     /**
-     * 设置高德地图隐私合规
-     * 注意：由于使用Flutter高德地图插件，隐私合规应该在Flutter层面处理
+     * 处理OpenInstall的Intent
+     * 用于处理通过OpenInstall链接打开应用的情况
      */
-    private fun setupAmapPrivacyCompliance() {
-        try {
-            // 注释掉原生API调用，因为使用了Flutter插件
-            // AMapLocationClient.updatePrivacyShow(this, true, true)
-            // AMapLocationClient.updatePrivacyAgree(this, true)
-            // AMapLocationClient.setApiKey("38edb925a25f22e3aae2f86ce7f2ff3b")
-            
-            Log.d("MainActivity", "高德地图隐私合规设置跳过（使用Flutter插件）")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "高德地图隐私合规设置失败: ${e.message}")
+    private fun handleOpenInstallIntent(intent: Intent?) {
+        intent?.let {
+            // 检查是否是OpenInstall的scheme
+            val data = it.data
+            if (data != null && data.scheme == "eb24o3") {
+                Log.d(TAG, "🔔 检测到OpenInstall Intent")
+                Log.d(TAG, "  - Scheme: ${data.scheme}")
+                Log.d(TAG, "  - Host: ${data.host}")
+                Log.d(TAG, "  - Path: ${data.path}")
+                Log.d(TAG, "  - Query: ${data.query}")
+                Log.d(TAG, "  - Full URI: ${data.toString()}")
+                
+                // 打印所有extras
+                it.extras?.let { extras ->
+                    Log.d(TAG, "  - Extras:")
+                    for (key in extras.keySet()) {
+                        Log.d(TAG, "    - $key: ${extras.get(key)}")
+                    }
+                }
+            }
         }
     }
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        Log.d("MainActivity", "🔧 configureFlutterEngine 开始执行...")
-        super.configureFlutterEngine(flutterEngine)
-        Log.d("MainActivity", "🔧 super.configureFlutterEngine 完成")
-        
-        // Flutter 3.16+ 使用自动插件注册，手动注册可能导致重复注册
-        // 如果遇到插件重复注册警告，可以移除此代码块
-        // 保留注释以说明历史原因
-        /*
+    
+    /**
+     * 处理从通知启动的Intent
+     * 用于处理小米厂商通道等离线通知点击
+     * 参考极光官方文档：厂商通道使用 JMessageExtra 获取参数
+     */
+    private fun handleNotificationIntent(intent: Intent?) {
+        intent?.let {
+            var jpushExtras: String? = null
+            
+            // 1. 优先检查厂商通道参数（小米、vivo、OPPO、FCM、魅族、荣耀、极光通道）
+            // SDK ≥ 4.6.0 版本，厂商通道使用 JMessageExtra
+            val jMessageExtra = it.extras?.getString("JMessageExtra")
+            if (!jMessageExtra.isNullOrEmpty()) {
+                jpushExtras = jMessageExtra
+                Log.d(TAG, "从通知启动（厂商通道）- JMessageExtra: $jpushExtras")
+            }
+            
+            // 2. 检查华为通道参数（使用 getData）
+            if (jpushExtras.isNullOrEmpty() && it.data != null) {
+                jpushExtras = it.data.toString()
+                Log.d(TAG, "从通知启动（华为通道）- getData: $jpushExtras")
+            }
+            
+            // 3. 检查极光通道参数（自定义的 jpush_extras）
+            if (jpushExtras.isNullOrEmpty()) {
+                jpushExtras = it.getStringExtra("jpush_extras")
+                if (!jpushExtras.isNullOrEmpty()) {
+                    Log.d(TAG, "从通知启动（极光通道）- jpush_extras: $jpushExtras")
+                }
+            }
+            
+            // 4. 检查其他可能的参数
+            if (jpushExtras.isNullOrEmpty()) {
+                val extras = it.extras
+                if (extras != null) {
+                    // 尝试从 extras 中获取所有可能的极光相关参数
+                    for (key in extras.keySet()) {
+                        if (key.contains("jpush", ignoreCase = true) || 
+                            key.contains("JPush", ignoreCase = true) ||
+                            key.contains("extra", ignoreCase = true)) {
+                            val value = extras.get(key)?.toString()
+                            if (!value.isNullOrEmpty()) {
+                                Log.d(TAG, "从通知启动 - 找到参数: $key = $value")
+                                if (jpushExtras.isNullOrEmpty()) {
+                                    jpushExtras = value
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!jpushExtras.isNullOrEmpty()) {
+                Log.d(TAG, "最终获取到的通知参数: $jpushExtras")
+                // 这里可以将数据传递给Flutter层处理
+                // 可以通过MethodChannel或者EventChannel传递给Flutter
+            } else {
+                Log.d(TAG, "未找到通知参数，可能是普通启动")
+            }
+        }
+    }
+    
+ 
+    
+    /**
+     * 初始化高德地图隐私合规
+     * 📝 SDK 8.1.0+ 强制要求，否则地图无法正常使用
+     */
+    private fun initAmapPrivacy() {
         try {
-            GeneratedPluginRegistrant.registerWith(flutterEngine)
-        } catch (_: Throwable) {
-            // Safe no-op
+            // 设置已经显示隐私政策（true表示已向用户展示）
+            MapsInitializer.updatePrivacyShow(this, true, true)
+            // 设置已经同意隐私政策（true表示用户已同意）
+            MapsInitializer.updatePrivacyAgree(this, true)
+            Log.d(TAG, "✅ 高德地图隐私合规初始化成功")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 高德地图隐私合规初始化失败", e)
         }
-        */
-
-        // GPS状态监听通道（EventChannel）
-        Log.d("MainActivity", "🔧 开始注册GPS状态通道...")
-        val gpsEventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, GPS_STATUS_CHANNEL)
-        gpsEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
-            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                Log.d("MainActivity", "📍 GPS状态监听已启动")
-                
-                // 设置EventSink到GpsStatusReceiver
-                GpsStatusReceiver.eventSink = events
-                
-                // 创建并注册GPS状态广播接收器
-                gpsStatusReceiver = GpsStatusReceiver()
-                val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(gpsStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    registerReceiver(gpsStatusReceiver, filter)
-                }
-                
-                // 立即发送当前GPS状态
-                val currentStatus = gpsStatusReceiver?.getCurrentGpsStatus(this@MainActivity) ?: false
-                events?.success(currentStatus)
-                Log.d("MainActivity", "✅ GPS状态监听已注册，当前状态: ${if (currentStatus) "开启" else "关闭"}")
-            }
-            
-            override fun onCancel(arguments: Any?) {
-                Log.d("MainActivity", "📍 GPS状态监听已取消")
-                
-                // 注销广播接收器
-                try {
-                    gpsStatusReceiver?.let { unregisterReceiver(it) }
-                    gpsStatusReceiver = null
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "❌ 注销GPS状态接收器失败: ${e.message}")
-                }
-                
-                // 清除EventSink
-                GpsStatusReceiver.eventSink = null
-            }
-        })
-        Log.d("MainActivity", "✅ GPS状态通道注册完成")
+    }
+    
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
         
-        // 锁屏/解锁状态监听通道（EventChannel）
-        Log.d("MainActivity", "🔧 开始注册锁屏状态通道...")
-        val screenLockEventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, SCREEN_LOCK_CHANNEL)
-        screenLockEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
-            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                Log.d("MainActivity", "🔒 锁屏状态监听已启动")
-                
-                // 设置EventSink到ScreenLockReceiver
-                ScreenLockReceiver.setEventSink(events)
-                
-                // 创建并注册锁屏状态广播接收器
-                screenLockReceiver = ScreenLockReceiver()
-                val filter = IntentFilter().apply {
-                    addAction(Intent.ACTION_SCREEN_OFF)           // 锁屏事件
-                    addAction(Intent.ACTION_SCREEN_ON)            // 屏幕亮起事件（用于检测快速解锁）
-                    addAction(Intent.ACTION_USER_PRESENT)         // 解锁事件（传统方式）
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        addAction(Intent.ACTION_USER_UNLOCKED)    // Android 7.0+ 用户已解锁（包含设备启动后首次解锁）
-                    }
-                }
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(screenLockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    registerReceiver(screenLockReceiver, filter)
-                }
-                
-                Log.d("MainActivity", "✅ 锁屏状态接收器已注册")
-            }
-            
-            override fun onCancel(arguments: Any?) {
-                Log.d("MainActivity", "🔒 锁屏状态监听已取消")
-                
-                // 注销广播接收器
-                try {
-                    screenLockReceiver?.let { 
-                        unregisterReceiver(it)
-                        screenLockReceiver = null
-                        Log.d("MainActivity", "✅ 锁屏状态接收器已注销")
-                    }
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "❌ 注销锁屏状态接收器失败: ${e.message}")
-                }
-                
-                // 清除EventSink
-                ScreenLockReceiver.setEventSink(null)
-            }
-        })
-        Log.d("MainActivity", "✅ 锁屏状态通道注册完成")
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "openNotificationSettings" -> {
-                    openNotificationSettings()
-                    result.success(null)
-                }
-                "openLocationSettings" -> {
-                    openLocationSettings()
-                    result.success(null)
-                }
-                "openBatteryOptimizationSettings" -> {
-                    openBatteryOptimizationSettings()
-                    result.success(null)
-                }
-                "openUsageAccessSettings" -> {
-                    openUsageAccessSettings()
-                    result.success(null)
-                }
-                "openWifiSettings" -> {
-                    openWifiSettings()
-                    result.success(null)
-                }
-                "openAppSettings" -> {
-                    openAppSettings()
-                    result.success(null)
-                }
-                else -> {
-                    result.notImplemented()
-                }
-            }
+        isFlutterEngineAlive = true
+        Log.d(TAG, "Flutter引擎配置开始")
+        
+        // 初始化所有处理器
+        initializeHandlers(flutterEngine)
+        
+        // 注册所有通道
+        registerChannels(flutterEngine)
+        
+        Log.d(TAG, "Flutter引擎配置完成")
+    }
+    
+    /**
+     * 初始化所有处理器
+     */
+    private fun initializeHandlers(flutterEngine: FlutterEngine) {
+        paymentHandler = PaymentHandler(this)
+        shareHandler = ShareHandler(this)
+        appUsageHandler = AppUsageHandler(this)
+        locationHandler = LocationHandler(this)
+        // appInfoHandler = AppInfoHandler(this)
+        systemHandler = SystemHandler(this)
+        analyticsHandler = AnalyticsHandler(this)
+        foregroundServiceHandler = ForegroundServiceHandler(this)
+        
+        // 初始化需要初始化的处理器
+        paymentHandler.initialize()
+        locationHandler.initialize(EventChannel(flutterEngine.dartExecutor.binaryMessenger, GPS_STATUS_CHANNEL))
+        systemHandler.initialize(EventChannel(flutterEngine.dartExecutor.binaryMessenger, SCREEN_LOCK_CHANNEL))
+    }
+    
+    /**
+     * 注册所有通道
+     */
+    private fun registerChannels(flutterEngine: FlutterEngine) {
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+        
+        // 定位设置通道
+        MethodChannel(messenger, CHANNEL).setMethodCallHandler { call, result ->
+            locationHandler.handleMethodCall(call, result)
         }
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WECHAT_CHANNEL).setMethodCallHandler { call, result ->
+        
+        // 微信启动通道
+        MethodChannel(messenger, WECHAT_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "launchWechat" -> {
+                    val url = call.argument<String>("url") ?: ""
+                    launchWechat(url)
+                    result.success(null)
+                }
                 "openWeComKfWithParams" -> {
-                    Log.d("MainActivity", "📞 收到 openWeComKfWithParams 调用")
+                    Log.d(TAG, "收到 openWeComKfWithParams 调用")
                     val corpId = call.argument<String>("corpId")
                     val agentId = call.argument<String>("agentId")
                     val kfId = call.argument<String>("kfId")
                     
-                    Log.d("MainActivity", "参数: corpId=$corpId, agentId=$agentId, kfId=$kfId")
+                    Log.d(TAG, "参数: corpId=$corpId, agentId=$agentId, kfId=$kfId")
                     
                     if (corpId.isNullOrEmpty() || kfId.isNullOrEmpty()) {
-                        Log.e("MainActivity", "❌ 参数错误")
+                        Log.e(TAG, "参数错误")
                         result.error("INVALID_ARGS", "corpId and kfId are required", null)
                         return@setMethodCallHandler
                     }
                     
                     try {
-                        Log.d("MainActivity", "开始调用 openWeComKfWithParams")
+                        Log.d(TAG, "开始调用 openWeComKfWithParams")
                         openWeComKfWithParams(corpId, agentId, kfId)
-                        Log.d("MainActivity", "✅ openWeComKfWithParams 调用成功")
+                        Log.d(TAG, "openWeComKfWithParams 调用成功")
                         result.success(null)
                     } catch (e: Exception) {
-                        Log.e("MainActivity", "❌ openWeComKfWithParams 失败: ${e.message}", e)
+                        Log.e(TAG, "openWeComKfWithParams 失败: ${e.message}", e)
                         result.error("OPEN_KF_FAILED", e.message, null)
                     }
                 }
@@ -381,950 +286,235 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     if (text.isBlank()) {
                         result.error("INVALID_ARGS", "text is empty", null)
                     } else {
-                        val ok = shareTextToWeChat(text)
-                        result.success(ok)
+                        shareHandler.shareTextToWeChat(text, result)
                     }
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // 原生分享通道：用于 QQ 文本分享（通过 Intent 调起 QQ 文本分享界面）
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "shareToQQText" -> {
-                    val text = call.argument<String>("text") ?: ""
-                    if (text.isBlank()) {
-                        result.error("INVALID_ARGS", "text is empty", null)
-                        return@setMethodCallHandler
-                    }
-                    val ok = shareTextToQQ(text)
-                    result.success(ok)
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // 友盟分享通道
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UMSHARE_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "umInit" -> {
-                    val appKey = call.argument<String>("appKey") ?: ""
-                    val channel = call.argument<String>("channel") ?: "Umeng"
-                    val logEnabled = call.argument<Boolean>("logEnabled") ?: false
-                    initUMengSDK(appKey, channel, logEnabled)
-                    result.success(null)
-                }
-                "platformConfig" -> {
-                    val qqAppKey = call.argument<String>("qqAppKey") ?: ""
-                    val qqAppSecret = call.argument<String>("qqAppSecret") ?: ""
-                    val weChatAppId = call.argument<String>("weChatAppId") ?: ""
-                    val weChatFileProvider = call.argument<String>("weChatFileProvider") ?: ""
-                    configPlatforms(qqAppKey, qqAppSecret, weChatAppId, weChatFileProvider)
-                    result.success(null)
-                }
-                "setPrivacyPolicy" -> {
-                    val granted = call.argument<Boolean>("granted") ?: true
-                    setUMengPrivacyPolicy(granted)
-                    result.success(null)
-                }
-                "umCheckInstall" -> {
-                    val platform = call.arguments as? Int ?: 0
-                    val isInstalled = checkPlatformInstall(platform)
-                    result.success(mapOf("isInstalled" to isInstalled))
-                }
-                "checkQQInstallBackup" -> {
-                    val isInstalled = checkQQInstallBackup()
-                    result.success(mapOf("isInstalled" to isInstalled))
-                }
-                "umShare" -> {
-                    val title = call.argument<String>("title") ?: ""
-                    val text = call.argument<String>("text") ?: ""
-                    val img = call.argument<String>("img") ?: ""
-                    val weburl = call.argument<String>("weburl") ?: ""
-                    val sharemedia = call.argument<Int>("sharemedia") ?: 0
-                    umengShare(title, text, img, weburl, sharemedia, result)
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // 友盟统计通道
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UMENG_ANALYTICS_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "umeng_init" -> {
-                    val appKey = call.argument<String>("appKey") ?: "6879fba679267e0210b67bde"
-                    val channel = call.argument<String>("channel") ?: "Umeng"
-                    val logEnabled = call.argument<Boolean>("logEnabled") ?: false
-                    try {
-                        // 🔒 友盟合规：先调用 preInit 预初始化
-                        UMConfigure.preInit(this, appKey, channel)
-                        
-                        // 正式初始化友盟统计
-                        UMConfigure.init(this, appKey, channel, UMConfigure.DEVICE_TYPE_PHONE, null)
-                        
-                        if (logEnabled) {
-                            UMConfigure.setLogEnabled(true)
-                        }
-                        
-                        Log.d("MainActivity", "友盟统计初始化成功: appKey=$appKey, channel=$channel")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "友盟统计初始化失败", e)
-                        result.error("INIT_ERROR", e.message, null)
-                    }
-                }
-                "umeng_submitPolicyGrantResult" -> {
-                    val granted = call.argument<Boolean>("granted") ?: true
-                    try {
-                        // 🔒 友盟合规：提交隐私政策授权结果
-                        UMConfigure.submitPolicyGrantResult(this, granted)
-                        Log.d("MainActivity", "友盟隐私政策授权已提交: granted=$granted")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "友盟隐私政策授权提交失败", e)
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_setSessionContinue" -> {
-                    val enabled = call.argument<Boolean>("enabled") ?: true
-                    try {
-                        MobclickAgent.setSessionContinueMillis(if (enabled) 30000 else 0)
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_pageStart" -> {
-                    val pageName = call.argument<String>("pageName") ?: ""
-                    try {
-                        MobclickAgent.onPageStart(pageName)
-                        Log.d("UmengAnalytics", "页面开始: $pageName")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_pageEnd" -> {
-                    val pageName = call.argument<String>("pageName") ?: ""
-                    try {
-                        MobclickAgent.onPageEnd(pageName)
-                        Log.d("UmengAnalytics", "页面结束: $pageName")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_logEvent" -> {
-                    val eventId = call.argument<String>("eventId") ?: ""
-                    try {
-                        MobclickAgent.onEvent(this, eventId)
-                        Log.d("UmengAnalytics", "事件: $eventId")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_logEventWithParams" -> {
-                    val eventId = call.argument<String>("eventId") ?: ""
-                    val params = call.argument<Map<String, String>>("params") ?: mapOf()
-                    try {
-                        MobclickAgent.onEvent(this, eventId, params)
-                        Log.d("UmengAnalytics", "事件(带参数): $eventId, params=$params")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_logEventWithValue" -> {
-                    val eventId = call.argument<String>("eventId") ?: ""
-                    val value = call.argument<Int>("value") ?: 0
-                    try {
-                        val params = mapOf("value" to value.toString())
-                        MobclickAgent.onEventValue(this, eventId, params, value)
-                        Log.d("UmengAnalytics", "事件(带数值): $eventId, value=$value")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_logEventWithParamsAndValue" -> {
-                    val eventId = call.argument<String>("eventId") ?: ""
-                    val params = call.argument<Map<String, String>>("params") ?: mapOf()
-                    val value = call.argument<Int>("value") ?: 0
-                    try {
-                        MobclickAgent.onEventValue(this, eventId, params, value)
-                        Log.d("UmengAnalytics", "事件(带参数和数值): $eventId, params=$params, value=$value")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_setUserId" -> {
-                    val userId = call.argument<String>("userId") ?: ""
-                    try {
-                        MobclickAgent.onProfileSignIn(userId)
-                        Log.d("UmengAnalytics", "设置用户ID: $userId")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_clearUserId" -> {
-                    try {
-                        MobclickAgent.onProfileSignOff()
-                        Log.d("UmengAnalytics", "清除用户ID")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_setUserProfile" -> {
-                    // 注意：友盟统计 Android SDK 不支持直接设置自定义用户属性
-                    // 如需记录用户属性，建议通过事件参数的方式上报
-                    // 例如：MobclickAgent.onEvent(context, "user_profile_update", properties)
-                    Log.d("UmengAnalytics", "友盟不支持setUserProfile，改用事件方式记录用户属性")
-                    result.success(null)
-                }
-                "umeng_flush" -> {
-                    try {
-                        // 友盟会自动上报，这里只是触发一次刷新
-                        Log.d("UmengAnalytics", "手动上报数据")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                "umeng_setScenarioType" -> {
-                    val enabled = call.argument<Boolean>("enabled") ?: false
-                    try {
-                        // 设置场景类型（普通统计模式 vs 游戏统计模式）
-                        // 普通应用使用 E_UM_NORMAL
-                        MobclickAgent.setScenarioType(this, if (enabled) MobclickAgent.EScenarioType.E_UM_GAME else MobclickAgent.EScenarioType.E_UM_NORMAL)
-                        Log.d("UmengAnalytics", "设置场景类型: ${if (enabled) "游戏模式" else "普通模式"}")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("ERROR", e.message, null)
-                    }
-                }
-                // 注意：umeng_eventBegin 和 umeng_eventEnd 已废弃
-                // 现在在 Dart 层面计算时长，然后使用普通的 trackEvent 上报
-                else -> result.notImplemented()
-            }
-        }
-
-        // 支付通道
-        paymentMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PAYMENT_CHANNEL)
-        paymentMethodChannel?.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "initWechat" -> {
-                    val appId = call.argument<String>("appId") ?: ""
-                    initWechatPay(appId)
-                    result.success(null)
-                }
-                "isWechatInstalled" -> {
-                    val isInstalled = isWechatAppInstalled()
-                    result.success(isInstalled)
-                }
-                "payWithWechat" -> {
-                    val appId = call.argument<String>("appId") ?: ""
-                    val partnerId = call.argument<String>("partnerId") ?: ""
-                    val prepayId = call.argument<String>("prepayId") ?: ""
-                    val packageValue = call.argument<String>("packageValue") ?: ""
-                    val nonceStr = call.argument<String>("nonceStr") ?: ""
-                    val timeStamp = call.argument<String>("timeStamp") ?: ""
-                    val sign = call.argument<String>("sign") ?: ""
-                    Log.d("MainActivity", "收到微信支付请求，参数: appId=$appId, partnerId=$partnerId, prepayId=$prepayId")
-                    payWithWechat(appId, partnerId, prepayId, packageValue, nonceStr, timeStamp, sign, result)
-                }
-                "isAlipayInstalled" -> {
-                    val isInstalled = isAlipayAppInstalled()
-                    result.success(isInstalled)
-                }
-                "payWithAlipay" -> {
-                    val orderInfo = call.argument<String>("orderInfo") ?: ""
-                    Log.d("MainActivity", "收到支付宝支付请求，orderInfo长度: ${orderInfo.length}")
-                    payWithAlipay(orderInfo, result)
-                }
-                "cancelPaymentTimeout" -> {
-                    // 🔧 新增：取消支付超时定时器（由Flutter轮询检测到支付成功后调用）
-                    Log.d("MainActivity", "收到取消支付超时请求")
-                    cancelPaymentTimeout()
-                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
         }
         
         // 前台服务通道
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FOREGROUND_SERVICE_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "startForegroundService" -> {
-                    val config = call.arguments as? Map<String, Any> ?: mapOf()
-                    val success = ForegroundLocationService.startService(this, config)
-                    
-                    // 🔥 保存定位服务状态，用于开机自启动
-                    if (success) {
-                        BootCompletedReceiver.saveLocationServiceState(this, true)
-                        BootCompletedReceiver.resetFirstUnlockFlag(this)
-                        Log.d("MainActivity", "定位服务已启动，状态已保存用于开机自启动")
-                    }
-                    
-                    result.success(success)
-                }
-                "saveUserToken" -> {
-                    // 🔥 保存用户 Token 和 API 配置（供 Native 定位上报使用）
-                    Log.d("MainActivity", "📥 收到 saveUserToken 请求")
-                    
-                    val token = call.argument<String>("token") ?: ""
-                    val userId = call.argument<String>("userId") ?: ""
-                    val baseUrl = call.argument<String>("baseUrl") ?: "https://service-api.ikissu.cn"
-                    
-                    Log.d("MainActivity", "📝 Token参数: token=${token.take(20)}..., userId=$userId, baseUrl=$baseUrl")
-                    
-                    if (token.isEmpty()) {
-                        Log.w("MainActivity", "❌ Token为空，无法保存")
-                        result.success(mapOf("success" to false, "message" to "token is empty"))
-                        return@setMethodCallHandler
-                    }
-                    
-                    try {
-                        val locationReportService = LocationReportService(this)
-                        locationReportService.saveUserToken(token, userId)
-                        locationReportService.saveBaseUrl(baseUrl)
-                        Log.d("MainActivity", "✅ 用户Token和API配置已保存: userId=$userId, baseUrl=$baseUrl")
-                        result.success(mapOf("success" to true, "message" to "Token saved successfully"))
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "❌ 保存Token失败", e)
-                        result.success(mapOf("success" to false, "message" to e.message))
-                    }
-                }
-                "clearUserToken" -> {
-                    // 🔥 清除用户 Token（登出时调用）
-                    try {
-                        val locationReportService = LocationReportService(this)
-                        locationReportService.clearUserInfo()
-                        Log.d("MainActivity", "用户Token已清除")
-                        result.success(mapOf("success" to true, "message" to "Token cleared successfully"))
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "清除Token失败", e)
-                        result.success(mapOf("success" to false, "message" to e.message))
-                    }
-                }
-                "stopForegroundService" -> {
-                    val success = ForegroundLocationService.stopService(this)
-                    
-                    // 🔥 保存定位服务状态（已停止）
-                    if (success) {
-                        BootCompletedReceiver.saveLocationServiceState(this, false)
-                        Log.d("MainActivity", "定位服务已停止，开机将不会自动启动")
-                    }
-                    
-                    result.success(success)
-                }
-                "isServiceRunning" -> {
-                    val isRunning = ForegroundLocationService.isRunning()
-                    result.success(isRunning)
-                }
-                "updateNotification" -> {
-                    val config = call.arguments as? Map<String, Any> ?: mapOf()
-                    // 发送更新通知的Intent
-                    val intent = android.content.Intent(this, ForegroundLocationService::class.java).apply {
-                        action = ForegroundLocationService.ACTION_UPDATE_NOTIFICATION
-                        config.forEach { (key, value) ->
-                            when (value) {
-                                is String -> putExtra(key, value)
-                                is Int -> putExtra(key, value)
-                                is Long -> putExtra(key, value)
-                                is Boolean -> putExtra(key, value)
-                            }
-                        }
-                    }
-                    startService(intent)
-                    result.success(true)
-                }
-                "checkNotificationPermission" -> {
-                    // 🔥 检查通知权限
-                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-                    var isEnabled = true
-                    var message = "通知权限正常"
-                    
-                    // Android 13+ 需要运行时通知权限
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) 
-                            != PackageManager.PERMISSION_GRANTED) {
-                            isEnabled = false
-                            message = "需要 POST_NOTIFICATIONS 权限 (Android 13+)"
-                        }
-                    }
-                    
-                    // 检查通知是否被全局禁用
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        if (!notificationManager.areNotificationsEnabled()) {
-                            isEnabled = false
-                            message = "应用通知已被用户全局禁用"
-                        }
-                    }
-                    
-                    result.success(mapOf(
-                        "isEnabled" to isEnabled,
-                        "message" to message
-                    ))
-                }
-                else -> result.notImplemented()
-            }
+        MethodChannel(messenger, FOREGROUND_SERVICE_CHANNEL).setMethodCallHandler { call, result ->
+            foregroundServiceHandler.handleMethodCall(call, result)
         }
         
-        // 🔥 厂商白名单引导通道
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WHITELIST_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getManufacturer" -> {
-                    val manufacturer = DeviceWhitelistHelper.getManufacturerName()
-                    result.success(manufacturer)
-                }
-                "needsWhitelistGuidance" -> {
-                    val needs = DeviceWhitelistHelper.needsWhitelistGuidance()
-                    result.success(needs)
-                }
-                "getGuidanceText" -> {
-                    val text = DeviceWhitelistHelper.getGuidanceText()
-                    result.success(text)
-                }
-                "getShortGuidance" -> {
-                    val text = DeviceWhitelistHelper.getShortGuidance()
-                    result.success(text)
-                }
-                "openWhitelistSettings" -> {
-                    val success = DeviceWhitelistHelper.openWhitelistSettings(this)
-                    result.success(success)
-                }
-                else -> result.notImplemented()
-            }
+        // 分享通道
+        MethodChannel(messenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
+            shareHandler.handleMethodCall(call, result)
         }
         
-        // 应用信息通道 - 用于获取应用名称等信息
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_INFO_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getAppName" -> {
-                    val packageName = call.argument<String>("packageName") ?: ""
-                    if (packageName.isEmpty()) {
-                        result.error("INVALID_ARGS", "packageName is required", null)
-                        return@setMethodCallHandler
-                    }
-                    try {
-                        val appName = getAppName(packageName)
-                        result.success(appName)
-                    } catch (e: Exception) {
-                        Log.w("MainActivity", "获取应用名称失败: ${e.message}")
-                        // 返回包名的最后一部分作为备用
-                        result.success(packageName.split(".").lastOrNull() ?: packageName)
-                    }
-                }
-                "getAppNames" -> {
-                    val packageNames = call.argument<List<String>>("packageNames") ?: emptyList()
-                    if (packageNames.isEmpty()) {
-                        result.success(emptyMap<String, String>())
-                        return@setMethodCallHandler
-                    }
-                    try {
-                        val appNames = mutableMapOf<String, String>()
-                        packageNames.forEach { packageName ->
-                            try {
-                                appNames[packageName] = getAppName(packageName)
-                            } catch (e: Exception) {
-                                // 如果获取失败，使用包名的最后一部分
-                                appNames[packageName] = packageName.split(".").lastOrNull() ?: packageName
-                            }
-                        }
-                        result.success(appNames)
-                    } catch (e: Exception) {
-                        result.error("GET_APP_NAMES_FAILED", e.message, null)
-                    }
-                }
-                else -> result.notImplemented()
-            }
+        // 友盟分享通道
+        MethodChannel(messenger, UMSHARE_CHANNEL).setMethodCallHandler { call, result ->
+            shareHandler.handleMethodCall(call, result)
         }
         
-        // App使用时长通道 - 用于获取已安装应用列表和使用时长统计
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_USAGE_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getInstalledApps" -> {
-                    // 🔧 优化：在后台线程获取应用列表，避免阻塞主线程
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val apps = getInstalledApps()
-                            withContext(Dispatchers.Main) {
-                                result.success(apps)
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "获取已安装应用列表失败", e)
-                            withContext(Dispatchers.Main) {
-                                result.error("GET_APPS_FAILED", e.message, null)
-                            }
-                        }
-                    }
-                }
-                "getAppUsageTime" -> {
-                    val packageName = call.argument<String>("packageName") ?: ""
-                    if (packageName.isEmpty()) {
-                        result.error("INVALID_ARGS", "packageName is required", null)
-                        return@setMethodCallHandler
-                    }
-                    if (!hasUsagePermission()) {
-                        result.error("NO_PERMISSION", "Usage permission not granted", null)
-                        return@setMethodCallHandler
-                    }
-                    try {
-                        val usageTime = getUsageTime(packageName)
-                        result.success(usageTime)
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "获取应用使用时长失败", e)
-                        result.error("GET_USAGE_FAILED", e.message, null)
-                    }
-                }
-                "getDetailedUsageData" -> {
-                    // 获取详细的使用数据（每小时使用时长、打开/关闭时间）
-                    val packageName = call.argument<String>("packageName") ?: ""
-                    if (packageName.isEmpty()) {
-                        result.error("INVALID_ARGS", "packageName is required", null)
-                        return@setMethodCallHandler
-                    }
-                    if (!hasUsagePermission()) {
-                        result.error("NO_PERMISSION", "Usage permission not granted", null)
-                        return@setMethodCallHandler
-                    }
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val detailedData = getDetailedUsageData(packageName)
-                            withContext(Dispatchers.Main) {
-                                result.success(detailedData)
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "获取详细使用数据失败", e)
-                            withContext(Dispatchers.Main) {
-                                result.error("GET_DETAILED_USAGE_FAILED", e.message, null)
-                            }
-                        }
-                    }
-                }
-                "getBatchDetailedUsageData" -> {
-                    // 批量获取多个应用的详细使用数据
-                    val packageNames = call.argument<List<String>>("packageNames") ?: emptyList()
-                    if (packageNames.isEmpty()) {
-                        result.error("INVALID_ARGS", "packageNames is required", null)
-                        return@setMethodCallHandler
-                    }
-                    if (!hasUsagePermission()) {
-                        result.error("NO_PERMISSION", "Usage permission not granted", null)
-                        return@setMethodCallHandler
-                    }
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val batchData = packageNames.map { packageName ->
-                                getDetailedUsageData(packageName)
-                            }
-                            withContext(Dispatchers.Main) {
-                                result.success(batchData)
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "批量获取详细使用数据失败", e)
-                            withContext(Dispatchers.Main) {
-                                result.error("GET_BATCH_DETAILED_USAGE_FAILED", e.message, null)
-                            }
-                        }
-                    }
-                }
-                "openUsageSettings" -> {
-                    try {
-                        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                        result.success(null)
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "打开使用情况设置失败", e)
-                        result.error("OPEN_SETTINGS_FAILED", e.message, null)
-                    }
-                }
-                else -> result.notImplemented()
-            }
+        // 友盟统计通道
+        MethodChannel(messenger, UMENG_ANALYTICS_CHANNEL).setMethodCallHandler { call, result ->
+            analyticsHandler.handleMethodCall(call, result)
         }
         
-        // App图标切换通道
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_ICON_CHANNEL).setMethodCallHandler { call, result ->
+        // 支付通道
+        MethodChannel(messenger, PAYMENT_CHANNEL).setMethodCallHandler { call, result ->
+            paymentHandler.handleMethodCall(call, result)
+        }
+        
+        // // 应用信息通道
+        // MethodChannel(messenger, APP_INFO_CHANNEL).setMethodCallHandler { call, result ->
+        //     appInfoHandler.handleMethodCall(call, result)
+        // }
+        
+        // 白名单通道
+        MethodChannel(messenger, WHITELIST_CHANNEL).setMethodCallHandler { call, result ->
+            systemHandler.handleWhitelistCall(call, result)
+        }
+        
+        // 应用使用统计通道
+        MethodChannel(messenger, APP_USAGE_CHANNEL).setMethodCallHandler { call, result ->
+            appUsageHandler.handleMethodCall(call, result)
+        }
+        
+        // 应用图标通道（动态切换桌面图标）
+        MethodChannel(messenger, APP_ICON_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getCurrentIcon" -> {
-                    try {
-                        val currentIcon = getCurrentAppIcon()
-                        result.success(currentIcon)
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "获取当前图标失败", e)
-                        result.error("GET_ICON_FAILED", e.message, null)
-                    }
+                    val current = getCurrentIconId()
+                    result.success(current)
                 }
                 "changeIcon" -> {
-                    val iconId = call.argument<String>("iconId") ?: "default"
+                    val iconId = call.argument<String>("iconId")
+                    if (iconId.isNullOrEmpty()) {
+                        result.error("INVALID_ARGS", "iconId is required", null)
+                        return@setMethodCallHandler
+                    }
                     try {
-                        val success = changeAppIcon(iconId)
-                        result.success(success)
+                        val ok = changeAppIcon(iconId)
+                        result.success(ok)
                     } catch (e: Exception) {
-                        Log.e("MainActivity", "切换图标失败", e)
-                        result.error("CHANGE_ICON_FAILED", e.message, null)
+                        Log.e(TAG, "切换图标失败", e)
+                        result.success(false)
                     }
                 }
                 else -> result.notImplemented()
             }
         }
-    }
 
-    private fun shareTextToWeChat(text: String): Boolean {
-        val wechatPkg = "com.tencent.mm"
-        if (!isAppInstalled(wechatPkg)) return false
-        return try {
-            // WeChat supports ACTION_SEND with text/plain; some ROMs require explicit package
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, text)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                `package` = wechatPkg
-            }
-            startActivity(intent)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun shareTextToQQ(text: String): Boolean {
-        // 优先尝试 QQ (Android 官方包名)
-        val qqPackages = listOf(
-            "com.tencent.mobileqq",
-            "com.tencent.tim",
-            "com.tencent.qqlite"
-        )
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, text)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        // 首选目标包
-        for (pkg in qqPackages) {
-            if (isAppInstalled(pkg)) {
+        // 推送点击后把任务栈前置（配合 JNotifyActivity 回调）
+        MethodChannel(messenger, PUSH_BRING_FRONT_CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "bringToFront") {
                 try {
-                    val intent = Intent(sendIntent).apply { `package` = pkg }
-                    startActivity(intent)
-                    return true
-                } catch (_: Exception) { }
-            }
-        }
-        // 兜底：系统分享选择器（可能仍然能路由到 QQ）
-        return try {
-            val chooser = Intent.createChooser(sendIntent, "分享到QQ")
-            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(chooser)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun openNotificationSettings() {
-        val intent: Intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Android 8.0+
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // Android 5.0 - 7.1
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra("app_package", packageName)
-                putExtra("app_uid", applicationInfo.uid)
-            }
-        } else {
-            // Android 4.4及以下，打开应用详情页
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", packageName, null)
-            }
-        }
-        startActivity(intent)
-    }
-
-    private fun openLocationSettings() {
-        val brand = (Build.BRAND ?: "").lowercase(java.util.Locale.ROOT)
-        val manufacturer = (Build.MANUFACTURER ?: "").lowercase(java.util.Locale.ROOT)
-        val model = (Build.MODEL ?: "").lowercase(java.util.Locale.ROOT)
-        val product = (Build.PRODUCT ?: "").lowercase(java.util.Locale.ROOT)
-        val deviceSignature = "$brand|$manufacturer|$model|$product"
-        // 仅检测华为设备（排除荣耀设备，因为荣耀设备定位功能正常）
-        val isHuawei = (deviceSignature.contains("huawei") ||
-                       deviceSignature.contains("hw")) &&
-                       // 明确排除荣耀设备
-                       !deviceSignature.contains("honor") &&
-                       !deviceSignature.contains("hny") &&
-                       !deviceSignature.contains("magic")
-
-        // 对华为设备（非荣耀），强制直达"应用信息"页，避免任何权限页被重定向到"定位服务"
-        if (isHuawei) {
-            // 1) 尝试显式跳转到 AOSP 的已安装应用详情页
-            try {
-                val explicit = Intent().apply {
-                    setClassName("com.android.settings", "com.android.settings.applications.InstalledAppDetails")
-                    putExtra("app_package", packageName)
-                    putExtra("package", packageName)
-                    putExtra(Intent.EXTRA_PACKAGE_NAME, packageName)
-                    data = Uri.fromParts("package", packageName, null)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    // 尝试复用已有任务栈，避免总是重启显示冷启动页
+                    val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                    if (launchIntent != null) {
+                        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+                        launchIntent.flags =
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        startActivity(launchIntent)
+                    } else {
+                        // 兜底：若获取失败，再用重启任务方式
+                        val component = ComponentName(packageName, "com.yuluo.kissu.MainActivity")
+                        val intent = Intent.makeRestartActivityTask(component)
+                        startActivity(intent)
+                    }
+                    result.success(null)
+                } catch (e: Exception) {
+                    Log.e(TAG, "bringToFront 失败", e)
+                    result.error("START_FAIL", e.message, null)
                 }
-                startActivity(explicit)
-                return
-            } catch (_: Exception) { }
-
-            // 2) 尝试新版设置的 AppInfoDashboard
-            try {
-                val dashboard = Intent().apply {
-                    setClassName("com.android.settings", "com.android.settings.applications.AppInfoDashboardActivity")
-                    data = Uri.fromParts("package", packageName, null)
-                    putExtra(Intent.EXTRA_PACKAGE_NAME, packageName)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(dashboard)
-                return
-            } catch (_: Exception) { }
-
-            // 3) 通用应用详情页
-            try {
-                val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", packageName, null)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(appDetails)
-                return
-            } catch (_: Exception) { }
-        }
-
-        // 其它设备：直接进入应用详情页（用户可手动进入"权限"->"位置信息"）
-        try {
-            val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", packageName, null)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            } else {
+                result.notImplemented()
             }
-            startActivity(appDetails)
-            return
-        } catch (_: Exception) { }
-
-        // 最终兜底：尝试 AOSP 显式 Activity（极少数 ROM 需要）
-        try {
-            val explicit = Intent().apply {
-                setClassName("com.android.settings", "com.android.settings.applications.InstalledAppDetails")
-                putExtra("app_package", packageName)
-                putExtra("package", packageName)
-                putExtra(Intent.EXTRA_PACKAGE_NAME, packageName)
-                data = Uri.fromParts("package", packageName, null)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(explicit)
-            return
-        } catch (_: Exception) { }
-    }
-
-    private fun openBatteryOptimizationSettings() {
-        // 厂商适配：优先打开"自启动/后台运行"设置
-        try {
-            val miui = Intent().apply {
-                setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(miui)
-            return
-        } catch (_: Exception) { }
-
-        try {
-            val huawei = Intent().apply {
-                setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(huawei)
-            return
-        } catch (_: Exception) { }
-
-        try {
-            val oppo = Intent().apply {
-                setClassName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(oppo)
-            return
-        } catch (_: Exception) { }
-
-        try {
-            val vivo = Intent().apply {
-                setClassName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(vivo)
-            return
-        } catch (_: Exception) { }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                // 标准：申请忽略电池优化（Doze）
-                val ignoreDoze = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:$packageName")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(ignoreDoze)
-                return
-            } catch (_: Exception) { }
-
-            try {
-                // 标准：忽略电池优化设置列表
-                val ignoreList = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                startActivity(ignoreList)
-                return
-            } catch (_: Exception) { }
-        }
-
-        // 兜底：应用详情页
-        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
-        }
-        startActivity(fallback)
-    }
-
-    private fun openUsageAccessSettings() {
-        Log.d("MainActivity", "尝试打开使用情况访问设置页面")
-        
-        // 策略1: 优先打开使用情况访问列表（推荐，让用户看到完整列表）
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            try {
-                Log.d("MainActivity", "尝试打开使用情况访问列表")
-                val list = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(list)
-                Log.d("MainActivity", "✅ 成功打开使用情况访问列表")
-                return
-            } catch (e: Exception) { 
-                Log.e("MainActivity", "打开使用情况访问列表失败: ${e.message}")
-            }
-        }
-        
-        // 策略2: 尝试直接打开本应用的权限详情页（部分手机支持）
-        try {
-            Log.d("MainActivity", "尝试打开本应用的使用情况访问详情")
-            val perApp = Intent().apply {
-                setClassName("com.android.settings", "com.android.settings.Settings\$UsageAccessDetailsActivity")
-                data = Uri.parse("package:$packageName")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(perApp)
-            Log.d("MainActivity", "✅ 成功打开应用详情页")
-            return
-        } catch (e: Exception) { 
-            Log.e("MainActivity", "打开应用详情页失败: ${e.message}")
-        }
-        
-        // 策略3: 兜底方案 - 打开应用设置页（用户可以从权限列表中找到）
-        try {
-            Log.d("MainActivity", "使用兜底方案：打开应用设置页")
-            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", packageName, null)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(fallback)
-            Log.d("MainActivity", "✅ 成功打开应用设置页")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "❌ 所有跳转方式都失败: ${e.message}")
-        }
-    }
-
-    private fun openWifiSettings() {
-        try {
-            val intent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-            Log.d("MainActivity", "✅ 成功打开WiFi设置页面")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "❌ 打开WiFi设置失败: ${e.message}")
-        }
-    }
-
-    private fun openAppSettings() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
-        }
-        startActivity(intent)
-    }
-
-    // ===== WeChat/WeCom Customer Service Opening =====
-    private fun isAppInstalled(targetPackage: String): Boolean {
-        return try {
-            packageManager.getPackageInfo(targetPackage, PackageManager.GET_ACTIVITIES)
-            true
-        } catch (_: Exception) {
-            false
         }
     }
     
     /**
-     * 获取应用的真实名称
-     * @param packageName 应用包名
-     * @return 应用名称
+     * Flutter 侧图标 id 与 Android activity-alias 映射
      */
-    private fun getAppName(packageName: String): String {
-        return try {
-            val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            val applicationInfo = packageInfo.applicationInfo
-                ?: throw Exception("ApplicationInfo is null for $packageName")
-            packageManager.getApplicationLabel(applicationInfo).toString()
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log.w("MainActivity", "应用未安装: $packageName")
-            throw e
-        } catch (e: Exception) {
-            Log.w("MainActivity", "获取应用名称失败: $packageName, ${e.message}")
-            throw e
-        }
-    }
+    private val iconAliasMap: Map<String, String> = mapOf(
+        // 页面中的 kissu_icon（默认）
+        "default" to "com.yuluo.kissu.MainActivityDefault",
+        // kissu_logo_2 ~ kissu_logo_10
+        "logo_two" to "com.yuluo.kissu.MainActivityIcon2",
+        "logo_three" to "com.yuluo.kissu.MainActivityIcon3",
+        "logo_four" to "com.yuluo.kissu.MainActivityIcon4",
+        "logo_five" to "com.yuluo.kissu.MainActivityIcon5",
+        "logo_six" to "com.yuluo.kissu.MainActivityIcon6",
+        "logo_seven" to "com.yuluo.kissu.MainActivityIcon7",
+        "logo_eight" to "com.yuluo.kissu.MainActivityIcon8",
+        "logo_nine" to "com.yuluo.kissu.MainActivityIcon9",
+        "logo_ten" to "com.yuluo.kissu.MainActivityIcon10",
+    )
 
-    private fun openUrlInPackage(url: String, targetPackage: String): Boolean {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                `package` = targetPackage
+    /**
+     * 获取当前启用的图标 id
+     */
+    private fun getCurrentIconId(): String {
+        val pm = packageManager
+        iconAliasMap.forEach { (id, aliasName) ->
+            val componentName = ComponentName(this, aliasName)
+            val state = pm.getComponentEnabledSetting(componentName)
+            if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                return id
             }
-            startActivity(intent)
-            true
-        } catch (_: Exception) {
-            false
         }
+        // 如果都没有显式启用，认为是默认图标
+        return "default"
     }
 
     /**
-     * 拉起企业微信客服 - 直接使用微信 SDK，不走浏览器！
-     * corpId: 企业微信ID (ww开头)
-     * kfId: 客服ID
+     * 切换桌面图标：
+     * - 只启用一个对应的 activity-alias
+     * - 其它全部禁用，避免桌面出现多个图标
+     */
+    private fun changeAppIcon(iconId: String): Boolean {
+        val targetAlias = iconAliasMap[iconId] ?: return false
+        val pm = packageManager
+
+        
+        iconAliasMap.forEach { (id, aliasName) ->
+             val componentName = ComponentName(this, aliasName)
+             val newState = if (id == iconId) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            pm.setComponentEnabledSetting(
+                componentName,
+                newState,
+                PackageManager.DONT_KILL_APP
+            )
+        }
+
+        Log.d(TAG, "桌面图标已切换为: $iconId ($targetAlias)")
+        return true
+    }
+    
+    /**
+     * 初始化友盟
+     */
+    private fun initUmeng() {
+        // 初始化友盟SDK
+        UMConfigure.init(
+            applicationContext,
+            "6879fba679267e0210b67bde",
+            "Umeng",
+            UMConfigure.DEVICE_TYPE_PHONE,
+            null
+        )
+        
+        // 设置友盟日志加密
+        UMConfigure.setLogEnabled(true)
+        
+        // 配置微信平台
+        PlatformConfig.setWeixin("wxca15128b8c388c13", "e0d2d1e8c3f4e5f6a7b8c9d0e1f2a3b4")
+        
+        // 配置QQ平台
+        PlatformConfig.setQQZone("102797447", "c5KJ2VipiMRMCpJf")
+        
+        Log.d(TAG, "友盟SDK初始化完成")
+    }
+    
+    /**
+     * 启动微信
+     */
+    private fun launchWechat(url: String) {
+        try {
+            val intent = packageManager.getLaunchIntentForPackage("com.tencent.mm")
+            if (intent != null) {
+                startActivity(intent)
+                Log.d(TAG, "启动微信成功")
+            } else {
+                Log.w(TAG, "未安装微信")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "启动微信失败", e)
+        }
+    }
+    
+    /**
+     * 打开企业微信客服（通过微信SDK）
      */
     private fun openWeComKfWithParams(corpId: String, agentId: String?, kfId: String) {
-        Log.d("MainActivity", "📞 拉起企业微信客服 - 企业ID: $corpId, 客服ID: $kfId")
+        Log.d(TAG, "📞 拉起企业微信客服 - 企业ID: $corpId, 客服ID: $kfId")
 
         // 初始化微信 API
         if (wxApi == null) {
-            Log.d("MainActivity", "初始化微信 API")
-            wxApi = WXAPIFactory.createWXAPI(this, "wxca15128b8c388c13", true)
+            Log.d(TAG, "初始化微信 API")
+            wxApi = com.tencent.mm.opensdk.openapi.WXAPIFactory.createWXAPI(this, "wxca15128b8c388c13", true)
             wxApi?.registerApp("wxca15128b8c388c13")
         }
 
         // 检查微信是否安装
         if (wxApi?.isWXAppInstalled != true) {
-            Log.e("MainActivity", "❌ 微信未安装，无法拉起客服")
+            Log.e(TAG, "❌ 微信未安装，无法拉起客服")
             throw Exception("请先安装微信")
         }
 
         // 检查微信版本（降低版本要求）
         val supportApi = wxApi?.wxAppSupportAPI ?: 0
         val minVersion = 0x26050250  // 微信 6.5.2.80 (企业微信客服功能最低版本)
-        Log.d("MainActivity", "微信 API 版本: $supportApi (需要 >= $minVersion)")
+        Log.d(TAG, "微信 API 版本: $supportApi (需要 >= $minVersion)")
 
         if (supportApi < minVersion) {
-            Log.e("MainActivity", "❌ 微信版本过低 (当前: $supportApi, 需要: >= $minVersion)")
+            Log.e(TAG, "❌ 微信版本过低 (当前: $supportApi, 需要: >= $minVersion)")
             throw Exception("请升级微信到 6.5.2 或更高版本")
         }
 
@@ -1334,1109 +524,61 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             req.corpId = corpId  // 企业微信ID: ww5c345e5aa1a2a697
             req.url = "https://work.weixin.qq.com/kfid/$kfId"  // 客服链接
             
-            Log.d("MainActivity", "🚀 发送微信客服请求: corpId=$corpId, url=${req.url}")
+            Log.d(TAG, "🚀 发送微信客服请求: corpId=$corpId, url=${req.url}")
             val success = wxApi?.sendReq(req) ?: false
             
             if (success) {
-                Log.d("MainActivity", "✅ 成功拉起微信客服！")
+                Log.d(TAG, "✅ 成功拉起微信客服！")
             } else {
-                Log.e("MainActivity", "❌ 微信 SDK sendReq 返回 false")
+                Log.e(TAG, "❌ 微信 SDK sendReq 返回 false")
                 throw Exception("拉起客服失败")
             }
         } catch (e: Exception) {
-            Log.e("MainActivity", "❌ 拉起客服异常: ${e.message}", e)
+            Log.e(TAG, "❌ 拉起客服异常: ${e.message}", e)
             throw e
         }
     }
     
-
-    // ===== 友盟分享相关方法 =====
-    private fun initUMengSDK(appKey: String, channel: String, logEnabled: Boolean) {
-        try {
-            // 友盟合规要求：预初始化，设置隐私政策
-            UMConfigure.preInit(this, appKey, channel)
-            // 🔒 隐私合规：不在用户同意前设置隐私授权
-            // UMConfigure.submitPolicyGrantResult(this, true) // 移到用户同意后执行
-            // 正式初始化
-            UMConfigure.init(this, appKey, channel, UMConfigure.DEVICE_TYPE_PHONE, null)
-            UMConfigure.setLogEnabled(logEnabled)
-            
-            // 预授权QQ权限 - 在友盟初始化后立即设置
-            try {
-                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
-                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-                setIsPermissionGrantedMethod.invoke(null, true)
-                Log.d("MainActivity", "友盟初始化后QQ权限预授权成功")
-            } catch (e: Exception) {
-                Log.w("MainActivity", "友盟初始化后QQ权限预授权失败: ${e.message}")
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun setUMengPrivacyPolicy(granted: Boolean) {
-        try {
-            UMConfigure.submitPolicyGrantResult(this, granted)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun configPlatforms(qqAppKey: String, qqAppSecret: String, weChatAppId: String, weChatFileProvider: String) {
-        try {
-            // 配置QQ平台（QQ空间配置同时支持QQ好友分享）
-            // 注意：友盟的setQQZone方法参数顺序是(appKey, appSecret)
-            // 其中appKey是QQ应用的ID，appSecret是QQ应用的密钥
-            if (qqAppKey.isNotEmpty() && qqAppSecret.isNotEmpty()) {
-                // 1. 首先配置QQ平台
-                PlatformConfig.setQQZone(qqAppKey, qqAppSecret)
-                Log.d("MainActivity", "QQ平台配置成功: appKey=$qqAppKey, appSecret=$qqAppSecret")
-                
-                // 1.5. 配置后立即修复QQ权限
-                fixQQPermissions()
-                
-                // 2. 设置QQ权限 - 多种方法尝试解决2003错误
-                try {
-                    // 方法1：使用Tencent类的静态方法设置权限
-                    val tencentClass = Class.forName("com.tencent.tauth.Tencent")
-                    val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-                    setIsPermissionGrantedMethod.invoke(null, true)
-                    Log.d("MainActivity", "QQ权限设置成功 (静态方法)")
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "QQ静态权限设置失败: ${e.message}")
-                    
-                    // 方法2：尝试通过实例设置权限
-                    try {
-                        val tencent = com.tencent.tauth.Tencent.createInstance(qqAppKey, this, "com.yuluo.kissu.fileprovider")
-                        if (tencent != null) {
-                            val setPermissionMethod = tencent.javaClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-                            setPermissionMethod.invoke(tencent, true)
-                            Log.d("MainActivity", "QQ权限设置成功 (实例方法)")
-                        }
-                    } catch (e2: Exception) {
-                        Log.e("MainActivity", "QQ实例权限设置也失败: ${e2.message}")
-                    }
-                }
-                
-                Log.d("MainActivity", "QQ空间配置已启用，同时支持QQ好友分享")
-            } else {
-                Log.w("MainActivity", "QQ平台配置失败: appKey或appSecret为空")
-            }
-            
-            // 配置微信平台
-            if (weChatAppId.isNotEmpty()) {
-                PlatformConfig.setWeixin(weChatAppId, "")
-                // 配置FileProvider
-                if (weChatFileProvider.isNotEmpty()) {
-                    PlatformConfig.setWXFileProvider(weChatFileProvider)
-                }
-                Log.d("MainActivity", "微信平台配置成功: appId=$weChatAppId")
-            } else {
-                Log.w("MainActivity", "微信平台配置失败: appId为空")
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "配置平台失败", e)
-            e.printStackTrace()
-        }
-    }
-
-    private fun checkPlatformInstall(platform: Int): Boolean {
-        return try {
-            val shareMedia = when (platform) {
-                0 -> SHARE_MEDIA.WEIXIN // 微信
-                1 -> SHARE_MEDIA.QQ // QQ
-                2 -> SHARE_MEDIA.QZONE // QQ空间
-                3 -> SHARE_MEDIA.WEIXIN_CIRCLE // 微信朋友圈
-                else -> SHARE_MEDIA.WEIXIN
-            }
-            val result = UMShareAPI.get(this).isInstall(this, shareMedia)
-            Log.d("MainActivity", "友盟检测平台安装状态: platform=$platform, result=$result")
-            result
-        } catch (e: Exception) {
-            Log.e("MainActivity", "友盟检测平台安装状态失败", e)
-            false
-        }
+    override fun onResume() {
+        super.onResume()
+        analyticsHandler.onResume()
     }
     
-    /**
-     * 备用QQ检测方法 - 直接检查QQ应用是否安装
-     */
-    private fun checkQQInstallBackup(): Boolean {
-        return try {
-            Log.d("MainActivity", "开始备用QQ检测...")
-            
-            // 方法1：检查QQ应用包名
-            val qqPackages = listOf(
-                "com.tencent.mobileqq", // QQ主应用
-                "com.tencent.mobileqqi", // QQ国际版
-                "com.tencent.tim" // TIM
-            )
-            
-            for (packageName in qqPackages) {
-                try {
-                    packageManager.getPackageInfo(packageName, 0)
-                    Log.d("MainActivity", "找到QQ应用: $packageName")
-                    return true
-                } catch (e: Exception) {
-                    Log.d("MainActivity", "未找到QQ应用: $packageName")
-                }
-            }
-            
-            // 方法2：检查QQ应用Intent
-            val intent = packageManager.getLaunchIntentForPackage("com.tencent.mobileqq")
-            if (intent != null) {
-                Log.d("MainActivity", "通过Intent检测到QQ应用")
-                return true
-            }
-            
-            Log.d("MainActivity", "备用QQ检测结果: 未安装")
-            false
-        } catch (e: Exception) {
-            Log.e("MainActivity", "备用QQ检测失败", e)
-            false
-        }
-    }
-
-    private fun umengShare(title: String, text: String, img: String, weburl: String, sharemedia: Int, result: MethodChannel.Result) {
-        try {
-            val shareMedia = when (sharemedia) {
-                0 -> SHARE_MEDIA.WEIXIN // 微信好友
-                1 -> SHARE_MEDIA.WEIXIN_CIRCLE // 微信朋友圈
-                2 -> SHARE_MEDIA.QQ // QQ好友
-                3 -> SHARE_MEDIA.QZONE // QQ空间
-                else -> SHARE_MEDIA.WEIXIN
-            }
-
-            Log.d("MainActivity", "开始分享到平台: $shareMedia (code: $sharemedia)")
-            Log.d("MainActivity", "分享参数: title=$title, text=$text, weburl=$weburl, img=$img")
-            
-            // 如果是QQ分享，先进行配置诊断
-            if (sharemedia == 2 || sharemedia == 3) {
-                diagnoseQQConfig()
-            }
-            
-            // 检查平台是否安装
-            val isInstalled = UMShareAPI.get(this).isInstall(this, shareMedia)
-            Log.d("MainActivity", "平台是否安装: $isInstalled")
-            
-            if (!isInstalled) {
-                val platformName = when (sharemedia) {
-                    2, 3 -> "QQ"
-                    0, 1 -> "微信"
-                    else -> "未知平台"
-                }
-                result.success(mapOf("success" to false, "message" to "${platformName}未安装"))
-                return
-            }
-
-            val shareAction = ShareAction(this).setPlatform(shareMedia)
-
-            // 如果有网页链接，分享网页
-            if (weburl.isNotEmpty()) {
-                val web = UMWeb(weburl)
-                web.title = title
-                web.description = text
-                if (img.isNotEmpty()) {
-                    web.setThumb(UMImage(this, img))
-                }
-                shareAction.withMedia(web)
-                Log.d("MainActivity", "分享网页内容")
-            } else {
-                // 分享纯文本
-                shareAction.withText(text)
-                Log.d("MainActivity", "分享纯文本内容")
-            }
-
-            shareAction.setCallback(object : UMShareListener {
-                override fun onStart(platform: SHARE_MEDIA?) {
-                    Log.d("MainActivity", "分享开始: platform=$platform")
-                    
-                    // 如果是QQ分享，在开始前再次确认权限设置
-                    if (platform == SHARE_MEDIA.QQ || platform == SHARE_MEDIA.QZONE) {
-                        try {
-                            val tencentClass = Class.forName("com.tencent.tauth.Tencent")
-                            val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-                            setIsPermissionGrantedMethod.invoke(null, true)
-                            Log.d("MainActivity", "QQ分享前权限确认成功")
-                        } catch (e: Exception) {
-                            Log.w("MainActivity", "QQ分享前权限确认失败: ${e.message}")
-                        }
-                    }
-                }
-
-                override fun onResult(platform: SHARE_MEDIA?) {
-                    Log.d("MainActivity", "分享成功: platform=$platform")
-                    result.success(mapOf("success" to true, "message" to "分享成功"))
-                }
-
-                override fun onError(platform: SHARE_MEDIA?, t: Throwable?) {
-                    Log.e("MainActivity", "分享失败: platform=$platform, error=${t?.message}", t)
-                    result.success(mapOf("success" to false, "message" to "分享失败: ${t?.message}"))
-                }
-
-                override fun onCancel(platform: SHARE_MEDIA?) {
-                    Log.d("MainActivity", "分享取消: platform=$platform")
-                    result.success(mapOf("success" to false, "message" to "分享取消"))
-                }
-            }).share()
-
-        } catch (e: Exception) {
-            Log.e("MainActivity", "分享异常", e)
-            result.success(mapOf("success" to false, "message" to "分享异常: ${e.message}"))
-        }
-    }
-
-    /**
-     * QQ配置诊断方法
-     * 用于检查QQ开放平台配置是否正确
-     */
-    private fun diagnoseQQConfig() {
-        try {
-            Log.d("MainActivity", "=== QQ配置诊断开始 ===")
-            
-            // 1. 检查应用包名
-            val packageName = packageName
-            Log.d("MainActivity", "应用包名: $packageName")
-            
-            // 2. 检查应用签名
-            val packageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
-            val signatures = packageInfo.signatures
-            if (signatures != null && signatures.isNotEmpty()) {
-                val signature = signatures[0]
-                val md = MessageDigest.getInstance("MD5")
-                md.update(signature.toByteArray())
-                val signatureHash = md.digest().joinToString("") { "%02x".format(it) }
-                Log.d("MainActivity", "应用签名MD5: $signatureHash")
-                Log.d("MainActivity", "请将此签名配置到QQ开放平台: $signatureHash")
-                
-                // 同时生成SHA1签名（某些平台可能需要）
-                try {
-                    val sha1 = MessageDigest.getInstance("SHA1")
-                    sha1.update(signature.toByteArray())
-                    val sha1Hash = sha1.digest().joinToString(":") { "%02x".format(it) }.uppercase()
-                    Log.d("MainActivity", "应用签名SHA1: $sha1Hash")
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "生成SHA1签名失败: ${e.message}")
-                }
-            }
-            
-            // 3. 检查QQ配置
-            val qqAppId = "102797447"
-            val qqAppKey = "c5KJ2VipiMRMCpJf"
-            Log.d("MainActivity", "QQ AppID: $qqAppId")
-            Log.d("MainActivity", "QQ AppKey: $qqAppKey")
-            Log.d("MainActivity", "期望的AndroidManifest scheme: tencent$qqAppId")
-            
-            // 4. 检查QQ是否安装
-            val qqInstalled = UMShareAPI.get(this).isInstall(this, SHARE_MEDIA.QQ)
-            Log.d("MainActivity", "QQ是否安装: $qqInstalled")
-            
-            // 5. 检查QQ版本
-            try {
-                val qqPackageInfo = packageManager.getPackageInfo("com.tencent.mobileqq", 0)
-                Log.d("MainActivity", "QQ版本: ${qqPackageInfo.versionName}")
-            } catch (e: Exception) {
-                Log.d("MainActivity", "无法获取QQ版本信息: ${e.message}")
-            }
-            
-            Log.d("MainActivity", "如果仍然出现2003错误，请检查：")
-            Log.d("MainActivity", "1. QQ开放平台应用是否已通过审核")
-            Log.d("MainActivity", "2. 应用包名是否与QQ开放平台配置一致")
-            Log.d("MainActivity", "3. 应用签名是否与QQ开放平台配置一致")
-            Log.d("MainActivity", "4. QQ开放平台应用状态是否为'已上线'")
-            Log.d("MainActivity", "5. AndroidManifest.xml中的scheme是否为 tencent$qqAppId 格式")
-            
-            Log.d("MainActivity", "=== QQ配置诊断完成 ===")
-            
-        } catch (e: Exception) {
-            Log.e("MainActivity", "QQ配置诊断失败", e)
-        }
-    }
-
-    /**
-     * 修复QQ权限问题的综合方法
-     * 针对2003错误进行多层修复
-     */
-    private fun fixQQPermissions() {
-        try {
-            Log.d("MainActivity", "开始修复QQ权限问题...")
-            
-            // 1. 强制设置QQ权限为已授权
-            try {
-                val tencentClass = Class.forName("com.tencent.tauth.Tencent")
-                val setIsPermissionGrantedMethod = tencentClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-                setIsPermissionGrantedMethod.invoke(null, true)
-                Log.d("MainActivity", "✓ QQ静态权限设置成功")
-            } catch (e: Exception) {
-                Log.w("MainActivity", "✗ QQ静态权限设置失败: ${e.message}")
-            }
-            
-            // 2. 创建Tencent实例并设置权限
-            try {
-                val qqAppId = "102797447"
-                val tencent = com.tencent.tauth.Tencent.createInstance(qqAppId, this, "com.yuluo.kissu.fileprovider")
-                if (tencent != null) {
-                    // 尝试通过实例方法设置权限
-                    try {
-                        val setPermissionMethod = tencent.javaClass.getMethod("setIsPermissionGranted", Boolean::class.java)
-                        setPermissionMethod.invoke(tencent, true)
-                        Log.d("MainActivity", "✓ QQ实例权限设置成功")
-                    } catch (e: Exception) {
-                        Log.w("MainActivity", "✗ QQ实例权限方法调用失败: ${e.message}")
-                    }
-                    
-                    // 设置其他可能的权限标志
-                    try {
-                        val fields = tencent.javaClass.declaredFields
-                        for (field in fields) {
-                            if (field.name.contains("permission", ignoreCase = true) || 
-                                field.name.contains("grant", ignoreCase = true)) {
-                                field.isAccessible = true
-                                if (field.type == Boolean::class.java || field.type == java.lang.Boolean::class.java) {
-                                    field.set(tencent, true)
-                                    Log.d("MainActivity", "✓ 设置权限字段 ${field.name} = true")
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.w("MainActivity", "设置权限字段失败: ${e.message}")
-                    }
-                } else {
-                    Log.w("MainActivity", "✗ 无法创建Tencent实例")
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "✗ 创建Tencent实例失败: ${e.message}")
-            }
-            
-            Log.d("MainActivity", "QQ权限修复完成")
-            
-        } catch (e: Exception) {
-            Log.e("MainActivity", "QQ权限修复过程出错", e)
-        }
-    }
-
-    // ===== 支付相关方法 =====
-    private fun initWechatPay(appId: String) {
-        try {
-            wxApi = WXAPIFactory.createWXAPI(this, appId, true)
-            wxApi?.registerApp(appId)
-            Log.d("MainActivity", "微信支付初始化成功: $appId")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "微信支付初始化失败", e)
-        }
-    }
-
-    private fun isWechatAppInstalled(): Boolean {
-        return try {
-            wxApi?.isWXAppInstalled ?: false
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun payWithWechat(
-        appId: String,
-        partnerId: String,
-        prepayId: String,
-        packageValue: String,
-        nonceStr: String,
-        timeStamp: String,
-        sign: String,
-        result: MethodChannel.Result
-    ) {
-        Log.d("MainActivity", "开始微信支付流程")
-        Log.d("MainActivity", "wxApi是否为null: ${wxApi == null}")
-        Log.d("MainActivity", "微信是否安装: ${wxApi?.isWXAppInstalled}")
-        
-        try {
-            // 检查基本条件
-            if (wxApi == null) {
-                Log.e("MainActivity", "微信API未初始化")
-                result.success(mapOf("success" to false, "message" to "微信API未初始化"))
-                return
-            }
-            
-            // 🔧 增强微信安装检测：同时使用SDK检测和包名检测
-            val sdkDetected = wxApi?.isWXAppInstalled == true
-            val pkgDetected = isAppInstalled("com.tencent.mm")
-            val isWechatInstalled = sdkDetected || pkgDetected
-            
-            Log.d("MainActivity", "=== 微信安装检测 ===")
-            Log.d("MainActivity", "SDK检测结果: $sdkDetected")
-            Log.d("MainActivity", "包名检测结果: $pkgDetected")
-            Log.d("MainActivity", "综合判定: $isWechatInstalled")
-            
-            if (!isWechatInstalled) {
-                Log.e("MainActivity", "❌ 微信未安装（双重检测均未通过）")
-                result.success(mapOf("success" to false, "message" to "请先安装微信"))
-                return
-            }
-            
-            // 🔧 检查微信版本是否支持支付功能
-            val wxAppSupportApi = wxApi?.wxAppSupportAPI ?: 0
-            val minSupportVersion = 0x21020001  // 微信 5.0 (支持支付的最低版本)
-            Log.d("MainActivity", "微信SDK版本: 0x${wxAppSupportApi.toString(16)}, 最低要求: 0x${minSupportVersion.toString(16)}")
-            
-            if (wxAppSupportApi < minSupportVersion) {
-                Log.e("MainActivity", "❌ 微信版本过低，不支持支付功能")
-                result.success(mapOf("success" to false, "message" to "请升级微信到最新版本"))
-                return
-            }
-            
-            // 验证必要参数
-            if (appId.isEmpty() || partnerId.isEmpty() || prepayId.isEmpty()) {
-                Log.e("MainActivity", "微信支付参数不完整: appId=$appId, partnerId=$partnerId, prepayId=$prepayId")
-                result.success(mapOf("success" to false, "message" to "微信支付参数不完整"))
-                return
-            }
-            
-            // 清理之前的回调状态（重要：防止状态污染）
-            if (paymentResultCompleter != null) {
-                Log.w("MainActivity", "检测到未清理的支付回调，先清理")
-                paymentResultCompleter = null
-            }
-            
-            // 🔧 取消之前的超时定时器（如果有）
-            paymentTimeoutJob?.cancel()
-            paymentTimeoutJob = null
-            
-            // 设置支付结果回调，确保立即处理结果
-            paymentResultCompleter = { success: Boolean, message: String ->
-                Log.d("MainActivity", "微信支付完成: success=$success, message=$message")
-                
-                // 🔧 取消超时定时器（支付已完成）
-                paymentTimeoutJob?.cancel()
-                paymentTimeoutJob = null
-                
-                try {
-                    result.success(mapOf("success" to success, "message" to message))
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "返回支付结果失败", e)
-                }
-            }
-            
-            Log.d("MainActivity", "创建微信支付请求")
-            val req = PayReq().apply {
-                this.appId = appId
-                this.partnerId = partnerId
-                this.prepayId = prepayId
-                this.packageValue = packageValue
-                this.nonceStr = nonceStr
-                this.timeStamp = timeStamp
-                this.sign = sign
-            }
-            
-            Log.d("MainActivity", "发送微信支付请求...")
-            val sendResult = wxApi?.sendReq(req)
-            Log.d("MainActivity", "微信支付请求发送结果: $sendResult")
-            
-            if (sendResult == true) {
-                Log.d("MainActivity", "微信支付请求已发送，等待用户操作...")
-                Log.d("MainActivity", "注意：此时不会立即返回支付结果，需要等待微信回调")
-                // 不立即返回，等待WXPayEntryActivity的回调
-                
-                // 🔧 设置60秒超时，给用户足够的支付时间（保存 Job 以便取消）
-                paymentTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
-                    delay(60000) // 60秒超时
-                    if (paymentResultCompleter != null) {
-                        Log.w("MainActivity", "微信支付超时（60秒）")
-                        paymentResultCompleter?.invoke(false, "支付超时，请稍后查看订单状态")
-                        paymentResultCompleter = null
-                        paymentTimeoutJob = null
-                    }
-                }
-            } else {
-                Log.e("MainActivity", "微信支付请求发送失败，sendResult: $sendResult")
-                paymentResultCompleter = null
-                paymentTimeoutJob?.cancel()
-                paymentTimeoutJob = null
-                result.success(mapOf("success" to false, "message" to "微信支付请求发送失败"))
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "微信支付异常", e)
-            paymentResultCompleter = null
-            paymentTimeoutJob?.cancel()
-            paymentTimeoutJob = null
-            result.success(mapOf("success" to false, "message" to "微信支付失败: ${e.message}"))
-        }
-    }
-
-    // 🔧 取消支付超时定时器（由Flutter调用）
-    private fun cancelPaymentTimeout() {
-        Log.d("MainActivity", "取消支付超时定时器")
-        paymentTimeoutJob?.cancel()
-        paymentTimeoutJob = null
-        Log.d("MainActivity", "支付超时定时器已取消")
-    }
-
-    private fun isAlipayAppInstalled(): Boolean {
-        return isAppInstalled("com.eg.android.AlipayGphone")
-    }
-
-    private fun payWithAlipay(orderInfo: String, result: MethodChannel.Result) {
-        Log.d("MainActivity", "开始支付宝支付，orderInfo长度: ${orderInfo.length}")
-        Log.d("MainActivity", "orderInfo前100字符: ${orderInfo.take(100)}...")
-        
-        if (orderInfo.isEmpty()) {
-            Log.e("MainActivity", "支付宝订单信息为空")
-            result.success(mapOf(
-                "success" to false,
-                "message" to "支付宝订单信息为空"
-            ))
-            return
-        }
-        
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                Log.d("MainActivity", "创建PayTask并调用支付")
-                val payTask = PayTask(this@MainActivity)
-                Log.d("MainActivity", "PayTask创建成功，开始调用payV2")
-                
-                val payResult = payTask.payV2(orderInfo, true)
-                Log.d("MainActivity", "支付宝支付完成，返回结果类型: ${payResult.javaClass.simpleName}")
-                Log.d("MainActivity", "支付宝支付返回结果: $payResult")
-                
-                withContext(Dispatchers.Main) {
-                    // 解析支付结果
-                    val resultStatus = parseAlipayResult(payResult)
-                    Log.d("MainActivity", "解析后的支付结果: success=${resultStatus.success}, message=${resultStatus.message}")
-                    
-                    result.success(mapOf(
-                        "success" to resultStatus.success,
-                        "message" to resultStatus.message,
-                        "result" to payResult.toString()
-                    ))
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.e("MainActivity", "支付宝支付异常", e)
-                    Log.e("MainActivity", "异常类型: ${e.javaClass.simpleName}")
-                    Log.e("MainActivity", "异常消息: ${e.message}")
-                    Log.e("MainActivity", "异常堆栈: ${e.stackTraceToString()}")
-                    
-                    result.success(mapOf(
-                        "success" to false,
-                        "message" to "支付失败: ${e.message}",
-                        "error" to e.javaClass.simpleName
-                    ))
-                }
-            }
-        }
+    override fun onPause() {
+        super.onPause()
+        analyticsHandler.onPause()
     }
     
-    private data class AlipayResult(val success: Boolean, val message: String)
-    
-    private fun parseAlipayResult(payResult: Map<String, String>): AlipayResult {
-        val resultStatus = payResult["resultStatus"]
-        Log.d("MainActivity", "解析支付宝支付结果: resultStatus=$resultStatus, 完整结果=$payResult")
+    override fun onDestroy() {
+        super.onDestroy()
         
-        return when (resultStatus) {
-            "9000" -> {
-                Log.d("MainActivity", "支付宝支付成功")
-                AlipayResult(true, "支付成功")
-            }
-            "8000" -> {
-                Log.d("MainActivity", "支付宝支付结果确认中")
-                AlipayResult(false, "支付结果确认中")
-            }
-            "4000" -> {
-                Log.d("MainActivity", "支付宝订单支付失败")
-                AlipayResult(false, "订单支付失败")
-            }
-            "5000" -> {
-                Log.d("MainActivity", "支付宝重复请求")
-                AlipayResult(false, "重复请求")
-            }
-            "6001" -> {
-                Log.d("MainActivity", "支付宝用户取消支付")
-                AlipayResult(false, "用户中途取消")
-            }
-            "6002" -> {
-                Log.d("MainActivity", "支付宝网络连接出错")
-                AlipayResult(false, "网络连接出错")
-            }
-            "6004" -> {
-                Log.d("MainActivity", "支付宝支付结果未知")
-                AlipayResult(false, "支付结果未知，其它支付结果")
-            }
-            else -> {
-                Log.e("MainActivity", "支付宝未知支付状态: $resultStatus")
-                AlipayResult(false, "未知支付状态: $resultStatus")
-            }
-        }
+        // 清理所有处理器
+        paymentHandler.cleanup()
+        locationHandler.cleanup()
+        systemHandler.cleanup()
+        
+        isFlutterEngineAlive = false
+        Log.d(TAG, "MainActivity onDestroy")
     }
-
-    // 微信支付回调
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        // 处理分享回调
+        shareHandler.onActivityResult(requestCode, resultCode, data)
+        
+        // 处理微信支付回调
+        paymentHandler.wxApi?.handleIntent(data, this)
+    }
+    
+    // ==================== 微信支付回调 ====================
+    
     override fun onReq(req: com.tencent.mm.opensdk.modelbase.BaseReq?) {
         // 通常不需要处理
     }
-
+    
     override fun onResp(resp: BaseResp?) {
-        when (resp?.type) {
-            ConstantsAPI.COMMAND_PAY_BY_WX -> {
-                val payResp = resp as PayResp
-                when (payResp.errCode) {
-                    BaseResp.ErrCode.ERR_OK -> {
-                        Log.d("MainActivity", "微信支付成功")
-                        // 通知Flutter支付成功
-                        paymentResultCompleter?.invoke(true, "支付成功")
-                        paymentResultCompleter = null
-                    }
-                    BaseResp.ErrCode.ERR_USER_CANCEL -> {
-                        Log.d("MainActivity", "微信支付取消")
-                        // 通知Flutter支付取消
-                        paymentResultCompleter?.invoke(false, "用户取消支付")
-                        paymentResultCompleter = null
-                    }
-                    BaseResp.ErrCode.ERR_COMM -> {
-                        Log.e("MainActivity", "微信支付失败")
-                        // 通知Flutter支付失败
-                        paymentResultCompleter?.invoke(false, "支付失败")
-                        paymentResultCompleter = null
-                    }
-                    else -> {
-                        Log.e("MainActivity", "微信支付未知错误: ${payResp.errCode}")
-                        // 通知Flutter支付失败
-                        paymentResultCompleter?.invoke(false, "支付失败，错误码: ${payResp.errCode}")
-                        paymentResultCompleter = null
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * 打印应用签名SHA1值，用于高德地图等服务配置
-     */
-    private fun printSHA1() {
-        try {
-            val packageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
-            for (signature in packageInfo.signatures ?: emptyArray()) {
-                val md = MessageDigest.getInstance("SHA1")
-                md.update(signature.toByteArray())
-                val sha1 = md.digest().joinToString(":") { "%02X".format(it) }
-                Log.d("MainActivity", "应用SHA1签名: $sha1")
-            }
-        } catch (e: NoSuchAlgorithmException) {
-            Log.e("MainActivity", "无法获取SHA1", e)
-        } catch (e: Exception) {
-            Log.e("MainActivity", "获取签名失败", e)
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        UMShareAPI.get(this).onActivityResult(requestCode, resultCode, data)
-        
-        // 处理微信支付回调
-        if (wxApi != null) {
-            wxApi!!.handleIntent(data, this)
-        }
-    }
-    
-    /**
-     * 获取所有已安装应用列表
-     * @return 应用列表，包含应用名称、包名、图标
-     */
-    private fun getInstalledApps(): List<Map<String, Any>> {
-        val pm = packageManager
-        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-        val result = mutableListOf<Map<String, Any>>()
-        
-        for (app in apps) {
-            try {
-                // 🔧 过滤系统应用：只显示用户安装的应用
-                // FLAG_SYSTEM: 系统预装应用
-                // FLAG_UPDATED_SYSTEM_APP: 用户更新过的系统应用（保留这类应用，因为用户可能关心）
-                val isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
-                val isUpdatedSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-                
-                // 跳过纯系统应用，保留用户安装的应用和用户更新过的系统应用
-                if (isSystemApp && !isUpdatedSystemApp) {
-                    continue
-                }
-                
-                val appName = pm.getApplicationLabel(app).toString()
-                val packageName = app.packageName
-                val iconDrawable = pm.getApplicationIcon(app)
-                
-                // 直接使用原始图标并保持 PNG 无损格式，确保显示清晰
-                val originalBitmap = (iconDrawable as BitmapDrawable).bitmap
-                val stream = ByteArrayOutputStream()
-                originalBitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-                val byteArray = stream.toByteArray()
-                
-                result.add(
-                    mapOf(
-                        "appName" to appName,
-                        "packageName" to packageName,
-                        "icon" to byteArray
-                    )
-                )
-            } catch (e: Exception) {
-                // 某些应用可能无法获取图标，跳过
-                Log.w("MainActivity", "无法获取应用信息: ${app.packageName}, ${e.message}")
-            }
-        }
-        
-        Log.i("MainActivity", "共获取到 ${result.size} 个用户应用（已过滤系统应用）")
-        
-        // 按应用名称排序
-        return result.sortedBy { (it["appName"] as String).lowercase() }
-    }
-    
-    /**
-     * 检查是否有使用情况访问权限
-     * @return 是否有权限
-     */
-    private fun hasUsagePermission(): Boolean {
-        return try {
-            val appOps = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
-            val mode = appOps.checkOpNoThrow(
-                "android:get_usage_stats",
-                android.os.Process.myUid(),
-                packageName
-            )
-            mode == android.app.AppOpsManager.MODE_ALLOWED
-        } catch (e: Exception) {
-            Log.e("MainActivity", "检查使用情况权限失败", e)
-            false
-        }
-    }
-    
-    /**
-     * 获取指定应用的使用时长（过去24小时）
-     * @param packageName 应用包名
-     * @return 使用时长（毫秒）
-     */
-    private fun getUsageTime(packageName: String): Int {
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val endTime = System.currentTimeMillis()
-        val startTime = endTime - 24 * 60 * 60 * 1000 // 过去24小时
-        
-        val statsList: List<UsageStats> =
-            usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
-        
-        var totalTime = 0L
-        for (stats in statsList) {
-            if (stats.packageName == packageName) {
-                totalTime += stats.totalTimeInForeground
-            }
-        }
-        
-        return totalTime.toInt()
-    }
-    
-    /**
-     * 获取指定应用的详细使用数据（当天每小时使用时长、打开/关闭时间）
-     * @param packageName 应用包名
-     * @return 详细使用数据，包含每小时记录和会话记录
-     */
-    private fun getDetailedUsageData(packageName: String): Map<String, Any> {
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        
-        // 获取当天0点到现在的时间范围
-        val calendar = java.util.Calendar.getInstance()
-        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        calendar.set(java.util.Calendar.MINUTE, 0)
-        calendar.set(java.util.Calendar.SECOND, 0)
-        calendar.set(java.util.Calendar.MILLISECOND, 0)
-        val startTime = calendar.timeInMillis
-        val endTime = System.currentTimeMillis()
-        
-        // 获取应用信息
-        val pm = packageManager
-        var appName = packageName
-        var iconBase64 = ""
-        try {
-            val appInfo = pm.getApplicationInfo(packageName, 0)
-            appName = pm.getApplicationLabel(appInfo).toString()
-            
-            // 获取应用图标并转换为无损 PNG，再编码为 base64
-            val iconDrawable = pm.getApplicationIcon(appInfo)
-            val originalBitmap = (iconDrawable as BitmapDrawable).bitmap
-            val stream = ByteArrayOutputStream()
-            originalBitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-            val byteArray = stream.toByteArray()
-            iconBase64 = android.util.Base64.encodeToString(byteArray, android.util.Base64.NO_WRAP)
-        } catch (e: Exception) {
-            Log.w("MainActivity", "获取应用信息失败: $packageName", e)
-        }
-        
-        // 获取使用事件（打开和关闭）
-        val events = mutableListOf<Map<String, Any>>()
-        val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
-        val event = android.app.usage.UsageEvents.Event()
-        
-        // 收集该应用的所有事件
-        val appEvents = mutableListOf<Pair<Int, Long>>() // (eventType, timestamp)
-        while (usageEvents.getNextEvent(event)) {
-            if (event.packageName == packageName) {
-                when (event.eventType) {
-                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                        appEvents.add(Pair(1, event.timeStamp)) // 1 表示打开
-                    }
-                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                        appEvents.add(Pair(0, event.timeStamp)) // 0 表示关闭
-                    }
-                }
-            }
-        }
-        
-        // 按时间排序
-        appEvents.sortBy { it.second }
-        
-        // 构建会话记录
-        val rawSessions = mutableListOf<Map<String, Any>>()
-        var lastOpenTime: Long? = null
-        
-        for ((eventType, timestamp) in appEvents) {
-            if (eventType == 1) { // 打开
-                lastOpenTime = timestamp
-            } else if (eventType == 0 && lastOpenTime != null) { // 关闭
-                rawSessions.add(mapOf(
-                    "openTime" to lastOpenTime,
-                    "closeTime" to timestamp,
-                    "duration" to (timestamp - lastOpenTime)
-                ))
-                lastOpenTime = null
-            }
-        }
-        
-        // 如果应用仍在前台（有打开但没有关闭），使用当前时间作为关闭时间
-        if (lastOpenTime != null) {
-            rawSessions.add(mapOf(
-                "openTime" to lastOpenTime,
-                "closeTime" to endTime,
-                "duration" to (endTime - lastOpenTime)
-            ))
-        }
-        
-        // 🔧 二次处理：合并连续会话并过滤噪音数据
-        val sessions = cleanupSessions(rawSessions)
-        
-        // 按小时分组统计（会话按开始时间分组，保留完整的打开/关闭时间）
-        val hourlyRecords = mutableListOf<Map<String, Any>>()
-        val hourMap = mutableMapOf<Int, MutableMap<String, Any>>()
-        
-        // 按会话开始的小时分组，并计算该小时的实际使用时长
-        for (session in sessions) {
-            val openTime = session["openTime"] as Long
-            val closeTime = session["closeTime"] as Long
-            
-            val openCal = java.util.Calendar.getInstance().apply { timeInMillis = openTime }
-            val startHour = openCal.get(java.util.Calendar.HOUR_OF_DAY)
-            
-            // 获取或创建该小时的数据
-            val hourData = hourMap.getOrPut(startHour) { 
-                mutableMapOf(
-                    "totalDuration" to 0L,
-                    "sessions" to mutableListOf<Map<String, Any>>()
-                )
-            }
-            
-            // 计算该会话对当前小时的贡献时长
-            val closeCal = java.util.Calendar.getInstance().apply { timeInMillis = closeTime }
-            val endHour = closeCal.get(java.util.Calendar.HOUR_OF_DAY)
-            
-            val contributedDuration = if (startHour == endHour) {
-                // 同一小时内，完整时长
-                closeTime - openTime
-            } else {
-                // 跨小时，只计算该小时内的时长（从打开时间到该小时结束）
-                val hourEndCal = java.util.Calendar.getInstance().apply {
-                    timeInMillis = openTime
-                    set(java.util.Calendar.HOUR_OF_DAY, startHour)
-                    set(java.util.Calendar.MINUTE, 59)
-                    set(java.util.Calendar.SECOND, 59)
-                    set(java.util.Calendar.MILLISECOND, 999)
-                }
-                minOf(closeTime, hourEndCal.timeInMillis) - openTime
-            }
-            
-            // 累加时长
-            hourData["totalDuration"] = (hourData["totalDuration"] as Long) + contributedDuration
-            
-            // 添加完整的会话记录（保留原始的打开和关闭时间）
-            @Suppress("UNCHECKED_CAST")
-            (hourData["sessions"] as MutableList<Map<String, Any>>).add(session)
-        }
-        
-        // 构建每小时记录（只包含有使用的小时）
-        for ((hour, hourData) in hourMap.entries.sortedBy { it.key }) {
-            val sessionsList = hourData["sessions"] as List<*>
-            hourlyRecords.add(mapOf(
-                "hour" to hour,
-                "totalDuration" to (hourData["totalDuration"] as Long),
-                "sessionCount" to sessionsList.size,  // 该小时开始的会话数
-                "sessions" to sessionsList  // 完整的会话列表（包含原始打开/关闭时间）
-            ))
-        }
-        
-        // 获取日期
-        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val date = dateFormat.format(java.util.Date(startTime))
-        
-        return mapOf(
-            "appName" to appName,
-            "packageName" to packageName,
-            "iconBase64" to iconBase64,
-            "date" to date,
-            "totalSessions" to sessions.size,  // 总会话数（清洗后的会话数量）
-            "hourlyRecords" to hourlyRecords
-        )
-    }
-    
-    /**
-     * 清理会话数据：合并连续会话并过滤噪音数据
-     * 
-     * 处理规则：
-     * 1. 过滤掉时长小于3秒的会话（可能是误触或系统切换）
-     * 2. 如果两个会话之间的间隔小于10秒，合并为一个会话
-     * 
-     * @param rawSessions 原始会话列表
-     * @return 清理后的会话列表
-     */
-    private fun cleanupSessions(rawSessions: List<Map<String, Any>>): List<Map<String, Any>> {
-        if (rawSessions.isEmpty()) {
-            return emptyList()
-        }
-        
-        // 第一步：过滤掉时长太短的会话（小于3秒）
-        val MIN_DURATION = 3000L // 3秒
-        val validSessions = rawSessions.filter { session ->
-            val duration = session["duration"] as Long
-            duration >= MIN_DURATION
-        }
-        
-        if (validSessions.isEmpty()) {
-            return emptyList()
-        }
-        
-        // 第二步：合并连续的会话
-        val MERGE_THRESHOLD = 10000L // 10秒
-        val mergedSessions = mutableListOf<MutableMap<String, Any>>()
-        
-        var currentSession = validSessions[0].toMutableMap()
-        
-        for (i in 1 until validSessions.size) {
-            val nextSession = validSessions[i]
-            val currentCloseTime = currentSession["closeTime"] as Long
-            val nextOpenTime = nextSession["openTime"] as Long
-            
-            // 计算两个会话之间的间隔
-            val gap = nextOpenTime - currentCloseTime
-            
-            if (gap <= MERGE_THRESHOLD) {
-                // 间隔小于10秒，合并会话
-                // 保持当前会话的打开时间，更新关闭时间为下一个会话的关闭时间
-                val nextCloseTime = nextSession["closeTime"] as Long
-                val currentOpenTime = currentSession["openTime"] as Long
-                
-                currentSession["closeTime"] = nextCloseTime
-                currentSession["duration"] = nextCloseTime - currentOpenTime
-                
-                Log.d("MainActivity", "合并会话: 间隔 ${gap}ms, " +
-                        "原始时长 ${validSessions[i-1]["duration"]}ms + ${nextSession["duration"]}ms -> " +
-                        "合并后 ${currentSession["duration"]}ms")
-            } else {
-                // 间隔超过10秒，保存当前会话，开始新会话
-                mergedSessions.add(currentSession)
-                currentSession = nextSession.toMutableMap()
-            }
-        }
-        
-        // 添加最后一个会话
-        mergedSessions.add(currentSession)
-        
-        // 第三步：再次过滤，去掉合并后仍然很短的会话（小于5秒）
-        val FINAL_MIN_DURATION = 5000L // 5秒
-        val finalSessions = mergedSessions.filter { session ->
-            val duration = session["duration"] as Long
-            duration >= FINAL_MIN_DURATION
-        }
-        
-        Log.i("MainActivity", "会话清理完成: 原始 ${rawSessions.size} -> " +
-                "过滤噪音后 ${validSessions.size} -> " +
-                "合并后 ${mergedSessions.size} -> " +
-                "最终 ${finalSessions.size} 个会话")
-        
-        return finalSessions
-    }
-    
-    /**
-     * 获取当前使用的图标ID
-     */
-    private fun getCurrentAppIcon(): String {
-        val pm = packageManager
-        
-        // 检查logo_one是否启用
-        val logoOneState = pm.getComponentEnabledSetting(
-            android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoOne")
-        )
-        if (logoOneState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
-            return "logo_one"
-        }
-        
-        // 默认使用MainActivity原始图标
-        return "default"
-    }
-    
-    /**
-     * 切换App图标
-     * @param iconId 图标ID：default 或 logo_one
-     * @return 是否切换成功
-     */
-    private fun changeAppIcon(iconId: String): Boolean {
-        try {
-            val pm = packageManager
-            
-            // 定义activity-alias的组件名
-            val defaultComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityDefault")
-            val logoOneComponent = android.content.ComponentName(this, "com.yuluo.kissu.MainActivityLogoOne")
-            
-            // 根据iconId决定启用哪个alias
-            when (iconId) {
-                "default" -> {
-                    // 启用默认图标，禁用其他alias
-                    pm.setComponentEnabledSetting(
-                        defaultComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    pm.setComponentEnabledSetting(
-                        logoOneComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    Log.d("MainActivity", "切换到默认图标")
-                }
-                "logo_one" -> {
-                    // 启用logo_one图标，禁用其他alias
-                    pm.setComponentEnabledSetting(
-                        defaultComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    pm.setComponentEnabledSetting(
-                        logoOneComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    Log.d("MainActivity", "切换到logo_one图标")
-                }
-                else -> {
-                    Log.e("MainActivity", "未知的图标ID: $iconId")
-                    return false
-                }
-            }
-            
-            return true
-        } catch (e: Exception) {
-            Log.e("MainActivity", "切换图标失败", e)
-            return false
-        }
+        paymentHandler.onWechatPayResp(resp)
     }
 
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// App图标选择页面
 class AppIconSelectorPage extends StatefulWidget {
@@ -22,17 +23,64 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
   final List<AppIconItem> _iconItems = [
     AppIconItem(
       id: 'default',
-      name: '原始图标',
-      previewPath: 'assets/images/kissu_icon.webp', // 之前的logo
-      description: 'Kissu经典图标',
+      name: '默认',
+      previewPath: 'assets/setting/kissu_icon.webp',
+      description: '默认图标',
     ),
     AppIconItem(
-      id: 'logo_one',
-      name: '图标一',
-      previewPath: 'assets/4.0/kissu4_logo_one.webp',
-      description: '新设计图标一',
+      id: 'logo_two',
+      name: '暖心',
+      previewPath: 'assets/setting/kissu_logo_2.png',
+      description: '暖心图标',
     ),
- 
+    AppIconItem(
+      id: 'logo_three',
+      name: '手绘',
+      previewPath: 'assets/setting/kissu_logo_3.png',
+      description: '手绘图标',
+    ),
+    AppIconItem(
+      id: 'logo_four',
+      name: '简约',
+      previewPath: 'assets/setting/kissu_logo_4.png',
+      description: '简约图标',
+    ),
+    AppIconItem(
+      id: 'logo_five',
+      name: '霓虹',
+      previewPath: 'assets/setting/kissu_logo_5.png',
+      description: '霓虹图标',
+    ),
+    AppIconItem(
+      id: 'logo_six',
+      name: '爱意灼灼',
+      previewPath: 'assets/setting/kissu_logo_6.png',
+      description: '爱意灼灼图标',
+    ),
+    AppIconItem(
+      id: 'logo_seven',
+      name: '叶柔甜伴',
+      previewPath: 'assets/setting/kissu_logo_7.png',
+      description: '叶柔甜伴图标',
+    ),
+    AppIconItem(
+      id: 'logo_eight',
+      name: '甜邻少年',
+      previewPath: 'assets/setting/kissu_logo_8.png',
+      description: '甜邻少年图标',
+    ),
+    AppIconItem(
+      id: 'logo_nine',
+      name: '糖绒甜崽',
+      previewPath: 'assets/setting/kissu_logo_9.png',
+      description: '糖绒甜崽图标',
+    ),
+    AppIconItem(
+      id: 'logo_ten',
+      name: '甜煦少年',
+      previewPath: 'assets/setting/kissu_logo_10.png',
+      description: '甜煦少年图标',
+    ),
   ];
 
   @override
@@ -73,7 +121,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
           _currentIcon = iconId;
         });
         
-        OKToastUtil.show('切换成功，重启后生效');
+        OKToastUtil.show('切换成功，稍等几秒后重启生效');
           
       } else {
          OKToastUtil.show('图标切换失败，请重试');
@@ -92,11 +140,17 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xffFFF6F0),
+      backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
-        
         children: [
-          
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
           SafeArea(
             
             child: Column(
@@ -142,16 +196,13 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
   /// 构建顶部导航栏
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
       child: Row(
         children: [
-          GestureDetector(
+          CommonBackButton(
             onTap: () => Get.back(),
-            child: Image.asset(
-              "assets/images/kissu_mine_back.webp",
-              width: 22,
-              height: 22,
-            ),
+            assetPath: "assets/images/kissu_mine_back.webp",
+            iconSize: 22,
           ),
           const Expanded(
             child: Center(
@@ -160,7 +211,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
                 style: TextStyle(
                   fontSize: 18,
                   color: Color(0xff333333),
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),

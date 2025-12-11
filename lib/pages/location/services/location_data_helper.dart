@@ -28,12 +28,21 @@ class LocationDataHelper {
     required Rx<LatLng?> location,
   }) {
     if (userData.latitude != null && userData.longitude != null) {
-      final lat = double.tryParse(userData.latitude!);
-      final lng = double.tryParse(userData.longitude!);
-      if (lat != null && lng != null) {
-        location.value = LatLng(lat, lng);
+      // 检查是否为空字符串
+      final latStr = userData.latitude!.trim();
+      final lngStr = userData.longitude!.trim();
+      
+      if (latStr.isNotEmpty && lngStr.isNotEmpty) {
+        final lat = double.tryParse(latStr);
+        final lng = double.tryParse(lngStr);
+        if (lat != null && lng != null) {
+          location.value = LatLng(lat, lng);
+          return;
+        }
       }
     }
+    // 🚀 修复：如果经纬度为空或解析失败，清空位置数据
+    location.value = null;
   }
 
   /// 更新当前用户的详细数据
@@ -56,9 +65,9 @@ class LocationDataHelper {
     updateLocationData(userData: userData, location: myLocation);
 
     // 更新设备信息
-    deviceModel.value = (userData.mobileModel?.isEmpty ?? true) ? "未知设备" : userData.mobileModel!;
+    deviceModel.value = (userData.mobileModel?.isEmpty ?? true) ? "未知" : userData.mobileModel!;
     batteryLevel.value = (userData.power?.isEmpty ?? true) ? "未知" : userData.power!;
-    networkName.value = (userData.networkName?.isEmpty ?? true) ? "未知网络" : userData.networkName!;
+    networkName.value = (userData.networkName?.isEmpty ?? true) ? "未知" : userData.networkName!;
     speed.value = (userData.speed?.isEmpty ?? true) ? "0m/s" : userData.speed!;
     isWifi.value = userData.isWifi ?? "0";
     locationTime.value = userData.locationTime ?? "";

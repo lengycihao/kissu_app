@@ -130,6 +130,20 @@ class AuthService {
     return result;
   }
 
+  /// 同步授权应用（首页进入时调用）
+  Future<HttpResultN> syncAuthApp() async {
+    try {
+      final result = await _authApi.syncAuthApp();
+      if (!result.isSuccess) {
+        logger.warning('同步授权应用失败: ${result.msg}', tag: 'AuthService');
+      }
+      return result;
+    } catch (e) {
+      logger.error('同步授权应用异常: $e', tag: 'AuthService', error: e);
+      return HttpResultN.failure(-1, '同步授权应用失败: $e');
+    }
+  }
+
   Future<void> _handleLoginSuccess(LoginModel user) async {
     _currentUser = user;
     await _saveCurrentUser(user);

@@ -121,6 +121,13 @@ class TrackReplayController extends GetxController
     });
   }
 
+  /// PlatformView销毁时释放地图控制器，避免继续发送Channel命令
+  void onMapDisposed() {
+    DebugUtil.warning('🧹 轨迹播放：地图PlatformView已销毁，停止原生动画更新');
+    _mapManager.onMapDisposed();
+    _replayManager.onMapDisposed();
+  }
+
   /// 设置地图就绪状态
   void setMapReady(bool ready) {
     _mapManager.setMapReady(ready);
@@ -170,6 +177,17 @@ class TrackReplayController extends GetxController
   /// 获取所有标记（保留兼容性，但改为同步）
   Set<Marker> getMarkers() => Set<Marker>.from(allMarkers);
 
+  /// 🔧 计算适配后的尺寸（参考定位页面的DPI和屏幕缩放处理）
+  /// 基于375px设计稿的比例计算，确保在不同设备上按比例缩放
+  double _calculateAdaptedSize(double designSize) {
+    final dpr = ui.window.devicePixelRatio;
+    final screenWidth = ui.window.physicalSize.width / dpr; // 逻辑像素宽度
+    const designWidth = 375.0;
+    final screenScale = screenWidth / designWidth;
+    // 先按屏幕比例缩放，再乘以DPI
+    return designSize * screenScale * dpr;
+  }
+
   /// 添加起点终点标记（与轨迹页面完全一致）
   Future<void> _addStartEndMarkers(List<Marker> markers) async {
     if (trackPoints.isEmpty) return;
@@ -180,8 +198,11 @@ class TrackReplayController extends GetxController
     try {
       // 创建起点标记
       try {
+        // 🔧 使用适配后的尺寸（设计稿：44x46）
+        final adaptedWidth = _calculateAdaptedSize(44.0);
+        final adaptedHeight = _calculateAdaptedSize(46.0);
         final startIcon = await BitmapDescriptor.fromAssetImage(
-          const ImageConfiguration(size: Size(44, 46)),
+          ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
           'assets/images/kissu_location_start.webp',
         );
 
@@ -199,8 +220,9 @@ class TrackReplayController extends GetxController
         DebugUtil.success('✅ 轨迹起点标记创建成功');
       } catch (e) {
         DebugUtil.error('❌ 创建起点标记失败: $e，使用降级方案');
-        // 降级方案：使用绿色圆点
-        final fallbackIcon = await _createColoredCircleIcon(Colors.green, 24);
+        // 降级方案：使用绿色圆点（使用适配后的尺寸）
+        final fallbackSize = _calculateAdaptedSize(24.0);
+        final fallbackIcon = await _createColoredCircleIcon(Colors.green, fallbackSize);
         markers.add(
           Marker(
             position: startPoint,
@@ -213,45 +235,45 @@ class TrackReplayController extends GetxController
         );
       }
 
-      // 创建终点标记（只有当起点和终点不是同一个点时）
+      // 创建终点标记（只要trackPoints数量大于1就显示终点，移除距离限制）
       if (trackPoints.length > 1) {
-        final distance = _calculateDistance(startPoint, endPoint);
+        // 🎯 移除距离限制，只要trackPoints数量大于1就显示终点
+        try {
+          // 🔧 使用适配后的尺寸（设计稿：44x46）
+          final adaptedWidth = _calculateAdaptedSize(44.0);
+          final adaptedHeight = _calculateAdaptedSize(46.0);
+          final endIcon = await BitmapDescriptor.fromAssetImage(
+            ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+            'assets/images/kissu_location_end.webp',
+          );
 
-        // 只有当起点和终点距离超过50米时才显示终点标记
-        if (distance > 50) {
-          try {
-            final endIcon = await BitmapDescriptor.fromAssetImage(
-              const ImageConfiguration(size: Size(44, 46)),
-              'assets/images/kissu_location_end.webp',
-            );
-
-            markers.add(
-              Marker(
-                position: endPoint,
-                icon: endIcon,
-                anchor: const Offset(0.59, 0.83), // 设置锚点为图片的 (26, 38) 位置
-                infoWindow: const InfoWindow(title: '', snippet: ''),
-                onTap: (_) {
-                  DebugUtil.info('点击了轨迹终点');
-                },
-              ),
-            );
-            DebugUtil.success('✅ 轨迹终点标记创建成功');
-          } catch (e) {
-            DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
-            // 降级方案：使用红色圆点
-            final fallbackIcon = await _createColoredCircleIcon(Colors.red, 24);
-            markers.add(
-              Marker(
-                position: endPoint,
-                icon: fallbackIcon,
-                infoWindow: const InfoWindow(title: '', snippet: ''),
-                onTap: (_) {
-                  DebugUtil.info('点击了轨迹终点');
-                },
-              ),
-            );
-          }
+          markers.add(
+            Marker(
+              position: endPoint,
+              icon: endIcon,
+              anchor: const Offset(0.59, 0.83), // 设置锚点为图片的 (26, 38) 位置
+              infoWindow: const InfoWindow(title: '', snippet: ''),
+              onTap: (_) {
+                DebugUtil.info('点击了轨迹终点');
+              },
+            ),
+          );
+          DebugUtil.success('✅ 轨迹终点标记创建成功');
+        } catch (e) {
+          DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
+          // 降级方案：使用红色圆点（使用适配后的尺寸）
+          final fallbackSize = _calculateAdaptedSize(24.0);
+          final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
+          markers.add(
+            Marker(
+              position: endPoint,
+              icon: fallbackIcon,
+              infoWindow: const InfoWindow(title: '', snippet: ''),
+              onTap: (_) {
+                DebugUtil.info('点击了轨迹终点');
+              },
+            ),
+          );
         }
       }
     } catch (e) {
@@ -265,15 +287,7 @@ class TrackReplayController extends GetxController
       return;
     }
 
-    // 获取起点和终点位置，用于过滤重复的停留点
-    LatLng? startPoint;
-    LatLng? endPoint;
-    if (trackPoints.isNotEmpty) {
-      startPoint = trackPoints.first;
-      if (trackPoints.length > 1) {
-        endPoint = trackPoints.last;
-      }
-    }
+    // 🎯 移除起点终点获取逻辑，不再用于过滤停留点
 
     try {
       for (int i = 0; i < stopPoints.length; i++) {
@@ -291,27 +305,7 @@ class TrackReplayController extends GetxController
         if (lat != null && lng != null) {
           final position = LatLng(lat, lng);
 
-          // 检查是否与起点或终点重复（距离小于30米则认为重复）
-          bool isNearStartPoint = false;
-          bool isNearEndPoint = false;
-
-          if (startPoint != null) {
-            final distanceToStart = _calculateDistance(position, startPoint);
-            isNearStartPoint = distanceToStart < 30;
-          }
-
-          if (endPoint != null) {
-            final distanceToEnd = _calculateDistance(position, endPoint);
-            isNearEndPoint = distanceToEnd < 30;
-          }
-
-          // 如果停留点与起点或终点过近，则跳过创建停留点标记
-          if (isNearStartPoint || isNearEndPoint) {
-            DebugUtil.info(
-              '🚫 跳过停留点 $i：与起点/终点距离过近 (起点距离: ${isNearStartPoint ? _calculateDistance(position, startPoint!).toStringAsFixed(1) : "无"}, 终点距离: ${isNearEndPoint ? _calculateDistance(position, endPoint!).toStringAsFixed(1) : "无"})',
-            );
-            continue;
-          }
+          // 🎯 移除距离过滤逻辑，所有 point_type="stop" 的点都应该显示
 
           // 获取停留点编号（优先使用serialNumber，否则使用索引+1）
           String displayNumber;
@@ -477,15 +471,17 @@ class TrackReplayController extends GetxController
   /// 参数: number - 显示的数字
   /// 根据数字位数自适应宽度：个位数为圆形，多位数为椭圆形
   Future<BitmapDescriptor> _createCustomStopPointIcon(String number) async {
-    const double borderWidth = 2.0; // 白色边框宽度
-    const double minRadius = 30.0; // 最小半径（圆形）
-    const double fontSize = 32.0; // 字体大小
+    // 🔧 使用适配后的尺寸（设计稿：边框1.5px，最小半径10px，字体10px）
+    // 停留点应该明显比起点终点(44x46)小，所以直径约20px，半径10px
+    final borderWidth = _calculateAdaptedSize(1.5); // 白色边框宽度
+    final minRadius = _calculateAdaptedSize(10.0); // 最小半径（圆形），直径20px
+    final fontSize = _calculateAdaptedSize(10.0); // 字体大小
 
     // 先测量文本尺寸
     final textPainter = TextPainter(
       text: TextSpan(
         text: number,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
           fontSize: fontSize,
           fontWeight: FontWeight.bold,
@@ -499,9 +495,13 @@ class TrackReplayController extends GetxController
     final textWidth = textPainter.width;
     final textHeight = textPainter.height;
 
+    // 🔧 使用适配后的边距（按比例缩小）
+    final horizontalPadding = _calculateAdaptedSize(2.5); // 左右边距
+    final verticalPadding = _calculateAdaptedSize(1.5); // 上下边距
+    
     // 计算所需的宽度和高度（刚好包裹数字+少量空间）
-    final requiredWidth = textWidth + 6; // 文本宽度 + 左右边距
-    final requiredHeight = textHeight + 4; // 文本高度 + 上下边距
+    final requiredWidth = textWidth + horizontalPadding; // 文本宽度 + 左右边距
+    final requiredHeight = textHeight + verticalPadding; // 文本高度 + 上下边距
 
     // 确定最终的宽度和高度（至少为圆形的直径）
     final width = max(requiredWidth, minRadius * 2);
@@ -557,26 +557,6 @@ class TrackReplayController extends GetxController
     return BitmapDescriptor.fromBytes(uint8List);
   }
 
-  /// 计算两点之间的距离（米）
-  double _calculateDistance(LatLng point1, LatLng point2) {
-    const double earthRadius = 6371000; // 地球半径（米）
-
-    final double lat1Rad = point1.latitude * (pi / 180);
-    final double lat2Rad = point2.latitude * (pi / 180);
-    final double deltaLatRad = (point2.latitude - point1.latitude) * (pi / 180);
-    final double deltaLngRad =
-        (point2.longitude - point1.longitude) * (pi / 180);
-
-    final double a =
-        sin(deltaLatRad / 2) * sin(deltaLatRad / 2) +
-        cos(lat1Rad) *
-            cos(lat2Rad) *
-            sin(deltaLngRad / 2) *
-            sin(deltaLngRad / 2);
-    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
-    return earthRadius * c;
-  }
 
   /// 创建彩色圆形图标（降级方案）
   Future<BitmapDescriptor> _createColoredCircleIcon(

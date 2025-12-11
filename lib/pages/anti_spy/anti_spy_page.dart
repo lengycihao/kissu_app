@@ -9,10 +9,17 @@ class AntiSpyPage extends GetView<AntiSpyController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
         children: [
           // 背景
-          Positioned.fill(child: Container(color: Color(0xFFffffff))),
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
 
           // 内容
           SafeArea(
@@ -22,6 +29,9 @@ class AntiSpyPage extends GetView<AntiSpyController> {
                 _buildTopBar(),
                 Expanded(
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -47,14 +57,14 @@ class AntiSpyPage extends GetView<AntiSpyController> {
   // 顶部导航栏
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           GestureDetector(
+            behavior: HitTestBehavior.translucent,
             onTap: controller.onBackTap,
             child: Padding(
               padding: const EdgeInsets.all(8.0).copyWith(left: 0),
-
               child: const Image(
                 image: AssetImage('assets/images/kissu_mine_back.webp'),
                 width: 22,
@@ -91,8 +101,12 @@ class AntiSpyPage extends GetView<AntiSpyController> {
   Widget _buildRadarSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      // padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.white),
+      padding: const EdgeInsets.all(10).copyWith(top: 20),
+
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
           // 雷达扫描器
@@ -151,7 +165,8 @@ class AntiSpyPage extends GetView<AntiSpyController> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white),
+      
+      decoration: BoxDecoration(color: Colors.white,borderRadius: BorderRadius.circular(12),),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

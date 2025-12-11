@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import '../location_v2_controller.dart';
 
 /// 设备信息模块组件
@@ -94,13 +95,11 @@ class DeviceInfoSection extends StatelessWidget {
       return Row(
         children: [
           const SizedBox(width: 12),
-          Image.network(
-            controller.weatherIcon.value,
+          NetworkImageHelper.loadImage(
+            imageUrl: controller.weatherIcon.value,
             width: 16,
             height: 16,
-            errorBuilder: (context, error, stackTrace) {
-              return const SizedBox.shrink();
-            },
+            errorWidget: const SizedBox.shrink(),
           ),
           const SizedBox(width: 5),
           Text(

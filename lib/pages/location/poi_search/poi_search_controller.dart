@@ -6,6 +6,7 @@ import 'package:kissu_app/models/poi_model.dart';
 import 'package:kissu_app/services/amap_poi_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/pages/location/city_list/city_list_page.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// POI搜索Controller
 class PoiSearchController extends GetxController {
@@ -146,7 +147,7 @@ class PoiSearchController extends GetxController {
       hasMore.value = results.length >= pageSize;
     } catch (e) {
       debugPrint('❌ POI搜索失败: $e');
-      Get.snackbar('搜索失败', '请稍后重试');
+      OKToastUtil.showError('搜索失败，请稍后重试');
     } finally {
       if (showLoading) {
         isSearching.value = false;
@@ -189,7 +190,7 @@ class PoiSearchController extends GetxController {
     } catch (e) {
       debugPrint('❌ 加载更多失败: $e');
       currentPage--;
-      Get.snackbar('加载失败', '请稍后重试');
+      OKToastUtil.showError('加载失败，请稍后重试');
     } finally {
       isLoadingMore.value = false;
     }

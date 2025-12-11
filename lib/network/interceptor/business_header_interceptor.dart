@@ -5,12 +5,14 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/network/interceptor/http_header_key.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/utils/signature_utils.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oaid_util.dart';
 
@@ -30,8 +32,12 @@ class BusinessHeaderInterceptor extends Interceptor {
   
   // 缓存网络和电池信息
   static String? _cachedNetworkName;
+  static DateTime? _cachedNetworkTime; // 网络信息缓存时间
   static String? _cachedPower;
   static DateTime? _cachedPowerTime; // 电量缓存时间
+  
+  // 缓存定位权限状态
+  static String? _cachedLocationPermissionStatus; // '1' 或 '0'
 
   BusinessHeaderInterceptor(this._authService);
 
@@ -84,11 +90,17 @@ class BusinessHeaderInterceptor extends Interceptor {
       // 添加设备信息
       await _addDeviceHeaders(options);
 
+      // 添加定位权限开启状态
+      await _addLocationPermissionHeader(options);
+
       // 添加网络信息
       await _addNetworkHeaders(options);
 
       // 添加签名（如果需要）
       _addSignHeader(options);
+      
+      // 打印所有 header 字段的值
+      _printAllHeaders(options);
     } catch (e) {
       // 如果获取信息失败，不影响请求继续
       DebugUtil.error('BusinessHeaderInterceptor error: $e');
@@ -198,7 +210,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       // 使用默认值
       options.headers[HttpHeaderKey.deviceId] = 'unknown';
       options.headers[HttpHeaderKey.mobileModel] = Platform.operatingSystem;
-      options.headers[HttpHeaderKey.brand] = Platform.operatingSystem;
+      options.headers[HttpHeaderKey.brand] = Platform.operatingSystem;     
     }
   }
 
@@ -206,8 +218,8 @@ class BusinessHeaderInterceptor extends Interceptor {
   Future<void> _addNetworkHeaders(RequestOptions options) async {
     // 设置默认渠道（可以根据实际需求修改）
     // 打包时请修改这里的渠道值：
-    // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝>
-    _cachedChannel ??= Platform.isAndroid ? 'kissu_meizu' : 'kissu_default';
+    // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝> kissu_wdj  <豌豆荚>
+    _cachedChannel ??= Platform.isAndroid ? 'kissu_default' : 'kissu_default';
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
 
@@ -218,7 +230,50 @@ class BusinessHeaderInterceptor extends Interceptor {
     await _getBatteryInfo(options);
   }
 
-  /// 获取网络信息（隐私合规版本）
+  /// 添加定位权限开启状态
+  Future<void> _addLocationPermissionHeader(RequestOptions options) async {
+    try {
+      // 若用户未同意隐私政策，直接记为未开启
+      if (!_canCollectSensitiveData()) {
+        _cachedLocationPermissionStatus = '0';
+        options.headers[HttpHeaderKey.isOpenLocation] = '0';
+        return;
+      }
+
+      // 优先使用缓存的值，如果没有缓存则实时检查
+      if (_cachedLocationPermissionStatus == null) {
+        final status = await Permission.location.status;
+        bool isGranted = status.isGranted;
+        if (!isGranted) {
+          // 对于需要后台定位的场景，额外检测 locationAlways
+          final alwaysStatus = await Permission.locationAlways.status;
+          isGranted = alwaysStatus.isGranted;
+        }
+        _cachedLocationPermissionStatus = isGranted ? '1' : '0';
+      }
+      
+      options.headers[HttpHeaderKey.isOpenLocation] = _cachedLocationPermissionStatus!;
+    } catch (e) {
+      DebugUtil.error('获取定位权限状态失败: $e');
+      _cachedLocationPermissionStatus = '0';
+      options.headers[HttpHeaderKey.isOpenLocation] = '0';
+    }
+  }
+  
+  /// 更新定位权限状态缓存（供外部调用，当定位状态变化时调用）
+  /// [isGranted] 定位权限是否已授予
+  static void updateLocationPermissionStatus(bool isGranted) {
+    _cachedLocationPermissionStatus = isGranted ? '1' : '0';
+    DebugUtil.info('定位权限状态缓存已更新: ${_cachedLocationPermissionStatus}');
+  }
+  
+  /// 清除定位权限状态缓存（强制下次请求时重新检查）
+  static void clearLocationPermissionCache() {
+    _cachedLocationPermissionStatus = null;
+    DebugUtil.info('定位权限状态缓存已清除');
+  }
+
+  /// 获取网络信息（隐私合规版本 + 后台优化）
   Future<void> _getNetworkInfo(RequestOptions options) async {
     try {
       // 🔒 隐私合规检查：如果用户未同意隐私政策，直接使用默认值
@@ -227,7 +282,32 @@ class BusinessHeaderInterceptor extends Interceptor {
         return;
       }
       
-      if (_cachedNetworkName == null) {
+      // 🔧 优化：检测应用是否在后台
+      bool isInBackground = false;
+      try {
+        if (Get.isRegistered<AppLifecycleService>()) {
+          final appLifecycle = AppLifecycleService.instance;
+          isInBackground = appLifecycle.isInBackground;
+        }
+      } catch (e) {
+        DebugUtil.warning('无法检测应用状态，继续执行: $e');
+      }
+      
+      // 🔧 优化：后台时强制使用缓存，避免因系统限制导致获取失败
+      if (isInBackground && _cachedNetworkName != null) {
+        DebugUtil.info('应用在后台，使用缓存的网络信息: $_cachedNetworkName');
+        options.headers[HttpHeaderKey.networkName] = _safeHeaderValue(_cachedNetworkName!);
+        return;
+      }
+      
+      // 检查缓存是否过期（前台5分钟，后台15分钟）
+      final now = DateTime.now();
+      final cacheTimeout = isInBackground ? 15 : 5; // 后台15分钟，前台5分钟
+      final shouldRefresh = _cachedNetworkName == null || 
+          _cachedNetworkTime == null || 
+          now.difference(_cachedNetworkTime!).inMinutes >= cacheTimeout;
+      
+      if (shouldRefresh) {
         final connectivity = Connectivity();
         final connectivityResults = await connectivity.checkConnectivity();
         
@@ -237,27 +317,63 @@ class BusinessHeaderInterceptor extends Interceptor {
         if (connectivityResults.contains(ConnectivityResult.wifi)) {
           networkType = 'wifi';
           
-          // 🔒 WiFi SSID是敏感信息，只在隐私合规后才获取
-          // 🔧 修复：添加超时控制，避免热点时获取SSID超时导致请求阻塞
-          try {
-            final networkInfo = NetworkInfo();
-            final wifiName = await networkInfo.getWifiName()
-                .timeout(
-                  const Duration(seconds: 2),
-                  onTimeout: () {
-                    DebugUtil.warning('获取WiFi SSID超时（2秒），使用默认值');
-                    return null;
-                  },
-                );
-            if (wifiName != null && wifiName.isNotEmpty) {
-              // 🔧 修复：对WiFi名称进行安全处理，避免中文字符导致HTTP头部格式错误
-              final cleanWifiName = wifiName.replaceAll('"', '');
-              networkType = 'wifi_$cleanWifiName';
+          // 🔒 WiFi SSID是敏感信息，需要位置权限才能获取（Android 6.0+）
+          // 🔧 修复：先检查位置权限，如果没有权限则直接使用'wifi'，避免尝试获取失败
+          if (Platform.isAndroid) {
+            try {
+              final locationStatus = await Permission.location.status;
+              if (!locationStatus.isGranted) {
+                DebugUtil.info('位置权限未授权，无法获取WiFi SSID，使用默认值');
+                networkType = 'wifi';
+              } else {
+                // 有位置权限，尝试获取WiFi SSID
+                // 🔧 修复：添加超时控制，避免热点时获取SSID超时导致请求阻塞
+                try {
+                  final networkInfo = NetworkInfo();
+                  final wifiName = await networkInfo.getWifiName()
+                      .timeout(
+                        const Duration(seconds: 2),
+                        onTimeout: () {
+                          DebugUtil.warning('获取WiFi SSID超时（2秒），使用默认值');
+                          return null;
+                        },
+                      );
+                  if (wifiName != null && wifiName.isNotEmpty) {
+                    // 🔧 修复：对WiFi名称进行安全处理，避免中文字符导致HTTP头部格式错误
+                    final cleanWifiName = wifiName.replaceAll('"', '');
+                    networkType = 'wifi_$cleanWifiName';
+                  }
+                } catch (e) {
+                  // 如果获取WiFi名称失败，使用默认的wifi
+                  DebugUtil.warning('获取WiFi SSID失败: $e，使用默认值');
+                  networkType = 'wifi';
+                }
+              }
+            } catch (e) {
+              // 检查权限失败，使用默认值
+              DebugUtil.warning('检查位置权限失败: $e，使用默认值');
+              networkType = 'wifi';
             }
-          } catch (e) {
-            // 如果获取WiFi名称失败，使用默认的wifi
-            DebugUtil.warning('获取WiFi SSID失败: $e，使用默认值');
-            networkType = 'wifi';
+          } else {
+            // iOS平台，直接尝试获取WiFi SSID
+            try {
+              final networkInfo = NetworkInfo();
+              final wifiName = await networkInfo.getWifiName()
+                  .timeout(
+                    const Duration(seconds: 2),
+                    onTimeout: () {
+                      DebugUtil.warning('获取WiFi SSID超时（2秒），使用默认值');
+                      return null;
+                    },
+                  );
+              if (wifiName != null && wifiName.isNotEmpty) {
+                final cleanWifiName = wifiName.replaceAll('"', '');
+                networkType = 'wifi_$cleanWifiName';
+              }
+            } catch (e) {
+              DebugUtil.warning('获取WiFi SSID失败: $e，使用默认值');
+              networkType = 'wifi';
+            }
           }
         } else if (connectivityResults.contains(ConnectivityResult.mobile)) {
           networkType = 'mobile';
@@ -274,34 +390,59 @@ class BusinessHeaderInterceptor extends Interceptor {
         }
         
         _cachedNetworkName = networkType;
+        _cachedNetworkTime = now;
+        DebugUtil.info('网络信息缓存已更新: $_cachedNetworkName (${isInBackground ? "后台" : "前台"})');
       }
       
       // 🔧 修复：使用安全处理函数确保HTTP头部值符合标准
       options.headers[HttpHeaderKey.networkName] = _safeHeaderValue(_cachedNetworkName ?? 'unknown');
     } catch (e) {
       DebugUtil.error('获取网络信息失败: $e');
-      // 使用默认值
-      options.headers[HttpHeaderKey.networkName] = 'unknown';
+      // 使用默认值或缓存值
+      if (_cachedNetworkName != null) {
+        options.headers[HttpHeaderKey.networkName] = _safeHeaderValue(_cachedNetworkName!);
+      } else {
+        options.headers[HttpHeaderKey.networkName] = 'unknown';
+      }
     }
   }
 
-  /// 获取电池信息（隐私合规版本）
+  /// 获取电池信息（隐私合规版本 + 后台优化）
   Future<void> _getBatteryInfo(RequestOptions options) async {
     try {
       // 🔒 电池电量是敏感信息，需要隐私合规检查
       if (_canCollectSensitiveData()) {
-        // 🔧 修复：检查电量缓存是否过期（5分钟超时）
+        // 🔧 优化：检测应用是否在后台
+        bool isInBackground = false;
+        try {
+          if (Get.isRegistered<AppLifecycleService>()) {
+            final appLifecycle = AppLifecycleService.instance;
+            isInBackground = appLifecycle.isInBackground;
+          }
+        } catch (e) {
+          DebugUtil.warning('无法检测应用状态，继续执行: $e');
+        }
+        
+        // 🔧 优化：后台时强制使用缓存，避免因系统限制导致获取失败
+        if (isInBackground && _cachedPower != null) {
+          DebugUtil.info('应用在后台，使用缓存的电量信息: $_cachedPower%');
+          options.headers[HttpHeaderKey.power] = _cachedPower!;
+          return;
+        }
+        
+        // 检查电量缓存是否过期（前台5分钟，后台15分钟）
         final now = DateTime.now();
+        final cacheTimeout = isInBackground ? 15 : 5; // 后台15分钟，前台5分钟
         final shouldRefresh = _cachedPower == null || 
             _cachedPowerTime == null || 
-            now.difference(_cachedPowerTime!).inMinutes >= 5;
+            now.difference(_cachedPowerTime!).inMinutes >= cacheTimeout;
             
         if (shouldRefresh) {
           final battery = Battery();
           final batteryLevel = await battery.batteryLevel;
           _cachedPower = batteryLevel.toString();
           _cachedPowerTime = now;
-          DebugUtil.info('电量缓存已更新: $_cachedPower%');
+          DebugUtil.info('电量缓存已更新: $_cachedPower% (${isInBackground ? "后台" : "前台"})');
         }
         options.headers[HttpHeaderKey.power] = _cachedPower;
       } else {
@@ -310,8 +451,12 @@ class BusinessHeaderInterceptor extends Interceptor {
       }
     } catch (e) {
       DebugUtil.error('获取电池信息失败: $e');
-      // 使用默认值
-      options.headers[HttpHeaderKey.power] = '100';
+      // 使用默认值或缓存值
+      if (_cachedPower != null) {
+        options.headers[HttpHeaderKey.power] = _cachedPower!;
+      } else {
+        options.headers[HttpHeaderKey.power] = '100';
+      }
     }
   }
 
@@ -367,6 +512,64 @@ class BusinessHeaderInterceptor extends Interceptor {
     options.headers[HttpHeaderKey.sign] = sign;
   }
 
+  /// 打印所有 header 字段的值
+  void _printAllHeaders(RequestOptions options) {
+    try {
+      DebugUtil.info('========== Request Headers ==========');
+      DebugUtil.info('URL: ${options.uri}');
+      DebugUtil.info('Method: ${options.method}');
+      DebugUtil.info('--- Business Headers ---');
+      
+      // 打印所有业务相关的 header 字段
+      final headers = options.headers;
+      
+      // 按顺序打印关键字段
+      final headerKeys = [
+        HttpHeaderKey.token,
+        HttpHeaderKey.sign,
+        HttpHeaderKey.version,
+        HttpHeaderKey.channel,
+        HttpHeaderKey.pkg,
+        HttpHeaderKey.networkName,
+        HttpHeaderKey.deviceId,
+        HttpHeaderKey.mobileModel,
+        HttpHeaderKey.power,
+        HttpHeaderKey.isOpenLocation,
+        HttpHeaderKey.brand,
+        HttpHeaderKey.oaid,
+      ];
+      
+      for (final key in headerKeys) {
+        if (headers.containsKey(key)) {
+          final value = headers[key];
+          // 对于敏感信息（token、sign），只显示部分内容
+          if (key == HttpHeaderKey.token && value != null && value.toString().length > 20) {
+            final tokenStr = value.toString();
+            DebugUtil.info('$key: ${tokenStr.substring(0, 20)}... (${tokenStr.length} chars)');
+          } else if (key == HttpHeaderKey.sign && value != null && value.toString().length > 20) {
+            final signStr = value.toString();
+            DebugUtil.info('$key: ${signStr.substring(0, 20)}... (${signStr.length} chars)');
+          } else {
+            DebugUtil.info('$key: $value');
+          }
+        }
+      }
+      
+      // 打印其他自定义 header（如果有）
+      final otherHeaders = headers.entries.where((entry) => !headerKeys.contains(entry.key));
+      if (otherHeaders.isNotEmpty) {
+        DebugUtil.info('--- Other Headers ---');
+        for (final entry in otherHeaders) {
+          DebugUtil.info('${entry.key}: ${entry.value}');
+        }
+      }
+      
+      DebugUtil.info('=====================================');
+    } catch (e) {
+      DebugUtil.error('打印 header 信息失败: $e');
+    }
+  }
+
   /// 清除缓存的设备信息（在需要时调用）
   static void clearCache() {
     _cachedMobileModel = null;
@@ -375,14 +578,17 @@ class BusinessHeaderInterceptor extends Interceptor {
     _cachedChannel = null;
     _cachedPkg = null;
     _cachedNetworkName = null;
+    _cachedNetworkTime = null;
     _cachedPower = null;
     _cachedPowerTime = null;
+    _cachedLocationPermissionStatus = null;
     _packageInfo = null;
   }
   
   /// 🔧 新增：仅清除网络信息缓存（用于网络状态变化时）
   static void clearNetworkCache() {
     _cachedNetworkName = null;
+    _cachedNetworkTime = null;
     DebugUtil.info('网络信息缓存已清除');
   }
   

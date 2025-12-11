@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
+
 import 'love_info_controller.dart';
 import 'love_info_widgets.dart';
 
@@ -9,46 +11,51 @@ class LoveInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LoveInfoController());
+    final controller = Get.put(LoveInfoController(), permanent: true);
+
+    Widget buildDefaultAvatar(double radius) {
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          color: const Color(0xFFE8B4CB),
+        ),
+        child: Icon(
+          Icons.person,
+          size: radius,
+          color: Colors.white,
+        ),
+      );
+    }
 
     return Obx(
-      () => Stack(
-        children: [
-          // 背景图层
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/images/kissu_mine_bg.webp"),
-                  fit: BoxFit.cover,
-                ),
+      () => Scaffold(
+        backgroundColor: const Color(0xFFF7F7F7),
+        body: Stack(
+          children: [
+            // 背景图层
+            Positioned.fill(
+              child: Image.asset(
+                "assets/4.0/kissu4_new_use_bg.webp",
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
               ),
             ),
-          ),
 
-          Scaffold(
-            backgroundColor: Colors.transparent,
-            body: SafeArea(
+            SafeArea(
               child: Column(
                 children: [
                   // 自定义标题栏
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
+                      horizontal: 6,
                       vertical: 10,
                     ),
                     child: Row(
                       children: [
-                        GestureDetector(
+                        CommonBackButton(
                           onTap: () => Get.back(),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            child: Image.asset(
-                              'assets/images/kissu_mine_back.webp',
-                              width: 24,
-                              height: 24,
-                            ),
-                          ),
+                          assetPath: 'assets/images/kissu_mine_back.webp',
+                          iconSize: 22,
                         ),
                         Expanded(
                           child: Center(
@@ -71,6 +78,7 @@ class LoveInfoPage extends StatelessWidget {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(20),
+                      physics: const BouncingScrollPhysics(),
                       child: Stack(
                         alignment: Alignment.topCenter,
                         children: [
@@ -98,222 +106,163 @@ class LoveInfoPage extends StatelessWidget {
                               ],
                             ],
                           ),
-                          Obx(
-                            () => Stack(
-                              children: [
-                                // 我的头像 - 添加预览功能
-                                GestureDetector(
-                                  onTap: () => controller.onMyAvatarPreview(context),
-                                  child: Container(
-                                    width: 80,
-                                    height: 80,
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                      image: DecorationImage(
-                                        image: AssetImage(
-                                          'assets/images/kissu_loveinfo_header_bg.webp',
-                                        ),
-                                        fit: BoxFit.fill,
+                          Stack(
+                            children: [
+                              // 我的头像 - 添加预览功能
+                              GestureDetector(
+                                onTap: () => controller.onMyAvatarPreview(context),
+                                child: Container(
+                                  width: 80,
+                                  height: 80,
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    image: DecorationImage(
+                                      image: AssetImage(
+                                        'assets/images/kissu_loveinfo_header_bg.webp',
                                       ),
+                                      fit: BoxFit.fill,
                                     ),
-                                    child: Padding(
-                                      padding: EdgeInsets.only(
-                                        left: 6,
-                                        top: 6,
-                                        right: 0,
-                                        bottom: 3,
-                                      ),
-                                      child: ClipOval(
-                                        child:
-                                            controller.myAvatar.value.isNotEmpty
-                                            ? controller.myAvatar.value.startsWith('assets/')
-                                                ? Image.asset(
-                                                    controller.myAvatar.value,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) {
-                                                          return Container(
-                                                            decoration: BoxDecoration(
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    40,
-                                                                  ),
-                                                              color: const Color(
-                                                                0xFFE8B4CB,
-                                                              ),
-                                                            ),
-                                                            child: const Icon(
-                                                              Icons.person,
-                                                              size: 40,
-                                                              color: Colors.white,
-                                                            ),
-                                                          );
-                                                        },
-                                                  )
-                                                : Image.network(
-                                                    controller.myAvatar.value,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) {
-                                                          return Container(
-                                                            decoration: BoxDecoration(
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    40,
-                                                                  ),
-                                                              color: const Color(
-                                                                0xFFE8B4CB,
-                                                              ),
-                                                            ),
-                                                            child: const Icon(
-                                                              Icons.person,
-                                                              size: 40,
-                                                              color: Colors.white,
-                                                            ),
-                                                          );
-                                                        },
-                                                  )
-                                            : Container(
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(40),
-                                                  color: const Color(
-                                                    0xFFE8B4CB,
-                                                  ),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.person,
-                                                  size: 40,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                      ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 6,
+                                      top: 6,
+                                      right: 0,
+                                      bottom: 3,
+                                    ),
+                                    child: ClipOval(
+                                      child: controller.myAvatar.value.isNotEmpty
+                                          ? controller.myAvatar.value
+                                                  .startsWith('assets/')
+                                              ? Image.asset(
+                                                  controller.myAvatar.value,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) {
+                                                    return buildDefaultAvatar(40);
+                                                  },
+                                                )
+                                              : NetworkImageHelper.loadImage(
+                                                  imageUrl:
+                                                      controller.myAvatar.value,
+                                                  fit: BoxFit.cover,
+                                                  errorWidget:
+                                                      buildDefaultAvatar(40),
+                                                )
+                                          : buildDefaultAvatar(40),
                                     ),
                                   ),
                                 ),
-                                // 另一半头像或添加按钮
-                                controller.isBindPartner.value
-                                    ? GestureDetector(
-                                        onTap: () => controller.onPartnerAvatarPreview(context),
-                                        child: Container(
-                                          width: 50,
-                                          height: 50,
-                                          margin: EdgeInsets.only(left: 60, top: 20),
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.white,
-                                            border: Border.all(
-                                              color: const Color(0xFFFFB6C1),
-                                              width: 1,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withOpacity(0.1),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 5),
-                                              ),
-                                            ],
+                              ),
+                              // 另一半头像或添加按钮
+                              controller.isBindPartner.value
+                                  ? GestureDetector(
+                                      onTap: () => controller
+                                          .onPartnerAvatarPreview(context),
+                                      child: Container(
+                                        width: 50,
+                                        height: 50,
+                                        margin: const EdgeInsets.only(
+                                          left: 60,
+                                          top: 20,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: const Color(0xFFFFB6C1),
+                                            width: 1,
                                           ),
-                                          child: ClipOval(
-                                          child: controller.partnerAvatar.value.isNotEmpty
-                                              ? controller.partnerAvatar.value.startsWith('assets/')
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withOpacity(0.1),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: controller
+                                                  .partnerAvatar.value.isNotEmpty
+                                              ? controller.partnerAvatar.value
+                                                      .startsWith('assets/')
                                                   ? Image.asset(
-                                                      controller.partnerAvatar.value,
+                                                      controller
+                                                          .partnerAvatar.value,
                                                       fit: BoxFit.cover,
-                                                      errorBuilder: (context, error, stackTrace) {
-                                                        return Container(
-                                                          decoration: BoxDecoration(
-                                                            borderRadius: BorderRadius.circular(25),
-                                                            color: const Color(0xFFE8B4CB),
-                                                          ),
-                                                          child: const Icon(
-                                                            Icons.person,
-                                                            size: 25,
-                                                            color: Colors.white,
-                                                          ),
+                                                      errorBuilder: (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) {
+                                                        return buildDefaultAvatar(
+                                                          25,
                                                         );
                                                       },
                                                     )
-                                                  : Image.network(
-                                                      controller.partnerAvatar.value,
+                                                  : NetworkImageHelper
+                                                      .loadImage(
+                                                      imageUrl: controller
+                                                          .partnerAvatar.value,
                                                       fit: BoxFit.cover,
-                                                      errorBuilder: (context, error, stackTrace) {
-                                                        return Container(
-                                                          decoration: BoxDecoration(
-                                                            borderRadius: BorderRadius.circular(25),
-                                                            color: const Color(0xFFE8B4CB),
-                                                          ),
-                                                          child: const Icon(
-                                                            Icons.person,
-                                                            size: 25,
-                                                            color: Colors.white,
-                                                          ),
-                                                        );
-                                                      },
+                                                      errorWidget:
+                                                          buildDefaultAvatar(
+                                                        25,
+                                                      ),
                                                     )
-                                              : Container(
-                                                  decoration: BoxDecoration(
-                                                    borderRadius: BorderRadius.circular(25),
-                                                    color: const Color(0xFFE8B4CB),
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.person,
-                                                    size: 25,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
+                                              : buildDefaultAvatar(25),
                                         ),
                                       ),
                                     )
-                                    : GestureDetector(
-                                        onTap: () => controller.showAddPartnerDialog(context),
-                                        child: Container(
-                                          width: 50,
-                                          height: 50,
-                                          margin: EdgeInsets.only(left: 60, top: 20),
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.white,
-                                            border: Border.all(
-                                              color: const Color(0xFFFFB6C1),
-                                              width: 1,
+                                  : GestureDetector(
+                                      onTap: () => controller
+                                          .showAddPartnerDialog(context),
+                                      child: Container(
+                                        width: 50,
+                                        height: 50,
+                                        margin: const EdgeInsets.only(
+                                          left: 60,
+                                          top: 20,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: const Color(0xFFFFB6C1),
+                                            width: 1,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withOpacity(0.1),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 5),
                                             ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withOpacity(0.1),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 5),
-                                              ),
-                                            ],
-                                          ),
-                                          child: const Icon(
-                                            Icons.add,
-                                            size: 30,
-                                            color: Color(0xFFFF69B4),
-                                          ),
+                                          ],
+                                        ),
+                                        child: const Icon(
+                                          Icons.add,
+                                          size: 30,
+                                          color: Color(0xFFFF69B4),
                                         ),
                                       ),
-                                Positioned(
-                                  right: 30,
-                                  top: 40,
-                                  child: Image(
-                                    image: AssetImage(
-                                      "assets/images/kissu_heart.webp",
                                     ),
-                                    width: 29,
-                                    height: 20,
+                              Positioned(
+                                right: 30,
+                                top: 40,
+                                child: const Image(
+                                  image: AssetImage(
+                                    "assets/images/kissu_heart.webp",
                                   ),
+                                  width: 29,
+                                  height: 20,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -322,8 +271,8 @@ class LoveInfoPage extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

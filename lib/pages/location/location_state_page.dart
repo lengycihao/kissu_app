@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
+import 'package:kissu_app/utils/emoji_cache_manager.dart';
 import 'location_state_controller.dart';
 import 'package:kissu_app/widgets/dialogs/location_state_delete_dialog.dart';
 
@@ -25,8 +27,12 @@ class LocationStatePage extends StatelessWidget {
               // 自定义导航栏
               _buildCustomAppBar(context),
               const SizedBox(height: 10),
-              // 表情列表内容
-              Expanded(child: _buildEmojiContent()),
+              // 表情列表内容 - 添加RepaintBoundary优化
+              Expanded(
+                child: RepaintBoundary(
+                  child: _buildEmojiContent(),
+                ),
+              ),
             ],
           ),
 
@@ -70,6 +76,7 @@ class LocationStatePage extends StatelessWidget {
               Positioned(
                 left: 0,
                 child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
                   onTap: () => controller.handleBack(),
                   child: Container(
                     padding: const EdgeInsets.all(8),
@@ -153,13 +160,11 @@ class LocationStatePage extends StatelessWidget {
                         child: Column(
                           children: [
                             // 使用网络图片显示表情
-                            Image.network(
-                              controller.currentStatusEmoji.value,
+                            NetworkImageHelper.loadImage(
+                              imageUrl: controller.currentStatusEmoji.value,
                               width: 46,
                               height: 46,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.image_not_supported, size: 46);
-                              },
+                              errorWidget: const Icon(Icons.image_not_supported, size: 46),
                             ),
                             Text(
                               controller.currentStatusText.value,
@@ -273,103 +278,21 @@ class LocationStatePage extends StatelessWidget {
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             itemCount: controller.emojiCategories.length,
+            // 优化：增加缓存范围，提前渲染屏幕外的内容
+            cacheExtent: 500,
+            // 优化：使用iOS弹性滚动效果，提升滚动体验
+            physics: const BouncingScrollPhysics(),
+            // 优化：添加itemExtent提示，帮助ListView预估高度
             itemBuilder: (context, categoryIndex) {
-            final category = controller.emojiCategories[categoryIndex];
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 分类标题
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 2,
-                        child: Container(
-                          height: 5,
-                          // width: 64,
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFFE0E0),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        category.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'LiuHuanKaTongShouShu',
-                          color: Color(0xFF593A37),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 该分类的表情网格
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: category.emojis.length,
-                  itemBuilder: (context, emojiIndex) {
-                    final emoji = category.emojis[emojiIndex];
-
-                    return GestureDetector(
-                      onTap: () => controller.selectEmoji(emoji),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Color(0xffffffff),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: Color(0xffFFF6F6),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // 使用网络图片显示表情
-                            Image.network(
-                              emoji.emoji,
-                              width: 24,
-                              height: 24,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.image_not_supported, size: 24);
-                              },
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              emoji.name,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF333333),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-              ],
-            );
-          },
+              final category = controller.emojiCategories[categoryIndex];
+              
+              // 使用独立的Widget减少重建
+              return _EmojiCategoryItem(
+                category: category,
+                onEmojiTap: controller.selectEmoji,
+                index: categoryIndex,
+              );
+            },
           ),
         ),
       );
@@ -466,13 +389,11 @@ class LocationStatePage extends StatelessWidget {
                         child: Column(
                           children: [
                             // 使用网络图片显示表情
-                            Image.network(
-                              emoji.emoji,
+                            NetworkImageHelper.loadImage(
+                              imageUrl: emoji.emoji,
                               width: 46,
                               height: 46,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.image_not_supported, size: 46);
-                              },
+                              errorWidget: const Icon(Icons.image_not_supported, size: 46),
                             ),
                             Text(
                               emoji.name,
@@ -600,5 +521,234 @@ class LocationStatePage extends StatelessWidget {
         }).toList(),
       );
     });
+  }
+}
+
+/// 表情分类项 - 独立Widget减少重建，使用AutomaticKeepAlive保持状态
+class _EmojiCategoryItem extends StatefulWidget {
+  final EmojiCategory category;
+  final Function(EmojiItem) onEmojiTap;
+  final int index;
+
+  const _EmojiCategoryItem({
+    required this.category,
+    required this.onEmojiTap,
+    this.index = 0,
+  });
+
+  @override
+  State<_EmojiCategoryItem> createState() => _EmojiCategoryItemState();
+}
+
+class _EmojiCategoryItemState extends State<_EmojiCategoryItem> 
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
+  
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _slideAnimation;
+  
+  @override
+  bool get wantKeepAlive => true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    
+    _slideAnimation = Tween<double>(begin: 20.0, end: 0.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    
+    // 延迟启动动画，每个分类延迟100ms
+    Future.delayed(Duration(milliseconds: widget.index * 100), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // 必须调用super.build
+    
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: AnimatedBuilder(
+        animation: _slideAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(0, _slideAnimation.value),
+            child: child,
+          );
+        },
+        child: RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 分类标题
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 2,
+                  child: Container(
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFE0E0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  widget.category.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'LiuHuanKaTongShouShu',
+                    color: Color(0xFF593A37),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 该分类的表情网格
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1,
+            ),
+            itemCount: widget.category.emojis.length,
+            itemBuilder: (context, emojiIndex) {
+              final emoji = widget.category.emojis[emojiIndex];
+              return _EmojiGridItem(
+                emoji: emoji,
+                onTap: () => widget.onEmojiTap(emoji),
+                index: emojiIndex,
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 表情网格项 - 独立Widget减少重建
+class _EmojiGridItem extends StatefulWidget {
+  final EmojiItem emoji;
+  final VoidCallback onTap;
+  final int index;
+
+  const _EmojiGridItem({
+    required this.emoji,
+    required this.onTap,
+    this.index = 0,
+  });
+  
+  @override
+  State<_EmojiGridItem> createState() => _EmojiGridItemState();
+}
+
+class _EmojiGridItemState extends State<_EmojiGridItem> 
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    
+    // 延迟启动动画，每个表情延迟30ms
+    Future.delayed(Duration(milliseconds: widget.index * 30), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: RepaintBoundary(
+        child: GestureDetector(
+          onTap: widget.onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xffffffff),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: const Color(0xffFFF6F6),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 使用网络图片显示表情
+              NetworkImageHelper.loadImage(
+                imageUrl: widget.emoji.emoji,
+                width: 24,
+                height: 24,
+                errorWidget: const Icon(Icons.image_not_supported, size: 24),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                widget.emoji.name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF333333),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        ),
+      ),
+    );
   }
 }

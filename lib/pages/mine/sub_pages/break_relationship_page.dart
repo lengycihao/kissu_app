@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/model/unbind_reason_model.dart';
 import 'package:kissu_app/model/unbind_result.dart';
 import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
+import 'package:kissu_app/widgets/common_back_button.dart';
 import 'break_relationship_controller.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
@@ -26,6 +28,19 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   final RxBool isLoading = false.obs;
   final RxString loadingText = '解除中...'.obs;
 
+  // 解绑须知文案常量，避免每次构建时重复创建列表
+  static const List<String> _unbindNotices = [
+    '清空365打卡记录',
+    '清空聊天记录',
+    '清空恋爱日记',
+    '清空恋爱清单',
+    '会员权益(未购买方)失效',
+    '清空情侣定制记录',
+    '清空对方用机记录',
+    '清空活动步数',
+    '清空相册里全部照片/视频',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -35,14 +50,18 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/phone_history/kissu_phone_bg.webp'),
-            fit: BoxFit.cover,
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: Stack(
+        children: [
+          // 背景图
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
           ),
-        ),
-        child: SafeArea(
+          SafeArea(
           child: Column(
             children: [
               // 自定义AppBar
@@ -50,6 +69,9 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
               // 页面内容
               Expanded(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   padding: const EdgeInsets.only(
                     left: 18,
                     right: 18,
@@ -79,22 +101,20 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
             ],
           ),
         ),
+        ],
       ),
     );
   }
 
   Widget _buildCustomAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding:   EdgeInsets.fromLTRB(6, 16, 16, 16),
       child: Row(
         children: [
-          GestureDetector(
+          CommonBackButton(
             onTap: () => Get.back(),
-            child: Image.asset(
-              'assets/images/kissu_mine_back.webp',
-              width: 24,
-              height: 24,
-            ),
+            assetPath: 'assets/images/kissu_mine_back.webp',
+            iconSize: 24,
           ),
           const Expanded(
             child: Center(
@@ -144,7 +164,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -169,21 +189,8 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   }
 
   List<Widget> _buildNoticeItems() {
-    final notices = [
-      '清空365打卡记录',
-      '清空聊天记录',
-      '清空恋爱日记',
-      '清空恋爱清单',
-      '会员权益(未购买方)失效',
-      '清空情侣定制记录',
-      '清空对方用机记录',
-      '清空活动步数',
-      '清空相册里全部照片/视频',
-    ];
-
-    return notices.asMap().entries.map((entry) {
-      int index = entry.key;
-      String notice = entry.value;
+    return List<Widget>.generate(_unbindNotices.length, (index) {
+      final notice = _unbindNotices[index];
 
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -192,7 +199,10 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
           children: [
             Text(
               '${index + 1}、',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF666666),
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -208,7 +218,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
           ],
         ),
       );
-    }).toList();
+    });
   }
 
   Widget _buildBreakButton(BuildContext context) {
@@ -383,8 +393,11 @@ class _BreakAvatarSection extends StatelessWidget {
       //   return _buildMyAvatar();
       // }
       return Stack(
-        alignment: AlignmentGeometry.bottomCenter,
-        children: [_buildMyAvatar(), _buildPartnerAvatar()],
+        alignment: Alignment.bottomCenter,
+        children: [
+          _buildMyAvatar(),
+          _buildPartnerAvatar(),
+        ],
       );
     });
   }
@@ -424,24 +437,22 @@ class _BreakAvatarSection extends StatelessWidget {
                           );
                         },
                       )
-                    : Image.network(
-                        controller.myAvatar.value,
+                    : NetworkImageHelper.loadImage(
+                        imageUrl: controller.myAvatar.value,
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(40),
-                              color: const Color(0xFFE8B4CB),
-                            ),
-                            child: const Icon(
-                              Icons.person,
-                              size: 40,
-                              color: Colors.white,
-                            ),
-                          );
-                        },
+                        errorWidget: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFE8B4CB),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        ),
                       )
               : Container(
                   decoration: BoxDecoration(
@@ -493,24 +504,22 @@ class _BreakAvatarSection extends StatelessWidget {
                         );
                       },
                     )
-                  : Image.network(
-                      controller.partnerAvatar.value,
+                  : NetworkImageHelper.loadImage(
+                      imageUrl: controller.partnerAvatar.value,
                       width: 50,
                       height: 50,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            color: const Color(0xFFE8B4CB),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
+                      errorWidget: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(40),
+                          color: const Color(0xFFE8B4CB),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      ),
                     )
             : Container(
                 decoration: BoxDecoration(

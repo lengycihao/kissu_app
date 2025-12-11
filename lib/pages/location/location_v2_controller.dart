@@ -14,15 +14,19 @@ import 'package:kissu_app/services/tracking_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
+import 'package:kissu_app/pages/mine/sub_pages/question_page_info.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/map_preload_service.dart';
+import 'package:kissu_app/network/public/setting_api.dart';
+import 'package:kissu_app/model/setting/common_question_model/common_question_model.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'widgets/location_tips_manager.dart';
 import 'services/marker_builder.dart';
 import 'services/location_data_helper.dart';
 
 class LocationV2Controller extends GetxController
     with GetTickerProviderStateMixin {
-  final isOneself = 1.obs; // 默认看自己
+  final isOneself = 0.obs; // 默认看另一半
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
   final myFace = Rx<Face?>(null);
@@ -42,7 +46,7 @@ class LocationV2Controller extends GetxController
   final currentLocationText = "位置信息加载中...".obs;
   final myDeviceModel = "未知".obs;
   final myBatteryLevel = "未知".obs;
-  final myNetworkName = "WiFi".obs;
+  final myNetworkName = "未知".obs;
   final speed = "0m/s".obs;
   final isWifi = "1".obs;
   final locationTime = "".obs;
@@ -72,7 +76,18 @@ class LocationV2Controller extends GetxController
 
   DraggableScrollableController? _draggableController;
   AMapController? mapController;
+
+  // 标记地图Channel是否可用，避免在Native View销毁后继续发消息导致Bad state错误
+  bool _isMapChannelAvailable = true;
   OverlayEntry? _overlayEntry;
+  
+  // 🚀 节流机制：减少底座旋转更新频率，避免卡顿
+  Timer? _pedestalUpdateTimer;
+  bool _pendingPedestalUpdate = false;
+  
+  // 🚀 防抖机制：避免频繁重建 marker，减少卡顿
+  Timer? _markerRebuildTimer;
+  bool _pendingMarkerRebuild = false;
 
   // 缓存字段（用于判断是否需要重新创建 marker）
   Offset? _cachedMyAnchor; // 缓存的我的锚点位置
@@ -98,6 +113,10 @@ class LocationV2Controller extends GetxController
 
   final RxList<Marker> _trackStartEndMarkers = <Marker>[].obs;
   final RxSet<Polyline> _polylines = <Polyline>{}.obs;
+  
+  // 细粒度更新ID，用于GetBuilder精准更新
+  static const String markersUpdateId = 'markers_update';
+  static const String polylinesUpdateId = 'polylines_update';
 
   // 🚀 修复：管理 ever 监听器，确保正确清理
   Worker? _locationServiceWorker;
@@ -364,7 +383,8 @@ class LocationV2Controller extends GetxController
           currentHeading.value = heading;
 
           // 实时更新底座rotation（不重新创建marker，毫秒级响应）
-          if (mapController != null) {
+          // 仅在地图Controller和Channel均可用时才更新，避免在地图销毁后反复报错
+          if (mapController != null && _isMapChannelAvailable) {
             _updatePedestalRotation();
           }
         }
@@ -395,7 +415,7 @@ class LocationV2Controller extends GetxController
             if (mapController != null) {
               // 🎯 先更新连线和距离，再更新marker，确保距离标签使用最新的距离值
               _updatePolylines().then((_) {
-                _initTrackStartEndMarkers();
+                _initTrackStartEndMarkersDebounced(); // 🚀 使用防抖版本，避免频繁更新
               });
             } else {
               debugPrint('⚠️ 地图未初始化，暂不更新marker（等待地图创建完成）');
@@ -517,7 +537,37 @@ class LocationV2Controller extends GetxController
   }
 
   /// 🚀 实时更新底座旋转角度和位置（不重新创建marker，毫秒级响应）
+  /// 🎯 添加节流机制，减少更新频率避免卡顿
   void _updatePedestalRotation() async {
+    // 地图Channel不可用或Controller已被清理时，直接跳过
+    if (!_isMapChannelAvailable || mapController == null) {
+      return;
+    }
+
+    // 🚀 节流：如果已经有待处理的更新，标记需要更新但不立即执行
+    if (_pedestalUpdateTimer != null && _pedestalUpdateTimer!.isActive) {
+      _pendingPedestalUpdate = true;
+      return;
+    }
+
+    // 🚀 立即执行一次更新，然后设置节流定时器
+    _pendingPedestalUpdate = false;
+    _pedestalUpdateTimer?.cancel();
+    _pedestalUpdateTimer = Timer(const Duration(milliseconds: 100), () {
+      // 如果节流期间有新的更新请求，执行最后一次更新
+      if (_pendingPedestalUpdate && !isClosed && mapController != null) {
+        _pendingPedestalUpdate = false;
+        _performPedestalUpdate();
+      }
+      _pedestalUpdateTimer = null;
+    });
+
+    // 立即执行更新
+    _performPedestalUpdate();
+  }
+
+  /// 执行实际的底座更新操作
+  void _performPedestalUpdate() async {
     try {
       // 🎯 关键修复：始终使用最新的位置，确保与头像marker同步
       final myPos = actualMyLocation.value ?? myLocation.value;
@@ -567,7 +617,38 @@ class LocationV2Controller extends GetxController
       }
     } catch (e) {
       debugPrint('更新底座旋转失败: $e');
+      // 一旦检测到Channel未初始化的异常，后续不再尝试更新，避免持续卡顿
+      final msg = e.toString();
+      if (msg.contains('地图Channel未初始化') ||
+          msg.contains('Bad state') ||
+          msg.contains('mapId')) {
+        _isMapChannelAvailable = false;
+      }
     }
+  }
+
+  /// 🚀 防抖版本的 marker 重建方法，避免频繁更新导致卡顿
+  void _initTrackStartEndMarkersDebounced() {
+    // 如果已经有待处理的重建，标记需要重建但不立即执行
+    if (_markerRebuildTimer != null && _markerRebuildTimer!.isActive) {
+      _pendingMarkerRebuild = true;
+      return;
+    }
+
+    // 立即执行一次重建，然后设置防抖定时器
+    _pendingMarkerRebuild = false;
+    _markerRebuildTimer?.cancel();
+    _markerRebuildTimer = Timer(const Duration(milliseconds: 200), () {
+      // 如果防抖期间有新的重建请求，执行最后一次重建
+      if (_pendingMarkerRebuild && !isClosed) {
+        _pendingMarkerRebuild = false;
+        _initTrackStartEndMarkers();
+      }
+      _markerRebuildTimer = null;
+    });
+
+    // 立即执行重建
+    _initTrackStartEndMarkers();
   }
 
   Future<void> _initTrackStartEndMarkers() async {
@@ -578,6 +659,8 @@ class LocationV2Controller extends GetxController
 
     // 清空旧的markers
     _trackStartEndMarkers.clear();
+    // 触发GetBuilder精准更新
+    update([markersUpdateId]);
 
     try {
       final List<Marker> tempMarkers = [];
@@ -699,7 +782,9 @@ class LocationV2Controller extends GetxController
 
         final LatLng? partnerPos =
             actualPartnerLocation.value ?? partnerLocation.value;
+        // 🚀 修复：确保位置有效才创建marker
         if (partnerPos != null) {
+          debugPrint('📍 创建另一半marker，位置: $partnerPos');
           try {
             final BitmapDescriptor partnerIcon =
                 _persistentPartnerIcon ??
@@ -738,7 +823,12 @@ class LocationV2Controller extends GetxController
             tempMarkers.add(partnerMarker);
 
             // 📍 添加距离标签marker（在连线中点，旋转角度与连线一致）
-            if (myPos != null && distance.value.isNotEmpty) {
+            // 🎯 只在距离大于100米时显示距离标签
+            final distanceInMeters = _parseDistanceToMeters(distance.value);
+            if (myPos != null && 
+                distance.value.isNotEmpty && 
+                distanceInMeters != null && 
+                distanceInMeters > 100) {
               try {
                 // 使用墨卡托投影计算中点（与高德地图原生一致）
                 // 在投影坐标系中计算中点，然后反投影回经纬度
@@ -788,11 +878,20 @@ class LocationV2Controller extends GetxController
 
       if (tempMarkers.isNotEmpty) {
         _trackStartEndMarkers.value = tempMarkers;
-        // 🚀 使用原生呼吸动画（性能优秀，60fps流畅）
-        _startNativeBreathAnimation();
+        // 触发GetBuilder精准更新
+        update([markersUpdateId]);
+        // 🚀 延迟启动动画，确保 marker 已经完全添加到地图上
+        // 延迟时间需要足够让地图完成 marker 的渲染
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!isClosed && mapController != null) {
+            _startNativeBreathAnimation();
+          }
+        });
       } else {
         _trackStartEndMarkers.clear();
         _stopNativeBreathAnimation();
+        // 触发GetBuilder精准更新
+        update([markersUpdateId]);
       }
     } catch (e) {
       debugPrint('Init track markers error: $e');
@@ -802,6 +901,42 @@ class LocationV2Controller extends GetxController
   void _moveMapToLocation(LatLng location) {
     if (mapController != null) {
       mapController!.moveCamera(CameraUpdate.newLatLngZoom(location, 16.0));
+    }
+  }
+
+  /// 解析距离字符串并转换为米数
+  /// 支持格式： "100m", "1.5km", "10km" 等
+  double? _parseDistanceToMeters(String distanceText) {
+    if (distanceText.isEmpty || distanceText == "未知") {
+      return null;
+    }
+    
+    try {
+      // 移除所有空格
+      final cleaned = distanceText.trim().replaceAll(' ', '');
+      
+      // 检查是否以 "m" 结尾（米）
+      if (cleaned.toLowerCase().endsWith('m')) {
+        final metersStr = cleaned.substring(0, cleaned.length - 1);
+        final meters = double.tryParse(metersStr);
+        return meters;
+      }
+      
+      // 检查是否以 "km" 结尾（千米）
+      if (cleaned.toLowerCase().endsWith('km')) {
+        final kmStr = cleaned.substring(0, cleaned.length - 2);
+        final km = double.tryParse(kmStr);
+        if (km != null) {
+          return km * 1000; // 转换为米
+        }
+      }
+      
+      // 如果都不匹配，尝试直接解析为数字（假设是米）
+      final meters = double.tryParse(cleaned);
+      return meters;
+    } catch (e) {
+      debugPrint('解析距离失败: $distanceText, 错误: $e');
+      return null;
     }
   }
 
@@ -837,6 +972,8 @@ class LocationV2Controller extends GetxController
 
     // 未绑定时不显示连线
     if (!isBindPartner.value) {
+      // 触发GetBuilder精准更新
+      update([markersUpdateId]);
       return;
     }
 
@@ -847,8 +984,8 @@ class LocationV2Controller extends GetxController
     if (myPos != null && partnerPos != null) {
       final List<LatLng> connectionPoints = [myPos, partnerPos];
 
-      // 🎯 实时计算距离并更新distance.value
-      _updateDistanceFromPositions(myPos, partnerPos);
+      // 🎯 不再计算距离，直接使用 API 返回的 distance 字段
+      // distance 值已在 _updateCurrentUserData 中从 userLocationMobileDevice.distance 获取
 
       // 加载虚线纹理（只加载一次）
       // 使用32x8标准尺寸纹理，符合2的n次方要求
@@ -866,38 +1003,14 @@ class LocationV2Controller extends GetxController
           capType: CapType.round,
         ),
       );
+      
+      // 触发GetBuilder精准更新
+      update([markersUpdateId]);
     }
   }
 
-  /// 根据两个位置实时计算距离并更新distance.value
-  void _updateDistanceFromPositions(LatLng pos1, LatLng pos2) {
-    // 使用Haversine公式计算两点间的距离（单位：米）
-    const double earthRadius = 6371000; // 地球半径（米）
-    
-    final lat1Rad = pos1.latitude * dart_math.pi / 180;
-    final lat2Rad = pos2.latitude * dart_math.pi / 180;
-    final deltaLat = (pos2.latitude - pos1.latitude) * dart_math.pi / 180;
-    final deltaLng = (pos2.longitude - pos1.longitude) * dart_math.pi / 180;
-    
-    final a = dart_math.sin(deltaLat / 2) * dart_math.sin(deltaLat / 2) +
-        dart_math.cos(lat1Rad) * dart_math.cos(lat2Rad) *
-        dart_math.sin(deltaLng / 2) * dart_math.sin(deltaLng / 2);
-    final c = 2 * dart_math.atan2(dart_math.sqrt(a), dart_math.sqrt(1 - a));
-    final distanceInMeters = earthRadius * c;
-    
-    // 格式化距离文本
-    if (distanceInMeters < 1000) {
-      distance.value = '${distanceInMeters.toStringAsFixed(0)}m';
-    } else {
-      final distanceInKm = distanceInMeters / 1000;
-      if (distanceInKm < 10) {
-        distance.value = '${distanceInKm.toStringAsFixed(2)}km';
-      } else {
-        distance.value = '${distanceInKm.toStringAsFixed(1)}km';
-      }
-    }
-  }
 
+  // 使用getter避免直接暴露内部状态，减少不必要的重建
   Set<Marker> get markers => _trackStartEndMarkers.toSet();
   Set<Polyline> get polylines => _polylines;
   int get markersLength => _trackStartEndMarkers.length;
@@ -963,9 +1076,9 @@ class LocationV2Controller extends GetxController
 
     // 未绑定时，立即尝试使用实时位置创建 marker
     if (!isBindPartner.value) {
-      _initTrackStartEndMarkers();
+      _initTrackStartEndMarkersDebounced(); // 🚀 使用防抖版本，避免频繁更新
     } else if (myLocation.value != null || partnerLocation.value != null) {
-      _initTrackStartEndMarkers();
+      _initTrackStartEndMarkersDebounced(); // 🚀 使用防抖版本，避免频繁更新
     }
 
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -973,6 +1086,16 @@ class LocationV2Controller extends GetxController
         _animateMapToShowBothUsersAsync();
       }
     });
+  }
+
+  /// SafeAMapWidget销毁时回调，避免在地图已经被释放后继续发送方法通道消息
+  void onMapDisposed() {
+    if (mapController != null) {
+      debugPrint('🧹 定位页面：地图PlatformView已销毁，清空Controller引用');
+    }
+    // 标记Channel不可用，后续所有地图操作都会直接跳过，防止Bad state日志刷屏
+    _isMapChannelAvailable = false;
+    mapController = null;
   }
 
   void _animateMapToLocation(LatLng location) {
@@ -1015,7 +1138,7 @@ class LocationV2Controller extends GetxController
           await mapController!.moveCamera(
             CameraUpdate.newLatLngZoom(targetLocation, 18.0),
             animated: true,
-            duration: 500,
+            duration: 300,
           );
         } catch (e) {
           debugPrint('Animate map error: $e');
@@ -1059,9 +1182,9 @@ class LocationV2Controller extends GetxController
         );
 
         await mapController!.moveCamera(
-          CameraUpdate.newLatLngBounds(bounds, 100), // 100像素边距
+          CameraUpdate.newLatLngBounds(bounds, 150), // 100像素边距
           animated: true,
-          duration: 500,
+          duration: 300,
         );
       } catch (e) {
         debugPrint('Animate map error: $e');
@@ -1115,6 +1238,12 @@ class LocationV2Controller extends GetxController
         isOneself.value = 1;
       } else {
         isOneself.value = 0;
+        // 🚀 修复：切换到另一半时，先清空另一半的位置数据，避免显示旧marker
+        debugPrint('📍 切换到另一半，先清空位置数据');
+        actualPartnerLocation.value = null;
+        partnerLocation.value = null;
+        // 立即更新marker，清除旧的marker
+        await _initTrackStartEndMarkers();
       }
 
       await loadLocationData().timeout(
@@ -1135,7 +1264,7 @@ class LocationV2Controller extends GetxController
       debugPrint('Avatar tap error: $e\n$stackTrace');
       try {
         await switchTransitionController.reverse().timeout(
-          const Duration(milliseconds: 500),
+          const Duration(milliseconds: 300),
           onTimeout: () {
             switchTransitionController.reset();
           },
@@ -1159,7 +1288,22 @@ class LocationV2Controller extends GetxController
       targetLocation = actualPartnerLocation.value;
     }
 
-    if (targetLocation == null) return;
+    // 🚀 修复：如果目标位置为空，移动到默认位置（天安门）
+    if (targetLocation == null) {
+      debugPrint('📍 目标位置为空，移动到默认位置（天安门）');
+      try {
+        mapController!.moveCamera(
+          CameraUpdate.newLatLngZoom(
+            const LatLng(39.9042, 116.4074), // 天安门坐标
+            3.0, // 大范围视图
+          ),
+          animated: false,
+        );
+      } catch (e) {
+        debugPrint('Move map to default location error: $e');
+      }
+      return;
+    }
 
     try {
       mapController!.moveCamera(
@@ -1189,7 +1333,8 @@ class LocationV2Controller extends GetxController
     await loadLocationData();
   }
 
-  Future<void> loadLocationData({int retryCount = 0}) async {
+  Future<void> loadLocationData({int retryCount = 0}) async { 
+    
     if (isLoading.value && retryCount == 0) return;
 
     isLoading.value = true;
@@ -1238,33 +1383,56 @@ class LocationV2Controller extends GetxController
             _updatePartnerAvatarData(
               locationDataResult.halfLocationMobileDevice!,
             );
+            // 🚀 修复：更新位置数据（如果经纬度为空，会自动清空）
             _updateActualPartnerLocationData(
               locationDataResult.halfLocationMobileDevice!,
             );
+          } else {
+            // 🚀 修复：如果halfLocationMobileDevice为null，清空所有位置数据
+            debugPrint('📍 另一半数据为null，清空所有位置数据');
+            actualPartnerLocation.value = null;
+            partnerLocation.value = null;
           }
         }
 
         UserLocationMobileDevice? currentUser;
-        UserLocationMobileDevice? partnerUser;
 
         // 未绑定时只使用自己的数据
         if (!isBindPartner.value) {
           currentUser = locationDataResult.userLocationMobileDevice;
-          partnerUser = null;
         } else if (isOneself.value == 1) {
           currentUser = locationDataResult.userLocationMobileDevice;
-          partnerUser = locationDataResult.halfLocationMobileDevice;
         } else {
           currentUser = locationDataResult.halfLocationMobileDevice;
-          partnerUser = locationDataResult.userLocationMobileDevice;
         }
 
         if (currentUser != null) {
           _updateCurrentUserData(currentUser);
         }
 
-        if (partnerUser != null) {
-          _updatePartnerData(partnerUser);
+        // 🚀 修复：partnerLocation应该始终存储另一半的位置
+        // 无论isOneself的值如何，另一半的位置数据都来自halfLocationMobileDevice
+        // 所以应该检查halfLocationMobileDevice是否有位置，而不是检查partnerUser
+        if (locationDataResult.halfLocationMobileDevice != null) {
+          final halfLocationData = locationDataResult.halfLocationMobileDevice!;
+          // 检查另一半是否有有效的位置数据
+          final hasValidLocation = halfLocationData.latitude != null &&
+              halfLocationData.longitude != null &&
+              halfLocationData.latitude!.trim().isNotEmpty &&
+              halfLocationData.longitude!.trim().isNotEmpty;
+          
+          if (hasValidLocation) {
+            // 使用另一半的数据更新partnerLocation
+            _updatePartnerData(halfLocationData);
+          } else {
+            // 🚀 修复：如果另一半没有位置数据，清空partnerLocation
+            debugPrint('📍 另一半没有有效位置数据，清空partnerLocation');
+            partnerLocation.value = null;
+          }
+        } else {
+          // 🚀 修复：如果halfLocationMobileDevice为null，清空partnerLocation
+          debugPrint('📍 halfLocationMobileDevice为null，清空partnerLocation');
+          partnerLocation.value = null;
         }
 
         _updateLocationRecords(currentUser);
@@ -1591,6 +1759,45 @@ class LocationV2Controller extends GetxController
       Get.to(() => const QuestionPage(), transition: Transition.rightToLeft);
       return;
     }
+
+    _navigateToQuestionDetailDirectly(problemId);
+  }
+
+  /// 从定位页离线提示点击“查看原因”时
+  /// 直接跳转到对应的问题详情页，避免先进入问题列表再二次跳转
+  /// 这样返回时也会直接回到定位页，优化返回路径
+  Future<void> _navigateToQuestionDetailDirectly(int problemId) async {
+    try {
+      final settingApi = SettingApi();
+      final result = await settingApi.getProblemList();
+
+      if (result.isSuccess && result.data != null) {
+        final List<CommonQuestionModel> questions = result.data!;
+        CommonQuestionModel? targetQuestion;
+        for (final q in questions) {
+          if (q.id == problemId) {
+            targetQuestion = q;
+            break;
+          }
+        }
+
+        if (targetQuestion != null) {
+          final CommonQuestionModel nonNullQuestion = targetQuestion;
+          Get.to(
+            () => QuestionPageInfo(question: nonNullQuestion),
+            transition: Transition.rightToLeft,
+          );
+          return;
+        } else {
+          // 未找到对应问题时给出提示，退回到问题列表供用户自行浏览
+          OKToastUtil.show('未找到对应的问题信息');
+        }
+      }
+    } catch (e) {
+      debugPrint('navigateToQuestionDetailDirectly error: $e');
+    }
+
+    // 兜底：如果接口异常或未找到问题，保持原有逻辑，先进入问题列表
     Get.to(
       () => QuestionPage(targetProblemId: problemId),
       transition: Transition.rightToLeft,
@@ -1830,6 +2037,24 @@ class LocationV2Controller extends GetxController
       debugPrint('✅ 方向监听器已清理');
     } catch (e) {
       debugPrint('Dispose heading worker error: $e');
+    }
+
+    // 🚀 清理节流定时器
+    try {
+      _pedestalUpdateTimer?.cancel();
+      _pedestalUpdateTimer = null;
+      debugPrint('✅ 底座更新定时器已清理');
+    } catch (e) {
+      debugPrint('Dispose pedestal update timer error: $e');
+    }
+
+    // 🚀 清理防抖定时器
+    try {
+      _markerRebuildTimer?.cancel();
+      _markerRebuildTimer = null;
+      debugPrint('✅ Marker重建定时器已清理');
+    } catch (e) {
+      debugPrint('Dispose marker rebuild timer error: $e');
     }
 
     try {
