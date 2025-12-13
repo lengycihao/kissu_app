@@ -82,12 +82,13 @@ class _KissuHomePageState extends State<KissuHomePage>
                 children: [
                   // 背景图片
                   Positioned.fill(
+                    
                     child: Image.asset(
                       "assets/images/kissu_home_bg.webp",
                       width: 1125, // 固定宽度1500px
                       height: ScreenAdaptation.getDynamicBackgroundSize()
                           .height, // 使用动态高度
-                      fit: BoxFit.contain, // 改回cover以保持原有显示效果
+                      fit: BoxFit.cover, // 填充全屏，避免底部留白
                     ),
                   ),
 
@@ -366,41 +367,44 @@ class _KissuHomePageState extends State<KissuHomePage>
             ),
           ),
 
-          // 底部按钮栏（你已有的）
-          Align(
-            alignment: Alignment.bottomCenter,
+          // 底部按钮栏（自定义悬浮tabbar）
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
             child: Container(
-              height: 90,
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              height: 64,
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFFFD4D0), width: 1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+                color: const Color(0x9effffff),
+                border: Border.all(color: Colors.white, width: 2),
+                borderRadius: BorderRadius.circular(35),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(4, (index) {
-                  return InkWell(
-                    onTap: () => controller.onButtonTap(index),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          controller.getTopIconPath(index),
-                          width: 42,
-                          height: 42,
-                        ),
-                        // const SizedBox(height: 4),
-                        Image.asset(
-                          controller.getBottomIconPath(index),
-                          width: index == 2 ? 48 : 24,
-                          height: 14,
-                          fit: BoxFit.contain,
-                        ),
-                      ],
+                children: List.generate(5, (index) {
+                  return Expanded(
+                    child: InkWell(
+                      onTap: () => controller.onButtonTap(index),
+                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            controller.getTopIconPath(index),
+                            width: 34,
+                            height: 34,
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            controller.getTabTitle(index),
+                            style: const TextStyle(
+                              color: Color(0xFF4C342A),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }),
@@ -442,7 +446,7 @@ class _KissuHomePageState extends State<KissuHomePage>
 
           // 底部组件（根据首页视图内部按钮可切换child）
           Positioned(
-            bottom: 90 + 15, // 90 是已有底部按钮栏高度，18 是间距，20 是指示器高度
+            bottom: 70 + 30 + 15, // 70 是tabbar高度，30 是底部间距，15 是额外间距
             left: 0,
             right: 0,
             child: Obx(() {

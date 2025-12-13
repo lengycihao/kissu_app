@@ -9,9 +9,11 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/umeng_analytics_util.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/network/utils/device_util.dart';
 
 /// 安全的隐私合规管理器
 /// 采用渐进式初始化策略，确保第三方SDK功能不受影响
@@ -59,6 +61,19 @@ class PrivacyComplianceManager extends GetxService {
           DebugUtil.success('✅ 隐私政策已同意，版本: $version');
         }
         
+        // 🔥 修复：在用户已同意隐私政策的情况下，初始化真实的设备ID
+        try {
+          final deviceUtil = DeviceUtil.instance;
+          await deviceUtil.initializeDeviceId();
+          if (kDebugMode) {
+            DebugUtil.success('真实设备ID初始化完成（已同意隐私政策）');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            DebugUtil.warning('初始化真实设备ID失败: $e');
+          }
+        }
+        
         // 🔑 关键修复：即使已同意，也要在启动时重新初始化SDK
         // 这样确保每次启动都是在用户已明确同意的前提下初始化
         await initializeSdks();
@@ -88,6 +103,19 @@ class PrivacyComplianceManager extends GetxService {
       
       if (kDebugMode) {
         DebugUtil.success('用户已同意隐私政策，版本: $_currentPrivacyVersion');
+      }
+      
+      // 🔥 修复：在用户同意隐私政策后，初始化真实的设备ID
+      try {
+        final deviceUtil = DeviceUtil.instance;
+        await deviceUtil.initializeDeviceId();
+        if (kDebugMode) {
+          DebugUtil.success('真实设备ID初始化完成');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          DebugUtil.warning('初始化真实设备ID失败: $e');
+        }
       }
       
       // 自动初始化SDK
@@ -201,19 +229,22 @@ class PrivacyComplianceManager extends GetxService {
       // 2. 启用极光推送初始化
       await _enableJPushService();
       
-      // 3. 启用友盟分享的隐私授权
+      // 3. 启用腾讯IM SDK初始化（延迟初始化，等待隐私政策同意）
+      await _enableTencentIMService();
+      
+      // 4. 启用友盟分享的隐私授权
       await _enableShareServicePrivacy();
       
-      // 4. 启用友盟统计初始化
+      // 5. 启用友盟统计初始化
       await _enableUmengAnalytics();
       
-      // 5. 启用OpenInstall的剪贴板功能（如果需要）
+      // 6. 启用OpenInstall的剪贴板功能（如果需要）
       await _enableOpenInstallClipboard();
       
-      // 6. 启用敏感数据收集
+      // 7. 启用敏感数据收集
       await _enableSensitiveDataCollection();
       
-      // 7. 通知其他服务隐私政策已同意
+      // 8. 通知其他服务隐私政策已同意
       _notifyPrivacyAgreement();
       
       if (kDebugMode) {
@@ -257,6 +288,27 @@ class PrivacyComplianceManager extends GetxService {
     } catch (e) {
       if (kDebugMode) {
         DebugUtil.error('启用极光推送服务失败: $e');
+      }
+    }
+  }
+  
+  /// 启用腾讯IM服务
+  /// 🔥 修复：延迟初始化腾讯IM SDK，等待用户同意隐私政策后再初始化
+  Future<void> _enableTencentIMService() async {
+    try {
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = Get.find<TencentIMService>();
+        if (!imService.isInitialized) {
+          // 调用公开的初始化方法
+          await imService.initIM();
+          if (kDebugMode) {
+            DebugUtil.success('腾讯IM服务已启用');
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('启用腾讯IM服务失败: $e');
       }
     }
   }

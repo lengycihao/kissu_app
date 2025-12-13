@@ -56,10 +56,8 @@ class LoginController extends GetxController {
     
     // 📊 上报登录页面浏览埋点
     _trackLoginPageView();
-    
-  
   }
-
+  
   /// 加载协议同意状态
   Future<void> _loadAgreementStatus() async {
     try {
@@ -110,15 +108,13 @@ class LoginController extends GetxController {
   /// 获取OpenInstall邀请码
   Future<String?> _getOpenInstallFriendCode() async {
     try {
-      final installParams = await OpenInstallService.getInstallParams();
-      if (installParams != null && installParams['bindData'] != null) {
-        final bindData = installParams['bindData'];
-        final friendCode = bindData['friend_code'];
-        if (friendCode != null && friendCode.toString().isNotEmpty) {
-          logDebug('获取到OpenInstall邀请码: $friendCode', tag: 'Login');
-          return friendCode.toString();
-        }
+      // 统一通过 OpenInstallService 的解析逻辑获取（兼容 bindData 为字符串或其他字段名）
+      final inviteCode = await OpenInstallService.getInviteCode();
+      if (inviteCode != null && inviteCode.isNotEmpty) {
+        logDebug('获取到OpenInstall邀请码: $inviteCode', tag: 'Login');
+        return inviteCode;
       }
+
       logDebug('未获取到OpenInstall邀请码', tag: 'Login');
       return "";
     } catch (e) {

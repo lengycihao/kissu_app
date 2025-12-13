@@ -129,9 +129,19 @@ class BootCompletedReceiver : BroadcastReceiver() {
     
     /**
      * 启动前台定位服务
+     * 🔥 修复：检查隐私政策是否已同意，避免在用户未同意时获取位置信息和 ANDROID ID
      */
     private fun startForegroundLocationService(context: Context) {
         try {
+            // 🔥 关键修复：检查隐私政策是否已同意（从 SharedPreferences 读取 Flutter 保存的状态）
+            val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val privacyAgreed = flutterPrefs.getBoolean("flutter.privacy_policy_agreed", false)
+            
+            if (!privacyAgreed) {
+                Log.w(TAG, "⚠️ 用户未同意隐私政策，跳过开机自启动定位服务（隐私合规）")
+                return
+            }
+            
             // 🔥 检查用户 Token 是否存在（用于定位上报）
             val prefs = context.getSharedPreferences("kissu_preferences", Context.MODE_PRIVATE)
             val token = prefs.getString("user_token", null)

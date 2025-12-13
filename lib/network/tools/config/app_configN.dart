@@ -11,9 +11,14 @@ class AppConfigN {
 
   // /// 域名
   static late final String baseApiUrl;
-
+  static bool _isConfigured = false; // 🔒 添加配置标志，防止重复初始化
 
   static Future configuration({String urlType = 'test'}) async {
+    // 🔒 如果已经配置过，直接返回
+    if (_isConfigured) {
+      return;
+    }
+    
     // ossBucketName = "yvoice-app";
     // baseWebUrl = 'https://protocol.syyimeng.com';
     // appChannel = const int.fromEnvironment('app_channel', defaultValue: 0);
@@ -29,6 +34,8 @@ class AppConfigN {
       // 生产环境（使用 HTTPS）
       baseApiUrl = "https://service-api.ikissu.cn";
     }
+    
+    _isConfigured = true; // 标记为已配置
   }
 
 }

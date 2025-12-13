@@ -12,10 +12,8 @@ import 'package:kissu_app/services/tracking_service.dart';
 class HomeAvatarSection extends StatelessWidget {
   final HomeController controller;
 
-  const HomeAvatarSection({
-    Key? key,
-    required this.controller,
-  }) : super(key: key);
+  const HomeAvatarSection({Key? key, required this.controller})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +54,8 @@ class HomeAvatarSection extends StatelessWidget {
                         ),
                         child: NoPlaceholderImage(
                           imageUrl: controller.userAvatar.value,
-                          defaultAssetPath: "assets/3.0/kissu3_love_avater.webp",
+                          defaultAssetPath:
+                              "assets/3.0/kissu3_love_avater.webp",
                           width: 38,
                           height: 38,
                           fit: BoxFit.cover,
@@ -82,8 +81,10 @@ class HomeAvatarSection extends StatelessWidget {
                             child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(5),
-                                border:
-                                    Border.all(color: Colors.white, width: 1),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1,
+                                ),
                               ),
                               child: NoPlaceholderImage(
                                 imageUrl: controller.partnerAvatar.value,
@@ -142,10 +143,11 @@ class HomeAvatarSection extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: Color(0xff5CC0FF),
-                          border: Border.all(color: Color(0xffffffff),width: 2),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(15),
+                          border: Border.all(
+                            color: Color(0xffffffff),
+                            width: 2,
                           ),
+                          borderRadius: BorderRadius.all(Radius.circular(15)),
                         ),
                         child: Obx(
                           () => Text(
@@ -177,9 +179,7 @@ class HomeAvatarSection extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Color(0xff5CC0FF),
                           border: Border.all(color: Color(0xffffffff)),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(15),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(15)),
                         ),
                         child: Text(
                           "绑定另一半",
@@ -198,10 +198,55 @@ class HomeAvatarSection extends StatelessWidget {
               offset: const Offset(19, 0),
               child: Column(
                 children: [
+                  // 福利会员图标
+                  // SizedBox(
+                  //   width: 56,
+                  //   height: 56,
+                  //   child: Stack(
+                  //     clipBehavior: Clip.none,
+                  //     children: [
+                  //       // 通知图标（固定位置）
+                  //       GestureDetector(
+                  //         onTap: () {
+                  //           controller.onNotificationTap();
+                  //         },
+                  //         child: Image.asset(
+                  //           "assets/images/kissu_home_vip_icon.webp",
+                  //           width: 56,
+                  //           height: 56,
+                  //         ),
+                  //       ),
+                  //       // 红点角标
+                  //       Obx(() {
+                  //         if (controller.isRedDot.value) {
+                  //           return Positioned(
+                  //             right: 0,
+                  //             top: 0,
+                  //             child: Container(
+                  //               width: 12,
+                  //               height: 12,
+                  //               decoration: BoxDecoration(
+                  //                 color: const Color(0xffFF6B6B),
+                  //                 shape: BoxShape.circle,
+                  //                 border: Border.all(
+                  //                   color: Colors.white,
+                  //                   width: 1,
+                  //                 ),
+                  //               ),
+                  //             ),
+                  //           );
+                  //         }
+                  //         return const SizedBox.shrink();
+                  //       }),
+                  //     ],
+                  //   ),
+                  // ),
+                  // SizedBox(height: 5),
+                
                   // 通知图标（带红点）+ 抽屉式提示
                   SizedBox(
-                    width: 36,
-                    height: 36,
+                    width: 56,
+                    height: 56,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -225,7 +270,10 @@ class HomeAvatarSection extends StatelessWidget {
                                         ),
                                       ),
                                       alignment: Alignment.centerLeft,
-                                      padding: EdgeInsets.only(left: 12, right: 8),
+                                      padding: EdgeInsets.only(
+                                        left: 12,
+                                        right: 8,
+                                      ),
                                       child: Text(
                                         "有未读消息哦~",
                                         style: TextStyle(
@@ -245,9 +293,9 @@ class HomeAvatarSection extends StatelessWidget {
                             controller.onNotificationTap();
                           },
                           child: Image.asset(
-                            "assets/images/kissu_home_notiicon.png",
-                            width: 36,
-                            height: 36,
+                            "assets/images/kissu_home_notiicon.webp",
+                            width: 56,
+                            height: 56,
                           ),
                         ),
                         // 红点角标
@@ -275,6 +323,7 @@ class HomeAvatarSection extends StatelessWidget {
                       ],
                     ),
                   ),
+
                   // 活动图标
                   Obx(() {
                     if (controller.isActivity.value &&
@@ -286,7 +335,7 @@ class HomeAvatarSection extends StatelessWidget {
                             onTap: () async {
                               // 埋点：活动按钮点击
                               await TrackingService.trackActivityButtonClick();
-                              
+
                               controller.navigateToH5(
                                 controller.activityLink.value,
                               );
@@ -304,6 +353,49 @@ class HomeAvatarSection extends StatelessWidget {
                     }
                     return const SizedBox.shrink();
                   }),
+            //  SizedBox(height: 5),  SizedBox(
+            //         width: 56,
+            //         height: 56,
+            //         child: Stack(
+            //           clipBehavior: Clip.none,
+            //           children: [
+            //             // 通知图标（固定位置）
+            //             GestureDetector(
+            //               onTap: () {
+            //                 controller.onNotificationTap();
+            //               },
+            //               child: Image.asset(
+            //                 "assets/images/kissu_home_lashi_icon.webp",
+            //                 width: 56,
+            //                 height: 56,
+            //               ),
+            //             ),
+            //             // 红点角标
+            //             Obx(() {
+            //               if (controller.isRedDot.value) {
+            //                 return Positioned(
+            //                   right: 0,
+            //                   top: 0,
+            //                   child: Container(
+            //                     width: 12,
+            //                     height: 12,
+            //                     decoration: BoxDecoration(
+            //                       color: const Color(0xffFF6B6B),
+            //                       shape: BoxShape.circle,
+            //                       border: Border.all(
+            //                         color: Colors.white,
+            //                         width: 1,
+            //                       ),
+            //                     ),
+            //                   ),
+            //                 );
+            //               }
+            //               return const SizedBox.shrink();
+            //             }),
+            //           ],
+            //         ),
+            //       ),
+                 
                 ],
               ),
             ),
@@ -313,4 +405,3 @@ class HomeAvatarSection extends StatelessWidget {
     );
   }
 }
-

@@ -982,9 +982,12 @@ class HomeController extends GetxController {
         bottomName = '足迹';
         break;
       case 2:
-        bottomName = '用机记录';
+        bottomName = '聊天';
         break;
       case 3:
+        bottomName = '用机记录';
+        break;
+      case 4:
         bottomName = '我的';
         break;
     }
@@ -1012,6 +1015,14 @@ class HomeController extends GetxController {
         onPageResumed();
         break;
       case 2:
+        // 聊天 - 返回时刷新首页数据
+        await Get.toNamed(
+          KissuRoutePath.chat,
+        );
+        debugPrint('🔙 从聊天页面返回首页，刷新数据');
+        onPageResumed();
+        break;
+      case 3:
         // 用机记录 - 返回时刷新首页数据
         await Get.to(
           () => const DeviceUsagePage(),
@@ -1021,7 +1032,7 @@ class HomeController extends GetxController {
         debugPrint('🔙 从用机记录页面返回首页，刷新数据');
         onPageResumed();
         break;
-      case 3:
+      case 4:
         // 我的 - 每次点击时刷新数据
         _navigateToMinePage();
         break;
@@ -1056,29 +1067,51 @@ class HomeController extends GetxController {
       case 0:
         return "assets/images/kissu_home_tab_location.webp";
       case 1:
-        return "assets/images/kissu_home_tab_foot.webp";
+        return "assets/images/kissu_home_tab_foot.webp"; 
       case 2:
-        return "assets/images/kissu_home_tab_history.webp";
+        return "assets/images/kissu_home_tab_chat.webp"; // 聊天
       case 3:
+        return "assets/images/kissu_home_tab_history.webp"; // 用机记录
+      case 4:
         return "assets/images/kissu_home_tab_mine.webp";
       default:
         return "assets/images/kissu_home_tab_location.webp";
     }
   }
 
-  /// 获取底部图标路径
+  /// 获取底部图标路径（已废弃，现在使用文字）
   String getBottomIconPath(int index) {
     switch (index) {
       case 0:
         return "assets/images/kissu_home_tab_locationT.webp";
       case 1:
-        return "assets/images/kissu_home_tab_mapT.webp";
+        return "assets/images/kissu_home_tab_mapT.webp"; 
       case 2:
-        return "assets/images/kissu_home_tab_historyT.webp";
+        return "assets/images/kissu_home_tab_chatT.webp"; // 聊天文字图标
       case 3:
+        return "assets/images/kissu_home_tab_historyT.webp"; // 用机记录文字图标
+      case 4:
         return "assets/images/kissu_home_tab_mineT.webp";
       default:
         return "assets/images/kissu_home_tab_locationT.webp";
+    }
+  }
+
+  /// 获取tab标题文字
+  String getTabTitle(int index) {
+    switch (index) {
+      case 0:
+        return "定位";
+      case 1:
+        return "足迹";
+      case 2:
+        return "聊天";
+      case 3:
+        return "用机记录";
+      case 4:
+        return "我的";
+      default:
+        return "";
     }
   }
   

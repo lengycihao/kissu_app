@@ -13,6 +13,9 @@ class NotificationSettingsController extends GetxController {
   final _permissionService = PermissionService();
   final isLoading = false.obs;
   
+  // 页面标题
+  final RxString pageTitle = '推送设置'.obs;
+  
   // 防抖Timer
   Timer? _debounceTimer;
   
@@ -37,6 +40,14 @@ class NotificationSettingsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 获取传递的标题参数
+    final arguments = Get.arguments;
+    if (arguments != null && arguments is Map<String, dynamic>) {
+      final title = arguments['title'] as String?;
+      if (title != null && title.isNotEmpty) {
+        pageTitle.value = title;
+      }
+    }
     // 延迟加载，等待页面转场动画完成（约300ms）
     // loadSettings内部会设置isLoading状态
     Future.delayed(const Duration(milliseconds: 350), () {

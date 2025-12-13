@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
@@ -597,9 +598,29 @@ class LocationReportService(private val context: Context) {
     }
     
     /**
+     * 检查隐私政策是否已同意
+     */
+    private fun isPrivacyPolicyAgreed(): Boolean {
+        return try {
+            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.getBoolean("flutter.privacy_policy_agreed", false)
+        } catch (e: Exception) {
+            Log.w(TAG, "检查隐私政策状态失败", e)
+            false // 默认返回 false，确保合规
+        }
+    }
+    
+    /**
      * 获取设备 ID（使用 Android ID）
+     * 🔥 修复：在用户同意隐私政策前不获取 ANDROID ID，返回降级值
      */
     private fun getDeviceId(): String {
+        // 🔥 关键修复：检查隐私政策是否已同意
+        if (!isPrivacyPolicyAgreed()) {
+            Log.d(TAG, "用户未同意隐私政策，返回降级设备ID")
+            return "privacy_not_agreed_${System.currentTimeMillis()}"
+        }
+        
         return try {
             android.provider.Settings.Secure.getString(
                 context.contentResolver,
@@ -915,6 +936,17 @@ class LocationReportWorker(appContext: Context, params: androidx.work.WorkerPara
             .build()
 
         // 使用与前台服务相同的通知 ID，避免生成额外通知
-        return ForegroundInfo(1001, notification)
+        // Android 14+ 需要显式声明前台服务类型，否则会抛 InvalidForegroundServiceTypeException
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val serviceType =
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            ForegroundInfo(1001, notification, serviceType)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ 支持 location 类型
+            ForegroundInfo(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            // 旧版 API 没有类型参数
+            ForegroundInfo(1001, notification)
+        }
     }
 }

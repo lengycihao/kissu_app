@@ -80,14 +80,14 @@ class NotificationSettingsPage extends GetView<NotificationSettingsController> {
           ),
           // 标题（居中）
           Center(
-            child: const Text(
-              '推送设置',
-              style: TextStyle(
+            child: Obx(() => Text(
+              controller.pageTitle.value,
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF000000),
               ),
-            ),
+            )),
           ),
         ],
       ),

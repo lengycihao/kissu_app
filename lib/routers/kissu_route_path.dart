@@ -44,4 +44,9 @@ class KissuRoutePath {
   static const appUsage = '/kisssu_app/app_usage';
   static const notificationSettings = '/kisssu_app/notification_settings';
   static const appUsageInfo = '/kisssu_app/app_usage_detail';
+  static const chat = '/kisssu_app/chat';
+  static const chatSettings = '/kisssu_app/chat_settings';
+  static const chatBackground = '/kisssu_app/chat_background';
+  static const chatBubble = '/kisssu_app/chat_bubble';
+  static const chatTheme = '/kisssu_app/chat_theme';
 }

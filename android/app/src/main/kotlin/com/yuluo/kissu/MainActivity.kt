@@ -1,6 +1,7 @@
 package com.yuluo.kissu
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -63,6 +64,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
          
         // 🔒 高德地图隐私合规（SDK 8.1.0+ 强制要求）
         // 📝 必须在使用任何高德SDK功能之前调用
+        // 🔥 修复：根据隐私政策同意状态设置，而不是直接设置为已同意
         initAmapPrivacy()
         
         // 🔥 处理OpenInstall的Intent（必须在handleNotificationIntent之前）
@@ -73,28 +75,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         
         Log.d(TAG, "MainActivity onCreate")
 
-        // 🔥 兜底：应用启动即尝试拉起前台定位/上报服务（即使 Flutter 未调用）
-        try {
-            val config = mapOf(
-                "title" to "Kissu",
-                "content" to "请不要关掉Kissu后台进程\n当前正在为对方共享您的信息，请勿关闭",
-                "channel_id" to "kissu_location_service",
-                "channel_name" to "定位服务",
-                "channel_description" to "位置与事件上报保活",
-                "notification_id" to 1001,
-                "icon" to "ic_launcher",
-                "priority" to 2,
-                "importance" to "high",
-                "ongoing" to true,
-                "auto_cancel" to false,
-                "enable_vibration" to false,
-                "enable_sound" to false
-            )
-            ForegroundLocationService.startService(this, config)
-            Log.d(TAG, "兜底启动前台定位服务已触发")
-        } catch (e: Exception) {
-            Log.e(TAG, "兜底启动前台定位服务失败", e)
-        }
+        // 🔥 修复：移除立即启动定位服务的代码，等待用户同意隐私政策后再启动
+        // 定位服务将在用户同意隐私政策后，由 Flutter 层通过 ForegroundServiceHandler 启动
+        // 这样可以避免在用户同意前获取位置信息和 ANDROID ID
     }
     
     /**
@@ -191,16 +174,33 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     /**
      * 初始化高德地图隐私合规
      * 📝 SDK 8.1.0+ 强制要求，否则地图无法正常使用
+     * 🔥 修复：根据隐私政策同意状态设置，而不是直接设置为已同意
      */
     private fun initAmapPrivacy() {
         try {
+            // 检查隐私政策是否已同意（从 SharedPreferences 读取 Flutter 保存的状态）
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val privacyAgreed = prefs.getBoolean("flutter.privacy_policy_agreed", false)
+            
             // 设置已经显示隐私政策（true表示已向用户展示）
             MapsInitializer.updatePrivacyShow(this, true, true)
-            // 设置已经同意隐私政策（true表示用户已同意）
-            MapsInitializer.updatePrivacyAgree(this, true)
-            Log.d(TAG, "✅ 高德地图隐私合规初始化成功")
+            // 🔥 修复：根据实际隐私政策同意状态设置，而不是直接设置为 true
+            MapsInitializer.updatePrivacyAgree(this, privacyAgreed)
+            
+            if (privacyAgreed) {
+                Log.d(TAG, "✅ 高德地图隐私合规初始化成功（用户已同意隐私政策）")
+            } else {
+                Log.d(TAG, "⚠️ 高德地图隐私合规初始化（用户未同意隐私政策，等待同意后启用）")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 高德地图隐私合规初始化失败", e)
+            // 如果读取失败，默认设置为未同意，确保合规
+            try {
+                MapsInitializer.updatePrivacyShow(this, true, true)
+                MapsInitializer.updatePrivacyAgree(this, false)
+            } catch (e2: Exception) {
+                Log.e(TAG, "❌ 设置高德地图隐私默认状态失败", e2)
+            }
         }
     }
     

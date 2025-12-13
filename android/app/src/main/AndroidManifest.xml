@@ -509,6 +509,15 @@
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:stopWithTask="false" />
         
+        <!-- WorkManager 前台服务（Android 14+ 必须声明类型，否则抛 InvalidForegroundServiceTypeException） -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|location"
+            tools:node="merge"
+            tools:replace="android:enabled" />
+        
         <!-- 前台定位服务 -->
         <!-- 同时声明 location 和 dataSync 类型，用于权限不足时的降级处理 -->
         <service

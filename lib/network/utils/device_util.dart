@@ -53,13 +53,15 @@ class DeviceUtil {
   Future<void> _initializeDeviceInfo() async {
     final deviceInfo = DeviceInfoPlugin();
 
+    // 🔥 修复：在用户同意隐私政策前，不获取真实的设备ID
+    // 只初始化设备类型，设备ID延迟到用户同意后获取
     if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      _deviceId = androidInfo.id;
+      // 不获取 androidInfo.id，避免在隐私政策同意前获取 ANDROID ID
+      _deviceId = null; // 延迟获取
       _deviceType = 'android';
     } else if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      _deviceId = iosInfo.identifierForVendor;
+      // iOS 也延迟获取，保持一致性
+      _deviceId = null; // 延迟获取
       _deviceType = 'ios';
     } else if (kIsWeb) {
       final webInfo = await deviceInfo.webBrowserInfo;
@@ -68,6 +70,49 @@ class DeviceUtil {
     } else {
       _deviceId = _generateFallbackDeviceId();
       _deviceType = Platform.operatingSystem;
+    }
+  }
+  
+  /// 🔥 新增：在用户同意隐私政策后，初始化真实的设备ID
+  Future<void> initializeDeviceId() async {
+    // 如果已经初始化过，跳过
+    if (_deviceId != null && _deviceId != _generateFallbackDeviceId()) {
+      return;
+    }
+    
+    // 检查隐私政策是否已同意
+    if (_shouldReturnFallbackForPrivacy()) {
+      logger.info(
+        'Privacy policy not agreed, skip initializing real deviceId',
+        tag: 'DeviceUtil',
+      );
+      return;
+    }
+    
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        _deviceId = androidInfo.id;
+        logger.info(
+          'Real Android ID initialized after privacy agreement',
+          tag: 'DeviceUtil',
+        );
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        _deviceId = iosInfo.identifierForVendor;
+        logger.info(
+          'Real iOS ID initialized after privacy agreement',
+          tag: 'DeviceUtil',
+        );
+      }
+    } catch (e) {
+      logger.error(
+        'Failed to initialize real device ID',
+        tag: 'DeviceUtil',
+        error: e,
+      );
     }
   }
 

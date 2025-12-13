@@ -43,6 +43,16 @@ import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 import 'package:kissu_app/pages/mine/notification_settings/notification_settings_page.dart';
 import 'package:kissu_app/pages/mine/notification_settings/notification_settings_binding.dart';
+import 'package:kissu_app/pages/chat/chat_page.dart';
+import 'package:kissu_app/pages/chat/chat_binding.dart';
+import 'package:kissu_app/pages/chat/chat_settings_page.dart';
+import 'package:kissu_app/pages/chat/chat_settings_binding.dart';
+import 'package:kissu_app/pages/chat/chat_background_page.dart';
+import 'package:kissu_app/pages/chat/chat_background_binding.dart';
+import 'package:kissu_app/pages/chat/chat_bubble_page.dart';
+import 'package:kissu_app/pages/chat/chat_bubble_binding.dart';
+import 'package:kissu_app/pages/chat/chat_theme_page.dart';
+import 'package:kissu_app/pages/chat/chat_theme_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -232,6 +242,36 @@ class KissuRoute {
       name: KissuRoutePath.notificationSettings,
       page: () => const NotificationSettingsPage(),
       binding: NotificationSettingsBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.chat,
+      page: () => ChatPage(),
+      binding: ChatBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.chatSettings,
+      page: () => const ChatSettingsPage(),
+      binding: ChatSettingsBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.chatBackground,
+      page: () => const ChatBackgroundPage(),
+      binding: ChatBackgroundBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.chatBubble,
+      page: () => const ChatBubblePage(),
+      binding: ChatBubbleBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.chatTheme,
+      page: () => const ChatThemePage(),
+      binding: ChatThemeBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

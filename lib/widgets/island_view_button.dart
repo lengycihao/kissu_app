@@ -32,7 +32,7 @@ class IslandViewButton extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border.all(color: Color(0xFFFFD4D0), width: 1),
           borderRadius: BorderRadius.circular(18),
-          color: Colors.white,
+          color: Color(0xccffffff),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.start,

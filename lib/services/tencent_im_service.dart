@@ -57,11 +57,14 @@ class TencentIMService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    _initIM();
+    // 🔥 修复：延迟初始化IM SDK，等待用户同意隐私政策后再初始化
+    // 不在 onInit 中立即初始化，避免在用户未同意隐私政策前获取设备信息
+    // IM SDK 将在用户同意隐私政策后，由 PrivacyComplianceManager 调用初始化
   }
 
   /// 初始化IM SDK
-  Future<bool> _initIM() async {
+  /// 🔥 修复：公开此方法，供 PrivacyComplianceManager 在用户同意隐私政策后调用
+  Future<bool> initIM() async {
     if (_isInitialized) {
       logger.info('IM SDK 已经初始化', tag: 'TencentIMService');
       return true;
@@ -123,7 +126,7 @@ class TencentIMService extends GetxService {
   Future<bool> loginIM(LoginModel user) async {
     if (!_isInitialized) {
       logger.warning('IM SDK未初始化，尝试先初始化', tag: 'TencentIMService');
-      final initSuccess = await _initIM();
+      final initSuccess = await initIM();
       if (!initSuccess) {
         logger.error('IM SDK初始化失败，无法登录', tag: 'TencentIMService');
         return false;

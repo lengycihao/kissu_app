@@ -843,9 +843,29 @@ class AppUsageReportService(private val context: Context) {
     }
     
     /**
+     * 检查隐私政策是否已同意
+     */
+    private fun isPrivacyPolicyAgreed(): Boolean {
+        return try {
+            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.getBoolean("flutter.privacy_policy_agreed", false)
+        } catch (e: Exception) {
+            Log.w(TAG, "检查隐私政策状态失败", e)
+            false // 默认返回 false，确保合规
+        }
+    }
+    
+    /**
      * 获取设备 ID（使用 Android ID）
+     * 🔥 修复：在用户同意隐私政策前不获取 ANDROID ID，返回降级值
      */
     private fun getDeviceId(): String {
+        // 🔥 关键修复：检查隐私政策是否已同意
+        if (!isPrivacyPolicyAgreed()) {
+            Log.d(TAG, "用户未同意隐私政策，返回降级设备ID")
+            return "privacy_not_agreed_${System.currentTimeMillis()}"
+        }
+        
         return try {
             android.provider.Settings.Secure.getString(
                 context.contentResolver,

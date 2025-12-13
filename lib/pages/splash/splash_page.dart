@@ -9,6 +9,7 @@ import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/services/jpush_service.dart';
+import 'package:kissu_app/services/app_activation_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';
 import 'package:kissu_app/widgets/dialogs/base_dialog.dart';
@@ -408,6 +409,9 @@ class _SplashPageState extends State<SplashPage> {
 
       // 🔥 新增：用户同意隐私政策后立即申请关键权限
       await _requestEssentialPermissionsAfterAgreement();
+
+      // 🔥 激活：仅在新用户同意隐私协议后调用（获取到OAID或未获取到都调用）
+      await _activateIfNeeded();
     } catch (e) {
       DebugUtil.error('❌ 启用隐私功能失败: $e');
     }
@@ -456,6 +460,20 @@ class _SplashPageState extends State<SplashPage> {
     } catch (e) {
       DebugUtil.error('❌ 申请关键权限失败: $e');
       // 即使权限申请失败，也不阻塞应用启动流程
+    }
+  }
+
+  /// 激活接口调用（新用户，同意隐私后）
+  Future<void> _activateIfNeeded() async {
+    try {
+      if (Get.isRegistered<AppActivationService>()) {
+        final activationService = Get.find<AppActivationService>();
+        await activationService.tryActivate();
+      } else {
+        DebugUtil.warning('AppActivationService 未注册，跳过激活');
+      }
+    } catch (e) {
+      DebugUtil.error('调用激活接口失败: $e');
     }
   }
 

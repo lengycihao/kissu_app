@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/example/http_manager_example.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
@@ -25,25 +26,39 @@ import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/services/app_activation_service.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/lottie_preload_service.dart';
 import 'package:kissu_app/utils/map_style_loader.dart';
 import 'package:kissu_app/services/map_preload_service.dart';
 import 'package:kissu_app/network/utils/log_util.dart';
-import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 
 /// 🚀 应用初始化器
 /// 在启动页执行所有耗时的初始化操作，避免阻塞app启动
 class AppInitializer {
   static bool _isInitialized = false;
+  static bool _isInitializing = false; // 🔒 添加初始化中标志，防止并发调用
+  static final List<Completer<void>> _waitingCompleters = []; // 等待初始化的Completer列表
   
   /// 初始化应用（在启动页调用）
   static Future<void> initialize() async {
+    // 🔒 如果已经初始化完成，直接返回
     if (_isInitialized) {
       DebugUtil.info('应用已经初始化过，跳过重复初始化');
       return;
     }
+    
+    // 🔒 如果正在初始化，等待当前初始化完成
+    if (_isInitializing) {
+      DebugUtil.info('应用正在初始化中，等待完成...');
+      final completer = Completer<void>();
+      _waitingCompleters.add(completer);
+      return completer.future;
+    }
+    
+    // 🔒 标记为正在初始化
+    _isInitializing = true;
     
     try {
       DebugUtil.info('🚀 开始在启动页执行应用初始化...');
@@ -214,6 +229,10 @@ class AppInitializer {
       Get.put(VersionService(), permanent: true);
       DebugUtil.success('版本更新服务初始化完成');
       
+      // 步骤26.5: 初始化App激活服务
+      Get.put(AppActivationService(), permanent: true);
+      DebugUtil.success('App激活服务初始化完成');
+      
       // 步骤27: 预加载VIP页面Lottie动画（非阻塞，后台执行）
       LottiePreloadService().preloadVipLottieAnimations().then((_) {
         DebugUtil.success('VIP页面Lottie动画预加载完成');
@@ -241,26 +260,30 @@ class AppInitializer {
       Get.put(PrivacyComplianceManager(), permanent: true);
       DebugUtil.success('隐私合规管理器初始化完成');
       
-      // 步骤31: 调用App启动接口（非阻塞，后台执行）
-      Future.delayed(Duration.zero, () async {
-        try {
-          final authApi = AuthApi();
-          final result = await authApi.appStart();
-          if (result.isSuccess) {
-            DebugUtil.success('App启动接口调用成功');
-          } else {
-            DebugUtil.warning('App启动接口调用失败: ${result.msg}');
-          }
-        } catch (e) {
-          DebugUtil.error('App启动接口调用异常: $e');
-        }
-      });
-      
       _isInitialized = true;
+      _isInitializing = false; // 🔒 重置初始化标志
       DebugUtil.success('✅ 应用初始化完成，等待用户隐私政策确认后启用完整功能');
+      
+      // 🔒 通知所有等待初始化的调用
+      for (final completer in _waitingCompleters) {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      }
+      _waitingCompleters.clear();
       
     } catch (e) {
       DebugUtil.error('❌ 应用初始化失败: $e');
+      
+      // 🔒 初始化失败时也要通知等待的调用
+      for (final completer in _waitingCompleters) {
+        if (!completer.isCompleted) {
+          completer.completeError(e);
+        }
+      }
+      _waitingCompleters.clear();
+      _isInitializing = false; // 🔒 重置标志，允许重试
+      
       rethrow;
     }
   }
