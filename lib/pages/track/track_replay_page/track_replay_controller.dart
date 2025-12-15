@@ -467,15 +467,15 @@ class TrackReplayController extends GetxController
     super.onClose();
   }
 
-  /// 创建自定义停留点图标（粉色圆形/椭圆形，带数字）
+  /// 创建自定义停留点图标（黑色圆形/椭圆形，带数字）
   /// 参数: number - 显示的数字
   /// 根据数字位数自适应宽度：个位数为圆形，多位数为椭圆形
   Future<BitmapDescriptor> _createCustomStopPointIcon(String number) async {
-    // 🔧 使用适配后的尺寸（设计稿：边框1.5px，最小半径10px，字体10px）
+    // 🔧 使用适配后的尺寸（设计稿：边框1.5px，最小半径10px，字体11px）
     // 停留点应该明显比起点终点(44x46)小，所以直径约20px，半径10px
-    final borderWidth = _calculateAdaptedSize(1.5); // 白色边框宽度
+    final borderWidth = _calculateAdaptedSize(1.5); // 边框宽度
     final minRadius = _calculateAdaptedSize(10.0); // 最小半径（圆形），直径20px
-    final fontSize = _calculateAdaptedSize(10.0); // 字体大小
+    final fontSize = _calculateAdaptedSize(11.0); // 字体大小（大一号）
 
     // 先测量文本尺寸
     final textPainter = TextPainter(
@@ -514,9 +514,9 @@ class TrackReplayController extends GetxController
     final centerX = width / 2;
     final centerY = height / 2;
 
-    // 绘制白色边框椭圆/圆形
+    // 绘制边框椭圆/圆形（颜色：#9FF5FF）
     final borderPaint = Paint()
-      ..color = Colors.white
+      ..color = const Color(0xFF9FF5FF)
       ..style = PaintingStyle.fill;
     canvas.drawOval(
       Rect.fromCenter(
@@ -527,9 +527,9 @@ class TrackReplayController extends GetxController
       borderPaint,
     );
 
-    // 绘制粉色内部椭圆/圆形
+    // 绘制黑色内部椭圆/圆形
     final fillPaint = Paint()
-      ..color = const Color(0xFFFF88AA)
+      ..color = Colors.black
       ..style = PaintingStyle.fill;
     canvas.drawOval(
       Rect.fromCenter(

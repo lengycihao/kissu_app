@@ -4,6 +4,8 @@ import 'package:tencent_cloud_chat_sdk/enum/V2TimSDKListener.dart';
 import 'package:tencent_cloud_chat_sdk/enum/log_level_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_msg_create_info_result.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_receipt.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
@@ -46,10 +48,16 @@ class TencentIMService extends GetxService {
   String? get currentUserID => _currentUserID;
 
   // 消息接收回调
-  final Rx<Function(List<V2TimMessage>)?> onReceiveNewMessage = Rx<Function(List<V2TimMessage>)?>(null);
-  
+  final Rx<Function(List<V2TimMessage>)?> onReceiveNewMessage =
+      Rx<Function(List<V2TimMessage>)?>(null);
+
   // 消息撤回回调
-  final Rx<Function(String)?> onRecvMessageRevoked = Rx<Function(String)?>(null);
+  final Rx<Function(String)?> onRecvMessageRevoked =
+      Rx<Function(String)?>(null);
+
+  // 单聊消息已读回执回调
+  final Rx<Function(List<V2TimMessageReceipt>)?> onRecvC2CReadReceiptCallback =
+      Rx<Function(List<V2TimMessageReceipt>)?>(null);
 
   // 绑定消息接收回调（当收到绑定消息时触发，用于自动关闭绑定弹窗等操作）
   final Rx<Function()?> onBindMessageReceived = Rx<Function()?>(null);
@@ -291,24 +299,27 @@ class TencentIMService extends GetxService {
       );
 
       // 先创建文本消息
-      V2TimValueCallback createResult = 
+      V2TimValueCallback<V2TimMsgCreateInfoResult> createResult = 
           await TencentImSDKPlugin.v2TIMManager
               .getMessageManager()
               .createTextMessage(text: text);
 
-      if (createResult.code != 0) {
+      if (createResult.code != 0 || createResult.data == null) {
         logger.error(
-          '创建消息失败: ${createResult.desc}',
+          '创建消息失败: code=${createResult.code}, desc=${createResult.desc}',
           tag: 'TencentIMService',
         );
         return null;
       }
 
-      // 发送消息
+      final V2TimMsgCreateInfoResult createInfo = createResult.data!;
+
+      // 发送消息（必须携带 messageInfo，否则会报 message and id are both empty）
       V2TimValueCallback<V2TimMessage> sendResult = 
           await TencentImSDKPlugin.v2TIMManager
               .getMessageManager()
               .sendMessage(
+                id: createInfo.id,
                 receiver: isGroup ? '' : receiverID,
                 groupID: isGroup ? receiverID : '',
               );
@@ -317,7 +328,7 @@ class TencentIMService extends GetxService {
         logger.info('消息发送成功', tag: 'TencentIMService');
       } else {
         logger.error(
-          '消息发送失败: ${sendResult.desc}',
+          '消息发送失败: code=${sendResult.code}, desc=${sendResult.desc}',
           tag: 'TencentIMService',
         );
       }
@@ -325,6 +336,268 @@ class TencentIMService extends GetxService {
       return sendResult;
     } catch (e) {
       logger.error('发送消息异常: $e', tag: 'TencentIMService');
+      return null;
+    }
+  }
+
+  /// 发送图片消息（单聊/群聊）
+  /// 
+  /// [receiverID] 单聊接收方 userID（群聊时传空字符串）
+  /// [imagePath] 本地图片绝对路径
+  /// [isGroup] 是否群聊，默认 false 表示单聊
+  Future<V2TimValueCallback<V2TimMessage>?> sendImageMessage({
+    required String receiverID,
+    required String imagePath,
+    bool isGroup = false,
+  }) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法发送图片消息', tag: 'TencentIMService');
+      return null;
+    }
+
+    try {
+      logger.info(
+        '发送图片消息: receiverID=$receiverID, path=$imagePath, isGroup=$isGroup',
+        tag: 'TencentIMService',
+      );
+
+      // 先创建图片消息
+      final V2TimValueCallback<V2TimMsgCreateInfoResult> createResult =
+          await TencentImSDKPlugin.v2TIMManager
+              .getMessageManager()
+              .createImageMessage(imagePath: imagePath);
+
+      if (createResult.code != 0 || createResult.data == null) {
+        logger.error(
+          '创建图片消息失败: code=${createResult.code}, desc=${createResult.desc}',
+          tag: 'TencentIMService',
+        );
+        return null;
+      }
+
+      final V2TimMsgCreateInfoResult createInfo = createResult.data!;
+
+      // 发送图片消息
+      final V2TimValueCallback<V2TimMessage> sendResult =
+          await TencentImSDKPlugin.v2TIMManager
+              .getMessageManager()
+              .sendMessage(
+                id: createInfo.id,
+                receiver: isGroup ? '' : receiverID,
+                groupID: isGroup ? receiverID : '',
+              );
+
+      if (sendResult.code == 0) {
+        logger.info('图片消息发送成功', tag: 'TencentIMService');
+      } else {
+        logger.error(
+          '图片消息发送失败: code=${sendResult.code}, desc=${sendResult.desc}',
+          tag: 'TencentIMService',
+        );
+      }
+
+      return sendResult;
+    } catch (e) {
+      logger.error('发送图片消息异常: $e', tag: 'TencentIMService');
+      return null;
+    }
+  }
+
+  /// 从本地删除单条消息（仅本端）
+  Future<V2TimCallback?> deleteMessageFromLocal({
+    required String msgID,
+  }) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法删除本地消息', tag: 'TencentIMService');
+      return null;
+    }
+    try {
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .deleteMessageFromLocalStorage(msgID: msgID);
+      if (res.code == 0) {
+        logger.info('本地消息删除成功: $msgID', tag: 'TencentIMService');
+      } else {
+        logger.error(
+          '本地消息删除失败: code=${res.code}, desc=${res.desc}',
+          tag: 'TencentIMService',
+        );
+      }
+      return res;
+    } catch (e) {
+      logger.error('本地消息删除异常: $e', tag: 'TencentIMService');
+      return null;
+    }
+  }
+
+  /// 从云端和本地删除多条消息（不可恢复）
+  Future<V2TimCallback?> deleteMessagesFromCloud({
+    required List<String> msgIDs,
+  }) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法删除云端消息', tag: 'TencentIMService');
+      return null;
+    }
+    try {
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .deleteMessages(msgIDs: msgIDs);
+      if (res.code == 0) {
+        logger.info('云端消息删除成功: $msgIDs', tag: 'TencentIMService');
+      } else {
+        logger.error(
+          '云端消息删除失败: code=${res.code}, desc=${res.desc}',
+          tag: 'TencentIMService',
+        );
+      }
+      return res;
+    } catch (e) {
+      logger.error('云端消息删除异常: $e', tag: 'TencentIMService');
+      return null;
+    }
+  }
+
+  /// 撤回一条已发送消息（默认 2 分钟内）
+  Future<V2TimCallback?> revokeMessage({required String msgID}) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法撤回消息', tag: 'TencentIMService');
+      return null;
+    }
+    try {
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .revokeMessage(msgID: msgID);
+      if (res.code == 0) {
+        logger.info('撤回消息成功: $msgID', tag: 'TencentIMService');
+      } else {
+        logger.error(
+          '撤回消息失败: code=${res.code}, desc=${res.desc}',
+          tag: 'TencentIMService',
+        );
+      }
+      return res;
+    } catch (e) {
+      logger.error('撤回消息异常: $e', tag: 'TencentIMService');
+      return null;
+    }
+  }
+
+  /// 发送“正在输入中”在线自定义消息（只发给在线对方，不入库、不漫游）
+  Future<void> sendTypingOnlineMessage({
+    required String receiverID,
+  }) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法发送正在输入提示', tag: 'TencentIMService');
+      return;
+    }
+    try {
+      final createRes = await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .createCustomMessage(
+        data: 'typing', // 简单标识
+      );
+      if (createRes.code != 0 || createRes.data == null) {
+        logger.error(
+          '创建正在输入消息失败: code=${createRes.code}, desc=${createRes.desc}',
+          tag: 'TencentIMService',
+        );
+        return;
+      }
+      final id = createRes.data!.id;
+      await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .sendMessage(
+            id: id,
+            receiver: receiverID,
+            groupID: '',
+            onlineUserOnly: true,
+          );
+      logger.info('已发送正在输入在线消息给 $receiverID', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('发送正在输入消息异常: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 拉取单聊历史消息（最新在前）
+  /// 
+  /// [userID] 对端用户 ID（即另一半的 IM ID）
+  /// [count] 拉取条数，建议 20
+  /// [lastMsgID] 上一次拉取结果中的最后一条消息 ID，用于分页；首次拉取传 null
+  Future<V2TimValueCallback<List<V2TimMessage>>?> getC2CHistoryMessages({
+    required String userID,
+    int count = 20,
+    String? lastMsgID,
+  }) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法拉取历史消息', tag: 'TencentIMService');
+      return null;
+    }
+
+    try {
+      logger.info(
+        '拉取单聊历史消息: userID=$userID, count=$count, lastMsgID=$lastMsgID',
+        tag: 'TencentIMService',
+      );
+
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .getC2CHistoryMessageList(
+            userID: userID,
+            count: count,
+            lastMsgID: lastMsgID,
+          );
+
+      if (res.code != 0) {
+        logger.error(
+          '拉取单聊历史消息失败: code=${res.code}, desc=${res.desc}',
+          tag: 'TencentIMService',
+        );
+      }
+
+      return res;
+    } catch (e) {
+      logger.error('拉取单聊历史消息异常: $e', tag: 'TencentIMService');
+      return null;
+    }
+  }
+
+  /// 标记单聊会话消息为已读（触发 C2C 已读回执）
+  ///
+  /// [userID] 对端用户ID（另一半的 IM ID）
+  /// [messageIDList] 需要标记为已读的消息ID列表
+  Future<V2TimCallback?> markC2CMessageAsRead({
+    required String userID,
+    List<String>? messageIDList,
+  }) async {
+    if (!_isLoggedIn) {
+      logger.warning('IM未登录，无法标记单聊消息已读', tag: 'TencentIMService');
+      return null;
+    }
+
+    try {
+      logger.info(
+        '标记单聊消息已读: userID=$userID, count=${messageIDList?.length ?? 0}',
+        tag: 'TencentIMService',
+      );
+
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getMessageManager()
+          .markC2CMessageAsRead(
+            userID: userID,
+          );
+
+      if (res.code == 0) {
+        logger.info('标记单聊消息已读成功', tag: 'TencentIMService');
+      } else {
+        logger.error(
+          '标记单聊消息已读失败: code=${res.code}, desc=${res.desc}',
+          tag: 'TencentIMService',
+        );
+      }
+
+      return res;
+    } catch (e) {
+      logger.error('标记单聊消息已读异常: $e', tag: 'TencentIMService');
       return null;
     }
   }
@@ -359,27 +632,16 @@ class TencentIMService extends GetxService {
               logger.info('📝 文本消息: ${message.textElem!.text}', tag: 'TencentIMService');
             }
             
-            // 处理自定义消息（在elemList中）
-            if (message.elemList.isNotEmpty) {
-              logger.info('📋 消息包含 ${message.elemList.length} 个元素', tag: 'TencentIMService');
-              for (int i = 0; i < message.elemList.length; i++) {
-                final elem = message.elemList[i];
-                logger.info(
-                  '  元素[$i] - 类型: ${elem.elemType}, 自定义数据: ${elem.data}, 扩展: ${elem.extension}',
-                  tag: 'TencentIMService',
-                );
-                
-                // 如果是自定义消息（类型为2），详细打印并处理
-                if (elem.elemType == 2 && elem.data != null) {
-                  logger.info(
-                    '  🎯 自定义消息 - data: ${elem.data}, desc: ${elem.desc}, extension: ${elem.extension}',
-                    tag: 'TencentIMService',
-                  );
-                  
-                  // 处理绑定/解绑关系消息
-                  _handleRelationshipMessage(elem.data);
-                }
-              }
+            // 处理自定义消息（customElem）
+            if (message.customElem != null && message.customElem!.data != null) {
+              final custom = message.customElem!;
+              logger.info(
+                '🎯 自定义消息 - data: ${custom.data}, desc: ${custom.desc}, extension: ${custom.extension}',
+                tag: 'TencentIMService',
+              );
+
+              // 处理绑定/解绑关系消息
+              _handleRelationshipMessage(custom.data);
             }
             
             // 触发回调（将单个消息包装成列表）
@@ -397,6 +659,17 @@ class TencentIMService extends GetxService {
           },
           onRecvC2CReadReceipt: (receiptList) {
             logger.info('✅ 收到单聊消息已读回执', tag: 'TencentIMService');
+            for (final receipt in receiptList) {
+              logger.info(
+                'C2C已读 - userID: ${receipt.userID}, msgID: ${receipt.msgID}, isPeerRead: ${receipt.isPeerRead}, timestamp: ${receipt.timestamp}',
+                tag: 'TencentIMService',
+              );
+            }
+
+            // 转发给业务层
+            if (onRecvC2CReadReceiptCallback.value != null) {
+              onRecvC2CReadReceiptCallback.value!(receiptList);
+            }
           },
           onRecvMessageModified: (message) {
             logger.info('✏️ 消息被修改: ${message.msgID}', tag: 'TencentIMService');
@@ -439,6 +712,13 @@ class TencentIMService extends GetxService {
     logger.info('已设置新消息接收回调', tag: 'TencentIMService');
   }
 
+  /// 设置单聊消息已读回执回调
+  void setOnRecvC2CReadReceipt(
+      Function(List<V2TimMessageReceipt>) callback) {
+    onRecvC2CReadReceiptCallback.value = callback;
+    logger.info('已设置单聊消息已读回执回调', tag: 'TencentIMService');
+  }
+
   /// 设置消息撤回回调
   /// 
   /// [callback] 消息被撤回时的回调函数
@@ -474,6 +754,7 @@ class TencentIMService extends GetxService {
     onReceiveNewMessage.value = null;
     onRecvMessageRevoked.value = null;
     onBindMessageReceived.value = null;
+    onRecvC2CReadReceiptCallback.value = null;
     logger.info('已清除所有回调', tag: 'TencentIMService');
   }
 

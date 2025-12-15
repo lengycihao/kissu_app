@@ -1,4 +1,5 @@
 ﻿import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -18,6 +19,7 @@ import 'package:kissu_app/services/tracking_service.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/pages/track/stay_point.dart';
 
 class TrackPage extends StatelessWidget {
   final double? initialLatitude;
@@ -843,12 +845,23 @@ class _CachedMapWidget extends StatefulWidget {
   State<_CachedMapWidget> createState() => _CachedMapWidgetState();
 }
 
+// 辅助类：停留点及其在轨迹中的索引
+class _StopWithIndex {
+  final StopRecord stop;
+  final int index;
+  
+  _StopWithIndex({required this.stop, required this.index});
+}
+
 class _CachedMapWidgetState extends State<_CachedMapWidget> {
   // 缓存地图元素，避免频繁重建
   Set<Marker> _cachedMarkers = {};
   Set<Polyline> _cachedPolylines = {};
   int _markersVersion = -1;
   int _polylinesVersion = -1;
+  int _stopRecordsVersion = -1; // 停留点记录版本号
+  BitmapDescriptor? _trackLineTextureRed; // 红色轨迹线纹理（只加载一次）
+  BitmapDescriptor? _trackLineTextureBlue; // 蓝色轨迹线纹理（只加载一次）
 
   @override
   Widget build(BuildContext context) {
@@ -865,13 +878,23 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
         _markersVersion = currentMarkersVersion;
       }
 
-      // 检查轨迹线是否需要更新
+      // 检查轨迹线是否需要更新（同时检查轨迹点和停留点记录）
       final currentPolylinesVersion = widget.controller.hasValidTrackData.value
           ? widget.controller.trackPoints.length
           : 0;
-      if (currentPolylinesVersion != _polylinesVersion) {
-        _updatePolylines();
-        _polylinesVersion = currentPolylinesVersion;
+      final currentStopRecordsVersion = widget.controller.stopRecords.length;
+      
+      // 如果轨迹点或停留点记录发生变化，都需要更新轨迹线
+      if (currentPolylinesVersion != _polylinesVersion || 
+          currentStopRecordsVersion != _stopRecordsVersion) {
+        // 使用 Future.microtask 避免在 build 期间调用 setState
+        Future.microtask(() {
+          if (mounted) {
+            _updatePolylines();
+            _polylinesVersion = currentPolylinesVersion;
+            _stopRecordsVersion = currentStopRecordsVersion;
+          }
+        });
       }
 
       return SafeAMapWidget(
@@ -937,44 +960,332 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
     }
   }
 
-  void _updatePolylines() {
+  /// 计算两点之间的距离（米）
+  double _calculateDistance(LatLng point1, LatLng point2) {
+    const double earthRadius = 6371000; // 地球半径（米）
+    final double lat1Rad = point1.latitude * math.pi / 180;
+    final double lat2Rad = point2.latitude * math.pi / 180;
+    final double deltaLatRad = (point2.latitude - point1.latitude) * math.pi / 180;
+    final double deltaLngRad = (point2.longitude - point1.longitude) * math.pi / 180;
+
+    final double a = math.sin(deltaLatRad / 2) * math.sin(deltaLatRad / 2) +
+        math.cos(lat1Rad) * math.cos(lat2Rad) *
+            math.sin(deltaLngRad / 2) * math.sin(deltaLngRad / 2);
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
+  /// 在轨迹点中找到距离给定坐标最近的点索引
+  int _findNearestPointIndex(List<LatLng> trackPoints, LatLng target) {
+    if (trackPoints.isEmpty) return 0;
+    
+    int nearestIndex = 0;
+    double minDistance = double.infinity;
+    
+    for (int i = 0; i < trackPoints.length; i++) {
+      final distance = _calculateDistance(trackPoints[i], target);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestIndex = i;
+      }
+    }
+    
+    return nearestIndex;
+  }
+
+  Future<void> _updatePolylines() async {
     final newPolylines = <Polyline>{};
 
     try {
       final trackPoints = widget.controller.trackPoints.toList();
+      final stopRecords = widget.controller.stopRecords.toList();
 
       if (widget.controller.hasValidTrackData.value &&
           trackPoints.length >= 2) {
-        const int maxPointsPerSegment = 100;
-
-        if (trackPoints.length <= maxPointsPerSegment) {
-          newPolylines.add(
-            Polyline(
-              points: trackPoints,
-              color: const Color(0xdd639DFF),
-              width: 6,
-            ),
-          );
-        } else {
-          for (
-            int i = 0;
-            i < trackPoints.length - 1;
-            i += maxPointsPerSegment - 1
-          ) {
-            final endIndex = (i + maxPointsPerSegment).clamp(
-              0,
-              trackPoints.length,
+        // 加载轨迹线纹理（只加载一次）
+        if (_trackLineTextureRed == null) {
+          try {
+            _trackLineTextureRed = await BitmapDescriptor.fromAssetImage(
+              const ImageConfiguration(),
+              'assets/texture/kissu4_track_line_red.png',
             );
-            final segmentPoints = trackPoints.sublist(i, endIndex);
+            DebugUtil.info('✅ 红色纹理加载成功');
+          } catch (e) {
+            DebugUtil.error('❌ 红色纹理加载失败: $e');
+          }
+        }
+        if (_trackLineTextureBlue == null) {
+          try {
+            _trackLineTextureBlue = await BitmapDescriptor.fromAssetImage(
+              const ImageConfiguration(),
+              'assets/texture/kissu4_track_line_blue.png',
+            );
+            DebugUtil.info('✅ 蓝色纹理加载成功');
+          } catch (e) {
+            DebugUtil.error('❌ 蓝色纹理加载失败: $e');
+          }
+        }
+        
+        // 确保纹理已加载
+        if (_trackLineTextureRed == null || _trackLineTextureBlue == null) {
+          DebugUtil.error('❌ 纹理未完全加载，无法创建轨迹线');
+          return;
+        }
 
-            if (segmentPoints.length >= 2) {
-              newPolylines.add(
-                Polyline(
-                  points: segmentPoints,
-                  color: const Color(0xdd639DFF),
-                  width: 6,
-                ),
+        // 如果有停留点记录，按停留点分段
+        DebugUtil.info('🎨 检查停留点记录: stopRecords.length=${stopRecords.length}, trackPoints.length=${trackPoints.length}');
+        if (stopRecords.isNotEmpty) {
+          DebugUtil.info('🎨 开始分段轨迹线，停留点记录数量: ${stopRecords.length}');
+          
+          // 按顺序排列停留点（起点 -> 停留点1 -> 停留点2 -> ... -> 终点）
+          final sortedStops = <StopRecord>[];
+          
+          // 找到起点
+          final startRecord = stopRecords.firstWhere(
+            (record) => record.pointType == 'start',
+            orElse: () => stopRecords.first,
+          );
+          sortedStops.add(startRecord);
+          DebugUtil.info('📍 起点: ${startRecord.pointType}, serialNumber: ${startRecord.serialNumber}');
+          
+          // 添加所有停留点（按 serialNumber 排序）
+          final stopRecordsList = stopRecords
+              .where((record) => record.pointType == 'stop')
+              .toList();
+          stopRecordsList.sort((a, b) {
+            final aNum = int.tryParse(a.serialNumber) ?? 0;
+            final bNum = int.tryParse(b.serialNumber) ?? 0;
+            return aNum.compareTo(bNum);
+          });
+          sortedStops.addAll(stopRecordsList);
+          DebugUtil.info('📍 停留点数量: ${stopRecordsList.length}');
+          
+          // 找到终点（优先从 stopRecords 中找，如果没有则使用轨迹点最后一个）
+          StopRecord? endRecord;
+          try {
+            endRecord = stopRecords.firstWhere(
+              (record) => record.pointType == 'end',
+            );
+          } catch (e) {
+            // 如果没有找到终点记录，使用轨迹点的最后一个点创建终点记录
+            DebugUtil.warning('⚠️ 未找到终点记录，使用轨迹点最后一个点作为终点');
+            endRecord = StopRecord(
+              latitude: trackPoints.last.latitude,
+              longitude: trackPoints.last.longitude,
+              locationName: '终点',
+              startTime: '',
+              endTime: '',
+              duration: '',
+              status: '',
+              pointType: 'end',
+              serialNumber: '终',
+            );
+          }
+          
+          // 确保终点和起点不同
+          if (endRecord != startRecord) {
+            // 检查终点是否已经在列表中（避免重复）
+            final endExists = sortedStops.any((stop) => 
+              stop.latitude == endRecord!.latitude && 
+              stop.longitude == endRecord.longitude
+            );
+            if (!endExists) {
+              sortedStops.add(endRecord);
+            }
+          }
+          DebugUtil.info('📍 终点: ${endRecord.pointType}, serialNumber: ${endRecord.serialNumber}');
+          DebugUtil.info('📍 总分段点数: ${sortedStops.length}');
+          
+          // 如果只有起点和终点（没有中间停留点），需要确保至少有2个点才能分段
+          if (sortedStops.length < 2) {
+            DebugUtil.warning('⚠️ 分段点不足（只有${sortedStops.length}个），使用轨迹点起点和终点');
+            DebugUtil.warning('⚠️ 分段点不足，使用轨迹点起点和终点');
+            sortedStops.clear();
+            sortedStops.add(StopRecord(
+              latitude: trackPoints.first.latitude,
+              longitude: trackPoints.first.longitude,
+              locationName: '起点',
+              startTime: '',
+              endTime: '',
+              duration: '',
+              status: '',
+              pointType: 'start',
+              serialNumber: '起',
+            ));
+            sortedStops.add(StopRecord(
+              latitude: trackPoints.last.latitude,
+              longitude: trackPoints.last.longitude,
+              locationName: '终点',
+              startTime: '',
+              endTime: '',
+              duration: '',
+              status: '',
+              pointType: 'end',
+              serialNumber: '终',
+            ));
+          }
+
+          // 先按轨迹点中的位置对停留点进行排序和去重
+          final validStops = <_StopWithIndex>[];
+          for (final stop in sortedStops) {
+            final index = _findNearestPointIndex(
+              trackPoints,
+              LatLng(stop.latitude, stop.longitude),
+            );
+            validStops.add(_StopWithIndex(stop: stop, index: index));
+          }
+          
+          // 按索引排序
+          validStops.sort((a, b) => a.index.compareTo(b.index));
+          
+          // 去重：如果多个停留点对应同一个轨迹点索引，需要智能处理
+          // 策略：对于相同索引的停留点组，保留第一个和最后一个，确保分段完整
+          final uniqueStops = <_StopWithIndex>[];
+          int? lastIndex;
+          List<_StopWithIndex>? currentGroup; // 当前相同索引的停留点组
+          
+          for (final stopWithIndex in validStops) {
+            if (lastIndex == null || stopWithIndex.index != lastIndex) {
+              // 遇到新的索引
+              // 如果上一个索引有多个停留点，先添加最后一个
+              if (currentGroup != null && currentGroup.length > 1) {
+                uniqueStops.add(currentGroup.last);
+              } else if (currentGroup != null && currentGroup.length == 1) {
+                // 只有一个，直接添加
+                uniqueStops.add(currentGroup.first);
+              }
+              
+              // 开始新的组
+              currentGroup = [stopWithIndex];
+              lastIndex = stopWithIndex.index;
+            } else {
+              // 相同索引，添加到当前组
+              currentGroup!.add(stopWithIndex);
+            }
+          }
+          
+          // 处理最后一组
+          if (currentGroup != null) {
+            if (currentGroup.length > 1) {
+              // 多个停留点，添加最后一个
+              uniqueStops.add(currentGroup.last);
+            } else {
+              // 只有一个，直接添加
+              uniqueStops.add(currentGroup.first);
+            }
+          }
+          
+          DebugUtil.info('🎨 去重后有效停留点数: ${uniqueStops.length} (原始: ${sortedStops.length})');
+          
+          // 根据停留点分段轨迹线
+          DebugUtil.info('🎨 准备创建 ${uniqueStops.length - 1} 段轨迹线');
+          for (int i = 0; i < uniqueStops.length - 1; i++) {
+            final startStop = uniqueStops[i];
+            final endStop = uniqueStops[i + 1];
+            
+            final startIndex = startStop.index;
+            final endIndex = endStop.index;
+            
+            DebugUtil.info('🎨 分段 $i: startIndex=$startIndex, endIndex=$endIndex');
+            
+            // 确保索引顺序正确且有效
+            if (endIndex > startIndex && endIndex < trackPoints.length) {
+              final segmentPoints = trackPoints.sublist(startIndex, endIndex + 1);
+              
+              if (segmentPoints.length >= 2) {
+                // 红蓝交替：偶数索引（0, 2, 4...）用红色，奇数索引（1, 3, 5...）用蓝色
+                final isRed = i % 2 == 0;
+                final texture = isRed ? _trackLineTextureRed! : _trackLineTextureBlue!;
+                DebugUtil.info('🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentPoints.length}');
+                
+                // 如果分段太长，需要进一步分割（每段最多100个点）
+                const int maxPointsPerSegment = 100;
+                if (segmentPoints.length <= maxPointsPerSegment) {
+                  newPolylines.add(
+                    Polyline(
+                      points: segmentPoints,
+                      width: 8,
+                      visible: true,
+                      customTexture: texture,
+                      capType: CapType.round,
+                    ),
+                  );
+                } else {
+                  for (
+                    int j = 0;
+                    j < segmentPoints.length - 1;
+                    j += maxPointsPerSegment - 1
+                  ) {
+                    final subEndIndex = (j + maxPointsPerSegment).clamp(
+                      0,
+                      segmentPoints.length,
+                    );
+                    final subSegmentPoints = segmentPoints.sublist(j, subEndIndex);
+                    
+                    if (subSegmentPoints.length >= 2) {
+                      newPolylines.add(
+                        Polyline(
+                          points: subSegmentPoints,
+                          width: 8,
+                          visible: true,
+                          customTexture: texture,
+                          capType: CapType.round,
+                        ),
+                      );
+                    }
+                  }
+                }
+              } else {
+                DebugUtil.warning('⚠️ 分段 $i: 点数不足，跳过 (${segmentPoints.length})');
+              }
+            } else {
+              DebugUtil.warning('⚠️ 分段 $i: 索引无效，跳过 (startIndex=$startIndex, endIndex=$endIndex, trackPoints.length=${trackPoints.length})');
+            }
+          }
+          
+          DebugUtil.info('✅ 轨迹线分段完成，共创建 ${newPolylines.length} 条线段');
+        } else {
+          // 如果没有停留点记录，使用默认纹理（红色）
+          _trackLineTextureRed ??= await BitmapDescriptor.fromAssetImage(
+            const ImageConfiguration(),
+            'assets/texture/kissu4_track_line_red.png',
+          );
+          
+          const int maxPointsPerSegment = 100;
+          if (trackPoints.length <= maxPointsPerSegment) {
+            newPolylines.add(
+              Polyline(
+                points: trackPoints,
+                width: 8,
+                visible: true,
+                customTexture: _trackLineTextureRed!,
+                capType: CapType.round,
+              ),
+            );
+          } else {
+            for (
+              int i = 0;
+              i < trackPoints.length - 1;
+              i += maxPointsPerSegment - 1
+            ) {
+              final endIndex = (i + maxPointsPerSegment).clamp(
+                0,
+                trackPoints.length,
               );
+              final segmentPoints = trackPoints.sublist(i, endIndex);
+
+              if (segmentPoints.length >= 2) {
+                newPolylines.add(
+                  Polyline(
+                    points: segmentPoints,
+                    width: 8,
+                    visible: true,
+                    customTexture: _trackLineTextureRed!,
+                    capType: CapType.round,
+                  ),
+                );
+              }
             }
           }
         }
@@ -983,7 +1294,16 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
       DebugUtil.error('创建轨迹线失败: $e');
     }
 
-    _cachedPolylines = newPolylines;
+    if (mounted) {
+      // 使用 WidgetsBinding 确保在 build 完成后更新状态
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _cachedPolylines = newPolylines;
+          });
+        }
+      });
+    }
   }
 }
 

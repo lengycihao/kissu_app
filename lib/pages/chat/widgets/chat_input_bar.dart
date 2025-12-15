@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 /// 聊天输入栏组件（语音功能已移除）
 class ChatInputBar extends StatefulWidget {
   final Function(String)? onSendText;
+  final VoidCallback? onTyping;
   final VoidCallback? onEmojiTap;
   final VoidCallback? onAlbumTap;
   final VoidCallback? onCameraTap;
@@ -14,6 +15,7 @@ class ChatInputBar extends StatefulWidget {
   const ChatInputBar({
     super.key,
     this.onSendText,
+    this.onTyping,
     this.onEmojiTap,
     this.onAlbumTap,
     this.onCameraTap,
@@ -38,6 +40,9 @@ class ChatInputBarState extends State<ChatInputBar> {
       setState(() {
         _hasText = _textController.text.trim().isNotEmpty;
       });
+      if (widget.onTyping != null && _textController.text.isNotEmpty) {
+        widget.onTyping!();
+      }
     });
   }
 

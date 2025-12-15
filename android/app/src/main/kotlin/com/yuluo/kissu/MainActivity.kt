@@ -60,6 +60,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // 确保至少有一个 LAUNCHER alias 处于启用状态，防止调试时找不到入口
+        ensureLauncherAliasEnabled()
+        
         // 🔥 禁用MainActivity的LAUNCHER能力，避免与MainActivityDefault冲突导致双图标
          
         // 🔒 高德地图隐私合规（SDK 8.1.0+ 强制要求）
@@ -445,6 +448,38 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         Log.d(TAG, "桌面图标已切换为: $iconId ($targetAlias)")
         return true
+    }
+    
+    /**
+     * 确保至少有一个 LAUNCHER alias 处于启用状态
+     * 若全部禁用，则恢复默认图标，避免 adb/Flutter 启动时报 Activity 不存在
+     */
+    private fun ensureLauncherAliasEnabled() {
+        val pm = packageManager
+        val hasEnabledAlias = iconAliasMap.values.any { alias ->
+            val state = pm.getComponentEnabledSetting(ComponentName(this, alias))
+            state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        }
+
+        if (!hasEnabledAlias) {
+            val defaultAlias = iconAliasMap["default"] ?: "com.yuluo.kissu.MainActivityDefault"
+            val defaultComponent = ComponentName(this, defaultAlias)
+            pm.setComponentEnabledSetting(
+                defaultComponent,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            iconAliasMap.values
+                .filter { it != defaultAlias }
+                .forEach { alias ->
+                    pm.setComponentEnabledSetting(
+                        ComponentName(this, alias),
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                }
+            Log.w(TAG, "未找到启用的桌面图标，已恢复默认: $defaultAlias")
+        }
     }
     
     /**

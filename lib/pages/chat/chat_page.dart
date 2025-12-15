@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_message_item.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_input_bar.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_emoji_panel.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
 
 class ChatPage extends GetView<ChatController> {
   ChatPage({super.key});
@@ -59,6 +61,7 @@ class ChatPage extends GetView<ChatController> {
               Obx(() => ChatInputBar(
                     key: _inputBarKey,
                     onSendText: controller.sendTextMessage,
+                    onTyping: controller.notifyTyping,
                     onEmojiTap: controller.toggleEmojiPanel,
                     onAlbumTap: controller.onAlbumTap,
                     onCameraTap: controller.onCameraTap,
@@ -97,7 +100,16 @@ class ChatPage extends GetView<ChatController> {
       preferredSize: Size.fromHeight(65 + statusBarHeight), // 增加导航栏高度以容纳设备信息
       child: Container(
         padding: EdgeInsets.only(top: statusBarHeight,left: 6),
-        color: Colors.transparent,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xffcccccc),
+              Color(0x00ffffff),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
         child: Column(
           children: [
             // 第一行：返回按钮、头像、昵称、设置按钮 - 横向对齐
@@ -133,17 +145,24 @@ class ChatPage extends GetView<ChatController> {
                         ),
                       )),
                   const SizedBox(width: 10),
-                  // 昵称
+                  // 昵称 / 正在输入（二选一，同一字体样式）
                   Expanded(
-                    child: Obx(() => Text(
-                          controller.chatName.value,
+                    child: Obx(() {
+                      final typing = controller.isPartnerTyping.value;
+                      final title = typing ? '对方正在输入…' : controller.chatName.value;
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          title,
                           style: const TextStyle(
                             color: Color(0xff333333),
                             fontWeight: FontWeight.w500,
                             fontSize: 16,
                           ),
                           overflow: TextOverflow.ellipsis,
-                        )),
+                        ),
+                      );
+                    }),
                   ),
                   // 设置按钮
                   IconButton(
@@ -338,17 +357,80 @@ class ChatPage extends GetView<ChatController> {
       onTap: () => controller.hideAllPanels(),
       child: ListView.builder(
         controller: controller.scrollController,
+        reverse: true,
         padding: const EdgeInsets.symmetric(vertical: 12),
         itemCount: controller.messages.length,
         itemBuilder: (context, index) {
-          final message = controller.messages[index];
-          return ChatMessageItem(
-            message: message,
-            onLongPress: () => _showMessageActions(message),
+          // reverse:true 时，index=0 对应时间上最新的一条，需要反向取数据
+          final reverseIndex = controller.messages.length - 1 - index;
+          final message = controller.messages[reverseIndex];
+
+          // 通用时间显示规则（按时间顺序的索引计算）：
+          // 1）第一条消息一定显示时间
+          // 2）与上一条不在同一天：强制显示时间
+          // 3）同一天且与上一条时间间隔 > 2 分钟：显示时间
+          bool showTimestamp = _shouldShowTimestamp(message, reverseIndex);
+
+          // 对于 systemEvent 类型，再加一条去重规则：
+          // 如果前一条也是 systemEvent 且时间相同（精确到分钟），则不重复显示
+          if (message.type == MessageType.systemEvent && reverseIndex > 0) {
+            final prevMessage = controller.messages[reverseIndex - 1];
+            if (prevMessage.type == MessageType.systemEvent) {
+              final currentTimeFloorToMinute = DateTime(
+                message.time.year,
+                message.time.month,
+                message.time.day,
+                message.time.hour,
+                message.time.minute,
+              );
+              final prevTimeFloorToMinute = DateTime(
+                prevMessage.time.year,
+                prevMessage.time.month,
+                prevMessage.time.day,
+                prevMessage.time.hour,
+                prevMessage.time.minute,
+              );
+              if (currentTimeFloorToMinute == prevTimeFloorToMinute) {
+                showTimestamp = false;
+              }
+            }
+          }
+
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onLongPressStart: (details) =>
+                _showMessageActions(context, message, details.globalPosition),
+            child: ChatMessageItem(
+              message: message,
+              onLongPress: null,
+              showTimestamp: showTimestamp,
+            ),
           );
         },
       ),
     );
+  }
+
+  /// 是否需要在当前消息上方显示时间（类似微信的时间气泡）
+  bool _shouldShowTimestamp(ChatMessage message, int index) {
+    // 第一条消息一定显示
+    if (index == 0) return true;
+
+    final prev = controller.messages[index - 1];
+    final currentTime = message.time;
+    final prevTime = prev.time;
+
+    // 跨天：一定显示
+    final isSameDay = currentTime.year == prevTime.year &&
+        currentTime.month == prevTime.month &&
+        currentTime.day == prevTime.day;
+    if (!isSameDay) {
+      return true;
+    }
+
+    // 同一天：间隔超过 2 分钟才显示
+    final diff = currentTime.difference(prevTime);
+    return diff > const Duration(minutes: 2);
   }
 
   // 获取背景图片提供器（支持资产图片和文件图片）
@@ -361,47 +443,160 @@ class ChatPage extends GetView<ChatController> {
   }
 
 
-  // 显示消息操作菜单
-  void _showMessageActions(ChatMessage message) {
-    Get.bottomSheet(
-      Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.copy),
-                title: const Text('复制'),
-                onTap: () {
-                  Get.back();
-                  // TODO: 复制消息内容
-                },
-              ),
-              if (!message.isSent)
-                ListTile(
-                  leading: const Icon(Icons.reply),
-                  title: const Text('回复'),
-                  onTap: () {
-                    Get.back();
-                    // TODO: 回复消息
-                  },
-                ),
-              if (message.isSent)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('删除', style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    Get.back();
-                    controller.messages.remove(message);
-                  },
-                ),
-              const SizedBox(height: 8),
-            ],
+  // 显示消息操作菜单（贴着气泡上方的小菜单）
+  void _showMessageActions(
+      BuildContext context, ChatMessage message, Offset globalPosition) {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlaySize = overlay.size;
+
+    final isSelf = message.isSent;
+    final canCopy = message.type == MessageType.text;
+    final canRevoke = isSelf &&
+        DateTime.now().difference(message.time) <= const Duration(minutes: 2);
+
+    final menu = Material(
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          // 半透明遮罩，点击关闭
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              behavior: HitTestBehavior.opaque,
+              child: const SizedBox.shrink(),
+            ),
           ),
+          // 顶部菜单气泡
+          Positioned(
+            left: isSelf ? null : 40,
+            right: isSelf ? 16 : null,
+            top: (globalPosition.dy - 80).clamp(80, overlaySize.height - 160),
+            child: _MessageActionBubble(
+              canCopy: canCopy,
+              canDelete: true,
+              canRevoke: canRevoke,
+              onCopy: () {
+                Get.back();
+                if (message.content.isNotEmpty) {
+                  Clipboard.setData(ClipboardData(text: message.content));
+                }
+              },
+              onDelete: () async {
+                Get.back();
+                final im = TencentIMService.instance;
+                if (message.id.isNotEmpty) {
+                  await im.deleteMessageFromLocal(msgID: message.id);
+                }
+                controller.messages.remove(message);
+              },
+              onRevoke: canRevoke
+                  ? () async {
+                      Get.back();
+                      final im = TencentIMService.instance;
+                      if (message.id.isNotEmpty) {
+                        final res =
+                            await im.revokeMessage(msgID: message.id);
+                        if (res == null || res.code != 0) {
+                          // 撤回失败可以适当提示
+                        }
+                      }
+                    }
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.transparent,
+        pageBuilder: (_, __, ___) => menu,
+      ),
+    );
+  }
+}
+
+/// 社交风格的气泡菜单：复制 / 删除 / 撤回
+class _MessageActionBubble extends StatelessWidget {
+  final bool canCopy;
+  final bool canDelete;
+  final bool canRevoke;
+  final VoidCallback? onCopy;
+  final VoidCallback? onDelete;
+  final VoidCallback? onRevoke;
+
+  const _MessageActionBubble({
+    required this.canCopy,
+    required this.canDelete,
+    required this.canRevoke,
+    this.onCopy,
+    this.onDelete,
+    this.onRevoke,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[];
+    if (canCopy) {
+      items.add(_buildItem('复制', Icons.copy_rounded, onCopy));
+    }
+    if (canDelete) {
+      items.add(_buildItem('删除', Icons.delete_outline_rounded, onDelete,
+          danger: true));
+    }
+    if (canRevoke) {
+      items.add(_buildItem('撤回', Icons.undo_rounded, onRevoke));
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            if (i > 0)
+              Container(
+                width: 0.5,
+                height: 16,
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                color: Colors.white.withOpacity(0.2),
+              ),
+            items[i],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItem(
+      String text, IconData icon, VoidCallback? onTap,
+      {bool danger = false}) {
+    final color =
+        danger ? const Color(0xFFFF6B6B) : const Color(0xFFFFFFFF);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 3),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );
