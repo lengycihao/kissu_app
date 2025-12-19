@@ -4,6 +4,7 @@ import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
+import 'package:kissu_app/utils/image_saver_util.dart';
 
 class AboutUsPage extends StatefulWidget {
   const AboutUsPage({super.key});
@@ -231,6 +232,10 @@ class _AboutUsPageState extends State<AboutUsPage> {
                           final versionService = Get.find<VersionService>();
                           versionService.checkVersionForAboutPage(context);
                         }),
+                        _buildDashedDivider(),
+                        _buildItem("kissu福利官", () {
+                          _showFuliDialog(context);
+                        }),
                       ],
                     ),
                   ),
@@ -240,6 +245,72 @@ class _AboutUsPageState extends State<AboutUsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 显示福利官弹窗
+  void _showFuliDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true, // 允许点击背景关闭弹窗
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (BuildContext context) {
+        return GestureDetector(
+          // 点击背景关闭弹窗
+          onTap: () => Navigator.of(context).pop(),
+          behavior: HitTestBehavior.opaque,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.zero,
+            child: GestureDetector(
+              // 阻止点击事件向上传递，防止点击图片时关闭弹窗
+              onTap: () {},
+              child: Center(
+                child: SizedBox(
+                  width: 294,
+                  height: 443,
+                  child: Stack(
+                    children: [
+                      // 主图片（固定大小 294 * 443）
+                      Image.asset(
+                        'assets/setting/kissu_fuli_dialog.webp',
+                        width: 294,
+                        height: 443,
+                        fit: BoxFit.cover,
+                      ),
+                      // 保存按钮（叠加在图片底部）
+                      Positioned(
+                        bottom: 40,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () async {
+                              // 保存图片到相册
+                              final success = await ImageSaverUtil.saveAssetImageToGallery(
+                                'assets/setting/kissu_fuli_dialog.webp',
+                              );
+                              if (success) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                            child: Image.asset(
+                              'assets/setting/kissu_fuli_save.webp',
+                              width: 222,
+                              height: 50,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

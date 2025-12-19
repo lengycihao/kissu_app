@@ -1,14 +1,14 @@
 ﻿import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'; 
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/pages/track/component/stop_list_page.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
-import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/track/widgets/track_date_selector.dart';
@@ -730,7 +730,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                   'previousPageName': '足迹页面',
                                   'previousPageId': 'footprint_page',
                                 },
-                              );
+                              ) ;
                             }
                           },
                           child: Image.asset(
@@ -865,7 +865,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
+    return Obx(() { 
       // 检查标记是否需要更新
       final currentMarkersVersion =
           widget.controller.stopMarkers.length +
@@ -1124,6 +1124,32 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
               pointType: 'end',
               serialNumber: '终',
             ));
+          }
+
+          // 🎯 始终确保最后一个轨迹点作为终点分段点，避免轨迹线未连到终点 marker 的问题
+          if (trackPoints.isNotEmpty) {
+            final lastPoint = trackPoints.last;
+            final hasLastPoint = sortedStops.any(
+              (stop) =>
+                  stop.latitude == lastPoint.latitude &&
+                  stop.longitude == lastPoint.longitude,
+            );
+            if (!hasLastPoint) {
+              DebugUtil.info('🎯 分段点列表中缺少真正的终点轨迹点，自动补充一个终点分段点');
+              sortedStops.add(
+                StopRecord(
+                  latitude: lastPoint.latitude,
+                  longitude: lastPoint.longitude,
+                  locationName: '终点',
+                  startTime: '',
+                  endTime: '',
+                  duration: '',
+                  status: '',
+                  pointType: 'end',
+                  serialNumber: '终',
+                ),
+              );
+            }
           }
 
           // 先按轨迹点中的位置对停留点进行排序和去重

@@ -78,8 +78,8 @@ class _MapWidgetState extends State<_MapWidget> {
         // 使用 Future.microtask 避免在 build 期间调用 setState
         Future.microtask(() {
           if (mounted) {
-            _updatePolylines();
-            _polylinesVersion = currentPolylinesVersion;
+        _updatePolylines();
+        _polylinesVersion = currentPolylinesVersion;
           }
         });
       }
@@ -294,7 +294,7 @@ class _MapWidgetState extends State<_MapWidget> {
                 DebugUtil.info('🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentTrackPoints.length}');
                 
                 // 如果分段太长，需要进一步分割（每段最多100个点）
-                const int maxPointsPerSegment = 100;
+        const int maxPointsPerSegment = 100;
                 if (segmentTrackPoints.length <= maxPointsPerSegment) {
                   newPolylines.add(
                     Polyline(
@@ -342,38 +342,38 @@ class _MapWidgetState extends State<_MapWidget> {
         } else {
           // 如果没有停留点，使用默认纹理（红色）
           const int maxPointsPerSegment = 100;
-          if (trackPoints.length <= maxPointsPerSegment) {
-            newPolylines.add(
-              Polyline(
-                points: trackPoints,
+        if (trackPoints.length <= maxPointsPerSegment) {
+          newPolylines.add(
+            Polyline(
+              points: trackPoints,
                 width: 8,
                 visible: true,
                 customTexture: _trackLineTextureRed!,
                 capType: CapType.round,
-              ),
+            ),
+          );
+        } else {
+          for (
+            int i = 0;
+            i < trackPoints.length - 1;
+            i += maxPointsPerSegment - 1
+          ) {
+            final endIndex = (i + maxPointsPerSegment).clamp(
+              0,
+              trackPoints.length,
             );
-          } else {
-            for (
-              int i = 0;
-              i < trackPoints.length - 1;
-              i += maxPointsPerSegment - 1
-            ) {
-              final endIndex = (i + maxPointsPerSegment).clamp(
-                0,
-                trackPoints.length,
-              );
-              final segmentPoints = trackPoints.sublist(i, endIndex);
+            final segmentPoints = trackPoints.sublist(i, endIndex);
 
-              if (segmentPoints.length >= 2) {
-                newPolylines.add(
-                  Polyline(
-                    points: segmentPoints,
+            if (segmentPoints.length >= 2) {
+              newPolylines.add(
+                Polyline(
+                  points: segmentPoints,
                     width: 8,
                     visible: true,
                     customTexture: _trackLineTextureRed!,
                     capType: CapType.round,
-                  ),
-                );
+                ),
+              );
               }
             }
           }
@@ -388,7 +388,7 @@ class _MapWidgetState extends State<_MapWidget> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {
-            _cachedPolylines = newPolylines;
+    _cachedPolylines = newPolylines;
           });
         }
       });

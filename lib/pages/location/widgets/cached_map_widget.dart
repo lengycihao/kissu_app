@@ -55,13 +55,13 @@ class _CachedMapWidgetState extends State<CachedMapWidget> {
           }
         }
 
-        // mapType使用Obx单独监听，避免影响地图主体
+        // mapType 使用Obx监听，避免影响地图主体
         return Obx(() {
           final mapType = controller.mapType.value == 2
               ? MapType.satellite
-              : MapType.normal;
+              : MapType.normal; 
 
-          // 直接返回地图Widget，避免RepaintBoundary与硬件加速冲突
+//直接返回地图widget,避免repaintboundary与硬件加速冲突
           return SafeAMapWidget(
             initialCameraPosition: controller.initialCameraPosition,
             onMapCreated: controller.onMapCreated,

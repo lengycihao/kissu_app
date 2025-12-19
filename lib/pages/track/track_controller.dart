@@ -53,7 +53,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   // 来自 UserManager
   RxString get myAvatar => _userManager.myAvatar;
   RxString get partnerAvatar => _userManager.partnerAvatar;
-  RxBool get isBindPartner => _userManager.isBindPartner;
+  RxBool get isBindPartner => _userManager.isBindPartner; 
 
   // 来自 DataManager
   RxInt get isOneself => _dataManager.currentUserType; // 当前显示的用户类型
@@ -277,6 +277,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 地图初始相机位置
   CameraPosition get initialCameraPosition {
+    
     // 如果已有轨迹数据，使用计算的最佳位置
     if (trackPoints.isNotEmpty) {
       final optimalPosition = _mapManager.calculateOptimalCameraPosition(

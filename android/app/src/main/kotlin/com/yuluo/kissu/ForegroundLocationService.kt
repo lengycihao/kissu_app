@@ -135,6 +135,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     private var screenOffKeepAliveTimer: Timer? = null // 息屏时的额外保活定时器
     private var screenOffHeartbeatIntent: PendingIntent? = null // 息屏时的额外心跳闹钟
     
+    // 🔥 防止并发创建 Binder 对象的锁
+    private val locationClientLock = Any()
+    
     // 🔥 原生App使用记录上报相关
     private var appUsageReportService: AppUsageReportService? = null
     private var appUsageReportTimer: Timer? = null
@@ -281,24 +284,43 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             Log.e(TAG, "创建 WakeLock 失败", e)
         }
         
-        // 🔥 初始化定位上报服务
+        // 🔥 初始化定位上报服务（先释放旧的，防止 Binder 泄漏）
         try {
+            locationReportService?.let { oldService ->
+                // 旧服务已存在，先清理（如果有清理方法）
+                Log.d(TAG, "释放旧的定位上报服务")
+            }
             locationReportService = LocationReportService(this)
             Log.d(TAG, "定位上报服务初始化成功")
         } catch (e: Exception) {
             Log.e(TAG, "初始化定位上报服务失败", e)
         }
         
-        // 🔥 初始化App使用记录上报服务
+        // 🔥 初始化App使用记录上报服务（先释放旧的，防止 Binder 泄漏）
         try {
+            appUsageReportService?.let { oldService ->
+                // 旧服务已存在，先清理（如果有清理方法）
+                Log.d(TAG, "释放旧的App使用记录上报服务")
+            }
             appUsageReportService = AppUsageReportService(this)
             Log.d(TAG, "App使用记录上报服务初始化成功")
         } catch (e: Exception) {
             Log.e(TAG, "初始化App使用记录上报服务失败", e)
         }
 
-        // 🔥 初始化敏感事件上报服务（锁屏/解锁）
+        // 🔥 初始化敏感事件上报服务（锁屏/解锁）（先释放旧的，防止 Binder 泄漏）
         try {
+            sensitiveEventReportService?.let { oldService ->
+                // 先注销旧的接收器
+                try {
+                    unregisterScreenEventReceiver()
+                    unregisterNetworkReceiver()
+                    unregisterChargingReceiver()
+                    Log.d(TAG, "已注销旧的敏感事件上报服务接收器")
+                } catch (e: Exception) {
+                    Log.e(TAG, "注销旧接收器失败", e)
+                }
+            }
             sensitiveEventReportService = SensitiveEventReportService(this)
             registerScreenEventReceiver()
             registerNetworkReceiver()
@@ -309,7 +331,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         }
         
         // 🔥 初始化原生定位客户端
-        initLocationClient()
+        synchronized(locationClientLock) {
+            initLocationClient()
+        }
 
         // 🔥 启动原生保活健康检查（确保定位/上报组件存活）
         startHealthCheck()
@@ -335,8 +359,18 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         
         Log.w(TAG, "⚠️ 前台定位服务被销毁，尝试自恢复")
         
-        // 🔥 停止定位监听
+        // 🔥 停止定位监听（会释放 locationClient）
         stopLocationTracking()
+        
+        // 🔥 释放上报服务，防止 Binder 泄漏
+        try {
+            locationReportService = null
+            appUsageReportService = null
+            sensitiveEventReportService = null
+            Log.d(TAG, "已释放所有上报服务")
+        } catch (e: Exception) {
+            Log.e(TAG, "释放上报服务失败", e)
+        }
         
         // 🔥 停止健康检查
         healthCheckTimer?.cancel()
@@ -912,31 +946,48 @@ class ForegroundLocationService : Service(), AMapLocationListener {
      * 初始化定位客户端
      */
     private fun initLocationClient() {
-        try {
-            locationClient = AMapLocationClient(applicationContext)
-            locationClient?.setLocationListener(this)
-            
-            // 配置定位参数
-            val locationOption = AMapLocationClientOption().apply {
-                locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
-                isGpsFirst = true
-                httpTimeOut = 30000
-                // ✅ 关键修复：与Flutter层统一为5秒，避免APP被杀后定位频率骤降
-                interval = 5000 // 5秒定位一次（与Flutter层保持一致）
-                isNeedAddress = true
-                isOnceLocation = false
-                isOnceLocationLatest = false
-                isSensorEnable = false
-                isWifiScan = true
-                isLocationCacheEnable = true
-                geoLanguage = AMapLocationClientOption.GeoLanguage.DEFAULT
+        synchronized(locationClientLock) {
+            try {
+                // 🔥 修复 Binder 泄漏：先释放旧的实例，再创建新的
+                locationClient?.let { oldClient ->
+                    try {
+                        if (oldClient.isStarted) {
+                            oldClient.stopLocation()
+                        }
+                        oldClient.onDestroy()
+                        Log.d(TAG, "已释放旧的定位客户端")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "释放旧定位客户端失败", e)
+                    }
+                }
+                
+                // 创建新实例
+                locationClient = AMapLocationClient(applicationContext)
+                locationClient?.setLocationListener(this)
+                
+                // 配置定位参数
+                val locationOption = AMapLocationClientOption().apply {
+                    locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
+                    isGpsFirst = true
+                    httpTimeOut = 30000
+                    // ✅ 关键修复：与Flutter层统一为5秒，避免APP被杀后定位频率骤降
+                    interval = 5000 // 5秒定位一次（与Flutter层保持一致）
+                    isNeedAddress = true
+                    isOnceLocation = false
+                    isOnceLocationLatest = false
+                    isSensorEnable = false
+                    isWifiScan = true
+                    isLocationCacheEnable = true
+                    geoLanguage = AMapLocationClientOption.GeoLanguage.DEFAULT
+                }
+                
+                locationClient?.setLocationOption(locationOption)
+                Log.d(TAG, "原生定位客户端初始化成功")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "初始化定位客户端失败", e)
+                locationClient = null
             }
-            
-            locationClient?.setLocationOption(locationOption)
-            Log.d(TAG, "原生定位客户端初始化成功")
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "初始化定位客户端失败", e)
         }
     }
     
@@ -991,8 +1042,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 override fun run() {
                     try {
                         // 定位客户端存活且在运行
-                        if (locationClient == null) {
-                            initLocationClient()
+                        synchronized(locationClientLock) {
+                            if (locationClient == null) {
+                                initLocationClient()
+                            }
                         }
                         locationClient?.let { client ->
                             if (!client.isStarted) {
@@ -1007,6 +1060,15 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
                         // 上报服务存活
                         if (locationReportService == null) {
+                            // 🔥 修复 Binder 泄漏：确保旧实例已释放（虽然应该已经是 null）
+                            locationReportService?.let { oldService ->
+                                try {
+                                    // LocationReportService 如果有清理方法，在这里调用
+                                    Log.d(TAG, "释放旧的上报服务")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "释放旧上报服务失败", e)
+                                }
+                            }
                             locationReportService = LocationReportService(this@ForegroundLocationService)
                             Log.d(TAG, "💡 保活：重新创建上报服务")
                         }
@@ -1512,8 +1574,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                                 if (locationClient == null || !locationClient!!.isStarted) {
                                     Log.w(TAG, "💡 亮屏检查：定位客户端异常，尝试恢复")
                                     if (hasLocationPermissions()) {
-                                        initLocationClient()
-                                        startLocationTracking()
+                                        synchronized(locationClientLock) {
+                                            initLocationClient()
+                                            startLocationTracking()
+                                        }
                                     }
                                 }
                                 

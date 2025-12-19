@@ -53,6 +53,8 @@ import 'package:kissu_app/pages/chat/chat_bubble_page.dart';
 import 'package:kissu_app/pages/chat/chat_bubble_binding.dart';
 import 'package:kissu_app/pages/chat/chat_theme_page.dart';
 import 'package:kissu_app/pages/chat/chat_theme_binding.dart';
+import 'package:kissu_app/pages/chat/im_notification_settings/im_notification_settings_page.dart';
+import 'package:kissu_app/pages/chat/im_notification_settings/im_notification_settings_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -272,6 +274,12 @@ class KissuRoute {
       name: KissuRoutePath.chatTheme,
       page: () => const ChatThemePage(),
       binding: ChatThemeBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.imNotificationSettings,
+      page: () => const ImNotificationSettingsPage(),
+      binding: ImNotificationSettingsBinding(),
       transition: Transition.rightToLeft,
     ),
     // GetPage(

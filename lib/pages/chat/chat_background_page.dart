@@ -39,7 +39,7 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
         '聊天背景',
         style: TextStyle(
           color: Colors.black,
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -47,22 +47,23 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: ElevatedButton(
-            onPressed: controller.applyBackground,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xffBA92FD),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+          child: GestureDetector(
+            onTap: controller.applyBackground,
+            child: Container(
+              width: 70,
+              height: 33,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xffFF90CA),
+                borderRadius: BorderRadius.circular(16.5),
               ),
-              elevation: 0,
-            ),
-            child: const Text(
-              '使用',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              child: const Text(
+                '使用',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -130,7 +131,7 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
   Widget _buildBackgroundThumbnail(String backgroundPath, int index) {
     return Obx(() {
       final isSelected = controller.selectedBackground.value == backgroundPath;
-      
+
       return GestureDetector(
         onTap: () => controller.selectBackground(backgroundPath),
         child: Container(
@@ -139,7 +140,9 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
           margin: const EdgeInsets.only(right: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-             
+            border: isSelected
+                ? Border.all(color: const Color(0xFFFF90CA), width: 2)
+                : null,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(7),

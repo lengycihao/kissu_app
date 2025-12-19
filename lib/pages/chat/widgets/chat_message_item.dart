@@ -2,8 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
+import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/network/public/service_locator.dart';
 import 'location_preview_widget.dart';
 import '../utils/map_marker_util.dart';
 import '../chat_controller.dart';
@@ -14,6 +18,7 @@ enum MessageType {
   image, // 图片消息
   location, // 位置消息
   systemEvent, // 系统事件消息（图标+文字，居中显示）
+  defecate, // 一起便便消息（特殊气泡样式）
 }
 
 /// 消息模型
@@ -25,11 +30,15 @@ class ChatMessage {
   final DateTime time;
   final String? avatarUrl;
   final String? imageUrl;
+  final double? imageWidth;   // 图片原始宽度（用于计算展示比例）
+  final double? imageHeight;  // 图片原始高度（用于计算展示比例）
   final String? locationName;
   final double? latitude; // 纬度
   final double? longitude; // 经度
   final bool isRead; // 是否已读（仅用于自己发送的消息）
   final String? iconUrl; // 图标URL（用于systemEvent类型，支持网络图片）
+  final String? crapDuration; // 拉屎时长（用于endDefecate类型，如"0分30秒"）
+  final String? jumpPage; // 跳转页面标识（用于敏感事件systemEvent）
 
   ChatMessage({
     required this.id,
@@ -39,11 +48,15 @@ class ChatMessage {
     required this.time,
     this.avatarUrl,
     this.imageUrl,
+    this.imageWidth,
+    this.imageHeight,
     this.locationName,
     this.latitude,
     this.longitude,
     this.isRead = false, // 默认为未读
     this.iconUrl, // 图标URL（用于systemEvent类型）
+    this.crapDuration, // 拉屎时长（用于endDefecate类型）
+    this.jumpPage, // 跳转页面标识
   });
 }
 
@@ -52,12 +65,15 @@ class ChatMessageItem extends StatefulWidget {
   final ChatMessage message;
   final VoidCallback? onLongPress;
   final bool showTimestamp; // 是否显示时间戳（用于systemEvent类型）
+  // 图片点击回调（用于外部实现多图预览）
+  final void Function(ChatMessage message)? onImageTap;
 
   const ChatMessageItem({
     super.key,
     required this.message,
     this.onLongPress,
     this.showTimestamp = true,
+    this.onImageTap,
   });
 
   @override
@@ -72,39 +88,102 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       return _buildSystemEventMessage();
     }
 
+    // 是否为图片消息（需要特殊布局对齐头像）
+    final bool isSelfImageMessage =
+        widget.message.isSent && widget.message.type == MessageType.image;
+    final bool isOtherImageMessage =
+        !widget.message.isSent && widget.message.type == MessageType.image;
+
+    // 是否为一起便便消息（需要特殊布局对齐头像，和图片消息一样）
+    final bool isSelfDefecateMessage =
+        widget.message.isSent && widget.message.type == MessageType.defecate;
+    final bool isOtherDefecateMessage =
+        !widget.message.isSent && widget.message.type == MessageType.defecate;
+
+    // 预先计算图片高度，用于对齐头像（仅图片消息时使用）
+    Size? imageSize;
+    if (isSelfImageMessage || isOtherImageMessage) {
+      final ratioType = _getImageRatioType();
+      imageSize = _getImageSize(ratioType);
+    }
+
+    // 计算一起便便消息高度（用于对齐头像）
+    // 内容高度：标题(13) + 间距(8) + 图标(48) + 气泡padding(top:20 + bottom:8) + 标题上方间距(2) ≈ 91
+    // 加上一些额外空间，使用固定高度
+    const double defecateMessageHeight = 91.0;
+
     // 普通消息：上方可选时间气泡 + 下方消息行
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.showTimestamp) _buildTimeChip(),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            mainAxisAlignment: widget.message.isSent
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (!widget.message.isSent) _buildAvatarWithOffset(),
-              if (!widget.message.isSent) const SizedBox(width: 8),
-              if (widget.message.isSent &&
-                  (widget.message.type == MessageType.text ||
-                      widget.message.type == MessageType.image))
-                Padding(
-                  padding: const EdgeInsets.only(right: 1, bottom: 0),
-                  child: _buildReadStatus(),
+          // 适当增大消息间垂直间距
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: (imageSize != null && (isSelfImageMessage || isOtherImageMessage)) ||
+                  (isSelfDefecateMessage || isOtherDefecateMessage)
+              ? Row(
+                  mainAxisAlignment: widget.message.isSent
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 对方图片/一起便便消息：左侧头像与消息顶部对齐
+                    if (isOtherImageMessage || isOtherDefecateMessage) ...[
+                      SizedBox(
+                        height: isOtherImageMessage
+                            ? imageSize!.height
+                            : defecateMessageHeight,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: _buildAvatar(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    // 消息内容（自己消息在右侧展示头像）
+                    Flexible(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onLongPress: widget.onLongPress,
+                        child: _buildMessageBubble(context),
+                      ),
+                    ),
+                    // 自己图片/一起便便消息：右侧头像与消息顶部对齐
+                    if (isSelfImageMessage || isSelfDefecateMessage) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: isSelfImageMessage
+                            ? imageSize!.height
+                            : defecateMessageHeight,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: _buildAvatar(),
+                        ),
+                      ),
+                    ],
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: widget.message.isSent
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
+                  // 文本/位置等气泡类消息：统一用底部对齐
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (!widget.message.isSent) _buildAvatarWithOffset(),
+                    if (!widget.message.isSent) const SizedBox(width: 8),
+                    Flexible(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onLongPress: widget.onLongPress,
+                        child: _buildMessageBubble(context),
+                      ),
+                    ),
+                    if (widget.message.isSent) const SizedBox(width: 8),
+                    if (widget.message.isSent) _buildAvatarWithOffset(),
+                  ],
                 ),
-              Flexible(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onLongPress: widget.onLongPress,
-                  child: _buildMessageBubble(context),
-                ),
-              ),
-              if (widget.message.isSent) const SizedBox(width: 8),
-              if (widget.message.isSent) _buildAvatarWithOffset(),
-            ],
-          ),
         ),
       ],
     );
@@ -112,6 +191,8 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
   /// 构建系统事件消息（居中显示，图标+文字）
   Widget _buildSystemEventMessage() {
+    final bool hasJump =
+        widget.message.jumpPage != null && widget.message.jumpPage!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Column(
@@ -135,36 +216,78 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
             ),
             const SizedBox(height: 8),
           ],
-          // 图标+文字（带背景）
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 图标
-                if (widget.message.iconUrl != null)
-                  _buildEventIcon(widget.message.iconUrl!),
-                if (widget.message.iconUrl != null) const SizedBox(width: 4),
-                // 文字
-                Text(
-                  widget.message.content,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF333333),
+          // 图标+文字（带背景，可选跳转）
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: hasJump ? _handleSystemEventTap : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // 图标
+                  if (widget.message.iconUrl != null)
+                    _buildEventIcon(widget.message.iconUrl!),
+                  if (widget.message.iconUrl != null) const SizedBox(width: 4),
+                  // 文字 + 可选右箭头
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.message.content,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                      if (hasJump) ...[
+                        const SizedBox(width: 4),
+                        Image.asset(
+                          'assets/4.0/kissu4_new_use_right.webp',
+                          width: 6,
+                          height: 6,
+                          color: Color(0xff009BFE),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// 处理系统事件（敏感操作）点击跳转
+  void _handleSystemEventTap() {
+    final jump = widget.message.jumpPage;
+    if (jump == null || jump.isEmpty) return;
+
+    switch (jump) {
+      case 'appUsePage':
+        // 跳转到App使用统计页面
+        Get.toNamed(KissuRoutePath.appUsage);
+        break;
+      case 'tracePage':
+        // 跳转到足迹页面
+        Get.toNamed(KissuRoutePath.track);
+        break;
+      case 'unlockPhonePage':
+        // 跳转到设备使用记录页面（解锁记录）
+        Get.toNamed(KissuRoutePath.appUsageInfo);
+        break;
+      default:
+        break;
+    }
   }
 
   /// 构建事件图标（支持网络图片和本地资源）
@@ -217,19 +340,37 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     }
   }
 
-  /// 格式化时间显示（如：7月3日 10:21）
+  /// 格式化时间显示：
+  /// - 今天：显示“今天 HH:mm”
+  /// - 昨天：显示“昨天 HH:mm”
+  /// - 更早：显示“MM月dd日 HH:mm”
   String _formatTime(DateTime time) {
-    final month = time.month;
-    final day = time.day;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDay = DateTime(time.year, time.month, time.day);
+
+    final diffDays = targetDay.difference(today).inDays;
+
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
-    return '$month月$day日 $hour:$minute';
+
+    if (diffDays == 0) {
+      // 今天
+      return '今天 $hour:$minute';
+    } else if (diffDays == -1) {
+      // 昨天
+      return '昨天 $hour:$minute';
+    } else {
+      final month = time.month;
+      final day = time.day;
+      return '$month月$day日 $hour:$minute';
+    }
   }
 
   /// 普通消息上方的时间气泡（类似微信）
   Widget _buildTimeChip() {
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      padding: const EdgeInsets.only(top: 18, bottom: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -374,16 +515,18 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
       case MessageType.image:
         return GestureDetector(
-          onTap: () => _showImagePreview(context),
+          onTap: () {
+            if (widget.onImageTap != null) {
+              widget.onImageTap!(widget.message);
+            } else {
+              _showImagePreview(context);
+            }
+          },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: widget.message.imageUrl != null
-                ? _buildImage(widget.message.imageUrl!)
-                : Container(
-                    width: 150,
-                    height: 150,
-                    child: const Icon(Icons.image, size: 48),
-                  ),
+                ? _buildSizedImage(widget.message.imageUrl!)
+                : _buildPlaceholderContainer(),
           ),
         );
 
@@ -428,6 +571,98 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       case MessageType.systemEvent:
         // systemEvent类型在build方法中已经单独处理，这里不会执行到
         return const SizedBox.shrink();
+
+      case MessageType.defecate:
+        // 一起便便消息：标题+图标+内容
+        return _buildDefecateMessage();
+    }
+  }
+
+  /// 构建一起便便消息内容
+  Widget _buildDefecateMessage() {
+    // 判断是开始还是结束拉屎（通过crapDuration字段）
+    final bool isEndDefecate = widget.message.crapDuration != null;
+    
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _handleDefecateMessageTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题："一起便便"
+          SizedBox(height: 2),
+          const Text(
+            '一起便便',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF333333),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 图标和内容横向对齐
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 图标
+              Image.asset(
+                'assets/chat/kissu_chat_crap.webp',
+                width: 48,
+                height: 48,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 8),
+              // 内容（根据是否有crapDuration显示不同文案）
+              Expanded(
+                child: Text(
+                  isEndDefecate
+                      ? widget.message.content // 结束拉屎：使用content（已包含时长）
+                      : '亲爱的，我们开始拉屎吧～', // 开始拉屎：固定文案
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 处理一起便便消息点击，跳转到H5页面
+  void _handleDefecateMessageTap() {
+    try {
+      const baseUrl = 'http://devweb.ikissu.cn/share/couplesdeFecating.html';
+      String url = baseUrl;
+
+      // 尝试获取token并拼接
+      try {
+        final authService = getIt<AuthService>();
+        final token = authService.userToken;
+        if (token != null && token.isNotEmpty) {
+          final encodedToken = Uri.encodeComponent(token);
+          url = '$baseUrl?token=$encodedToken';
+        }
+      } catch (_) {
+        // 获取 token 失败时，降级为不带 token 的 H5
+        url = baseUrl;
+      }
+
+      // 跳转到H5页面
+      Get.to(
+        () => AgreementWebViewPage(
+          title: '',
+          url: url,
+          showAppBar: false,
+          backgroundColor: Colors.white,
+          showLoadingIndicator: false, // 拉屎H5不显示加载动画
+        ),
+        transition: Transition.rightToLeft,
+      );
+    } catch (e) {
+      debugPrint('跳转一起便便H5页面失败: $e');
     }
   }
 
@@ -465,33 +700,128 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   }
 
   // 根据路径类型加载图片（本地文件或网络图片）
-  Widget _buildImage(String imagePath) {
+  Widget _buildImage(String imagePath, {required String placeholderAsset}) {
     // 判断是本地文件还是网络URL
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       // 网络图片：统一走带磁盘缓存的帮助类，避免每次进入聊天都重新拉取
       return NetworkImageHelper.loadImage(
         imageUrl: imagePath,
-        width: 150,
-        height: 150,
         fit: BoxFit.cover,
-        placeholder: 'assets/chat/kissu_chat_image_placeholder.webp',
+        placeholder: placeholderAsset,
       );
     } else {
       // 本地文件
-      return Image.file(
-        File(imagePath),
-        width: 150,
-        height: 150,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 150,
-            height: 150,
-            child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-          );
-        },
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          // 底层占位图
+          Image.asset(
+            placeholderAsset,
+            fit: BoxFit.cover,
+          ),
+          // 顶层真实图片
+          Image.file(
+            File(imagePath),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Center(
+                child: Icon(
+                  Icons.broken_image,
+                  size: 32,
+                  color: Colors.grey[400],
+                ),
+              );
+            },
+          ),
+        ],
       );
     }
+  }
+
+  /// 根据图片原始宽高，计算展示比例（正方形 / 16:9 / 9:16）
+  _ImageRatioType _getImageRatioType() {
+    final w = widget.message.imageWidth;
+    final h = widget.message.imageHeight;
+
+    if (w == null || h == null || w <= 0 || h <= 0) {
+      // 没有宽高信息时，走居中正方形
+      return _ImageRatioType.square;
+    }
+
+    final ratio = w / h;
+
+    // 约等于 1:1
+    if (ratio > 0.9 && ratio < 1.1) {
+      return _ImageRatioType.square;
+    }
+
+    // 宽 > 高，视为 16:9
+    if (ratio >= 1.1) {
+      return _ImageRatioType.landscape16_9;
+    }
+
+    // 高 > 宽，视为 9:16
+    return _ImageRatioType.portrait9_16;
+  }
+
+  /// 不同比例对应不同展示尺寸
+  Size _getImageSize(_ImageRatioType type) {
+    switch (type) {
+      case _ImageRatioType.square:
+        return const Size(120, 120); // 1:1
+      case _ImageRatioType.landscape16_9:
+        return const Size(160, 90); // 16:9
+      case _ImageRatioType.portrait9_16:
+        return const Size(90, 160); // 9:16
+    }
+  }
+
+  /// 根据比例 & 发送方，选占位图
+  String _getPlaceholderAsset(_ImageRatioType type) {
+    final isSelf = widget.message.isSent;
+    switch (type) {
+      case _ImageRatioType.square:
+        return isSelf
+            ? 'assets/chat/kissu_chat_pc_self_9_9.webp'
+            : 'assets/chat/kissu_chat_pc_other_9_9.webp';
+      case _ImageRatioType.landscape16_9:
+        return isSelf
+            ? 'assets/chat/kissu_chat_pc_self_16_9.webp'
+            : 'assets/chat/kissu_chat_pc_other_16_9.webp';
+      case _ImageRatioType.portrait9_16:
+        return isSelf
+            ? 'assets/chat/kissu_chat_pc_self_9_16.webp'
+            : 'assets/chat/kissu_chat_pc_other_9_16.webp';
+    }
+  }
+
+  /// 根据比例包装成固定宽高的图片容器
+  Widget _buildSizedImage(String imagePath) {
+    final ratioType = _getImageRatioType();
+    final size = _getImageSize(ratioType);
+    final placeholder = _getPlaceholderAsset(ratioType);
+
+    return SizedBox(
+      width: size.width,
+      height: size.height,
+      child: _buildImage(imagePath, placeholderAsset: placeholder),
+    );
+  }
+
+  /// 当没有 imageUrl 时的占位容器（很少出现）
+  Widget _buildPlaceholderContainer() {
+    final ratioType = _ImageRatioType.square;
+    final size = _getImageSize(ratioType);
+    final placeholder = _getPlaceholderAsset(ratioType);
+
+    return SizedBox(
+      width: size.width,
+      height: size.height,
+      child: Image.asset(
+        placeholder,
+        fit: BoxFit.cover,
+      ),
+    );
   }
 
   // 显示图片预览
@@ -500,85 +830,61 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            ImagePreviewPage(imageUrl: widget.message.imageUrl!),
+        builder: (context) => ImagePreviewPage(
+          imageUrls: [widget.message.imageUrl!],
+          initialIndex: 0,
+        ),
         fullscreenDialog: true,
       ),
     );
   }
 
-  /// 构建已读/未读状态显示
-  Widget _buildReadStatus() {
-    // 只对自己发送的消息显示
-    if (!widget.message.isSent) {
-      return const SizedBox.shrink();
-    }
-
-    // 只对气泡消息和图片消息显示
-    if (widget.message.type != MessageType.text &&
-        widget.message.type != MessageType.image) {
-      return const SizedBox.shrink();
-    }
-
-    return widget.message.isRead
-        ? Image.asset(
-            'assets/chat/kissu3_chat_hasread.webp',
-            width: 16,
-            height: 16,
-            fit: BoxFit.contain,
-          )
-        : const Text(
-            '未读',
-            style: TextStyle(
-              fontSize: 11,
-              color: Color(0x99000000), // 0x99000000 = 60% 透明度的黑色
-            ),
-          );
-  }
 }
 
 // 图片预览页面
 class ImagePreviewPage extends StatefulWidget {
-  final String imageUrl;
+  /// 需要预览的图片列表
+  final List<String> imageUrls;
 
-  const ImagePreviewPage({super.key, required this.imageUrl});
+  /// 初始显示的图片索引
+  final int initialIndex;
+
+  const ImagePreviewPage({
+    super.key,
+    required this.imageUrls,
+    this.initialIndex = 0,
+  });
 
   @override
   State<ImagePreviewPage> createState() => _ImagePreviewPageState();
 }
 
 class _ImagePreviewPageState extends State<ImagePreviewPage> {
-  late TransformationController _transformationController;
-  late InteractiveViewer _interactiveViewer;
+  late final PageController _pageController;
+  late int _currentIndex;
 
   @override
   void initState() {
     super.initState();
-    _transformationController = TransformationController();
-    _interactiveViewer = InteractiveViewer(
-      transformationController: _transformationController,
-      minScale: 0.5,
-      maxScale: 4.0,
-      child: GestureDetector(
-        onTap: () {}, // 阻止事件冒泡，点击图片不关闭预览
-        child: _buildImage(),
-      ),
-    );
+    _currentIndex = (widget.initialIndex >= 0 &&
+            widget.initialIndex < widget.imageUrls.length)
+        ? widget.initialIndex
+        : 0;
+    _pageController = PageController(initialPage: _currentIndex);
   }
 
   @override
   void dispose() {
-    _transformationController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  Widget _buildImage() {
+  Widget _buildImage(String imageUrl) {
     // 判断是本地文件还是网络URL
-    if (widget.imageUrl.startsWith('http://') ||
-        widget.imageUrl.startsWith('https://')) {
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       // 网络图片
       return Image.network(
-        widget.imageUrl,
+        imageUrl,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return Container(
@@ -621,7 +927,7 @@ class _ImagePreviewPageState extends State<ImagePreviewPage> {
     } else {
       // 本地文件
       return Image.file(
-        File(widget.imageUrl),
+        File(imageUrl),
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return Container(
@@ -650,8 +956,31 @@ class _ImagePreviewPageState extends State<ImagePreviewPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => Navigator.of(context).pop(),
-        child: Center(child: _interactiveViewer),
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: widget.imageUrls.length,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          itemBuilder: (context, index) {
+            final url = widget.imageUrls[index];
+            return Center(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () => Navigator.of(context).pop(), // 点击大图也关闭
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: _buildImage(url),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -816,4 +1145,11 @@ class _LocationDetailPageState extends State<_LocationDetailPage> {
       ),
     );
   }
+}
+
+/// 图片展示比例枚举：正方形 / 16:9 / 9:16
+enum _ImageRatioType {
+  square,
+  landscape16_9,
+  portrait9_16,
 }

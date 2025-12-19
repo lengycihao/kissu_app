@@ -238,13 +238,42 @@ class TrackDataManager {
   /// 获取起点坐标
   /// 🎯 从 locations 字段的第一个数据获取
   LatLng? getStartPoint() {
-    if (currentData?.locations == null || currentData!.locations!.isEmpty) {
-      return null;
+    if (currentData == null) return null;
+
+    // 1）优先从 locations 列表的第一个点取（老逻辑）
+    if (currentData!.locations != null && currentData!.locations!.isNotEmpty) {
+      final firstLocation = currentData!.locations!.first;
+      if (firstLocation.lat != 0.0 && firstLocation.lng != 0.0) {
+        return LatLng(firstLocation.lat, firstLocation.lng);
+      }
     }
-    final firstLocation = currentData!.locations!.first;
-    if (firstLocation.lat != 0.0 && firstLocation.lng != 0.0) {
-      return LatLng(firstLocation.lat, firstLocation.lng);
+
+    // 2）locations 为空时，尝试从 trace.startPoint 取
+    if (currentData!.trace?.startPoint != null) {
+      final sp = currentData!.trace!.startPoint;
+      if (sp.lat != 0.0 && sp.lng != 0.0) {
+        return LatLng(sp.lat, sp.lng);
+      }
     }
+
+    // 3）再兜底：如果 trace.stops 里有 pointType = 'start' 的记录，用它作为起点
+    if (currentData!.trace?.stops != null &&
+        currentData!.trace!.stops.isNotEmpty) {
+      try {
+        final startStop = currentData!.trace!.stops.firstWhere(
+          (s) => (s.pointType == 'start') &&
+              s.lat != 0.0 &&
+              s.lng != 0.0,
+          orElse: () => currentData!.trace!.stops.first,
+        );
+        if (startStop.lat != 0.0 && startStop.lng != 0.0) {
+          return LatLng(startStop.lat, startStop.lng);
+        }
+      } catch (_) {
+        // 忽略兜底失败
+      }
+    }
+
     return null;
   }
   
@@ -252,17 +281,46 @@ class TrackDataManager {
   /// 🎯 从 locations 字段的最后一个数据获取
   /// 🎯 当 locations 只有一个点时，不显示终点（只显示起点）
   LatLng? getEndPoint() {
-    if (currentData?.locations == null || currentData!.locations!.isEmpty) {
-      return null;
+    if (currentData == null) return null;
+
+    // 1）优先从 locations 列表的最后一个点取（老逻辑）
+    if (currentData!.locations != null && currentData!.locations!.isNotEmpty) {
+      // 🎯 当只有一个点时，不显示终点（只显示起点）
+      if (currentData!.locations!.length <= 1) {
+        return null;
+      }
+      final lastLocation = currentData!.locations!.last;
+      if (lastLocation.lat != 0.0 && lastLocation.lng != 0.0) {
+        return LatLng(lastLocation.lat, lastLocation.lng);
+      }
     }
-    // 🎯 当只有一个点时，不显示终点
-    if (currentData!.locations!.length <= 1) {
-      return null;
+
+    // 2）locations 为空时，尝试从 trace.endPoint 取
+    if (currentData!.trace?.endPoint != null) {
+      final ep = currentData!.trace!.endPoint;
+      if (ep.lat != 0.0 && ep.lng != 0.0) {
+        return LatLng(ep.lat, ep.lng);
+      }
     }
-    final lastLocation = currentData!.locations!.last;
-    if (lastLocation.lat != 0.0 && lastLocation.lng != 0.0) {
-      return LatLng(lastLocation.lat, lastLocation.lng);
+
+    // 3）兜底：如果 trace.stops 里有 pointType = 'end' 且数据多于1个，可以取它作为终点
+    if (currentData!.trace?.stops != null &&
+        currentData!.trace!.stops.length > 1) {
+      try {
+        final endStop = currentData!.trace!.stops.lastWhere(
+          (s) => (s.pointType == 'end') &&
+              s.lat != 0.0 &&
+              s.lng != 0.0,
+          orElse: () => currentData!.trace!.stops.last,
+        );
+        if (endStop.lat != 0.0 && endStop.lng != 0.0) {
+          return LatLng(endStop.lat, endStop.lng);
+        }
+      } catch (_) {
+        // 忽略兜底失败
+      }
     }
+
     return null;
   }
   

@@ -34,10 +34,10 @@ class ChatBubblePage extends GetView<ChatBubbleController> {
         onPressed: () => Get.back(),
       ),
       title: const Text(
-        '设置聊天气泡',
+        '聊天气泡',
         style: TextStyle(
           color: Colors.black,
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -45,19 +45,15 @@ class ChatBubblePage extends GetView<ChatBubbleController> {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: SizedBox(
-            width: 70,
-            height: 33,
-            child: ElevatedButton(
-              onPressed: controller.applyBubbleStyle,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF90CA),
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.5),
-                ),
-                elevation: 0,
+          child: GestureDetector(
+            onTap: controller.applyBubbleStyle,
+            child: Container(
+              width: 70,
+              height: 33,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF90CA),
+                borderRadius: BorderRadius.circular(16.5),
               ),
               child: const Text(
                 '使用',

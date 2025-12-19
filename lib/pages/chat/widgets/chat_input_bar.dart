@@ -143,7 +143,7 @@ class ChatInputBarState extends State<ChatInputBar> {
         color: Color(0xffF2F2F2),
         borderRadius: BorderRadius.circular(24),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: TextField(
         controller: _textController,
         focusNode: widget.focusNode,
@@ -155,7 +155,7 @@ class ChatInputBarState extends State<ChatInputBar> {
         
         style: const TextStyle(fontSize: 15, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: '说点什么吧…',
+          hintText: '发送消息给Ta',
           hintStyle: TextStyle(color: Color(0xff333333), fontSize: 12),
           border: InputBorder.none,
           isDense: true,
@@ -226,7 +226,7 @@ class ChatInputBarState extends State<ChatInputBar> {
     // 获取主题按钮颜色，如果没有则使用默认颜色
     final buttonColor = widget.themeButtonColor ?? const Color(0xffFF90CA);
     // 选中时使用主题颜色的浅色版本（透明度0.15）
-    final activeColor = buttonColor.withOpacity(0.15);
+    final activeColor = buttonColor;
     
     return GestureDetector(
       onTap: onTap,

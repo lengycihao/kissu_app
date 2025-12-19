@@ -20,7 +20,6 @@ class ChatBackgroundController extends GetxController {
 
   // 缓存key
   static const String _backgroundCacheKey = 'chat_background_path';
-  static const String _customBackgroundsKey = 'chat_custom_backgrounds';
 
   // 当前选中的背景路径
   final RxString selectedBackground = 'assets/chat/kissu_chat_bg1.webp'.obs;
@@ -28,10 +27,7 @@ class ChatBackgroundController extends GetxController {
   // 预览背景路径（用于页面顶部预览）
   final RxString previewBackground = 'assets/chat/kissu_chat_bg1.webp'.obs;
 
-  // 自定义背景列表（从相册添加的）
-  final RxList<String> customBackgrounds = <String>[].obs;
-
-  // 所有背景列表（默认 + 自定义）
+  // 所有背景列表（只包含默认背景，不包含本地添加的图片）
   final RxList<String> allBackgrounds = <String>[].obs;
 
   @override
@@ -45,12 +41,8 @@ class ChatBackgroundController extends GetxController {
 
   // 加载背景列表
   Future<void> _loadBackgrounds() async {
-    // 加载自定义背景
-    final customList = await SpUtil.getStringList(_customBackgroundsKey);
-    customBackgrounds.value = customList;
-    
-    // 合并背景列表：自定义背景在前（最新的在最前），默认背景在后
-    allBackgrounds.value = [...customBackgrounds.reversed, ...defaultBackgrounds];
+    // 只加载默认背景列表，不显示自定义背景
+    allBackgrounds.value = [...defaultBackgrounds];
     
     // 设置预览背景为当前选中的背景
     previewBackground.value = selectedBackground.value;
@@ -84,22 +76,14 @@ class ChatBackgroundController extends GetxController {
     );
 
     if (imageFile != null) {
-      // 添加到自定义背景列表的最前面（最新的在最前）
-      final newCustomList = [imageFile.path, ...customBackgrounds];
-      customBackgrounds.value = newCustomList;
-      
-      // 更新所有背景列表：自定义背景在前（最新的在最前），默认背景在后
-      allBackgrounds.value = [...customBackgrounds.reversed, ...defaultBackgrounds];
-      
-      // 保存自定义背景列表
-      await SpUtil.putStringList(_customBackgroundsKey, customBackgrounds);
+      // 只设置为当前选中的背景，不添加到列表中
+      // 直接保存到缓存，替换之前添加的本地图片
+      await SpUtil.putString(_backgroundCacheKey, imageFile.path);
       
       // 自动选中新添加的背景
       selectBackground(imageFile.path);
       
-      debugPrint('💬 添加自定义背景: ${imageFile.path}');
-      debugPrint('💬 当前自定义背景数量: ${customBackgrounds.length}');
-      debugPrint('💬 当前所有背景数量: ${allBackgrounds.length}');
+      debugPrint('💬 添加本地背景（不显示在列表中）: ${imageFile.path}');
     }
   }
 

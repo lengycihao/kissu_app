@@ -6,6 +6,7 @@ import 'package:kissu_app/model/notification_settings_response.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
+import 'package:kissu_app/network/utils/sp_util.dart';
 
 /// 通知设置控制器
 class NotificationSettingsController extends GetxController {
@@ -24,6 +25,11 @@ class NotificationSettingsController extends GetxController {
   
   // 是否已检查过通知权限（避免重复弹窗）
   bool _hasCheckedNotificationPermission = false;
+  
+  // 缓存相关常量
+  static const String _cacheKey = 'notification_settings_cache';
+  static const String _cacheTimeKey = 'notification_settings_cache_time';
+  static const Duration _cacheValidDuration = Duration(minutes: 5); // 缓存有效期5分钟
   
   // 位置轨迹通知项（初始为空，显示骨架屏）
   final locationTrackItems = <NotificationItem>[].obs;
@@ -49,10 +55,10 @@ class NotificationSettingsController extends GetxController {
       }
     }
     // 延迟加载，等待页面转场动画完成（约300ms）
-    // loadSettings内部会设置isLoading状态
+    // 先加载缓存数据（快速显示），然后后台更新
     Future.delayed(const Duration(milliseconds: 350), () {
       if (!isClosed) {
-        loadSettings();
+        _loadSettingsWithCache();
         // 检查通知权限
         _checkNotificationPermission();
       }
@@ -224,6 +230,9 @@ class NotificationSettingsController extends GetxController {
         _updateItemInList(systemNotificationItems, item);
         
         OKToastUtil.showError(result.msg ?? '更新失败');
+      } else {
+        // 更新成功，刷新缓存（重新加载最新数据）
+        loadSettings(silent: true);
       }
     } finally {
       _updatingFields.remove(item.id);
@@ -247,24 +256,93 @@ class NotificationSettingsController extends GetxController {
     }
   }
 
-  /// 从服务器加载设置
-  Future<void> loadSettings() async {
-    // 防止重复加载
-    if (isLoading.value) return;
+  /// 带缓存的加载设置（先显示缓存，后台更新）
+  Future<void> _loadSettingsWithCache() async {
+    // 先尝试加载缓存数据
+    await _loadFromCache();
     
-    isLoading.value = true;
+    // 检查缓存是否过期
+    final shouldRefresh = await _shouldRefreshCache();
+    
+    if (shouldRefresh) {
+      // 缓存过期或不存在，后台静默更新
+      loadSettings(silent: true);
+    }
+  }
+  
+  /// 从缓存加载设置
+  Future<void> _loadFromCache() async {
+    try {
+      final cacheData = await SpUtil.getJsonMap(_cacheKey);
+      if (cacheData != null && cacheData is List) {
+        final responses = cacheData
+            .map((json) => NotificationSettingsResponse.fromJson(json as Map<String, dynamic>))
+            .toList();
+        _applyServerSettings(responses);
+        print('✅ 从缓存加载通知设置成功');
+      }
+    } catch (e) {
+      print('⚠️ 从缓存加载通知设置失败: $e');
+    }
+  }
+  
+  /// 检查是否需要刷新缓存
+  Future<bool> _shouldRefreshCache() async {
+    try {
+      final cacheTimeStr = await SpUtil.getString(_cacheTimeKey);
+      if (cacheTimeStr.isEmpty) {
+        return true; // 没有缓存时间，需要刷新
+      }
+      
+      final cacheTime = DateTime.parse(cacheTimeStr);
+      final now = DateTime.now();
+      final diff = now.difference(cacheTime);
+      
+      return diff > _cacheValidDuration; // 超过5分钟，需要刷新
+    } catch (e) {
+      print('⚠️ 检查缓存时间失败: $e');
+      return true; // 出错时刷新
+    }
+  }
+  
+  /// 保存设置到缓存
+  Future<void> _saveToCache(List<NotificationSettingsResponse> responses) async {
+    try {
+      final jsonList = responses.map((r) => r.toJson()).toList();
+      await SpUtil.putJsonMap(_cacheKey, jsonList);
+      await SpUtil.putString(_cacheTimeKey, DateTime.now().toIso8601String());
+      print('✅ 通知设置已保存到缓存');
+    } catch (e) {
+      print('⚠️ 保存通知设置到缓存失败: $e');
+    }
+  }
+  
+  /// 从服务器加载设置
+  /// [silent] 是否静默加载（不显示loading状态）
+  Future<void> loadSettings({bool silent = false}) async {
+    // 防止重复加载
+    if (isLoading.value && !silent) return;
+    
+    if (!silent) {
+      isLoading.value = true;
+    }
     
     try {
       final result = await _api.getNotificationSettings();
       
       if (result.isSuccess && result.data != null) {
+        // 保存到缓存
+        await _saveToCache(result.data!);
+        
         // 使用微任务延迟UI更新，避免阻塞
         await Future.microtask(() => _applyServerSettings(result.data!));
       }
     } catch (e) {
       print('加载通知设置失败: $e');
     } finally {
-      isLoading.value = false;
+      if (!silent) {
+        isLoading.value = false;
+      }
     }
   }
   

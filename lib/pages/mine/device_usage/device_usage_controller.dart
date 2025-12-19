@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -50,6 +52,9 @@ class DeviceUsageController extends GetxController {
   // 另一半用户设备信息
   var halfUserData = Rxn<api_model.HalfUserData>();
 
+  // 用机记录引导图是否显示
+  final RxBool showGuideOverlay = false.obs;
+
   final _usageRecordApi = UsageRecordApi();
   final _logoCacheService = AppLogoCacheService();
 
@@ -61,6 +66,38 @@ class DeviceUsageController extends GetxController {
     // 初始化绑定状态和会员状态
     _updateBindStatus();
     _loadData(); // 加载真实数据
+    // 检查并显示用机记录引导图（首次进入立即检查）
+    _checkAndShowGuide();
+  }
+  
+  /// 检查并显示用机记录引导图
+  Future<void> _checkAndShowGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide =
+          prefs.getBool('has_shown_device_usage_guide') ?? false;
+
+      debugPrint('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+
+      if (!hasShownGuide) {
+        debugPrint('📱 首次进入用机记录页面，显示引导图');
+
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_device_usage_guide', true);
+
+        // 直接显示覆盖层（不再延迟）
+        if (!isClosed) {
+          showGuideOverlay.value = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 检查用机记录引导图状态失败: $e');
+    }
+  }
+
+  /// 隐藏用机记录引导图
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
   }
 
   @override

@@ -47,11 +47,7 @@ class AppUsageApi {
       return result;
     } catch (e) {
       logger.error('上报应用使用记录异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<dynamic>(
-        isSuccess: false,
-        code: -1,
-        msg: '上报失败: $e',
-      );
+      return _errorResult<dynamic>('上报失败: $e');
     }
   }
   
@@ -98,19 +94,14 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取使用记录失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<List<AppUsageRecord>>(
-          isSuccess: false,
+        return _errorResult<List<AppUsageRecord>>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取使用记录异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<List<AppUsageRecord>>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<List<AppUsageRecord>>('获取失败: $e');
     }
   }
   
@@ -144,19 +135,14 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取App使用统计数据失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<AppUsageStatResponse>(
-          isSuccess: false,
+        return _errorResult<AppUsageStatResponse>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取App使用统计数据异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<AppUsageStatResponse>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<AppUsageStatResponse>('获取失败: $e');
     }
   }
   
@@ -206,19 +192,14 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取App打开记录详情失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<AppOpenRecordDetailResponse>(
-          isSuccess: false,
+        return _errorResult<AppOpenRecordDetailResponse>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取App打开记录详情异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<AppOpenRecordDetailResponse>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<AppOpenRecordDetailResponse>('获取失败: $e');
     }
   }
 
@@ -259,20 +240,24 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取Ta当前授权过的App失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<List<HalfAuthApp>>(
-          isSuccess: false,
+        return _errorResult<List<HalfAuthApp>>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取Ta当前授权过的App异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<List<HalfAuthApp>>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<List<HalfAuthApp>>('获取失败: $e');
     }
+  }
+
+  /// 构建通用错误结果，减少重复代码
+  static HttpResultN<T> _errorResult<T>(String msg, {int code = -1}) {
+    return HttpResultN<T>(
+      isSuccess: false,
+      code: code,
+      msg: msg,
+    );
   }
   
   /// 获取App使用记录统计（用于"统计"视图）

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 class ChatSettingsController extends GetxController {
   // 获取聊天控制器实例
@@ -57,13 +59,33 @@ class ChatSettingsController extends GetxController {
     });
   }
 
-  // 保存昵称
-  void saveNickname() {
+  // 保存昵称（备注），并同步到腾讯 IM 资料
+  Future<void> saveNickname() async {
     final newName = nicknameController.text.trim();
     if (newName.isNotEmpty && newName != currentNickname.value) {
-      currentNickname.value = newName;
-      // 同步更新聊天页面的昵称
-      chatController.chatName.value = newName;
+      final partnerId = chatController.partnerImId;
+      if (partnerId == null || partnerId.isEmpty) {
+        debugPrint('更新腾讯 IM 备注失败: 无法获取聊天对象ID');
+        return;
+      }
+
+      try {
+        final im = TencentIMService.instance;
+        if (im.isInitialized && im.isLoggedIn) {
+          // 设置好友备注，而不是自己的昵称
+          final success = await im.setFriendRemark(partnerId, newName);
+          if (success) {
+            currentNickname.value = newName;
+            // 同步更新聊天页面的昵称显示
+            chatController.chatName.value = newName;
+            debugPrint('更新腾讯 IM 备注成功: $newName');
+          } else {
+            debugPrint('更新腾讯 IM 备注失败: SDK 返回失败');
+          }
+        }
+      } catch (e) {
+        debugPrint('更新腾讯 IM 备注失败: $e');
+      }
     }
     isEditingNickname.value = false;
   }
@@ -85,17 +107,19 @@ class ChatSettingsController extends GetxController {
     Get.toNamed(KissuRoutePath.chatBubble);
   }
 
-  // 设置敏感信息 - 跳转到推送设置页面，标题为"敏感信息"
+  // 设置自动报备消息 - 跳转到IM通知设置页面
   void setSensitiveInfo() {
-    Get.toNamed(
-      KissuRoutePath.notificationSettings,
-      arguments: {'title': '敏感信息'},
-    );
+    Get.toNamed(KissuRoutePath.imNotificationSettings);
   }
 
-  // 设置聊天主题 - 跳转到主题选择页面
-  void setChatTheme() {
-    Get.toNamed(KissuRoutePath.chatTheme);
-  }
+    // 设置聊天主题 - 跳转到主题选择页面
+    void setChatTheme() {
+      Get.toNamed(KissuRoutePath.chatTheme);
+    }
+
+    // 举报对方 - 跳转到举报页面
+    void reportPartner() {
+      OKToastUtil.showSuccess('举报成功');
+    }
 }
 

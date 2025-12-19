@@ -9,11 +9,15 @@ import 'package:kissu_app/services/share_service.dart';
 class ShareBottomSheet extends StatelessWidget {
   final String? matchCode;
   final bool isShareApp;
+  final String? h5Image; // H5分享的图片URL
+  final String? h5Url; // H5分享的链接URL（已拼接bindCode）
   
   const ShareBottomSheet({
     super.key, 
     this.matchCode,
     this.isShareApp = false,
+    this.h5Image,
+    this.h5Url,
   });
 
   /// 显示分享弹窗（分享匹配码）
@@ -33,6 +37,19 @@ class ShareBottomSheet extends StatelessWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => const ShareBottomSheet(isShareApp: true),
+    );
+  }
+
+  /// 显示H5分享弹窗（用于H5页面触发的分享）
+  static void showH5Share(BuildContext context, {required String image, required String url}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => ShareBottomSheet(
+        h5Image: image,
+        h5Url: url,
+      ),
     );
   }
 
@@ -68,17 +85,41 @@ class ShareBottomSheet extends StatelessWidget {
               _buildShareOption(
                 icon: 'assets/images/kissu_share_mine_wx.webp',
                 label: '微信分享',
-                onTap: () => isShareApp ? _shareAppToWeChat(context) : _shareToWeChat(context),
+                onTap: () {
+                  if (h5Image != null && h5Url != null) {
+                    _shareH5ToWeChat(context);
+                  } else if (isShareApp) {
+                    _shareAppToWeChat(context);
+                  } else {
+                    _shareToWeChat(context);
+                  }
+                },
               ),
               _buildShareOption(
                 icon: 'assets/images/kissu_share_mine_qq.webp',
                 label: 'QQ分享',
-                onTap: () => isShareApp ? _shareAppToQQ(context) : _shareToQQ(context),
+                onTap: () {
+                  if (h5Image != null && h5Url != null) {
+                    _shareH5ToQQ(context);
+                  } else if (isShareApp) {
+                    _shareAppToQQ(context);
+                  } else {
+                    _shareToQQ(context);
+                  }
+                },
               ),
               _buildShareOption(
                 icon: 'assets/images/kissu_share_mine_fx.webp',
                 label: '复制链接',
-                onTap: () => isShareApp ? _copyAppLink(context) : _copyLink(context),
+                onTap: () {
+                  if (h5Image != null && h5Url != null) {
+                    _copyH5Link(context);
+                  } else if (isShareApp) {
+                    _copyAppLink(context);
+                  } else {
+                    _copyLink(context);
+                  }
+                },
                ),
             ],
           ),
@@ -301,6 +342,65 @@ class ShareBottomSheet extends StatelessWidget {
     }
     
     Clipboard.setData(ClipboardData(text: appLink)).then((_) {
+      OKToastUtil.show('复制成功');
+    }).catchError((error) {
+      OKToastUtil.show('复制失败: $error');
+    });
+  }
+
+  /// H5分享到微信
+  void _shareH5ToWeChat(BuildContext context) async {
+    Navigator.of(context).pop();
+    
+    try {
+      final shareService = Get.find<ShareService>();
+      
+      // 使用H5传入的图片和链接
+      await shareService.shareToWeChat(
+        title: '分享',
+        description: '来自Kissu的分享',
+        imageUrl: h5Image ?? '',
+        webpageUrl: h5Url ?? '',
+      );
+      
+    } catch (e) {
+      OKToastUtil.show('分享失败: $e');
+    }
+  }
+
+  /// H5分享到QQ
+  void _shareH5ToQQ(BuildContext context) async {
+    Navigator.of(context).pop();
+    
+    try {
+      final shareService = Get.find<ShareService>();
+      
+      // 使用H5传入的图片和链接
+      final shareResult = await shareService.shareToQQ(
+        title: '分享',
+        description: '来自Kissu的分享',
+        imageUrl: h5Image ?? '',
+        webpageUrl: h5Url ?? '',
+      );
+      
+      // 处理分享结果
+      if (shareResult['success'] == true) {
+        OKToastUtil.show('QQ分享成功');
+      } else {
+        final errorMsg = shareResult['message'] ?? '分享失败';
+        OKToastUtil.show('QQ分享失败: $errorMsg');
+      }
+      
+    } catch (e) {
+      OKToastUtil.show('分享失败: $e');
+    }
+  }
+
+  /// 复制H5分享链接
+  void _copyH5Link(BuildContext context) {
+    Navigator.of(context).pop();
+    
+    Clipboard.setData(ClipboardData(text: h5Url ?? '')).then((_) {
       OKToastUtil.show('复制成功');
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');

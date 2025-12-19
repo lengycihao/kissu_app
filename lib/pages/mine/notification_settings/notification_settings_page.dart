@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 import 'notification_settings_controller.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:kissu_app/widgets/skeleton/notification_settings_skeleton.dart';
 
 /// 通知设置页面
 class NotificationSettingsPage extends GetView<NotificationSettingsController> {
@@ -130,11 +129,6 @@ class NotificationSettingsPage extends GetView<NotificationSettingsController> {
     return Obx(() {
       final isLoading = controller.isLoading.value;
       final hasItems = items.isNotEmpty;
-      
-      // 加载中显示骨架屏
-      if (isLoading && !hasItems) {
-        return NotificationSettingsSkeleton(title: title);
-      }
       
       // 无数据不显示
       if (!hasItems) {

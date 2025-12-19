@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
@@ -27,6 +29,9 @@ class ChatController extends GetxController {
 
   // 聊天消息列表
   final RxList<ChatMessage> messages = <ChatMessage>[].obs;
+
+  // 对端是否已把当前会话消息全部读过（收到 isPeerRead=true 的回执后置为 true）
+  bool _peerHasReadAll = false;
 
   // 聊天背景图片路径
   final RxString backgroundImage = ''.obs;
@@ -60,11 +65,15 @@ class ChatController extends GetxController {
 
   // 对方IM唯一ID（用于腾讯IM单聊会话）
   String? _partnerImId;
+  String? get partnerImId => _partnerImId;
 
   // 历史消息分页相关
   String? _lastHistoryMsgId; // 最近一次拉取结果中最旧消息的ID
   bool _isLoadingHistory = false;
   bool _hasMoreHistory = true;
+
+  // 新消息提示：当不在底部且有新消息时显示
+  final RxBool hasNewMessageWhenNotAtBottom = false.obs;
 
   @override
   void onInit() {
@@ -74,13 +83,70 @@ class ChatController extends GetxController {
     _initPartnerInfo();
     _setupIMMessageListener();
     _setupIMReadReceiptListener();
-    _setupIMRevokeListener();
     _setupScrollForHistory();
     _loadInitialHistoryMessages();
     _setupFocusListener();
     _loadBackgroundFromCache();
     _loadBubbleStyleFromCache();
     _loadThemeFromCache();
+    // 进入聊天页面时，将未读消息数清零
+    try {
+      final im = TencentIMService.instance;
+      im.clearC2CUnreadCount();
+    } catch (_) {}
+  }
+
+  /// 是否需要在当前消息上方显示时间（类似微信的时间气泡）
+  /// [index] 为按时间顺序的索引（0 为最早的一条）
+  bool shouldShowTimestampForIndex(int index) {
+    if (index <= 0 || index >= messages.length) return index == 0;
+
+    final current = messages[index];
+    final prev = messages[index - 1];
+    final currentTime = current.time;
+    final prevTime = prev.time;
+
+    // 跨天：一定显示
+    final isSameDay = currentTime.year == prevTime.year &&
+        currentTime.month == prevTime.month &&
+        currentTime.day == prevTime.day;
+    if (!isSameDay) {
+      return true;
+    }
+
+    // 同一天：间隔超过 5 分钟才显示
+    final diff = currentTime.difference(prevTime);
+    return diff > const Duration(minutes: 5);
+  }
+
+  /// 将当前列表中自己发送且未读的消息全部标记为已读，返回是否有更新
+  bool _markAllSelfMessagesRead() {
+    bool updated = false;
+    for (var i = 0; i < messages.length; i++) {
+      final m = messages[i];
+      if (!m.isSent || m.isRead) continue;
+
+      messages[i] = ChatMessage(
+        id: m.id,
+        content: m.content,
+        type: m.type,
+        isSent: m.isSent,
+        time: m.time,
+        avatarUrl: m.avatarUrl,
+        imageUrl: m.imageUrl,
+        imageWidth: m.imageWidth,
+        imageHeight: m.imageHeight,
+        locationName: m.locationName,
+        latitude: m.latitude,
+        longitude: m.longitude,
+        isRead: true,
+        iconUrl: m.iconUrl,
+        crapDuration: m.crapDuration,
+        jumpPage: m.jumpPage,
+      );
+      updated = true;
+    }
+    return updated;
   }
 
   // 初始化对方IM相关信息（昵称、头像、IM ID）
@@ -96,22 +162,87 @@ class ChatController extends GetxController {
         avatarUrl.value = half.headPortrait!;
       }
       debugPrint('💬 初始化聊天对象: imId=$_partnerImId, name=${chatName.value}');
+      
+      // 异步从 IM SDK 获取最新资料（包括备注）
+      _updatePartnerInfoFromIM();
     } else {
       debugPrint('💬 未找到halfUserInfo，暂无法确定聊天对象IM ID');
     }
   }
 
-  /// 绑定滚动监听，用于上拉加载更多历史消息
+  /// 从 IM SDK 更新对方信息（昵称、头像、备注）
+  Future<void> _updatePartnerInfoFromIM() async {
+    final partnerId = _partnerImId;
+    if (partnerId == null || partnerId.isEmpty) return;
+
+    try {
+      final im = TencentIMService.instance;
+      // 1. 优先获取好友信息（包含备注）
+      final friendInfo = await im.getFriendInfo(partnerId);
+      if (friendInfo != null) {
+        // 备注名优先
+        final remark = friendInfo.friendRemark;
+        final nick = friendInfo.userProfile?.nickName;
+        final face = friendInfo.userProfile?.faceUrl;
+
+        if (remark != null && remark.isNotEmpty) {
+          chatName.value = remark;
+        } else if (nick != null && nick.isNotEmpty) {
+          chatName.value = nick;
+        }
+
+        if (face != null && face.isNotEmpty) {
+          avatarUrl.value = face;
+        }
+        debugPrint('💬 从IM SDK更新好友信息成功: name=${chatName.value}');
+      } else {
+        // 2. 如果不是好友，尝试获取普通用户信息
+        final userInfo = await im.getUsersInfo(partnerId);
+        if (userInfo != null) {
+          if (userInfo.nickName != null && userInfo.nickName!.isNotEmpty) {
+            chatName.value = userInfo.nickName!;
+          }
+          if (userInfo.faceUrl != null && userInfo.faceUrl!.isNotEmpty) {
+            avatarUrl.value = userInfo.faceUrl!;
+          }
+          debugPrint('💬 从IM SDK更新用户信息成功: name=${chatName.value}');
+        }
+      }
+    } catch (e) {
+      debugPrint('💬 从IM SDK更新对方信息失败: $e');
+    }
+  }
+
+  /// 绑定滚动监听，用于上拉加载更多历史消息和检测是否在底部
   void _setupScrollForHistory() {
     scrollController.addListener(() {
-      // 滚动到列表顶部附近，尝试加载更多历史
-      if (scrollController.positions.isNotEmpty &&
-          scrollController.position.pixels <= 50 &&
-          !_isLoadingHistory &&
-          _hasMoreHistory) {
+      if (!scrollController.hasClients) return;
+
+      final pos = scrollController.position;
+      
+      // reverse: true 下，offset=0 是最新（底部），向上滚动变大，maxScrollExtent 是最旧（顶部）
+      // 判断是否在底部（距离底部50像素内认为在底部）
+      final isAtBottom = pos.pixels <= 50;
+      
+      // 如果滚动到底部，清除新消息提示
+      if (isAtBottom && hasNewMessageWhenNotAtBottom.value) {
+        hasNewMessageWhenNotAtBottom.value = false;
+      }
+
+      // 仅在接近顶部时分页加载历史，避免一进页面就把历史全拉完
+      final nearTop = pos.pixels >= (pos.maxScrollExtent - 80);
+      if (nearTop && !_isLoadingHistory && _hasMoreHistory) {
         _loadMoreHistoryMessages();
       }
     });
+  }
+
+  /// 检查是否在底部
+  bool _isAtBottom() {
+    if (!scrollController.hasClients) return true;
+    final pos = scrollController.position;
+    // reverse: true 时，offset=0 是底部，距离底部50像素内认为在底部
+    return pos.pixels <= 50;
   }
 
   /// 首次进入聊天页加载一页历史消息
@@ -192,6 +323,12 @@ class ChatController extends GetxController {
       if (toInsert.isNotEmpty) {
         // 在列表头部插入更旧的消息
         messages.insertAll(0, toInsert);
+
+        // 如果之前已收到“对端全部已读”回执，补齐新插入的历史消息为已读状态
+        if (_peerHasReadAll) {
+          _markAllSelfMessagesRead();
+        }
+
         messages.refresh();
 
         // 记录当前拉取到的最旧一条消息ID，作为下一次分页的起点
@@ -218,6 +355,11 @@ class ChatController extends GetxController {
     if (savedBackground.isNotEmpty) {
       backgroundImage.value = savedBackground;
       debugPrint('💬 加载缓存的聊天背景: $savedBackground');
+    } else {
+      // 如果没有保存的背景，默认使用第一套主题的背景
+      const defaultThemeBackground = 'assets/chat/kissu_chat_theme_bg1.webp';
+      backgroundImage.value = defaultThemeBackground;
+      debugPrint('💬 使用默认主题背景（第一套主题）: $defaultThemeBackground');
     }
   }
 
@@ -474,7 +616,8 @@ class ChatController extends GetxController {
       type: MessageType.text,
       isSent: true,
       time: now,
-      avatarUrl: null,
+      // 本地临时消息也使用当前用户头像，避免返回再进才变成真实头像
+      avatarUrl: UserManager.userAvatar,
     );
 
     // 添加消息到列表
@@ -485,9 +628,6 @@ class ChatController extends GetxController {
     
     // 延迟滚动到底部，确保UI更新完成
     Future.microtask(() => _scrollToBottom());
-
-    // 隐藏面板
-    hideAllPanels();
 
     // 通过腾讯IM发送真实消息，并在拿到 SDK msgID 后回写到本地消息
     _sendTextMessageToIM(text, localId: localId, localTime: now);
@@ -535,11 +675,15 @@ class ChatController extends GetxController {
             time: sdkTime,
             avatarUrl: old.avatarUrl,
             imageUrl: old.imageUrl,
+            imageWidth: old.imageWidth,
+            imageHeight: old.imageHeight,
             locationName: old.locationName,
             latitude: old.latitude,
             longitude: old.longitude,
             isRead: old.isRead,
             iconUrl: old.iconUrl,
+                crapDuration: old.crapDuration,
+                jumpPage: old.jumpPage,
           );
           messages.refresh();
         }
@@ -557,20 +701,38 @@ class ChatController extends GetxController {
         final readMsgIDs = <String>[];
 
         for (final msg in imMessages) {
-          // 对方“正在输入”在线消息：只更新顶部提示，不进消息列表
-          if (msg.elemType == MessageElemType.V2TIM_ELEM_TYPE_CUSTOM &&
-              msg.customElem?.data == 'typing') {
-            if (partnerId != null &&
-                partnerId.isNotEmpty &&
-                msg.sender == partnerId) {
-              isPartnerTyping.value = true;
-              Future.delayed(const Duration(seconds: 2), () {
-                if (!isClosed) {
-                  isPartnerTyping.value = false;
+          // 对方“正在输入”在线消息：解析自定义 JSON，仅更新顶部提示，不进消息列表
+          if (msg.elemType == MessageElemType.V2TIM_ELEM_TYPE_CUSTOM) {
+            final customData = msg.customElem?.data;
+            String? command;
+            if (customData != null && customData.isNotEmpty) {
+              // 新格式：{"command":"typing"}
+              try {
+                final decoded = jsonDecode(customData);
+                if (decoded is Map && decoded['command'] is String) {
+                  command = decoded['command'] as String;
                 }
-              });
+              } catch (_) {
+                // 兼容旧格式纯字符串
+                if (customData == 'typing') {
+                  command = 'typing';
+                }
+              }
             }
-            continue;
+
+            if (command == 'typing') {
+              if (partnerId != null &&
+                  partnerId.isNotEmpty &&
+                  msg.sender == partnerId) {
+                isPartnerTyping.value = true;
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (!isClosed) {
+                    isPartnerTyping.value = false;
+                  }
+                });
+              }
+              continue;
+            }
           }
 
           final chatMsg = _convertIMMessageToChatMessage(
@@ -620,20 +782,40 @@ class ChatController extends GetxController {
           }
         }
 
-          if (imMessages.isNotEmpty) {
-            messages.refresh();
-            _scrollToBottomWithDelay();
-
-            // 对刚收到的对方消息发送已读回执（单聊）
-            if (readMsgIDs.isNotEmpty &&
-                partnerId != null &&
-                partnerId.isNotEmpty) {
-              im.markC2CMessageAsRead(
-                userID: partnerId,
-                messageIDList: readMsgIDs,
-              );
-            }
+        if (imMessages.isNotEmpty) {
+          // 检查是否有对方发来的新消息（不是自己发送的）
+          final hasReceivedNewMessage = imMessages.any((msg) {
+            final chatMsg = _convertIMMessageToChatMessage(
+              msg,
+              currentUserId: currentUserId,
+              partnerId: partnerId,
+            );
+            return chatMsg != null && !chatMsg.isSent;
+          });
+          
+          // 如果不在底部且有对方发来的新消息，显示提示
+          if (hasReceivedNewMessage && !_isAtBottom()) {
+            hasNewMessageWhenNotAtBottom.value = true;
           }
+
+          // 刷新列表，触发UI更新
+          messages.refresh();
+
+          // 如果就在底部，或者是自己发的，自动滚动到底部
+          if (_isAtBottom() || imMessages.any((m) => m.isSelf ?? false)) {
+            _scrollToBottomWithDelay();
+          }
+
+          // 对刚收到的对方消息发送已读回执（单聊）
+          if (readMsgIDs.isNotEmpty &&
+              partnerId != null &&
+              partnerId.isNotEmpty) {
+            im.markC2CMessageAsRead(
+              userID: partnerId,
+              messageIDList: readMsgIDs,
+            );
+          }
+        }
       });
     } catch (e) {
       debugPrint('💬 设置IM消息监听失败: $e');
@@ -657,29 +839,17 @@ class ChatController extends GetxController {
               continue;
             }
 
-            // SDK C2C 场景下通常只给 userID + timestamp，不给具体 msgID。
-            // 为避免本地时间与服务器时间偏差导致“最新一条不变已读”，
-            // 这里对当前会话中所有自己发送且尚未标记已读的消息，统一标记为已读。
-            for (var i = 0; i < messages.length; i++) {
-              final m = messages[i];
-              if (!m.isSent || m.isRead) continue;
-
-              messages[i] = ChatMessage(
-                id: m.id,
-                content: m.content,
-                type: m.type,
-                isSent: m.isSent,
-                time: m.time,
-                avatarUrl: m.avatarUrl,
-                imageUrl: m.imageUrl,
-                locationName: m.locationName,
-                latitude: m.latitude,
-                longitude: m.longitude,
-                isRead: true,
-                iconUrl: m.iconUrl,
-              );
-              updated = true;
+            // 只有当对端真实把这段会话标记为已读（isPeerRead == true）时，才更新本地已读状态
+            // 如果 SDK 回调里 isPeerRead 为 false，则说明对端并未真正读取，不能把消息标记为已读
+            if (receipt.isPeerRead != true) {
+              continue;
             }
+
+          // 记录对端已读整段会话，用于后续加载的历史消息也同步标记为已读
+          _peerHasReadAll = true;
+
+          // 对端已读整段会话时（isPeerRead == true），将当前列表里所有自己发送且未读的消息标记为已读。
+          updated = _markAllSelfMessagesRead() || updated;
           }
 
           if (updated) {
@@ -692,40 +862,6 @@ class ChatController extends GetxController {
     }
   }
 
-  /// 监听消息被撤回事件，在本地更新对应气泡为“已撤回”提示
-  void _setupIMRevokeListener() {
-    try {
-      final im = TencentIMService.instance;
-      im.setOnRecvMessageRevoked((String msgID) {
-        if (msgID.isEmpty) return;
-
-        final index = messages.indexWhere((m) => m.id == msgID);
-        if (index == -1) return;
-
-        final old = messages[index];
-        final bool isSelf = old.isSent;
-
-        // 将原消息替换为一条 systemEvent 文本提示
-        messages[index] = ChatMessage(
-          id: old.id,
-          content: isSelf ? '你撤回了一条消息' : '对方撤回了一条消息',
-          type: MessageType.systemEvent,
-          isSent: false, // systemEvent 不区分左右
-          time: old.time,
-          avatarUrl: null,
-          imageUrl: null,
-          locationName: null,
-          latitude: null,
-          longitude: null,
-          isRead: true,
-          iconUrl: null,
-        );
-        messages.refresh();
-      });
-    } catch (e) {
-      debugPrint('💬 设置IM撤回监听失败: $e');
-    }
-  }
 
   /// 当自己正在输入时，向对方发送提示（由输入框 onChanged 调用节流即可）
   Timer? _typingDebounce;
@@ -820,6 +956,22 @@ class ChatController extends GetxController {
         debugPrint('💬 未找到另一半IM ID，暂时本地显示图片: ${imageFile.path}');
       }
 
+      // 先尝试读取图片原始宽高，用于前端按 1:1 / 16:9 / 9:16 展示
+      double? imgWidth;
+      double? imgHeight;
+      try {
+        final bytes = await imageFile.readAsBytes();
+        final completer = Completer<ui.Image>();
+        ui.decodeImageFromList(bytes, (ui.Image img) {
+          completer.complete(img);
+        });
+        final uiImage = await completer.future;
+        imgWidth = uiImage.width.toDouble();
+        imgHeight = uiImage.height.toDouble();
+      } catch (e) {
+        debugPrint('💬 解析图片宽高失败，使用默认比例展示: $e');
+      }
+
       // 本地先上屏一条图片消息，提升体验
       final localId = DateTime.now().millisecondsSinceEpoch.toString();
       final now = DateTime.now();
@@ -829,8 +981,11 @@ class ChatController extends GetxController {
         type: MessageType.image,
         isSent: true,
         time: now,
-        avatarUrl: null,
+        // 使用当前用户头像
+        avatarUrl: UserManager.userAvatar,
         imageUrl: imageFile.path,
+        imageWidth: imgWidth,
+        imageHeight: imgHeight,
       );
 
       messages.add(localMsg);
@@ -871,11 +1026,15 @@ class ChatController extends GetxController {
                 time: sdkTime,
                 avatarUrl: old.avatarUrl,
                 imageUrl: old.imageUrl,
+                imageWidth: old.imageWidth,
+                imageHeight: old.imageHeight,
                 locationName: old.locationName,
                 latitude: old.latitude,
                 longitude: old.longitude,
                 isRead: old.isRead,
                 iconUrl: old.iconUrl,
+                crapDuration: old.crapDuration,
+                jumpPage: old.jumpPage,
               );
               messages.refresh();
             }
@@ -895,7 +1054,7 @@ class ChatController extends GetxController {
     }
   }
 
-  /// 将腾讯 IM 消息转换为 ChatMessage（仅处理当前会话、文字和图片）
+  /// 将腾讯 IM 消息转换为 ChatMessage（仅处理当前会话、文字、图片、自定义等）
   ChatMessage? _convertIMMessageToChatMessage(
     V2TimMessage msg, {
     required String? currentUserId,
@@ -923,6 +1082,70 @@ class ChatController extends GetxController {
     final msgTime =
         DateTime.fromMillisecondsSinceEpoch(msgTimeSeconds * 1000);
 
+    // 自定义消息处理
+    if (msg.customElem?.data != null && msg.customElem!.data!.isNotEmpty) {
+      try {
+        final raw = msg.customElem!.data!;
+        final dynamic decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          // 处理敏感事件（使用 systemEvent 样式展示）
+          final String? msgType = decoded['msg_type'] as String?;
+          if (msgType == 'sensitive') {
+            final String content =
+                (decoded['content'] as String?)?.trim().isNotEmpty == true
+                    ? (decoded['content'] as String?)!
+                    : '系统通知';
+            final String? icon = decoded['icon'] as String?;
+            final String? jumpPage = decoded['jump_page'] as String?;
+
+            return ChatMessage(
+              id: msg.msgID ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+              content: content,
+              type: MessageType.systemEvent,
+              isSent: isSelf, // systemEvent 显示居中，不区分左右
+              time: msgTime,
+              avatarUrl: null,
+              iconUrl: icon,
+              jumpPage: (jumpPage != null && jumpPage.isNotEmpty)
+                  ? jumpPage
+                  : null,
+            );
+          }
+
+          // 处理一起便便消息（msg_bubble: "defecate" 或 "endDefecate"）
+          final String? msgBubble = decoded['msg_bubble'] as String?;
+          if (msgBubble == 'defecate') {
+            return ChatMessage(
+              id: msg.msgID ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+              content: '亲爱的，我们开始拉屎吧～',
+              type: MessageType.defecate,
+              isSent: isSelf,
+              time: msgTime,
+              avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
+            );
+          }
+          // 处理结束拉屎消息（msg_bubble: "endDefecate"）
+          if (msgBubble == 'endDefecate') {
+            final String? duration = decoded['crap_duration'] as String?;
+            return ChatMessage(
+              id: msg.msgID ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+              content: '亲爱的，我结束拉屎啦，共拉了${duration ?? ''}',
+              type: MessageType.defecate,
+              isSent: isSelf,
+              time: msgTime,
+              avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
+              crapDuration: duration,
+            );
+          }
+        }
+      } catch (_) {
+        // 自定义消息解析异常时忽略，继续按其他类型处理
+      }
+    }
+
     // 文本消息
     if (msg.textElem?.text != null && msg.textElem!.text!.isNotEmpty) {
       final text = msg.textElem!.text!;
@@ -941,11 +1164,26 @@ class ChatController extends GetxController {
     if (msg.imageElem != null) {
       // 尝试优先使用大图/原图/缩略图中的 URL，其次使用本地路径
       String? imageUrl;
+      double? imageWidth;
+      double? imageHeight;
       if (msg.imageElem!.imageList != null &&
           msg.imageElem!.imageList!.isNotEmpty) {
         // 这里简单取第一张（通常是缩略图），具体可以按类型筛选
         final first = msg.imageElem!.imageList!.first;
         imageUrl = first?.url ?? first?.localUrl;
+        // 腾讯 IM 的 V2TimImage 一般会带宽高信息，这里用于前端展示比例
+        try {
+          if (first != null) {
+            final w = first.width;
+            final h = first.height;
+            if (w != null && h != null && w > 0 && h > 0) {
+              imageWidth = w.toDouble();
+              imageHeight = h.toDouble();
+            }
+          }
+        } catch (_) {
+          // 忽略宽高解析异常，走默认展示比例
+        }
       }
       imageUrl ??= msg.imageElem!.path;
 
@@ -957,6 +1195,8 @@ class ChatController extends GetxController {
         time: msgTime,
         avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
         imageUrl: imageUrl,
+        imageWidth: imageWidth,
+        imageHeight: imageHeight,
         isRead: msg.isRead ?? false,
       );
     }
@@ -1006,7 +1246,8 @@ class ChatController extends GetxController {
         type: MessageType.location,
         isSent: true,
         time: DateTime.now(),
-        avatarUrl: null,
+        // 使用当前用户头像
+        avatarUrl: UserManager.userAvatar,
         locationName: selectedLocation.name,
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
@@ -1112,10 +1353,20 @@ class ChatController extends GetxController {
 
   // 滚动到底部（公共方法）
   void scrollToBottom() {
+    // 清除新消息提示
+    hasNewMessageWhenNotAtBottom.value = false;
+    
     Future.delayed(const Duration(milliseconds: 100), () {
-      if (scrollController.hasClients) {
+      if (scrollController.hasClients && messages.isNotEmpty) {
+        final pos = scrollController.position;
+        // 当没有历史消息时（消息数量很少），滚动到顶部，让新消息从顶部开始显示
+        // 当有历史消息时，滚动到底部显示最新消息
+        // reverse:true 时，offset 0 代表列表"底部"（最新消息），maxScrollExtent 代表"顶部"（最旧消息）
+        final targetOffset = (messages.length <= 2 && !_hasMoreHistory && pos.maxScrollExtent > 0) 
+            ? pos.maxScrollExtent 
+            : 0.0;
         scrollController.animateTo(
-          0.0, // reverse:true 时，offset 0 代表列表“底部”（最新消息）
+          targetOffset,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -1131,9 +1382,14 @@ class ChatController extends GetxController {
   // 延迟滚动到底部（用于面板展开时）
   void _scrollToBottomWithDelay() {
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (scrollController.hasClients) {
+      if (scrollController.hasClients && messages.isNotEmpty) {
+        final pos = scrollController.position;
+        // 当没有历史消息时（消息数量很少），滚动到顶部，让新消息从顶部开始显示
+        final targetOffset = (messages.length <= 2 && !_hasMoreHistory && pos.maxScrollExtent > 0) 
+            ? pos.maxScrollExtent 
+            : 0.0;
         scrollController.animateTo(
-          0.0,
+          targetOffset,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -1153,10 +1409,15 @@ class ChatController extends GetxController {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 再次延迟，确保ListView已经完全渲染
       Future.delayed(const Duration(milliseconds: 200), () {
-        if (scrollController.hasClients) {
-          // reverse:true 时，offset 0.0 即为“底部”（最新一条）
-          scrollController.jumpTo(0.0);
-          debugPrint('💬 初始化时自动定位到最新一条消息');
+        if (scrollController.hasClients && messages.isNotEmpty) {
+          final pos = scrollController.position;
+          // 当没有历史消息时（消息数量很少），滚动到顶部，让新消息从顶部开始显示
+          // reverse:true 时，offset 0.0 即为"底部"（最新一条），maxScrollExtent 为"顶部"
+          final targetOffset = (messages.length <= 2 && !_hasMoreHistory && pos.maxScrollExtent > 0) 
+              ? pos.maxScrollExtent 
+              : 0.0;
+          scrollController.jumpTo(targetOffset);
+          debugPrint('💬 初始化时自动定位: ${targetOffset == 0.0 ? "底部" : "顶部"}');
         }
       });
     });

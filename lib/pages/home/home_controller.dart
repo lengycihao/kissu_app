@@ -30,12 +30,14 @@ import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/index_api.dart';
+import 'package:kissu_app/network/http_resultN.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 import 'dart:async';
 import 'package:kissu_app/services/version_service.dart';
 // import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
 import 'package:intl/intl.dart';
 
@@ -59,6 +61,10 @@ class HomeController extends GetxController {
   
   // VIP购买弹窗控制标志位 - 静态变量，确保整个app会话期间只显示一次
   static bool _hasShownVipDialogThisSession = false;
+  
+  // 🔥 修复：添加弹窗显示状态标志，防止弹窗和引导图同时显示
+  var _isShowingDialog = false.obs;
+  bool get isShowingDialog => _isShowingDialog.value;
 
   // VIP到期弹窗检查标志位 - 确保整个会话期间只检查一次
   static bool _hasCheckedVipOuttimeDialogThisSession = false;
@@ -98,6 +104,9 @@ class HomeController extends GetxController {
   var userAvatar = "assets/3.0/kissu3_love_avater.webp".obs;
   var partnerAvatar = "assets/images/kissu_home_add_avair.webp".obs;
   
+  // 会员状态
+  var isVip = false.obs;
+  
   // 定位服务相关
   late SimpleLocationService _locationService;
   var isLocationPermissionRequested = false.obs;
@@ -115,6 +124,13 @@ class HomeController extends GetxController {
   var activityIcon = ''.obs;
   var activityLink = ''.obs;
   var activityTitle = ''.obs;
+
+  // 拉屎游戏相关
+  var crapLink = ''.obs;
+  var crapStatus = '0'.obs; // "1"展示 "0"不展示
+
+  /// 聊天未读消息数（来自腾讯 IM，另一半会话的未读总数）
+  final RxInt chatUnreadCount = 0.obs;
   
   // 距离信息
   var distance = "0KM".obs;
@@ -149,8 +165,10 @@ class HomeController extends GetxController {
   // PAG动画相关 - 暂时移除
   // var pagAnimations = <Map<String, dynamic>>[].obs;
   
-  // 红点轮询定时器
-  Timer? _redDotPollingTimer;
+  // 🔥 优化：防重复调用标志
+  bool _isLoadingIndexData = false;
+  DateTime? _lastLoadIndexDataTime;
+  static const Duration _minLoadIndexDataInterval = Duration(seconds: 3); // 最小调用间隔3秒
   
   // 应用生命周期服务
   late AppLifecycleService _appLifecycleService;
@@ -188,9 +206,9 @@ class HomeController extends GetxController {
     _initializeLocationService();
     loadIndexData(); // 加载首页所有数据（弹窗流程在onReady中独立触发）
     _loadViewMode(); // 加载视图模式
-    _startRedDotPolling(); // 启动红点轮询
     _setupAppLifecycleListener(); // 设置应用生命周期监听
     _setupRedDotListeners(); // 设置红点监听器
+    _setupChatUnreadListener(); // 监听聊天未读数
     
     // 添加滚动监听器，统计滑动次数
     _setupScrollListener();
@@ -263,9 +281,23 @@ class HomeController extends GetxController {
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    debugPrint('🏠 首页重新获得焦点，静默刷新用户信息');
+    debugPrint('🏠 首页重新获得焦点，刷新数据');
+    
+    // 🔥 修复：页面重新获得焦点时，检查并重置弹窗状态，防止卡死
+    if (_isShowingDialog.value) {
+      debugPrint('⚠️ 检测到弹窗状态异常，强制重置');
+      _isShowingDialog.value = false;
+    }
+    
+    // 🔥 修复：确保引导图状态正确
+    if (showGuideOverlay.value && _isShowingDialog.value) {
+      debugPrint('⚠️ 检测到引导图和弹窗同时显示，隐藏引导图');
+      hideGuideOverlay();
+    }
+    
     _syncAuthApp();
-    // 先用本地数据（已经在onInit中加载）
+    // 🔥 优化：页面恢复时刷新首页数据（带防重复调用保护）
+    loadIndexData();
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
   }
@@ -363,9 +395,6 @@ class HomeController extends GetxController {
     // } catch (e) {
     //   debugPrint('清理资源时出错: $e');
     // }
-    
-    // 停止红点轮询
-    _stopRedDotPolling();
     
     // 取消应用生命周期监听
     _appLifecycleSubscription?.cancel();
@@ -593,14 +622,43 @@ class HomeController extends GetxController {
   
   /// 加载首页所有数据（新的统一接口）
   /// 仅负责加载和更新首页数据，不涉及弹窗逻辑
+  /// 🔥 优化：添加防重复调用和超时保护
   Future<void> loadIndexData() async {
+    // 🔥 防重复调用：如果正在加载，直接返回
+    if (_isLoadingIndexData) {
+      debugPrint('⏭️ 首页数据正在加载中，跳过重复调用');
+      return;
+    }
+    
+    // 🔥 防频繁调用：如果距离上次调用不足最小间隔，直接返回
+    final now = DateTime.now();
+    if (_lastLoadIndexDataTime != null && 
+        now.difference(_lastLoadIndexDataTime!) < _minLoadIndexDataInterval) {
+      debugPrint('⏭️ 首页数据最近已加载（${now.difference(_lastLoadIndexDataTime!).inSeconds}秒前），跳过重复调用');
+      return;
+    }
+    
+    _isLoadingIndexData = true;
+    _lastLoadIndexDataTime = now;
+    
     try {
       debugPrint('🏠 开始加载首页数据...');
       
-      final result = await IndexApi().getIndexData();
+      // 🔥 优化：添加超时保护，防止请求无限挂起
+      final result = await IndexApi().getIndexData().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('❌ 首页数据加载超时（10秒）');
+          return HttpResultN.failure(-1, '请求超时');
+        },
+      );
       
       if (result.isSuccess && result.data != null) {
         final indexData = result.data!;
+        
+        // 🔥 优化：直接更新响应式变量（GetX会自动优化UI重建）
+        // 更新会员状态
+        isVip.value = UserManager.isVip;
         
         // 更新红点信息
         systemNoticeRedDot.value = indexData.isSystemNoticeRedDot;
@@ -614,12 +672,35 @@ class HomeController extends GetxController {
         activityLink.value = indexData.activity.activityLink;
         activityTitle.value = indexData.activity.activityTitle;
         
+        // 更新拉屎游戏信息
+        if (indexData.crapGame != null) {
+          crapLink.value = indexData.crapGame!.crapLink;
+          crapStatus.value = indexData.crapGame!.crapStatus;
+          debugPrint('💩 拉屎游戏信息更新: link=${crapLink.value}, status=${crapStatus.value}');
+        } else {
+          // 如果没有返回 crap_game 数据，使用默认值
+          crapLink.value = '';
+          crapStatus.value = '0';
+          debugPrint('💩 拉屎游戏数据为空，使用默认值');
+        }
+        
         debugPrint('📊 红点信息更新: 系统消息=${systemNoticeRedDot.value}, 互动消息=${interactionNoticeRedDot.value}, 总数=${redDotCount.value}, 显示红点=${isRedDot.value}');
         
         // 更新位置信息
         distance.value = indexData.location.distance;
         stayCount.value = indexData.location.stayCount;
         travelTool.value = indexData.location.travelTool;
+
+        // 更新另一半设备信息（half_user_data）
+        if (indexData.halfUserData != null) {
+          final half = indexData.halfUserData!;
+          halfDevicePower.value = half.power;
+          halfDeviceNetworkName.value = half.networkName;
+          halfDeviceMobileModel.value = half.mobileModel;
+          halfDeviceDistance.value = half.distance;
+          debugPrint(
+              '📱 half_user_data 更新: power=${halfDevicePower.value}, network=${halfDeviceNetworkName.value}, model=${halfDeviceMobileModel.value}, distance=${halfDeviceDistance.value}');
+        }
         
         // 更新用户信息
         loveDays.value = indexData.user.loverDays;
@@ -629,8 +710,6 @@ class HomeController extends GetxController {
         if (indexData.user.headPortrait.isNotEmpty) {
           userAvatar.value = indexData.user.headPortrait;
           debugPrint('✅ 用户头像已更新: ${userAvatar.value}');
-          // 🚀 优化：预加载网络头像
-          _precacheAvatarImage(userAvatar.value);
         } else {
           // 服务器返回空头像时，保持默认头像
           debugPrint('⚠️ 服务器返回的用户头像为空，使用默认头像');
@@ -639,8 +718,6 @@ class HomeController extends GetxController {
         if (isBound.value && indexData.user.halfHeadPortrait.isNotEmpty) {
           partnerAvatar.value = indexData.user.halfHeadPortrait;
           debugPrint('✅ 伴侣头像已更新: ${partnerAvatar.value}');
-          // 🚀 优化：预加载网络头像
-          _precacheAvatarImage(partnerAvatar.value);
         } else if (!isBound.value) {
           partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
           debugPrint('📌 未绑定状态，使用加号图标');
@@ -659,6 +736,14 @@ class HomeController extends GetxController {
           debugPrint('📸 照片墙为空，使用默认图片');
         }
         
+        // 🚀 优化：预加载网络头像（在批量更新后异步执行，不阻塞UI）
+        if (indexData.user.headPortrait.isNotEmpty) {
+          _precacheAvatarImage(indexData.user.headPortrait);
+        }
+        if (isBound.value && indexData.user.halfHeadPortrait.isNotEmpty) {
+          _precacheAvatarImage(indexData.user.halfHeadPortrait);
+        }
+        
         // 更新天气数据
         _updateWeatherData(indexData.weather);
         
@@ -675,12 +760,17 @@ class HomeController extends GetxController {
       debugPrint('❌ 首页数据加载异常: $e');
       // 异常时回退到加载本地用户信息
       loadUserInfo();
+    } finally {
+      _isLoadingIndexData = false;
     }
   }
 
   /// 加载用户信息和绑定状态
   void loadUserInfo() {
     final user = UserManager.currentUser;
+    // 更新会员状态
+    isVip.value = UserManager.isVip;
+    
     if (user != null) {
       // 🚀 优化：用户头像（确保有值，即使本地缓存也为空）
       if (user.headPortrait?.isNotEmpty == true) {
@@ -1015,7 +1105,28 @@ class HomeController extends GetxController {
         onPageResumed();
         break;
       case 2:
-        // 聊天 - 返回时刷新首页数据
+        // 聊天 - 未绑定时弹出绑定弹窗，已绑定才进入聊天页面
+        if (!isBound.value) {
+          // 未绑定，弹出绑定弹窗
+          final currentContext = Get.context;
+          if (currentContext != null) {
+            CustomBottomDialog.show(
+              context: currentContext,
+              caller: BindingDialogCaller.home,
+              onClose: () {
+                debugPrint('💑 聊天入口绑定弹窗已关闭');
+                // 绑定弹窗关闭后刷新首页数据
+                onPageResumed();
+              },
+            );
+          }
+          return;
+        }
+        // 已绑定 - 打开时就清空未读数，返回时刷新首页数据
+        try {
+          final im = TencentIMService.instance;
+          im.clearC2CUnreadCount();
+        } catch (_) {}
         await Get.toNamed(
           KissuRoutePath.chat,
         );
@@ -1197,35 +1308,19 @@ class HomeController extends GetxController {
     _saveViewMode();
     debugPrint('切换到: ${isScreenView.value ? "屏视图" : "岛视图"}');
   }
+
+  /// 另一半设备信息（来自 /index 接口的 half_user_data）
+  /// 供聊天页面顶部设备信息栏使用
+  final RxString halfDevicePower = '未知'.obs;
+  final RxString halfDeviceNetworkName = '未知'.obs;
+  final RxString halfDeviceMobileModel = '未知'.obs;
+  final RxString halfDeviceDistance = '未知'.obs;
   
   /// 加载红点信息（已废弃，现在使用 loadIndexData）
   @Deprecated('使用 loadIndexData() 替代')
   Future<void> loadRedDotInfo() async {
     // 此方法已废弃，红点信息现在通过 /index 接口统一获取
     debugPrint('⚠️ loadRedDotInfo() 已废弃，请使用 loadIndexData()');
-  }
-  
-  /// 启动红点轮询（每10秒刷新一次）
-  void _startRedDotPolling() {
-    // 先停止现有的定时器（如果有）
-    _stopRedDotPolling();
-    
-    // 创建新的定时器，每10秒执行一次
-    _redDotPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      debugPrint('🔔 定时刷新首页数据...');
-      loadIndexData();
-    });
-    
-    debugPrint('✅ 红点轮询已启动（每10秒刷新）');
-  }
-  
-  /// 停止红点轮询
-  void _stopRedDotPolling() {
-    if (_redDotPollingTimer != null) {
-      _redDotPollingTimer?.cancel();
-      _redDotPollingTimer = null;
-      debugPrint('⏹️ 红点轮询已停止');
-    }
   }
   
   /// 设置红点监听器，当子红点变化时自动更新总红点数
@@ -1241,6 +1336,22 @@ class HomeController extends GetxController {
       redDotCount.value = systemNoticeRedDot.value + interactionNoticeRedDot.value;
       debugPrint('📊 互动消息红点变化，更新总红点数: ${redDotCount.value}');
     });
+  }
+
+  /// 监听腾讯 IM 单聊未读数变化，用于首页底部聊天角标
+  void _setupChatUnreadListener() {
+    try {
+      final im = TencentIMService.instance;
+      chatUnreadCount.value = im.c2cUnreadCount.value;
+      ever<int>(im.c2cUnreadCount, (value) {
+        chatUnreadCount.value = value;
+        debugPrint('💬 IM 未读数更新: $value');
+      });
+      // 初次进入首页时主动同步一次（处理离线消息未读）
+      im.syncC2CUnreadCount();
+    } catch (e) {
+      debugPrint('⚠️ 初始化聊天未读监听失败: $e');
+    }
   }
 
   /// 设置应用生命周期监听
@@ -1276,19 +1387,16 @@ class HomeController extends GetxController {
   
   /// 应用进入后台
   void _onAppEnteredBackground() {
-    debugPrint('📱 首页：应用进入后台，停止红点轮询');
-    _stopRedDotPolling();
+    debugPrint('📱 首页：应用进入后台');
+    // 🔥 优化：移除轮询，不再需要停止定时器
   }
   
   /// 应用返回前台
   void _onAppReturnedToForeground() {
-    debugPrint('📱 首页：应用返回前台，先获取红点数据再启动轮询');
+    debugPrint('📱 首页：应用返回前台，刷新首页数据');
     
-    // 先立即获取一次首页数据
-    loadIndexData().then((_) {
-      // 获取完成后再启动轮询
-      _startRedDotPolling();
-    });
+    // 🔥 优化：应用返回前台时刷新一次首页数据（带防重复调用保护）
+    loadIndexData();
   }
   
   /// 初始化PAG动画 - 暂时移除
@@ -1342,12 +1450,24 @@ class HomeController extends GetxController {
   // }
   
   /// 跳转到H5页面
-  void navigateToH5(String url) {
+  void navigateToH5(
+    String url, {
+    bool showAppBar = true,
+    String? title,
+    Color? backgroundColor,
+    bool showLoadingIndicator = true, // 是否显示加载动画，默认显示
+  }) {
     if (url.isNotEmpty) {
       Get.to(
         () => AgreementWebViewPage(
-          title: activityTitle.value.isNotEmpty ? activityTitle.value : '活动详情',
+          title: title ??
+              (activityTitle.value.isNotEmpty
+                  ? activityTitle.value
+                  : '活动详情'),
           url: url,
+          showAppBar: showAppBar,
+          backgroundColor: backgroundColor,
+          showLoadingIndicator: showLoadingIndicator,
         ),
         transition: Transition.rightToLeft,
       );
@@ -1443,22 +1563,61 @@ class HomeController extends GetxController {
         try {
           final currentContext = Get.context;
           if (currentContext != null) {
-            await DialogManager.showHuaweiVipPromo(currentContext);
+            // 🔥 修复：标记弹窗正在显示，隐藏引导图
+            _isShowingDialog.value = true;
+            if (showGuideOverlay.value) {
+              hideGuideOverlay();
+              debugPrint('⚠️ 隐藏引导图，显示VIP推广弹窗');
+            }
+            
+            // 🔥 修复：添加超时保护，确保状态能够正确重置
+            final dialogFuture = DialogManager.showHuaweiVipPromo(currentContext);
+            final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
+              debugPrint('⚠️ VIP推广弹窗显示超时，强制重置状态');
+              _isShowingDialog.value = false;
+            });
+            
+            await Future.any([dialogFuture, timeoutFuture]);
             debugPrint('✅ VIP推广弹窗已显示并关闭');
+            
+            // 🔥 修复：标记弹窗已关闭（延迟一下确保弹窗完全关闭）
+            Future.delayed(const Duration(milliseconds: 300), () {
+              _isShowingDialog.value = false;
+            });
+          } else {
+            // Context 为空时也要重置状态
+            _isShowingDialog.value = false;
           }
         } catch (e) {
+          // 🔥 修复：确保即使出错也重置弹窗状态
+          _isShowingDialog.value = false;
           debugPrint('❌ 显示VIP推广弹窗失败: $e');
         }
       } else {
         debugPrint('ℹ️ 无需显示VIP推广弹窗');
       }
     } catch (e) {
+      // 🔥 修复：确保即使出错也重置弹窗状态
+      _isShowingDialog.value = false;
       debugPrint('❌ 检查VIP推广标识失败: $e');
     }
   }
 
   /// 显示引导层
   void displayGuideOverlay() {
+    // 🔥 修复：如果正在显示弹窗，延迟显示引导图，避免冲突
+    if (_isShowingDialog.value) {
+      debugPrint('⚠️ 正在显示弹窗，延迟显示引导图');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!_isShowingDialog.value) {
+            currentGuideType.value = GuideType.datingTime;
+            showGuideOverlay.value = true;
+            debugPrint('📱 弹窗已关闭，显示引导层');
+          }
+        });
+      return;
+    }
+    
     currentGuideType.value = GuideType.datingTime;
     showGuideOverlay.value = true;
     debugPrint('📱 显示引导层');
@@ -1468,6 +1627,23 @@ class HomeController extends GetxController {
   void hideGuideOverlay() {
     showGuideOverlay.value = false;
     debugPrint('📱 隐藏引导层');
+    
+    // 🔥 修复：隐藏引导层时，确保弹窗状态也正确
+    // 如果引导层被隐藏但弹窗状态异常，强制重置
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!showGuideOverlay.value && _isShowingDialog.value) {
+        // 检查是否真的有弹窗在显示（通过检查 Navigator 栈）
+        final context = Get.context;
+        if (context != null && Navigator.of(context).canPop()) {
+          // 有弹窗在显示，保持状态
+          debugPrint('📱 引导层已隐藏，弹窗仍在显示');
+        } else {
+          // 没有弹窗在显示，但状态异常，强制重置
+          debugPrint('⚠️ 检测到弹窗状态异常（引导层已隐藏但状态仍为true），强制重置');
+          _isShowingDialog.value = false;
+        }
+      }
+    });
   }
 
   /// 检查并显示引导图1（新用户引导）
@@ -1533,6 +1709,19 @@ class HomeController extends GetxController {
 
   /// 显示引导图1
   void _showGuide1() {
+    // 🔥 修复：如果正在显示弹窗，延迟显示引导图，避免冲突
+    if (_isShowingDialog.value) {
+      debugPrint('⚠️ 正在显示弹窗，延迟显示引导图1');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!_isShowingDialog.value) {
+            currentGuideType.value = GuideType.swipe;
+            showGuideOverlay.value = true;
+            debugPrint('📱 弹窗已关闭，显示引导图1');
+          }
+        });
+      return;
+    }
+    
     currentGuideType.value = GuideType.swipe;
     showGuideOverlay.value = true;
     debugPrint('📱 显示引导图1');
@@ -1543,12 +1732,25 @@ class HomeController extends GetxController {
     hideGuideOverlay();
     debugPrint('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
     
-    // 如果已绑定，检查是否需要显示引导图2
-    if (isBound.value) {
-      _checkAndShowGuide2();
-    } else {
-      debugPrint('✅ 未绑定用户引导流程完成，引导图后不再弹出其他弹窗');
-    }
+    // 🔥 修复：延迟检查引导图2，确保弹窗流程完成
+    Future.delayed(const Duration(milliseconds: 300), () {
+      // 如果已绑定，检查是否需要显示引导图2
+      if (isBound.value && !_isShowingDialog.value) {
+        _checkAndShowGuide2();
+      } else {
+        if (_isShowingDialog.value) {
+          debugPrint('⚠️ 正在显示弹窗，延迟显示引导图2');
+          // 等待弹窗关闭后再显示引导图2
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (isBound.value && !_isShowingDialog.value) {
+              _checkAndShowGuide2();
+            }
+          });
+        } else {
+          debugPrint('✅ 未绑定用户引导流程完成，引导图后不再弹出其他弹窗');
+        }
+      }
+    });
   }
 
   /// 引导图2关闭后的回调
@@ -1643,13 +1845,23 @@ class HomeController extends GetxController {
 
       debugPrint('💎 显示VIP购买弹窗');
       
+      // 🔥 修复：标记弹窗正在显示，隐藏引导图
+      _isShowingDialog.value = true;
+      if (showGuideOverlay.value) {
+        hideGuideOverlay();
+        debugPrint('⚠️ 隐藏引导图，显示VIP购买弹窗');
+      }
+      
       // 标记本次会话已显示
       _hasShownVipDialogThisSession = true;
       
-      DialogManager.showVipPurchase(
+      // 🔥 修复：添加超时保护，确保状态能够正确重置
+      final dialogFuture = DialogManager.showVipPurchase(
         context: currentContext,
         onConfirm: () {
           debugPrint('💎 点击了立即查看按钮，跳转到VIP页面');
+          // 🔥 修复：标记弹窗已关闭
+          _isShowingDialog.value = false;
           // 弹窗会自动关闭，然后跳转到VIP页面
           Get.toNamed(
             KissuRoutePath.vip,
@@ -1662,7 +1874,26 @@ class HomeController extends GetxController {
         barrierDismissible: true,
       );
       
+      final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
+        debugPrint('⚠️ VIP购买弹窗显示超时，强制重置状态');
+        _isShowingDialog.value = false;
+      });
+      
+      Future.any([dialogFuture, timeoutFuture]).then((_) {
+        // 🔥 修复：弹窗关闭后重置状态（延迟一下确保弹窗完全关闭）
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _isShowingDialog.value = false;
+        });
+        debugPrint('💎 VIP购买弹窗已关闭');
+      }).catchError((e) {
+        // 🔥 修复：确保即使出错也重置弹窗状态
+        _isShowingDialog.value = false;
+        debugPrint('❌ VIP购买弹窗错误: $e');
+      });
+      
     } catch (e) {
+      // 🔥 修复：确保即使出错也重置弹窗状态
+      _isShowingDialog.value = false;
       debugPrint('❌ 显示VIP购买弹窗时发生错误: $e');
     }
   }
@@ -1676,6 +1907,17 @@ class HomeController extends GetxController {
   /// 在引导图1关闭后，已绑定状态下检查是否第一次显示
   Future<void> _checkAndShowGuide2() async {
     try {
+      // 🔥 修复：如果正在显示弹窗，延迟检查引导图2
+      if (_isShowingDialog.value) {
+        debugPrint('⚠️ 正在显示弹窗，延迟检查引导图2');
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (!_isShowingDialog.value) {
+            _checkAndShowGuide2();
+          }
+        });
+        return;
+      }
+      
       final prefs = await SharedPreferences.getInstance();
       final hasShownGuide2 = prefs.getBool('has_shown_guide2') ?? false;
       
@@ -1687,10 +1929,22 @@ class HomeController extends GetxController {
         // 立即标记已显示，防止重复显示
         await prefs.setBool('has_shown_guide2', true);
         
-        // 延迟显示引导图2
-        Future.delayed(const Duration(milliseconds: 500), () {
-          displayGuideOverlay();
-        });
+        // 🔥 修复：确保没有弹窗显示时才显示引导图2
+        if (!_isShowingDialog.value) {
+          // 延迟显示引导图2
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (!_isShowingDialog.value) {
+              displayGuideOverlay();
+            }
+          });
+        } else {
+          debugPrint('⚠️ 弹窗正在显示，延迟显示引导图2');
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (!_isShowingDialog.value) {
+              displayGuideOverlay();
+            }
+          });
+        }
       } else {
         debugPrint('ℹ️ 引导图2已显示过，检查VIP购买弹窗');
         // 引导图2已显示过，检查VIP购买弹窗
@@ -1728,27 +1982,53 @@ class HomeController extends GetxController {
 
       debugPrint('💑 显示绑定弹窗');
       
+      // 🔥 修复：标记弹窗正在显示，隐藏引导图
+      _isShowingDialog.value = true;
+      if (showGuideOverlay.value) {
+        hideGuideOverlay();
+        debugPrint('⚠️ 隐藏引导图，显示绑定弹窗');
+      }
+      
       // 标记本次会话已显示
       _hasShownBindingDialogThisSession = true;
       
       // 使用CustomBottomDialog显示绑定弹窗
       // 注意：关闭按钮点击时会自动弹出挽回弹窗，无需单独设置 onCloseConfirm
-      CustomBottomDialog.show(
+      final dialogFuture = CustomBottomDialog.show(
         context: currentContext,
         caller: BindingDialogCaller.home, // 标记为首页，用于埋点判断
         onClose: () {
           debugPrint('💑 绑定弹窗已关闭');
         },
-      ).then((result) {
+      );
+      
+      // 🔥 优化：减少超时时间从30秒到10秒，避免用户等待过久
+      final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
+        debugPrint('⚠️ 绑定弹窗显示超时，强制重置状态');
+        _isShowingDialog.value = false;
+      });
+      
+      Future.any([dialogFuture, timeoutFuture]).then((result) {
+        // 🔥 修复：标记弹窗已关闭（延迟一下确保弹窗完全关闭）
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _isShowingDialog.value = false;
+        });
+        
         // 无论用户是确认绑定还是关闭弹窗，都已经标记为已显示
         debugPrint('💑 绑定弹窗已关闭，结果: $result');
         // 延迟执行刷新，确保弹窗完全关闭后再执行
         Future.delayed(const Duration(milliseconds: 300), () {
           _refreshAfterBinding();
         });
+      }).catchError((e) {
+        // 🔥 修复：确保即使出错也重置弹窗状态
+        _isShowingDialog.value = false;
+        debugPrint('❌ 绑定弹窗显示错误: $e');
       });
       
     } catch (e) {
+      // 🔥 修复：确保即使出错也重置弹窗状态
+      _isShowingDialog.value = false;
       debugPrint('❌ 显示绑定弹窗时发生错误: $e');
     }
   }

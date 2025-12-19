@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/debug_util.dart';  
 
 /// 轨迹页面地图管理器
 /// 负责地图的初始化、相机控制、地图类型切换等功能
@@ -133,6 +133,7 @@ class TrackMapManager {
       return;
     }
 
+     
     if (trackPoints.isEmpty) {
       DebugUtil.warning('轨迹点为空，无法调整视图');
       return;
@@ -194,6 +195,7 @@ class TrackMapManager {
       return;
     }
 
+     
     // 🚀 收集所有需要显示的点：locations + trace 中的所有点
     final List<LatLng> allPoints = [];
 

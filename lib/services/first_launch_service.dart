@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +15,16 @@ class FirstLaunchService extends GetxService {
   /// 检查是否需要显示首次协议弹窗
   Future<bool> shouldShowFirstAgreement() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // 🔥 修复：为 SharedPreferences 操作添加超时保护，避免阻塞
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(
+            const Duration(seconds: 2),
+            onTimeout: () {
+              logger.warning('获取SharedPreferences超时（2秒），默认需要显示弹窗', tag: 'FirstLaunchService');
+              throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 2));
+            },
+          );
+      
       final hasShown = prefs.getBool(_hasShownAgreementKey) ?? false;
       final hasAgreed = prefs.getBool(_hasAgreedKey) ?? false;
       
@@ -29,8 +39,23 @@ class FirstLaunchService extends GetxService {
   /// 标记已显示首次协议弹窗
   Future<void> markFirstAgreementShown() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_hasShownAgreementKey, true);
+      // 🔥 修复：为 SharedPreferences 操作添加超时保护
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () {
+              logger.warning('获取SharedPreferences超时（1秒）', tag: 'FirstLaunchService');
+              throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 1));
+            },
+          );
+      await prefs.setBool(_hasShownAgreementKey, true)
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () {
+              logger.warning('保存首次协议弹窗状态超时（1秒）', tag: 'FirstLaunchService');
+              return false; // 超时返回false，但不影响流程
+            },
+          );
       logger.info('已标记首次协议弹窗已显示', tag: 'FirstLaunchService');
     } catch (e) {
       logger.error('标记首次协议弹窗状态失败: $e', tag: 'FirstLaunchService', error: e);
@@ -40,8 +65,23 @@ class FirstLaunchService extends GetxService {
   /// 标记用户已同意首次协议
   Future<void> markFirstAgreementAgreed() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_hasAgreedKey, true);
+      // 🔥 修复：为 SharedPreferences 操作添加超时保护
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () {
+              logger.warning('获取SharedPreferences超时（1秒）', tag: 'FirstLaunchService');
+              throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 1));
+            },
+          );
+      await prefs.setBool(_hasAgreedKey, true)
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () {
+              logger.warning('保存首次协议同意状态超时（1秒）', tag: 'FirstLaunchService');
+              return false; // 超时返回false，但不影响流程
+            },
+          );
       logger.info('已标记用户同意首次协议', tag: 'FirstLaunchService');
     } catch (e) {
       logger.error('标记首次协议同意状态失败: $e', tag: 'FirstLaunchService', error: e);

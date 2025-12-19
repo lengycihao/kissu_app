@@ -8,7 +8,8 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/tracking_service.dart'; 
+import 'package:kissu_app/pages/track/track_controller.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -579,27 +580,27 @@ class TrackMarkerManager {
           
           // 解析停留点信息
           final stopInfo = _parseStopInfo(point);
-          
+
+           
           final marker = Marker(
-            position: point.position,  // StayPoint 的 position 字段已经是 LatLng 类型
+            position: point.position, // StayPoint 的 position 字段已经是 LatLng 类型
             icon: customIcon,
             onTap: (_) => onStopPointTap(point),
             // 设置InfoWindow数据（点击时自动显示自定义 InfoWindow）
             infoWindowEnable: true,
-            isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
-            stayDuration: stopInfo['stayDuration'], // 停留时长
-            stayTime: stopInfo['stayTime'], // 停留时间
+            isTrackStyle: true, 
+            stayDuration:  stopInfo['stayDuration'] , // 停留时长
+            stayTime:  stopInfo['stayTime'] , // 停留时间
             zIndex: 1.0, // 🎯 设置较低的层级，确保播放头像marker在停留点之上显示
             infoWindow: InfoWindow(
-              title: stopInfo['locationName']!,
-              snippet: stopInfo['stayDuration']!,
-            ),
-            // 🎯 设置自定义 InfoWindow builder
-            customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
-              locationName: stopInfo['locationName']!,
-              stayDuration: stopInfo['stayDuration']!,
-              stayTime: stopInfo['stayTime']!,
-            ),
+                    title: stopInfo['locationName']!,
+                    snippet: stopInfo['stayDuration']!,
+                  ) , 
+            customInfoWindowBuilder:  (context) => _buildTrackInfoWindow(
+                      locationName: stopInfo['locationName']!,
+                      stayDuration: stopInfo['stayDuration']!,
+                      stayTime: stopInfo['stayTime']!,
+                    ) ,
           );
           markers.add(marker);
           
@@ -755,16 +756,16 @@ class TrackMarkerManager {
           // 降级方案：使用绿色圆点（使用适配后的尺寸）
           final fallbackSize = _calculateAdaptedSize(24.0);
           final fallbackIcon = await _createColoredCircleIcon(Colors.green, fallbackSize);
-            markers.add(Marker(
-              position: startPoint,
-              icon: fallbackIcon,
-              infoWindow: const InfoWindow(title: '', snippet: ''),
-              zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在起点标记之上显示
-              onTap: (_) {
-                DebugUtil.info('点击了轨迹起点');
-                _moveMapToLocation(startPoint);
-              },
-            ));
+          markers.add(Marker(
+            position: startPoint,
+            icon: fallbackIcon,
+            infoWindow: const InfoWindow(title: '', snippet: ''),
+            zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在起点标记之上显示
+            onTap: (_) {
+              DebugUtil.info('点击了轨迹起点');
+              _moveMapToLocation(startPoint);
+            },
+          ));
         }
       }
       
@@ -927,6 +928,8 @@ class TrackMarkerManager {
   /// 🎯 注意：当点击标记时，Android 原生代码会自动显示自定义 InfoWindow（因为标记已设置 isTrackStyle: true）
   /// 所以这里不需要手动调用 _showStopPointInfo，只需要处理其他逻辑（移动地图、绘制圆圈等）
   void handleStopPointTap(dynamic stopPoint) {
+     
+
     DebugUtil.info('停留点被点击: ${stopPoint.title}');
     
     // 上报停留点点击埋点
@@ -955,6 +958,8 @@ class TrackMarkerManager {
       });
     });
   }
+
+ 
   
   /// 上报停留点点击埋点
   Future<void> _trackStopPointClick() async {

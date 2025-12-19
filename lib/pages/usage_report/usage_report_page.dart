@@ -23,8 +23,6 @@ class UsageReportPage extends GetView<UsageReportController> {
           children: [
             _buildBackground(),
             SafeArea(child: _buildMainContent()),
-            // 敏感操作记录引导图覆盖层（全屏，包含状态栏区域）
-            Obx(() => _buildGuideOverlay()),
           ],
         ),
       ),
@@ -259,118 +257,6 @@ class UsageReportPage extends GetView<UsageReportController> {
     );
   }
 
-  /// 构建敏感操作记录引导图覆盖层
-  Widget _buildGuideOverlay() {
-    if (!controller.showGuideOverlay.value) {
-      return const SizedBox.shrink();
-    }
-
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.7),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => controller.hideGuideOverlay(),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 35,
-                right: 10,
-                child: Image.asset(
-                  'assets/setting/kissu_guide_setting.webp',
-                  width: 32,
-                  height: 52,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              Positioned(
-                top: 82,
-                right: 44,
-                child: // 竖线
-                Image.asset(
-                  'assets/setting/kissu_guide_line.webp',
-                  width: 44,
-                  height: 32,
-                  fit: BoxFit.contain,
-                ),
-              ),
-               Positioned(
-                top: 120,
-                right: 240,
-                child: // 竖线
-                Image.asset(
-                  'assets/setting/kissu_guide_laba.webp',
-                  width: 14,
-                  height: 14,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              // 引导图：参考系统权限引导的样式，放在右上角区域
-              Positioned(
-                top: 125, // 适配头部和筛选区域高度
-                right: 20,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    // 气泡 + 提示文字
-                    Text(
-                      '敏感信息接收设置都在这里哦~',
-                      textAlign: TextAlign.left,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'AlimamaShuHeiTi',
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Image.asset(
-                          'assets/setting/kissu_guide_tips.webp',
-                          width: 53,
-                          height: 18,
-                          fit: BoxFit.contain,
-                        ),
-                        SizedBox(width: 8),
-                        const Text(
-                          '可以手动设置提示的类型',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                   
-                  ],
-                ),
-               const SizedBox(height: 20),
-                 GestureDetector(
-                      onTap: () => controller.hideGuideOverlay(),
-                      child: Image.asset(
-                        'assets/setting/kissu_guide_know.webp',
-                        width: 90,
-                        height: 30,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ],
-                )
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // 构建顶部标题栏
   Widget _buildHeader() {
@@ -396,14 +282,8 @@ class UsageReportPage extends GetView<UsageReportController> {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: () => controller.showSettingDialog(),
-            child: Image.asset(
-              'assets/phone_history/kissu_phone_setting.webp',
-              width: 24,
-              height: 24,
-            ),
-          ),
+          // 右侧设置按钮已迁移到新的“用机记录”页面，这里不再展示
+          const SizedBox(width: 24),
         ],
       ),
     );

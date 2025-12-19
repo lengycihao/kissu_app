@@ -13,7 +13,6 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/services/tracking_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
@@ -73,8 +72,6 @@ class UsageReportController extends GetxController {
   // 另一半用户设备信息
   final halfUserData = Rxn<HalfUserData>();
 
-  /// 敏感操作记录引导图是否显示
-  final RxBool showGuideOverlay = false.obs;
   
   // 设备信息展开状态：null表示未展开，其他值表示当前展开的项类型
   final selectedDeviceInfoType = Rxn<String>(); // 'distance', 'mobileModel', 'network', 'power'
@@ -138,8 +135,6 @@ class UsageReportController extends GetxController {
       }
     });
 
-    // 检查并显示敏感操作记录引导图（首次进入立即检查，不再额外延迟）
-    _checkAndShowGuide();
 
     // // 检查并请求屏幕使用时长权限
     // _checkAndRequestPermission();
@@ -279,35 +274,6 @@ class UsageReportController extends GetxController {
     }
   }
 
-  /// 检查并显示敏感操作记录引导图
-  Future<void> _checkAndShowGuide() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasShownGuide =
-          prefs.getBool('has_shown_sensitive_record_guide') ?? false;
-
-      debugPrint('🔍 检查敏感操作记录引导图显示状态: $hasShownGuide');
-
-      if (!hasShownGuide) {
-        debugPrint('📱 首次进入敏感操作记录页面，显示引导图');
-
-        // 立即标记已显示，防止重复显示
-        await prefs.setBool('has_shown_sensitive_record_guide', true);
-
-        // 直接显示覆盖层（不再延迟）
-        if (!isClosed) {
-          showGuideOverlay.value = true;
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 检查敏感操作记录引导图状态失败: $e');
-    }
-  }
-
-  /// 隐藏敏感操作记录引导图
-  void hideGuideOverlay() {
-    showGuideOverlay.value = false;
-  }
 
   /// 加载更多数据
   Future<void> loadMoreData() async {

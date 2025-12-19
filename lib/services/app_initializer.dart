@@ -66,28 +66,41 @@ class AppInitializer {
       // ========== 第一阶段：基础初始化（关键路径，必须快速完成）==========
       
       // 🚀 优化：并行执行不相互依赖的初始化步骤
+      // 🔥 优化：减少超时时间，加快启动速度
       await Future.wait([
         // 步骤1: 初始化应用配置（同步操作，很快）
         AppConfigN.configuration().timeout(
-          const Duration(seconds: 1),
+          const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
           onTimeout: () => DebugUtil.warning('应用配置初始化超时'),
         ),
         
         // 步骤2: 初始化服务定位器
         setupServiceLocator().timeout(
-        const Duration(seconds: 2),
+        const Duration(seconds: 1), // 🔥 从2秒减少到1秒
         onTimeout: () => DebugUtil.error('服务定位器初始化超时'),
         ),
       ]);
       DebugUtil.success('应用配置和服务定位器初始化完成');
 
       // 步骤3: 预加载用户数据（必须在服务定位器之后）
-      final authService = getIt<AuthService>();
-      await authService.loadCurrentUser().timeout(
-        const Duration(seconds: 1),
-        onTimeout: () => DebugUtil.warning('用户数据加载超时'),
-      );
-      DebugUtil.info('用户数据预加载完成，登录状态: ${authService.isLoggedIn}');
+      // 🔥 优化：减少超时时间，如果超时则跳过，不影响启动
+      AuthService? authService;
+      try {
+        authService = getIt<AuthService>();
+        await authService.loadCurrentUser().timeout(
+          const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
+          onTimeout: () => DebugUtil.warning('用户数据加载超时，继续启动'),
+        );
+        DebugUtil.info('用户数据预加载完成，登录状态: ${authService.isLoggedIn}');
+      } catch (e) {
+        DebugUtil.warning('用户数据预加载失败: $e，继续启动');
+        // 如果获取失败，尝试重新获取
+        try {
+          authService = getIt<AuthService>();
+        } catch (e2) {
+          DebugUtil.error('无法获取AuthService: $e2');
+        }
+      }
 
       // 步骤4: 初始化HTTP管理器（必须在用户数据加载之后）
       await HttpManagerExample.initializeHttpManager().timeout(
@@ -122,7 +135,8 @@ class AppInitializer {
       DebugUtil.info('Token失效拦截器状态已重置');
       
       // 记录是否需要自动登录IM
-      final bool shouldAutoLoginIM = authService.isLoggedIn && authService.currentUser != null;
+      final bool shouldAutoLoginIM = authService != null && authService.isLoggedIn && authService.currentUser != null;
+      final currentUserForIM = authService?.currentUser; // 提前保存，避免后续作用域问题
 
       // ========== 第二阶段：第三方SDK初始化 ==========
       
@@ -143,12 +157,13 @@ class AppInitializer {
       DebugUtil.success('情侣关系动画服务初始化完成');
       
       // 步骤11: IM自动登录（异步执行，不阻塞）
-      if (shouldAutoLoginIM) {
+      if (shouldAutoLoginIM && currentUserForIM != null) {
         DebugUtil.info('检测到已登录用户，将在后台自动登录IM');
+        final userForIM = currentUserForIM; // 保存引用
         Future.delayed(Duration.zero, () async {
           try {
             final imService = Get.find<TencentIMService>();
-            await imService.loginIM(authService.currentUser!);
+            await imService.loginIM(userForIM);
             DebugUtil.success('IM自动登录完成');
           } catch (e) {
             DebugUtil.error('自动登录IM失败: $e');

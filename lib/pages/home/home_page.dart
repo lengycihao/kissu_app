@@ -372,44 +372,83 @@ class _KissuHomePageState extends State<KissuHomePage>
             bottom: 30,
             left: 0,
             right: 0,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              height: 64,
-              decoration: BoxDecoration(
-                color: const Color(0x9effffff),
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(35),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () => controller.onButtonTap(index),
-                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            controller.getTopIconPath(index),
-                            width: 34,
-                            height: 34,
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            controller.getTabTitle(index),
-                            style: const TextStyle(
-                              color: Color(0xFF4C342A),
-                              fontSize: 12,
+            child: Obx(() {
+              final unread = controller.chatUnreadCount.value;
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0x9effffff),
+                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(35),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(5, (index) {
+                    final showBadge = index == 2 && unread > 0;
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () => controller.onButtonTap(index),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Image.asset(
+                                  controller.getTopIconPath(index),
+                                  width: 34,
+                                  height: 34,
+                                ),
+                                if (showBadge)
+                                  Positioned(
+                                    right: -2,
+                                    top: -2,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 1),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 16,
+                                        minHeight: 16,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF4D67),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        unread > 99 ? '99+' : unread.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 1),
+                            Text(
+                              controller.getTabTitle(index),
+                              style: const TextStyle(
+                                color: Color(0xFF4C342A),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-            ),
+                    );
+                  }),
+                ),
+              );
+            }),
           ),
 
           // 🧪 测试按钮 - 触发截屏反馈按钮显示

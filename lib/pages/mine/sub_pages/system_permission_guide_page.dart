@@ -16,11 +16,11 @@ class SystemPermissionGuidePage extends GetView<SystemPermissionController> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false, // 统一由完成弹窗控制返回
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         await _showCompleteConfirmDialog(context);
-        // 由弹窗中确认后手动返回
-        return false;
       },
       child: Obx(() {
         final imageAsset = controller.getGuideAsset(guideType);

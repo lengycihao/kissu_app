@@ -9,12 +9,12 @@ class TrackUserManager {
   /// 用户头像
   final myAvatar = "".obs;
   final partnerAvatar = "".obs;
-  final isBindPartner = false.obs;
+  final isBindPartner = false.obs; 
   
   /// 加载用户信息（初始化头像为用户信息中的头像）
   void loadUserInfo() {
     final user = UserManager.currentUser;
-    if (user != null) {
+    if (user != null) { 
       // 设置我的头像（初始值，会被API数据覆盖）
       myAvatar.value = user.headPortrait ?? '';
       
@@ -69,6 +69,8 @@ class TrackUserManager {
       // 更新绑定状态
       isBindPartner.value = userInfo.isBind == 1;
       DebugUtil.info('更新绑定状态: ${isBindPartner.value}');
+
+     
     }
     
     DebugUtil.success('头像更新完成 - 我的头像: ${myAvatar.value}, 伴侣头像: ${partnerAvatar.value}');

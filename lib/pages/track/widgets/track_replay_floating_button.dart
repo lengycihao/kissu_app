@@ -81,6 +81,7 @@ class TrackReplayFloatingButton extends StatelessWidget {
 
   /// 播放按钮点击事件
   void _onPlayButtonTap(BuildContext context) {
+   
     // 检查是否有有效的轨迹数据
     if (controller.trackPoints.length < 3) {
       CustomToast.show(context, '暂无足够的轨迹数据可回放');

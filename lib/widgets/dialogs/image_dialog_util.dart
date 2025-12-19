@@ -364,7 +364,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         widget.currentPhotoWallUrl!.isNotEmpty &&
         widget.currentPhotoWallUrl!.startsWith('http')) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(16),
         child: NetworkImageHelper.loadImage(
           imageUrl: widget.currentPhotoWallUrl!,
           fit: BoxFit.cover,
@@ -382,7 +382,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
 
     // 否则显示默认头像
     return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(16),
       child: Image.asset(
         "assets/3.0/kissu3_love_avater.webp",
         fit: BoxFit.cover,
@@ -546,9 +546,12 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       ),
                     ),
                   SizedBox(height: 10),
-                  Text(
-                    "重置",
-                    style: TextStyle(color: Color(0xff777777), fontSize: 12),
+                  GestureDetector(
+                    onTap: _isUploading ? null : _resetToDefault,
+                    child: Text(
+                      "重置",
+                      style: TextStyle(color: Color(0xff777777), fontSize: 12),
+                    ),
                   ),
                   SizedBox(height: 10),
                 ],
@@ -557,8 +560,8 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           ),
 
           Positioned(
-            left: 20, //
-            top: -30, //
+            left: 5, //
+            top: -10, //
             child: GestureDetector(
               onTap: _isUploading ? null : _pickAvatar,
               // 扩大点击区域：添加10px的padding，让点击区域从46x24变为66x44
@@ -567,8 +570,8 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                 color: Colors.transparent,
                 child: Image.asset(
                   "assets/3.0/kissu3_upload_camera.webp",
-                  width: 81,
-                  height: 85,
+                  width: 65,
+                  height: 65,
                 ),
               ),
             ),
@@ -577,7 +580,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           if (widget.showCloseButton)
             Positioned(
               top: 35,
-              right: 50,
+              right: 40,
               child: GestureDetector(
                 onTap: _handleCloseTap,
                 child: Container(
@@ -594,6 +597,13 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         ],
       ),
     );
+  }
+
+  /// 重置为默认图片
+  void _resetToDefault() {
+    setState(() {
+      _selectedImageFile = null;
+    });
   }
 
   /// 处理右上角关闭按钮点击

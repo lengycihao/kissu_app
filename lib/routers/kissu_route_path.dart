@@ -49,4 +49,5 @@ class KissuRoutePath {
   static const chatBackground = '/kisssu_app/chat_background';
   static const chatBubble = '/kisssu_app/chat_bubble';
   static const chatTheme = '/kisssu_app/chat_theme';
+  static const imNotificationSettings = '/kisssu_app/im_notification_settings';
 }

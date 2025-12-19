@@ -1,91 +1,130 @@
-消息已读回执指的是，发送端往会话中发送消息，如果他想知道哪些人读过/还没读过这条消息，那么他就需要开启消息已读回执功能。
-开启后，发送端发送消息时可以设置消息是否需要已读回执。如果设置为“需要”，接收端查看消息后才会发送自己已读给发送端。
-单聊和群聊均支持消息已读回执功能，操作步骤一致。
-说明：
-该功能需要购买旗舰版或企业版套餐包，购买 旗舰版或企业版套餐包 后可使用。
-群已读回执仅 Flutter3.8.0版本支持。
-消息已读回执
-设置支持已读回执的群类型
-如果是群消息已读回执，需要先在 即时通信 IM 控制台 > 功能配置 > 群组配置 > 群已读消息回执配置 中设置支持已读回执消息的群类型。
-发送端设置消息需要已读回执
-发送端创建消息后，先通过消息对象 V2TimMessage 的 needReadReceipt(点击查看详情) 字段设置消息需要已读回执，再发送消息到会话中。
-示例代码如下：
-V2TimValueCallback<V2TimMsgCreateInfoResult> createCustomMessageRes =
-      await TencentImSDKPlugin.v2TIMManager
-          .getMessageManager()
-          .createCustomMessage(
-            data: '正在输入中',
-          );
-// 发送消息时，需要把needReadReceipt设置为true
-  TencentImSDKPlugin.v2TIMManager.getMessageManager().sendMessage(id: createCustomMessageRes.data.id, receiver: "", groupID: "groupID",onlineUserOnly: true,needReadReceipt: true);
-接收端发送消息已读回执
-接收端收到消息后，可以通过消息对象 V2TIMMessage 的 needReadReceipt(点击查看详情)  字段判断消息是否需要已读回执，如果需要已读回执，当用户查看消息后，调用 sendMessageReadReceipts(点击查看详情) 接口发送消息已读回执。
-示例代码如下：
-V2TimCallback sendMessageReadReceipts = await TencentImSDKPlugin.v2TIMManager.getMessageManager().sendMessageReadReceipts(messageIDList: ['msgids']);
-  if(sendMessageReadReceipts.code == 0){
-    // 成功
-  }else{
-    // 失败
-  }
-发送端监听消息已读回执通知
-接收端发送消息已读回执后，发送端可以通过 V2TimAdvancedMsgListener 的 onRecvMessageReadReceipts(点击查看详情) 回调监听消息已读回执通知，在通知中更新 UI，例如更新为 “2 人已读”。
-示例代码如下：
-onRecvMessageReadReceipts: (List<V2TimMessageReceipt> receiptList) {
-      receiptList.forEach((element) {
-        element.groupID;  // 群id
-        element.msgID; // 已读回执消息 ID
-        element.readCount;// 群消息最新已读数
-        element.unreadCount;// 群消息最新未读数
-        element.userID; //  C2C 消息对方 ID
-      });
-},
-发送端主动拉取消息已读回执信息
-发送端从其他界面进入消息列表后，先拉取历史消息，再调用 getMessageReadReceipts(点击查看详情) 接口拉取消息已读回执信息。
-其中已读回执信息 V2TimessageReceipt 字段含义如下：
-属性
-含义
-说明
-msgID
-消息 ID
-消息唯一 ID
-userID
-对端用户 ID
-如果是单聊，该字段表示对端用户 ID
-isPeerRead
-消息对端用户是否已读
-如果是单聊，该字段表示消息对端用户是否已读。
-timestamp
-对端用户标记会话已读时间
-该字段在消息已读场景无效，如果是单聊，当对端用户调用 markC2CMessageAsRead 接口标记会话已读时，自己会收到的 onRecvC2CReadReceipt 回调，回调里会携带 timestamp 信息
-groupID
-群组 ID
-如果是群聊，该字段为群组 ID
-readCount
-群消息已读人数
-如果是群聊，该字段为群消息已读人数
-unreadCount
-群消息未读人数
-如果是群聊，该字段为群消息未读人数
-示例代码如下：
-V2TimValueCallback<List<V2TimMessageReceipt>> getMessageReadReceipts = await  TencentImSDKPlugin.v2TIMManager.getMessageManager().getMessageReadReceipts(messageIDList: []);
-  if(getMessageReadReceipts.code == 0){
-    getMessageReadReceipts.data.forEach((element) {
-      // 解析群消息已读回执
-      element.groupID;
-      element.msgID;
-      element.readCount;
-      element.timestamp;
-      element.unreadCount;
-      element.userID;
-    });
-  }
-发送端主动拉取群消息已读或未读成员列表
-发送端在需要查看群消息已读或未读成员列表时，可以调用 getGroupMessageReadMemberList(点击查看详情) 接口分页拉取消息已读或未读群成员列表。
-V2TimValueCallback<V2TimGroupMessageReadMemberList> getGroupMessageReadMemberList = await  TencentImSDKPlugin.v2TIMManager.getMessageManager().getGroupMessageReadMemberList(messageID: "", filter: GetGroupMessageReadMemberListFilter.V2TIM_GROUP_MESSAGE_READ_MEMBERS_FILTER_READ,);
-﻿
- if(getGroupMessageReadMemberList.code == 0){
-   // 获取群消息已读未读群成员列表
-   getGroupMessageReadMemberList.data.isFinished;
-   getGroupMessageReadMemberList.data.memberInfoList;
-   getGroupMessageReadMemberList.data.nextSeq;
- }
+{
+        "is_red_dot": 0,
+        "is_system_notice_red_dot": 0,
+        "is_interaction_notice_red_dot": 0,
+        "activity": {
+            "is_pop_ads": 0,
+            "watch_ads_nums": 0,
+            "is_ads_exempt": 0,
+            "is_ads_count_down": 0,
+            "ads_count_down": 0,
+            "is_activity": 1,
+            "is_activity_icon": "https://kissustatic.yuluojishu.com/uploads/2025/09/05/3e4bcaa18cd0b27710bbce9d748a258e.png",
+            "activity_link": "https://www.ikissu.cn/share/invitepro.html?bindCode=2000624",
+            "activity_title": "邀请好友得红包"
+        },
+        "location": {
+            "stay_count": 2,
+            "distance": "5km",
+            "travel_tool": 1
+        },
+        "user": {
+            "lover_days": 0,
+            "head_portrait": "https://kissustatic.yuluojishu.com/uploads/2025/12/03/7f9b77cf39aca41b541a5c0321834251.jpg",
+            "half_head_portrait": "",
+            "is_bind": 0
+        },
+        "photo": {
+            "photo_wall": "https://kissustatic.yuluojishu.com/uploads/2025/10/21/87783e72474a60d2ed35d7cd3f769dea.png"
+        },
+        "weather": {
+            "base": [
+                {
+                    "province": "浙江",
+                    "city": "上城区",
+                    "adcode": "330102",
+                    "weather": "雾",
+                    "temperature": "8",
+                    "winddirection": "西南",
+                    "windpower": "≤3",
+                    "humidity": "84",
+                    "reporttime": "2025-12-19 02:02:05",
+                    "temperature_float": "8.0",
+                    "humidity_float": "84.0",
+                    "weather_icon": "https://kissustatic.yuluojishu.com/uploads/2025/09/23/ebd1ff238c5f380a4de39a1e2ac2f6c6.png"
+                }
+            ],
+            "all": [
+                {
+                    "city": "上城区",
+                    "adcode": "330102",
+                    "province": "浙江",
+                    "reporttime": "2025-12-19 01:02:04",
+                    "casts": [
+                        {
+                            "date": "2025-12-19",
+                            "week": "5",
+                            "dayweather": "晴",
+                            "nightweather": "晴",
+                            "daytemp": "21",
+                            "nighttemp": "8",
+                            "daywind": "东",
+                            "nightwind": "东",
+                            "daypower": "1-3",
+                            "nightpower": "1-3",
+                            "daytemp_float": "21.0",
+                            "nighttemp_float": "8.0"
+                        },
+                        {
+                            "date": "2025-12-20",
+                            "week": "6",
+                            "dayweather": "多云",
+                            "nightweather": "小雨",
+                            "daytemp": "20",
+                            "nighttemp": "7",
+                            "daywind": "北",
+                            "nightwind": "北",
+                            "daypower": "1-3",
+                            "nightpower": "1-3",
+                            "daytemp_float": "20.0",
+                            "nighttemp_float": "7.0"
+                        },
+                        {
+                            "date": "2025-12-21",
+                            "week": "7",
+                            "dayweather": "小雨",
+                            "nightweather": "晴",
+                            "daytemp": "10",
+                            "nighttemp": "3",
+                            "daywind": "北",
+                            "nightwind": "北",
+                            "daypower": "1-3",
+                            "nightpower": "1-3",
+                            "daytemp_float": "10.0",
+                            "nighttemp_float": "3.0"
+                        },
+                        {
+                            "date": "2025-12-22",
+                            "week": "1",
+                            "dayweather": "多云",
+                            "nightweather": "多云",
+                            "daytemp": "13",
+                            "nighttemp": "5",
+                            "daywind": "东",
+                            "nightwind": "东",
+                            "daypower": "1-3",
+                            "nightpower": "1-3",
+                            "daytemp_float": "13.0",
+                            "nighttemp_float": "5.0"
+                        }
+                    ]
+                }
+            ]
+        },
+        "vip_data": {
+            "type": 0,
+            "desc": "",
+            "expireDays": 0
+        },
+        "half_user_data": {
+            "power": "未知",
+            "network_name": "未知",
+            "mobile_model": "未知",
+            "is_wifi": "0",
+            "distance": "未知"
+        },
+        "crap_game": {
+            "crap_link": "http://devweb.ikissu.cn/share/couplesdeFecating.html",
+            "crap_status": "1"
+        }
+    }

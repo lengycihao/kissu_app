@@ -30,7 +30,7 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
         '设置',
         style: TextStyle(
           color: Colors.black,
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -65,8 +65,8 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
           ), 
           // 敏感信息
           _buildSettingItem(
-            title: '敏感信息',
-            subtitle: '可设置聊天页面中敏恋信息展示/隐藏',
+            title: '设置自动报备消息',
+            // subtitle: '可设置聊天页面中敏恋信息展示/隐藏',
             onTap: controller.setSensitiveInfo,
             showArrow: true,
           ), 
@@ -74,6 +74,13 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
           _buildSettingItem(
             title: '设置聊天主题',
             onTap: controller.setChatTheme,
+            showArrow: true,
+          ),
+
+          // 设置聊天主题
+          _buildSettingItem(
+            title: '举报对方',
+            onTap: controller.reportPartner,
             showArrow: true,
           ),
         ],

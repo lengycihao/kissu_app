@@ -330,11 +330,12 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     focusNode.addListener(focusListener);
 
     Get.bottomSheet(
-      WillPopScope(
-        onWillPop: () async {
+      PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (!didPop) return;
           // 用户手动关闭时，清空输入框
           controller.matchCodeController.clear();
-          return true;
         },
         child: Container(
           padding: EdgeInsets.only(

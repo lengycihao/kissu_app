@@ -118,15 +118,39 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
   /// 隐藏引导层
   void _hideGuide() {
     if (_isVisible) {
-      _fadeController.reverse();
-      _scaleController.reverse();
-      _slideController.stop();
-      _slideController.reset();
-      _scaleController.reverse().then((_) {
+      // 🔥 修复：立即停止所有动画，防止卡死
+      try {
+        _slideController.stop();
+        _slideController.reset();
+      } catch (e) {
+        debugPrint('⚠️ 停止滑动动画失败: $e');
+      }
+      
+      // 🔥 修复：使用更可靠的关闭逻辑
+      try {
+        _fadeController.reverse();
+        _scaleController.reverse();
+      } catch (e) {
+        debugPrint('⚠️ 停止淡入淡出/缩放动画失败: $e');
+      }
+      
+      // 🔥 修复：立即更新状态，不等待动画完成
+      if (mounted) {
+        setState(() {
+          _isVisible = false;
+        });
+      }
+      
+      // 🔥 修复：添加超时保护，确保引导图能正常关闭
+      Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) {
-          setState(() {
-            _isVisible = false;
-          });
+          // 确保状态已更新
+          if (_isVisible) {
+            setState(() {
+              _isVisible = false;
+            });
+          }
+          // 调用回调
           widget.onDismiss?.call();
         }
       });
@@ -154,6 +178,11 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
         _slideAnimation,
       ]),
       builder: (context, child) {
+        // 🔥 修复：如果透明度为0，直接返回空组件，避免残留覆盖层
+        if (_fadeAnimation.value <= 0.01) {
+          return const SizedBox.shrink();
+        }
+        
         return Opacity(
           opacity: _fadeAnimation.value,
           child: Material(
@@ -162,10 +191,16 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
               width: double.infinity,
               height: double.infinity,
               color: Colors.black.withOpacity(0.6),
-              child: Center(
-                child: Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: _buildGuideContent(),
+              child: GestureDetector(
+                // 🔥 修复：允许点击背景关闭引导图，防止卡死
+                onTap: widget.dismissible ? _hideGuide : null,
+                // 🔥 修复：添加行为属性，确保事件能够正确传递
+                behavior: HitTestBehavior.opaque,
+                child: Center(
+                  child: Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: _buildGuideContent(),
+                  ),
                 ),
               ),
             ),

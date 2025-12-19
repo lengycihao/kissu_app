@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -24,17 +25,38 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> {
+class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
   static const MethodChannel _appIconChannel = MethodChannel('app_icon_channel');
 
   bool _imagesLoaded = false;
   String _currentIconId = 'default';
+  bool _isShowingPrivacyDialog = false; // 🔥 标记是否正在显示隐私协议弹窗
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // 🔥 添加生命周期监听
     _loadCurrentIcon();
     _preloadImagesAndNavigate();
+    
+    // 🔥 修复：移除固定超时，改为在隐私协议弹窗关闭后再启动超时
+    // 避免第一次下载时，隐私协议弹窗还没显示完就被强制跳转
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // 🔥 移除生命周期监听
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 🔥 修复：应用生命周期变化时，如果正在显示隐私协议弹窗，不处理
+    if (_isShowingPrivacyDialog) {
+      DebugUtil.warning('⚠️ 应用生命周期变化: $state，但隐私协议弹窗正在显示，忽略');
+      return;
+    }
+    super.didChangeAppLifecycleState(state);
   }
 
   /// 从原生获取当前正在使用的 App 图标 ID，用于匹配启动页 logo
@@ -86,6 +108,7 @@ class _SplashPageState extends State<SplashPage> {
 
     try {
       // 🚀 关键优化：只预加载关键图片（背景、标题、logo），其他后台加载
+      // 🔥 优化：减少图片预加载时间到0.5秒，加快启动速度
       Future<void> criticalImages;
       try {
         criticalImages = Future.wait([
@@ -102,7 +125,7 @@ class _SplashPageState extends State<SplashPage> {
             context,
           ),
         ]).timeout(
-          const Duration(seconds: 1),
+          const Duration(milliseconds: 500), // 🔥 减少到0.5秒
         );
       } catch (e) {
         DebugUtil.warning('关键图片预加载超时，继续启动: $e');
@@ -110,29 +133,36 @@ class _SplashPageState extends State<SplashPage> {
       }
 
       // 🚀 应用初始化在后台执行，不阻塞启动页显示
-      final initFuture = AppInitializer.initialize().timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {
-          DebugUtil.warning('⚠️ 应用初始化超时（8秒），继续启动流程');
-        },
-      ).catchError((e) {
-        DebugUtil.error('应用初始化失败: $e，继续启动');
-      });
+      // 🔥 修复：如果已经初始化完成，不再重复初始化
+      if (!AppInitializer.isInitialized) {
+        final initFuture = AppInitializer.initialize().timeout(
+          const Duration(seconds: 8),
+          onTimeout: () {
+            DebugUtil.warning('⚠️ 应用初始化超时（8秒），继续启动流程');
+          },
+        ).catchError((e) {
+          DebugUtil.error('应用初始化失败: $e，继续启动');
+        });
 
-      // 等待关键图片加载完成（最多1秒）
+        // 后台继续初始化（不阻塞）
+        initFuture.then((_) {
+          DebugUtil.success('应用初始化完成');
+        });
+      } else {
+        DebugUtil.info('应用已经初始化完成，跳过重复初始化');
+      }
+
+      // 等待关键图片加载完成（最多0.5秒）
       try {
         await criticalImages;
       } catch (e) {
         DebugUtil.warning('关键图片加载失败: $e，继续启动');
       }
 
-      // 继续导航逻辑，不等待完整初始化完成
+      // 🔥 关键优化：继续导航逻辑，不等待完整初始化完成
+      // 🔥 修复：不在这里设置超时，因为可能显示隐私协议弹窗
+      // 超时保护会在隐私协议弹窗关闭后或直接进入登录检查时启动
       await _checkLoginStatusAndNavigate();
-
-      // 后台继续初始化（不阻塞）
-      initFuture.then((_) {
-        DebugUtil.success('应用初始化完成');
-      });
 
       // 后台预加载其他图标（不阻塞）
       Future.wait([
@@ -192,29 +222,68 @@ class _SplashPageState extends State<SplashPage> {
     // 🚀 优化：移除固定延迟，立即检查登录状态
     try {
       // 🚀 确保应用已初始化（关键！必须在访问任何服务之前）
-      // 优化：减少等待时间，最多等待3秒
+      // 🔥 优化：减少等待时间到1秒，加快启动速度
       await _ensureAppInitialized(
-        timeout: const Duration(seconds: 3),
+        timeout: const Duration(seconds: 1), // 🔥 从3秒减少到1秒
         contextTag: '首次初始化',
       );
 
-      // 🔑 现在可以安全访问服务了（带异常保护）
+      // 🔑 现在可以安全访问服务了（带异常保护和超时保护）
       try {
-        final firstLaunchService = FirstLaunchService.instance;
-        final shouldShowPrivacyDialog = await firstLaunchService
-            .shouldShowFirstAgreement();
+        // 🔥 修复：为 SharedPreferences 操作添加超时保护
+        // 🔥 优化：减少超时时间到1秒，加快启动速度
+        bool shouldShowPrivacyDialog = false;
+        try {
+          final firstLaunchService = FirstLaunchService.instance;
+          shouldShowPrivacyDialog = await firstLaunchService
+              .shouldShowFirstAgreement()
+              .timeout(
+                const Duration(seconds: 1), // 🔥 从2秒减少到1秒
+                onTimeout: () {
+                  DebugUtil.warning('⚠️ 检查首次协议状态超时，默认显示隐私政策弹窗');
+                  return true; // 超时则默认显示，确保用户能看到隐私政策
+                },
+              );
+        } catch (e) {
+          DebugUtil.error('⚠️ 检查首次协议状态失败: $e，默认显示隐私政策弹窗');
+          shouldShowPrivacyDialog = true; // 出错则默认显示
+        }
 
         if (shouldShowPrivacyDialog) {
           DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
           await _showPrivacyDialog();
+          // 🔥 修复：隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
+          _startNavigationTimeout();
           return;
         }
 
-        // 检查隐私政策合规状态
-        final privacyManager = Get.find<PrivacyComplianceManager>();
-        if (!privacyManager.isPrivacyAgreed) {
-          DebugUtil.warning('隐私政策未同意，在启动页显示隐私政策弹窗');
+        // 检查隐私政策合规状态（带超时保护）
+        try {
+          final privacyManager = Get.find<PrivacyComplianceManager>();
+          // 🔥 修复：添加超时保护，避免隐私状态检查阻塞
+          // 🔥 优化：减少超时时间到0.5秒
+          final isPrivacyAgreed = await Future.value(privacyManager.isPrivacyAgreed)
+              .timeout(
+                const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
+                onTimeout: () {
+                  DebugUtil.warning('⚠️ 检查隐私政策状态超时，默认未同意');
+                  return false; // 超时则默认未同意，显示隐私政策弹窗
+                },
+              );
+          
+          if (!isPrivacyAgreed) {
+            DebugUtil.warning('隐私政策未同意，在启动页显示隐私政策弹窗');
+            await _showPrivacyDialog();
+            // 🔥 修复：隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
+            _startNavigationTimeout();
+            return;
+          }
+        } catch (e) {
+          DebugUtil.error('⚠️ 获取隐私合规管理器失败: $e，显示隐私政策弹窗');
+          // 如果服务获取失败，显示隐私政策弹窗确保合规
           await _showPrivacyDialog();
+          // 🔥 修复：隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
+          _startNavigationTimeout();
           return;
         }
       } catch (e) {
@@ -223,30 +292,49 @@ class _SplashPageState extends State<SplashPage> {
       }
 
       // 隐私政策已同意，继续正常的登录状态检查
+      // 🔥 修复：如果隐私政策已同意，启动超时保护（3-4秒内必须跳转）
+      _startNavigationTimeout();
       await _continueLoginStatusCheck();
     } catch (e) {
       DebugUtil.error('检查登录状态失败: $e，跳转到登录页面');
-      Get.offAllNamed(KissuRoutePath.login);
+      // 🔥 修复：确保即使出错也能跳转，避免卡在启动页
+      if (mounted) {
+        Get.offAllNamed(KissuRoutePath.login);
+      }
     }
   }
 
   /// 继续登录状态检查（隐私政策同意后）
   Future<void> _continueLoginStatusCheck() async {
     try {
-      // 🚀 再次确保应用已初始化（带超时保护）
-      // 优化：减少等待时间，最多等待2秒
-      await _ensureAppInitialized(
-        timeout: const Duration(seconds: 2),
-        contextTag: '二次初始化',
-      );
+      // 🔥 修复：如果已经初始化完成，不再重复等待
+      if (!AppInitializer.isInitialized) {
+        // 🚀 再次确保应用已初始化（带超时保护）
+        // 🔥 优化：减少等待时间到0.5秒，加快启动速度
+        await _ensureAppInitialized(
+          timeout: const Duration(milliseconds: 500), // 🔥 从2秒减少到0.5秒
+          contextTag: '二次初始化',
+        );
+      }
 
-      // 🛡️ 安全获取AuthService（带异常保护）
-      AuthService? authService;
+      // 🛡️ 安全获取AuthService（带异常保护和超时保护）
+      AuthService authService;
       try {
-        authService = getIt<AuthService>();
+        // 🔥 修复：添加超时保护，避免服务获取阻塞
+        // 🔥 优化：减少超时时间到0.5秒
+        authService = await Future.value(getIt<AuthService>())
+            .timeout(
+              const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
+              onTimeout: () {
+                DebugUtil.error('⚠️ 获取AuthService超时');
+                throw TimeoutException('获取AuthService超时', const Duration(milliseconds: 500));
+              },
+            );
       } catch (e) {
         DebugUtil.error('⚠️ AuthService未注册: $e，跳转到登录页');
-        Get.offAllNamed(KissuRoutePath.login);
+        if (mounted) {
+          Get.offAllNamed(KissuRoutePath.login);
+        }
         return;
       }
 
@@ -260,44 +348,78 @@ class _SplashPageState extends State<SplashPage> {
         // 🚀 直接使用authService，避免通过UserManager访问未初始化的服务
         if (authService.needsPerfectInfo) {
           DebugUtil.info('用户已登录但需要完善信息，跳转到信息完善页面');
-          Get.offAllNamed(KissuRoutePath.infoSetting);
+          if (mounted) {
+            Get.offAllNamed(KissuRoutePath.infoSetting);
+          }
         } else {
           DebugUtil.success('用户已登录且信息完整，直接跳转到首页');
-          // 在跳转到首页前预设滚动位置
-          _presetHomeScrollPosition();
+          // 在跳转到首页前预设滚动位置（不阻塞跳转）
+          try {
+            _presetHomeScrollPosition();
+          } catch (e) {
+            DebugUtil.warning('预设首页滚动位置失败: $e，继续跳转');
+          }
           // 使用自定义淡入过渡动画
-          Get.off(
-            () => KissuHomePage(),
-            binding: HomeBinding(),
-            transition: Transition.fadeIn,
-            duration: const Duration(milliseconds: 500),
-            routeName: KissuRoutePath.home,
-            preventDuplicates: false,
-          );
+          if (mounted) {
+            Get.off(
+              () => KissuHomePage(),
+              binding: HomeBinding(),
+              transition: Transition.fadeIn,
+              duration: const Duration(milliseconds: 500),
+              routeName: KissuRoutePath.home,
+              preventDuplicates: false,
+            );
+          }
         }
       } else {
         DebugUtil.info('用户未登录，跳转到登录页面');
-        Get.offAllNamed(KissuRoutePath.login);
+        if (mounted) {
+          Get.offAllNamed(KissuRoutePath.login);
+        }
       }
     } catch (e) {
       DebugUtil.error('继续登录状态检查失败: $e，跳转到登录页面');
-      Get.offAllNamed(KissuRoutePath.login);
+      // 🔥 修复：确保即使出错也能跳转，避免卡在启动页
+      if (mounted) {
+        Get.offAllNamed(KissuRoutePath.login);
+      }
     }
   }
 
   /// 🔑 关键方法：在启动页显示隐私政策弹窗（使用原有的精美设计）
   Future<void> _showPrivacyDialog() async {
-    // 标记已显示弹窗
-    FirstLaunchService.instance.markFirstAgreementShown();
+    // 🔥 修复：防止重复显示
+    if (_isShowingPrivacyDialog) {
+      DebugUtil.warning('⚠️ 隐私协议弹窗已在显示中，跳过重复显示');
+      return;
+    }
 
-    // 完全按照您原有的showDialogWithCloseButtonWithFirst方法实现
-    final result = await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: false, // 修改为false，不允许点击外部关闭
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: const Color(0xB3000000),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
+    _isShowingPrivacyDialog = true; // 🔥 标记正在显示
+
+    // 🔥 修复：标记已显示弹窗（带超时保护）
+    try {
+      await FirstLaunchService.instance.markFirstAgreementShown()
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () {
+              DebugUtil.warning('⚠️ 标记首次协议弹窗状态超时，继续显示弹窗');
+            },
+          );
+    } catch (e) {
+      DebugUtil.error('⚠️ 标记首次协议弹窗状态失败: $e，继续显示弹窗');
+    }
+
+    // 🔥 修复：为对话框显示添加超时保护，防止无限等待
+    bool? result;
+    try {
+      // 完全按照您原有的showDialogWithCloseButtonWithFirst方法实现
+      result = await showGeneralDialog<bool>(
+        context: context,
+        barrierDismissible: false, // 修改为false，不允许点击外部关闭
+        barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: const Color(0xB3000000),
+        transitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (context, animation, secondaryAnimation) {
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -384,36 +506,121 @@ class _SplashPageState extends State<SplashPage> {
           ),
         );
       },
-    );
+      ).timeout(
+        const Duration(seconds: 30), // 🔥 修复：添加30秒超时，防止对话框无限等待
+        onTimeout: () {
+          DebugUtil.error('⚠️ 隐私政策对话框显示超时（30秒），默认拒绝并退出应用');
+          return false; // 超时则默认拒绝
+        },
+      );
+    } catch (e) {
+      DebugUtil.error('⚠️ 显示隐私政策对话框失败: $e，退出应用');
+      result = false; // 出错则默认拒绝
+    }
 
+    // 🔥 修复：重置标记
+    _isShowingPrivacyDialog = false;
+
+    // 🔥 修复：只有当用户明确拒绝（false）时才退出，null表示Dialog被意外关闭，重新显示
     if (result == true) {
       // 用户同意，初始化SDK并继续
-      await _initializeSDKsAfterAgreement();
-      _navigateToNextPage();
-    } else {
-      // 用户拒绝，退出应用
+      try {
+        await _initializeSDKsAfterAgreement();
+        _navigateToNextPage();
+      } catch (e) {
+        DebugUtil.error('⚠️ 初始化SDK失败: $e，继续导航');
+        // 即使初始化失败，也继续导航，避免卡在启动页
+        _navigateToNextPage();
+      }
+    } else if (result == false) {
+      // 用户明确拒绝，退出应用
       _exitApp();
+    } else {
+      // result == null，Dialog被意外关闭（可能是应用生命周期变化或系统原因），重新显示Dialog
+      DebugUtil.warning('⚠️ 隐私政策Dialog被意外关闭（result=null），重新显示');
+      // 延迟一下再重新显示，避免立即重复，并检查mounted状态
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && Get.currentRoute == KissuRoutePath.splash) {
+          DebugUtil.info('重新显示隐私政策Dialog');
+          _showPrivacyDialog();
+        } else {
+          DebugUtil.warning('页面已销毁或已跳转，不再重新显示Dialog');
+        }
+      });
     }
+  }
+
+  /// 🔥 修复：在隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
+  void _startNavigationTimeout() {
+    Future.delayed(const Duration(milliseconds: 3500), () {
+      if (mounted) {
+        // 🔥 修复：再次检查是否正在显示Dialog，如果是则不强制跳转
+        if (_isShowingPrivacyDialog || Get.isDialogOpen == true) {
+          DebugUtil.warning('⚠️ 启动页强制超时（3.5秒），但隐私协议弹窗正在显示，不强制跳转');
+          return;
+        }
+        DebugUtil.warning('⚠️ 启动页强制超时（3.5秒），强制跳转到登录页');
+        try {
+          // 检查是否已经跳转
+          if (Get.currentRoute == KissuRoutePath.splash) {
+            Get.offAllNamed(KissuRoutePath.login);
+          }
+        } catch (e) {
+          DebugUtil.error('强制跳转失败: $e');
+        }
+      }
+    });
   }
 
   /// 用户同意后初始化SDK
   Future<void> _initializeSDKsAfterAgreement() async {
     DebugUtil.info('用户在启动页同意隐私政策');
-    FirstLaunchService.instance.markFirstAgreementAgreed();
+    
+    // 🔥 修复：标记同意状态（带超时保护）
+    try {
+      await FirstLaunchService.instance.markFirstAgreementAgreed()
+          .timeout(
+            const Duration(seconds: 1),
+            onTimeout: () {
+              DebugUtil.warning('⚠️ 标记首次协议同意状态超时，继续初始化');
+            },
+          );
+    } catch (e) {
+      DebugUtil.error('⚠️ 标记首次协议同意状态失败: $e，继续初始化');
+    }
 
-    // 🔑 关键：启用隐私相关功能
+    // 🔑 关键：启用隐私相关功能（带超时保护）
     try {
       final privacyManager = Get.find<PrivacyComplianceManager>();
-      await privacyManager.agreeToPrivacyPolicy();
+      await privacyManager.agreeToPrivacyPolicy()
+          .timeout(
+            const Duration(seconds: 5), // 🔥 修复：添加5秒超时，避免隐私功能初始化阻塞
+            onTimeout: () {
+              DebugUtil.error('⚠️ 隐私政策同意流程超时（5秒），继续启动');
+            },
+          );
       DebugUtil.success('✅ 隐私政策同意完成，所有功能已启用');
 
-      // 🔥 新增：用户同意隐私政策后立即申请关键权限
-      await _requestEssentialPermissionsAfterAgreement();
+      // 🔥 新增：用户同意隐私政策后立即申请关键权限（后台执行，不阻塞）
+      _requestEssentialPermissionsAfterAgreement()
+          .then((_) {
+            DebugUtil.success('关键权限申请完成');
+          })
+          .catchError((e) {
+            DebugUtil.error('关键权限申请失败: $e');
+          });
 
-      // 🔥 激活：仅在新用户同意隐私协议后调用（获取到OAID或未获取到都调用）
-      await _activateIfNeeded();
+      // 🔥 激活：仅在新用户同意隐私协议后调用（后台执行，不阻塞）
+      _activateIfNeeded()
+          .then((_) {
+            DebugUtil.success('激活接口调用完成');
+          })
+          .catchError((e) {
+            DebugUtil.error('激活接口调用失败: $e');
+          });
     } catch (e) {
-      DebugUtil.error('❌ 启用隐私功能失败: $e');
+      DebugUtil.error('❌ 启用隐私功能失败: $e，继续启动流程');
+      // 🔥 修复：即使隐私功能初始化失败，也不阻塞启动流程
     }
   }
 

@@ -967,7 +967,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 40,
+            width: 46,
             child: Text(
               '23:59',
               style: const TextStyle(
@@ -1026,7 +1026,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 40,
+            width: 46,
             child: Text(
               time,
               style: const TextStyle(
@@ -1081,7 +1081,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 左侧空白（对齐时间）
-          const SizedBox(width: 43),
+          const SizedBox(width: 49),
 
           // 大圆点和虚线（20px宽度，虚线从中心位置）
           SizedBox(
@@ -1271,7 +1271,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
                 children: [
                   // 时间
                   SizedBox(
-                    width: 48,
+                    width:54,
                     child: Text(
                       detail.openTime,
                       style: const TextStyle(
@@ -1388,7 +1388,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 48,
+                  width: 54,
                   child: Text(
                     '00:00',
                     style: const TextStyle(
@@ -1447,7 +1447,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 48,
+            width: 54,
             child: Text(
               '23:59',
               style: const TextStyle(
@@ -1541,7 +1541,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
     final length = _calculateAppNameLength(appName);
     return length > 6 ? 2 : 1;
   }
-
+  
 }
 
 /// 虚线画笔

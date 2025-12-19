@@ -33,7 +33,7 @@ class ChatThemePage extends GetView<ChatThemeController> {
         '主题设置',
         style: TextStyle(
           color: Colors.black,
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -41,20 +41,24 @@ class ChatThemePage extends GetView<ChatThemeController> {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: ElevatedButton(
-            onPressed: controller.applyTheme,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xffBA92FD),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+          child: GestureDetector(
+            onTap: controller.applyTheme,
+            child: Container(
+              width: 70,
+              height: 33,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xffFF90CA),
+                borderRadius: BorderRadius.circular(16.5),
               ),
-              elevation: 0,
-            ),
-            child: const Text(
-              '使用',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              child: const Text(
+                '使用',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ),
@@ -133,11 +137,16 @@ class ChatThemePage extends GetView<ChatThemeController> {
         onTap: () => controller.selectTheme(theme),
         child: Container(
           width: 110,
-          padding: EdgeInsets.only(right: 10),
-          // height: 170,
-
-          // margin: const EdgeInsets.only(right: 12),
-          child: Image.asset(
+          // padding: const EdgeInsets.only(right: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: isSelected
+                ? Border.all(color: const Color(0xFFFF90CA), width: 2)
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
               'assets/chat/kissu_chat_theme$theme.webp',
               fit: BoxFit.contain,
               width: 110,
@@ -152,6 +161,7 @@ class ChatThemePage extends GetView<ChatThemeController> {
                 );
               },
             ),
+          ),
         ),
       );
     });

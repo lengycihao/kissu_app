@@ -1058,6 +1058,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.1"
+  photo_manager:
+    dependency: "direct main"
+    description:
+      name: photo_manager
+      sha256: "807688e3221e90fb02a4466746edd9cb9a0de025f8754c819f96604c00f6f1f5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.8.3"
   ping_discover_network_forked:
     dependency: "direct main"
     description:
@@ -1358,14 +1366,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.0"
+  tencent_cloud_chat_push:
+    dependency: "direct main"
+    description:
+      name: tencent_cloud_chat_push
+      sha256: "3324cc7412ae9db5f888239075543ce001bc9c58feb49dcd5b75211d1dd020f0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "8.8.7357"
   tencent_cloud_chat_sdk:
     dependency: "direct main"
     description:
       name: tencent_cloud_chat_sdk
-      sha256: "6e885ab2622b4eeac02c96adb9a18a1ae89e94fe47a0256672445e27f4d6dc0f"
+      sha256: "2146111623dbaa156281d704d8d551d936b0fd5d7522528f84e0ebeaf2ebb2a6"
       url: "https://pub.dev"
     source: hosted
-    version: "8.7.7201+1"
+    version: "8.8.7357"
   term_glyph:
     dependency: transitive
     description:

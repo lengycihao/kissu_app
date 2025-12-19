@@ -6,6 +6,9 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
 import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/network/public/auth_service.dart';
+import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 首页右上角头像模块
 /// 包含：双头像、状态文本、通知图标、活动图标
@@ -198,51 +201,56 @@ class HomeAvatarSection extends StatelessWidget {
               offset: const Offset(19, 0),
               child: Column(
                 children: [
-                  // 福利会员图标
-                  // SizedBox(
-                  //   width: 56,
-                  //   height: 56,
-                  //   child: Stack(
-                  //     clipBehavior: Clip.none,
-                  //     children: [
-                  //       // 通知图标（固定位置）
-                  //       GestureDetector(
-                  //         onTap: () {
-                  //           controller.onNotificationTap();
-                  //         },
-                  //         child: Image.asset(
-                  //           "assets/images/kissu_home_vip_icon.webp",
-                  //           width: 56,
-                  //           height: 56,
-                  //         ),
-                  //       ),
-                  //       // 红点角标
-                  //       Obx(() {
-                  //         if (controller.isRedDot.value) {
-                  //           return Positioned(
-                  //             right: 0,
-                  //             top: 0,
-                  //             child: Container(
-                  //               width: 12,
-                  //               height: 12,
-                  //               decoration: BoxDecoration(
-                  //                 color: const Color(0xffFF6B6B),
-                  //                 shape: BoxShape.circle,
-                  //                 border: Border.all(
-                  //                   color: Colors.white,
-                  //                   width: 1,
-                  //                 ),
-                  //               ),
-                  //             ),
-                  //           );
-                  //         }
-                  //         return const SizedBox.shrink();
-                  //       }),
-                  //     ],
-                  //   ),
-                  // ),
-                  // SizedBox(height: 5),
-                
+                  // 福利会员图标 - 非会员时展示，点击跳转到会员页面
+                  Obx(() {
+                    if (controller.isVip.value || !controller.isBound.value) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  // 跳转到会员页面
+                                  Get.toNamed(KissuRoutePath.vip);
+                                },
+                                child: Image.asset(
+                                  "assets/images/kissu_home_vip_icon.webp",
+                                  width: 56,
+                                  height: 56,
+                                ),
+                              ),
+                              // 红点角标
+                              if (controller.isRedDot.value)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xffFF6B6B),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                      ],
+                    );
+                  }),
+
                   // 通知图标（带红点）+ 抽屉式提示
                   SizedBox(
                     width: 56,
@@ -353,49 +361,97 @@ class HomeAvatarSection extends StatelessWidget {
                     }
                     return const SizedBox.shrink();
                   }),
-            //  SizedBox(height: 5),  SizedBox(
-            //         width: 56,
-            //         height: 56,
-            //         child: Stack(
-            //           clipBehavior: Clip.none,
-            //           children: [
-            //             // 通知图标（固定位置）
-            //             GestureDetector(
-            //               onTap: () {
-            //                 controller.onNotificationTap();
-            //               },
-            //               child: Image.asset(
-            //                 "assets/images/kissu_home_lashi_icon.webp",
-            //                 width: 56,
-            //                 height: 56,
-            //               ),
-            //             ),
-            //             // 红点角标
-            //             Obx(() {
-            //               if (controller.isRedDot.value) {
-            //                 return Positioned(
-            //                   right: 0,
-            //                   top: 0,
-            //                   child: Container(
-            //                     width: 12,
-            //                     height: 12,
-            //                     decoration: BoxDecoration(
-            //                       color: const Color(0xffFF6B6B),
-            //                       shape: BoxShape.circle,
-            //                       border: Border.all(
-            //                         color: Colors.white,
-            //                         width: 1,
-            //                       ),
-            //                     ),
-            //                   ),
-            //                 );
-            //               }
-            //               return const SizedBox.shrink();
-            //             }),
-            //           ],
-            //         ),
-            //       ),
-                 
+                  SizedBox(height: 5),
+                  // 拉屎图标 - 根据 crap_status 控制显示
+                  Obx(() {
+                    // 只有当 crap_status 为 "1" 时才显示
+                    if (controller.crapStatus.value != '1') {
+                      return const SizedBox.shrink();
+                    }
+                    
+                    return SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // 拉屎图标（固定位置）
+                          GestureDetector(
+                            onTap: () {
+                              // 未绑定时先弹出绑定弹窗
+                              if (!controller.isBound.value) {
+                                CustomBottomDialog.show(
+                                  context: context,
+                                  caller: BindingDialogCaller.home,
+                                );
+                                return;
+                              }
+
+                              // 已绑定：使用接口返回的 crap_link，然后拼接 token
+                              String baseUrl = controller.crapLink.value;
+                              if (baseUrl.isEmpty) {
+                                // 如果接口没有返回链接，使用默认链接
+                                baseUrl =
+                                    'http://devweb.ikissu.cn/share/couplesdeFecating.html';
+                              }
+                              
+                              String url = baseUrl;
+
+                              try {
+                                final authService = getIt<AuthService>();
+                                final token = authService.userToken;
+                                if (token != null && token.isNotEmpty) {
+                                  final encodedToken =
+                                      Uri.encodeComponent(token);
+                                  // 判断链接是否已经包含参数
+                                  final separator = baseUrl.contains('?') ? '&' : '?';
+                                  url = '$baseUrl${separator}token=$encodedToken';
+                                }
+                              } catch (_) {
+                                // 获取 token 失败时，使用不带 token 的链接
+                                url = baseUrl;
+                              }
+
+                              controller.navigateToH5(
+                                url,
+                                showAppBar: false,
+                                title: '',
+                                backgroundColor: Colors.white,
+                                showLoadingIndicator: false, // 拉屎H5不显示加载动画
+                              );
+                            },
+                            child: Image.asset(
+                              "assets/images/kissu_home_lashi_icon.webp",
+                              width: 56,
+                              height: 56,
+                            ),
+                          ),
+                          // 红点角标
+                          Obx(() {
+                            if (controller.isRedDot.value) {
+                              return Positioned(
+                                right: 0,
+                                top: 0,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xffFF6B6B),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
