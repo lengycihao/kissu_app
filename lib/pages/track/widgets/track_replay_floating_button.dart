@@ -26,8 +26,8 @@ class TrackReplayFloatingButton extends StatelessWidget {
       // 🔧 修复：跟随下半屏滑动，与定位页面保持一致
       final sheetHeight = screenHeight * sheetPercent;
       
-      // 右侧按钮的bottom位置（在下半屏顶部上方70px）
-      final buttonBottom = sheetHeight + 70;
+      // 右侧按钮的bottom位置（在下半屏顶部上方30px）
+      final buttonBottom = sheetHeight + 30;
 
       // 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final actualBindStatus = controller.getActualBindStatus();

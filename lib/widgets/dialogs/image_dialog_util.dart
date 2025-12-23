@@ -413,8 +413,8 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           // 图片内容
           Center(
             child: Container(
-              width: 290,
-              height: 285,
+              width: 270,
+              height: 340,
               decoration: BoxDecoration(
                 image: DecorationImage(
                   image: AssetImage(widget.imagePath),
@@ -422,18 +422,10 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                 ),
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Text(
-                    "自定义照片墙，恋出新高度",
-                    style: TextStyle(
-                      color: Color(0xcc000000),
-                      fontSize: 16,
-                      fontFamily: 'AlimamaShuHeiTi',
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 20),
+                  
+                  SizedBox(height:130),
                   // 使用Container包装Stack，确保超出部分可点击
                   Container(
                     width: 120, // 扩大容器宽度以容纳超出的按钮
@@ -479,7 +471,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                       ],
                     ),
                   ),
-                  SizedBox(height: 20),
+                  SizedBox(height: 22),
                   // 上传中的加载指示器 - 显示在按钮上方
                   if (_isUploading)
                     Container(
@@ -525,21 +517,14 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                         width: 228,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: _isUploading
-                                ? [
-                                    const Color.fromARGB(255, 223, 220, 220),
-                                    Color.fromARGB(255, 223, 220, 220),
-                                  ]
-                                : [Color(0xFFCE92FF), Color(0xFFFF87E1)],
-                          ),
+                          color: Color(0xffFF9AD9),
                           borderRadius: BorderRadius.circular(21),
                         ),
                         child: Text(
                           _isUploading ? "上传中..." : "保存照片",
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -549,47 +534,30 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
                   GestureDetector(
                     onTap: _isUploading ? null : _resetToDefault,
                     child: Text(
-                      "重置",
+                      "恢复默认",
                       style: TextStyle(color: Color(0xff777777), fontSize: 12),
                     ),
                   ),
-                  SizedBox(height: 10),
+                  // SizedBox(height: 10),
                 ],
               ),
             ),
           ),
-
-          Positioned(
-            left: 5, //
-            top: -10, //
-            child: GestureDetector(
-              onTap: _isUploading ? null : _pickAvatar,
-              // 扩大点击区域：添加10px的padding，让点击区域从46x24变为66x44
-              child: Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.transparent,
-                child: Image.asset(
-                  "assets/3.0/kissu3_upload_camera.webp",
-                  width: 65,
-                  height: 65,
-                ),
-              ),
-            ),
-          ),
+ 
           // 关闭按钮
           if (widget.showCloseButton)
             Positioned(
-              top: 35,
-              right: 40,
+              top: 63,
+              right: 35,
               child: GestureDetector(
                 onTap: _handleCloseTap,
                 child: Container(
-                  padding: EdgeInsets.all(3),
+                  padding: EdgeInsets.all(8),
                    
                   child: Image.asset(
-                    "assets/3.0/kissu_close.webp",
-                    width: 24,
-                    height: 24,
+                    "assets/3.0/kissu3_close.webp",
+                    width: 16,
+                    height: 16,
                   ),
                 ),
               ),

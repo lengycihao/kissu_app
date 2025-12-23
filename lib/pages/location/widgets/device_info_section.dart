@@ -8,27 +8,24 @@ import '../location_v2_controller.dart';
 class DeviceInfoSection extends StatelessWidget {
   final LocationV2Controller controller;
 
-  const DeviceInfoSection({
-    super.key,
-    required this.controller,
-  });
+  const DeviceInfoSection({super.key, required this.controller});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         Container(
-          height:92,
+          height: 90,
           padding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ).copyWith(top: 15),
+            horizontal: 20,
+            vertical: 8,
+          ).copyWith(top: 11),
           margin: EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             image: DecorationImage(
-              image:AssetImage(
-                      'assets/location/kissu3_location_bind_device_bg.webp',
-                    ),
+              image: AssetImage(
+                'assets/location/kissu3_location_bind_device_bg.webp',
+              ),
               fit: BoxFit.fill,
             ),
             borderRadius: BorderRadius.circular(12),
@@ -41,29 +38,25 @@ class DeviceInfoSection extends StatelessWidget {
                 children: [
                   const Text(
                     '我们相距',
-                    style: TextStyle(fontSize: 16, color: Color(0xFF333333)),
-                  ),
-                  const SizedBox(width: 22),
-                  Image(
-                    image: AssetImage('assets/images/kissu_location_time_logo.webp'),
-                    width: 22,
-                    height: 22,
-                  ),
-                  SizedBox(width: 4),
-                  Obx(
-                    () => Text(
-                      controller.speed.value,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF333333),
-                      ),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xcc000000),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  Spacer(),
-                  // 天气模块
-                  _buildWeatherWidget(),
+                  const SizedBox(width: 15),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color(0xffffffff),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    alignment: Alignment.center,
+                    child: _buildWeatherWidget(),
+                  ),
                 ],
               ),
+              SizedBox(height: 5),
               Obx(
                 () => IntrinsicWidth(
                   child: Text(
@@ -71,7 +64,7 @@ class DeviceInfoSection extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                      color: Color(0xcc000000),
                     ),
                   ),
                 ),
@@ -79,6 +72,17 @@ class DeviceInfoSection extends StatelessWidget {
             ],
           ),
         ),
+
+        Positioned(
+          right: 15,
+          bottom: -9,
+          child: Image(
+          image: AssetImage(
+            'assets/location/kissu3_location_distance_logo.webp',
+          ),
+          width: 100,
+          height: 100,
+        )),
         // 绑定按钮（仅未绑定时显示）
         _buildBindButton(),
       ],
@@ -94,7 +98,7 @@ class DeviceInfoSection extends StatelessWidget {
       }
       return Row(
         children: [
-          const SizedBox(width: 12),
+          // const SizedBox(width: 12),
           NetworkImageHelper.loadImage(
             imageUrl: controller.weatherIcon.value,
             width: 16,
@@ -126,11 +130,7 @@ class DeviceInfoSection extends StatelessWidget {
         top: 12,
         child: GestureDetector(
           onTap: () => controller.performBindAction(),
-          child: Container(
-            width: 70,
-            height: 30,
-            color: Colors.transparent,
-          ),
+          child: Container(width: 70, height: 30, color: Colors.transparent),
         ),
       );
     });

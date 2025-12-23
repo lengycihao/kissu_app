@@ -16,13 +16,13 @@ class LocationInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 14),
+      margin: EdgeInsets.symmetric(horizontal: 12),
       padding: EdgeInsets.symmetric(
         horizontal: 19,
         vertical: 14,
       ).copyWith(bottom: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         color: Colors.white,
       ),
       child: Column(
@@ -53,7 +53,8 @@ class LocationInfoSection extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               color: Color(0xFF000000),
-              fontFamily: 'LiuhuanKatongShoushu',
+              fontFamily: 'AlimamaShuHeiTi',
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),

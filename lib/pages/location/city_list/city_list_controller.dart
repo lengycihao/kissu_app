@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/network/public/api_request.dart';
-import 'package:kissu_app/services/city_storage_service.dart';
+// city storage removed - recent history not needed
 import 'package:kissu_app/network/http_managerN.dart';
 
 /// 城市列表Controller
 class CityListController extends GetxController {
-  final CityStorageService _cityStorageService = Get.find<CityStorageService>();
   
   // 搜索框控制器
   final TextEditingController searchController = TextEditingController();
@@ -21,8 +20,7 @@ class CityListController extends GetxController {
   // 热门城市
   final RxList<CityModel> hotCities = <CityModel>[].obs;
   
-  // 最近访问的城市
-  final RxList<CityModel> recentCities = <CityModel>[].obs;
+  // 最近访问的城市 (已移除，页面不再保存历史)
   
   // 当前定位的城市
   final Rx<CityModel?> currentCity = Rx<CityModel?>(null);
@@ -38,6 +36,10 @@ class CityListController extends GetxController {
   
   // 字母索引列表
   final RxList<String> letterIndex = <String>[].obs;
+  // 当前选中的字母（用于高亮索引）
+  final RxString selectedLetter = ''.obs;
+  // 每个分组标题对应的 GlobalKey（用于精确滚动）
+  final Map<String, GlobalKey> groupHeaderKeys = {};
   
   // 当前选中的字母（用于防抖）
   String? _lastScrolledLetter;
@@ -46,9 +48,10 @@ class CityListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadRecentCities();
     _loadCityList();
     _loadCurrentCity();
+    // 监听滚动以同步高亮字母索引
+    scrollController.addListener(_onScroll);
     
     // 监听搜索输入
     searchController.addListener(_onSearchChanged);
@@ -61,10 +64,6 @@ class CityListController extends GetxController {
     super.onClose();
   }
 
-  /// 加载最近访问的城市
-  Future<void> _loadRecentCities() async {
-    recentCities.value = await _cityStorageService.getRecentCities();
-  }
 
   /// 加载当前定位城市
   Future<void> _loadCurrentCity() async {
@@ -92,6 +91,13 @@ class CityListController extends GetxController {
         
         // 生成字母索引
         letterIndex.value = allCities.map((group) => group.firstLetter).toList();
+        // 为每个分组创建 GlobalKey，用于精准滚动
+        groupHeaderKeys.clear();
+        for (final group in allCities) {
+          groupHeaderKeys[group.firstLetter] = GlobalKey();
+        }
+        // 默认选中第一个字母
+        selectedLetter.value = letterIndex.isNotEmpty ? letterIndex.first : '';
         
         debugPrint('✅ 城市列表加载成功：${allCities.length}个分组，${hotCities.length}个热门城市');
       } else {
@@ -142,6 +148,18 @@ class CityListController extends GetxController {
     _searchCity(keyword);
   }
 
+  /// 外部触发的搜索入口（例如点击输入框右侧的搜索按钮）
+  void triggerSearchFromInput() {
+    final keyword = searchController.text.trim();
+    if (keyword.isEmpty) {
+      isSearching.value = false;
+      searchResults.clear();
+      return;
+    }
+    isSearching.value = true;
+    _searchCity(keyword);
+  }
+
   /// 搜索城市
   void _searchCity(String keyword) {
     final results = <CityModel>[];
@@ -161,11 +179,34 @@ class CityListController extends GetxController {
 
   /// 选择城市
   Future<void> selectCity(CityModel city) async {
-    // 保存到最近访问
-    await _cityStorageService.addRecentCity(city);
-    
     // 返回选中的城市
     Get.back(result: city);
+  }
+
+  /// 处理列表滚动，同步高亮字母索引
+  void _onScroll() {
+    if (!scrollController.hasClients || allCities.isEmpty) return;
+    final pos = scrollController.position.pixels;
+
+    double acc = 0.0;
+    const double headerHeight = 38.0;
+    const double itemHeight = 42.0;
+
+    for (final group in allCities) {
+      final groupHeight = headerHeight + (group.cityList.length * itemHeight);
+      final start = acc;
+      final end = acc + groupHeight;
+      if (pos >= start && pos < end) {
+        selectedLetter.value = group.firstLetter;
+        return;
+      }
+      acc = end;
+    }
+
+    // 如果滚动到末尾，选择最后一个字母
+    if (pos >= acc && allCities.isNotEmpty) {
+      selectedLetter.value = allCities.last.firstLetter;
+    }
   }
 
   /// 滚动到指定字母
@@ -189,9 +230,26 @@ class CityListController extends GetxController {
         return;
       }
       
-      // 计算目标位置
-      // 1. 顶部固定区域：当前定位城市(56) + 最近访问城市(约100) + 热门城市(约120) ≈ 276px
-      double targetPosition = 276.0;
+      // 首先尝试使用 GlobalKey + ensureVisible 精准滚动到分组标题
+      try {
+        final key = groupHeaderKeys[letter];
+        if (key != null && key.currentContext != null) {
+          selectedLetter.value = letter;
+          Scrollable.ensureVisible(
+            key.currentContext!,
+            duration: const Duration(milliseconds: 200),
+            alignment: 0.0,
+            curve: Curves.easeInOut,
+          );
+          debugPrint('📍 ensureVisible used for letter: $letter');
+          return;
+        }
+      } catch (e) {
+        debugPrint('⚠️ ensureVisible failed: $e, fallback to offset calc');
+      }
+
+      // 计算目标位置，先计算顶部固定区域高度（搜索栏 + 当前定位 + 热门城市区域）
+      double targetPosition = _calculateTopOffset();
       
       // 2. 累加前面所有分组的高度
       for (int i = 0; i < targetIndex; i++) {
@@ -200,7 +258,8 @@ class CityListController extends GetxController {
         targetPosition += 38 + (group.cityList.length * 42.0);
       }
       
-      // 直接跳转，不要动画
+      // 标记为选中字母，然后直接跳转，不要动画
+      selectedLetter.value = letter;
       scrollController.jumpTo(
         targetPosition.clamp(0.0, scrollController.position.maxScrollExtent),
       );
@@ -209,6 +268,27 @@ class CityListController extends GetxController {
     } catch (e) {
       debugPrint('❌ 滚动到字母失败: $e');
     }
+  }
+
+  /// 估算顶部固定区域高度（搜索栏 + 当前定位区域 + 热门城市区域）
+  double _calculateTopOffset() {
+    // 搜索栏高度：外层padding vertical 12 + 搜索控件 36
+    const double searchBarTotal = 12 + 36 + 12; // 60
+
+    // 当前定位区域估算：容器 padding 12(top)+12(bottom) + row height ~26 + sizedBox 12
+    final bool hasCurrent = currentCity.value != null;
+    final double currentSection = hasCurrent ? (12 + 26 + 12) : 0.0; // ~50
+
+    // 热门城市区域估算：如果存在热门城市，根据行数估算高度
+    double hotSection = 0.0;
+    if (hotCities.isNotEmpty) {
+      final int perRow = 4;
+      final int rows = (hotCities.length / perRow).ceil();
+      // 每行高度约 40 + title area 24 + padding
+      hotSection = 24 + rows * 40;
+    }
+
+    return searchBarTotal + currentSection + hotSection;
   }
 }
 

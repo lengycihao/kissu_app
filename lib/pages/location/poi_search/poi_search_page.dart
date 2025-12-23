@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/poi_model.dart';
 import 'package:kissu_app/pages/location/poi_search/poi_search_controller.dart';
-import 'package:kissu_app/widgets/dash_line_widget.dart';
+// dash line widget not used here anymore
 
 /// POI搜索页面
 class PoiSearchPage extends GetView<PoiSearchController> {
@@ -62,44 +62,59 @@ class PoiSearchPage extends GetView<PoiSearchController> {
               child: Image(
                 image: AssetImage('assets/location/kissu3_back.webp'),
                 width: 20,
+                color: Color(0xff333333),
                 height: 20,
               ),
             ),
           ),
 
-          // 搜索框
+          // 搜索框（与添加地点页面保持一致的样式：左侧图标、文本输入、右侧“搜索”按钮）
           Expanded(
             child: Container(
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFffffff),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFFFBBB5), width: 1),
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE8E8E8), width: 1),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 10).copyWith(right: 8),
+              alignment: Alignment.centerLeft,
               child: Row(
                 children: [
-                  const SizedBox(width: 16),
+                  Image.asset(
+                    'assets/images/kissu_search_icon.webp',
+                    width: 16,
+                    height: 16,
+                  ),
+                  const SizedBox(width: 5),
                   Expanded(
                     child: TextField(
                       controller: controller.searchController,
                       autofocus: true,
-                      textInputAction: TextInputAction.search, // 使用搜索键盘
-                      onSubmitted: (value) {
-                        // 点击键盘上的搜索按钮时触发
-                        controller.search(showLoading: true);
-                      },
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (value) => controller.search(showLoading: true),
                       decoration: InputDecoration(
-                        hintText: '请输入',
-                        
-                        hintStyle: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[400],
-                        ),
+                        hintText: '请输入要添加的地点',
+                        hintStyle: TextStyle(fontSize: 12, color: Color(0xff999999)),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 8).copyWith(bottom: 10),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8).copyWith(bottom: 13),
                       ),
-                      
                       style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => controller.search(showLoading: true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA9E0),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '搜索',
+                        style: TextStyle(fontSize: 14, color: Color(0xFFFFFFFF)),
+                      ),
                     ),
                   ),
                 ],
@@ -113,19 +128,26 @@ class PoiSearchPage extends GetView<PoiSearchController> {
             return GestureDetector(
               onTap: () => controller.selectCity(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Image(
                       image: AssetImage('assets/location/kissu3_location_pink.webp'),
                       width: 16,
+                      color: Color(0xff777777),
                       height: 16,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      city?.cityName.replaceAll('市', '') ?? '选择城市',
-                      style: const TextStyle(fontSize: 13),
+                    // 限制城市名称最大宽度，防止挤压搜索框
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: 90),
+                      child: Text(
+                        city?.cityName.replaceAll('市', '') ?? '选择城市',
+                        style: const TextStyle(fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -151,16 +173,16 @@ class PoiSearchPage extends GetView<PoiSearchController> {
               hasCity ? '输入关键词搜索地点' : '请先选择城市',
               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
-            if (!hasCity) ...[
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => controller.selectCity(),
-                child: const Text(
-                  '点击选择城市',
-                  style: TextStyle(fontSize: 14, color: Color(0xFFFF408D)),
-                ),
-              ),
-            ],
+            // if (!hasCity) ...[
+            //   const SizedBox(height: 12),
+            //   TextButton(
+            //     onPressed: () => controller.selectCity(),
+            //     child: const Text(
+            //       '点击选择城市',
+            //       style: TextStyle(fontSize: 14, color: Color(0xFFFF408D)),
+            //     ),
+            //   ),
+            // ],
           ],
         ),
       );
@@ -307,7 +329,11 @@ class PoiSearchPage extends GetView<PoiSearchController> {
                     ],
                   ),
                   SizedBox(height:11),
-                  DashedLine(color: Color(0xFFE6E2E3),dashSpace: 3,),
+                  // 使用实线替代虚线
+                  Container(
+                    height: 1,
+                    color: const Color(0xFFE6E2E3),
+                  ),
                 ],
               ),
             ),

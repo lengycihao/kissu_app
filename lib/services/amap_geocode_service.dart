@@ -115,6 +115,75 @@ class AMapGeocodeService {
       };
     }
   }
+
+  /// 正向地理编码：根据地址/城市名获取经纬度（只取第一个结果）
+  /// 返回： { success: bool, longitude: String, latitude: String, formattedAddress: String, adcode: String }
+  Future<Map<String, dynamic>> geocodeAddress({
+    required String address,
+    String? city,
+  }) async {
+    try {
+      DebugUtil.info('🗺️ 开始正向地理编码: address=$address, city=$city');
+      final url = 'https://restapi.amap.com/v3/geocode/geo';
+      final params = {
+        'key': _webApiKey,
+        'address': address,
+      };
+      if (city != null && city.isNotEmpty) {
+        params['city'] = city;
+      }
+
+      final response = await _dio.get(url, queryParameters: params, options: Options(
+        receiveTimeout: const Duration(seconds: 10),
+        sendTimeout: const Duration(seconds: 10),
+      ));
+
+      if (response.statusCode != 200) {
+        DebugUtil.error('❌ 正向地理编码请求失败: HTTP ${response.statusCode}');
+        return {'success': false, 'error': '网络请求失败'};
+      }
+
+      final data = response.data;
+      if (data['status'] != '1') {
+        DebugUtil.error('❌ 正向地理编码API错误: ${data['info']}');
+        return {'success': false, 'error': data['info'] ?? '未知错误'};
+      }
+
+      final geocodes = data['geocodes'] as List?;
+      if (geocodes == null || geocodes.isEmpty) {
+        return {'success': false, 'error': '无匹配结果'};
+      }
+
+      final first = geocodes.first as Map<String, dynamic>;
+      final location = first['location'] as String?; // 格式 "lng,lat"
+      final formattedAddress = first['formatted_address'] as String? ?? '';
+      final adcode = first['adcode'] as String? ?? '';
+
+      if (location == null || location.isEmpty) {
+        return {'success': false, 'error': '无法解析经纬度'};
+      }
+
+      final parts = location.split(',');
+      if (parts.length != 2) {
+        return {'success': false, 'error': '经纬度格式异常'};
+      }
+
+      final lng = parts[0];
+      final lat = parts[1];
+
+      DebugUtil.success('✅ 正向地理编码成功: $address -> ($lat,$lng)');
+      return {
+        'success': true,
+        'longitude': lng,
+        'latitude': lat,
+        'formattedAddress': formattedAddress,
+        'adcode': adcode,
+      };
+    } catch (e) {
+      DebugUtil.error('❌ 正向地理编码异常: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
   
   /// 构建简短地址（用于显示）
   /// 例如："浙江省杭州市上城区远洋东街39号"

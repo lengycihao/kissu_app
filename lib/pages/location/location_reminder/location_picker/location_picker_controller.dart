@@ -39,8 +39,7 @@ class LocationPickerController extends GetxController {
   // 选中的图标类型 (1-5: 公司/家/娱乐/健身房/商场)
   final selectedIcon = 1.obs; // 默认为"家"
 
-  // 选中的提醒类型（到达/离开）
-  final selectedBottomAway = true.obs;
+  // （已移除）原先用于区分到达/离开提醒的状态在添加页面不再显示或切换
   
   // 当前城市名称（用于显示）- 改为空字符串，等待从定位获取
   final currentCity = ''.obs;
@@ -153,7 +152,7 @@ class LocationPickerController extends GetxController {
       selectedLocation.value = position;
       selectedAddress.value = reminder.address;
       selectedIcon.value = reminder.icon;
-      selectedBottomAway.value = reminder.type == ReminderType.arrive;
+      // 编辑模式保留提醒类型信息，但 UI 不提供切换入口
       mapType.value = reminder.mapType;
       geofenceRadius.value = reminder.radius;
       noteController.text = reminder.note;
@@ -291,8 +290,16 @@ class LocationPickerController extends GetxController {
     // 更新围栏圆形
     _updateGeofenceCircle(position);
     
-    // 🔧 不移动相机，保持当前视角
-    // _moveCameraToPosition(position);
+    // 点击地图添加 InfoWindow 时，将相机缩放到更大的层级以便显示详情
+    if (mapController != null) {
+      try {
+        mapController!.moveCamera(
+          CameraUpdate.newLatLngZoom(position, 17.0),
+        );
+      } catch (e) {
+        DebugUtil.error('移动相机到最大层级失败: $e');
+      }
+    }
     
     // 获取地址信息并更新marker（不带POI名称）
     _getAddressFromLocation(position, context: context, poiName: null);
@@ -314,8 +321,16 @@ class LocationPickerController extends GetxController {
       // 更新围栏圆形
       _updateGeofenceCircle(position);
       
-      // 🔧 不移动相机，保持当前视角
-      // _moveCameraToPosition(position);
+      // 当点击 POI 时也将地图缩放到更大的层级（以展示 InfoWindow 细节）
+      if (mapController != null) {
+        try {
+          mapController!.moveCamera(
+            CameraUpdate.newLatLngZoom(position, 17.0),
+          );
+        } catch (e) {
+          DebugUtil.error('🐞 点击POI移动相机失败: $e');
+        }
+      }
       
       // 获取地址信息并拼接POI名称
       _getAddressFromLocation(position, context: context, poiName: poi.name);
@@ -485,13 +500,9 @@ class LocationPickerController extends GetxController {
   /// 更新电子围栏圆形覆盖物
   void _updateGeofenceCircle(LatLng position) {
     // 根据触发条件选择颜色：到达=蓝色，离开=粉色
-    final bool isArrival = selectedBottomAway.value; // true=到达, false=离开
-    final strokeColor = isArrival 
-        ? const Color(0x66ffffff) // 蓝色边框 (60%透明度)
-        : const Color(0x66ffffff); // 粉色边框
-    final fillColor = isArrival
-        ? const Color(0x334D9FFF) // 蓝色填充 (20%透明度)
-        : const Color(0x66FFD5E1); // 粉色填充 #FFD5E1 带透明度
+    // 使用统一的浅粉色填充，外边框为白色，满足设计要求
+    final strokeColor = const Color(0x55FFFFFF);
+    final fillColor = const Color(0x55FFD6EC);
     
     final circle = Circle(
       center: position,
@@ -534,7 +545,7 @@ class LocationPickerController extends GetxController {
         longitude: selectedLocation.value!.longitude,
         mapSnapshot: null, // 不再使用本地快照，改用静态地图URL
         radius: geofenceRadius.value,
-        type: selectedBottomAway.value ? ReminderType.arrive : ReminderType.leave,
+        type: editingReminder?.type ?? ReminderType.arrive,
         mapType: mapType.value, // 保存用户选择的地图类型
         isActive: editingReminder?.isActive ?? true, // 编辑模式保留激活状态
       );
@@ -600,7 +611,33 @@ class LocationPickerController extends GetxController {
     currentCityModel.value = city;
     DebugUtil.success('✅ 切换城市: ${city.cityName} (adcode: ${city.adcode})');
     
-    // TODO: 可以根据城市移动地图到该城市中心
+    // 根据城市名调用正向地理编码，将地图相机移动到该城市中心位置
+    () async {
+      try {
+        final geocodeService = AMapGeocodeService();
+        final result = await geocodeService.geocodeAddress(address: city.cityName);
+        if (result['success'] == true) {
+          final latStr = result['latitude'] as String? ?? '';
+          final lngStr = result['longitude'] as String? ?? '';
+          final lat = double.tryParse(latStr);
+          final lng = double.tryParse(lngStr);
+          if (lat != null && lng != null && mapController != null) {
+            DebugUtil.info('📍 将相机移动到城市中心: ${city.cityName} -> ($lat,$lng)');
+            await mapController!.moveCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(target: LatLng(lat, lng), zoom: 11.5),
+              ),
+              animated: true,
+              duration: 400,
+            );
+          }
+        } else {
+          DebugUtil.warning('无法通过地名获取城市坐标: ${result['error']}');
+        }
+      } catch (e) {
+        DebugUtil.error('移动到城市失败: $e');
+      }
+    }();
   }
 }
 

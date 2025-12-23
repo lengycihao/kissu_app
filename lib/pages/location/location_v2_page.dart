@@ -52,14 +52,14 @@ class _LocationPageContentState extends State<_LocationPageContent>
     final isBindPartner = widget.controller.isBindPartner.value;
     final isVip = widget.controller.isVip.value;
     // 未绑定或未开通会员时：280，已绑定且是会员时：190
-    return (!isBindPartner || !isVip) ? 280 : 190;
+    return (!isBindPartner || !isVip) ? 310 : 190;
   }
 
   double get minHeight {
     final isBindPartner = widget.controller.isBindPartner.value;
     final isVip = widget.controller.isVip.value;
     // 未绑定或未开通会员时：280，已绑定且是会员时：190
-    return (!isBindPartner || !isVip) ? 280 : 190;
+    return (!isBindPartner || !isVip) ? 310 : 190;
   }
 
   @override
@@ -235,17 +235,28 @@ class _LocationPageContentState extends State<_LocationPageContent>
         return false;
       },
       child: Container(
-        color: const Color(0xFFF6F6F6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+          ),
+          gradient: LinearGradient(
+            colors: [Color(0xFFFFF1FD), Color(0xFFF6F6F6)],
+
+            begin: AlignmentGeometry.topCenter,
+            end: AlignmentGeometry.bottomCenter,
+          ),
+        ),
         padding: const EdgeInsets.only(top: 5),
         child: Column(
           children: [
             Container(
               //指示条
               width: 46,
-              height: 7,
+              height: 8,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3.5),
-                color: const Color(0xFFD9D9D9),
+                borderRadius: BorderRadius.circular(4),
+                color: const Color(0xFFffffff),
               ),
             ),
             const SizedBox(height: 5),
@@ -264,7 +275,6 @@ class _LocationPageContentState extends State<_LocationPageContent>
                       children: [
                         Column(
                           children: [
-                            _buildVirtualDataTip(),
                             DeviceInfoSection(controller: widget.controller),
                             const SizedBox(height: 10),
                             LocationInfoSection(controller: widget.controller),
@@ -281,11 +291,6 @@ class _LocationPageContentState extends State<_LocationPageContent>
         ),
       ),
     );
-  }
-
-  Widget _buildVirtualDataTip() {
-    // 移除"以下为虚拟数据"提示
-    return const SizedBox.shrink();
   }
 
   Widget _buildOfflineTip({EdgeInsets? margin}) {
@@ -369,7 +374,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Obx(() {
               if (widget.controller.locationRecords.isEmpty) {
@@ -385,7 +390,7 @@ class _LocationPageContentState extends State<_LocationPageContent>
                       ),
                       SizedBox(height: 16),
                       Text(
-                        '对方目前还没有停留点哦～',
+                        '目前还没有停留点哦～',
                         style: TextStyle(
                           fontSize: 14,
                           color: Color(0xff666666),
@@ -449,13 +454,13 @@ class _LocationPageContentState extends State<_LocationPageContent>
                                   // 文字图片
                                   Image.asset(
                                     'assets/images/kissu3_go_label.webp',
-                                    width: 216,
+                                    width: 187,
                                     height: 32,
                                     fit: BoxFit.contain,
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 60),
                                   // 按钮占位（实际按钮在上层）
-                                  SizedBox(width: 150, height: 48),
+                                  SizedBox(width: 175, height: 44),
                                 ],
                               ),
                             ),
@@ -475,14 +480,14 @@ class _LocationPageContentState extends State<_LocationPageContent>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.controller.isBindPartner.value &&
-                                  widget.controller.partnerOnlineStatus.value !=
-                                      null &&
-                                  widget
-                                          .controller
-                                          .partnerOnlineStatus
-                                          .value!
-                                          .status ==
-                                      0)
+                            widget.controller.partnerOnlineStatus.value !=
+                                null &&
+                            widget
+                                    .controller
+                                    .partnerOnlineStatus
+                                    .value!
+                                    .status ==
+                                0)
                           const SizedBox(height: 175)
                         else
                           const SizedBox(height: 140),
@@ -504,8 +509,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
                             !isBindPartner
                                 ? 'assets/images/kissu3_go_bind.webp' // 未绑定
                                 : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
-                            width: 150,
-                            height: 48,
+                            width: !isBindPartner ? 175 : 189,
+                            height: !isBindPartner ? 44 : 60,
                             fit: BoxFit.contain,
                           ),
                         ),
@@ -544,7 +549,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
         opacity = 0.0;
       } else {
         opacity =
-            1.0 - ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
+            1.0 -
+            ((sheetPercent - middleSnapSize) / (maxPercent - middleSnapSize));
       }
       opacity = opacity.clamp(0.0, 1.0);
 
@@ -979,6 +985,7 @@ class _OptimizedLocationRecordsList extends StatelessWidget {
                 "今日停留$recordCount个地方",
                 style: const TextStyle(
                   fontSize: 14,
+                  fontFamily: 'AlimamaShuHeiTi',
                   color: Color(0xFF000000),
                   fontWeight: FontWeight.w600,
                 ),
@@ -1052,6 +1059,7 @@ class _LocationListWithBackground extends StatelessWidget {
                     "今日停留${records.length}个地方",
                     style: const TextStyle(
                       fontSize: 14,
+                      fontFamily: 'AlimamaShuHeiTi',
                       color: Color(0xFF000000),
                       fontWeight: FontWeight.w600,
                     ),
@@ -1080,23 +1088,6 @@ class _LocationListWithBackground extends StatelessWidget {
               }),
               SizedBox(height: imageHeight),
             ],
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 100),
-              opacity: imageOpacity,
-              child: Center(
-                child: Image.asset(
-                  'assets/location/kissu3_list_bottom_bg.webp',
-                  width: 284,
-                  height: imageHeight,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
           ),
         ],
       );
@@ -1179,11 +1170,30 @@ class _LocationRecordItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Image(
-                image: AssetImage('assets/images/kissu_location_circle.webp'),
-                width: 8,
-                height: 8,
+              padding: const EdgeInsets.only(top: 0),
+              child: Row(
+                 children: [
+                  SizedBox(
+                    width: 35,
+                    child: Text(
+                      record.startTime ?? '',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF333333),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  Image(
+                    image: AssetImage(
+                      'assets/images/kissu_location_circle.webp',
+                    ),
+                    color: Color(0xffFF87B2),
+                    width: 8,
+                    height: 8,
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
@@ -1204,13 +1214,10 @@ class _LocationRecordItem extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7F7F7),
+                      color: record.status == 'staying'
+                          ? const Color(0xFFFFFFEE)
+                          : Color(0xffFFF4FD),
                       borderRadius: BorderRadius.circular(4),
-                      gradient: const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Color(0xFFFFF5EF), Color(0xFFFfffff)],
-                      ),
                     ),
                     child: Row(
                       children: [

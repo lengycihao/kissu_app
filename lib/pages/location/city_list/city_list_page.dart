@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/pages/location/city_list/city_list_controller.dart';
-import 'package:kissu_app/widgets/dash_line_widget.dart';
+// dash line widget not used here anymore
 
 /// 城市列表选择页面
 class CityListPage extends GetView<CityListController> {
@@ -62,45 +62,99 @@ class CityListPage extends GetView<CityListController> {
             onTap: () => Get.back(),
             child: Image(
               image: AssetImage('assets/location/kissu3_back.webp'),
+              color: Color(0xff333333),
               width: 20,
               height: 20,
             ),
           ),
           const SizedBox(width: 8),
 
-          // 搜索输入框
+          // 搜索输入框（与添加地点/POI搜索页保持一致：左图标、输入框、右侧“搜索”按钮）
           Expanded(
             child: Container(
-              height: 32,
+              height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFffffff),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Color(0xffFFBBB5), width: 1),
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE8E8E8), width: 1),
               ),
-              child: TextField(
-                controller: controller.searchController,
-                decoration: InputDecoration(
-                  hintText: '请输入城市名',
-                  hintStyle: TextStyle(fontSize: 12, color: Color(0xFF999999)),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 0,
-                    minHeight: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+              ).copyWith(right: 8),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Image.asset(
+                    'assets/3.0/kissu3_search_icon.webp',
+                    color: Color(0xff333333),
+                    width: 16,
+                    height: 16,
                   ),
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.only(left: 12), // 👈 控制左边距离
-                    child: Image.asset(
-                      'assets/3.0/kissu3_search_icon.webp',
-                      width: 16,
-                      height: 16,
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: TextField(
+                      controller: controller.searchController,
+                      decoration: InputDecoration(
+                        hintText: '请输入要添加的地点',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF999999),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                        ).copyWith(bottom: 13),
+                      ),
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
-                  border: InputBorder.none,
-
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                  ).copyWith(bottom: 13),
-                ),
-                style: const TextStyle(fontSize: 14),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => controller.triggerSearchFromInput(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA9E0),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text(
+                        '搜索',
+                        style: TextStyle(fontSize: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // 当前定位城市（放在输入框外部，右侧显示，不可点击）
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 90),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/location/kissu3_location_pink.webp',color: Color(0xff777777),
+                    width: 16,
+                    height: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Obx(() {
+                    final current = controller.currentCity.value;
+                    return Text(
+                      current?.cityName.replaceAll('市', '') ?? '定位中',
+                      style: const TextStyle(fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  }),
+                ],
               ),
             ),
           ),
@@ -135,82 +189,50 @@ class CityListPage extends GetView<CityListController> {
   /// 最近访问/定位城市
   Widget _buildRecentSection() {
     return Obx(() {
-      final recentCities = controller.recentCities;
       final currentCity = controller.currentCity.value;
 
-      // 合并当前定位城市和最近访问城市
-      final List<CityModel> displayCities = [];
-      if (currentCity != null) {
-        displayCities.add(currentCity);
-      }
-      displayCities.addAll(recentCities);
-
-      // 去重，最多显示3个
-      final uniqueCities = <String, CityModel>{};
-      for (final city in displayCities) {
-        if (uniqueCities.length >= 3) break;
-        uniqueCities[city.adcode] = city;
-      }
-
-      if (uniqueCities.isEmpty) {
+      // 仅显示当前定位城市；如果为空则不显示该模块
+      if (currentCity == null) {
         return const SliverToBoxAdapter(child: SizedBox.shrink());
       }
 
       return SliverToBoxAdapter(
         child: Container(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '定位/最近访问',
-                style: TextStyle(fontSize: 10, color: Color(0xFF333333)),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: uniqueCities.values.map((city) {
-                  final isCurrentCity = city.adcode == currentCity?.adcode;
-                  return GestureDetector(
-                    onTap: () => controller.selectCity(city),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 2,
-                      ),
+              Row(
+                children: [
+                  Image(
+                    image: AssetImage(
+                      'assets/location/kissu3_location_pink.webp',
+                    ),
+                    color: Color(0xff777777),
+                    width: 10,
+                    height: 10,
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    '定位/最近访问',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF333333)),
+                  ),
+                  const SizedBox(width: 8),
+                  // 当前城市（放在标题右侧）
+                  Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFffffff),
+                        color: const Color(0xFFFFFFFF),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Color(0xffFFBBB5), width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isCurrentCity)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: Image(
-                                image: AssetImage(
-                                  'assets/location/kissu3_location_pink.webp',
-                                ),
-                                width: 10,
-                                height: 10,
-                              ),
-                            ),
-                          Text(
-                            city.cityName.replaceAll('市', ''),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                        ],
+                       ),
+                      child: Text(
+                        currentCity.cityName.replaceAll('市', ''),
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
                       ),
                     ),
-                  );
-                }).toList(),
+                ],
               ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -227,13 +249,13 @@ class CityListPage extends GetView<CityListController> {
 
       return SliverToBoxAdapter(
         child: Container(
-          padding: const EdgeInsets.all(22).copyWith(top: 0),
+          padding: const EdgeInsets.all(22).copyWith(top: 0,right: 25),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 '热门城市',
-                style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
+                style: TextStyle(fontSize: 12, color: Color(0xFF777777)),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -243,18 +265,17 @@ class CityListPage extends GetView<CityListController> {
                   return GestureDetector(
                     onTap: () => controller.selectCity(city),
                     child: Container(
-                      width: (Get.width - 62) / 4,
+                      width: (Get.width - 70) / 4,
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFffffff),
+                        color: const Color(0xFFF5F5F5),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Color(0xffFFBBB5), width: 1),
-                      ),
+                       ),
                       child: Text(
-                        city.cityName.replaceAll('市', ''),
+                        city.cityName ,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Color(0xFF333333),
                         ),
                       ),
@@ -283,12 +304,14 @@ class CityListPage extends GetView<CityListController> {
 
   /// 城市分组
   Widget _buildCityGroup(CityGroupModel group) {
+    final key = controller.groupHeaderKeys[group.firstLetter];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 字母索引
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+          key: key,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8) ,
           color: const Color(0xFFffffff),
           child: Text(
             group.firstLetter,
@@ -304,7 +327,7 @@ class CityListPage extends GetView<CityListController> {
               padding: const EdgeInsets.symmetric(
                 horizontal: 22,
                 vertical: 14,
-              ).copyWith(bottom: 0),
+              ).copyWith(right: 30,bottom: 0),
 
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,7 +340,11 @@ class CityListPage extends GetView<CityListController> {
                     ),
                   ),
                   SizedBox(height: 10),
-                  DashedLine(color: Color(0xffE6E2E3), dashSpace: 3),
+                  // 使用实线替代虚线
+                  Container(
+                    height: 0.6,
+                    color: const Color(0xffE8E8E8),
+                  ),
                 ],
               ),
             ),
@@ -363,8 +390,8 @@ class CityListPage extends GetView<CityListController> {
   /// 右侧字母索引导航
   Widget _buildLetterIndex() {
     return Positioned(
-      right: 5,
-      top: 140, // 给搜索框留出空间
+      right: 0,
+      top: 0, // 给搜索框留出空间
       bottom: 0,
       child: GestureDetector(
         // 支持垂直滑动选择
@@ -377,24 +404,8 @@ class CityListPage extends GetView<CityListController> {
             Get.closeAllSnackbars();
           });
         },
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: () {
-                // 滚动到顶部
-                controller.scrollController.jumpTo(0);
-              },
-              child: Padding(
-                padding: EdgeInsets.all(6),
-                child: Image(
-                  image: AssetImage('assets/location/kissu3_city_top.webp'),
-                  width: 12,
-                  height: 12,
-                ),
-              ),
-            ),
-            Container(
-              width: 24,
+        child:  Container(
+              width: 20,
               alignment: Alignment.center,
               child: ListView.builder(
                 shrinkWrap: true,
@@ -406,29 +417,36 @@ class CityListPage extends GetView<CityListController> {
                 },
               ),
             ),
-          ],
-        ),
       ),
     );
   }
 
   /// 单个字母索引项
   Widget _buildLetterItem(String letter, int index) {
-    return GestureDetector(
-      onTap: () => _onLetterTap(letter),
-      child: Container(
-        height: 20,
-        alignment: Alignment.center,
-        child: Text(
-          letter,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Color(0xFF999999),
-            fontWeight: FontWeight.w500,
+    return Obx(() {
+      final isSelected = controller.selectedLetter.value == letter;
+      return GestureDetector(
+        onTap: () => _onLetterTap(letter),
+        child: Container(
+          height: 20,
+          width: 20,
+          alignment: Alignment.center,
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: const Color(0xFFFFA9E0),
+                 )
+              : null,
+          child: Text(
+            letter,
+            style: TextStyle(
+              fontSize: 12,
+              color: isSelected ? Colors.white : const Color(0xFF777777),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   /// 处理滑动选择字母

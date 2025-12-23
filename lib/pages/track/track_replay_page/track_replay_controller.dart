@@ -4,6 +4,8 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/pages/track/managers/track_replay_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_map_manager.dart';
+import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
+import 'package:kissu_app/pages/location/services/marker_builder.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'dart:ui' as ui;
 import 'dart:math';
@@ -198,9 +200,9 @@ class TrackReplayController extends GetxController
     try {
       // 创建起点标记
       try {
-        // 🔧 使用适配后的尺寸（设计稿：44x46）
-        final adaptedWidth = _calculateAdaptedSize(44.0);
-        final adaptedHeight = _calculateAdaptedSize(46.0);
+        // 🔧 使用适配后的尺寸（设计稿：34x48），锚点在底部中心
+        final adaptedWidth = _calculateAdaptedSize(34.0);
+        final adaptedHeight = _calculateAdaptedSize(48.0);
         final startIcon = await BitmapDescriptor.fromAssetImage(
           ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
           'assets/images/kissu_location_start.webp',
@@ -210,7 +212,7 @@ class TrackReplayController extends GetxController
           Marker(
             position: startPoint,
             icon: startIcon,
-            anchor: const Offset(0.41, 0.83), // 设置锚点为图片的 (18, 38) 位置
+            anchor: const Offset(0.5, 1.0), // 底部中心对齐
             infoWindow: const InfoWindow(title: '', snippet: ''),
             onTap: (_) {
               DebugUtil.info('点击了轨迹起点');
@@ -237,43 +239,96 @@ class TrackReplayController extends GetxController
 
       // 创建终点标记（只要trackPoints数量大于1就显示终点，移除距离限制）
       if (trackPoints.length > 1) {
-        // 🎯 移除距离限制，只要trackPoints数量大于1就显示终点
         try {
-          // 🔧 使用适配后的尺寸（设计稿：44x46）
-          final adaptedWidth = _calculateAdaptedSize(44.0);
-          final adaptedHeight = _calculateAdaptedSize(46.0);
-          final endIcon = await BitmapDescriptor.fromAssetImage(
-            ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
-            'assets/images/kissu_location_end.webp',
+          // 终点使用头像标记（无动画），参考定位页头像样式
+          final avatarUrl = currentUserAvatar;
+          final dpr = ui.window.devicePixelRatio;
+          final screenWidth = ui.window.physicalSize.width / dpr;
+          const designWidth = 375.0;
+          const designAvatarSize = 50.0;
+          final screenScale = screenWidth / designWidth;
+          final avatarSize = designAvatarSize * screenScale * dpr;
+
+          final avatarIcon = await MapMarkerUtil.createCircleAvatarMarker(
+            avatarUrl,
+            size: avatarSize,
           );
+
+          // 添加伴侣底座（参考定位页面）
+          try {
+            final markerBuilder = MarkerBuilder();
+            // 计算设计稿级底座尺寸，按头像设计稿比例调整（设计稿小底座为14）
+            const designSmallPedestal = 21.0;
+            const designAvatarSizeBase = 60.0;
+            final designPedestalSize = designSmallPedestal * (designAvatarSizeBase / designAvatarSizeBase);
+            final partnerPedestalIcon = await markerBuilder.createPedestalMarker(
+              pedestalAsset: 'assets/3.0/kissu3_location_she.webp',
+              designSize: designPedestalSize,
+            );
+            markers.add(Marker(
+              position: endPoint,
+              icon: partnerPedestalIcon,
+              anchor: const Offset(0.5, 0.5),
+              rotation: 0.0,
+              infoWindow: const InfoWindow(title: '', snippet: ''),
+              onTap: (_) {
+                DebugUtil.info('点击了轨迹终点');
+              },
+            ));
+          } catch (pedErr) {
+            DebugUtil.warning('创建回放终点底座失败: $pedErr');
+          }
 
           markers.add(
             Marker(
               position: endPoint,
-              icon: endIcon,
-              anchor: const Offset(0.59, 0.83), // 设置锚点为图片的 (26, 38) 位置
+              icon: avatarIcon,
+              anchor: const Offset(0.5, 1.0), // 底部中心对齐
               infoWindow: const InfoWindow(title: '', snippet: ''),
               onTap: (_) {
                 DebugUtil.info('点击了轨迹终点');
               },
             ),
           );
-          DebugUtil.success('✅ 轨迹终点标记创建成功');
+          DebugUtil.success('✅ 轨迹终点头像标记创建成功');
         } catch (e) {
-          DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
-          // 降级方案：使用红色圆点（使用适配后的尺寸）
-          final fallbackSize = _calculateAdaptedSize(24.0);
-          final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
-          markers.add(
-            Marker(
-              position: endPoint,
-              icon: fallbackIcon,
-              infoWindow: const InfoWindow(title: '', snippet: ''),
-              onTap: (_) {
-                DebugUtil.info('点击了轨迹终点');
-              },
-            ),
-          );
+          DebugUtil.error('❌ 创建终点头像标记失败: $e，使用降级方案');
+          // 降级方案：使用原有终点图标
+          try {
+            final adaptedWidth = _calculateAdaptedSize(44.0);
+            final adaptedHeight = _calculateAdaptedSize(46.0);
+            final endIcon = await BitmapDescriptor.fromAssetImage(
+              ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+              'assets/images/kissu_location_end.webp',
+            );
+
+            markers.add(
+              Marker(
+                position: endPoint,
+                icon: endIcon,
+                anchor: const Offset(0.59, 0.83),
+                infoWindow: const InfoWindow(title: '', snippet: ''),
+                onTap: (_) {
+                  DebugUtil.info('点击了轨迹终点');
+                },
+              ),
+            );
+            DebugUtil.success('✅ 终点降级标记创建成功');
+          } catch (_) {
+            // 再兜底：使用红色圆点
+            final fallbackSize = _calculateAdaptedSize(24.0);
+            final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
+            markers.add(
+              Marker(
+                position: endPoint,
+                icon: fallbackIcon,
+                infoWindow: const InfoWindow(title: '', snippet: ''),
+                onTap: (_) {
+                  DebugUtil.info('点击了轨迹终点');
+                },
+              ),
+            );
+          }
         }
       }
     } catch (e) {

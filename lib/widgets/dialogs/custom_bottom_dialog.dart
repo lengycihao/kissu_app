@@ -79,7 +79,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
           // 透明Banner区域 - 透过可以看到首页内容
           if (showBanner && bannerImages != null && bannerImages!.isNotEmpty)
             Positioned(
-              top: MediaQuery.of(context).size.height - 420 - bannerHeight,
+              top: MediaQuery.of(context).size.height - 356 - bannerHeight,
               left: 0,
               right: 0,
               height: bannerHeight,
@@ -94,26 +94,26 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 420, // 固定内容区域高度
+            height: 356, // 固定内容区域高度
             child: Container(
               decoration: const BoxDecoration(
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
-              ),
+               ),
               child: Stack(
                 children: [
                   // 主要内容区域
                   GradientContentWidget(
-                    padding: const EdgeInsets.all(20).copyWith(top: 25),
+                    padding: const EdgeInsets.all(20).copyWith(top: 15),
                     child: customContent ?? _buildDefaultContent(),
                   ),
 
                   // 关闭按钮 - 使用Positioned定位
                   Positioned(
-                    top: 15,
-                    right: 16,
+                    top: 8,
+                    right: 8,
                     child: GestureDetector(
                       onTap: () async {
                         // 统一弹出挽回弹窗
@@ -141,11 +141,13 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                         }
                         // result 为 false 或 null 表示不关闭绑定弹窗
                       },
+                      child: Container(width: 32, height: 32,
+                      padding: EdgeInsets.all(8),
                       child: Image.asset(
                         "assets/3.0/kissu3_close.webp",
                         width: 16,
                         height: 16,
-                      ),
+                      ),),
                     ),
                   ),
                 ],
@@ -173,20 +175,13 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            '立即添加另一半',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xff333333),
-            ),
-          ),
+          Image.asset("assets/home/bind_dialog_title.webp", width: 154, height: 36,),
           const SizedBox(height: 8),
           const Text(
             '一起在kissu开启亲密体验吧!',
-            style: TextStyle(fontSize: 14, color: Color(0xff333333)),
+            style: TextStyle(fontSize: 14, color: Color(0x99333333)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           // 输入框
           GestureDetector(
@@ -194,23 +189,23 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
             child: Container(
               // 外层：粉色背景模拟边框
               decoration: BoxDecoration(
-                color: Color(0xffFF88AA),
+                color: Color(0xffFF9AD9),
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.all(1), // 1px边框宽度
+              padding: const EdgeInsets.all(2), // 1px边框宽度
               child: Container(
                 // 内层：白色背景
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 60,
-                  vertical: 16,
+                  horizontal: 67,
+                  vertical: 15,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(11), // 比外层小1
+                  borderRadius: BorderRadius.circular(10), // 比外层小1
                 ),
                 child: const Text(
                   '点击输入对方匹配码',
-                  style: TextStyle(color: Color(0xffFFB2C8), fontSize: 14),
+                  style: TextStyle(color: Color(0xffAAAAAA), fontSize: 12),
                 ),
               ),
             ),
@@ -218,7 +213,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
           const SizedBox(height: 16),
           const Text(
             '我的匹配码',
-            style: TextStyle(fontSize: 14, color: Color(0xff333333)),
+            style: TextStyle(fontSize: 14, color: Color(0xff333333),fontWeight:FontWeight.w500, ),
           ),
           // 我的匹配码
           Row(
@@ -227,7 +222,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
               Text(
                 controller.userMatchCode.value,
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Color(0xff333333),
                 ),
@@ -237,24 +232,24 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                 onTap: controller.copyMatchCode,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
+                    horizontal: 5,
                     vertical: 15,
                   ),
                   child: const Text(
                     '复制',
-                    style: TextStyle(color: Color(0xffFF2462), fontSize: 14),
+                    style: TextStyle(color: Color(0xffFF9AD9), fontSize: 14),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
 
           const Text(
             '你也可以通过以下方式和对方绑定',
             style: TextStyle(fontSize: 14, color: Color(0xff333333)),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // 分享方式
           Wrap(
@@ -264,44 +259,29 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                 onTap: controller.shareToQQ,
                 child: _buildShareOption("assets/3.0/kissu3_share_qq.webp"),
               ),
-              SizedBox(width: 50),
+              SizedBox(width: 42),
               GestureDetector(
                 onTap: controller.shareToWechat,
                 child: _buildShareOption("assets/3.0/kissu3_share_wechat.webp"),
               ),
-              SizedBox(width: 50),
+              SizedBox(width: 42),
               GestureDetector(
                 onTap: controller.scanQRCode,
                 child: _buildShareOption("assets/3.0/kissu3_share_scan.webp"),
               ),
             ],
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 8),
 
           // 二维码链接
           GestureDetector(
             onTap: controller.viewQRCode,
-            child: Stack(
-              children: [
-                Positioned(
-                  bottom: 0,
-                  child: Container(
-                    width: 75,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: Color(0xffFFEEE8),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                const Text(
+            child: const Text(
                   '查看二维码',
-                  style: TextStyle(color: Color(0xff4496F9), fontSize: 12),
+                  style: TextStyle(color: Color(0xffFF9AD9), fontSize: 12,fontWeight: FontWeight.w500),
                 ),
-              ],
-            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 5),
         ],
       );
     });
@@ -449,8 +429,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
 
   Widget _buildShareOption(String icon) {
     return Container(
-      width: 60,
-      height: 60,
+      width: 40,
+      height: 40,
       child: Image(image: AssetImage(icon), fit: BoxFit.contain),
     );
   }

@@ -1,7 +1,7 @@
 ﻿import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
@@ -93,14 +93,14 @@ class _TrackPageContentState extends State<_TrackPageContent>
     final isBindPartner = widget.controller.isBindPartner.value;
     final isVip = UserManager.isVip;
     // 未绑定或未开通会员时：280，已绑定且是会员时：190
-    return (!isBindPartner || !isVip) ? 280 : 190;
+    return (!isBindPartner || !isVip) ? 315 : 190;
   }
 
   double get minHeight {
     final isBindPartner = widget.controller.isBindPartner.value;
     final isVip = UserManager.isVip;
     // 未绑定或未开通会员时：280，已绑定且是会员时：190
-    return (!isBindPartner || !isVip) ? 280 : 190;
+    return (!isBindPartner || !isVip) ? 315 : 190;
   }
 
   double get mapHeight => screenHeight - initialHeight + 90;
@@ -250,17 +250,29 @@ class _TrackPageContentState extends State<_TrackPageContent>
                         (21 / screenHeight) // 已绑定：屏幕中间
                   : 0.5 + (57 / screenHeight); // 未绑定：稍微往上偏移42px（设备模块高度差）+ 35
 
+              final isVip = UserManager.isVip;
+              final isBindPartner = widget.controller.isBindPartner.value;
+              final bool shouldUseLocationStyleSnap =
+                  !isBindPartner || !isVip; // 与定位页蒙版出现条件一致
+
               return DraggableScrollableSheet(
                 controller: _draggableController,
                 initialChildSize: initialHeight / screenHeight,
                 minChildSize: minHeight / screenHeight,
                 maxChildSize: maxHeight / screenHeight,
                 snap: true, // 启用吸附效果
-                snapSizes: [
-                  minHeight / screenHeight, // 最小高度（底部位置）
-                  middleSnapSize, // 🔧 动态中间位置（根据绑定状态调整）
-                  (screenHeight - 100) / screenHeight, // 距离屏幕顶部100px
-                ],
+                snapSizes: shouldUseLocationStyleSnap
+                    ? [
+                        // 与定位页面一致：只在中间和顶部吸顶
+                        middleSnapSize,
+                        (screenHeight - 100) / screenHeight,
+                      ]
+                    : [
+                        // 原有逻辑：底部 + 中间 + 顶部
+                        minHeight / screenHeight, // 最小高度（底部位置）
+                        middleSnapSize, // 🔧 动态中间位置（根据绑定状态调整）
+                        (screenHeight - 100) / screenHeight, // 距离屏幕顶部100px
+                      ],
                 snapAnimationDuration: const Duration(
                   milliseconds: 200,
                 ), // 缩短吸附动画时间
@@ -289,7 +301,22 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                   return false;
                                 },
                                 child: Container(
-                                  color: const Color(0xFFF6F6F6),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.only(
+                                      topRight: Radius.circular(18),
+                                      topLeft: Radius.circular(18),
+                                    ),
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Color(0xffFFF1FD),
+                                        Color(0xfff6f6f6),
+                                        Color(0xfff6f6f6),
+                                      ],
+                                      begin: AlignmentGeometry.topCenter,
+                                      end: AlignmentGeometry.bottomCenter,
+                                      stops: [0.0, 0.3, 1.0],
+                                    ),
+                                  ),
                                   padding: const EdgeInsets.only(top: 5),
                                   child: Column(
                                     children: [
@@ -298,7 +325,9 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                         width: 46,
                                         height: 7,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(3.5),
+                                          borderRadius: BorderRadius.circular(
+                                            3.5,
+                                          ),
                                           color: const Color(0xFFD9D9D9),
                                         ),
                                       ),
@@ -307,7 +336,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                         child: CustomScrollView(
                                           controller: scrollController,
                                           physics: const BouncingScrollPhysics(
-                                            parent: AlwaysScrollableScrollPhysics(),
+                                            parent:
+                                                AlwaysScrollableScrollPhysics(),
                                           ),
                                           cacheExtent: 500,
                                           slivers: [
@@ -330,20 +360,24 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                               child: Stack(
                                                 children: [
                                                   Container(
-                                                    margin: const EdgeInsets.only(
-                                                      left: 14,
-                                                      right: 14,
-                                                      top: 10,
-                                                      bottom: 15,
-                                                    ),
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 15,
-                                                    ),
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                          left: 14,
+                                                          right: 14,
+                                                          top: 10,
+                                                          bottom: 15,
+                                                        ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 15,
+                                                        ),
                                                     decoration: BoxDecoration(
-                                                      color: Colors.white,
+                                                      color: Colors.transparent,
                                                       borderRadius:
-                                                          BorderRadius.circular(20),
+                                                          BorderRadius.circular(
+                                                            20,
+                                                          ),
                                                     ),
                                                     child: Obx(() {
                                                       if (widget
@@ -351,10 +385,12 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                                           .stopRecords
                                                           .isEmpty) {
                                                         return Container(
-                                                          width: double.infinity,
-                                                          padding: const EdgeInsets.symmetric(
-                                                            vertical: 40,
-                                                          ),
+                                                          width:
+                                                              double.infinity,
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 40,
+                                                              ),
                                                           child: Column(
                                                             children: [
                                                               Image.asset(
@@ -362,9 +398,11 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                                                 width: 128,
                                                                 height: 128,
                                                               ),
-                                                              const SizedBox(height: 16),
+                                                              const SizedBox(
+                                                                height: 6,
+                                                              ),
                                                               const Text(
-                                                                '对方目前还没有足迹内容哦～',
+                                                                '目前还没有足迹哦～',
                                                                 style: TextStyle(
                                                                   fontSize: 14,
                                                                   color: Color(
@@ -378,7 +416,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                                       }
 
                                                       return _OptimizedStopRecordsListWithBackground(
-                                                        controller: widget.controller,
+                                                        controller:
+                                                            widget.controller,
                                                       );
                                                     }),
                                                   ),
@@ -404,6 +443,54 @@ class _TrackPageContentState extends State<_TrackPageContent>
               );
             }),
           ),
+
+          // 列表底部吸底图片（固定贴着屏幕底部）
+          Obx(() {
+            // 显示逻辑参考定位页：当下半屏滑到接近顶部时开始显示并淡入
+            final currentPercent = widget.controller.sheetPercent.value;
+            final maxPercent = (screenHeight - 100) / screenHeight;
+            const imageHeight = 115.0;
+            final startShowPercent = (screenHeight - 100 - imageHeight) / screenHeight;
+
+            double imageOpacity = 0.0;
+            if (currentPercent >= startShowPercent && currentPercent <= maxPercent) {
+              final progress = (currentPercent - startShowPercent) / (maxPercent - startShowPercent);
+              imageOpacity = progress.clamp(0.0, 1.0);
+            } else if (currentPercent > maxPercent) {
+              imageOpacity = 1.0;
+            }
+
+            return Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: true,
+                top: false,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 120),
+                  opacity: imageOpacity,
+                  child: SizedBox(
+                    height: imageHeight,
+                    width: double.infinity,
+                    child: Image.asset(
+                      'assets/location/kissu3_track_bottom_bg.webp',
+                      width: MediaQuery.of(context).size.width,
+                      height: imageHeight,
+                      fit: BoxFit.fill,
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('底部背景图片加载失败: $error');
+                        return Container(
+                          height: imageHeight,
+                          color: const Color(0xFFE0E0E0),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
 
           // 地图logo - 悬浮在地图上，位置跟随下半屏移动
           _buildMapLogo(),
@@ -463,37 +550,41 @@ class _TrackPageContentState extends State<_TrackPageContent>
   // 统计栏组件
   Widget _buildStatisticsRow() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 12),
-      margin: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(  vertical:10),
+      // margin: const EdgeInsets.symmetric(horizontal: 5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
+        spacing: 20,
         children: [
           Obx(
             () => _buildStat(
               "停留次数",
               widget.controller.stayCount.value.toString(),
+              "次",
               icon: Icons.location_on,
               color: Color(0xFFFF6B6B),
             ),
           ),
-
+          Container(width: 1, height: 27, color: Color(0x4d000000)),
           Obx(
             () => _buildStat(
-              "停留时间",
+              "停留时长",
               widget.controller.stayDuration.value.isEmpty
                   ? "0分钟"
                   : widget.controller.stayDuration.value,
+              "",
               icon: Icons.access_time,
               color: Color(0xFF4ECDC4),
             ),
           ),
-
+  Container(width: 1, height: 27, color: Color(0x4d000000)),
           Obx(
             () => _buildStat(
               "移动距离",
               widget.controller.moveDistance.value.isEmpty
                   ? "0.0km"
                   : widget.controller.moveDistance.value,
+              "米",
               icon: Icons.directions_walk,
               color: Color(0xFF45B7D1),
             ),
@@ -505,7 +596,8 @@ class _TrackPageContentState extends State<_TrackPageContent>
 
   Widget _buildStat(
     String label,
-    String value, {
+    String value,
+    String danwei, {
     IconData? icon,
     Color? color,
   }) {
@@ -513,25 +605,35 @@ class _TrackPageContentState extends State<_TrackPageContent>
       child: Column(
         children: [
           Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF333333),
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
             label,
             style: const TextStyle(
               fontSize: 12,
-              color: Color(0xFF000000),
+              color: Color(0x99000000),
               // fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color(0xFF333333),
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                danwei,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ],
       ),
@@ -545,7 +647,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
       if (widget.controller.isBindPartner.value) {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 14),
-          padding: const EdgeInsets.only(bottom: 10, top: 10),
+          // padding: const EdgeInsets.only(bottom: 10, top: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: Colors.white,
@@ -556,14 +658,26 @@ class _TrackPageContentState extends State<_TrackPageContent>
             onSelect: (date) {
               widget.controller.selectDate(date);
             },
+            showBorder: true,
+            unselectedBorderColor: Color(0xffDCDCDC),
+            selectedBackgroundColor: const Color(0xFFFF9AD9),
+            selectedTextColor: Colors.white,
+            unselectedTextColor: const Color(0x99333333),
+            height: 65,
+            borderRadius: 12,
+            padding: EdgeInsets.only(top: 10, bottom: 10),
+            margin: const EdgeInsets.symmetric(
+              horizontal: 8,
+              // vertical: 1,
+            ),
           ),
         );
       }
 
       // 未绑定时显示带背景图的绑定模块
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14),
-        height: 92,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        height: 65,
 
         child: Stack(
           children: [
@@ -584,14 +698,18 @@ class _TrackPageContentState extends State<_TrackPageContent>
                   onSelect: (date) {
                     widget.controller.selectDate(date);
                   },
-                  showBorder: false,
-                  selectedBackgroundColor:
-                      const Color(0xFFFF74A0).withOpacity(0.8),
+                  showBorder: true,
+                  unselectedBorderColor: Color(0xffDCDCDC),
+                  selectedBackgroundColor: const Color(0xFFFF9AD9),
                   selectedTextColor: Colors.white,
-                  unselectedTextColor: const Color(0xff333333),
-                  height: 50,
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+                  unselectedTextColor: const Color(0x99333333),
+                  height: 65,
+                  borderRadius: 12,
+                  padding: EdgeInsets.only(top: 10, bottom: 10),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    // vertical: 1,
+                  ),
                 ),
               ),
             ),
@@ -608,7 +726,7 @@ class _TrackPageContentState extends State<_TrackPageContent>
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: const Color(0xffFFFAFA),
+        color: const Color(0xffFFffff),
       ),
       child: _buildStatisticsRow(),
     );
@@ -653,10 +771,21 @@ class _TrackPageContentState extends State<_TrackPageContent>
               AbsorbPointer(
                 child: Column(
                   children: [
+                    const SizedBox(height: 5),
+                    // 顶部指示条（与内容区保持一致）
+                    Container(
+                      width: 46,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: const Color(0xFFffffff),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
                     // 顶部日期组件（清晰的，不模糊）
                     _buildDateModule(),
 
-                    // const SizedBox(height: 20),
+                    const SizedBox(height: 10),
                     // 原来的蒙版整体
                     Expanded(
                       child: ClipRRect(
@@ -678,17 +807,14 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                 children: [
                                   // 文字图片
                                   Image.asset(
-                                    'assets/images/kissu3_go_label.webp',
-                                    width: 216,
+                                    'assets/images/kissu3_go_label_track.webp',
+                                    width: 237,
                                     height: 32,
                                     fit: BoxFit.contain,
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 50),
                                   // 按钮占位（实际按钮在上层）
-                                  SizedBox(
-                                    width: 150,
-                                    height: 48,
-                                  ),
+                                  SizedBox(width: 175, height: 44),
                                 ],
                               ),
                             ),
@@ -730,15 +856,15 @@ class _TrackPageContentState extends State<_TrackPageContent>
                                   'previousPageName': '足迹页面',
                                   'previousPageId': 'footprint_page',
                                 },
-                              ) ;
+                              );
                             }
                           },
                           child: Image.asset(
                             !isBindPartner
                                 ? 'assets/images/kissu3_go_bind.webp' // 未绑定
                                 : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
-                            width: 150,
-                            height: 48,
+                            width: !isBindPartner ? 175 : 189,
+                            height: !isBindPartner ? 44 : 60,
                             fit: BoxFit.contain,
                           ),
                         ),
@@ -794,7 +920,11 @@ class _TrackPageContentState extends State<_TrackPageContent>
         left: 16,
         child: Opacity(
           opacity: opacity,
-          child: Image.asset('assets/images/map_logo.webp', width: 68, height: 22),
+          child: Image.asset(
+            'assets/images/map_logo.webp',
+            width: 68,
+            height: 22,
+          ),
         ),
       );
     });
@@ -849,7 +979,7 @@ class _CachedMapWidget extends StatefulWidget {
 class _StopWithIndex {
   final StopRecord stop;
   final int index;
-  
+
   _StopWithIndex({required this.stop, required this.index});
 }
 
@@ -865,7 +995,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() { 
+    return Obx(() {
       // 检查标记是否需要更新
       final currentMarkersVersion =
           widget.controller.stopMarkers.length +
@@ -883,9 +1013,9 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
           ? widget.controller.trackPoints.length
           : 0;
       final currentStopRecordsVersion = widget.controller.stopRecords.length;
-      
+
       // 如果轨迹点或停留点记录发生变化，都需要更新轨迹线
-      if (currentPolylinesVersion != _polylinesVersion || 
+      if (currentPolylinesVersion != _polylinesVersion ||
           currentStopRecordsVersion != _stopRecordsVersion) {
         // 使用 Future.microtask 避免在 build 期间调用 setState
         Future.microtask(() {
@@ -965,12 +1095,17 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
     const double earthRadius = 6371000; // 地球半径（米）
     final double lat1Rad = point1.latitude * math.pi / 180;
     final double lat2Rad = point2.latitude * math.pi / 180;
-    final double deltaLatRad = (point2.latitude - point1.latitude) * math.pi / 180;
-    final double deltaLngRad = (point2.longitude - point1.longitude) * math.pi / 180;
+    final double deltaLatRad =
+        (point2.latitude - point1.latitude) * math.pi / 180;
+    final double deltaLngRad =
+        (point2.longitude - point1.longitude) * math.pi / 180;
 
-    final double a = math.sin(deltaLatRad / 2) * math.sin(deltaLatRad / 2) +
-        math.cos(lat1Rad) * math.cos(lat2Rad) *
-            math.sin(deltaLngRad / 2) * math.sin(deltaLngRad / 2);
+    final double a =
+        math.sin(deltaLatRad / 2) * math.sin(deltaLatRad / 2) +
+        math.cos(lat1Rad) *
+            math.cos(lat2Rad) *
+            math.sin(deltaLngRad / 2) *
+            math.sin(deltaLngRad / 2);
     final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 
     return earthRadius * c;
@@ -979,10 +1114,10 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
   /// 在轨迹点中找到距离给定坐标最近的点索引
   int _findNearestPointIndex(List<LatLng> trackPoints, LatLng target) {
     if (trackPoints.isEmpty) return 0;
-    
+
     int nearestIndex = 0;
     double minDistance = double.infinity;
-    
+
     for (int i = 0; i < trackPoints.length; i++) {
       final distance = _calculateDistance(trackPoints[i], target);
       if (distance < minDistance) {
@@ -990,7 +1125,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
         nearestIndex = i;
       }
     }
-    
+
     return nearestIndex;
   }
 
@@ -1026,7 +1161,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
             DebugUtil.error('❌ 蓝色纹理加载失败: $e');
           }
         }
-        
+
         // 确保纹理已加载
         if (_trackLineTextureRed == null || _trackLineTextureBlue == null) {
           DebugUtil.error('❌ 纹理未完全加载，无法创建轨迹线');
@@ -1034,21 +1169,25 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
         }
 
         // 如果有停留点记录，按停留点分段
-        DebugUtil.info('🎨 检查停留点记录: stopRecords.length=${stopRecords.length}, trackPoints.length=${trackPoints.length}');
+        DebugUtil.info(
+          '🎨 检查停留点记录: stopRecords.length=${stopRecords.length}, trackPoints.length=${trackPoints.length}',
+        );
         if (stopRecords.isNotEmpty) {
           DebugUtil.info('🎨 开始分段轨迹线，停留点记录数量: ${stopRecords.length}');
-          
+
           // 按顺序排列停留点（起点 -> 停留点1 -> 停留点2 -> ... -> 终点）
           final sortedStops = <StopRecord>[];
-          
+
           // 找到起点
           final startRecord = stopRecords.firstWhere(
             (record) => record.pointType == 'start',
             orElse: () => stopRecords.first,
           );
           sortedStops.add(startRecord);
-          DebugUtil.info('📍 起点: ${startRecord.pointType}, serialNumber: ${startRecord.serialNumber}');
-          
+          DebugUtil.info(
+            '📍 起点: ${startRecord.pointType}, serialNumber: ${startRecord.serialNumber}',
+          );
+
           // 添加所有停留点（按 serialNumber 排序）
           final stopRecordsList = stopRecords
               .where((record) => record.pointType == 'stop')
@@ -1060,7 +1199,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
           });
           sortedStops.addAll(stopRecordsList);
           DebugUtil.info('📍 停留点数量: ${stopRecordsList.length}');
-          
+
           // 找到终点（优先从 stopRecords 中找，如果没有则使用轨迹点最后一个）
           StopRecord? endRecord;
           try {
@@ -1082,48 +1221,55 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
               serialNumber: '终',
             );
           }
-          
+
           // 确保终点和起点不同
           if (endRecord != startRecord) {
             // 检查终点是否已经在列表中（避免重复）
-            final endExists = sortedStops.any((stop) => 
-              stop.latitude == endRecord!.latitude && 
-              stop.longitude == endRecord.longitude
+            final endExists = sortedStops.any(
+              (stop) =>
+                  stop.latitude == endRecord!.latitude &&
+                  stop.longitude == endRecord.longitude,
             );
             if (!endExists) {
               sortedStops.add(endRecord);
             }
           }
-          DebugUtil.info('📍 终点: ${endRecord.pointType}, serialNumber: ${endRecord.serialNumber}');
+          DebugUtil.info(
+            '📍 终点: ${endRecord.pointType}, serialNumber: ${endRecord.serialNumber}',
+          );
           DebugUtil.info('📍 总分段点数: ${sortedStops.length}');
-          
+
           // 如果只有起点和终点（没有中间停留点），需要确保至少有2个点才能分段
           if (sortedStops.length < 2) {
             DebugUtil.warning('⚠️ 分段点不足（只有${sortedStops.length}个），使用轨迹点起点和终点');
             DebugUtil.warning('⚠️ 分段点不足，使用轨迹点起点和终点');
             sortedStops.clear();
-            sortedStops.add(StopRecord(
-              latitude: trackPoints.first.latitude,
-              longitude: trackPoints.first.longitude,
-              locationName: '起点',
-              startTime: '',
-              endTime: '',
-              duration: '',
-              status: '',
-              pointType: 'start',
-              serialNumber: '起',
-            ));
-            sortedStops.add(StopRecord(
-              latitude: trackPoints.last.latitude,
-              longitude: trackPoints.last.longitude,
-              locationName: '终点',
-              startTime: '',
-              endTime: '',
-              duration: '',
-              status: '',
-              pointType: 'end',
-              serialNumber: '终',
-            ));
+            sortedStops.add(
+              StopRecord(
+                latitude: trackPoints.first.latitude,
+                longitude: trackPoints.first.longitude,
+                locationName: '起点',
+                startTime: '',
+                endTime: '',
+                duration: '',
+                status: '',
+                pointType: 'start',
+                serialNumber: '起',
+              ),
+            );
+            sortedStops.add(
+              StopRecord(
+                latitude: trackPoints.last.latitude,
+                longitude: trackPoints.last.longitude,
+                locationName: '终点',
+                startTime: '',
+                endTime: '',
+                duration: '',
+                status: '',
+                pointType: 'end',
+                serialNumber: '终',
+              ),
+            );
           }
 
           // 🎯 始终确保最后一个轨迹点作为终点分段点，避免轨迹线未连到终点 marker 的问题
@@ -1161,16 +1307,16 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
             );
             validStops.add(_StopWithIndex(stop: stop, index: index));
           }
-          
+
           // 按索引排序
           validStops.sort((a, b) => a.index.compareTo(b.index));
-          
+
           // 去重：如果多个停留点对应同一个轨迹点索引，需要智能处理
           // 策略：对于相同索引的停留点组，保留第一个和最后一个，确保分段完整
           final uniqueStops = <_StopWithIndex>[];
           int? lastIndex;
           List<_StopWithIndex>? currentGroup; // 当前相同索引的停留点组
-          
+
           for (final stopWithIndex in validStops) {
             if (lastIndex == null || stopWithIndex.index != lastIndex) {
               // 遇到新的索引
@@ -1181,7 +1327,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
                 // 只有一个，直接添加
                 uniqueStops.add(currentGroup.first);
               }
-              
+
               // 开始新的组
               currentGroup = [stopWithIndex];
               lastIndex = stopWithIndex.index;
@@ -1190,7 +1336,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
               currentGroup!.add(stopWithIndex);
             }
           }
-          
+
           // 处理最后一组
           if (currentGroup != null) {
             if (currentGroup.length > 1) {
@@ -1201,30 +1347,41 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
               uniqueStops.add(currentGroup.first);
             }
           }
-          
-          DebugUtil.info('🎨 去重后有效停留点数: ${uniqueStops.length} (原始: ${sortedStops.length})');
-          
+
+          DebugUtil.info(
+            '🎨 去重后有效停留点数: ${uniqueStops.length} (原始: ${sortedStops.length})',
+          );
+
           // 根据停留点分段轨迹线
           DebugUtil.info('🎨 准备创建 ${uniqueStops.length - 1} 段轨迹线');
           for (int i = 0; i < uniqueStops.length - 1; i++) {
             final startStop = uniqueStops[i];
             final endStop = uniqueStops[i + 1];
-            
+
             final startIndex = startStop.index;
             final endIndex = endStop.index;
-            
-            DebugUtil.info('🎨 分段 $i: startIndex=$startIndex, endIndex=$endIndex');
-            
+
+            DebugUtil.info(
+              '🎨 分段 $i: startIndex=$startIndex, endIndex=$endIndex',
+            );
+
             // 确保索引顺序正确且有效
             if (endIndex > startIndex && endIndex < trackPoints.length) {
-              final segmentPoints = trackPoints.sublist(startIndex, endIndex + 1);
-              
+              final segmentPoints = trackPoints.sublist(
+                startIndex,
+                endIndex + 1,
+              );
+
               if (segmentPoints.length >= 2) {
                 // 红蓝交替：偶数索引（0, 2, 4...）用红色，奇数索引（1, 3, 5...）用蓝色
                 final isRed = i % 2 == 0;
-                final texture = isRed ? _trackLineTextureRed! : _trackLineTextureBlue!;
-                DebugUtil.info('🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentPoints.length}');
-                
+                final texture = isRed
+                    ? _trackLineTextureRed!
+                    : _trackLineTextureBlue!;
+                DebugUtil.info(
+                  '🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentPoints.length}',
+                );
+
                 // 如果分段太长，需要进一步分割（每段最多100个点）
                 const int maxPointsPerSegment = 100;
                 if (segmentPoints.length <= maxPointsPerSegment) {
@@ -1247,8 +1404,11 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
                       0,
                       segmentPoints.length,
                     );
-                    final subSegmentPoints = segmentPoints.sublist(j, subEndIndex);
-                    
+                    final subSegmentPoints = segmentPoints.sublist(
+                      j,
+                      subEndIndex,
+                    );
+
                     if (subSegmentPoints.length >= 2) {
                       newPolylines.add(
                         Polyline(
@@ -1263,13 +1423,17 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
                   }
                 }
               } else {
-                DebugUtil.warning('⚠️ 分段 $i: 点数不足，跳过 (${segmentPoints.length})');
+                DebugUtil.warning(
+                  '⚠️ 分段 $i: 点数不足，跳过 (${segmentPoints.length})',
+                );
               }
             } else {
-              DebugUtil.warning('⚠️ 分段 $i: 索引无效，跳过 (startIndex=$startIndex, endIndex=$endIndex, trackPoints.length=${trackPoints.length})');
+              DebugUtil.warning(
+                '⚠️ 分段 $i: 索引无效，跳过 (startIndex=$startIndex, endIndex=$endIndex, trackPoints.length=${trackPoints.length})',
+              );
             }
           }
-          
+
           DebugUtil.info('✅ 轨迹线分段完成，共创建 ${newPolylines.length} 条线段');
         } else {
           // 如果没有停留点记录，使用默认纹理（红色）
@@ -1277,7 +1441,7 @@ class _CachedMapWidgetState extends State<_CachedMapWidget> {
             const ImageConfiguration(),
             'assets/texture/kissu4_track_line_red.png',
           );
-          
+
           const int maxPointsPerSegment = 100;
           if (trackPoints.length <= maxPointsPerSegment) {
             newPolylines.add(
@@ -1406,11 +1570,9 @@ class _AvatarButtonState extends State<_AvatarButton> {
 
   @override
   Widget build(BuildContext context) {
-    // iOS风格尺寸定义
-    const selectedSize = 32.0; // 选中时的尺寸
-    const unselectedSize = 25.0; // 未选中时的尺寸
-    const selectedRadius = 12.0; // 选中时的圆角
-    const unselectedRadius = 9.0; // 未选中时的圆角
+    // 顶部头像尺寸（圆形）
+    const selectedSize = 38.0; // 选中/大的尺寸
+    const unselectedSize = 34.0; // 未选中/小的尺寸
 
     return Obx(() {
       final currentIsOneselfValue = widget.controller.isOneself.value;
@@ -1419,12 +1581,7 @@ class _AvatarButtonState extends State<_AvatarButton> {
           (!widget.isMyself && currentIsOneselfValue == 0);
 
       // iOS风格：直接根据选中状态确定尺寸，而不是用scale
-      final actualSize = (isSelected && _isAvatarLoaded)
-          ? selectedSize
-          : unselectedSize;
-      final cornerRadius = (isSelected && _isAvatarLoaded)
-          ? selectedRadius
-          : unselectedRadius;
+      final actualSize = (isSelected && _isAvatarLoaded) ? selectedSize : unselectedSize;
 
       final avatarUrl = widget.isMyself
           ? widget.controller.myAvatar.value
@@ -1442,7 +1599,7 @@ class _AvatarButtonState extends State<_AvatarButton> {
               width: actualSize,
               height: actualSize,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(cornerRadius),
+                shape: BoxShape.circle,
                 border: (isSelected && _isAvatarLoaded)
                     ? Border.all(color: const Color(0xFFFF88AA), width: 1)
                     : null,
@@ -1461,7 +1618,7 @@ class _AvatarButtonState extends State<_AvatarButton> {
                 defaultAsset: '',
                 width: actualSize,
                 height: actualSize,
-                borderRadius: BorderRadius.circular(cornerRadius - 1),
+                borderRadius: BorderRadius.circular(actualSize / 2),
                 fit: BoxFit.cover,
                 onImageLoaded: () {
                   setState(() {
@@ -1584,16 +1741,10 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final maxHeight = screenHeight - 100; // 顶部吸顶位置
-    final maxPercent = maxHeight / screenHeight;
-    final imageHeight = 140.0;
-    final startShowPercent =
-        (maxHeight - imageHeight) / screenHeight; // 开始显示图片的位置
+    // final imageHeight = 140.0; // 不再使用
 
     return Obx(() {
       final records = controller.stopRecords;
-      final currentPercent = controller.sheetPercent.value;
       final isLoading = controller.isLoading.value;
 
       // 🐛 调试信息
@@ -1602,17 +1753,7 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
         tag: 'TrackPage',
       );
 
-      // 计算图片透明度
-      // 从 startShowPercent 滑动到 maxPercent 时，透明度从 0 到 1
-      double imageOpacity = 0.0;
-      if (currentPercent >= startShowPercent && currentPercent <= maxPercent) {
-        final progress =
-            (currentPercent - startShowPercent) /
-            (maxPercent - startShowPercent);
-        imageOpacity = progress.clamp(0.0, 1.0);
-      } else if (currentPercent > maxPercent) {
-        imageOpacity = 1.0;
-      }
+      // 图片透明度逻辑已移除（不再使用）
 
       return Stack(
         children: [
@@ -1623,7 +1764,6 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
               // 🎯 加载状态：显示占位动画
               if (isLoading) ...[
                 _buildShimmerLoadingList(),
-                SizedBox(height: imageHeight),
               ]
               // 停留记录列表
               else if (records.isNotEmpty) ...[
@@ -1639,33 +1779,14 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
                     ),
                   );
                 }),
-                // 添加底部间距，为背景图片留出空间
-                SizedBox(height: imageHeight),
+                
               ]
               // 空状态
               else ...[
-                SizedBox(height: imageHeight),
               ],
             ],
           ),
-          // 底部背景图片 - 根据滑动位置逐渐显现
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 100),
-              opacity: imageOpacity,
-              child: Center(
-                child: Image.asset(
-                  'assets/location/kissu3_list_bottom_bg.webp',
-                  width: 284,
-                  height: imageHeight,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
+     
         ],
       );
     });
@@ -1715,7 +1836,8 @@ class _GradientBackgroundOverlayState
     if (currentPercent > middlePosition) {
       final progress =
           (currentPercent - middlePosition) / (maxPosition - middlePosition);
-      newOpacity = progress.clamp(0.0, 1.0);
+      // 限制渐变最大到 0.8（顶部不完全不透明），将 progress 映射到 0.0 - 0.8
+      newOpacity = (progress.clamp(0.0, 1.0)) * 0.8;
     }
 
     if (mounted && newOpacity != _opacity) {

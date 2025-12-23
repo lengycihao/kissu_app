@@ -427,7 +427,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
           backgroundColor: Colors.transparent,
           child: Container(
             padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
-            height: 400.0, // 使用您原来的高度
+            height: 300.0, // 使用您原来的高度
             decoration: BoxDecoration(
               image: const DecorationImage(
                 image: AssetImage('assets/images/kissu_privacy_bg.webp'),
@@ -438,37 +438,48 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(height: 0),
+                Text('用户协议及隐私政策', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff333333)),),
                 Padding(
                   padding: const EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    bottom: 20,
-                    top: 40,
+                    left: 15,
+                    right: 15,
+                    bottom: 15,
+                    top: 20,
                   ),
                   child: const AgreementRichText(textAlign: TextAlign.left),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    DialogButton(
-                      text: '暂不同意',
-                      width: 100,
-                      backgroundImage:
-                          'assets/images/kissu_dialop_common_cancel_bg.webp',
-                      onTap: () {
-                        Navigator.of(context).pop(false); // 返回 false 表示取消
-                      },
-                    ),
-                    DialogButton(
-                      text: '同意并继续',
-                      width: 100,
-                      backgroundImage:
-                          'assets/images/kissu_dialop_common_sure_bg.webp',
+                    
+                    GestureDetector(
+                      child: Container(
+                        width: double.infinity,
+                        height: 36,
+                        margin: EdgeInsets.only(left: 15, right: 15,bottom: 15,top: 15),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Color(0xFFFF9AD9),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Text('同意', style: TextStyle(fontSize: 14, color: Color(0xffffffff)),),
+                      ),
                       onTap: () {
                         Navigator.of(context).pop(true); // 返回 true 表示同意
                       },
                     ),
+                    GestureDetector(
+                      child: Container(
+                       
+                        child: Text('不同意', style: TextStyle(fontSize: 12, color: Color(0xff999999),fontWeight: FontWeight.w500),),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop(false); // 返回 true 表示同意
+                      },
+                    ),
+                   
                   ],
                 ),
               ],

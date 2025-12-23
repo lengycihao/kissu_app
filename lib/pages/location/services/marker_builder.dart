@@ -18,7 +18,8 @@ class MarkerBuilder {
   /// 🚀 创建纯底座Marker（用于实时旋转）
   Future<BitmapDescriptor> createPedestalMarker({
     required String pedestalAsset,
-    double size = 800.0, // 底座大小
+    double size = 800.0, // 底座大小（向后兼容）
+    double? designSize, // 可选：直接传入设计稿尺寸（如14或200）
   }) async {
     final pedestal = await _imageService.loadImageFromAsset(pedestalAsset);
     if (pedestal == null) {
@@ -33,9 +34,9 @@ class MarkerBuilder {
     const designWidth = 375.0;
     final screenScale = screenWidth / designWidth;
 
-    // 如果请求尺寸>100，说明是大底座(设计稿128px)，否则是小底座(设计稿40px)
-    final designSize = size > 100 ? 200.0 : 14.0;
-    final adjustedSize = designSize * screenScale * dpr;
+    // 支持直接传入 designSize，否则使用向后兼容的阈值逻辑
+    final resolvedDesignSize = designSize ?? (size > 100 ? 200.0 : 21.0);
+    final adjustedSize = resolvedDesignSize * screenScale * dpr;
 
     debugPrint('📱 ============ 底座Marker创建 ============');
     debugPrint('📱 设备像素比(DPI): $dpr');
@@ -44,9 +45,9 @@ class MarkerBuilder {
       '📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)',
     );
     debugPrint('📱 请求底座尺寸: ${size}px');
-    debugPrint('📱 设计稿尺寸: ${designSize}px');
+    debugPrint('📱 设计稿尺寸: ${resolvedDesignSize}px');
     debugPrint(
-      '📱 实际底座尺寸: ${adjustedSize.toStringAsFixed(1)}px (${designSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
+      '📱 实际底座尺寸: ${adjustedSize.toStringAsFixed(1)}px (${resolvedDesignSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
     );
     debugPrint('📱 ==========================================');
 
@@ -112,7 +113,7 @@ class MarkerBuilder {
 
       // 设计稿基准：375px屏幕宽度，头像60px，大底座128px，小底座40px
       const designWidth = 375.0;
-      const designAvatarSize = 60.0;
+      const designAvatarSize = 50.0;
       const designLargePedestalSize = 200.0;
       const designSmallPedestalSize = 14.0;
 
@@ -258,22 +259,12 @@ class MarkerBuilder {
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, size / 2, avatarPaint);
 
-    // 第一层：外层粉色边框 (#FF88AA, 4px)
+    // 单层白色边框（宽度 1），移除原有粉色/内层双重边框
     final outerBorderPaint = Paint()
-      ..color = const Color(0xFFFF88AA)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-    canvas.drawCircle(center, size / 2, outerBorderPaint);
-
-    // 第二层：内层白色边框 (白色, 9px)
-    // 白色边框要在粉色边框内侧，不能覆盖粉色
-    // 粉色边框外半径 = size/2，内半径 = size/2 - 2
-    // 白色边框应该从 size/2 - 2 开始往内，宽度9px，所以中心线在 size/2 - 2 - 4.5 = size/2 - 6.5
-    final innerBorderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 9;
-    canvas.drawCircle(center, size / 2 - 6.5, innerBorderPaint);
+      ..strokeWidth = 2;
+    canvas.drawCircle(center, size / 2, outerBorderPaint);
 
     // 加载并绘制头像图片
     ui.Image? avatarImage;
@@ -295,9 +286,8 @@ class MarkerBuilder {
 
     if (avatarImage != null) {
       canvas.save();
-      // 头像应该在白色边框内侧
-      // 白色边框中心线在 size/2 - 6.5，宽度9px，所以内半径 = size/2 - 6.5 - 4.5 = size/2 - 11
-      final avatarRadius = size / 2 - 11;
+      // 头像应该在白色边框内侧，留出少量内间距
+      final avatarRadius = size / 2 - 4;
       final avatarInnerRect = Rect.fromCenter(
         center: center,
         width: avatarRadius * 2,

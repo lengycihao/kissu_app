@@ -29,28 +29,12 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
       return const SizedBox.shrink();
     }
 
-    if (widget.imagePaths.length == 1) {
-      // 只有一张图片时，只显示完整图片
-      return Column(
-        children: [
-          Container(
-            height: 175,
-            decoration: const BoxDecoration(
-              color: Colors.transparent,
-            ),
-            child: Center(
-              child: _buildImageCard(widget.imagePaths[0], isMain: true),
-            ),
-          ),
-        ],
-      );
-    }
-
+     
     return Column(
       children: [
         // Banner区域 - 使用card_swiper插件实现复杂轮播
         Container(
-          height: 175,
+          height: 205,
           decoration: const BoxDecoration(
             color: Colors.transparent,
           ),
@@ -67,29 +51,31 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
               });
             },
             // 关键配置：实现一屏显示三张图片的效果
-            viewportFraction: 0.6, // 当前图片占80%宽度，两侧各留10%
-            scale: 0.8, // 侧边图片缩放80%
+            viewportFraction: 0.75, // 当前图片占80%宽度，两侧各留10%
+            scale: 0.85, // 侧边图片缩放80%
             loop: true, // 无限循环
+            fade: 0.7,
+             
           ),
         ),
-        const SizedBox(height: 10),
-        // 指示器 - 完全放在轮播图外面
-        if (widget.imagePaths.length > 1)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.imagePaths.length,
-              (index) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width:_currentIndex == index ? 14 : 8,
-                height:_currentIndex == index ? 14 : 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: index == _currentIndex ? const Color(0xFFFF5787) : const Color(0xffffb4c4),
-                ),
-              ),
-            ),
-          ),
+        // const SizedBox(height: 10),
+        // // 指示器 - 完全放在轮播图外面
+        // if (widget.imagePaths.length > 1)
+        //   Row(
+        //     mainAxisAlignment: MainAxisAlignment.center,
+        //     children: List.generate(
+        //       widget.imagePaths.length,
+        //       (index) => Container(
+        //         margin: const EdgeInsets.symmetric(horizontal: 4),
+        //         width:_currentIndex == index ? 14 : 8,
+        //         height:_currentIndex == index ? 14 : 8,
+        //         decoration: BoxDecoration(
+        //           shape: BoxShape.circle,
+        //           color: index == _currentIndex ? const Color(0xFFFF5787) : const Color(0xffffb4c4),
+        //         ),
+        //       ),
+        //     ),
+        //   ),
       ],
     );
   }
@@ -97,11 +83,11 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
   // 构建单个图片组件
   Widget _buildImageCard(String imagePath, {bool isMain = false}) {
     return Container(
-      width: isMain ? 220 : 105.6, // 主图220px，侧图105.6px
-      height: isMain ? 195 : 156,   // 主图195px，侧图156px
-      margin: const EdgeInsets.symmetric(horizontal: 10),
+      // width: isMain ? 380 : 105.6, // 主图234px，侧图105.6px
+      // height: isMain ? 195 : 156,   // 主图195px，侧图156px
+      // margin: const EdgeInsets.symmetric(horizontal: 5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(26),
         color: const Color(0xFFFFE8F0), // 浅粉色背景
         boxShadow: [
           BoxShadow(
@@ -113,13 +99,13 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(26),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(26),
           child: Image.asset(
             imagePath,
-            fit: BoxFit.contain,
+            fit: BoxFit.fill,
             width: double.infinity,
           ),
         ),

@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
     controller.context = context;
     return Scaffold(
       resizeToAvoidBottomInset: false, // 禁用自动调整，手动控制
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xfff6f6f6),
       body: GestureDetector(
         onTap: () {
           // 释放所有焦点

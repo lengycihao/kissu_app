@@ -84,16 +84,19 @@ class TrackDateSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final dates = recentDates;
     final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = (screenWidth - 14*3 - 48) / 7; // 平分屏幕宽度
-    
+    final itemWidth = (screenWidth - 14 * 3 - 48) / 7; // 平分屏幕宽度
+
     // 使用外部传入的selectedIndex或者创建本地的
     final currentSelectedIndex = selectedIndex ?? 6.obs;
 
     // 默认颜色
-    final defaultSelectedBgColor = selectedBackgroundColor ?? const Color(0xFFFF74A0);
+    final defaultSelectedBgColor =
+        selectedBackgroundColor ?? const Color(0xFFFF74A0);
     final defaultSelectedTextColor = selectedTextColor ?? Colors.white;
-    final defaultUnselectedBorderColor = unselectedBorderColor ??   Colors.transparent;
-    final defaultUnselectedTextColor = unselectedTextColor ?? const Color(0xFF333333);
+    final defaultUnselectedBorderColor =
+        unselectedBorderColor ?? Colors.transparent;
+    final defaultUnselectedTextColor =
+        unselectedTextColor ?? const Color(0xFF333333);
 
     return Container(
       height: height,
@@ -115,7 +118,7 @@ class TrackDateSelector extends StatelessWidget {
                     DebugUtil.error('❌ 足迹页面-日期按钮埋点上报失败: $e');
                   }
                 }
-                
+
                 currentSelectedIndex.value = index;
                 print('📅 选择日期: ${date.toString().split(' ')[0]}');
                 if (onSelect != null) {
@@ -126,17 +129,28 @@ class TrackDateSelector extends StatelessWidget {
                 width: itemWidth,
                 height: height,
                 margin: EdgeInsets.symmetric(horizontal: 3),
+
                 decoration: BoxDecoration(
                   color: currentSelectedIndex.value == index
                       ? defaultSelectedBgColor
-                      : Colors.transparent,
-                  border: showBorder ? Border.all(
-                    color: currentSelectedIndex.value == index
-                        ? Colors.transparent
-                        : defaultUnselectedBorderColor,
-                    width: 1,
-                  ) : null,
+                      : Colors.white,
+                  border: showBorder
+                      ? Border.all(
+                          color: currentSelectedIndex.value == index
+                              ? Colors.transparent
+                              : defaultUnselectedBorderColor,
+                          width: 1,
+                        )
+                      : null,
+
                   borderRadius: BorderRadius.circular(borderRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x0d000000),
+                      offset: Offset(0, 1),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -144,7 +158,7 @@ class TrackDateSelector extends StatelessWidget {
                     Text(
                       getDateText(date),
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         color: currentSelectedIndex.value == index
                             ? defaultSelectedTextColor
                             : defaultUnselectedTextColor,
@@ -154,8 +168,8 @@ class TrackDateSelector extends StatelessWidget {
                     Text(
                       getDateNumber(date),
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                         color: currentSelectedIndex.value == index
                             ? defaultSelectedTextColor
                             : const Color(0xFF666666),

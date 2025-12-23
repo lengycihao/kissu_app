@@ -35,7 +35,7 @@ class HomeAvatarSection extends StatelessWidget {
                 Transform.translate(
                   offset: const Offset(45, 0),
                   child: Transform.rotate(
-                    angle: 30 * 3.1415926535 / 180, // 逆时针30度
+                    angle: 0, // 逆时针30度
                     child: GestureDetector(
                       onTap: () {
                         if (controller.isBound.value) {
@@ -52,27 +52,28 @@ class HomeAvatarSection extends StatelessWidget {
                       // 🚀 优化：统一使用 NoPlaceholderImage，它现在能自动识别网络和本地图片
                       child: Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 1),
                         ),
                         child: NoPlaceholderImage(
                           imageUrl: controller.userAvatar.value,
                           defaultAssetPath:
                               "assets/3.0/kissu3_love_avater.webp",
-                          width: 38,
-                          height: 38,
+                          width: 40,
+                          height: 40,
                           fit: BoxFit.cover,
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                       ),
                     ),
                   ),
                 ),
-                // 减少重叠的间距，例如 -6
+              
+               // 减少重叠的间距，例如 -6
                 Transform.translate(
                   offset: const Offset(-30, 0),
                   child: Transform.rotate(
-                    angle: -30 * 3.1415926535 / 180, // 顺时针30度
+                    angle: 0, // 顺时针30度
                     child: controller.isBound.value
                         ? GestureDetector(
                             onTap: () {
@@ -83,7 +84,7 @@ class HomeAvatarSection extends StatelessWidget {
                             },
                             child: Container(
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5),
+                                borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: Colors.white,
                                   width: 1,
@@ -93,10 +94,10 @@ class HomeAvatarSection extends StatelessWidget {
                                 imageUrl: controller.partnerAvatar.value,
                                 defaultAssetPath:
                                     "assets/3.0/kissu3_love_avater.webp",
-                                width: 38,
-                                height: 38,
+                                width: 40,
+                                height: 40,
                                 fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(5),
+                                borderRadius: BorderRadius.circular(20),
                               ),
                             ),
                           )
@@ -111,11 +112,11 @@ class HomeAvatarSection extends StatelessWidget {
                               );
                             },
                             child: Container(
-                              width: 38,
-                              height: 38,
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(20),
                               ),
                               child: Center(
                                 child: Image.asset(
@@ -133,7 +134,7 @@ class HomeAvatarSection extends StatelessWidget {
 
             controller.isBound.value
                 ? Transform.translate(
-                    offset: Offset(9, 0),
+                    offset: Offset(9, -5),
                     child: GestureDetector(
                       onTap: () {
                         // 已绑定状态下点击"在一起X天"跳转到恋爱信息页
@@ -141,22 +142,25 @@ class HomeAvatarSection extends StatelessWidget {
                       },
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: 15,
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: Color(0xff5CC0FF),
-                          border: Border.all(
-                            color: Color(0xffffffff),
-                            width: 2,
-                          ),
+                          color: Color(0xffFFD9F1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xff000000).withOpacity(0.1),
+                              blurRadius: 15,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                           borderRadius: BorderRadius.all(Radius.circular(15)),
                         ),
                         child: Obx(
                           () => Text(
-                            "在一起${controller.loveDays.value}天",
+                            "相爱${controller.loveDays.value}天",
                             style: TextStyle(
-                              color: Color(0xffffffff),
+                              color: Color(0xffFF92D7),
                               fontSize: 12,
                             ),
                           ),
@@ -165,7 +169,7 @@ class HomeAvatarSection extends StatelessWidget {
                     ),
                   )
                 : Transform.translate(
-                    offset: Offset(9, 0),
+                    offset: Offset(9, -5),
                     child: GestureDetector(
                       onTap: () {
                         // 未绑定状态下点击"绑定另一半"显示绑定弹窗
@@ -176,18 +180,24 @@ class HomeAvatarSection extends StatelessWidget {
                       },
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: 15,
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: Color(0xff5CC0FF),
-                          border: Border.all(color: Color(0xffffffff)),
+                          color: Color(0xffFFD9F1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xff000000).withOpacity(0.1),
+                              blurRadius: 15,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                           borderRadius: BorderRadius.all(Radius.circular(15)),
                         ),
                         child: Text(
                           "绑定另一半",
                           style: TextStyle(
-                            color: Color(0xffffffff),
+                            color: Color(0xffFF92D7),
                             fontSize: 12,
                           ),
                         ),
@@ -251,87 +261,6 @@ class HomeAvatarSection extends StatelessWidget {
                     );
                   }),
 
-                  // 通知图标（带红点）+ 抽屉式提示
-                  SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // 左侧抽屉式提示条（从图标左侧展开）
-                        Positioned(
-                          right: 20, // 从图标左侧开始
-                          top: 0,
-                          child: Obx(() {
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                              width: controller.isRedDot.value ? 110 : 0,
-                              height: 36,
-                              child: controller.isRedDot.value
-                                  ? Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(18),
-                                          bottomLeft: Radius.circular(18),
-                                        ),
-                                      ),
-                                      alignment: Alignment.centerLeft,
-                                      padding: EdgeInsets.only(
-                                        left: 12,
-                                        right: 8,
-                                      ),
-                                      child: Text(
-                                        "有未读消息哦~",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    )
-                                  : SizedBox.shrink(),
-                            );
-                          }),
-                        ),
-                        // 通知图标（固定位置）
-                        GestureDetector(
-                          onTap: () {
-                            controller.onNotificationTap();
-                          },
-                          child: Image.asset(
-                            "assets/images/kissu_home_notiicon.webp",
-                            width: 56,
-                            height: 56,
-                          ),
-                        ),
-                        // 红点角标
-                        Obx(() {
-                          if (controller.isRedDot.value) {
-                            return Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xffFF6B6B),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 1,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        }),
-                      ],
-                    ),
-                  ),
-
                   // 活动图标
                   Obx(() {
                     if (controller.isActivity.value &&
@@ -368,7 +297,7 @@ class HomeAvatarSection extends StatelessWidget {
                     if (controller.crapStatus.value != '1') {
                       return const SizedBox.shrink();
                     }
-                    
+
                     return SizedBox(
                       width: 56,
                       height: 56,
@@ -394,18 +323,22 @@ class HomeAvatarSection extends StatelessWidget {
                                 baseUrl =
                                     'http://devweb.ikissu.cn/share/couplesdeFecating.html';
                               }
-                              
+
                               String url = baseUrl;
 
                               try {
                                 final authService = getIt<AuthService>();
                                 final token = authService.userToken;
                                 if (token != null && token.isNotEmpty) {
-                                  final encodedToken =
-                                      Uri.encodeComponent(token);
+                                  final encodedToken = Uri.encodeComponent(
+                                    token,
+                                  );
                                   // 判断链接是否已经包含参数
-                                  final separator = baseUrl.contains('?') ? '&' : '?';
-                                  url = '$baseUrl${separator}token=$encodedToken';
+                                  final separator = baseUrl.contains('?')
+                                      ? '&'
+                                      : '?';
+                                  url =
+                                      '$baseUrl${separator}token=$encodedToken';
                                 }
                               } catch (_) {
                                 // 获取 token 失败时，使用不带 token 的链接
