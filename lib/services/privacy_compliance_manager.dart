@@ -10,8 +10,7 @@ import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
-import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:kissu_app/utils/debug_util.dart'; 
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
 
@@ -333,11 +332,9 @@ class PrivacyComplianceManager extends GetxService {
   /// 启用友盟统计初始化
   Future<void> _enableUmengAnalytics() async {
     try {
-      // 初始化友盟统计（包含 preInit）
-      await UmengAnalytics.init();
+     
       
-      // 提交隐私政策授权结果（用户已同意）
-      await UmengAnalytics.submitPolicyGrantResult(true);
+      
       
       if (kDebugMode) {
         DebugUtil.success('友盟统计已初始化并授权隐私政策');

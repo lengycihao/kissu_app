@@ -1,7 +1,5 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import '../../../services/tracking_service.dart';
-import '../../../utils/debug_util.dart';
+import 'package:get/get.dart';  
 
 /// 轨迹页面专用的日期选择器组件
 /// 提供最近7天的日期选择功能
@@ -108,16 +106,8 @@ class TrackDateSelector extends StatelessWidget {
 
           return Obx(
             () => GestureDetector(
+              behavior: HitTestBehavior.translucent,
               onTap: () async {
-                // 上报日期按钮埋点
-                if (isBind != null) {
-                  try {
-                    await TrackingService.trackDateButton(isBind!);
-                    DebugUtil.info('✅ 足迹页面-日期按钮埋点上报成功');
-                  } catch (e) {
-                    DebugUtil.error('❌ 足迹页面-日期按钮埋点上报失败: $e');
-                  }
-                }
 
                 currentSelectedIndex.value = index;
                 print('📅 选择日期: ${date.toString().split(' ')[0]}');
@@ -125,6 +115,8 @@ class TrackDateSelector extends StatelessWidget {
                   onSelect!(date);
                 }
               },
+              // 添加空的拖拽处理回调，让GestureDetector能够处理滑动事件
+          
               child: Container(
                 width: itemWidth,
                 height: height,

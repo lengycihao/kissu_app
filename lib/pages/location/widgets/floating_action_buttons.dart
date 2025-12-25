@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../routers/kissu_route_path.dart';
-import '../../../services/tracking_service.dart';
+import '../../../routers/kissu_route_path.dart'; 
 import '../location_v2_controller.dart';
 
 /// 右侧浮动按钮组
@@ -25,8 +24,8 @@ class FloatingActionButtons extends StatelessWidget {
       // 计算下半屏当前的顶部位置（从屏幕底部算起）
       final sheetHeight = screenHeight * sheetPercent;
       
-      // 按钮固定在下半屏上方更高位置，避免与离线提示重叠
-      final buttonBottom = sheetHeight + 60;
+      // 🔧 修复：与轨迹页面保持一致的固定高度
+      final buttonBottom = sheetHeight + 50;
 
       // 🔧 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final isBindPartner = controller.isBindPartner.value;
@@ -66,8 +65,7 @@ class FloatingActionButtons extends StatelessWidget {
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_state_an.png',
                   onTap: () {
-                    // 埋点：当前状态按钮点击
-                    TrackingService.trackCurrentStateButton();
+                   
                     Get.toNamed(KissuRoutePath.locationState);
                   },
                 ),
@@ -77,8 +75,7 @@ class FloatingActionButtons extends StatelessWidget {
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_track_an.png',
                   onTap: () {
-                    // 埋点：Ta的足迹按钮点击
-                    TrackingService.trackHerTrackButton();
+                    
                     Get.toNamed(KissuRoutePath.track);
                   },
                 ),

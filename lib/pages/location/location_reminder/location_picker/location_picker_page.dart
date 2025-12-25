@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_picker/location_picker_controller.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
@@ -10,8 +11,7 @@ import 'package:kissu_app/models/poi_model.dart';
 import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/pages/location/poi_search/poi_search_page.dart';
 import 'package:kissu_app/pages/location/poi_search/poi_search_controller.dart';
-import 'package:kissu_app/pages/location/city_list/city_list_page.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/pages/location/city_list/city_list_page.dart'; 
 
 /// 地图选点页面
 class LocationPickerPage extends StatelessWidget {
@@ -40,6 +40,7 @@ class LocationPickerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
       body: Stack(
         children: [
@@ -336,9 +337,9 @@ class LocationPickerPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 图标选择
-                  _buildIconSelector(),
+                  _buildIconSelector(context),
 
-                  const SizedBox(height: 10),
+                  // const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -397,14 +398,7 @@ class LocationPickerPage extends StatelessWidget {
                     }
                   }
 
-                  // 上报保存操作埋点
-                  try {
-                    await TrackingService.trackLocationKnockAddressSave();
-                    DebugUtil.info('✅ 添加地点页面-保存操作埋点上报成功');
-                  } catch (e) {
-                    DebugUtil.error('❌ 添加地点页面-保存操作埋点上报失败: $e');
-                  }
-
+                 
                   final reminder = await controller.saveLocation();
                   if (reminder != null) {
                     Get.back(result: reminder);
@@ -437,14 +431,21 @@ class LocationPickerPage extends StatelessWidget {
   }
 
   /// 构建图标选择器
-  Widget _buildIconSelector() {
+  Widget _buildIconSelector(BuildContext context) {
     return Obx(() {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: controller.availableIcons.map((iconData) {
           final isSelected = controller.selectedIcon.value == iconData.id;
           return GestureDetector(
-            onTap: () => controller.selectIcon(iconData.id),
+            onTap: () {
+              // 当选择"自定义地点"时，弹出自定义输入弹窗；否则直接选择图标
+              if (iconData.id == 5) { // 使用id判断而不是label，避免文字变化影响
+                _showCustomLocationDialog(context);
+              } else {
+                controller.selectIcon(iconData.id);
+              }
+            },
             child: Column(
               children: [
                 Container(
@@ -458,12 +459,124 @@ class LocationPickerPage extends StatelessWidget {
                     ),
                   ),
                 ),
+                SizedBox(height: 4),
+                // 当选择自定义地点且有自定义文字时，显示自定义文字；否则显示原始标签
+                Text(
+                  (iconData.id == 5 && controller.customLocationText.value.isNotEmpty)
+                      ? controller.customLocationText.value
+                      : iconData.label,
+                  style: TextStyle(fontSize: 12, color: Color(0xFF333333)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           );
         }).toList(),
       );
     });
+  }
+
+  /// 显示“自定义地点”输入弹窗
+  Future<void> _showCustomLocationDialog(BuildContext context) async {
+    final TextEditingController _customController = TextEditingController();
+
+    await Get.dialog(
+      Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 270,
+            height: 205,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+            decoration: BoxDecoration(
+              image: const DecorationImage(
+                image: AssetImage('assets/dialog/kissu_toast_bg.webp'),
+                fit: BoxFit.fill,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '自定义地点',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Color(0xffF3F3F3),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: TextField(
+                    controller: _customController,
+                    textAlign: TextAlign.center,
+                    maxLength: 10, // 限制输入文字数量为10
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(10), // 限制输入长度
+                    ],
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: '请输入地点名称～',
+                      contentPadding: EdgeInsets.only(bottom: 5),
+                      hintStyle: TextStyle(color: Color(0xFF777777),fontSize: 12),
+                      counterText: '', // 隐藏字符计数器
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: () {
+                    final text = _customController.text.trim();
+                    if (text.isEmpty) {
+                      // 使用已有的OKToast工具给出提示（文件已导入OKToastUtil）
+                      // 如果没有导入，可以替换为 Get.snackbar
+                      try {
+                        OKToastUtil.show('请输入地点名称');
+                      } catch (_) {
+                        Get.snackbar('提示', '请输入地点名称', snackPosition: SnackPosition.BOTTOM);
+                      }
+                      return;
+                    }
+
+                    // 将自定义名称写入备注输入框，并选中自定义图标
+                    controller.noteController.text = text;
+                    controller.noteText.value = text;
+                    controller.customLocationText.value = text; // 设置自定义地点显示文字
+                    controller.selectIcon(5);
+                    Get.back();
+                  },
+                  child: Container(
+                    width: 106,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFA9E0),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      '确定',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                       ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
   }
 
   /// 构建地图logo - 悬浮在底部面板左上角

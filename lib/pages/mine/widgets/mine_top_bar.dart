@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart'; 
 
 /// 我的页面-顶部导航栏
 class MineTopBar extends StatelessWidget {
@@ -18,8 +17,7 @@ class MineTopBar extends StatelessWidget {
 
   // 点击通知按钮
   void _onNotificationTap() {
-    // 埋点：点击消息中心按钮
-    TrackingService.trackMessageCenterClick();
+ 
     
     // 跳转到消息列表页面（一级页面）
     // 注意：红点不在这里清除，而是在进入各个详情页时清除

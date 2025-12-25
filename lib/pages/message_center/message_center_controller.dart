@@ -4,8 +4,7 @@ import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/custom_toast_widget.dart';  
 
 class MessageCenterController extends GetxController {
   // 消息列表数据
@@ -17,75 +16,29 @@ class MessageCenterController extends GetxController {
   // 错误信息
   var errorMessage = ''.obs;
 
-  // 页面浏览埋点相关
-  DateTime? _pageEnterTime;
-  late ScrollController scrollController;
-  var scrollTimes = 0.obs;
-  var hasScrolled = false.obs;
+ 
+ 
 
   @override
   void onInit() {
     super.onInit();
     
-    // 记录进入时间
-    _pageEnterTime = DateTime.now();
-    
-    // 初始化滚动控制器
-    scrollController = ScrollController();
+ 
     
     loadMessages();
   }
 
   @override
   void onClose() {
-    // 上报页面浏览埋点
-    _trackPageView();
+ 
     
-    // 释放滚动控制器
-    scrollController.dispose();
+ 
     
     super.onClose();
   }
+ 
 
-  /// 处理滚动事件
-  bool handleScroll(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification) {
-      final delta = notification.scrollDelta ?? 0;
-      if (delta.abs() > 10) {
-        if (!hasScrolled.value) {
-          hasScrolled.value = true;
-        }
-        scrollTimes.value++;
-      }
-    }
-    return false;
-  }
-
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-    
-    try {
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-      
-      // 获取绑定状态 (bindStatus: 0从未绑定，1绑定中，2已解绑)
-      final user = UserManager.currentUser;
-      final isBind = (user?.bindStatus.toString() == "1") ? '已绑定' : '未绑定';
-      
-      await TrackingService.trackMessageCenterPageView(
-        stayDuration: stayDuration,
-        canScroll: hasScrolled.value,
-        isBind: isBind,
-      );
-      
-      debugPrint('✅ 互动消息页面浏览埋点上报成功: 停留时长=$stayDuration, 是否滑动=${hasScrolled.value}, 绑定状态=$isBind');
-    } catch (e) {
-      debugPrint('❌ 互动消息页面浏览埋点上报失败: $e');
-    }
-  }
-
+ 
   /// 加载消息列表
   Future<void> loadMessages() async {
     try {
@@ -137,10 +90,7 @@ class MessageCenterController extends GetxController {
     try {
       debugPrint('开始同意绑定，消息ID: ${message.id}');
       
-      // 上报接收绑定按钮点击埋点
-      await TrackingService.trackAcceptBindButton(
-        otherId: message.fromUserId.isNotEmpty ? message.fromUserId : message.id,
-      );
+       
       
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.affirmBind,
@@ -171,10 +121,7 @@ class MessageCenterController extends GetxController {
   Future<void> _refuseBind(MessageItem message) async {
     try {
       debugPrint('开始拒绝绑定，消息ID: ${message.id}');
-      
-      // 上报拒绝绑定按钮点击埋点
-      await TrackingService.trackRejectBindButton();
-      
+     
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.refuseBind,
         jsonParam: {'system_notice_id': message.id},

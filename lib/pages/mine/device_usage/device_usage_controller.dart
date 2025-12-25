@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/mine/device_usage/models/phone_record_stat_model.dart' as api_model;
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
@@ -48,6 +49,9 @@ class DeviceUsageController extends GetxController {
   
   // 用户会员状态
   var isUserVip = false.obs;
+
+  // 权限状态
+  var hasUsagePermission = false.obs;
 
   // 另一半用户设备信息
   var halfUserData = Rxn<api_model.HalfUserData>();
@@ -345,6 +349,16 @@ class DeviceUsageController extends GetxController {
   Future<void> setDate(DateTime date) async {
     selectedDate.value = date;
     await _loadData();
+  }
+
+  /// 打开使用情况访问设置
+  Future<void> openUsageSettings() async {
+    try {
+      final permissionService = PermissionService();
+      await permissionService.openUsageAccessSettings();
+    } catch (e) {
+      logError('打开使用情况设置失败: $e', tag: 'DeviceUsage', error: e);
+    }
   }
 }
 

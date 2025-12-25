@@ -37,11 +37,11 @@ class ChatMessageListView extends StatelessWidget {
               // Flutter reverse: bottomPadding = viewportHeight - estimatedContentHeight
               final bottomPadding = viewportHeight - estimatedContentHeight;
               padding = EdgeInsets.only(
-                top: 12,
-                bottom: bottomPadding > 0 ? bottomPadding : 12,
+                top: 6,
+                bottom: bottomPadding > 0 ? bottomPadding : 6,
               );
             } else {
-              padding = const EdgeInsets.symmetric(vertical: 12);
+              padding = const EdgeInsets.symmetric(vertical: 6);
             }
             
             return ListView.builder(

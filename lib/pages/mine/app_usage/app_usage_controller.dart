@@ -1128,35 +1128,35 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     }
   }
   
-  /// 停止上报服务
-  void stopReportService() {
-    _reportService.stop();
-  }
+  // /// 停止上报服务
+  // void stopReportService() {
+  //   _reportService.stop();
+  // }
   
-  /// 查看待上报数据
-  Future<void> debugViewPendingData() async {
-    try {
-      final result = await _reportService.debugViewPendingData();
+  // /// 查看待上报数据
+  // Future<void> debugViewPendingData() async {
+  //   try {
+  //     final result = await _reportService.debugViewPendingData();
       
-      if (!result['success']) {
-        OKToastUtil.show(result['message']);
-        return;
-      }
+  //     if (!result['success']) {
+  //       OKToastUtil.show(result['message']);
+  //       return;
+  //     }
       
-      final allData = result['allData'] as List<AppUsageRecord>;
-      final incrementalData = result['incrementalData'] as List<AppUsageRecord>;
-      final lastReported = result['lastReportedSessions'] as Map<String, int>;
+  //     final allData = result['allData'] as List<AppUsageRecord>;
+  //     final incrementalData = result['incrementalData'] as List<AppUsageRecord>;
+  //     final lastReported = result['lastReportedSessions'] as Map<String, int>;
       
-      // 显示对话框
-      Get.dialog(
-        _buildDebugDataDialog(allData, incrementalData, lastReported),
-        barrierDismissible: true,
-      );
-    } catch (e) {
-      logger.error('查看待上报数据失败: $e', tag: 'AppUsage', error: e);
-      OKToastUtil.showError('查看失败: $e');
-    }
-  }
+  //     // 显示对话框
+  //     Get.dialog(
+  //       _buildDebugDataDialog(allData, incrementalData, lastReported),
+  //       barrierDismissible: true,
+  //     );
+  //   } catch (e) {
+  //     logger.error('查看待上报数据失败: $e', tag: 'AppUsage', error: e);
+  //     OKToastUtil.showError('查看失败: $e');
+  //   }
+  // }
   
   /// 获取或上传app logo URL
   /// [packageName] 应用包名
@@ -1259,445 +1259,446 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     };
   }
   
-  /// 全量上报
-  Future<void> debugFullReport() async {
-    try {
-      isReporting.value = true;
+  // /// 全量上报
+  // Future<void> debugFullReport() async {
+  //   try {
+  //     isReporting.value = true;
       
-      // 获取全量数据
-      final result = await _reportService.debugFullReport();
+  //     // 获取全量数据
+  //     final result = await _reportService.debugFullReport();
       
-      if (!result['success']) {
-        OKToastUtil.show(result['message']);
-        return;
-      }
+  //     if (!result['success']) {
+  //       OKToastUtil.show(result['message']);
+  //       return;
+  //     }
       
-      final records = result['data'] as List<AppUsageRecord>;
+  //     final records = result['data'] as List<AppUsageRecord>;
       
-      if (records.isEmpty) {
-        OKToastUtil.show('暂无使用记录需要上报');
-        return;
-      }
+  //     if (records.isEmpty) {
+  //       OKToastUtil.show('暂无使用记录需要上报');
+  //       return;
+  //     }
       
-      logger.info('开始全量上报: ${records.length}个应用', tag: 'AppUsage');
+  //     logger.info('开始全量上报: ${records.length}个应用', tag: 'AppUsage');
       
-      // 处理每个应用的logo上传和数据转换
-      final appUseRecordData = <Map<String, dynamic>>[];
-      int? dateInt;
+  //     // 处理每个应用的logo上传和数据转换
+  //     final appUseRecordData = <Map<String, dynamic>>[];
+  //     int? dateInt;
       
-      for (final record in records) {
-        // 获取应用的icon（从apps列表中查找）
-        Uint8List? iconBytes;
-        try {
-          final appInfo = apps.firstWhere((app) => app.packageName == record.packageName);
-          iconBytes = appInfo.icon;
-        } catch (e) {
-          // 如果找不到应用，iconBytes保持为null
-          logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
-        }
+  //     for (final record in records) {
+  //       // 获取应用的icon（从apps列表中查找）
+  //       Uint8List? iconBytes;
+  //       try {
+  //         final appInfo = apps.firstWhere((app) => app.packageName == record.packageName);
+  //         iconBytes = appInfo.icon;
+  //       } catch (e) {
+  //         // 如果找不到应用，iconBytes保持为null
+  //         logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
+  //       }
         
-        // 获取或上传logo
-        String? logoUrl;
-        if (iconBytes != null && iconBytes.isNotEmpty) {
-          logoUrl = await _getOrUploadLogo(record.packageName, iconBytes);
-        }
+  //       // 获取或上传logo
+  //       String? logoUrl;
+  //       if (iconBytes != null && iconBytes.isNotEmpty) {
+  //         logoUrl = await _getOrUploadLogo(record.packageName, iconBytes);
+  //       }
         
-        // 转换数据格式
-        final convertedData = _convertRecordToReportFormat(record, logoUrl);
-        appUseRecordData.add(convertedData);
+  //       // 转换数据格式
+  //       final convertedData = _convertRecordToReportFormat(record, logoUrl);
+  //       appUseRecordData.add(convertedData);
         
-        // 获取日期（使用第一个记录的日期）
-        if (dateInt == null) {
-          final dateParts = record.date.split('-');
-          dateInt = int.parse('${dateParts[0]}${dateParts[1].padLeft(2, '0')}${dateParts[2].padLeft(2, '0')}');
-        }
-      }
+  //       // 获取日期（使用第一个记录的日期）
+  //       if (dateInt == null) {
+  //         final dateParts = record.date.split('-');
+  //         dateInt = int.parse('${dateParts[0]}${dateParts[1].padLeft(2, '0')}${dateParts[2].padLeft(2, '0')}');
+  //       }
+  //     }
       
-      if (appUseRecordData.isEmpty) {
-        _safeShowSnackbar('提示', '没有可上报的数据');
-        return;
-      }
+  //     if (appUseRecordData.isEmpty) {
+  //       _safeShowSnackbar('提示', '没有可上报的数据');
+  //       return;
+  //     }
       
-      // 上报数据
-      final reportResult = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
+  //     // 上报数据
+  //     final reportResult = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
       
-      if (reportResult.isSuccess) {
-        _safeShowSnackbar(
-          '成功',
-          '全量上报成功: ${records.length}个应用',
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
-        logger.info('✅ 全量上报成功: ${records.length}个应用', tag: 'AppUsage');
-      } else {
-        _safeShowSnackbar('错误', reportResult.msg ?? '上报失败');
-        logger.error('全量上报失败: ${reportResult.msg}', tag: 'AppUsage');
-      }
-    } catch (e) {
-      logger.error('全量上报失败: $e', tag: 'AppUsage', error: e);
-      _safeShowSnackbar('错误', '上报失败: $e');
-    } finally {
-      isReporting.value = false;
-    }
-  }
+  //     if (reportResult.isSuccess) {
+  //       _safeShowSnackbar(
+  //         '成功',
+  //         '全量上报成功: ${records.length}个应用',
+  //         backgroundColor: Colors.green.withValues(alpha: 0.8),
+  //         colorText: Colors.white,
+  //       );
+  //       logger.info('✅ 全量上报成功: ${records.length}个应用', tag: 'AppUsage');
+  //     } else {
+  //       _safeShowSnackbar('错误', reportResult.msg ?? '上报失败');
+  //       logger.error('全量上报失败: ${reportResult.msg}', tag: 'AppUsage');
+  //     }
+  //   } catch (e) {
+  //     logger.error('全量上报失败: $e', tag: 'AppUsage', error: e);
+  //     _safeShowSnackbar('错误', '上报失败: $e');
+  //   } finally {
+  //     isReporting.value = false;
+  //   }
+  // }
   
-  /// 增量上报
-  Future<void> debugIncrementalReport() async {
-    try {
-      isReporting.value = true;
+  // /// 增量上报
+  // Future<void> debugIncrementalReport() async {
+  //   try {
+  //     isReporting.value = true;
       
-      // 获取增量数据
-      final result = await _reportService.debugIncrementalReport();
+  //     // 获取增量数据
+  //     final result = await _reportService.debugIncrementalReport();
       
-      if (!result['success']) {
-        _safeShowSnackbar('提示', result['message']);
-        return;
-      }
+  //     if (!result['success']) {
+  //       _safeShowSnackbar('提示', result['message']);
+  //       return;
+  //     }
       
-      final records = result['data'] as List<AppUsageRecord>;
+  //     final records = result['data'] as List<AppUsageRecord>;
       
-      if (records.isEmpty) {
-        _safeShowSnackbar('提示', '暂无新增使用记录需要上报');
-        return;
-      }
+  //     if (records.isEmpty) {
+  //       _safeShowSnackbar('提示', '暂无新增使用记录需要上报');
+  //       return;
+  //     }
       
-      logger.info('开始增量上报: ${records.length}个应用', tag: 'AppUsage');
+  //     logger.info('开始增量上报: ${records.length}个应用', tag: 'AppUsage');
       
-      // 处理每个应用的logo上传和数据转换
-      final appUseRecordData = <Map<String, dynamic>>[];
-      int? dateInt;
+  //     // 处理每个应用的logo上传和数据转换
+  //     final appUseRecordData = <Map<String, dynamic>>[];
+  //     int? dateInt;
       
-      for (final record in records) {
-        // 获取应用的icon（从apps列表中查找）
-        Uint8List? iconBytes;
-        try {
-          final appInfo = apps.firstWhere((app) => app.packageName == record.packageName);
-          iconBytes = appInfo.icon;
-        } catch (e) {
-          // 如果找不到应用，iconBytes保持为null
-          logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
-        }
+  //     for (final record in records) {
+  //       // 获取应用的icon（从apps列表中查找）
+  //       Uint8List? iconBytes;
+  //       try {
+  //         final appInfo = apps.firstWhere((app) => app.packageName == record.packageName);
+  //         iconBytes = appInfo.icon;
+  //       } catch (e) {
+  //         // 如果找不到应用，iconBytes保持为null
+  //         logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
+  //       }
         
-        // 获取或上传logo
-        String? logoUrl;
-        if (iconBytes != null && iconBytes.isNotEmpty) {
-          logoUrl = await _getOrUploadLogo(record.packageName, iconBytes);
-        }
+  //       // 获取或上传logo
+  //       String? logoUrl;
+  //       if (iconBytes != null && iconBytes.isNotEmpty) {
+  //         logoUrl = await _getOrUploadLogo(record.packageName, iconBytes);
+  //       }
         
-        // 转换数据格式
-        final convertedData = _convertRecordToReportFormat(record, logoUrl);
-        appUseRecordData.add(convertedData);
+  //       // 转换数据格式
+  //       final convertedData = _convertRecordToReportFormat(record, logoUrl);
+  //       appUseRecordData.add(convertedData);
         
-        // 获取日期（使用第一个记录的日期）
-        if (dateInt == null) {
-          final dateParts = record.date.split('-');
-          dateInt = int.parse('${dateParts[0]}${dateParts[1].padLeft(2, '0')}${dateParts[2].padLeft(2, '0')}');
-        }
-      }
+  //       // 获取日期（使用第一个记录的日期）
+  //       if (dateInt == null) {
+  //         final dateParts = record.date.split('-');
+  //         dateInt = int.parse('${dateParts[0]}${dateParts[1].padLeft(2, '0')}${dateParts[2].padLeft(2, '0')}');
+  //       }
+  //     }
       
-      if (appUseRecordData.isEmpty) {
-        _safeShowSnackbar('提示', '没有可上报的数据');
-        return;
-      }
+  //     if (appUseRecordData.isEmpty) {
+  //       _safeShowSnackbar('提示', '没有可上报的数据');
+  //       return;
+  //     }
       
-      // 上报数据
-      final reportResult = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
+  //     // 上报数据
+  //     final reportResult = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
       
-      if (reportResult.isSuccess) {
-        _safeShowSnackbar(
-          '成功',
-          '增量上报成功: ${records.length}个应用',
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
-        logger.info('✅ 增量上报成功: ${records.length}个应用', tag: 'AppUsage');
-      } else {
-        _safeShowSnackbar('错误', reportResult.msg ?? '上报失败');
-        logger.error('增量上报失败: ${reportResult.msg}', tag: 'AppUsage');
-      }
-    } catch (e) {
-      logger.error('增量上报失败: $e', tag: 'AppUsage', error: e);
-      _safeShowSnackbar('错误', '上报失败: $e');
-    } finally {
-      isReporting.value = false;
-    }
-  }
+  //     if (reportResult.isSuccess) {
+  //       _safeShowSnackbar(
+  //         '成功',
+  //         '增量上报成功: ${records.length}个应用',
+  //         backgroundColor: Colors.green.withValues(alpha: 0.8),
+  //         colorText: Colors.white,
+  //       );
+  //       logger.info('✅ 增量上报成功: ${records.length}个应用', tag: 'AppUsage');
+  //     } else {
+  //       _safeShowSnackbar('错误', reportResult.msg ?? '上报失败');
+  //       logger.error('增量上报失败: ${reportResult.msg}', tag: 'AppUsage');
+  //     }
+  //   } catch (e) {
+  //     logger.error('增量上报失败: $e', tag: 'AppUsage', error: e);
+  //     _safeShowSnackbar('错误', '上报失败: $e');
+  //   } finally {
+  //     isReporting.value = false;
+  //   }
+  // }
 
-  /// 上传图片（测试上传手机app logo）
-  /// 从已安装应用列表中获取第一个应用的logo，转换为文件格式后上传
-  Future<void> debugUploadImage() async {
-    try {
-      // 检查是否有已安装的应用
-      if (apps.isEmpty) {
-        OKToastUtil.show('暂无已安装应用，请先加载应用列表');
-        logger.warning('应用列表为空，无法上传logo', tag: 'AppUsage');
-        return;
-      }
+  // /// 上传图片（测试上传手机app logo）
+  // /// 从已安装应用列表中获取第一个应用的logo，转换为文件格式后上传
+  // Future<void> debugUploadImage() async {
+  //   try {
+  //     // 检查是否有已安装的应用
+  //     if (apps.isEmpty) {
+  //       OKToastUtil.show('暂无已安装应用，请先加载应用列表');
+  //       logger.warning('应用列表为空，无法上传logo', tag: 'AppUsage');
+  //       return;
+  //     }
       
-      // 选择第一个应用进行测试
-      final testApp = apps.first;
-      logger.info('开始上传应用logo: ${testApp.appName} (${testApp.packageName})', tag: 'AppUsage');
+  //     // 选择第一个应用进行测试
+  //     final testApp = apps.first;
+  //     logger.info('开始上传应用logo: ${testApp.appName} (${testApp.packageName})', tag: 'AppUsage');
       
-      // 检查icon数据是否有效
-      if (testApp.icon.isEmpty) {
-        OKToastUtil.showError('应用logo数据为空');
-        logger.error('应用logo数据为空: ${testApp.appName}', tag: 'AppUsage');
-        return;
-      }
+  //     // 检查icon数据是否有效
+  //     if (testApp.icon.isEmpty) {
+  //       OKToastUtil.showError('应用logo数据为空');
+  //       logger.error('应用logo数据为空: ${testApp.appName}', tag: 'AppUsage');
+  //       return;
+  //     }
       
-      // 创建临时文件
-      final tempDir = Directory.systemTemp;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      // 根据icon数据判断文件格式（Android应用图标通常是PNG格式）
-      final tempFile = File('${tempDir.path}/app_logo_${testApp.packageName}_$timestamp.png');
+  //     // 创建临时文件
+  //     final tempDir = Directory.systemTemp;
+  //     final timestamp = DateTime.now().millisecondsSinceEpoch;
+  //     // 根据icon数据判断文件格式（Android应用图标通常是PNG格式）
+  //     final tempFile = File('${tempDir.path}/app_logo_${testApp.packageName}_$timestamp.png');
       
-      try {
-        // 将Uint8List写入临时文件
-        await tempFile.writeAsBytes(testApp.icon);
-        logger.info('临时文件创建成功: ${tempFile.path}, 大小: ${testApp.icon.length} bytes', tag: 'AppUsage');
+  //     try {
+  //       // 将Uint8List写入临时文件
+  //       await tempFile.writeAsBytes(testApp.icon);
+  //       logger.info('临时文件创建成功: ${tempFile.path}, 大小: ${testApp.icon.length} bytes', tag: 'AppUsage');
         
-        // 上传文件
-        final fileUploadApi = FileUploadApi();
-        final result = await fileUploadApi.uploadFile(tempFile);
+  //       // 上传文件
+  //       final fileUploadApi = FileUploadApi();
+  //       final result = await fileUploadApi.uploadFile(tempFile);
         
-        // 删除临时文件
-        try {
-          await tempFile.delete();
-          logger.info('临时文件已删除: ${tempFile.path}', tag: 'AppUsage');
-        } catch (e) {
-          logger.warning('删除临时文件失败: $e', tag: 'AppUsage');
-        }
+  //       // 删除临时文件
+  //       try {
+  //         await tempFile.delete();
+  //         logger.info('临时文件已删除: ${tempFile.path}', tag: 'AppUsage');
+  //       } catch (e) {
+  //         logger.warning('删除临时文件失败: $e', tag: 'AppUsage');
+  //       }
         
-        // 处理上传结果
-        if (result.isSuccess && result.data != null) {
+  //       // 处理上传结果
+  //       if (result.isSuccess && result.data != null) {
            
-        } else {
+  //       } else {
            
-          logger.error('应用logo上传失败: ${result.msg}', tag: 'AppUsage');
-        }
-      } catch (e) {
-        // 确保临时文件被删除
-        try {
-          if (await tempFile.exists()) {
-            await tempFile.delete();
-          }
-        } catch (_) {}
+  //         logger.error('应用logo上传失败: ${result.msg}', tag: 'AppUsage');
+  //       }
+  //     } catch (e) {
+  //       // 确保临时文件被删除
+  //       try {
+  //         if (await tempFile.exists()) {
+  //           await tempFile.delete();
+  //         }
+  //       } catch (_) {}
         
-        rethrow;
-      }
-    } catch (e) {
-      logger.error('上传图片失败: $e', tag: 'AppUsage', error: e);
-      OKToastUtil.showError('上传失败: $e');
-    }
-  }
+  //       rethrow;
+  //     }
+  //   } catch (e) {
+  //     logger.error('上传图片失败: $e', tag: 'AppUsage', error: e);
+  //     OKToastUtil.showError('上传失败: $e');
+  //   }
+  // }
   
-  /// 清空本地记录
-  Future<void> debugClearLocalData() async {
-    try {
-      await _reportService.debugClearLocalData();
-      OKToastUtil.showSuccess('本地记录已清空');
-    } catch (e) {
-      logger.error('清空本地记录失败: $e', tag: 'AppUsage', error: e);
-      OKToastUtil.showError('清空失败: $e');
-    }
-  }
+  // /// 清空本地记录
+  // Future<void> debugClearLocalData() async {
+  //   try {
+  //     await _reportService.debugClearLocalData();
+  //     OKToastUtil.showSuccess('本地记录已清空');
+  //   } catch (e) {
+  //     logger.error('清空本地记录失败: $e', tag: 'AppUsage', error: e);
+  //     OKToastUtil.showError('清空失败: $e');
+  //   }
+  // }
   
-  /// 构建调试数据对话框
-  Widget _buildDebugDataDialog(
-    List<AppUsageRecord> allData,
-    List<AppUsageRecord> incrementalData,
-    Map<String, int> lastReported,
-  ) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: double.maxFinite,
-        constraints: const BoxConstraints(maxHeight: 600),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF839E),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '待上报数据',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Get.back(),
-                  ),
-                ],
-              ),
-            ),
+  // /// 构建调试数据对话框
+  // Widget _buildDebugDataDialog(
+  //   List<AppUsageRecord> allData,
+  //   List<AppUsageRecord> incrementalData,
+  //   Map<String, int> lastReported,
+  // ) {
+  //   return Dialog(
+  //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  //     child: Container(
+  //       width: double.maxFinite,
+  //       constraints: const BoxConstraints(maxHeight: 600),
+  //       child: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           // 标题
+  //           Container(
+  //             padding: const EdgeInsets.all(20),
+  //             decoration: const BoxDecoration(
+  //               color: Color(0xFFFF839E),
+  //               borderRadius: BorderRadius.only(
+  //                 topLeft: Radius.circular(16),
+  //                 topRight: Radius.circular(16),
+  //               ),
+  //             ),
+  //             child: Row(
+  //               children: [
+  //                 const Expanded(
+  //                   child: Text(
+  //                     '待上报数据',
+  //                     style: TextStyle(
+  //                       fontSize: 18,
+  //                       fontWeight: FontWeight.w600,
+  //                       color: Colors.white,
+  //                     ),
+  //                   ),
+  //                 ),
+  //                 IconButton(
+  //                   icon: const Icon(Icons.close, color: Colors.white),
+  //                   onPressed: () => Get.back(),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
             
-            // 统计信息
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFFFFF5F7),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildDebugStatCard('全量数据', '${allData.length}个'),
-                  Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
-                  _buildDebugStatCard('增量数据', '${incrementalData.length}个'),
-                  Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
-                  _buildDebugStatCard('已上报', '${lastReported.length}个'),
-                ],
-              ),
-            ),
+  //           // 统计信息
+  //           Container(
+  //             padding: const EdgeInsets.all(16),
+  //             color: const Color(0xFFFFF5F7),
+  //             child: Row(
+  //               mainAxisAlignment: MainAxisAlignment.spaceAround,
+  //               children: [
+  //                 _buildDebugStatCard('全量数据', '${allData.length}个'),
+  //                 Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
+  //                 _buildDebugStatCard('增量数据', '${incrementalData.length}个'),
+  //                 Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
+  //                 _buildDebugStatCard('已上报', '${lastReported.length}个'),
+  //               ],
+  //             ),
+  //           ),
             
-            // 数据列表
-            Expanded(
-              child: DefaultTabController(
-                length: 2,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const TabBar(
-                      labelColor: Color(0xFFFF839E),
-                      unselectedLabelColor: Color(0xFF999999),
-                      indicatorColor: Color(0xFFFF839E),
-                      tabs: [
-                        Tab(text: '全量数据'),
-                        Tab(text: '增量数据'),
-                      ],
-                    ),
-                    Flexible(
-                      child: TabBarView(
-                        children: [
-                          _buildDebugDataList(allData),
-                          _buildDebugDataList(incrementalData),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+  //           // 数据列表
+  //           Expanded(
+  //             child: DefaultTabController(
+  //               length: 2,
+  //               child: Column(
+  //                 mainAxisSize: MainAxisSize.min,
+  //                 children: [
+  //                   const TabBar(
+  //                     labelColor: Color(0xFFFF839E),
+  //                     unselectedLabelColor: Color(0xFF999999),
+  //                     indicatorColor: Color(0xFFFF839E),
+  //                     tabs: [
+  //                       Tab(text: '全量数据'),
+  //                       Tab(text: '增量数据'),
+  //                     ],
+  //                   ),
+  //                   Flexible(
+  //                     child: TabBarView(
+  //                       children: [
+  //                         _buildDebugDataList(allData),
+  //                         _buildDebugDataList(incrementalData),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ),
             
-            // 底部按钮
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Get.back(),
-                    child: const Text(
-                      '关闭',
-                      style: TextStyle(fontSize: 16, color: Color(0xFFFF839E)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  //           // 底部按钮
+  //           Container(
+  //             padding: const EdgeInsets.all(16),
+  //             decoration: const BoxDecoration(
+  //               border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+  //             ),
+  //             child: Row(
+  //               mainAxisAlignment: MainAxisAlignment.end,
+  //               children: [
+  //                 TextButton(
+  //                   onPressed: () => Get.back(),
+  //                   child: const Text(
+  //                     '关闭',
+  //                     style: TextStyle(fontSize: 16, color: Color(0xFFFF839E)),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
   
-  Widget _buildDebugStatCard(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFFF839E),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
-        ),
-      ],
-    );
-  }
+  // Widget _buildDebugStatCard(String label, String value) {
+  //   return Column(
+  //     children: [
+  //       Text(
+  //         value,
+  //         style: const TextStyle(
+  //           fontSize: 20,
+  //           fontWeight: FontWeight.bold,
+  //           color: Color(0xFFFF839E),
+  //         ),
+  //       ),
+  //       const SizedBox(height: 4),
+  //       Text(
+  //         label,
+  //         style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+  //       ),
+  //     ],
+  //   );
+  // }
   
-  Widget _buildDebugDataList(List<AppUsageRecord> records) {
-    if (records.isEmpty) {
-      return const Center(
-        child: Text(
-          '暂无数据',
-          style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
-        ),
-      );
-    }
+  // Widget _buildDebugDataList(List<AppUsageRecord> records) {
+  //   if (records.isEmpty) {
+  //     return const Center(
+  //       child: Text(
+  //         '暂无数据',
+  //         style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+  //       ),
+  //     );
+  //   }
     
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: records.length,
-      separatorBuilder: (context, index) => const Divider(height: 16),
-      itemBuilder: (context, index) {
-        final record = records[index];
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                record.appName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF333333),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                record.packageName,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 14, color: Color(0xFF999999)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${(record.totalDuration / 60000).toStringAsFixed(1)}分钟',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.touch_app, size: 14, color: Color(0xFF999999)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${record.sessionCount}次',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  //   return ListView.separated(
+  //     padding: const EdgeInsets.all(16),
+  //     itemCount: records.length,
+  //     separatorBuilder: (context, index) => const Divider(height: 16),
+  //     itemBuilder: (context, index) {
+  //       final record = records[index];
+  //       return Container(
+  //         padding: const EdgeInsets.all(12),
+  //         decoration: BoxDecoration(
+  //           color: const Color(0xFFF5F5F5),
+  //           borderRadius: BorderRadius.circular(8),
+  //         ),
+  //         child: Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             Text(
+  //               record.appName,
+  //               style: const TextStyle(
+  //                 fontSize: 14,
+  //                 fontWeight: FontWeight.w600,
+  //                 color: Color(0xFF333333),
+  //               ),
+  //             ),
+  //             const SizedBox(height: 4),
+  //             Text(
+  //               record.packageName,
+  //               style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+  //             ),
+  //             const SizedBox(height: 8),
+  //             Row(
+  //               children: [
+  //                 const Icon(Icons.access_time, size: 14, color: Color(0xFF999999)),
+  //                 const SizedBox(width: 4),
+  //                 Text(
+  //                   '${(record.totalDuration / 60000).toStringAsFixed(1)}分钟',
+  //                   style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+  //                 ),
+  //                 const SizedBox(width: 12),
+  //                 const Icon(Icons.touch_app, size: 14, color: Color(0xFF999999)),
+  //                 const SizedBox(width: 4),
+  //                 Text(
+  //                   '${record.sessionCount}次',
+  //                   style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+  //                 ),
+  //               ],
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
+
 }
 
 /// 应用信息模型

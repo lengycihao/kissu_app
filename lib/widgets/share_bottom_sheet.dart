@@ -68,13 +68,23 @@ class ShareBottomSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // 标题
-          const Text(
-            '分享',
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SizedBox(width: 30,),
+              const Text(
+            '分享App',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
               color: Color(0xFF333333),
             ),
+          ),
+          GestureDetector(
+             onTap: () => Navigator.of(context).pop(),
+             child: Image(image: AssetImage('assets/images/kissu_location_close.webp'),width: 20,height: 20,),
+          )
+            ],
           ),
           const SizedBox(height: 24),
           
@@ -126,26 +136,7 @@ class ShareBottomSheet extends StatelessWidget {
           
           const SizedBox(height: 32),
           
-          // 取消按钮
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: double.infinity,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                '取消',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF666666),
-                ),
-              ),
-            ),
-          ),
+          
           
           // 底部安全区域
           SizedBox(height: MediaQuery.of(context).padding.bottom),
@@ -170,27 +161,21 @@ class ShareBottomSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
            Center(
-                child: isIcon
-                    ? Icon(
-                        icon as IconData,
-                        size: 40,
-                        color: const Color(0xFF666666),
-                      )
-                    : Image.asset(
+                child:   Image.asset(
                         icon as String,
-                        width: 40,
-                        height: 40,
+                        width: 46,
+                        height: 70,
                       ),
               ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF333333),
-              ),
-              textAlign: TextAlign.center, // 文字居中对齐
-            ),
+            // const SizedBox(height: 8),
+            // Text(
+            //   label,
+            //   style: const TextStyle(
+            //     fontSize: 14,
+            //     color: Color(0xFF333333),
+            //   ),
+            //   textAlign: TextAlign.center, // 文字居中对齐
+            // ),
           ],
         ),
       ),

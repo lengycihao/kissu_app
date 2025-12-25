@@ -19,8 +19,7 @@ import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/pages/common/image_crop_page.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:kissu_app/pages/common/image_crop_page.dart'; 
 import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
@@ -391,8 +390,7 @@ class InfoSettingController extends GetxController {
     nicknameFocusNode.unfocus();
     FocusScope.of(Get.context!).unfocus();
     
-    // 上报生日选择埋点
-    _trackBirthdaySelection();
+  
 
     await showModalBottomSheet(
       context: Get.context!,
@@ -538,9 +536,7 @@ class InfoSettingController extends GetxController {
     try {
       isLoading.value = true;
       
-      // 上报开启陪伴按钮埋点
-      await _trackEnableCompanionButton(currentNickname);
-
+     
       // 格式化生日为 YYYY-MM-DD 格式
       final birthday = DateFormat('yyyy-MM-dd').format(selectedDate.value);
       final loveTime = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -607,94 +603,12 @@ class InfoSettingController extends GetxController {
   void selectGender(String gender) {
     selectedGender.value = gender;
     
-    // 上报性别选择埋点
-    _trackGenderSelection(gender);
+     
   }
   
-  /// 上报性别选择埋点事件
-  Future<void> _trackGenderSelection(String gender) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('gender', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-        'gender': gender,
-      });
-      
-      logDebug('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender', tag: 'InfoSetting');
-    } catch (e) {
-      logError('❌ 性别选择埋点失败: $e', tag: 'InfoSetting', error: e);
-    }
-  }
+ 
   
-  /// 上报生日选择埋点事件
-  Future<void> _trackBirthdaySelection() async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('select_birthday', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-      });
-      
-      logDebug('📊 生日选择埋点 - device_id: $deviceId, click_time: $clickTime', tag: 'InfoSetting');
-    } catch (e) {
-      logError('❌ 生日选择埋点失败: $e', tag: 'InfoSetting', error: e);
-    }
-  }
-  
-  /// 上报开启陪伴按钮埋点事件
-  Future<void> _trackEnableCompanionButton(String currentNickname) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取用户ID
-      final userId = UserManager.userId ?? 'unknown';
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 判断是否更换了头像
-      // 如果头像不为空且不是默认头像（assets路径），说明更换了头像
-      final user = UserManager.currentUser;
-      final originalAvatar = user?.headPortrait ?? '';
-      final hasChangedAvatar = uploadedHeadPortrait.value.isNotEmpty && 
-                               !uploadedHeadPortrait.value.startsWith('assets/') &&
-                               uploadedHeadPortrait.value != originalAvatar;
-      final isAvatar = hasChangedAvatar ? '是' : '否';
-      
-      // 判断是否修改了昵称
-      final originalNickname = user?.nickname ?? '';
-      final hasChangedNickname = currentNickname.isNotEmpty && currentNickname != originalNickname;
-      final isNickname = hasChangedNickname ? '是' : '否';
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('enable_companion_button', {
-        'device_id': deviceId,
-        'user_id': userId,
-        'click_time': clickTime,
-        'is_avatar': isAvatar,
-        'is_nickname': isNickname,
-      });
-      
-      logDebug('📊 开启陪伴按钮埋点 - device_id: $deviceId, user_id: $userId, click_time: $clickTime, is_avatar: $isAvatar, is_nickname: $isNickname', tag: 'InfoSetting');
-    } catch (e) {
-      logError('❌ 开启陪伴按钮埋点失败: $e', tag: 'InfoSetting', error: e);
-    }
-  }
-
+   
   /// 更新昵称（从TextEditingController同步到响应式变量）
   void updateNickname(String value) {
     nickname.value = value;

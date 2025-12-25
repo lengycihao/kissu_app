@@ -16,6 +16,9 @@ class ChatBackgroundController extends GetxController {
     'assets/chat/kissu_chat_bg1.webp',
     'assets/chat/kissu_chat_bg2.webp',
     'assets/chat/kissu_chat_bg3.webp',
+    'assets/chat/kissu_chat_bg4.webp',
+    'assets/chat/kissu_chat_bg5.webp',
+    'assets/chat/kissu_chat_bg6.webp', 
   ];
 
   // 缓存key

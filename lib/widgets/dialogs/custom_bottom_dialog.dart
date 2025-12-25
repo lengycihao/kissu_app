@@ -181,7 +181,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
             '一起在kissu开启亲密体验吧!',
             style: TextStyle(fontSize: 14, color: Color(0x99333333)),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 15),
 
           // 输入框
           GestureDetector(

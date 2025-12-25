@@ -8,8 +8,7 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/models/poi_model.dart';
-import 'package:kissu_app/models/city_model.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/models/city_model.dart'; 
 
 /// 地图选点Controller
 class LocationPickerController extends GetxController {
@@ -52,6 +51,9 @@ class LocationPickerController extends GetxController {
   
   // 备注文本
   final noteText = ''.obs;
+
+  // 自定义地点文字（用于显示在图标下方）
+  final customLocationText = ''.obs;
   
   // 围栏半径（米）- 默认100米
   final geofenceRadius = 100.0.obs;
@@ -64,18 +66,16 @@ class LocationPickerController extends GetxController {
   
   // 可选的图标列表
   final List<LocationIconData> availableIcons = [
-    LocationIconData(id: 1, type: 'company', label: '公司', asset: 'assets/location/kissu3_gongsi.webp',selectedAsset: 'assets/location/kissu3_gongsi_sel.webp'),
+    LocationIconData(id: 1, type: 'company', label: '商场', asset: 'assets/location/kissu3_gongsi.webp',selectedAsset: 'assets/location/kissu3_gongsi_sel.webp'),
     LocationIconData(id: 2, type: 'home', label: '家', asset: 'assets/location/kissu3_jia.webp',selectedAsset: 'assets/location/kissu3_jia_sel.webp'),
-    LocationIconData(id: 3, type: 'restaurant', label: '娱乐', asset: 'assets/location/kissu3_yule.webp',selectedAsset: 'assets/location/kissu3_yule_sel.webp'),
+    LocationIconData(id: 3, type: 'restaurant', label: '公司', asset: 'assets/location/kissu3_yule.webp',selectedAsset: 'assets/location/kissu3_yule_sel.webp'),
     LocationIconData(id: 4, type: 'gym', label: '健身房', asset: 'assets/location/kissu3_jianshen.webp',selectedAsset: 'assets/location/kissu3_jianshen_sel.webp'),
-    LocationIconData(id: 5, type: 'shop', label: '商场', asset: 'assets/location/kissu3_shangchang.webp',selectedAsset: 'assets/location/kissu3_shangchang_sel.webp'),
+    LocationIconData(id: 5, type: 'shop', label: '自定义地点', asset: 'assets/location/kissu3_shangchang.webp',selectedAsset: 'assets/location/kissu3_shangchang_sel.webp'),
   ];
   
   // 文本输入控制器
   final TextEditingController noteController = TextEditingController();
   
-  // 页面埋点相关
-  DateTime? _pageEnterTime; // 页面进入时间
   
   LocationPickerController({
     this.initialLatitude,
@@ -87,20 +87,31 @@ class LocationPickerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    
-    // 记录页面进入时间
-    _pageEnterTime = DateTime.now();
-    
+
+
     // 监听备注文本变化
     noteController.addListener(() {
       noteText.value = noteController.text;
     });
-    
+
     // 初始化当前城市
     _initializeCurrentCity();
-    
+
     // 如果有初始位置，设置初始标记
     _initializeLocation();
+
+    // 初始化默认图标的备注（仅在新建模式下）
+    if (editingReminder == null) {
+      // 默认选中第一个图标（商场）的备注
+      final defaultIcon = availableIcons.firstWhere(
+        (icon) => icon.id == selectedIcon.value,
+        orElse: () => availableIcons[0],
+      );
+      if (defaultIcon.id >= 1 && defaultIcon.id <= 4) {
+        noteController.text = defaultIcon.label;
+        noteText.value = defaultIcon.label;
+      }
+    }
   }
   
   /// 初始化当前城市（从定位服务获取）
@@ -157,6 +168,11 @@ class LocationPickerController extends GetxController {
       geofenceRadius.value = reminder.radius;
       noteController.text = reminder.note;
       noteText.value = reminder.note;
+
+      // 如果是自定义地点，设置自定义文字用于显示
+      if (reminder.icon == 5 && reminder.note.isNotEmpty) {
+        customLocationText.value = reminder.note;
+      }
       
       // 更新地图标记和围栏
       _updateMarker(position, reminder.address);
@@ -189,33 +205,11 @@ class LocationPickerController extends GetxController {
   
   @override
   void onClose() {
-    // 上报页面浏览埋点
-    _trackPageView();
+   
     noteController.dispose();
     super.onClose();
   }
-  
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-    
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-      
-      // 上报埋点
-      await TrackingService.trackLocationKnockAddressAddPageView(
-        stayDuration: stayDuration,
-      );
-      
-      DebugUtil.info('✅ 添加地点页面浏览埋点上报成功: 停留时长=$stayDuration');
-    } catch (e) {
-      DebugUtil.error('❌ 添加地点页面浏览埋点上报失败: $e');
-    }
-  }
-  
+   
   /// 地图创建完成回调
   void onMapCreated(AMapController controller) {
     mapController = controller;
@@ -483,6 +477,13 @@ class LocationPickerController extends GetxController {
       (icon) => icon.id == iconId,
       orElse: () => availableIcons[1],
     );
+
+    // 当选择普通图标(1-4)时，自动设置备注为对应标签文字
+    if (iconId >= 1 && iconId <= 4) {
+      noteController.text = iconData.label;
+      noteText.value = iconData.label;
+    }
+
     DebugUtil.info('🎨 选中图标: ${iconData.label} (ID: $iconId)');
   }
   

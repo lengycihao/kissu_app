@@ -244,14 +244,8 @@ class MessageCenterPage extends GetView<MessageCenterController> {
         );
       }
 
-      return NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          controller.handleScroll(notification);
-          return false;
-        },
-        child: ListView.builder(
-          controller: controller.scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
+      return ListView.builder(
+           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 20),
           itemCount: controller.messageList.length,
           itemBuilder: (context, index) {
@@ -264,8 +258,7 @@ class MessageCenterPage extends GetView<MessageCenterController> {
               ],
             );
           },
-        ),
-      );
+        );
     });
   }
 

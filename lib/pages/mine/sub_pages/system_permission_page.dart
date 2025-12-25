@@ -26,7 +26,21 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
               children: [
                 // 顶部导航栏
                 _buildTopBar(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
+                Container(
+                  margin: EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 10,vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Color(0xffFFE1F4),
+                    border: Border.all(width: 1, color: Color(0xffffffff)),
+                    borderRadius: BorderRadius.circular(12)
+                    
+                  ),
+                  child: Text("以保证你的实时位置，手机使用、轨迹停留、自动报备等数据正常显示",style: TextStyle(
+                    color: Color(0xff777777),
+                    fontSize: 12
+                  ),),
+                ),
                 // 权限列表
                 Expanded(child: _buildPermissionList()),
               ],
@@ -40,10 +54,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
   /// 构建顶部导航栏
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       child: Row(
         children: [
           CommonBackButton(
@@ -54,15 +65,12 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
           const Expanded(
             child: Center(
               child: Text(
-                "系统权限",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
+                "请开启以下权限",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
           ),
-          const SizedBox(width: 22),
+          const SizedBox(width: 32),
         ],
       ),
     );
@@ -77,7 +85,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
 
       final items = controller.permissionItems;
       return ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         physics: const BouncingScrollPhysics(),
         itemCount: items.length,
         itemBuilder: (context, index) {
@@ -93,7 +101,6 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
       );
     });
   }
-
 }
 
 /// 权限加载中视图
@@ -112,10 +119,7 @@ class _PermissionLoadingView extends StatelessWidget {
           SizedBox(height: 16),
           Text(
             '加载中...',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF999999),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
           ),
         ],
       ),
@@ -189,8 +193,9 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
               // 检查权限状态
               final bool isGranted = widget.controller.isBatteryOptimized.value;
               final String buttonText = isGranted ? "已开启" : "去设置";
-              final Color buttonColor =
-                  isGranted ? const Color(0xFFCCCCCC) : const Color(0xFFFF839E);
+              final Color buttonColor = isGranted
+                  ? const Color(0xFF999999)
+                  : const Color(0xFFFFA9E0);
               final VoidCallback? buttonAction = isGranted
                   ? null
                   : () => widget.controller.handlePreventSleepTap();
@@ -215,13 +220,15 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
         child: ScaleTransition(
           scale: _scaleAnimation,
           child: Obx(() {
-            final bool hasCompleted =
-                widget.controller.isGuideCompleted(guideType);
+            final bool hasCompleted = widget.controller.isGuideCompleted(
+              guideType,
+            );
             final String buttonText = hasCompleted ? "已开启" : "去设置";
-            final Color buttonColor =
-                hasCompleted ? const Color(0xFFCCCCCC) : const Color(0xFFFF839E);
-            final VoidCallback buttonAction =
-                () => widget.controller.openGuidePage(guideType);
+            final Color buttonColor = hasCompleted
+                ? const Color(0xFF999999)
+                : const Color(0xFFFFA9E0);
+            final VoidCallback buttonAction = () =>
+                widget.controller.openGuidePage(guideType);
 
             return GestureDetector(
               onTap: buttonAction,
@@ -244,12 +251,15 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
         scale: _scaleAnimation,
         child: Obx(() {
           final permissionType = widget.type ?? PermissionType.usage;
-          final String buttonText =
-              widget.controller.getButtonText(permissionType);
-          final Color buttonColor =
-              widget.controller.getButtonColor(permissionType);
-          final bool isEnabled =
-              widget.controller.isButtonEnabled(permissionType);
+          final String buttonText = widget.controller.getButtonText(
+            permissionType,
+          );
+          final Color buttonColor = widget.controller.getButtonColor(
+            permissionType,
+          );
+          final bool isEnabled = widget.controller.isButtonEnabled(
+            permissionType,
+          );
           final VoidCallback? buttonAction = isEnabled
               ? () => widget.controller.onPermissionTap(permissionType)
               : null;
@@ -274,15 +284,11 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF6D4128),
-          width: 1,
-        ),
-      ),
+       ),
       child: Row(
         children: [
           // 权限图标
@@ -294,11 +300,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-              child: Image.asset(
-                widget.item["icon"],
-                width: 44,
-                height: 44,
-              ),
+              child: Image.asset(widget.item["icon"], width: 44, height: 44),
             ),
           ),
           const SizedBox(width: 8),
@@ -319,7 +321,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
                 Text(
                   widget.item["subtitle"],
                   style: const TextStyle(
-                    color: Color(0xff666666),
+                    color: Color(0xff999999),
                     fontSize: 11,
                   ),
                 ),
@@ -331,10 +333,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
           GestureDetector(
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 color: buttonColor,

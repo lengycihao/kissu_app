@@ -92,7 +92,7 @@ dependencies:
   # fl_chart: ^0.69.0  # 专业图表库
   sensors_plus: ^6.0.1  # 手机传感器（陀螺仪、磁力计）
   cached_network_image: ^3.3.1  # 网络图片缓存
-  chat_bubbles: ^1.7.0  # 聊天气泡组件
+  # chat_bubbles: ^1.7.0  # 聊天气泡组件
   tencent_cloud_chat_push: ^8.8.7357
 
 dev_dependencies:
@@ -124,6 +124,9 @@ flutter:
     - family: LiuHuanKaTongShouShu
       fonts:
         - asset: assets/font/LiuHuanKaTongShouShu.ttf
+    - family: Resource-Han-Rounded
+      fonts:
+        - asset: assets/font/Resource-Han-Rounded-CN.ttf
     - family: AlimamaShuHeiTi
       fonts:
         - asset: assets/font/AlimamaShuHeiTi-Bold.ttf

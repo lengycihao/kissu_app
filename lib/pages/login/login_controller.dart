@@ -14,10 +14,8 @@ import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/services/openinstall_service.dart';
-import 'package:kissu_app/services/tracking_service.dart';
-import 'package:kissu_app/services/app_usage_auto_report_service.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:kissu_app/services/openinstall_service.dart'; 
+import 'package:kissu_app/services/app_usage_auto_report_service.dart'; 
 import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
@@ -54,8 +52,7 @@ class LoginController extends GetxController {
     // 🔑 移除登录页面的隐私弹窗检查，现在在启动页处理
     // _checkAndShowFirstAgreement();
     
-    // 📊 上报登录页面浏览埋点
-    _trackLoginPageView();
+    
   }
   
   /// 加载协议同意状态
@@ -141,14 +138,14 @@ class LoginController extends GetxController {
 
   // 发送验证码
   Future<void> _sendVerificationCode() async {
-    bool isSuccess = false;
+     
     try {
       final result = await authApi.getPhoneCode(
         phone: phoneNumber.value,
         type: 'login', // 登录验证码
       );
 
-      isSuccess = result.isSuccess;
+    
       
       if (result.isSuccess) {
         OKToastUtil.show("验证码发送成功");
@@ -158,10 +155,9 @@ class LoginController extends GetxController {
       }
     } catch (e) {
       OKToastUtil.show('验证码发送失败: $e');
-      isSuccess = false;
+      
     } finally {
-      // 📊 上报获取验证码埋点（无论成功还是失败都上报）
-      await _trackGetVerificationCode(isSuccess);
+      
     }
   }
 
@@ -247,8 +243,7 @@ class LoginController extends GetxController {
         () {
           Navigator.pop(context);
           isChecked.value = true;
-          // 发送埋点：弹窗点击同意
-          trackAgreementCheckbox(true);
+           
           _loginWithApi(name: phoneNumber.value, psw: verificationCode.value);
         },
         height: 230.0, // 传递弹窗的高度（例如：500.0）
@@ -286,11 +281,7 @@ class LoginController extends GetxController {
       );
 
       if (result.isSuccess) {
-        // 📊 友盟埋点：登录成功（异步执行，不阻塞）
-        TrackingService.trackLoginButton(
-          isSuccess: true,
-          userId: result.data?.id?.toString(),
-        );
+         
 
         // 登录成功，保存协议同意状态
         await _saveAgreementStatus(true);
@@ -327,14 +318,12 @@ class LoginController extends GetxController {
           Get.offAllNamed(KissuRoutePath.home);
         }
       } else {
-        // 📊 友盟埋点：登录失败（异步执行，不阻塞）
-        TrackingService.trackLoginButton(isSuccess: false);
+        
         
         OKToastUtil.show(result.msg ?? '登录失败');
       }
     } catch (e) {
-        // 📊 友盟埋点：登录异常（异步执行，不阻塞）
-        TrackingService.trackLoginButton(isSuccess: false);
+         
         
         OKToastUtil.show("登录失败");
     } finally {
@@ -384,53 +373,11 @@ class LoginController extends GetxController {
     }
   }
 
-  /// 上报登录页面浏览埋点事件
-  Future<void> _trackLoginPageView() async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('login_page', {
-        'device_id': deviceId,
-      });
-      
-      logDebug('📊 登录页面浏览埋点 - device_id: $deviceId', tag: 'Login');
-    } catch (e) {
-      logError('❌ 登录页面浏览埋点失败: $e', tag: 'Login', error: e);
-    }
-  }
+   
 
-  /// 上报获取验证码埋点事件
-  Future<void> _trackGetVerificationCode(bool isSuccess) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('get_verification_code', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-        'is_success': isSuccess ? '成功' : '失败',
-      });
-      
-      logDebug('📊 获取验证码埋点 - device_id: $deviceId, click_time: $clickTime, is_success: ${isSuccess ? "成功" : "失败"}', tag: 'Login');
-    } catch (e) {
-      logError('❌ 获取验证码埋点失败: $e', tag: 'Login', error: e);
-    }
-  }
+   
 
-  /// 协议复选框埋点
-  /// 
-  /// 当用户勾选或取消勾选协议复选框时调用
-  /// - [isAgree] true=勾选/同意，false=取消勾选/不同意
-  void trackAgreementCheckbox(bool isAgree) {
-    TrackingService.trackAgreementOperation(isAgree: isAgree);
-  }
-
+   
  
   
   /// 启动App使用记录自动上报服务（登录成功后）

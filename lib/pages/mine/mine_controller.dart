@@ -20,8 +20,7 @@ import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
-import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart'; 
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 import 'package:kissu_app/services/permission_service.dart';
@@ -79,13 +78,9 @@ class MineController extends GetxController {
   // 下拉刷新相关
   var isRefreshing = false.obs;
 
-  // 页面浏览时长统计
-  DateTime? _pageEnterTime;
+ 
 
-  // 滑动相关
-  late ScrollController scrollController;
-  var scrollTimes = 0.obs; // 滑动次数
-  var hasScrolled = false.obs; // 是否滑动过
+ 
 
   // 权限状态
   /// 是否已经完成「系统权限」页面中所有需要开启的权限 / 教程项
@@ -135,11 +130,7 @@ class MineController extends GetxController {
     _initSettingItems();
     _initCommonFunctionItems();
 
-    // 初始化滚动控制器
-    scrollController = ScrollController();
-
-    // 记录页面进入时间（用于计算停留时长）
-    _pageEnterTime = DateTime.now();
+ 
 
     // 先加载本地用户信息（立即显示）
     loadUserInfo();
@@ -149,63 +140,9 @@ class MineController extends GetxController {
     checkAllPermissions();
   }
 
-  @override
-  void onReady() {
-    super.onReady();
-    // 页面准备就绪时，确保已经静默刷新
-  }
-
-  @override
-  void onClose() {
-    // 上报页面浏览埋点
-    _trackPageView();
-
-    // 释放滚动控制器
-    scrollController.dispose();
-
-    super.onClose();
-  }
-
-  /// 处理滑动事件
-  void handleScroll(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification) {
-      // 只要发生滚动，标记为已滑动
-      if (!hasScrolled.value) {
-        hasScrolled.value = true;
-      }
-
-      // 滑动距离超过 10 像素时，计数一次
-      if (notification.scrollDelta!.abs() > 10) {
-        scrollTimes.value++;
-        debugPrint('📊 我的页面：滑动次数 = ${scrollTimes.value}');
-      }
-    }
-  }
-
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-
-      // 上报埋点
-      await TrackingService.trackMyPageView(
-        stayDuration: stayDuration,
-        canScroll: hasScrolled.value,
-        scrollTimes: scrollTimes.value,
-      );
-
-      debugPrint(
-        '✅ 我的页面浏览埋点上报成功: 停留时长=$stayDuration, 是否滑动=${hasScrolled.value}, 滑动次数=${scrollTimes.value}',
-      );
-    } catch (e) {
-      debugPrint('❌ 我的页面浏览埋点上报失败: $e');
-    }
-  }
+ 
+ 
+ 
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
@@ -546,8 +483,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/4.0/kissu4_mine_question.webp",
         title: "常见问题",
-        onTap: () async {
-          await TrackingService.trackFaq();
+        onTap: () async { 
           Get.to(QuestionPage(), transition: Transition.rightToLeft);
         },
       ),
@@ -555,16 +491,14 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/4.0/kissu4_feedback.webp",
         title: "意见反馈",
-        onTap: () async {
-          await TrackingService.trackFeedback();
+        onTap: () async { 
           Get.toNamed(KissuRoutePath.feedback);
         },
       ),
       SettingItem(
         icon: "assets/4.0/kissu4_mine_aboutus.webp",
         title: "关于我们",
-        onTap: () async {
-          await TrackingService.trackAboutUs();
+        onTap: () async { 
           Get.to(AboutUsPage(), transition: Transition.rightToLeft);
         },
       ),
@@ -647,22 +581,19 @@ class MineController extends GetxController {
 
   // 顶部返回
   void onBackTap() {
-    // 上报返回按钮点击埋点
-    TrackingService.trackMyLeaveEvent();
+     
     Get.back();
   }
 
   // 右上角设置按钮
   void onSettingTap() async {
-    // 上报账号及隐私安全点击埋点
-    await TrackingService.trackAccountPrivacySecurity();
+     
     Get.to(PrivacySettingPage(), transition: Transition.rightToLeft);
   }
 
   // 点击恋爱信息标签
   void onLabelTap() async {
-    // 上报恋爱信息入口点击埋点
-    await TrackingService.trackEditInfoPage();
+    
 
     await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
     // 从恋爱信息页面返回时，刷新我的页面
@@ -685,9 +616,7 @@ class MineController extends GetxController {
   void onPartnerAvatarTap() async {
     // 如果未绑定，显示绑定弹窗
     if (!isBound.value) {
-      // 上报绑定页面点击埋点
-      await TrackingService.trackMyBindPage();
-
+    
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
@@ -695,8 +624,7 @@ class MineController extends GetxController {
         );
       }
     } else {
-      // 上报恋爱信息入口点击埋点
-      await TrackingService.trackEditInfoPage();
+    
 
       // 如果已绑定，跳转到恋爱信息页面
       await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
@@ -714,8 +642,7 @@ class MineController extends GetxController {
     if (isBound.value) {
       logDebug('🔥 用户已绑定，跳转到恋爱信息页面', tag: 'Mine');
 
-      // 上报恋爱信息入口点击埋点
-      await TrackingService.trackEditInfoPage();
+       
 
       await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
       // 从恋爱信息页面返回时，刷新我的页面
@@ -760,9 +687,7 @@ class MineController extends GetxController {
     if (!isBound.value) {
       logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
 
-      // 上报绑定页面点击埋点
-      await TrackingService.trackMyBindPage();
-
+      
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
@@ -785,9 +710,7 @@ class MineController extends GetxController {
       // 永久会员，跳转到权益页面
       logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
 
-      // 上报开通会员点击埋点（终身会员页面）
-      await TrackingService.trackMyOpenMembership(vipPageType: '终身会员页面');
-
+   
       Get.toNamed(
         KissuRoutePath.foreverVip,
         arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
@@ -796,9 +719,7 @@ class MineController extends GetxController {
       // 普通会员或非会员，跳转到VIP页面
       logDebug('💫 普通会员或非会员，跳转到VIP页面', tag: 'Mine');
 
-      // 上报开通会员点击埋点（会员页面）
-      await TrackingService.trackMyOpenMembership(vipPageType: '会员页面');
-
+     
       Get.toNamed(
         KissuRoutePath.vip,
         arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
@@ -842,45 +763,6 @@ class MineController extends GetxController {
     }
   }
 
-  /// 退出登录功能
-  void showLogoutDialog() {
-    // 显示退出登录确认对话框
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Text(
-          '退出登录',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          textAlign: TextAlign.center,
-        ),
-        content: const Text(
-          '确定要退出当前账号吗？',
-          style: TextStyle(fontSize: 14, color: Color(0xFF666666), height: 1.5),
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => performLogout(),
-            child: const Text(
-              '确认',
-              style: TextStyle(
-                color: Color(0xFFFF4444),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              '我再想想',
-              style: TextStyle(color: Color(0xFF999999), fontSize: 16),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// 执行退出登录
   Future<void> performLogout() async {
@@ -933,8 +815,7 @@ class MineController extends GetxController {
 
   /// 分享APP点击事件
   void _onShareAppTap() async {
-    // 上报分享App点击埋点
-    await TrackingService.trackMyShare();
+     
     ShareBottomSheet.showShareApp(Get.context!);
   }
 
@@ -945,15 +826,13 @@ class MineController extends GetxController {
 
   /// 防偷拍检测点击事件
   void _onAntiSpyTap() async {
-    // 上报防偷拍检查点击埋点
-    await TrackingService.trackSafeCheck();
+    
     Get.toNamed(KissuRoutePath.antiSpy);
   }
 
   /// 联系我们点击事件
   void _onContactTap() async {
-    // 上报联系我们点击埋点
-    await TrackingService.trackContactCustomerService();
+    
     openContact();
   }
 
@@ -963,9 +842,7 @@ class MineController extends GetxController {
     if (!isBound.value) {
       logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
 
-      // 上报绑定页面点击埋点
-      await TrackingService.trackMyBindPage();
-
+    
       if (Get.context != null) {
         await CustomBottomDialog.show(
           context: Get.context!,
@@ -1014,7 +891,7 @@ class MineController extends GetxController {
 
   /// 更换首页视图点击事件
   void _onChangeHomeViewTap() async {
-    await TrackingService.trackHomeView();
+    
     Get.to(SettingHomePage(), transition: Transition.rightToLeft);
   }
 

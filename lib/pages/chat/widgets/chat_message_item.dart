@@ -6,6 +6,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'location_preview_widget.dart';
@@ -108,9 +109,8 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     }
 
     // 计算一起便便消息高度（用于对齐头像）
-    // 内容高度：标题(13) + 间距(8) + 图标(48) + 气泡padding(top:20 + bottom:8) + 标题上方间距(2) ≈ 91
-    // 加上一些额外空间，使用固定高度
-    const double defecateMessageHeight = 91.0;
+    // 气泡padding(top:20) + 标题上方间距(2) + 标题高度(~15) + 标题和图标间距(8) + 图标高度(48) + 气泡padding(bottom:8) ≈ 101
+    const double defecateMessageHeight = 101.0;
 
     // 普通消息：上方可选时间气泡 + 下方消息行
     return Column(
@@ -118,8 +118,8 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       children: [
         if (widget.showTimestamp) _buildTimeChip(),
         Padding(
-          // 适当增大消息间垂直间距
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          // 消息间垂直间距设为12px
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: (imageSize != null && (isSelfImageMessage || isOtherImageMessage)) ||
                   (isSelfDefecateMessage || isOtherDefecateMessage)
               ? Row(
@@ -164,12 +164,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                     ],
                   ],
                 )
-              : Row(
+                : Row(
                   mainAxisAlignment: widget.message.isSent
                       ? MainAxisAlignment.end
                       : MainAxisAlignment.start,
-                  // 文本/位置等气泡类消息：统一用底部对齐
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  // 所有消息类型统一用顶部对齐
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (!widget.message.isSent) _buildAvatarWithOffset(),
                     if (!widget.message.isSent) const SizedBox(width: 8),
@@ -194,14 +194,14 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     final bool hasJump =
         widget.message.jumpPage != null && widget.message.jumpPage!.isNotEmpty;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
         children: [
           // 时间戳（根据showTimestamp决定是否显示）
           if (widget.showTimestamp) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              margin: const EdgeInsets.only(bottom: 10,top: 8),
+              margin: const EdgeInsets.only(bottom: 12,top: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFF6F6F6),
                 borderRadius: BorderRadius.circular(15),
@@ -415,13 +415,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
   // 构建带偏移的头像（只用于有气泡的消息）
   Widget _buildAvatarWithOffset() {
-    // 图片消息不调整位置
-    if (widget.message.type == MessageType.image) {
-      return _buildAvatar();
-    }
-    // 有气泡的消息向下调整2px
-    return Transform.translate(
-      offset: const Offset(0, 2),
+    // 所有消息类型都统一顶部对齐，不再向下偏移
+    return Align(
+      alignment: Alignment.topCenter,
       child: _buildAvatar(),
     );
   }
@@ -634,19 +630,40 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   /// 处理一起便便消息点击，跳转到H5页面
   void _handleDefecateMessageTap() {
     try {
-      const baseUrl = 'http://devweb.ikissu.cn/share/couplesdeFecating.html';
+      // 优先使用后端返回的 crapLink（若可用），否则降级到生产 HTTPS 链接
+      String baseUrl = '';
+      try {
+        if (Get.isRegistered<HomeController>()) {
+          final homeController = Get.find<HomeController>();
+          baseUrl = homeController.crapLink.value;
+        }
+      } catch (_) {
+        baseUrl = '';
+      }
+
+      if (baseUrl.isEmpty) {
+        baseUrl = 'https://www.ikissu.cn/share/couplesdeFecating.html';
+      } else {
+        // 规范为 HTTPS，避免使用明文 HTTP
+        if (baseUrl.startsWith('http://')) {
+          baseUrl = baseUrl.replaceFirst('http://', 'https://');
+        } else if (!baseUrl.startsWith('https://')) {
+          baseUrl = 'https://$baseUrl';
+        }
+      }
+
       String url = baseUrl;
 
-      // 尝试获取token并拼接
+      // 尝试获取 token 并拼接为参数（若存在）
       try {
         final authService = getIt<AuthService>();
         final token = authService.userToken;
         if (token != null && token.isNotEmpty) {
           final encodedToken = Uri.encodeComponent(token);
-          url = '$baseUrl?token=$encodedToken';
+          final separator = baseUrl.contains('?') ? '&' : '?';
+          url = '$baseUrl${separator}token=$encodedToken';
         }
       } catch (_) {
-        // 获取 token 失败时，降级为不带 token 的 H5
         url = baseUrl;
       }
 

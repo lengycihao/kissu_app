@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:flutter/material.dart'; 
 import 'base_dialog.dart';
 
 /// 绑定弹窗关闭确认弹窗
@@ -59,12 +58,7 @@ class BindingCloseConfirmDialog extends BaseDialog {
                   // 左按钮 - "再想想"
                   GestureDetector(
                     onTap: () async {
-                      // 只有来自首页的绑定弹窗才上报埋点
-                      if (isFromHomePage) {
-                        await TrackingService.trackBindingReback(
-                          buttonName: '再想想',
-                        );
-                      }
+                 
 
                       Navigator.of(context).pop(true); // 返回true表示允许关闭绑定弹窗
                       onCancel?.call();
@@ -101,12 +95,7 @@ class BindingCloseConfirmDialog extends BaseDialog {
                   // 右按钮 - "立即绑定"
                   GestureDetector(
                     onTap: () async {
-                      // 只有来自首页的绑定弹窗才上报埋点
-                      if (isFromHomePage) {
-                        await TrackingService.trackBindingReback(
-                          buttonName: '立即绑定',
-                        );
-                      }
+                     
 
                       Navigator.of(context).pop(false); // 返回false表示不关闭绑定弹窗
                       onConfirm?.call();

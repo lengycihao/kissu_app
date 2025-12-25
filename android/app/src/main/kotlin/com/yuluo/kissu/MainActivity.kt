@@ -33,8 +33,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         private const val FOREGROUND_SERVICE_CHANNEL = "kissu_app/foreground_service"
         private const val SHARE_CHANNEL = "app.share/invoke"
         private const val UMSHARE_CHANNEL = "umshare"
-        private const val UMENG_ANALYTICS_CHANNEL = "umeng_analytics"
-        private const val PAYMENT_CHANNEL = "kissu_payment"
+         private const val PAYMENT_CHANNEL = "kissu_payment"
         private const val APP_INFO_CHANNEL = "kissu_app/app_info"
         private const val WHITELIST_CHANNEL = "kissu_app/whitelist"
         private const val GPS_STATUS_CHANNEL = "kissu_app/gps_status"
@@ -50,8 +49,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private lateinit var appUsageHandler: AppUsageHandler
     private lateinit var locationHandler: LocationHandler
     // private lateinit var appInfoHandler: AppInfoHandler
-    private lateinit var systemHandler: SystemHandler
-    private lateinit var analyticsHandler: AnalyticsHandler
+    private lateinit var systemHandler: SystemHandler 
     private lateinit var foregroundServiceHandler: ForegroundServiceHandler
     
     // 微信 API 实例（用于企业微信客服）
@@ -59,9 +57,6 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // 确保至少有一个 LAUNCHER alias 处于启用状态，防止调试时找不到入口
-        ensureLauncherAliasEnabled()
         
         // 🔥 禁用MainActivity的LAUNCHER能力，避免与MainActivityDefault冲突导致双图标
          
@@ -231,8 +226,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         appUsageHandler = AppUsageHandler(this)
         locationHandler = LocationHandler(this)
         // appInfoHandler = AppInfoHandler(this)
-        systemHandler = SystemHandler(this)
-        analyticsHandler = AnalyticsHandler(this)
+        systemHandler = SystemHandler(this) 
         foregroundServiceHandler = ForegroundServiceHandler(this)
         
         // 初始化需要初始化的处理器
@@ -311,10 +305,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
             shareHandler.handleMethodCall(call, result)
         }
         
-        // 友盟统计通道
-        MethodChannel(messenger, UMENG_ANALYTICS_CHANNEL).setMethodCallHandler { call, result ->
-            analyticsHandler.handleMethodCall(call, result)
-        }
+         
         
         // 支付通道
         MethodChannel(messenger, PAYMENT_CHANNEL).setMethodCallHandler { call, result ->
@@ -451,60 +442,14 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     }
     
     /**
-     * 确保至少有一个 LAUNCHER alias 处于启用状态
-     * 若全部禁用，则恢复默认图标，避免 adb/Flutter 启动时报 Activity 不存在
-     */
-    private fun ensureLauncherAliasEnabled() {
-        val pm = packageManager
-        val hasEnabledAlias = iconAliasMap.values.any { alias ->
-            val state = pm.getComponentEnabledSetting(ComponentName(this, alias))
-            state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-        }
-
-        if (!hasEnabledAlias) {
-            val defaultAlias = iconAliasMap["default"] ?: "com.yuluo.kissu.MainActivityDefault"
-            val defaultComponent = ComponentName(this, defaultAlias)
-            pm.setComponentEnabledSetting(
-                defaultComponent,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP
-            )
-            iconAliasMap.values
-                .filter { it != defaultAlias }
-                .forEach { alias ->
-                    pm.setComponentEnabledSetting(
-                        ComponentName(this, alias),
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                }
-            Log.w(TAG, "未找到启用的桌面图标，已恢复默认: $defaultAlias")
-        }
-    }
-    
-    /**
      * 初始化友盟
      */
     private fun initUmeng() {
-        // 初始化友盟SDK
-        UMConfigure.init(
-            applicationContext,
-            "6879fba679267e0210b67bde",
-            "Umeng",
-            UMConfigure.DEVICE_TYPE_PHONE,
-            null
-        )
-        
-        // 设置友盟日志加密
-        UMConfigure.setLogEnabled(true)
-        
-        // 配置微信平台
+        // 注意：UMConfigure 已在 Application.onCreate 中初始化（KissuApplication）
+        // 这里仅保留平台配置（微信/QQ），避免重复初始化
         PlatformConfig.setWeixin("wxca15128b8c388c13", "e0d2d1e8c3f4e5f6a7b8c9d0e1f2a3b4")
-        
-        // 配置QQ平台
         PlatformConfig.setQQZone("102797447", "c5KJ2VipiMRMCpJf")
-        
-        Log.d(TAG, "友盟SDK初始化完成")
+        Log.d(TAG, "友盟平台配置完成（UMeng init 在 Application 中完成）")
     }
     
     /**
@@ -575,13 +520,11 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     }
     
     override fun onResume() {
-        super.onResume()
-        analyticsHandler.onResume()
+        super.onResume() 
     }
     
     override fun onPause() {
-        super.onPause()
-        analyticsHandler.onPause()
+        super.onPause() 
     }
     
     override fun onDestroy() {

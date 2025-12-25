@@ -7,8 +7,7 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/pages/track/stay_point.dart';
-import 'package:kissu_app/services/tracking_service.dart'; 
+import 'package:kissu_app/pages/track/stay_point.dart'; 
 import 'package:kissu_app/pages/location/services/marker_builder.dart';
 
 /// 初始坐标信息类
@@ -262,8 +261,9 @@ class TrackMarkerManager {
       
       // 在指定位置创建临时 Marker 并显示 InfoWindow
       final stopInfo = _parseStopInfo(stopPoint);
-      final String infoTitle = stopInfo['locationName']!;
-      final String infoSnippet = '${stopPoint.startTime ?? ''} ${stopPoint.duration?.isNotEmpty == true ? '停留${stopPoint.duration}' : ''}';
+      // 修改为只显示地址信息，与位置提醒页面保持一致
+      final String infoTitle = locationName.contains('\n') ? locationName.split('\n').first : locationName;
+      final String infoSnippet = locationName.contains('\n') ? locationName.split('\n').skip(1).join('\n') : '';
       
       // 先清除之前的临时 InfoWindow Marker（如果有）
       _clearTempInfoWindowMarker();
@@ -272,14 +272,20 @@ class TrackMarkerManager {
       await Future.delayed(const Duration(milliseconds: 50));
       
       // 创建临时 Marker，设置自动显示 InfoWindow 并支持拖拽
+      // 使用与位置提醒页面相同的 marker 图标
+      final markerIcon = await BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(48, 48)),
+        'assets/3.0/kissu3_map_marker_icon.webp',
+      );
+
       final tempMarker = Marker(
         position: position,
-        alpha: 0.0, // 🎯 完全透明，不显示系统marker
-        anchor: const Offset(0.5, 0.5), // 🎯 设置锚点为中心，使InfoWindow相对坐标点居中
+        icon: markerIcon, // 🎯 显示与位置提醒页面相同的 marker 图标
+        // 移除 anchor 设置，与位置提醒页面保持一致，使用默认锚点
         infoWindowEnable: true,
         autoShowCustomInfoWindow: true, // 🎯 关键：自动显示 InfoWindow
         draggable: true, // 🎯 启用拖拽功能
-        isTrackStyle: true, // 🎯 使用轨迹样式 InfoWindow
+        // 移除 isTrackStyle，使用 Flutter 的 customInfoWindowBuilder，与位置提醒页面保持一致
         stayDuration: stopInfo['stayDuration'], // 🎯 停留时长
         stayTime: stopInfo['stayTime'], // 🎯 停留时间
         infoWindow: InfoWindow(
@@ -414,60 +420,54 @@ class TrackMarkerManager {
     };
   }
   
-  /// 🎯 构建轨迹样式的InfoWindow（占位符方法，实际使用Android原生实现）
-  /// 这个方法不会被实际调用，因为我们使用了Android原生的InfoWindow实现
-  /// 但为了避免编译错误，需要保留这个方法定义
+  /// 🎯 构建轨迹样式的InfoWindow（与位置提醒页面保持一致）
+  /// 只显示地址信息，样式与位置提醒页面保持一致
   Widget _buildTrackInfoWindow({
     required String locationName,
     required String stayDuration,
     required String stayTime,
   }) {
+    // 解析地址信息，模拟位置提醒页面的地址格式
+    final address = locationName;
+    final mainAddress = address.contains('\n') ? address.split('\n').first : address;
+    final detailAddress = address.contains('\n') ? address.split('\n').skip(1).join('\n') : '';
+
     return Container(
-      width: 280,
-      height: 120,
+      width: 220, // 与位置提醒页面保持一致
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            locationName,
+            mainAddress,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Color(0xFF333333),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8),
-          if (stayTime.isNotEmpty)
+          if (detailAddress.isNotEmpty) ...[
+            const SizedBox(height: 4),
             Text(
-              stayTime,
+              detailAddress,
               style: const TextStyle(
                 fontSize: 12,
                 color: Color(0xFF666666),
               ),
             ),
-          if (stayDuration.isNotEmpty)
-            Text(
-              '停留 $stayDuration',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF999999),
-              ),
-            ),
+          ],
         ],
       ),
     );
@@ -525,13 +525,13 @@ class TrackMarkerManager {
     // 先清除已有的圆圈
     highlightCircles.clear();
     
-    // 创建新的高亮圆圈
+    // 创建新的高亮圆圈，与位置提醒页面保持一致
     final circle = Circle(
       center: center,
       radius: 100, // 100米半径
-      strokeColor: const Color(0xFF4285F4).withValues(alpha: 0.8), // Google蓝色
-      fillColor: const Color(0xFF4285F4).withValues(alpha: 0.15), // 半透明填充
-      strokeWidth: 3,
+      strokeColor: const Color(0x55FFFFFF), // 与位置提醒页面一致：半透明白色边框
+      fillColor: const Color(0x55FFD6EC), // 与位置提醒页面一致：粉色半透明填充
+      strokeWidth: 5, // 与位置提醒页面一致
     );
     
     highlightCircles.add(circle);
@@ -588,14 +588,19 @@ class TrackMarkerManager {
             onTap: (_) => onStopPointTap(point),
             // 设置InfoWindow数据（点击时自动显示自定义 InfoWindow）
             infoWindowEnable: true,
-            isTrackStyle: true, 
+            // 移除 isTrackStyle，使用 Flutter 的 customInfoWindowBuilder，与位置提醒页面保持一致 
             stayDuration:  stopInfo['stayDuration'] , // 停留时长
             stayTime:  stopInfo['stayTime'] , // 停留时间
             zIndex: 1.0, // 🎯 设置较低的层级，确保播放头像marker在停留点之上显示
+            // 修改为只显示地址信息，与位置提醒页面保持一致
             infoWindow: InfoWindow(
-                    title: stopInfo['locationName']!,
-                    snippet: stopInfo['stayDuration']!,
-                  ) , 
+              title: stopInfo['locationName']!.contains('\n')
+                  ? stopInfo['locationName']!.split('\n').first
+                  : stopInfo['locationName']!,
+              snippet: stopInfo['locationName']!.contains('\n')
+                  ? stopInfo['locationName']!.split('\n').skip(1).join('\n')
+                  : '',
+            ), 
             customInfoWindowBuilder:  (context) => _buildTrackInfoWindow(
                       locationName: stopInfo['locationName']!,
                       stayDuration: stopInfo['stayDuration']!,
@@ -977,15 +982,14 @@ class TrackMarkerManager {
   }
   
   /// 处理停留点点击
-  /// 🎯 注意：当点击标记时，Android 原生代码会自动显示自定义 InfoWindow（因为标记已设置 isTrackStyle: true）
+  /// 🎯 注意：现在使用 Flutter 的 customInfoWindowBuilder，与位置提醒页面保持一致
   /// 所以这里不需要手动调用 _showStopPointInfo，只需要处理其他逻辑（移动地图、绘制圆圈等）
   void handleStopPointTap(dynamic stopPoint) {
      
 
     DebugUtil.info('停留点被点击: ${stopPoint.title}');
     
-    // 上报停留点点击埋点
-    _trackStopPointClick();
+ 
     
     // 🎯 不清除 InfoWindow，因为标记会自动显示自定义 InfoWindow
     // 只清除圆圈，然后重新绘制
@@ -1013,15 +1017,7 @@ class TrackMarkerManager {
 
  
   
-  /// 上报停留点点击埋点
-  Future<void> _trackStopPointClick() async {
-    try {
-      await TrackingService.trackFootprintStayButton();
-      DebugUtil.info('✅ 足迹页面-停留点点击埋点上报成功');
-    } catch (e) {
-      DebugUtil.error('❌ 足迹页面-停留点点击埋点上报失败: $e');
-    }
-  }
+ 
   
   /// 清理所有标记和高亮
   void clearAllMarkers() {

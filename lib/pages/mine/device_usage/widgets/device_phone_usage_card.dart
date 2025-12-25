@@ -136,17 +136,19 @@ class DevicePhoneUsageCard extends StatelessWidget {
                 ],
               ),
             ),
-            // 毛玻璃蒙版（仅未绑定时显示）
+            // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
             Obx(() {
-              if (!controller.isUserBound.value) {
-                return const Positioned(
+              final isBound = controller.isUserBound.value;
+              final isVip = controller.isUserVip.value;
+              if (!isBound || (isBound && !isVip)) {
+                return Positioned(
                   top: 40,
                   left: 0,
                   right: 0,
                   bottom: 0,
                   child: _FrostedGlassMask(
                     text: '实时查看Ta的手机使用报告',
-                    isVipButton: false,
+                    isVipButton: isBound && !isVip,
                   ),
                 );
               }
@@ -509,13 +511,13 @@ class _FrostedGlassMask extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 32),
                   Image.asset(
                     isVipButton
                         ? 'assets/images/kissu3_go_vip.webp'
                         : 'assets/images/kissu3_go_bind.webp',
-                    width: isVipButton ? 129 : 109,
-                    height: 35,
+                    width: isVipButton ? 179 : 176,
+                    height:isVipButton?60: 44,
                   ),
                 ],
               ),

@@ -73,8 +73,9 @@ class MineUserInfo extends StatelessWidget {
                       child: Text(
                         days,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          fontFamily: 'Resource-Han-Rounded',
+                          fontWeight: FontWeight.bold,
                           height: 1,
                           color: Color(0xffffffff),
                         ),

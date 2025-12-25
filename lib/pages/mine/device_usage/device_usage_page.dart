@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/utils/network_image_helper.dart';
 import 'device_usage_controller.dart';
 import 'dart:math' as math;
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
@@ -30,6 +29,10 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   @override
   void initState() {
     super.initState();
+    // 安全地获取控制器，避免重复初始化问题
+    if (!Get.isRegistered<DeviceUsageController>()) {
+      Get.lazyPut<DeviceUsageController>(() => DeviceUsageController());
+    }
     controller = Get.find<DeviceUsageController>();
     WidgetsBinding.instance.addObserver(this);
   }
@@ -112,6 +115,8 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                       ),
                       child: Column(
                         children: [
+                          // 权限提示横幅
+                          _buildPermissionBanner(controller),
                           // 手机使用记录模块
                           DevicePhoneUsageCard(
                             controller: controller,
@@ -698,472 +703,8 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     // 已绑定且是会员：执行对应模块的跳转
     onVipUserNavigate();
   }
-
-  // 构建毛玻璃蒙版
-  Widget _buildFrostedGlassMask(String text, bool isVipButton) {
-    // 判断是否是iPhone内测提示（文本较长且不显示按钮）
-    // final isIPhoneHint = text.contains('iPhone处于内测阶段');
-    
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(12),
-        bottomRight: Radius.circular(12),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: GestureDetector(
-          onTap: () {
-            // // iPhone提示不响应点击
-            // if (isIPhoneHint) return;
-            
-            final currentContext = Get.context;
-            if (currentContext != null) {
-              if (isVipButton) {
-                // 已绑定未开会员：跳转到VIP页面
-                Get.toNamed(
-                  KissuRoutePath.vip,
-                  arguments: {
-                    'previousPageName': '用机记录页面',
-                    'previousPageId': 'device_usage',
-                  },
-                )?.then((_) {
-                  // 从VIP页面返回后，刷新状态并重新加载数据
-                  controller.updateBindStatus();
-                });
-              } else {
-                // 未绑定：显示绑定弹窗
-                CustomBottomDialog.show(
-                  context: currentContext,
-                  caller: BindingDialogCaller.deviceUsage,
-                  onClose: () {
-                    // 绑定弹窗关闭后，刷新状态并重新加载数据
-                    // 注意：绑定成功时，_refreshCurrentPageData() 会自动刷新，这里作为备用
-                    controller.updateBindStatus();
-                  },
-                );
-              }
-            }
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFFFFFFF).withOpacity(0.2), // #FFFFFF 半透明
-                  const Color(0xFFFDE4FF).withOpacity(0.8), // #FDE4FF 半透明
-                ],
-              ),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
-            ),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 第一行：图标 + 文字
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Image.asset(
-                            'assets/images/kissu4_vip_hat.webp',
-                            width: 16,
-                            height: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                         Stack(
-                                  children: [
-                                    Positioned(
-                                      bottom: 2,
-                                      right: 0,
-                                      child: Image.asset(
-                                        'assets/images/kissu4_vip_line.webp',
-                                        width: 68,
-                                        height: 12,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    Text(
-                                      text,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFF333333),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                      Image.asset(
-                        isVipButton
-                            ? 'assets/images/kissu3_go_vip.webp'
-                            : 'assets/images/kissu3_go_bind.webp',
-                        width: isVipButton ? 129 : 109,
-                        height: 35,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 模块标题（带背景和tip图标）
-  Widget _buildModuleTitle(String title) {
-    return Row(
-      children: [
-        Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            // 背景图
-            Image.asset(
-              "assets/4.0/kissu4_new_use_label_bg.webp",
-              height: 15,
-              width: 140,
-              fit: BoxFit.fitWidth,
-            ),
-            // 标题和tip
-            SizedBox(
-              height: 20,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'AlimamaShuHeiTi',
-                      color: Color(0xFF333333),
-                    ),
-                  ),
-                  Image.asset(
-                    "assets/4.0/kissu4_app_use_tip.webp",
-                    width: 13,
-                    height: 17,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const Spacer(),
-        // 箭头
-        Image.asset("assets/4.0/kissu4_next_go.webp", width: 16, height: 16),
-      ],
-    );
-  }
-
-  // ignore: unused_element
-  /// 圆环进度（双层圆环）（旧实现，已在 DevicePhoneUsageCard 中重写）
-  // Widget _buildCircularProgress(int hours, int minutes) {
-  //   // 使用屏幕使用时长对比24小时（1440分钟）计算进度
-  //   final progress = controller.getCircularProgress();
-
-  //   return Stack(
-  //     alignment: Alignment.center,
-  //     children: [
-  //       // 虚线圆环（内侧）
-  //       CustomPaint(
-  //         size: const Size(92, 92),
-  //         painter: DashedCirclePainter(
-  //           color: const Color(0xFFFFE2F4),
-  //           strokeWidth: 2,
-  //         ),
-  //       ),
-  //       // 实线进度圆环（外侧）- 带渐变和终点白色圆
-  //       SizedBox(
-  //         width: 120,
-  //         height: 120,
-  //         child: CustomPaint(
-  //           painter: GradientCircularProgressPainter(
-  //             progress: progress,
-  //             strokeWidth: 9,
-  //             backgroundColor: const Color(0xFFFFE2F4),
-  //             gradientColors: const [Color(0xFFFFA4DC), Color(0xFFFFA0DB)],
-  //           ),
-  //         ),
-  //       ),
-  //       // 中间文字
-  //       Column(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.center,
-  //             crossAxisAlignment: CrossAxisAlignment.baseline,
-  //             textBaseline: TextBaseline.alphabetic,
-  //             children: [
-  //               Text(
-  //                 "$hours",
-  //                 style: const TextStyle(
-  //                   fontSize: 16,
-  //                   fontWeight: FontWeight.bold,
-  //                   color: Color(0xFF333333),
-  //                 ),
-  //               ),
-  //               const Text(
-  //                 "小时",
-  //                 style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
-  //               ),
-  //               Text(
-  //                 "$minutes",
-  //                 style: const TextStyle(
-  //                   fontSize: 16,
-  //                   fontWeight: FontWeight.bold,
-  //                   color: Color(0xFF333333),
-  //                 ),
-  //               ),
-  //               const Text(
-  //                 "分",
-  //                 style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
-  //               ),
-  //             ],
-  //           ),
-  //           const SizedBox(height: 2),
-  //           const Text(
-  //             "屏幕使用时长",
-  //             style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
-  //           ),
-  //         ],
-  //       ),
-  //     ],
-  //   );
-  // }
-
-  // ignore: unused_element
-  /// 圆环进度（显示星号版本）（旧实现，已在 DevicePhoneUsageCard 中重写）
-  // Widget _buildCircularProgressWithStars() {
-  //   return Stack(
-  //     alignment: Alignment.center,
-  //     children: [
-  //       // 虚线圆环（内侧）
-  //       CustomPaint(
-  //         size: const Size(92, 92),
-  //         painter: DashedCirclePainter(
-  //           color: const Color(0xFFFFE2F4),
-  //           strokeWidth: 2,
-  //         ),
-  //       ),
-  //       // 实线进度圆环（外侧）- 不显示进度，只显示背景
-  //       SizedBox(
-  //         width: 120,
-  //         height: 120,
-  //         child: CustomPaint(
-  //           painter: GradientCircularProgressPainter(
-  //             progress: 0, // 不显示进度
-  //             strokeWidth: 9,
-  //             backgroundColor: const Color(0xFFFFE2F4),
-  //             gradientColors: const [Color(0xFFFFA4DC), Color(0xFFFFA0DB)],
-  //           ),
-  //         ),
-  //       ),
-  //       // 中间文字（星号）
-  //       Column(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.center,
-  //             crossAxisAlignment: CrossAxisAlignment.baseline,
-  //             textBaseline: TextBaseline.alphabetic,
-  //             children: const [
-  //               Text(
-  //                 "*",
-  //                 style: TextStyle(
-  //                   fontSize: 16,
-  //                   fontWeight: FontWeight.bold,
-  //                   color: Color(0xFF333333),
-  //                 ),
-  //               ),
-  //               Text(
-  //                 "小时",
-  //                 style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
-  //               ),
-  //               Text(
-  //                 "*",
-  //                 style: TextStyle(
-  //                   fontSize: 16,
-  //                   fontWeight: FontWeight.bold,
-  //                   color: Color(0xFF333333),
-  //                 ),
-  //               ),
-  //               Text(
-  //                 "分",
-  //                 style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
-  //               ),
-  //             ],
-  //           ),
-  //           const SizedBox(height: 2),
-  //           const Text(
-  //             "屏幕使用时长",
-  //             style: TextStyle(fontSize: 11, color: Color(0xcc333333)),
-  //           ),
-  //         ],
-  //       ),
-  //     ],
-  //   );
-  // }
-
-  // ignore: unused_element
-  /// 统计项（旧实现，已在 DevicePhoneUsageCard 中重写）
-  // Widget _buildStatItem(
-  //   String iconPath,
-  //   String label,
-  //   String value,
-  //   String unit,
-  // ) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     mainAxisAlignment: MainAxisAlignment.center,
-  //     children: [
-  //       Row(
-  //         children: [
-  //           Image.asset(iconPath, width: 16, height: 16),
-  //           const SizedBox(width: 4),
-  //           Text(
-  //             label,
-  //             style: const TextStyle(
-  //               fontSize: 12,
-  //               color: Color(0xcc333333),
-  //               fontWeight: FontWeight.w500,
-  //             ),
-  //           ),
-  //           const SizedBox(width: 4),
-  //           Image.asset(
-  //             "assets/4.0/kissu4_new_use_right.webp",
-  //             width: 6,
-  //             height: 6,
-  //           ),
-  //         ],
-  //       ),
-  //       const SizedBox(height: 4),
-  //       Row(
-  //         children: [
-  //           Text(
-  //             value,
-  //             style: const TextStyle(
-  //               fontSize: 16,
-  //               fontWeight: FontWeight.bold,
-  //               color: Color(0xFF333333),
-  //             ),
-  //           ),
-  //           Text(
-  //             unit,
-  //             style: const TextStyle(
-  //               fontSize: 12,
-  //               fontWeight: FontWeight.w400,
-  //               color: Color(0xFF333333),
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ],
-  //   );
-  // }
-
-  // ignore: unused_element
-  /// 空的敏感操作记录（旧实现，已在 DeviceSensitiveUsageCard 中重写）
-  // Widget _buildEmptySensitiveRecords() {
-  //   return Center(
-  //     child: Column(
-  //       mainAxisAlignment: MainAxisAlignment.center,
-  //       children: [
-  //         Image.asset(
-  //           "assets/4.0/kissu4_use_app_empty.webp",
-  //           width: 80,
-  //           height: 80,
-  //         ),
-  //         const SizedBox(height: 8),
-  //         const Text(
-  //           "暂无使用数据",
-  //           style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  // ignore: unused_element
-  /// 敏感操作记录项（旧实现，已在 DeviceSensitiveUsageCard 中重写）
-  // Widget _buildSensitiveRecordItem(SensitiveRecord record, bool showDivider) {
-  //   // 根据是否有subtitle判断高度：单行52，双行68
-  //   final itemHeight = record.subtitle.isNotEmpty ? 68.0 : 52.0;
-    
-  //   return Column(
-  //     children: [
-  //       Container(
-  //         height: itemHeight,
-  //         decoration: BoxDecoration(
-  //           color: const Color(0xFFF9F9F9),
-  //           borderRadius: BorderRadius.circular(8),
-  //         ),
-  //         padding: const EdgeInsets.symmetric(horizontal: 12),
-  //         child: Row(
-  //           crossAxisAlignment: record.subtitle.isNotEmpty 
-  //               ? CrossAxisAlignment.center 
-  //               : CrossAxisAlignment.center,
-  //           children: [
-  //             // 图标
-  //             SizedBox(
-  //               width: 18,
-  //               height: 18,
-  //               child: NetworkImageHelper.loadImage(
-  //                 imageUrl: record.iconPath,
-  //                 fit: BoxFit.contain,
-  //               ),
-  //             ),
-  //             const SizedBox(width: 4),
-  //             // 内容
-  //             Expanded(
-  //               child: Column(
-  //                 crossAxisAlignment: CrossAxisAlignment.start,
-  //                 mainAxisAlignment: MainAxisAlignment.center,
-  //                 children: [
-  //                   Text(
-  //                     record.content,
-  //                     style: const TextStyle(
-  //                       fontSize: 13,
-  //                       color: Color(0xFF333333),
-  //                     ),
-  //                   ),
-  //                   if (record.subtitle.isNotEmpty) ...[
-  //                     const SizedBox(height: 2),
-  //                     Text(
-  //                       record.subtitle,
-  //                       style: const TextStyle(
-  //                         fontSize: 11,
-  //                         color: Color(0xcc333333),
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ],
-  //               ),
-  //             ),
-  //             // 时间
-  //             Text(
-  //               record.time,
-  //               style: const TextStyle(fontSize: 13, color: Color(0xFF999999)),
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //       if (showDivider) const SizedBox(height: 10),
-  //     ],
-  //   );
-  // }
-
+ 
+ 
   /// 构建用机记录引导图覆盖层
   Widget _buildGuideOverlay() {
     if (!controller.showGuideOverlay.value) {
@@ -1273,6 +814,69 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// 权限提示横幅
+  Widget _buildPermissionBanner(DeviceUsageController controller) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10, ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFE1F4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFF839E),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.info_outline,
+              color: Colors.white,
+              size: 14,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '目前必要权限还未开启，会造成数据显示错误',
+                style: TextStyle(color: const Color(0xb3000000), fontSize: 12),
+                maxLines: 1,
+              ),
+            ),
+          ),
+          SizedBox(width: 5),
+          GestureDetector(
+            onTap: () => controller.openUsageSettings(),
+            child: Row(
+              children: const [
+                Text(
+                  '去开启',
+                  style: TextStyle(
+                    color: Color(0xe6000000),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(width: 2),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Color(0xe6000000),
+                  size: 12,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

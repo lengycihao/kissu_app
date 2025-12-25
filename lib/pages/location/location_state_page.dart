@@ -280,15 +280,7 @@ class LocationStatePage extends StatelessWidget {
             topRight: Radius.circular(20),
           ),
         ),
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            // 监听滑动事件，当用户滑动时记录次数
-            if (notification is ScrollUpdateNotification) {
-              controller.incrementScrollCount();
-            }
-            return false;
-          },
-          child: ListView.builder(
+        child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             itemCount: controller.emojiCategories.length,
             // 优化：增加缓存范围，提前渲染屏幕外的内容
@@ -307,7 +299,7 @@ class LocationStatePage extends StatelessWidget {
               );
             },
           ),
-        ),
+       
       );
     });
   }

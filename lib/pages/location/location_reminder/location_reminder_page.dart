@@ -5,9 +5,8 @@ import 'package:kissu_app/pages/location/location_reminder/location_picker/locat
 import 'package:kissu_app/widgets/location_map_snapshot.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
-import 'package:kissu_app/utils/agreement_utils.dart';
-import 'package:kissu_app/services/tracking_service.dart';
-import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/agreement_utils.dart'; 
+// import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 位置提醒页面
@@ -28,7 +27,26 @@ class LocationReminderPage extends GetView<LocationReminderController> {
       fenix: false,
     );
 
-    
+    // 读取来自定位页面传入的参数，判断是否需要提示另一半开启定位权限
+    final args = Get.arguments;
+    final bool partnerLocationOpen =
+        (args is Map && args['partnerLocationOpen'] is bool)
+            ? args['partnerLocationOpen'] as bool
+            : true;
+    final bool fromAddLocationEntry =
+        (args is Map && args['fromAddLocationEntry'] is bool)
+            ? args['fromAddLocationEntry'] as bool
+            : false;
+
+    // 仅在从“添加地点”入口进入时才触发另一半权限弹窗（控制器内部避免重复弹出）
+    if (fromAddLocationEntry) {
+      Future.microtask(() {
+        try {
+          final ctrl = Get.find<LocationReminderController>();
+          ctrl.showPartnerPermissionIfNeeded(partnerLocationOpen);
+        } catch (_) {}
+      });
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFf6f6f6),
       body: Stack(
@@ -320,13 +338,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   Widget _buildAddLocationItem(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        // 上报添加地点埋点
-        try {
-          await TrackingService.trackLocationKnockAdd();
-          DebugUtil.info('✅ 位置提醒列表-添加地点埋点上报成功');
-        } catch (e) {
-          DebugUtil.error('❌ 位置提醒列表-添加地点埋点上报失败: $e');
-        }
+        
         
         // 🔧 新建位置提醒时不传入初始位置，让用户在地图上自由选择
         // 只在编辑已有提醒时才传入位置
@@ -466,13 +478,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   void _showDeleteDialog(BuildContext context, String reminderId) async {
     await DeleteLocationReminderDialogUtil.show(
       onConfirm: () async {
-        // 上报删除操作埋点
-        try {
-          await TrackingService.trackLocationKnockDelete();
-          DebugUtil.info('✅ 位置提醒列表-删除操作埋点上报成功');
-        } catch (e) {
-          DebugUtil.error('❌ 位置提醒列表-删除操作埋点上报失败: $e');
-        }
+         
         
         // 执行原来的删除方法
         final success = await controller.removeReminder(reminderId);

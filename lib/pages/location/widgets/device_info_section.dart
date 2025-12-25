@@ -15,7 +15,7 @@ class DeviceInfoSection extends StatelessWidget {
     return Stack(
       children: [
         Container(
-          height: 90,
+          height: 92,
           padding: EdgeInsets.symmetric(
             horizontal: 20,
             vertical: 8,

@@ -177,7 +177,7 @@ class VipPaymentComponent extends GetView<VipController> {
                           ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () async {
-                              await controller.onServiceAgreementTap();
+                            
                               AgreementUtils.toVipAgreement();
                             },
                         ),

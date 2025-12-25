@@ -9,8 +9,7 @@ import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
-import 'package:kissu_app/services/location_permission_manager.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/location_permission_manager.dart'; 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
@@ -60,8 +59,7 @@ class LocationV2Controller extends GetxController
   final isLoading = false.obs;
   final mapType = 1.obs;
 
-  // 用于跟踪上一次的滑动状态，避免重复埋点
-  String _lastScrollStatus = '';
+ 
 
   late AnimationController backButtonAnimationController;
   late Animation<double> backButtonRotationAnimation;
@@ -149,8 +147,7 @@ class LocationV2Controller extends GetxController
       _listenToSheetChanges();
       _initializePageAsync();
 
-      // 开始页面浏览事件计时
-      _startPageViewTracking();
+      
     } catch (e) {
       debugPrint('LocationController onInit error: $e');
     }
@@ -184,39 +181,9 @@ class LocationV2Controller extends GetxController
     }
   }
 
-  /// 开始页面浏览事件计时
-  Future<void> _startPageViewTracking() async {
-    try {
-      // 获取位置权限状态
-      final locationStatus = await Permission.location.status;
-      final hasLocation = locationStatus.isGranted;
+ 
 
-      await TrackingService.trackLocationPageBegin(
-        isBindPartner: isBindPartner.value,
-        isVip: isVip.value,
-        hasLocation: hasLocation,
-      );
-    } catch (e) {
-      debugPrint('开始页面浏览事件计时失败: $e');
-    }
-  }
-
-  /// 结束页面浏览事件计时
-  Future<void> _endPageViewTracking() async {
-    try {
-      // 获取位置权限状态
-      final locationStatus = await Permission.location.status;
-      final hasLocation = locationStatus.isGranted;
-
-      await TrackingService.trackLocationPageEnd(
-        isBindPartner: isBindPartner.value,
-        isVip: isVip.value,
-        hasLocation: hasLocation,
-      );
-    } catch (e) {
-      debugPrint('结束页面浏览事件计时失败: $e');
-    }
-  }
+ 
 
   void _initBackButtonAnimation() {
     backButtonAnimationController = AnimationController(
@@ -255,44 +222,12 @@ class LocationV2Controller extends GetxController
         backButtonAnimationController.reverse();
       }
 
-      // 根据百分比判断当前所处的滑动状态
-      _trackScrollStatus(percent);
+     
     });
   }
 
-  /// 跟踪下半屏滑动状态埋点
-  void _trackScrollStatus(double percent) {
-    String currentStatus = _getScrollStatus(percent);
-
-    // 只有当状态发生变化时才触发埋点
-    if (currentStatus != _lastScrollStatus && currentStatus.isNotEmpty) {
-      _lastScrollStatus = currentStatus;
-      TrackingService.trackSwipeOperation(
-        isVip: isVip.value,
-        scrollStatus: currentStatus,
-      );
-    }
-  }
-
-  /// 根据百分比获取滑动状态
-  String _getScrollStatus(double percent) {
-    // 定义三个状态的阈值范围
-    // 小屏（底部）：0.15 - 0.35
-    // 中屏（中间）：0.45 - 0.65
-    // 大屏（顶部）：0.80 - 0.95
-
-    if (percent >= 0.15 && percent < 0.35) {
-      return '小屏';
-    } else if (percent >= 0.45 && percent < 0.65) {
-      return '中屏';
-    } else if (percent >= 0.80 && percent <= 0.95) {
-      return '大屏';
-    }
-
-    // 处于过渡状态，不触发埋点
-    return '';
-  }
-
+ 
+ 
   void handleBackButtonTap([ScrollController? scrollController]) {
     if (isBackButtonRotated.value) {
       _scrollToBottom(scrollController);
@@ -1210,8 +1145,7 @@ class LocationV2Controller extends GetxController
       return;
     }
 
-    // 人物切换按钮埋点
-    await TrackingService.trackCharacterSwitch(isMyself: isMyself);
+  
 
     // 📱 每次切换头像时，将下半屏恢复到底部吸顶位置
     debugPrint('💡 定位页面：切换头像，恢复下半屏到底部吸顶位置');
@@ -1322,14 +1256,12 @@ class LocationV2Controller extends GetxController
   void switchMapType(int type) {
     if (mapType.value != type) {
       mapType.value = type;
-      // 地图模式切换埋点
-      TrackingService.trackMapModeSwitch(mapType: type);
+       
     }
   }
 
   Future<void> refreshLocationData() async {
-    // 刷新地图按钮埋点
-    await TrackingService.trackRefreshMapButton();
+     
     await loadLocationData();
   }
 
@@ -1581,8 +1513,7 @@ class LocationV2Controller extends GetxController
   }
 
   void performBindAction() {
-    // 立即去绑定按钮埋点
-    TrackingService.trackBindNowButton();
+    
 
     if (Get.context != null) {
       CustomBottomDialog.show(context: Get.context!).then((_) {
@@ -1593,15 +1524,13 @@ class LocationV2Controller extends GetxController
 
   /// 位置提醒按钮点击处理
   Future<void> onLocationReminderButtonTap() async {
-    // 埋点：位置提醒按钮点击
-    await TrackingService.trackLocationReminderButton();
+     
 
     // 判断绑定状态
     if (!isBindPartner.value) {
       // 未绑定 -> 弹出绑定弹窗
       debugPrint('📍 位置提醒：未绑定，弹出绑定弹窗');
-      // 上报埋点：定位-立刻去绑定（位置提醒未绑定场景）
-      await TrackingService.trackLocationToBind();
+       
       performBindAction();
     } else if (!isVip.value) {
       // 已绑定但非会员 -> 跳转到开通会员页面
@@ -1610,7 +1539,25 @@ class LocationV2Controller extends GetxController
     } else {
       // 已绑定且是会员 -> 跳转到位置提醒页面
       debugPrint('📍 位置提醒：已绑定且是会员，跳转到位置提醒页面');
-      Get.toNamed(KissuRoutePath.locationReminder);
+      // 从 locationData 中读取另一半定位开关状态（isOpenLocation: 1=已开启）
+      bool partnerLocationOpen = true;
+      try {
+        final locData = locationData.value;
+        if (locData?.halfLocationMobileDevice?.isOpenLocation != null) {
+          partnerLocationOpen = locData!.halfLocationMobileDevice!.isOpenLocation == 1;
+        }
+      } catch (e) {
+        debugPrint('读取另一半定位开关失败: $e');
+      }
+
+      Get.toNamed(
+        KissuRoutePath.locationReminder,
+        arguments: {
+          'partnerLocationOpen': partnerLocationOpen,
+          // 标记这是从“添加地点”入口跳转，用于决定是否展示另一半权限弹窗
+          'fromAddLocationEntry': true,
+        },
+      );
     }
   }
 
@@ -1736,9 +1683,7 @@ class LocationV2Controller extends GetxController
 
   /// 开通会员按钮点击
   Future<void> onOpenMembershipButtonTap() async {
-    // 开通会员按钮埋点
-    await TrackingService.trackOpenMembershipButton();
-
+   
     // 跳转到会员页面
     Get.toNamed(
       KissuRoutePath.vip,
@@ -1752,9 +1697,7 @@ class LocationV2Controller extends GetxController
   }
 
   void navigateToQuestionPage(int? problemId) {
-    // 离线提示"查看原因"埋点
-    TrackingService.trackLocationOfflineReason();
-
+  
     if (problemId == null) {
       Get.to(() => const QuestionPage(), transition: Transition.rightToLeft);
       return;
@@ -2018,8 +1961,7 @@ class LocationV2Controller extends GetxController
 
   @override
   void onClose() {
-    // 结束页面浏览事件计时
-    _endPageViewTracking();
+    
 
     // 🚀 修复：清理定位服务监听器，避免内存泄漏和重复监听
     try {

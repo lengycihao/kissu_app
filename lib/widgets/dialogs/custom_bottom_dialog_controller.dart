@@ -5,8 +5,7 @@ import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'package:kissu_app/services/share_service.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/share_service.dart'; 
 import 'package:kissu_app/services/relationship_animation_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -52,8 +51,7 @@ class CustomBottomDialogController extends GetxController {
   // 是否应该关闭弹窗（用于IM绑定消息触发关闭）
   var shouldClose = false.obs;
 
-  // 页面浏览时长统计
-  DateTime? _pageEnterTime;
+ 
 
   @override
   void onInit() {
@@ -69,8 +67,7 @@ class CustomBottomDialogController extends GetxController {
       );
     });
 
-    // 记录页面进入时间（用于计算停留时长）
-    _pageEnterTime = DateTime.now();
+   
 
     _loadUserInfo();
     
@@ -99,8 +96,7 @@ class CustomBottomDialogController extends GetxController {
 
   @override
   void onClose() {
-    // 上报页面浏览埋点
-    _trackPageView();
+    
     
     // 清除IM绑定消息监听器
     _removeBindMessageListener();
@@ -122,33 +118,7 @@ class CustomBottomDialogController extends GetxController {
       logError('❌ 移除IM绑定消息监听器失败: $e', tag: 'BindingDialog', error: e);
     }
   }
-
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-    
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-      
-      // 获取上一个页面名称和ID
-      final pageInfo = _getPreviousPageInfo();
-      
-      // 上报埋点
-      await TrackingService.trackBindPageView(
-        stayDuration: stayDuration,
-        previousName: pageInfo['name']!,
-        previousId: pageInfo['id']!,
-      );
-      
-      logDebug('✅ 绑定页面浏览埋点上报成功: 停留时长=$stayDuration, 上一页=${pageInfo['name']}, 页面ID=${pageInfo['id']}', tag: 'BindingDialog');
-    } catch (e) {
-      logError('❌ 绑定页面浏览埋点上报失败: $e', tag: 'BindingDialog', error: e);
-    }
-  }
-
+ 
   /// 获取上一个页面信息（基于调用者类型）
   Map<String, String> _getPreviousPageInfo() {
     if (caller == null) {
@@ -205,8 +175,7 @@ class CustomBottomDialogController extends GetxController {
     try {
       isLoading.value = true;
 
-      // 上报绑定按钮点击埋点
-      await TrackingService.trackBindCodeButton();
+       
 
       // 调用绑定API
       final authApi = AuthApi();
@@ -385,8 +354,7 @@ class CustomBottomDialogController extends GetxController {
 
   /// 分享到QQ
   void shareToQQ() {
-    // 上报QQ邀请埋点
-    TrackingService.trackQQInvite();
+     
     
     Get.back(); // 关闭弹窗
     _shareInvite(target: 'QQ');
@@ -394,8 +362,7 @@ class CustomBottomDialogController extends GetxController {
 
   /// 分享到微信
   void shareToWechat() {
-    // 上报微信邀请埋点
-    TrackingService.trackWechatInvite();
+     
     
     Get.back(); // 关闭弹窗
     _shareInvite(target: '微信');
@@ -403,8 +370,7 @@ class CustomBottomDialogController extends GetxController {
 
   /// 扫描二维码
   void scanQRCode() {
-    // 上报扫码按钮埋点
-    TrackingService.trackScanToBind();
+     
     
     Get.toNamed(KissuRoutePath.qrScanPage)?.then((value) {
       if (value is String && value.isNotEmpty) {

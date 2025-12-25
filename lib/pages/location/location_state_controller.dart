@@ -3,33 +3,14 @@ import 'package:kissu_app/network/public/face_status_api.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/emoji_cache_manager.dart';
-import 'package:kissu_app/pages/location/location_v2_controller.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/pages/location/location_v2_controller.dart'; 
 import 'package:kissu_app/utils/user_manager.dart';
 
 /// 状态设置页面控制器
 class LocationStateController extends GetxController {
-  // ==================== 页面埋点相关 ====================
+ 
   
-  /// 页面进入时间
-  DateTime? _pageEnterTime;
-  
-  /// 页面滑动次数
-  int _scrollCount = 0;
-  
-  /// 滑动防抖计时器
-  DateTime? _lastScrollTime;
-  
-  /// 增加滑动次数（防抖优化）
-  void incrementScrollCount() {
-    final now = DateTime.now();
-    // 防抖：每200ms最多记录一次
-    if (_lastScrollTime == null || 
-        now.difference(_lastScrollTime!).inMilliseconds > 200) {
-      _scrollCount++;
-      _lastScrollTime = now;
-    }
-  }
+ 
   /// 当前用户状态（是否有状态）
   final hasStatus = false.obs;
   
@@ -63,47 +44,18 @@ class LocationStateController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // 记录页面进入时间
-    _pageEnterTime = DateTime.now();
+   
+  
     _loadFaceStatusWithCache();
   }
   
   @override
   void onClose() {
-    // 页面关闭时上报浏览埋点
-    _trackPageView();
+    
     super.onClose();
   }
   
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-    
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-      
-      // 获取用户信息
-      final user = UserManager.currentUser;
-      final isBind = user?.bindStatus == '1';
-      final isVip = user?.isVip == 1;
-      
-      // 上报埋点
-      await TrackingService.trackStatePageView(
-        isBind: isBind,
-        isVip: isVip,
-        stayDuration: stayDuration,
-        scrollTimes: _scrollCount,
-      );
-      
-      DebugUtil.info('✅ 状态页面浏览埋点上报成功: 停留${stayDuration}, 滑动${_scrollCount}次');
-    } catch (e) {
-      DebugUtil.error('❌ 状态页面浏览埋点上报失败: $e');
-    }
-  }
-  
+ 
   /// 带缓存的加载表情状态数据
   Future<void> _loadFaceStatusWithCache() async {
     try {
@@ -324,27 +276,12 @@ class LocationStateController extends GetxController {
     }
     selectedEmoji.value = tempSelectedEmoji.value;
     
-    // 上报设置完成埋点（在弹窗确认按钮点击时）
-    _trackStateSettingComplete();
+     
     
     _doSetStatus();
   }
   
-  /// 上报状态设置完成埋点
-  Future<void> _trackStateSettingComplete() async {
-    if (selectedEmoji.value == null) return;
-    
-    try {
-      await TrackingService.trackStateSettingComplete(
-        stateInfo: selectedEmoji.value!.name,
-        stateDurationHours: selectedExpireHours.value,
-      );
-      
-      DebugUtil.info('✅ 状态设置完成埋点上报成功: ${selectedEmoji.value!.name}, ${selectedExpireHours.value}小时');
-    } catch (e) {
-      DebugUtil.error('❌ 状态设置完成埋点上报失败: $e');
-    }
-  }
+  
   
   /// 取消替换状态
   void cancelReplace() {
@@ -456,9 +393,7 @@ class LocationStateController extends GetxController {
   /// 删除当前状态
   Future<void> deleteStatus() async {
     try {
-      // 上报删除状态埋点
-      await TrackingService.trackStateDelete();
-      
+    
       // 调用接口删除状态
       final result = await _api.deleteFaceStatus();
       

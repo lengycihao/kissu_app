@@ -49,7 +49,7 @@ class PhoneChangeController extends GetxController {
     if (isCountdownActive) {
       return '${countdownTime.value}秒后重试';
     }
-    return '发送验证码';
+    return '获取验证码';
   }
 
   void validatePhoneNumber() {
@@ -182,19 +182,25 @@ class PhoneChangePage extends StatelessWidget {
     final controller = Get.put(PhoneChangeController());
 
     return Scaffold(
+      backgroundColor: const Color(0xFFffffff), // 和其他页面保持一致的灰色背景
       body: Stack(
-        fit: StackFit.expand,
         children: [
-          // 背景图片
-          Image.asset('assets/images/kissu_mine_bg.webp', fit: BoxFit.cover),
+          // 背景图片 - 和其他页面保持一致
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
+          ),
 
           SingleChildScrollView(
             child: Padding(
               padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
+                left: 16,
+                right: 16,
                 bottom: 34,
-                top: MediaQuery.of(context).padding.top + 20,
+                top: MediaQuery.of(context).padding.top + 12,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,22 +213,11 @@ class PhoneChangePage extends StatelessWidget {
                         assetPath: 'assets/images/kissu_mine_back.webp',
                         iconSize: 24,
                       ),
-                      Expanded(
-                        child: const Text(
-                          '更换手机号绑定',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF333333),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
+                      
                       const SizedBox(width: 40), // 平衡布局
                     ],
                   ),
-                  const SizedBox(height: 40),
-
+ 
                   Padding(
                     padding: const EdgeInsets.only(
                       left: 20,
@@ -232,11 +227,9 @@ class PhoneChangePage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.asset(
-                          'assets/images/kissu_change_phone_title.png',
-                          width: 96,
-                          height: 21,
-                        ),
+                        Text("请输入手机号",style: TextStyle(
+                          color: Color(0xff333333),fontSize: 14,fontWeight: FontWeight.w500
+                        ),),
                         const SizedBox(height: 20),
                         _buildInputField(
                           '请输入手机号',
@@ -272,9 +265,9 @@ class PhoneChangePage extends StatelessWidget {
                             await controller.changePhone();
                           },
                           child: Container(
-                            height: 50,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE8B4CB),
+                              color: const Color(0xFFFFA9E0),
                               borderRadius: BorderRadius.circular(25),
                             ),
                             child: Obx(
@@ -285,10 +278,10 @@ class PhoneChangePage extends StatelessWidget {
                                         size: 4.0,
                                       )
                                     : const Text(
-                                        '完成',
+                                        '立即绑定',
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 18,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -344,11 +337,15 @@ class PhoneChangePage extends StatelessWidget {
         isDense: true, // 减少默认内边距
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
-          borderSide: const BorderSide(color: Color(0xFF6D383E)),
+          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25),
+          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
-          borderSide: const BorderSide(color: Color(0xFF6D383E)),
+          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
         ),
         suffixIcon: isCodeField
             ? Row(
@@ -371,7 +368,7 @@ class PhoneChangePage extends StatelessWidget {
                           style: TextStyle(
                             color: phoneChangeController.isCountdownActive
                                 ? const Color(0xFF999999)
-                                : const Color(0xFFFF839E),
+                                : const Color(0xFFFF9AD9),
                             fontSize: 15,
                           ),
                         ),

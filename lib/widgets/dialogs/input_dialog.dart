@@ -103,8 +103,8 @@ class _InputDialogContentState extends State<_InputDialogContent> {
   @override
   Widget build(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
-      width: 300,
+      backgroundImage: 'assets/dialog/kissu_toast_bg.webp',
+      width: 270,
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -113,8 +113,8 @@ class _InputDialogContentState extends State<_InputDialogContent> {
           Text(
             widget.title,
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
               color: Color(0xFF333333),
             ),
           ),
@@ -155,17 +155,13 @@ class _InputDialogContentState extends State<_InputDialogContent> {
           ),
           const SizedBox(height: 25),
           // 确定按钮
-          DialogButton(
-            text: widget.confirmText,
-            backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
-            onTap: () {
-              final value = _controller.text.trim();
-              if (value.isNotEmpty) {
-                Navigator.of(context).pop(value);
-                widget.onConfirm?.call(value);
-              }
-            },
-          ),
+          GestureDetector( onTap: () {
+            final value = _controller.text.trim();
+            if (value.isNotEmpty) {
+              Navigator.of(context).pop(value);
+              widget.onConfirm?.call(value);
+            }
+          }, child: Image(image: AssetImage('assets/images/kissu_dialop_common_sure_bg.webp'),width: 106,height: 36,),),
         ],
       ),
     );

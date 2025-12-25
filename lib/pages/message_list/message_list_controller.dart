@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 
 class MessageListController extends GetxController {
   // 通知权限状态
@@ -117,6 +118,26 @@ class MessageListController extends GetxController {
   /// 页面恢复时重新检查通知权限
   void onResume() {
     _checkNotificationPermission();
+  }
+
+  /// 清空消息（目前只清理红点状态，后续可扩展为清除本地/服务器消息记录）
+  void clearAllMessages() {
+    try {
+      hasNewSystemMessage.value = false;
+      hasNewInteractionMessage.value = false;
+
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        homeController.systemNoticeRedDot.value = 0;
+        homeController.interactionNoticeRedDot.value = 0;
+        homeController.isRedDot.value = false;
+      }
+
+      OKToastUtil.show('已清空消息');
+      debugPrint('✅ 已清空消息（红点）');
+    } catch (e) {
+      debugPrint('❌ 清空消息失败: $e');
+    }
   }
 }
 

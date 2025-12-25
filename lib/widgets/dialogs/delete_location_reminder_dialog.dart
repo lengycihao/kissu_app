@@ -17,8 +17,9 @@ class DeleteLocationReminderDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 320,
+        width: 270,
         height: 255,
+        margin: EdgeInsets.only(bottom: 100),
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/location/kissu3_state_delete_bg.webp'),
@@ -89,7 +90,7 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                     ),
                   ),
                   
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
                   
                   // 确认按钮
                   Expanded(
@@ -101,7 +102,7 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                       child: Container(
                         height: 36,
                         decoration: BoxDecoration(
-                          color: Color(0xFFFF408D),
+                          color: Color(0xFFFFA9E0),
                           borderRadius: BorderRadius.circular(18),
                         ),
                         alignment: Alignment.center,

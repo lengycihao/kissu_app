@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'base_dialog.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'base_dialog.dart'; 
 import 'package:intl/intl.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
@@ -62,34 +61,13 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
     _selectedGender = widget.selectedGender;
   }
 
-  /// 上报性别选择埋点事件
-  Future<void> _trackGenderSelection(String gender) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('gender', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-        'gender': gender,
-      });
-      
-      logDebug('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender', tag: 'GenderSelectDialog');
-    } catch (e) {
-      logError('❌ 性别选择埋点失败: $e', tag: 'GenderSelectDialog', error: e);
-    }
-  }
-
+ 
   @override
   Widget build(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
-      width: 300,
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
+      backgroundImage: 'assets/dialog/kissu_toast_bg.webp',
+      width: 270,
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -97,12 +75,12 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
           const Text(
             '请选择您的性别',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
               color: Color(0xFF333333),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 15),
           // 性别选项
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -116,8 +94,7 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
                   setState(() {
                     _selectedGender = '男生';
                   });
-                  // 上报性别选择埋点
-                  _trackGenderSelection('男');
+              
                 },
               ),
               const SizedBox(width: 18),
@@ -130,24 +107,22 @@ class _GenderSelectContentState extends State<_GenderSelectContent> {
                   setState(() {
                     _selectedGender = '女生';
                   });
-                  // 上报性别选择埋点
-                  _trackGenderSelection('女');
+                 
                 },
               ),
             ],
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
           // 确定按钮
-          DialogButton(
-            text: '确定',
-            backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
-            onTap: () {
+          GestureDetector( onTap: () {
               if (_selectedGender != null) {
                 Navigator.of(context).pop(_selectedGender);
                 widget.onGenderSelected?.call(_selectedGender!);
               }
             },
+            child: Image(image: AssetImage('assets/images/kissu_dialop_common_sure_bg.webp'),width: 106,height: 36,),
           ),
+          
         ],
       ),
     );

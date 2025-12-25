@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import '../../services/tracking_service.dart';
+import 'package:flutter/gestures.dart'; 
 import '../../utils/agreement_utils.dart';
 
 /// 开通VIP弹窗
@@ -63,8 +62,7 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
   /// 处理开通会员按钮点击
   void _handleConfirm() {
     
-    // 埋点：立即查看按钮点击
-    TrackingService.trackVipAlertOpen();
+ 
     Navigator.of(context).pop();
     widget.onConfirm?.call();
   }
@@ -131,8 +129,7 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
           bottom: -(closeButtonSize + 5 * scale), // 背景下方5px
           child: GestureDetector(
             onTap: () async {
-              // 埋点：关闭按钮点击
-              await TrackingService.trackVipAlertClose();
+              
               Navigator.of(context).pop();
             },
             child: Image.asset(

@@ -71,14 +71,8 @@ class MinePage extends GetView<MineController> {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: controller.onRefresh,
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        controller.handleScroll(notification);
-                        return false;
-                      },
-                      child: SingleChildScrollView(
-                        controller: controller.scrollController,
-                        physics: const BouncingScrollPhysics(
+                    child:SingleChildScrollView(
+                         physics: const BouncingScrollPhysics(
                           parent: AlwaysScrollableScrollPhysics(),
                         ),
                         child: Column(
@@ -117,7 +111,7 @@ class MinePage extends GetView<MineController> {
                           ],
                         ),
                       ),
-                    ),
+                   
                   ),
                 ),
               ],

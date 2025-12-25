@@ -5,28 +5,6 @@ import 'message_detail_controller.dart';
 class MessageDetailPage extends GetView<MessageDetailController> {
   const MessageDetailPage({super.key});
 
-  /// 顶部导航栏
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: controller.onBackTap,
-            child: Image.asset(
-              "assets/images/kissu_mine_back.webp",
-              width: 22,
-              height: 22,
-            ),
-          ),
-          const Expanded(
-            child: Center(child: Text("系统消息", style: TextStyle(fontSize: 18))),
-          ),
-          const SizedBox(width: 22), // 占位保持居中
-        ],
-      ),
-    );
-  }
 
   /// 构建消息列表项
   Widget _buildMessageItem(MessageItem message) {
@@ -34,7 +12,7 @@ class MessageDetailPage extends GetView<MessageDetailController> {
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.8), // 半透明背景，让背景图片透出来
         border: Border.all(color: Color(0xddEAEFFF), width: 1.5),
         borderRadius: BorderRadius.all(Radius.circular(12)),
       ),
@@ -233,14 +211,57 @@ class MessageDetailPage extends GetView<MessageDetailController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xffF8F9FF),
+      backgroundColor: const Color(0xffF6F6F6), // 和消息页面保持一致的灰色背景
       body: Stack(
         children: [
-          SafeArea(
-            child: Column(
+          // 背景图片 - 和消息页面保持一致
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              height: 140,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          Column(
               children: [
-                // 顶部导航栏
-                _buildTopBar(),
+                // 顶部导航栏 - 调整结构和消息页面保持一致
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 12,
+                    left: 6,
+                    right: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: controller.onBackTap,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
+                      ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            "消息详情",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Color(0xcc000000),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 22),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10), // 减少间距，避免标题距离顶部太远
                 // 消息列表
                 Expanded(
                   child: RefreshIndicator(
@@ -251,7 +272,7 @@ class MessageDetailPage extends GetView<MessageDetailController> {
                 ),
               ],
             ),
-          ),
+         
         ],
       ),
     );

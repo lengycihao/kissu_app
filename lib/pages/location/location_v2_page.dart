@@ -6,7 +6,6 @@ import 'package:kissu_app/widgets/safe_amap_widget.dart';
 import 'package:kissu_app/widgets/smooth_avatar_widget.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
-import 'package:kissu_app/services/tracking_service.dart';
 import 'location_v2_controller.dart';
 import 'services/location_data_helper.dart';
 import 'widgets/device_info_section.dart';
@@ -384,16 +383,16 @@ class _LocationPageContentState extends State<_LocationPageContent>
                   child: Column(
                     children: [
                       Image.asset(
-                        'assets/images/kissu_location_empty.webp',
-                        width: 128,
-                        height: 128,
+                        'assets/images/kissu_track_empty.webp',
+                        width: 133,
+                        height: 96,
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 14),
                       Text(
-                        '目前还没有停留点哦～',
+                        '目前还没有停留地点哦～',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xff666666),
+                          fontSize: 12,
+                          color: Color(0xff777777),
                         ),
                       ),
                     ],
@@ -495,13 +494,11 @@ class _LocationPageContentState extends State<_LocationPageContent>
                           onTap: () async {
                             if (!isBindPartner) {
                               // 未绑定：显示绑定弹窗
-                              // 上报埋点：定位-立刻去绑定
-                              await TrackingService.trackLocationToBind();
+
                               widget.controller.performBindAction();
                             } else {
                               // 已绑定但未开会员：跳转到VIP页面
-                              // 上报埋点：定位-立刻开通会员
-                              await TrackingService.trackLocationToVip();
+
                               widget.controller.onOpenMembershipButtonTap();
                             }
                           },
@@ -630,8 +627,8 @@ class _LocationPageContentState extends State<_LocationPageContent>
     return Obx(() {
       final sheetHeight = screenHeight * widget.controller.sheetPercent.value;
 
-      // logo 贴近下半屏顶部上方，避免与离线提示重叠
-      final logoBottom = sheetHeight + 50;
+      // 🔧 修复：与轨迹页面保持一致的固定高度
+      final logoBottom = sheetHeight + 5;
 
       // 根据绑定状态动态计算中间吸顶位置
       final isBindPartner = widget.controller.isBindPartner.value;
@@ -1172,7 +1169,7 @@ class _LocationRecordItem extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 0),
               child: Row(
-                 children: [
+                children: [
                   SizedBox(
                     width: 35,
                     child: Text(

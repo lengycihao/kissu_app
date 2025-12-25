@@ -4,8 +4,7 @@ import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
-import 'package:kissu_app/widgets/no_placeholder_image.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/no_placeholder_image.dart'; 
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -77,8 +76,7 @@ class HomeAvatarSection extends StatelessWidget {
                     child: controller.isBound.value
                         ? GestureDetector(
                             onTap: () {
-                              // 埋点：点击另一半头像（已绑定状态）
-                              TrackingService.trackPartnerAvatarClick();
+                               
                               // 已绑定状态下点击头像跳转到恋爱信息页
                               controller.navigateToLoveInfoPage();
                             },
@@ -103,8 +101,7 @@ class HomeAvatarSection extends StatelessWidget {
                           )
                         : GestureDetector(
                             onTap: () {
-                              // 埋点：点击另一半头像（未绑定状态）
-                              TrackingService.trackPartnerAvatarClick();
+                               
                               // 显示绑定弹窗
                               CustomBottomDialog.show(
                                 context: context,
@@ -235,24 +232,24 @@ class HomeAvatarSection extends StatelessWidget {
                                   height: 56,
                                 ),
                               ),
-                              // 红点角标
-                              if (controller.isRedDot.value)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xffFF6B6B),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              // // 红点角标
+                              // if (controller.isRedDot.value)
+                              //   Positioned(
+                              //     right: 0,
+                              //     top: 0,
+                              //     child: Container(
+                              //       width: 12,
+                              //       height: 12,
+                              //       decoration: BoxDecoration(
+                              //         color: const Color(0xffFF6B6B),
+                              //         shape: BoxShape.circle,
+                              //         border: Border.all(
+                              //           color: Colors.white,
+                              //           width: 1,
+                              //         ),
+                              //       ),
+                              //     ),
+                              //   ),
                             ],
                           ),
                         ),
@@ -270,8 +267,7 @@ class HomeAvatarSection extends StatelessWidget {
                           const SizedBox(height: 5), // 间距30px
                           GestureDetector(
                             onTap: () async {
-                              // 埋点：活动按钮点击
-                              await TrackingService.trackActivityButtonClick();
+                             
 
                               controller.navigateToH5(
                                 controller.activityLink.value,
@@ -359,28 +355,28 @@ class HomeAvatarSection extends StatelessWidget {
                               height: 56,
                             ),
                           ),
-                          // 红点角标
-                          Obx(() {
-                            if (controller.isRedDot.value) {
-                              return Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xffFF6B6B),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 1,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          }),
+                          // // 红点角标
+                          // Obx(() {
+                          //   if (controller.isRedDot.value) {
+                          //     return Positioned(
+                          //       right: 0,
+                          //       top: 0,
+                          //       child: Container(
+                          //         width: 12,
+                          //         height: 12,
+                          //         decoration: BoxDecoration(
+                          //           color: const Color(0xffFF6B6B),
+                          //           shape: BoxShape.circle,
+                          //           border: Border.all(
+                          //             color: Colors.white,
+                          //             width: 1,
+                          //           ),
+                          //         ),
+                          //       ),
+                          //     );
+                          //   }
+                          //   return const SizedBox.shrink();
+                          // }),
                         ],
                       ),
                     );

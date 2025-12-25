@@ -20,6 +20,7 @@ class StopListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // behavior: HitTestBehavior.translucent,
       onTap: () async {
         try {
           final controller = Get.find<TrackController>();
@@ -50,6 +51,9 @@ class StopListItem extends StatelessWidget {
           print('无法找到轨迹控制器: $e');
         }
       },
+      // 添加空的拖拽处理回调，让GestureDetector能够处理滑动事件
+      // onVerticalDragUpdate: (_) {},
+      // onHorizontalDragUpdate: (_) {},
       child: Container(
         margin: EdgeInsets.only(bottom: isLast ? 0 : 0),
         child: IntrinsicHeight(

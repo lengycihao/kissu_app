@@ -82,8 +82,8 @@ class NotificationSettingsPage extends GetView<NotificationSettingsController> {
             child: Obx(() => Text(
               controller.pageTitle.value,
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
                 color: Color(0xFF000000),
               ),
             )),

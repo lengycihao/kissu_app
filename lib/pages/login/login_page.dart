@@ -177,8 +177,7 @@ class _LoginPageState extends State<LoginPage> {
                             final newValue = !controller.isChecked.value;
                             controller.isChecked.value = newValue;
 
-                            // 发送埋点：勾选=同意，取消勾选=不同意
-                            controller.trackAgreementCheckbox(newValue);
+                        
                           },
                           child: Container(
                             width: 16, // 设置圆的宽度

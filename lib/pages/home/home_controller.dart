@@ -34,9 +34,7 @@ import 'package:kissu_app/network/http_resultN.dart';
 // import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 import 'dart:async';
-import 'package:kissu_app/services/version_service.dart';
-// import 'package:kissu_app/widgets/pag_animation_widget.dart'; // 暂时移除PAG依赖
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/version_service.dart'; 
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
 import 'package:intl/intl.dart';
@@ -46,12 +44,7 @@ class HomeController extends GetxController {
   // 后面可以加逻辑，比如当前选中的按钮索引
   var selectedIndex = 0.obs;
   
-  // 埋点相关 - 页面滑动次数和停留时长
-  var scrollTimes = 0.obs;
-  double _lastScrollOffset = 0.0;
-  bool _isScrolling = false;
-  Timer? _scrollEndTimer;
-  DateTime? _pageEnterTime;
+ 
   
   // App启动标记 - 静态变量，app被杀掉时会自动重置
   static bool _hasAppStartedThisSession = false;
@@ -185,8 +178,7 @@ class HomeController extends GetxController {
     // 进入首页即同步授权应用
     _syncAuthApp();
     
-    // 埋点：开始记录页面停留时长
-    _startPageTracking();
+ 
     
     // 🚀 关键修复：先初始化认证服务，再刷新用户信息
     _authService = getIt<AuthService>();
@@ -210,8 +202,7 @@ class HomeController extends GetxController {
     _setupRedDotListeners(); // 设置红点监听器
     _setupChatUnreadListener(); // 监听聊天未读数
     
-    // 添加滚动监听器，统计滑动次数
-    _setupScrollListener();
+ 
   }
 
   @override
@@ -375,11 +366,7 @@ class HomeController extends GetxController {
   void onClose() {
     debugPrint('🧹 HomeController 销毁 - 绑定弹窗标志位: $_hasShownBindingDialogThisSession, VIP弹窗标志位: $_hasShownVipDialogThisSession（静态变量不会被清除）');
     
-    // 埋点：结束页面停留时长记录并上报
-    _endPageTracking();
-    
-    // 清理滚动定时器
-    _scrollEndTimer?.cancel();
+ 
     
     // 安全地清理ScrollController
     try {
@@ -1082,11 +1069,7 @@ class HomeController extends GetxController {
         break;
     }
 
-    // 埋点：底部导航点击
-    if (bottomName.isNotEmpty) {
-      await TrackingService.trackBottomNavigationClick(bottomName: bottomName);
-    }
-
+    
     // 执行导航逻辑
     switch (index) {
       case 0:
@@ -1155,9 +1138,7 @@ class HomeController extends GetxController {
 
   // 点击通知按钮
   void onNotificationTap() {
-    // 埋点：点击消息中心按钮
-    TrackingService.trackMessageCenterClick();
-    
+   
     // 跳转到消息列表页面（一级页面）
     // 注意：红点不在这里清除，而是在进入各个详情页时清除
     debugPrint('📭 点击消息中心按钮，进入消息列表');
@@ -2163,71 +2144,7 @@ class HomeController extends GetxController {
     }
   }
   
-  // ==================== 首页埋点相关方法 ====================
-  
-  /// 开始页面浏览追踪（记录页面停留时长）
-  Future<void> _startPageTracking() async {
-    try {
-      debugPrint('📊 首页埋点：开始记录页面停留时长');
-      // 记录进入时间
-      _pageEnterTime = DateTime.now();
-    } catch (e) {
-      debugPrint('❌ 首页埋点：开始记录失败 - $e');
-    }
-  }
-  
-  /// 结束页面浏览追踪并上报埋点数据
-  Future<void> _endPageTracking() async {
-    if (_pageEnterTime == null) return;
     
-    try {
-      debugPrint('📊 首页埋点：结束记录并上报数据');
-      
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-      
-      // 使用统一的 TrackingService 上报
-      await TrackingService.trackHomePageView(
-        stayDuration: stayDuration,
-        scrollTimes: scrollTimes.value,
-      );
-      
-      debugPrint('✅ 首页埋点上报成功: 停留时长=$stayDuration, 滑动次数=${scrollTimes.value}');
-    } catch (e) {
-      debugPrint('❌ 首页埋点：上报数据失败 - $e');
-    }
-  }
-  
-  /// 设置滚动监听器，统计页面滑动次数
-  void _setupScrollListener() {
-    scrollController.addListener(() {
-      final currentOffset = scrollController.offset;
-      
-      // 判断是否发生了显著的滚动（距离大于10像素）
-      if ((currentOffset - _lastScrollOffset).abs() > 10) {
-        if (!_isScrolling) {
-          // 开始一次新的滚动
-          _isScrolling = true;
-          scrollTimes.value++;
-          debugPrint('📊 首页埋点：记录滑动次数 = ${scrollTimes.value}');
-        }
-        _lastScrollOffset = currentOffset;
-        
-        // 取消之前的定时器
-        _scrollEndTimer?.cancel();
-        
-        // 设置新的定时器，300ms后如果没有新的滚动则认为滚动结束
-        _scrollEndTimer = Timer(const Duration(milliseconds: 300), () {
-          _isScrolling = false;
-          debugPrint('📊 首页埋点：滚动结束');
-        });
-      }
-    });
-    
-    debugPrint('📊 首页埋点：滚动监听器已设置');
-  }
   
 }
 

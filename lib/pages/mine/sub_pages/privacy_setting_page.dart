@@ -95,12 +95,12 @@ class PrivacySettingPage extends StatelessWidget {
               const Spacer(),
 
               // 退出登录按钮
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 10),child: SizedBox(
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 45),child: SizedBox(
                 width: double.maxFinite,
-                height: 50,
+                height: 44,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFAFAF),
+                    backgroundColor: const Color(0xFfFFA9E0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(25),
                     ),
@@ -111,7 +111,7 @@ class PrivacySettingPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -285,7 +285,7 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
             margin: const EdgeInsets.symmetric(horizontal: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFFFD4D1),width: 1),
+              // border: Border.all(color: const Color(0xFFFFD4D1),width: 1),
               borderRadius: BorderRadius.circular(16),
               color: Colors.white,
               
@@ -316,7 +316,7 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: Color(0xFF6D383E),
+                  color: Color(0xFF333333),
                 ),
               ],
             ),

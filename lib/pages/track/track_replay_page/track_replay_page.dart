@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:kissu_app/widgets/safe_amap_widget.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/safe_amap_widget.dart'; 
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 import 'track_replay_controller.dart';
@@ -451,13 +450,7 @@ class _ReplayControlBar extends StatelessWidget {
                   if (controller.isReplaying.value) {
                     controller.pauseReplay();
                   } else {
-                    // 上报轨迹回放按钮埋点（仅在开始播放时）
-                    try {
-                      await TrackingService.trackFootMoving();
-                      DebugUtil.info('✅ 足迹页面-轨迹回放按钮埋点上报成功');
-                    } catch (e) {
-                      DebugUtil.error('❌ 足迹页面-轨迹回放按钮埋点上报失败: $e');
-                    }
+                    
                     controller.startReplay();
                   }
                 },

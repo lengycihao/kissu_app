@@ -394,7 +394,7 @@ class SystemPermissionController extends GetxController
   /// 根据权限类型获取按钮颜色
   Color getButtonColor(PermissionType type) {
     final isGranted = getPermissionStatus(type);
-    return isGranted ? const Color(0xFFCCCCCC) : const Color(0xFFFF839E);
+    return isGranted ? const Color(0xFF999999) : const Color(0xFFFFA9E0);
   }
 
   /// 根据权限类型获取按钮是否可点击

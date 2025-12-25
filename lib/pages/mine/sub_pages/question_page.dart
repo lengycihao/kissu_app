@@ -40,7 +40,7 @@ class _QuestionPageState extends State<QuestionPage> {
           questions = result.data!;
           isLoading = false;
         });
-        
+
         // 如果有目标问题ID，自动跳转到对应的问题详情
         if (widget.targetProblemId != null) {
           _navigateToTargetQuestion();
@@ -64,7 +64,7 @@ class _QuestionPageState extends State<QuestionPage> {
     final targetQuestion = questions.firstWhereOrNull(
       (question) => question.id == widget.targetProblemId,
     );
-    
+
     if (targetQuestion != null) {
       // 找到对应的问题，跳转到详情页
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -117,19 +117,19 @@ class _QuestionPageContent extends StatelessWidget {
         children: [
           Positioned.fill(
             child: Image.asset(
-              "assets/4.0/kissu4_new_use_bg.webp",
+              "assets/4.0/kissu4_new_question_bg.webp",
               fit: BoxFit.fitWidth,
               alignment: Alignment.topCenter,
             ),
           ),
           Column(
             children: [
-                SizedBox(height: MediaQuery.of(context).padding.top+12),
+              SizedBox(height: MediaQuery.of(context).padding.top + 12),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 22,
                   vertical: 16,
-                ).copyWith(left: 6,top: 0),
+                ).copyWith(left: 6, top: 0),
                 child: Row(
                   children: [
                     CommonBackButton(
@@ -142,7 +142,7 @@ class _QuestionPageContent extends StatelessWidget {
                         child: Text(
                           "常见问题",
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -152,6 +152,42 @@ class _QuestionPageContent extends StatelessWidget {
                   ],
                 ),
               ),
+              Row(
+                children: [
+                  SizedBox(width: 16),
+                  Image(
+                    image: AssetImage(
+                      'assets/images/kissu_xiaou_question.webp',
+                    ),
+                    width: 60,
+                    height: 60,
+                  ),
+                  SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "HI~,我是小U！",
+                        style: TextStyle(
+                          color: Color(0xff333333),
+                          fontWeight: FontWeight.bold,
+                          fontFamily: "AlimamaShuHeiTi",
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "这里是一些常见问题的解答哦～",
+                        style: TextStyle(
+                          color: Color(0xff777777),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
               Expanded(child: _buildMainContent()),
             ],
           ),
@@ -247,17 +283,14 @@ class _QuestionPageContent extends StatelessWidget {
       onRefresh: onRefresh,
       color: const Color(0xFFFEA39C),
       child: ListView.separated(
-        padding: const EdgeInsets.all(22).copyWith(top: 0),
+        padding: const EdgeInsets.all(16).copyWith(top: 0),
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
         itemCount: questions.length,
         separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) {
-          return _QuestionCard(
-            question: questions[index],
-            index: index,
-          );
+          return _QuestionCard(question: questions[index], index: index);
         },
       ),
     );
@@ -269,18 +302,11 @@ class _QuestionPageContent extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             errorMessage ?? '加载失败',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -289,10 +315,7 @@ class _QuestionPageContent extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFEA39C),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -310,18 +333,11 @@ class _QuestionPageContent extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             '暂无常见问题',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -334,10 +350,7 @@ class _QuestionCard extends StatefulWidget {
   final CommonQuestionModel question;
   final int index;
 
-  const _QuestionCard({
-    required this.question,
-    required this.index,
-  });
+  const _QuestionCard({required this.question, required this.index});
 
   @override
   State<_QuestionCard> createState() => _QuestionCardState();
@@ -357,13 +370,15 @@ class _QuestionCardState extends State<_QuestionCard>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
   }
@@ -389,38 +404,67 @@ class _QuestionCardState extends State<_QuestionCard>
           },
           child: Container(
             decoration: BoxDecoration(
-              image: const DecorationImage(
-                image: AssetImage('assets/images/kissu_mine_question_bg.webp'),
-                fit: BoxFit.fill,
-              ),
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: Color(0xffffffff),
+              borderRadius: BorderRadius.circular(8),
             ),
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.all(13).copyWith(top: 10,bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    widget.question.problem ?? '',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xff333333),
-                      fontWeight: FontWeight.w500,
+                Row(
+                  children: [
+                    Image(
+                      image: AssetImage('assets/images/kissu_question_q.webp'),
+                      width: 16,
                     ),
-                  ),
+                    SizedBox(width: 8,),
+                    Expanded(
+                      child: Text(
+                        widget.question.problem ?? '',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xff333333),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Image.asset(
-                  'assets/images/kissu_mine_arrow.webp',
-                  width: 16,
-                  height: 16,
+                SizedBox(height: 14,),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Image(
+                            image: AssetImage('assets/images/kissu_question_a.webp'),
+                            width: 16,
+                          ),
+                          SizedBox(width: 8,),
+                          Expanded(
+                            child: Text(
+                              widget.question.answer ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xff777777),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Image.asset(
+                      'assets/images/kissu_mine_arrow_black.webp',
+                      width: 16,
+                      height: 16,
+                    ),
+                  ],
                 ),
               ],
             ),

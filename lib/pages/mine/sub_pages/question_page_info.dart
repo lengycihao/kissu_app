@@ -33,43 +33,13 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
     ),
   ];
 
-  // 用来记录每条是否展开
-  final List<bool> expanded = [];
-  
   final GlobalKey _questionTextKey = GlobalKey();
-  double _questionSpacing = 50.0;
-
-  @override
-  void initState() {
-    super.initState();
-    expanded.addAll(List.filled(questions.length, false));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _calculateSpacing();
-    });
-  }
-
-  void _calculateSpacing() {
-    final RenderBox? renderBox = _questionTextKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-      final double textHeight = renderBox.size.height;
-      // 根据文本高度动态调整间距
-      // 假设单行高度约为18-20，如果超过25说明有换行
-      setState(() {
-        if (textHeight > 25) {
-          // 多行时使用较小间距
-          _questionSpacing = 35.0;
-        } else {
-          // 单行时使用较大间距
-          _questionSpacing = 55.0;
-        }
-      });
-    }
-  }
+  double _questionSpacing = 20.0; // 固定的间距
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xFFF6f6f6),
       body: Stack(
         children: [
           Positioned.fill(
@@ -79,114 +49,110 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
               alignment: Alignment.topCenter,
             ),
           ),
-          Column(
-            children: [
-              const SizedBox(height: 40),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    CommonBackButton(
-                      onTap: () => Get.back(),
-                      assetPath: "assets/images/kissu_mine_back.webp",
-                      iconSize: 22,
-                    ),
-                    const Expanded(
-                      child: Center(
-                        child: Text(
-                          "常见问题",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
+          SafeArea(
+            child: Column(
+              children: [
+                // 顶部导航栏
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                  child: Row(
+                    children: [
+                      CommonBackButton(
+                        onTap: () => Get.back(),
+                        assetPath: "assets/images/kissu_mine_back.webp",
+                        iconSize: 22,
+                      ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            "常见问题",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xcc000000),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 15),
-                  ],
-                ),
-              ),
-              Container(
-                width: 332,
-                height: 605,
-                decoration: BoxDecoration(
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/kissu3_question_info_bg.webp'),
-                    fit: BoxFit.fill,
+                      const SizedBox(width: 22),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(left: 21, right: 21, top: 15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.question.problem ?? "问题描述",
-                      key: _questionTextKey,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xff333333),
-                      ),
+                const SizedBox(height: 10),
+                // 内容区域
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      children: [
+                        // 问题详情卡片
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 问题标题
+                              Row(
+                                children: [
+                                  Image(
+                                    image: AssetImage('assets/images/kissu_question_q.webp'),
+                                    width: 16,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      widget.question.problem ?? '问题描述',
+                                      key: _questionTextKey,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xff333333),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: _questionSpacing),
+                              // 答案内容
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Image(
+                                      image: AssetImage('assets/images/kissu_question_a.webp'),
+                                      width: 16,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      widget.question.answer ?? '答案描述',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        height: 1.8,
+                                        color: Color(0xff333333),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: _questionSpacing),
-                    Text(
-                      widget.question.answer ?? "答案描述",
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.8,
-                        color: Color(0xff333333),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-
-              // Transform.translate(
-              //   offset: const Offset(0, -5), // 往上移动 5px
-              //   child: Container(
-              //     // padding: const EdgeInsets.only(left: 22, right: 22, bottom: 22),
-              //     margin: const EdgeInsets.only(
-              //       left: 22,
-              //       right: 22,
-              //       bottom: 22,
-              //     ),
-              //     decoration: BoxDecoration(
-              //       color: const Color(0xffffffff),
-
-              //       borderRadius: BorderRadius.circular(10),
-              //     ),
-              //     child: DashedTopBorderContainer(
-              //       borderRadius: 12,
-              //       borderWidth: 1,
-              //       borderColor: Color(0xffff6D4128),
-              //       dashWidth: 2,
-              //       dashSpace: 2,
-              //       child: Container(
-              //         width: double.infinity,
-              //         // decoration: BoxDecoration(
-              //         //   color: const Color(0xffffffff),
-              //         //   border: Border.all(color: const Color(0xff6D4128)),
-              //         //   borderRadius: BorderRadius.circular(10),
-              //         // ),
-              //         padding: const EdgeInsets.all(16),
-              //         child: Text(
-              //           widget.question.answer ?? "问题描述",
-              //           style: const TextStyle(
-              //             fontSize: 13,
-              //             height: 1.8,
-              //             color: Color(0xff333333),
-              //           ),
-              //         ),
-              //       ),
-              //     ),
-              //   ),
-              // ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

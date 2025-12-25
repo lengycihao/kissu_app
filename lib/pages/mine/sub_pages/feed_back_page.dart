@@ -34,11 +34,11 @@ class FeedbackController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // 自动填入用户手机号到联系方式输入框
-    if (UserManager.userPhone != null && UserManager.userPhone!.isNotEmpty) {
-      contact.value = UserManager.userPhone!;
-      logDebug('✅ 意见反馈: 已自动填入用户手机号 ${UserManager.userPhone}', tag: 'Feedback');
-    }
+    // // 自动填入用户手机号到联系方式输入框
+    // if (UserManager.userPhone != null && UserManager.userPhone!.isNotEmpty) {
+    //   contact.value = UserManager.userPhone!;
+    //   logDebug('✅ 意见反馈: 已自动填入用户手机号 ${UserManager.userPhone}', tag: 'Feedback');
+    // }
 
     // 同步到 TextEditingController，确保初始值展示正确
     contactTextController.text = contact.value;
@@ -98,8 +98,10 @@ class FeedbackController extends GetxController {
   Future<void> pickImage() async {
     try {
       // 直接检查权限状态
-      final hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      
+      final hasPermission = await _permissionService.checkPermissionStatus(
+        PermissionType.photos,
+      );
+
       if (hasPermission) {
         // 有权限，直接选择图片
         logDebug('✅ 意见反馈: 已有权限，直接选择图片', tag: 'Feedback');
@@ -113,8 +115,9 @@ class FeedbackController extends GetxController {
       } else {
         // 没有权限，申请权限（会弹出系统权限弹窗）
         logDebug('⚠️ 意见反馈: 没有权限，申请权限', tag: 'Feedback');
-        final permissionGranted = await _permissionService.requestPhotosPermission();
-        
+        final permissionGranted = await _permissionService
+            .requestPhotosPermission();
+
         if (permissionGranted) {
           logDebug('✅ 意见反馈: 权限申请成功，开始选择图片', tag: 'Feedback');
           final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -286,13 +289,6 @@ class FeedbackPage extends StatelessWidget {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 10,
-          offset: const Offset(0, 2),
-        ),
-      ],
     );
   }
 
@@ -315,315 +311,314 @@ class FeedbackPage extends StatelessWidget {
 
           // 内容
           SafeArea(
-                child: Column(
-                  children: [
-                    // 导航栏
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 10,
-                      ).copyWith(right: 16),
-                      child: Row(
-                        children: [
-                          CommonBackButton(
-                            onTap: () => Get.back(),
-                            assetPath: "assets/images/kissu_mine_back.webp",
-                            iconSize: 24,
-                          ),
-                          const Spacer(),
-                          const Text(
-                            "意见反馈",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w400,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                          const Spacer(),
-                          const SizedBox(width: 24),
-                        ],
+            child: Column(
+              children: [
+                // 导航栏
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 10,
+                  ).copyWith(right: 16),
+                  child: Row(
+                    children: [
+                      CommonBackButton(
+                        onTap: () => Get.back(),
+                        assetPath: "assets/images/kissu_mine_back.webp",
+                        iconSize: 24,
                       ),
-                    ),
+                      const Spacer(),
+                      const Text(
+                        "意见反馈",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                      const Spacer(),
+                      const SizedBox(width: 24),
+                    ],
+                  ),
+                ),
 
-                    const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-                    // 内容区域
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        physics: const BouncingScrollPhysics(),
-                        children: [
-                          // 问题和意见
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: _cardDecoration(),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Text(
-                                      "问题和意见",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF333333),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Text(
-                                      "*",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Color(0xFFFEA39C),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF8F8F8),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  child: TextField(
-                                    maxLength: 200,
-                                    maxLines: 6,
-                                    onChanged: (val) =>
-                                        controller.content.value = val,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF333333),
-                                      height: 1.5,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      hintText: "期待您写下宝贵的意见~",
-                                      hintStyle: TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFF999999),
-                                      ),
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.zero,
-                                      isDense: true,
-                                      counterText: "",
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Obx(
-                                  () => Align(
-                                    alignment: Alignment.bottomRight,
-                                    child: Text(
-                                      "${controller.content.value.length}/200",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: controller.content.value.length > 180
-                                            ? const Color(0xFFFEA39C)
-                                            : const Color(0xFF999999),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // 图片上传
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: _cardDecoration(),
-                            child: Obx(() {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "图片(选填，提供问题截图)",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF333333),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 10,
-                                    runSpacing: 10,
-                                    children: [
-                                      // 显示选择的图片（如果有的话）
-                                      if (controller.selectedImage.value !=
-                                          null)
-                                        ImageItem(
-                                          file: controller.selectedImage.value!,
-                                          onRemove: controller.removeImage,
-                                        ),
-                                      // 添加图片按钮，只有没有图片时才显示
-                                      if (controller.selectedImage.value ==
-                                          null)
-                                        GestureDetector(
-                                          onTap: controller.pickImage,
-                                          child: Container(
-                                            width: 90,
-                                            height: 90,
-                                            decoration: BoxDecoration(
-                                              image: DecorationImage(
-                                                image: AssetImage(
-                                                  "assets/images/kissu_image_add.webp",
-                                                ),
-                                                fit: BoxFit.cover,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              );
-                            }),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // 联系方式
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: _cardDecoration(),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                // 内容区域
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      // 问题和意见
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: _cardDecoration(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
                                 const Text(
-                                  "联系方式（选填）",
+                                  "问题和意见",
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w500,
                                     color: Color(0xFF333333),
                                   ),
                                 ),
-                                Obx(
-                                  () {
-                                    // 访问可观察变量，确保 Obx 能正确追踪
-                                    final _ = controller.contact.value;
-                                    return TextField(
-                                      focusNode: controller.contactFocusNode,
-                                      controller: controller.contactTextController,
-                                      onChanged: (val) =>
-                                          controller.contact.value = val,
-                                      onSubmitted: (_) =>
-                                          controller.onContactFocusLost(),
-                                      onTapOutside: (_) =>
-                                          controller.onContactFocusLost(),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF333333),
-                                        height: 1.0, // 设置行高确保垂直居中
-                                      ),
-                                      keyboardType: TextInputType.emailAddress,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                          RegExp(r'[0-9a-zA-Z@._\\-]'),
-                                        ),
-                                        LengthLimitingTextInputFormatter(
-                                          50,
-                                        ), // 限制最大长度
-                                      ],
-                                      decoration: const InputDecoration(
-                                        hintText: "请输入您的手机号/邮箱",
-                                        hintStyle: TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF999999),
-                                          height: 1.0, // 设置占位符行高确保垂直居中
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 0,
-                                          vertical: 8, // 增加垂直内边距确保居中
-                                        ),
-                                        isDense: true, // 减少默认内边距
-                                      ),
-                                    );
-                                  },
+                                const SizedBox(width: 4),
+                                const Text(
+                                  "*",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFFFF6A68),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-
-                          const SizedBox(height: 40),
-
-                          // 提交按钮
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Obx(
-                              () => SizedBox(
-                                width: double.infinity,
-                                height: 48,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: controller.content.value.trim().isEmpty
-                                        ? const Color(0xFFCCCCCC)
-                                        : const Color(0xFFFEA39C),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                    ),
-                                    elevation: controller.content.value.trim().isEmpty ? 0 : 2,
+                            const SizedBox(height: 12),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFffffff),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: TextField(
+                                maxLength: 200,
+                                maxLines: 6,
+                                onChanged: (val) =>
+                                    controller.content.value = val,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF333333),
+                                  height: 1.5,
+                                ),
+                                decoration: const InputDecoration(
+                                  hintText: "小主，写下您的宝贵意见我们会努力改进哒～",
+                                  hintStyle: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF999999),
                                   ),
-                                  onPressed: controller.content.value.trim().isEmpty
-                                      ? null
-                                      : controller.submit,
-                                  child: const Text(
-                                    "提交",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                  counterText: "",
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Obx(
+                              () => Align(
+                                alignment: Alignment.bottomRight,
+                                child: Text(
+                                  "${controller.content.value.length}/200",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: controller.content.value.length > 180
+                                        ? const Color(0xFFFEA39C)
+                                        : const Color(0xFF999999),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-
-                          const SizedBox(height: 30),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-          
-          // Loading 覆盖层
-          Obx(() => controller.isSubmitting.value
-              ? Positioned.fill(
-                  child: Container(
-                    color: Colors.black54,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFEA39C)),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            controller.loadingText.value,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
+
+                      const SizedBox(height: 20),
+
+                      // 图片上传
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: _cardDecoration(),
+                        child: Obx(() {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: [
+                                  // 显示选择的图片（如果有的话）
+                                  if (controller.selectedImage.value != null)
+                                    ImageItem(
+                                      file: controller.selectedImage.value!,
+                                      onRemove: controller.removeImage,
+                                    ),
+                                  // 添加图片按钮，只有没有图片时才显示
+                                  if (controller.selectedImage.value == null)
+                                    GestureDetector(
+                                      onTap: controller.pickImage,
+                                      child: Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          image: DecorationImage(
+                                            image: AssetImage(
+                                              "assets/images/kissu_image_add.webp",
+                                            ),
+                                            fit: BoxFit.cover,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                "上传图片可以更好的解决问题哦～",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF777777),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // 联系方式
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: _cardDecoration(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "联系方式",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF333333),
+                              ),
                             ),
+                            Obx(() {
+                              // 访问可观察变量，确保 Obx 能正确追踪
+                              final _ = controller.contact.value;
+                              return TextField(
+                                focusNode: controller.contactFocusNode,
+                                controller: controller.contactTextController,
+                                onChanged: (val) =>
+                                    controller.contact.value = val,
+                                onSubmitted: (_) =>
+                                    controller.onContactFocusLost(),
+                                onTapOutside: (_) =>
+                                    controller.onContactFocusLost(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF333333),
+                                  height: 1.0, // 设置行高确保垂直居中
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9a-zA-Z@._\\-]'),
+                                  ),
+                                  LengthLimitingTextInputFormatter(
+                                    50,
+                                  ), // 限制最大长度
+                                ],
+                                decoration: const InputDecoration(
+                                  hintText: "请输入手机号，以便我们回复您～",
+                                  hintStyle: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF999999),
+                                    height: 1.0, // 设置占位符行高确保垂直居中
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 0,
+                                    vertical: 8, // 增加垂直内边距确保居中
+                                  ),
+                                  isDense: true, // 减少默认内边距
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 100), // 增加底部间距，为底部按钮留空间
+                    ],
+                  ),
+                ),
+
+               
+
+                // 底部提交按钮
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 45, vertical: 30),
+                  child: Obx(
+                    () => SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              controller.content.value.trim().isEmpty
+                              ? const Color(0xFFCCCCCC)
+                              : const Color(0xFFFFA9E0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                        ],
+                          elevation: 0, // 去掉阴影
+                        ),
+                        onPressed: controller.content.value.trim().isEmpty
+                            ? null
+                            : controller.submit,
+                        child: const Text(
+                          "提交",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                )
-              : const SizedBox.shrink()),
+                ),
+              ],
+            ),
+          ),
+
+          // Loading 覆盖层
+          Obx(
+            () => controller.isSubmitting.value
+                ? Positioned.fill(
+                    child: Container(
+                      color: Colors.black54,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFFFEA39C),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              controller.loadingText.value,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );

@@ -67,22 +67,22 @@ class _AboutUsPageState extends State<AboutUsPage> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 15),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF333333),
-                  fontWeight: FontWeight.w500,
-                ),
+                  fontSize: 13,
+                  color: Color(0xFF000000),
+                 ),
               ),
             ),
             const SizedBox(width: 8),
             Image.asset(
               "assets/images/kissu_mine_arrow.webp",
+              // color: Color(0x66000000),
               width: 16,
               height: 16,
             ),
@@ -95,7 +95,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xFFF6F6F6),
       body: Stack(
         children: [
           // 背景图
@@ -123,8 +123,8 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     const Text(
                       "关于我们",
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
                         color: Color(0xFF333333),
                       ),
                     ),
@@ -202,20 +202,11 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage("assets/images/kissu_setting_aboutus.webp"),
-                        fit: BoxFit.fill,
-                      ),
+                       color: Color(0xffffffff),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 15,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                       
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,17 +214,14 @@ class _AboutUsPageState extends State<AboutUsPage> {
                         _buildItem("隐私协议", () {
                           AgreementUtils.toPrivacyAgreement();
                         }),
-                        _buildDashedDivider(),
-                        _buildItem("用户协议", () {
+                         _buildItem("用户协议", () {
                           AgreementUtils.toUserAgreement();
                         }),
-                        _buildDashedDivider(),
-                        _buildItem("检查更新", () {
+                         _buildItem("检查更新", () {
                           final versionService = Get.find<VersionService>();
                           versionService.checkVersionForAboutPage(context);
                         }),
-                        _buildDashedDivider(),
-                        _buildItem("kissu福利官", () {
+                         _buildItem("kissu福利官", () {
                           _showFuliDialog(context);
                         }),
                       ],

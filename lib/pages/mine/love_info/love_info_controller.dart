@@ -21,8 +21,7 @@ import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart'; 
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoveInfoController extends GetxController {
@@ -501,8 +500,7 @@ class LoveInfoController extends GetxController {
         // 更新用户信息
         await _updateUserAvatar(result.data!);
         
-        // 上报头像更换埋点（更换成功）
-        await TrackingService.trackPersonalInfoAvatar(isAvatarChanged: true);
+   
         
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
@@ -768,8 +766,7 @@ class LoveInfoController extends GetxController {
         // 更新本地数据
         myGender.value = genderText;
 
-        // 上报性别选择埋点
-        await TrackingService.trackPersonalInfoGender(gender: genderText);
+ 
 
         // 更新用户缓存
         final currentUser = UserManager.currentUser;
@@ -984,9 +981,7 @@ class LoveInfoController extends GetxController {
         // 更新本地数据
         myBirthday.value = birthdayStr;
 
-        // 上报生日选择埋点
-        await TrackingService.trackPersonalInfoBirth(birth: birthdayStr);
-
+     
         // 更新用户缓存
         final currentUser = UserManager.currentUser;
         if (currentUser != null) {

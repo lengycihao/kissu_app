@@ -87,16 +87,6 @@ class _AppUsagePageState extends State<AppUsagePage> {
                         ),
 
                         // 权限提示（只在没权限时显示）
-                        SliverToBoxAdapter(
-                          child: Obx(() {
-                            final hasPermission =
-                                controller.hasUsagePermission.value;
-                            if (!hasPermission)
-                              return _buildPermissionBanner(controller);
-                            return const SizedBox();
-                          }),
-                        ),
-
                         // 日期选择器
                         SliverToBoxAdapter(
                           child: DateSelector(
@@ -215,68 +205,6 @@ class _AppUsagePageState extends State<AppUsagePage> {
     );
   }
 
-  /// 权限提示横幅
-  Widget _buildPermissionBanner(AppUsageController controller) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10,left: 16,right: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFE1F4),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 14,
-            height: 14,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFF839E),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.info_outline,
-              color: Colors.white,
-              size: 14,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '目前必要权限还未开启，会造成数据显示错误',
-                style: TextStyle(color: const Color(0xb3000000), fontSize: 12),
-                maxLines: 1,
-              ),
-            ),
-          ),
-          SizedBox(width: 5),
-          GestureDetector(
-            onTap: () => controller.openUsageSettings(),
-            child: Row(
-              children: const [
-                Text(
-                  '去开启',
-                  style: TextStyle(
-                    color: Color(0xe6000000),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(width: 2),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Color(0xe6000000),
-                  size: 12,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Ta当前授权过的App模块
   Widget _buildHalfAuthorizedApps(AppUsageController controller) {

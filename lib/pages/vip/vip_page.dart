@@ -40,12 +40,7 @@ class VipPage extends GetView<VipController> {
         body: Stack(
           children: [
             // 主要内容区域 - 添加底部padding为支付组件留出空间
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                controller.handleScroll(notification);
-                return false;
-              },
-              child: SingleChildScrollView(
+            SingleChildScrollView(
                 controller: controller.mainScrollController,
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
@@ -116,7 +111,7 @@ class VipPage extends GetView<VipController> {
                   ),
                 ),
               ),
-            ),
+           
 
             // 固定的返回按钮 - 距离顶部55px，距离左边20px
             Positioned(

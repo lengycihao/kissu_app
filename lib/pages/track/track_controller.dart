@@ -7,8 +7,7 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/services/location_permission_manager.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/location_permission_manager.dart'; 
 import 'package:kissu_app/utils/user_manager.dart';
 
 // 导入各个管理器
@@ -35,8 +34,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 数据版本控制，确保异步操作的一致性
   int _dataVersion = 0;
 
-  /// 页面进入时间，用于计算停留时长
-  DateTime? _pageEnterTime;
+ 
 
   /// 构造函数
   TrackController() {
@@ -98,8 +96,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   void onInit() {
     super.onInit();
 
-    // 记录页面进入时间
-    _pageEnterTime = DateTime.now();
+ 
 
     // 手动调用继承 GetxController 的管理器的 onInit() 方法
     // 因为它们是通过构造函数创建的，不会自动调用 onInit()
@@ -746,8 +743,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   void onClose() {
     DebugUtil.info('🧹 开始清理轨迹页面资源和缓存...');
 
-    // 上报页面浏览埋点
-    _trackPageView();
+ 
 
     // 清理各管理器资源
     _mapManager.dispose();
@@ -762,39 +758,5 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     super.onClose();
   }
 
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-
-      // 获取用户信息
-      final user = UserManager.currentUser;
-      final isBind = _userManager.isBindPartner.value;
-      // 检查 VIP 状态：isVip == 1 表示是会员
-      final isVip = user?.isVip == 1;
-
-      // 获取位置权限状态
-      final canLocation = await LocationPermissionManager.instance
-          .checkLocationPermissionSilently();
-
-      // 上报埋点
-      await TrackingService.trackFootprintPageView(
-        stayDuration: stayDuration,
-        isBind: isBind,
-        isVip: isVip,
-        canLocation: canLocation,
-      );
-
-      DebugUtil.info(
-        '✅ 足迹页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定=$isBind, VIP=$isVip, 位置权限=$canLocation',
-      );
-    } catch (e) {
-      DebugUtil.error('❌ 足迹页面浏览埋点上报失败: $e');
-    }
-  }
+  
 }

@@ -11,8 +11,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'package:kissu_app/utils/vip_navigation_helper.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/utils/vip_navigation_helper.dart'; 
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
@@ -193,13 +192,7 @@ class UsageReportController extends GetxController {
       final isBind = isUserBound.value;
       final isVip = UserManager.isVip;
 
-      // 上报埋点
-      await TrackingService.trackDeviceUsageRecordPageView(
-        stayDuration: stayDuration,
-        isBind: isBind,
-        isVip: isVip,
-      );
-
+     
       debugPrint(
         '✅ 用机记录页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定状态=${isBind ? "已绑定" : "未绑定"}, 会员状态=${isVip ? "已充值" : "未充值"}',
       );
@@ -471,13 +464,7 @@ class UsageReportController extends GetxController {
   void handleBindButtonClick() async {
     debugPrint('💑 立即绑定按钮被点击');
 
-    // 上报新版埋点：用机记录-立刻去绑定
-    try {
-      await TrackingService.trackHistoryToBind();
-      debugPrint('✅ 用机记录页面-立刻去绑定埋点上报成功');
-    } catch (e) {
-      debugPrint('❌ 用机记录页面-立刻去绑定埋点上报失败: $e');
-    }
+ 
 
     showBindingDialog();
   }
@@ -486,13 +473,7 @@ class UsageReportController extends GetxController {
   void handleVipButtonClick() async {
     debugPrint('💎 开通会员按钮被点击');
 
-    // 上报新版埋点：用机记录-立刻开通会员
-    try {
-      await TrackingService.trackHistoryToVip();
-      debugPrint('✅ 用机记录页面-立刻开通会员埋点上报成功');
-    } catch (e) {
-      debugPrint('❌ 用机记录页面-立刻开通会员埋点上报失败: $e');
-    }
+    
 
     // 跳转到VIP页面
     await Get.toNamed(
