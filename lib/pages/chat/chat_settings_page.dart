@@ -15,26 +15,52 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios,
-          color: Colors.black,
-          size: 20,
+    return PreferredSize(
+      preferredSize: Size.fromHeight(44 + MediaQuery.of(Get.context!).padding.top),
+      child: Container(
+        height: 44 + MediaQuery.of(Get.context!).padding.top,
+        color: Colors.white,
+        child: Stack(
+          children: [
+            // 返回按钮
+            Positioned(
+              left: 5,
+              top: MediaQuery.of(Get.context!).padding.top,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: () => Get.back(),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    "assets/images/kissu_mine_back.webp",
+                    width: 22,
+                    height: 22,
+                  ),
+                ),
+              ),
+            ),
+            // 标题 - 绝对居中
+            Positioned(
+              left: 0,
+              right: 0,
+              top: MediaQuery.of(Get.context!).padding.top,
+              bottom: 0,
+              child: Center(
+                child: Text(
+                  '设置',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        onPressed: () => Get.back(),
       ),
-      title: const Text(
-        '设置',
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      centerTitle: true,
     );
   }
 

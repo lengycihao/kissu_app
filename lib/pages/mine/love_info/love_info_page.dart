@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 
 import 'love_info_controller.dart';
 import 'love_info_widgets.dart';
@@ -42,32 +41,46 @@ class LoveInfoPage extends StatelessWidget {
               child: Column(
                 children: [
                   // 自定义标题栏
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 10,
-                    ),
-                    child: Row(
+                  SizedBox(
+                    height: 44,
+                    child: Stack(
                       children: [
-                        CommonBackButton(
-                          onTap: () => Get.back(),
-                          assetPath: 'assets/images/kissu_mine_back.webp',
-                          iconSize: 22,
+                        // 返回按钮
+                        Positioned(
+                          left: 5,
+                          top: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onTap: () => Get.back(),
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              alignment: Alignment.center,
+                              child: Image.asset(
+                                'assets/images/kissu_mine_back.webp',
+                                width: 22,
+                                height: 22,
+                              ),
+                            ),
+                          ),
                         ),
-                        Expanded(
+                        // 标题 - 绝对居中
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
                           child: Center(
-                            child: const Text(
+                            child: Text(
                               '恋爱信息',
                               style: TextStyle(
                                 color: Colors.black,
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ),
-                        // 占位符保持标题居中
-                        const SizedBox(width: 40),
                       ],
                     ),
                   ),
@@ -235,51 +248,5 @@ class LoveInfoPage extends StatelessWidget {
     );
   }
 
-  //  Widget _buildAvatar() {
-  //   return Container(
-  //     width: 80,
-  //     height: 80,
-  //     padding: const EdgeInsets.all(2),
-  //     decoration: const BoxDecoration(
-  //       image: DecorationImage(
-  //         image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
-  //         fit: BoxFit.fill,
-  //       ),
-  //     ),
-  //     child: Padding(
-  //       padding: EdgeInsets.only(left: 6, top: 6, right: 0, bottom: 3),
-  //       child: ClipOval(
-  //         child: controller.userAvatar.value.isNotEmpty
-  //             ? Image.network(
-  //                 controller.userAvatar.value,
-  //                 fit: BoxFit.cover,
-  //                 errorBuilder: (context, error, stackTrace) {
-  //                   return Container(
-  //                     decoration: BoxDecoration(
-  //                       borderRadius: BorderRadius.circular(40),
-  //                       color: const Color(0xFFE8B4CB),
-  //                     ),
-  //                     child: const Icon(
-  //                       Icons.person,
-  //                       size: 40,
-  //                       color: Colors.white,
-  //                     ),
-  //                   );
-  //                 },
-  //               )
-  //             : Container(
-  //                 decoration: BoxDecoration(
-  //                   borderRadius: BorderRadius.circular(40),
-  //                   color: const Color(0xFFE8B4CB),
-  //                 ),
-  //                 child: const Icon(
-  //                   Icons.person,
-  //                   size: 40,
-  //                   color: Colors.white,
-  //                 ),
-  //               ),
-  //       ),
-  //     ),
-  //   );
-  // }
+ 
 }

@@ -82,6 +82,7 @@ class ChatPage extends GetView<ChatController> {
                     showEmojiPanel: controller.showEmojiPanel.value,
                     focusNode: controller.inputFocusNode,
                     themeButtonColor: controller.getThemeButtonColor(),
+                    themeIndex: controller.chatTheme.value,
                   )),
 
               // 表情面板
@@ -112,7 +113,7 @@ class ChatPage extends GetView<ChatController> {
     return PreferredSize(
       preferredSize: Size.fromHeight(65 + statusBarHeight), // 增加导航栏高度以容纳设备信息
       child: Container(
-        padding: EdgeInsets.only(top: statusBarHeight,left: 6),
+        padding: EdgeInsets.only(top: statusBarHeight),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -128,38 +129,56 @@ class ChatPage extends GetView<ChatController> {
             // 第一行：返回按钮、头像、昵称、设置按钮 - 横向对齐
             SizedBox(
               height: 56, // AppBar的标准高度
-              child: Row(
+              child: Stack(
                 children: [
                   // 返回按钮
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Colors.black,
-                      size: 22,
+                  Positioned(
+                    left: 5,
+                    top: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onTap: () => Get.back(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        child: Image.asset(
+                          "assets/images/kissu_mine_back.webp",
+                          width: 22,
+                          height: 22,
+                        ),
+                      ),
                     ),
-                    onPressed: () => Get.back(),
                   ),
                   // 另一半头像
-                  Obx(() => Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(20),
-                          image: controller.avatarUrl.value.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(controller.avatarUrl.value),
-                                  fit: BoxFit.cover,
-                                )
-                              : const DecorationImage(
-                                  image: AssetImage('assets/3.0/kissu3_love_avater.webp'),
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      )),
-                  const SizedBox(width: 10),
+                  Positioned(
+                    left: 54, // 44(返回按钮宽度) + 10(间距)
+                    top: 8,
+                    bottom: 8,
+                    child: Obx(() => Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(20),
+                            image: controller.avatarUrl.value.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(controller.avatarUrl.value),
+                                    fit: BoxFit.cover,
+                                  )
+                                : const DecorationImage(
+                                    image: AssetImage('assets/3.0/kissu3_love_avater.webp'),
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                        )),
+                  ),
                   // 昵称 / 正在输入（二选一，同一字体样式）
-                  Expanded(
+                  Positioned(
+                    left: 104, // 54 + 40(头像宽度) + 10(间距)
+                    right: 54, // 留出设置按钮的空间
+                    top: 0,
+                    bottom: 0,
                     child: Obx(() {
                       final typing = controller.isPartnerTyping.value;
                       final title = typing ? '对方正在输入…' : controller.chatName.value;
@@ -178,9 +197,19 @@ class ChatPage extends GetView<ChatController> {
                     }),
                   ),
                   // 设置按钮
-                  IconButton(
-                    icon: Image.asset('assets/chat/kissu_chat_setting.webp', width: 24, height: 24),
-                    onPressed: () => Get.toNamed(KissuRoutePath.chatSettings),
+                  Positioned(
+                    right: 5,
+                    top: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onTap: () => Get.toNamed(KissuRoutePath.chatSettings),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        child: Image.asset('assets/chat/kissu_chat_setting.webp', width: 24, height: 24),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -18,7 +18,7 @@ TencentImSDKPlugin.v2TIMManager.getMessageManager().deleteMessageFromLocalStorag
 如果一个账号在某设备上拉取过这些消息，那么调用该接口删除云端消息后，这些消息仍然会保存在该设备上，即删除消息不支持多端同步。
 示例代码如下：
 TencentImSDKPlugin.v2TIMManager.getMessageManager().deleteMessages(msgIDs: ['messageid']);
-
+kissu_mine_back
 ---------------------------------
 撤回消息
 功能描述

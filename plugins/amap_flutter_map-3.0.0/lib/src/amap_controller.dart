@@ -327,4 +327,106 @@ class AMapController {
   Future<CameraPosition?> getCameraPosition() {
     return _methodChannel.getCameraPosition(mapId: mapId);
   }
+
+  /// 启动GIF动画Marker
+  /// 
+  /// 🎬 GIF动画效果：
+  /// - 从Flutter assets加载GIF文件
+  /// - 解析GIF的所有帧和延迟信息
+  /// - 在Marker上循环播放帧动画
+  /// 
+  /// [markerId] Marker的ID（必须是已存在的Marker）
+  /// [assetPath] GIF文件的asset路径（如: assets/gif/ceshi.gif）
+  /// [width] 可选，GIF显示宽度（像素）
+  /// [height] 可选，GIF显示高度（像素）
+  Future<bool> startGifAnimation({
+    required String markerId,
+    required String assetPath,
+    int? width,
+    int? height,
+  }) {
+    return _methodChannel.startGifAnimation(
+      mapId: mapId,
+      markerId: markerId,
+      assetPath: assetPath,
+      width: width,
+      height: height,
+    );
+  }
+
+  /// 停止GIF动画Marker
+  /// 
+  /// [markerId] Marker的ID
+  Future<bool> stopGifAnimation({
+    required String markerId,
+  }) {
+    return _methodChannel.stopGifAnimation(
+      mapId: mapId,
+      markerId: markerId,
+    );
+  }
+
+  /// 预加载GIF到缓存
+  /// 
+  /// 🚀 预加载优化：
+  /// - 在首页等位置提前调用，预加载GIF帧数据到内存缓存
+  /// - 后续使用时可以直接从缓存读取，无需重新解码
+  /// - 显著减少进入地图页面时的加载延迟
+  /// 
+  /// [assetPath] GIF文件的asset路径（如: assets/gif/ceshi.gif）
+  /// [width] GIF显示宽度（像素）
+  /// [height] GIF显示高度（像素）
+  Future<bool> preloadGif({
+    required String assetPath,
+    required int width,
+    required int height,
+  }) {
+    return _methodChannel.preloadGif(
+      mapId: mapId,
+      assetPath: assetPath,
+      width: width,
+      height: height,
+    );
+  }
+
+  /// 🔄 启动Marker摆动动画（雨刷器效果）
+  /// 
+  /// 以Marker的锚点（尖尖）为圆心，左右摆动
+  /// 效果类似雨刷器，两个头像先靠拢再分开
+  /// 
+  /// 🚀 性能优势：
+  /// - 使用原生RotateAnimation（GPU加速）
+  /// - 60fps流畅运行
+  /// - 零跨平台通信开销（只调用一次）
+  /// 
+  /// [markerId] Marker的ID（必须是已存在的Marker）
+  /// [fromAngle] 起始角度（度数）
+  /// [toAngle] 目标角度（度数）
+  /// [duration] 单次摆动时长（毫秒，默认800ms）
+  Future<bool> startSwingAnimation({
+    required String markerId,
+    required double fromAngle,
+    required double toAngle,
+    int duration = 800,
+  }) {
+    return _methodChannel.startSwingAnimation(
+      mapId: mapId,
+      markerId: markerId,
+      fromAngle: fromAngle,
+      toAngle: toAngle,
+      duration: duration,
+    );
+  }
+
+  /// 停止Marker摆动动画
+  /// 
+  /// [markerId] Marker的ID
+  Future<bool> stopSwingAnimation({
+    required String markerId,
+  }) {
+    return _methodChannel.stopSwingAnimation(
+      mapId: mapId,
+      markerId: markerId,
+    );
+  }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/account_cancellation_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
@@ -34,33 +33,52 @@ class PrivacySettingPage extends StatelessWidget {
             ),
           ),
           SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(22).copyWith(left: 6,right: 6,top: 12),
-          child: Column(
+        child:Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // 标题
-              Row(
-                children: [
-                  CommonBackButton(
-                    onTap: () => Get.back(),
-                    assetPath: "assets/images/kissu_mine_back.webp",
-                    iconSize: 22,
-                  ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        "设置",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
+              SizedBox(
+                height: 44,
+                child: Stack(
+                  children: [
+                    // 返回按钮
+                    Positioned(
+                      left: 5,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 30), // 占位保持居中
-                ],
+                    // 标题 - 绝对居中
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          "设置",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 30),
 
@@ -119,7 +137,7 @@ class PrivacySettingPage extends StatelessWidget {
               SizedBox(height: 60),
             ],
           ),
-        ),
+      
       ),
         ],
       ),

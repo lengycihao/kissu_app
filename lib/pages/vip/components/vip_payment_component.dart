@@ -117,7 +117,7 @@ class VipPaymentComponent extends GetView<VipController> {
                       final isVip = controller.isVipStatus.value;
                       final animationPath = isVip 
                           ? 'assets/json/renew.json' 
-                          : 'assets/json/recharge.json';
+                          : 'assets/json/distance_100.json';
                       
                       return SizedBox(
                         width: 150,

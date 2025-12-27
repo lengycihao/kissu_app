@@ -177,7 +177,7 @@ class MessageDetailPage extends GetView<MessageDetailController> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
-                "assets/images/kissu_notice_empty.webp",
+                "assets/images/kissu_message_empty.webp",
                 width: 128,
                 height: 128,
               ),

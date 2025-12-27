@@ -11,7 +11,6 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 控制器
 class FeedbackController extends GetxController {
@@ -314,29 +313,46 @@ class FeedbackPage extends StatelessWidget {
             child: Column(
               children: [
                 // 导航栏
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 10,
-                  ).copyWith(right: 16),
-                  child: Row(
+                SizedBox(
+                  height: 44,
+                  child: Stack(
                     children: [
-                      CommonBackButton(
-                        onTap: () => Get.back(),
-                        assetPath: "assets/images/kissu_mine_back.webp",
-                        iconSize: 24,
-                      ),
-                      const Spacer(),
-                      const Text(
-                        "意见反馈",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF333333),
+                      // 返回按钮
+                      Positioned(
+                        left: 5,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () => Get.back(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: Image.asset(
+                              "assets/images/kissu_mine_back.webp",
+                              width: 22,
+                              height: 22,
+                            ),
+                          ),
                         ),
                       ),
-                      const Spacer(),
-                      const SizedBox(width: 24),
+                      // 标题 - 绝对居中
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Text(
+                            "意见反馈",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

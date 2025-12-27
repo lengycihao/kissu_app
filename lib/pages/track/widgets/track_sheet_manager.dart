@@ -16,6 +16,7 @@ import '../track_page_config.dart';
 class TrackSheetManager {
   final TrackController controller;
   late double screenHeight = 0;
+  late double topBarHeight = 0;
   late double maxHeight = 0;
   late final DraggableScrollableController draggableController;
 
@@ -35,7 +36,8 @@ class TrackSheetManager {
 
   void updateDimensions(BuildContext context) {
     screenHeight = MediaQuery.of(context).size.height;
-    maxHeight = screenHeight - TrackPageConfig.maxPanelOffset;
+    topBarHeight = MediaQuery.of(context).padding.top + 35;
+    maxHeight = screenHeight - topBarHeight;
 
     // 初始化sheetPercent
     controller.sheetPercent.value = getInitialHeight() / screenHeight;
@@ -63,6 +65,28 @@ class TrackSheetManager {
       isBindPartner: controller.isBindPartner.value,
       screenHeight: screenHeight,
     );
+  }
+
+  /// 获取当前的ScrollController，用于返回按钮
+  ScrollController? get scrollController {
+    // 暂时返回 null，轨迹页面可能不需要 scrollController
+    return null;
+  }
+
+  /// 计算渐变透明度 (从底部吸顶到顶部吸顶时透明度从1.0变为0.0)
+  double get _gradientOpacity {
+    final currentPercent = controller.sheetPercent.value;
+    final minPercent = getMinHeight() / screenHeight;
+    final maxPercent = maxHeight / screenHeight;
+
+    if (currentPercent <= minPercent) {
+      return 1.0; // 底部吸顶位置，完全不透明
+    } else if (currentPercent >= maxPercent) {
+      return 0.0; // 顶部吸顶位置，完全透明
+    } else {
+      // 在中间位置时线性插值
+      return 1.0 - ((currentPercent - minPercent) / (maxPercent - minPercent));
+    }
   }
 
   /// 监听面板滑动百分比变化
@@ -120,7 +144,7 @@ class TrackSheetManager {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: TrackPageConfig.backgroundWhite,
+              color: Colors.transparent,
               borderRadius: BorderRadius.vertical(
                 top: Radius.circular(TrackPageConfig.panelTopBorderRadiusValue),
               ),
@@ -141,46 +165,72 @@ class TrackSheetManager {
 
   /// 构建主要内容
   Widget _buildMainContent(ScrollController scrollController) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: TrackPageConfig.panelTopBorderRadiusGeometry,
-        gradient: TrackPageConfig.panelGradient,
-      ),
-      padding: const EdgeInsets.only(top: TrackPageConfig.tinyPadding),
-      child: Column(
-        children: [
-          // 指示条
-          _buildIndicator(),
-          const SizedBox(height: TrackPageConfig.tinyPadding),
-          // 内容区域
-          Expanded(
-            child: CustomScrollView(
-              controller: scrollController,
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              cacheExtent: 500,
-              slivers: [
-                // 顶部固定区域
-                SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      // 日期模块
-                      _buildDateModule(),
-                      const SizedBox(height: 10),
-                      // 停留统计模块
-                      _buildStayStatsModule(),
-                    ],
-                  ),
-                ),
-                // 停留点列表
-                _buildStopRecordsList(),
-              ],
-            ),
+    return Obx(() {
+      // 计算渐变起始颜色的透明度
+      final gradientStartColor = Color(0xFFFFF1FD).withValues(alpha: _gradientOpacity);
+      // 计算指示条的透明度
+      final indicatorOpacity = _gradientOpacity;
+
+      // 创建新的渐变，使用计算出的透明度
+      final gradient = LinearGradient(
+        colors: [gradientStartColor, Color(0xFFF6F6F6), Color(0xFFF6F6F6)],
+        stops: [0, 0.1, 1],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+
+      return NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollStartNotification) {
+            return true;
+          }
+          return false;
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: TrackPageConfig.panelTopBorderRadiusGeometry,
+            gradient: gradient,
           ),
-        ],
-      ),
-    );
+          padding: const EdgeInsets.only(top: TrackPageConfig.tinyPadding),
+          child: Column(
+            children: [
+              // 指示条
+              Opacity(
+                opacity: indicatorOpacity,
+                child: _buildIndicator(),
+              ),
+              const SizedBox(height: TrackPageConfig.tinyPadding),
+              // 内容区域
+              Expanded(
+                child: CustomScrollView(
+                  controller: scrollController,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  cacheExtent: 500,
+                  slivers: [
+                    // 顶部固定区域
+                    SliverToBoxAdapter(
+                      child: Column(
+                        children: [
+                          // 日期模块
+                          _buildDateModule(),
+                          const SizedBox(height: 10),
+                          // 停留统计模块
+                          _buildStayStatsModule(),
+                        ],
+                      ),
+                    ),
+                    // 停留点列表
+                    _buildStopRecordsList(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   /// 构建指示条
@@ -190,7 +240,7 @@ class TrackSheetManager {
       height: TrackPageConfig.indicatorHeight,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(TrackPageConfig.indicatorBorderRadius),
-        color: TrackPageConfig.borderGray,
+        color: TrackPageConfig.backgroundWhite,
       ),
     );
   }
@@ -360,17 +410,14 @@ class TrackSheetManager {
             margin: const EdgeInsets.only(
               left: TrackPageConfig.horizontalMargin,
               right: TrackPageConfig.horizontalMargin,
-              top: 10,
+              top: 90,
               bottom: 15,
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: TrackPageConfig.defaultPadding,
               vertical: 15,
             ),
-            decoration: BoxDecoration(
-              color: TrackPageConfig.backgroundWhite,
-              borderRadius: TrackPageConfig.defaultBorderRadius,
-            ),
+            
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 40),
@@ -397,6 +444,7 @@ class TrackSheetManager {
         );
       } else {
         return SliverFillRemaining(
+          hasScrollBody: false,
           child: Container(
             margin: const EdgeInsets.only(
               left: TrackPageConfig.horizontalMargin,
@@ -440,7 +488,7 @@ class TrackSheetManager {
                   const SizedBox(height: TrackPageConfig.tinyPadding),
                   _buildDateModule(),
                   const SizedBox(height: 10),
-                  Expanded(
+                   Expanded(
                     child: ClipRRect(
                       borderRadius: TrackPageConfig.panelTopBorderRadiusGeometry,
                       child: BackdropFilter(
@@ -452,14 +500,10 @@ class TrackSheetManager {
                           ),
                           child: Center(
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.start,
                               children: [
-                                const SizedBox(height: 130),
-                                SizedBox(
-                                  width: 175,
-                                  height: 44,
-                                  child: Text('按钮占位'),
-                                ),
+                                const SizedBox(height: 40),
+                                Image(image: AssetImage("assets/images/kissu3_go_label_track.webp"),width: 237,height: 32,),
                               ],
                             ),
                           ),
@@ -533,32 +577,29 @@ class _OptimizedStopRecordsListWithBackground extends StatelessWidget {
       final records = controller.stopRecords;
       final isLoading = controller.isLoading.value;
 
-      return SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            if (isLoading) ...[
-              // 骨架屏逻辑（保持原有实现）
-            ] else if (records.isNotEmpty) ...[
-              ...records.asMap().entries.map((entry) {
-                final index = entry.key;
-                final record = entry.value;
-                final isLast = index == records.length - 1;
-                return RepaintBoundary(
-                  child: StopListItem(
-                    record: record,
-                    index: index,
-                    isLast: isLast,
-                  ),
-                );
-              }),
-            ] else ...[
-              // 空状态
-            ],
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          if (isLoading) ...[
+            // 骨架屏逻辑（保持原有实现）
+          ] else if (records.isNotEmpty) ...[
+            ...records.asMap().entries.map((entry) {
+              final index = entry.key;
+              final record = entry.value;
+              final isLast = index == records.length - 1;
+              return RepaintBoundary(
+                child: StopListItem(
+                  record: record,
+                  index: index,
+                  isLast: isLast,
+                ),
+              );
+            }),
+          ] else ...[
+            // 空状态
           ],
-        ),
+        ],
       );
     });
   }

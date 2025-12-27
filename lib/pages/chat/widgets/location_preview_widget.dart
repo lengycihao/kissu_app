@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:amap_flutter_map/amap_flutter_map.dart';
-import '../utils/map_marker_util.dart';
+import '../../../widgets/location_map_snapshot.dart';
+import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 
 /// 位置预览组件
 /// 用于在聊天消息中显示小地图预览
@@ -30,31 +29,6 @@ class LocationPreviewWidget extends StatefulWidget {
 }
 
 class _LocationPreviewWidgetState extends State<LocationPreviewWidget> {
-  BitmapDescriptor? _markerIcon;
-
-  @override
-  void initState() {
-    super.initState();
-    _createMarkerIcon();
-  }
-
-  /// 创建自定义标记图标（圆形头像）
-  Future<void> _createMarkerIcon() async {
-    try {
-      final icon = await MapMarkerUtil.createCircleAvatarMarker(
-        widget.avatarUrl,
-        size: 60.0, // 标记大小
-        borderWidth: 3.0, // 边框宽度
-      );
-      if (mounted) {
-        setState(() {
-          _markerIcon = icon;
-        });
-      }
-    } catch (e) {
-      debugPrint('创建标记图标失败: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,76 +38,42 @@ class _LocationPreviewWidgetState extends State<LocationPreviewWidget> {
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300, width: 1),
-        ),
+          borderRadius: BorderRadius.circular(4),
+         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           child: Stack(
             children: [
-              // 地图组件
-              AMapWidget(
-                onMapCreated: (AMapController controller) {
-                  // 地图创建完成后的回调
-                  controller.moveCamera(
-                    CameraUpdate.newCameraPosition(
-                      CameraPosition(
-                        target: LatLng(widget.latitude, widget.longitude),
-                        zoom: 15.0, // 适中的缩放级别
-                      ),
-                    ),
-                  );
-                },
-                initialCameraPosition: CameraPosition(
-                  target: LatLng(widget.latitude, widget.longitude),
-                  zoom: 15.0,
-                ),
-                markers: _markerIcon != null
-                    ? {
-                        Marker(
-                          position: LatLng(widget.latitude, widget.longitude),
-                          icon: _markerIcon!,
-                        ),
-                      }
-                    : {
-                        Marker(
-                          position: LatLng(widget.latitude, widget.longitude),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueRed,
-                          ),
-                        ),
-                      },
-                // 禁用用户交互，因为这只是预览
-                onTap: (LatLng position) {
-                  widget.onTap?.call();
-                },
-                // 设置地图样式为简化版本
-                mapType: MapType.normal,
-                // 禁用缩放和拖拽
-                zoomGesturesEnabled: false,
-                scrollGesturesEnabled: false,
-                rotateGesturesEnabled: false,
-                tiltGesturesEnabled: false,
-              ),
-              // 半透明遮罩，提示用户可以点击
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+              // 使用静态地图快照替换实时地图，避免每条消息导致地图重建闪烁
+              // 请求更高分辨率的地图图片（3倍），然后缩小显示以保持文字清晰度
+              Transform.scale(
+                scale: 1, // 将3倍大小的图片缩小回原始尺寸
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: widget.width * 2,
+                  height: widget.height * 2,
+                  child: LocationMapSnapshot(
+                    longitude: widget.longitude,
+                    latitude: widget.latitude,
+                    radius: 50,
+                    iconId: 1,
+                     reminderType: ReminderType.leave,
+                    size: '${(widget.width * 2).toInt()}*${(widget.height * 2).toInt()}',
+                    height: widget.height * 2, // 请求3倍高度的图片
+                    isSatellite: false,
                   ),
                 ),
               ),
-              // 位置图标
-              const Positioned(
-                top: 8,
-                right: 8,
-                child: Icon(
-                  Icons.location_on,
-                  color: Colors.red,
-                  size: 20,
-                ),
-              ),
+              // 半透明遮罩，提示用户可以点击
+              // Positioned.fill(
+              //   child: Container(
+              //     decoration: BoxDecoration(
+              //       color: Colors.black.withValues(alpha: 0.1),
+              //       borderRadius: BorderRadius.circular(8),
+              //     ),
+              //   ),
+              // ),
+               
             ],
           ),
         ),

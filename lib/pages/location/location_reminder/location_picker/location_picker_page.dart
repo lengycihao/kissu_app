@@ -102,7 +102,7 @@ class LocationPickerPage extends StatelessWidget {
   Widget _buildTopBar(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
-      padding: EdgeInsets.only(left: 6, right: 6, top: topPadding, bottom: 12),
+      padding: EdgeInsets.only(  top: topPadding, bottom: 12),
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/setting/kissu_navbar_bg.webp'),
@@ -114,20 +114,19 @@ class LocationPickerPage extends StatelessWidget {
         child: Stack(
           children: [
             Positioned(
-              left: 6,
+              left: 5,
               top: 0,
               bottom: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () => Get.back(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Image.asset(
-                      'assets/location/kissu3_back.webp',
-                      width: 20,
-                      color: Color(0xff333333),
-                      height: 20,
-                    ),
+              child: GestureDetector(
+                onTap: () => Get.back(),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/images/kissu_mine_back.webp',
+                    width: 22,
+                    height: 22,
                   ),
                 ),
               ),
@@ -136,7 +135,7 @@ class LocationPickerPage extends StatelessWidget {
               child: Text(
                 '添加地点',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),

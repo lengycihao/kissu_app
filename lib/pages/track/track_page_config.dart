@@ -30,8 +30,8 @@ class TrackPageConfig {
   static const double buttonBorderRadius = 22.0;
 
   // 面板圆角
-  static const double panelBorderRadius = 20.0;
-  static const double panelTopBorderRadius = 18.0;
+  static const double panelBorderRadius = 12.0;
+  static const double panelTopBorderRadius = 12.0;
 
   // 地图logo尺寸
   static const double mapLogoWidth = 68.0;
@@ -63,7 +63,7 @@ class TrackPageConfig {
   static const Duration sheetSnapAnimation = Duration(milliseconds: 200);
 
   // ===== 边距和间距 =====
-  static const double defaultPadding = 16.0;
+  static const double defaultPadding = 8.0;
   static const double smallPadding = 10.0;
   static const double tinyPadding = 5.0;
   static const double horizontalMargin = 14.0;
@@ -86,14 +86,10 @@ class TrackPageConfig {
     colors: [gradientStart, backgroundGray, backgroundGray],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    stops: [0.0, 0.3, 1.0],
+    stops: [0.0, 0.2, 1.0],
   );
 
-  static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [backgroundGray, backgroundWhite, backgroundGray],
-  );
+  
 
   // ===== 边框配置 =====
   static BorderRadius get defaultBorderRadius =>

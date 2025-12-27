@@ -85,7 +85,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
                         child: Text(
                           '地点提醒',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF333333),
                           ),

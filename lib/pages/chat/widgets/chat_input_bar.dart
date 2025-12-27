@@ -11,6 +11,7 @@ class ChatInputBar extends StatefulWidget {
   final bool showEmojiPanel;
   final FocusNode? focusNode;
   final Color? themeButtonColor; // 主题按钮颜色
+  final int? themeIndex; // 主题索引（1-4）
 
   const ChatInputBar({
     super.key,
@@ -23,6 +24,7 @@ class ChatInputBar extends StatefulWidget {
     this.showEmojiPanel = false,
     this.focusNode,
     this.themeButtonColor,
+    this.themeIndex,
   });
 
   @override
@@ -192,29 +194,55 @@ class ChatInputBarState extends State<ChatInputBar> {
   }
 
   Widget _buildFunctionRow() {
+    // 根据主题获取第四个图标的图片路径
+    final locationIconAsset = _getLocationIconAsset();
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // 第一个图标：表情（主题1: #FF90CA, 主题2: #A6D7FF, 主题3: #FF90CA, 主题4: #AD7D63）
         _buildFunctionIcon(
           asset: 'assets/chat/kissu3_chat_emoji_open.webp',
           onTap: widget.onEmojiTap,
           isChangeColor: true,
           isActive: widget.showEmojiPanel,
         ),
+        // 第二个图标：相册（使用主题颜色）
         _buildFunctionIcon(
           asset: 'assets/chat/kissu3_chat_picture.webp',
           onTap: widget.onAlbumTap,
+          isChangeColor: true,
         ),
+        // 第三个图标：相机（使用主题颜色）
         _buildFunctionIcon(
           asset: 'assets/chat/kissu3_chat_camera.webp',
           onTap: widget.onCameraTap,
+          isChangeColor: true,
         ),
+        // 第四个图标：位置（根据主题更换图片）
         _buildFunctionIcon(
-          asset: 'assets/chat/kissu3_chat_location.webp',
+          asset: locationIconAsset,
           onTap: widget.onLocationTap,
         ),
       ],
     );
+  }
+
+  // 根据主题获取位置图标的资源路径
+  String _getLocationIconAsset() {
+    final themeIndex = widget.themeIndex ?? 1;
+    switch (themeIndex) {
+      case 1:
+        return 'assets/chat/kissu3_chat_location1.webp';
+      case 2:
+        return 'assets/chat/kissu3_chat_location2.webp';
+      case 3:
+        return 'assets/chat/kissu3_chat_location1.webp';
+      case 4:
+        return 'assets/chat/kissu3_chat_location3.webp';
+      default:
+        return 'assets/chat/kissu3_chat_location1.webp';
+    }
   }
 
   Widget _buildFunctionIcon({
@@ -225,9 +253,7 @@ class ChatInputBarState extends State<ChatInputBar> {
   }) {
     // 获取主题按钮颜色，如果没有则使用默认颜色
     final buttonColor = widget.themeButtonColor ?? const Color(0xffFF90CA);
-    // 选中时使用主题颜色的浅色版本（透明度0.15）
-    final activeColor = buttonColor;
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -238,7 +264,7 @@ class ChatInputBarState extends State<ChatInputBar> {
           child: Image.asset(
             asset,
             width: 24,
-            color: isChangeColor&&isActive ?activeColor:null,
+            color: isChangeColor ? buttonColor : null,
             height: 24,
              fit: BoxFit.contain,
           ),

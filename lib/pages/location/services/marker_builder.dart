@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
@@ -568,6 +569,177 @@ class MarkerBuilder {
       }
     } catch (e) {
       debugPrint('Draw emoji background error: $e');
+    }
+  }
+
+  /// 🎯 创建带背景图的头像Marker（用于并排展示）
+  /// 
+  /// 头像会被绘制在背景图上，无边框
+  /// [avatarUrl] 头像URL或本地路径
+  /// [defaultAsset] 默认头像资源
+  /// [bgAsset] 背景图资源路径
+  /// [designAvatarSize] 设计稿中头像尺寸（逻辑像素）
+  /// [designBgSize] 设计稿中背景图尺寸（逻辑像素）
+  /// [avatarOffsetY] 头像在背景图中的Y偏移（相对于背景图顶部的比例，0-1）
+  Future<Map<String, dynamic>> createAvatarWithBgMarker(
+    String avatarUrl, {
+    String? defaultAsset,
+    required String bgAsset,
+    double designAvatarSize = 50.0,
+    double designBgWidth = 60.0,   // 背景图宽度
+    double designBgHeight = 65.0,  // 背景图高度
+    double avatarOffsetY = 5, // 头像顶部距离背景图顶部的比例
+    double rotationDegrees = 0.0, // 旋转角度（度），正数顺时针，负数逆时针
+  }) async {
+    try {
+      // 加载背景图
+      final bgImage = await _imageService.loadImageFromAsset(bgAsset);
+      if (bgImage == null) {
+        debugPrint('❌ 加载背景图失败: $bgAsset');
+        return {
+          'descriptor': BitmapDescriptor.defaultMarker,
+          'anchor': const Offset(0.5, 1.0),
+        };
+      }
+
+      // 🔧 基于375px设计稿的比例计算
+      final dpr = ui.window.devicePixelRatio;
+      final screenWidth = ui.window.physicalSize.width / dpr;
+      const designWidth = 375.0;
+      final screenScale = screenWidth / designWidth;
+
+      // 计算实际尺寸
+      final bgWidth = designBgWidth * screenScale * dpr;
+      final bgHeight = designBgHeight * screenScale * dpr;
+      final avatarSize = designAvatarSize * screenScale * dpr;
+      final spaceHeight = avatarOffsetY * screenScale * dpr;
+      
+      // 旋转后需要更大的画布来容纳旋转后的图像
+      final rotationRadians = rotationDegrees * 3.14159265359 / 180.0;
+      
+      // 计算旋转后的边界框大小（使用对角线长度作为画布大小）
+      final diagonal = (bgWidth * bgWidth + bgHeight * bgHeight);
+      final diagonalSqrt = diagonal > 0 ? math.sqrt(diagonal) : bgWidth;
+      final canvasWidth = rotationDegrees.abs() > 0.1 ? diagonalSqrt : bgWidth;
+      final canvasHeight = rotationDegrees.abs() > 0.1 ? diagonalSqrt : bgHeight;
+      
+      debugPrint('📱 ============ 带背景头像Marker创建 ============');
+      debugPrint('📱 背景图尺寸: ${bgWidth.toStringAsFixed(1)} x ${bgHeight.toStringAsFixed(1)}px');
+      debugPrint('📱 头像尺寸: ${avatarSize.toStringAsFixed(1)}px');
+      debugPrint('📱 旋转角度: $rotationDegrees°');
+      debugPrint('📱 画布尺寸: ${canvasWidth.toStringAsFixed(1)} x ${canvasHeight.toStringAsFixed(1)}px');
+
+      // 创建画布
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+      
+      // 如果需要旋转，先移动到画布中心，旋转，再移动回来
+      if (rotationDegrees.abs() > 0.1) {
+        canvas.save();
+        // 移动到画布中心
+        canvas.translate(canvasWidth / 2, canvasHeight / 2);
+        // 旋转
+        canvas.rotate(rotationRadians);
+        // 移动回来，使背景图中心对准画布中心
+        canvas.translate(-bgWidth / 2, -bgHeight / 2);
+      }
+
+      // 1. 绘制背景图
+      final bgSrcRect = Rect.fromLTWH(
+        0, 0,
+        bgImage.width.toDouble(),
+        bgImage.height.toDouble(),
+      );
+      final bgDstRect = Rect.fromLTWH(0, 0, bgWidth, bgHeight);
+      canvas.drawImageRect(bgImage, bgSrcRect, bgDstRect, Paint()..isAntiAlias = true);
+
+      // 2. 计算头像位置（在背景图中心偏上）
+      final avatarCenterX = bgWidth / 2;
+      final avatarCenterY = bgHeight / 2 - spaceHeight;
+      final avatarCenter = Offset(avatarCenterX, avatarCenterY);
+
+      // 3. 加载并绘制头像（无边框，直接圆形裁剪）
+      ui.Image? avatarImage;
+      if (avatarUrl.isNotEmpty) {
+        try {
+          if (avatarUrl.startsWith('http')) {
+            avatarImage = await _imageService.loadImageFromNetwork(avatarUrl);
+          } else {
+            avatarImage = await _imageService.loadImageFromAsset(avatarUrl);
+          }
+        } catch (e) {
+          debugPrint('Load avatar error: $e');
+        }
+      }
+
+      if (avatarImage == null && defaultAsset != null) {
+        avatarImage = await _imageService.loadImageFromAsset(defaultAsset);
+      }
+
+      if (avatarImage != null) {
+        canvas.save();
+        // 圆形裁剪
+        final avatarRect = Rect.fromCenter(
+          center: avatarCenter,
+          width: avatarSize,
+          height: avatarSize,
+        );
+        final clipPath = Path()..addOval(avatarRect);
+        canvas.clipPath(clipPath);
+        
+        // 绘制头像
+        final srcRect = Rect.fromLTWH(
+          0, 0,
+          avatarImage.width.toDouble(),
+          avatarImage.height.toDouble(),
+        );
+        canvas.drawImageRect(avatarImage, srcRect, avatarRect, Paint()..isAntiAlias = true);
+        canvas.restore();
+      }
+      
+      // 如果有旋转，恢复canvas状态
+      if (rotationDegrees.abs() > 0.1) {
+        canvas.restore();
+      }
+
+      // 转换为图片
+      final picture = pictureRecorder.endRecording();
+      final image = await picture.toImage(canvasWidth.toInt(), canvasHeight.toInt());
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData!.buffer.asUint8List();
+
+      // 计算锚点：旋转后需要根据背景图尖尖的实际位置计算
+      // 背景图尖尖原本在底部中心(bgWidth/2, bgHeight)
+      // 旋转后，尖尖位置会改变
+      Offset anchor;
+      if (rotationDegrees.abs() > 0.1) {
+        // 旋转后，背景图中心在画布中心
+        // 尖尖相对于背景图中心的偏移是(0, bgHeight/2)
+        // 旋转后尖尖的新位置
+        final tipOffsetX = (bgHeight / 2) * math.sin(rotationRadians);
+        final tipOffsetY = (bgHeight / 2) * math.cos(rotationRadians);
+        // 尖尖在画布中的位置
+        final tipX = canvasWidth / 2 + tipOffsetX;
+        final tipY = canvasHeight / 2 + tipOffsetY;
+        // 锚点是尖尖位置相对于画布的比例
+        anchor = Offset(tipX / canvasWidth, tipY / canvasHeight);
+        debugPrint('📱 旋转后锚点: (${anchor.dx.toStringAsFixed(3)}, ${anchor.dy.toStringAsFixed(3)})');
+      } else {
+        anchor = const Offset(0.5, 1.0);
+      }
+
+      debugPrint('📱 ============================================');
+
+      return {
+        'descriptor': BitmapDescriptor.fromBytes(bytes),
+        'anchor': anchor,
+      };
+    } catch (e) {
+      debugPrint('Create avatar with bg marker error: $e');
+      return {
+        'descriptor': BitmapDescriptor.defaultMarker,
+        'anchor': const Offset(0.5, 1.0),
+      };
     }
   }
 }

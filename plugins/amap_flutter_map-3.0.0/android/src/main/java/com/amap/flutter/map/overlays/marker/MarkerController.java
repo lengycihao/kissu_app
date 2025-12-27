@@ -10,6 +10,7 @@ import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.animation.ScaleAnimation;
 import com.amap.api.maps.model.animation.AlphaAnimation;
 import com.amap.api.maps.model.animation.AnimationSet;
+import com.amap.api.maps.model.animation.RotateAnimation;
 
 /**
  * @author whm
@@ -22,8 +23,10 @@ class MarkerController implements MarkerOptionsSink {
     private final String markerId;
     private ScaleAnimation breathAnimation;
     private AnimationSet rippleAnimation;
+    private RotateAnimation swingAnimation;
     private boolean isAnimating = false;
     private boolean isRippleAnimating = false;
+    private boolean isSwingAnimating = false;
 
     MarkerController(Marker marker) {
         this.marker = marker;
@@ -236,6 +239,58 @@ class MarkerController implements MarkerOptionsSink {
         marker.setAlpha(1.0f);
         
         isRippleAnimating = false;
+    }
+
+    /**
+     * 🔄 启动摆动动画（雨刷器效果）
+     * 
+     * 以Marker的锚点（尖尖）为圆心，左右摆动
+     * 效果类似雨刷器，两个头像先靠拢再分开
+     * 
+     * @param fromAngle 起始角度（当前旋转角度）
+     * @param toAngle 目标角度（摆动到的角度）
+     * @param duration 单次摆动时长（毫秒）
+     */
+    public void startSwingAnimation(float fromAngle, float toAngle, long duration) {
+        if (marker == null || isSwingAnimating) {
+            return;
+        }
+
+        // 创建旋转动画：从fromAngle摆动到toAngle
+        // 参数：fromDegree, toDegree, pivotX, pivotY, pivotZ
+        // pivotX=0, pivotY=0 表示以锚点为旋转中心
+        swingAnimation = new RotateAnimation(fromAngle, toAngle, 0, 0, 0);
+        swingAnimation.setDuration(duration);
+        
+        // 设置为无限重复、往返播放（形成摆动效果）
+        swingAnimation.setRepeatCount(ValueAnimator.INFINITE);
+        swingAnimation.setRepeatMode(ValueAnimator.REVERSE);
+        
+        // 使用缓动插值器，让摆动更自然
+        swingAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
+        
+        // 启动动画
+        marker.setAnimation(swingAnimation);
+        marker.startAnimation();
+        
+        isSwingAnimating = true;
+    }
+
+    /**
+     * 停止摆动动画
+     */
+    public void stopSwingAnimation() {
+        if (marker == null || !isSwingAnimating) {
+            return;
+        }
+
+        // 停止并清除动画
+        if (swingAnimation != null) {
+            marker.setAnimation(null);
+            swingAnimation = null;
+        }
+        
+        isSwingAnimating = false;
     }
 
     /**

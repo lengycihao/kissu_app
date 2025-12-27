@@ -113,20 +113,20 @@ class VipPage extends GetView<VipController> {
               ),
            
 
-            // 固定的返回按钮 - 距离顶部55px，距离左边20px
+            // 固定的返回按钮
             Positioned(
-              left: 20,
-              top: 55,
+              left: 5,
+              top: MediaQuery.of(context).padding.top,
               child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
                 onTap: controller.onBackTap,
-                child: Padding(
-                  padding: EdgeInsets.all(8.0).copyWith(top: 0),
-                  child: Image(
-                    image: AssetImage('assets/images/kissu_mine_back.webp'),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/images/kissu_mine_back.webp',
                     width: 22,
                     height: 22,
-                    fit: BoxFit.cover,
                   ),
                 ),
               ),

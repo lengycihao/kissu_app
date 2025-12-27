@@ -9,7 +9,12 @@ class MessageListPage extends GetView<MessageListController> {
   Widget _buildNotificationTip() {
     return Obx(() {
       // 如果已经开启通知，不显示提示
-      if (!controller.hasNotificationPermission.value) {
+      if (controller.hasNotificationPermission.value) {
+        return const SizedBox.shrink();
+      }
+
+      // 如果用户手动关闭了提示，不显示
+      if (!controller.showNotificationTip.value) {
         return const SizedBox.shrink();
       }
 
@@ -53,7 +58,10 @@ class MessageListPage extends GetView<MessageListController> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(Icons.close, size: 16, color: Color(0xFF777777)),
+              GestureDetector(
+                onTap: controller.hideNotificationTip,
+                child: const Icon(Icons.close, size: 16, color: Color(0xFF777777)),
+              ),
             ],
           ),
         ),
@@ -142,56 +150,74 @@ color: Color(0xffF6F6F6),
               alignment: Alignment.topCenter,
             ),
           ),
-          Column(
-            children: [
-              // 导航栏 - 参考关于我们页面的设置
-              Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 12,
-                  left: 6,
-                  right: 16,
-                ),
-                child: Row(
-                  children: [
-                    // 返回按钮
-                    GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: controller.onBackTap,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Image.asset(
-                          'assets/images/kissu_mine_back.webp',
-                          width: 22,
-                          height: 22,
+          SafeArea(
+            child: Column(
+              children: [
+                // 导航栏 - 参考关于我们页面的设置
+                SizedBox(
+                  height: 44,
+                  child: Stack(
+                    children: [
+                      // 返回按钮
+                      Positioned(
+                        left: 5,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: controller.onBackTap,
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: Image.asset(
+                              'assets/images/kissu_mine_back.webp',
+                              width: 22,
+                              height: 22,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                    // 标题
-                    const Text(
-                      '消息',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Color(0xcc000000),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    // 清空按钮
-                    GestureDetector(
-                      onTap: controller.clearAllMessages,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Image.asset(
-                          'assets/images/kissu_message_clear.webp',
-                          width: 24,
-                          height: 24,
+
+                      // 标题 - 绝对居中
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Text(
+                            '消息',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xcc000000),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+
+                      // 清空按钮
+                      Positioned(
+                        right: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: controller.clearAllMessages,
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: Image.asset(
+                              'assets/images/kissu_message_clear.webp',
+                              width: 22,
+                              height: 22,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
                 const SizedBox(height: 10), // 减少间距，避免标题距离顶部太远
               // 内容区域
               Expanded(
@@ -228,6 +254,7 @@ color: Color(0xffF6F6F6),
                 ),
               ),
             ],
+          ),
           ),
         ],
       ),

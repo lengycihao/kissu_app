@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart'; 
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 我的页面-顶部导航栏
 class MineTopBar extends StatelessWidget {
@@ -17,8 +16,6 @@ class MineTopBar extends StatelessWidget {
 
   // 点击通知按钮
   void _onNotificationTap() {
- 
-    
     // 跳转到消息列表页面（一级页面）
     // 注意：红点不在这里清除，而是在进入各个详情页时清除
     debugPrint('📭 点击消息中心按钮，进入消息列表');
@@ -27,30 +24,53 @@ class MineTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ).copyWith(bottom: 0,left: 6,right: 15),
+    return SizedBox(
+      height: 44, // 固定高度44
       child: Stack(
-        alignment: Alignment.center,
         children: [
-          // 左侧按钮
-          Align(
-            alignment: Alignment.centerLeft,
-            child: CommonBackButton(
-              onTap: onBackTap,
-              assetPath: "assets/images/kissu_mine_back.webp",
+          // 返回按钮 - 图标距离屏幕16px，16*16，触摸区域更大但不影响图标边距
+          Positioned(
+            left: 5, // 触摸区域从屏幕左边开始
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+               onTap: onBackTap,
+              child: Container(
+                width: 44, // 触摸区域宽度48px（16px图标 + 16px左边距 + 16px额外触摸区域）
+                height: 44,
+                 alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22, // 图标16*16
+                  height: 22,
+                 ),
+              ),
             ),
           ),
-          // 居中标题
-          const Text(
-            "我的",
-            style: TextStyle(fontSize: 18, color: Color(0xff333333),fontWeight: FontWeight.w500),
+
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text(
+                "我的",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xff333333),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
+
           // 右侧按钮组
-          Align(
-            alignment: Alignment.centerRight,
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -118,4 +138,3 @@ class MineTopBar extends StatelessWidget {
     );
   }
 }
-

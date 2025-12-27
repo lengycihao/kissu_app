@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
@@ -194,39 +193,23 @@ class PhoneChangePage extends StatelessWidget {
             ),
           ),
 
-          SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: 34,
-                top: MediaQuery.of(context).padding.top + 12,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 页面顶部的标题和返回按钮
-                  Row(
-                    children: [
-                      CommonBackButton(
-                        onTap: () => Get.back(),
-                        assetPath: 'assets/images/kissu_mine_back.webp',
-                        iconSize: 24,
-                      ),
-                      
-                      const SizedBox(width: 40), // 平衡布局
-                    ],
-                  ),
- 
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      top: 40,
+          SafeArea(
+            child: Column(
+              children: [
+                // 顶部导航栏
+                _buildAppBar(),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const SizedBox(height: 40),
+
                         Text("请输入手机号",style: TextStyle(
                           color: Color(0xff333333),fontSize: 14,fontWeight: FontWeight.w500
                         ),),
@@ -289,10 +272,58 @@ class PhoneChangePage extends StatelessWidget {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 50),
                       ],
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 顶部导航栏
+  Widget _buildAppBar() {
+    return SizedBox(
+      height: 44,
+      child: Stack(
+        children: [
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/images/kissu_mine_back.webp',
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
+          ),
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text(
+                '更换手机号',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333),
+                ),
               ),
             ),
           ),

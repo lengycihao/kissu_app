@@ -3,21 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'location_preview_widget.dart';
-import '../utils/map_marker_util.dart';
+// map & marker utilities are used in dedicated location pages/widgets
 import '../chat_controller.dart';
+import 'package:kissu_app/pages/location/location_detail_page.dart';
 
 /// 聊天消息类型
 enum MessageType {
   text, // 文字消息
   image, // 图片消息
   location, // 位置消息
+  locationNotice, // 位置通知（居中显示，不带气泡，用地图快照展示）
   systemEvent, // 系统事件消息（图标+文字，居中显示）
   defecate, // 一起便便消息（特殊气泡样式）
 }
@@ -40,6 +40,9 @@ class ChatMessage {
   final String? iconUrl; // 图标URL（用于systemEvent类型，支持网络图片）
   final String? crapDuration; // 拉屎时长（用于endDefecate类型，如"0分30秒"）
   final String? jumpPage; // 跳转页面标识（用于敏感事件systemEvent）
+  final List<FontColorItem>? imFontColor; // 文本需要变色的配置项
+  final Map<String, dynamic>? defaultExt; // 原始扩展字段（用于位置等）
+  final int? isVip; // 服务端字段 is_vip: 1 表示 VIP 优先展示
 
   ChatMessage({
     required this.id,
@@ -58,6 +61,20 @@ class ChatMessage {
     this.iconUrl, // 图标URL（用于systemEvent类型）
     this.crapDuration, // 拉屎时长（用于endDefecate类型）
     this.jumpPage, // 跳转页面标识
+    this.imFontColor,
+    this.defaultExt,
+    this.isVip,
+  });
+}
+
+/// 富文本颜色替换项（从服务端 im_font_color 字段解析）
+class FontColorItem {
+  final String changeText;
+  final String colorHex;
+
+  FontColorItem({
+    required this.changeText,
+    required this.colorHex,
   });
 }
 
@@ -87,6 +104,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     // 系统事件消息使用特殊的居中布局
     if (widget.message.type == MessageType.systemEvent) {
       return _buildSystemEventMessage();
+    }
+    // 居中显示的位置通知（服务端下发的敏感位置消息）
+    if (widget.message.type == MessageType.locationNotice) {
+      return _buildLocationNoticeMessage();
     }
 
     // 是否为图片消息（需要特殊布局对齐头像）
@@ -240,20 +261,43 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
+                      // 支持服务端通过 im_font_color 指定文案部分变色
+                      _buildTextWithColorOverrides(
                         widget.message.content,
-                        style: const TextStyle(
-                          fontSize: 11,
+                        widget.message.imFontColor,
+                        const TextStyle(
+                          fontSize: 13,
                           color: Color(0xFF333333),
                         ),
                       ),
-                      if (hasJump) ...[
+                      // 优先级：is_vip == 1 显示 VIP 按钮（跳转开通 VIP），否则有 jumpPage 时显示蓝色小箭头
+                      if ((widget.message.isVip ?? 0) == 1) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            try {
+                              Get.toNamed(KissuRoutePath.vip);
+                            } catch (e) {
+                              debugPrint('跳转 VIP 页面失败: $e');
+                            }
+                          },
+                          child: Image.asset(
+                            'assets/chat/kissu_chat_vip.webp',
+                            width: 56,
+                            height: 21,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ] else if (hasJump) ...[
                         const SizedBox(width: 4),
-                        Image.asset(
-                          'assets/4.0/kissu4_new_use_right.webp',
-                          width: 6,
-                          height: 6,
-                          color: Color(0xff009BFE),
+                        GestureDetector(
+                          onTap: _handleSystemEventTap,
+                          child: Image.asset(
+                            'assets/4.0/kissu4_new_use_right.webp',
+                            width: 6,
+                            height: 6,
+                            color: const Color(0xff009BFE),
+                          ),
                         ),
                       ],
                     ],
@@ -267,27 +311,162 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     );
   }
 
-  /// 处理系统事件（敏感操作）点击跳转
-  void _handleSystemEventTap() {
-    final jump = widget.message.jumpPage;
-    if (jump == null || jump.isEmpty) return;
+  /// 居中显示的位置通知（不使用气泡，白色背景，展示地图快照）
+  Widget _buildLocationNoticeMessage() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          if (widget.showTimestamp) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(bottom: 12, top: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6F6F6),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Text(
+                _formatTime(widget.message.time),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0x99000000),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: widget.message.latitude != null && widget.message.longitude != null
+                ? () => _showLocationDetail(context, widget.message)
+                : null,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x0f000000),
+                            blurRadius: 7.3,
+                            offset: const Offset(0, 0),
+                  )
+                ]
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 位置名称 + 地图快照
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.message.content,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xe6000000),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 5,),
+                      Text(
+                        widget.message.locationName ?? '位置信息',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0x66000000),
+                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (widget.message.latitude != null && widget.message.longitude != null)
+                        LocationPreviewWidget(
+                          latitude: widget.message.latitude!,
+                          longitude: widget.message.longitude!,
+                          locationName: widget.message.locationName ?? '位置信息',
+                          width: 230,
+                          height: 48,
+                          avatarUrl: widget.message.avatarUrl,
+                          onTap: () => _showLocationDetail(context, widget.message),
+                        )
+                      else
+                        SimpleLocationPreviewWidget(
+                          locationName: widget.message.locationName ?? '位置信息',
+                          width: 230,
+                          height: 48,
+                          onTap: () => _showLocationDetail(context, widget.message),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    switch (jump) {
-      case 'appUsePage':
-        // 跳转到App使用统计页面
-        Get.toNamed(KissuRoutePath.appUsage);
-        break;
-      case 'tracePage':
-        // 跳转到足迹页面
-        Get.toNamed(KissuRoutePath.track);
-        break;
-      case 'unlockPhonePage':
-        // 跳转到设备使用记录页面（解锁记录）
-        Get.toNamed(KissuRoutePath.appUsageInfo);
-        break;
-      default:
-        break;
+  /// 处理系统事件（敏感操作）点击跳转
+  /// 统一的 jump_page -> 路由 映射函数（供多个点击入口复用）
+  Future<void> _navigateByJumpPage(String? jump, {Map<String, dynamic>? args}) async {
+    try {
+      if (jump == null || jump.isEmpty) {
+        // 没有 jump，若有经纬度则默认定位页
+        if (args != null && args['latitude'] != null && args['longitude'] != null) {
+          Get.toNamed(KissuRoutePath.location, arguments: args);
+        }
+        return;
+      }
+
+      switch (jump) {
+        case 'appUsePage':
+          Get.toNamed(KissuRoutePath.appUsage);
+          break;
+        case 'tracePage':
+          Get.toNamed(KissuRoutePath.track);
+          break;
+        case 'unlockPhonePage':
+          Get.toNamed(KissuRoutePath.appUsageInfo);
+          break;
+        case 'mobileUse':
+          Get.toNamed(KissuRoutePath.deviceUsage);
+          break;
+        case 'locationPage':
+          Get.toNamed(KissuRoutePath.location, arguments: args ?? {});
+          break;
+        case 'locationReminder':
+          Get.toNamed(KissuRoutePath.locationReminder);
+          break;
+        default:
+          // 未知 jump，降级到定位页（若有坐标）
+          if (args != null && args['latitude'] != null && args['longitude'] != null) {
+            Get.toNamed(KissuRoutePath.location, arguments: args);
+          }
+          break;
+      }
+    } catch (e) {
+      debugPrint('导航失败: $e');
+      // 兜底：若有坐标则打开详情页
+      try {
+        if (args != null && args['latitude'] != null && args['longitude'] != null) {
+          Navigator.of(Get.context!).push(
+            MaterialPageRoute(
+              builder: (context) => LocationDetailPage(
+                latitude: double.tryParse(args['latitude'].toString()) ?? 0.0,
+                longitude: double.tryParse(args['longitude'].toString()) ?? 0.0,
+                locationName: args['locationName'] ?? '',
+                avatarUrl: args['avatarUrl'],
+                isMyself: args['isMyself'] ?? false,
+              ),
+            ),
+          );
+        }
+      } catch (_) {}
     }
+  }
+
+  /// 处理系统事件（敏感操作）点击跳转（现在委托到统一导航函数）
+  Future<void> _handleSystemEventTap() async {
+    await _navigateByJumpPage(widget.message.jumpPage);
   }
 
   /// 构建事件图标（支持网络图片和本地资源）
@@ -501,12 +680,75 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     return const Rect.fromLTRB(23, 28, 30, 30);
   }
 
+  /// 根据服务端 im_font_color 列表对 content 中指定文本片段替换为对应颜色
+  Widget _buildTextWithColorOverrides(
+    String content,
+    List<FontColorItem>? items,
+    TextStyle defaultStyle, {
+    int maxLines = 1000,
+  }) {
+    if (items == null || items.isEmpty) {
+      return Text(
+        content,
+        style: defaultStyle,
+        maxLines: maxLines,
+      );
+    }
+
+    // 构建一个按位置切分的 TextSpan 列表，优先匹配最近的下一处替换文本
+    final List<TextSpan> spans = [];
+    int cursor = 0;
+    while (cursor < content.length) {
+      int nextStart = content.length;
+      FontColorItem? nextItem;
+      // 找到最近的下一个匹配
+      for (final it in items) {
+        final idx = content.indexOf(it.changeText, cursor);
+        if (idx >= 0 && idx < nextStart) {
+          nextStart = idx;
+          nextItem = it;
+        }
+      }
+
+      if (nextItem == null) {
+        // 剩余全部普通文本
+        spans.add(TextSpan(text: content.substring(cursor), style: defaultStyle));
+        break;
+      }
+
+      // 普通文本片段
+      if (nextStart > cursor) {
+        spans.add(TextSpan(text: content.substring(cursor, nextStart), style: defaultStyle));
+      }
+
+      // 匹配片段（高亮）
+      final matchText = nextItem.changeText;
+      Color color;
+      try {
+        final hex = nextItem.colorHex.replaceFirst('#', '0xff');
+        color = Color(int.parse(hex));
+      } catch (_) {
+        color = const Color(0xFF4E90FF);
+      }
+      spans.add(TextSpan(text: matchText, style: defaultStyle.copyWith(color: color)));
+
+      cursor = nextStart + matchText.length;
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   Widget _buildMessageContent(BuildContext context) {
     switch (widget.message.type) {
       case MessageType.text:
-        return Text(
+        return _buildTextWithColorOverrides(
           widget.message.content,
-          style: TextStyle(color: Color(0xff333333), fontSize: 13, height: 1.4),
+          widget.message.imFontColor,
+          const TextStyle(color: Color(0xff333333), fontSize: 13, height: 1.4),
         );
 
       case MessageType.image:
@@ -566,6 +808,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
       case MessageType.systemEvent:
         // systemEvent类型在build方法中已经单独处理，这里不会执行到
+        return const SizedBox.shrink();
+
+      case MessageType.locationNotice:
+        // locationNotice 在 build() 顶部已单独处理，这里不会执行到
         return const SizedBox.shrink();
 
       case MessageType.defecate:
@@ -703,17 +949,15 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       return;
     }
 
-    // 如果有坐标信息，显示全屏地图
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => _LocationDetailPage(
-          latitude: message.latitude!,
-          longitude: message.longitude!,
-          locationName: message.locationName ?? '位置信息',
-          avatarUrl: message.avatarUrl, // 传递头像 URL
-        ),
-      ),
-    );
+    // 统一导航入口：把经纬度等参数交给 _navigateByJumpPage 处理
+    final args = {
+      'latitude': message.latitude!.toString(),
+      'longitude': message.longitude!.toString(),
+      'avatarUrl': message.avatarUrl,
+      'locationName': message.locationName ?? '',
+      'isMyself': message.isSent,
+    };
+    _navigateByJumpPage(message.jumpPage, args: args);
   }
 
   // 根据路径类型加载图片（本地文件或网络图片）
@@ -1003,166 +1247,7 @@ class _ImagePreviewPageState extends State<ImagePreviewPage> {
   }
 }
 
-/// 位置详情页面
-class _LocationDetailPage extends StatefulWidget {
-  final double latitude;
-  final double longitude;
-  final String locationName;
-  final String? avatarUrl;
-
-  const _LocationDetailPage({
-    required this.latitude,
-    required this.longitude,
-    required this.locationName,
-    this.avatarUrl,
-  });
-
-  @override
-  State<_LocationDetailPage> createState() => _LocationDetailPageState();
-}
-
-class _LocationDetailPageState extends State<_LocationDetailPage> {
-  BitmapDescriptor? _markerIcon;
-
-  @override
-  void initState() {
-    super.initState();
-    _createMarkerIcon();
-  }
-
-  /// 创建自定义标记图标（圆形头像）
-  Future<void> _createMarkerIcon() async {
-    try {
-      final icon = await MapMarkerUtil.createCircleAvatarMarker(
-        widget.avatarUrl,
-        size: 80.0, // 详情页使用更大的标记
-        borderWidth: 4.0,
-      );
-      if (mounted) {
-        setState(() {
-          _markerIcon = icon;
-        });
-      }
-    } catch (e) {
-      debugPrint('创建标记图标失败: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // 全屏地图
-          AMapWidget(
-            onMapCreated: (AMapController controller) {
-              // 地图创建完成后，移动到指定位置
-              controller.moveCamera(
-                CameraUpdate.newCameraPosition(
-                  CameraPosition(
-                    target: LatLng(widget.latitude, widget.longitude),
-                    zoom: 16.0,
-                  ),
-                ),
-              );
-            },
-            initialCameraPosition: CameraPosition(
-              target: LatLng(widget.latitude, widget.longitude),
-              zoom: 16.0,
-            ),
-            markers: _markerIcon != null
-                ? {
-                    Marker(
-                      position: LatLng(widget.latitude, widget.longitude),
-                      icon: _markerIcon!,
-                      infoWindow: InfoWindow(
-                        title: widget.locationName,
-                        snippet:
-                            '纬度: ${widget.latitude.toStringAsFixed(6)}, 经度: ${widget.longitude.toStringAsFixed(6)}',
-                      ),
-                    ),
-                  }
-                : {
-                    Marker(
-                      position: LatLng(widget.latitude, widget.longitude),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                        BitmapDescriptor.hueRed,
-                      ),
-                      infoWindow: InfoWindow(
-                        title: widget.locationName,
-                        snippet:
-                            '纬度: ${widget.latitude.toStringAsFixed(6)}, 经度: ${widget.longitude.toStringAsFixed(6)}',
-                      ),
-                    ),
-                  },
-            // 启用所有手势
-            zoomGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-          ),
-
-          // 返回按钮 - 左上角
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
-            left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: Image.asset(
-                'assets/kissu_mine_back.webp',
-                width: 22,
-                height: 22,
-              ),
-            ),
-          ),
-
-          // 底部位置信息模块
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: 126,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/chat/kissu3_map_preview_bg.webp'),
-                  fit: BoxFit.fill,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 12,
-                  bottom: 30,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 17,
-                    vertical: 12,
-                  ),
-                  child: Text(
-                    widget.locationName,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF333333),
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// 位置详情页已提取到 `lib/pages/location/location_detail_page.dart`
 
 /// 图片展示比例枚举：正方形 / 16:9 / 9:16
 enum _ImageRatioType {

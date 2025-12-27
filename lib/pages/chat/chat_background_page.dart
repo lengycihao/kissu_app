@@ -24,51 +24,78 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios,
-          color: Colors.black,
-          size: 20,
-        ),
-        onPressed: () => Get.back(),
-      ),
-      title: const Text(
-        '聊天背景',
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      centerTitle: true,
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: GestureDetector(
-            onTap: controller.applyBackground,
-            child: Container(
-              width: 70,
-              height: 33,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xffFF90CA),
-                borderRadius: BorderRadius.circular(16.5),
-              ),
-              child: const Text(
-                '使用',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
+    return PreferredSize(
+      preferredSize: Size.fromHeight(44 + MediaQuery.of(Get.context!).padding.top),
+      child: Container(
+        height: 55 + MediaQuery.of(Get.context!).padding.top,
+        color: Colors.white,
+        child: Stack(
+          children: [
+            // 返回按钮
+            Positioned(
+              left: 5,
+              top: MediaQuery.of(Get.context!).padding.top,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: () => Get.back(),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    "assets/images/kissu_mine_back.webp",
+                    width: 22,
+                    height: 22,
+                  ),
                 ),
               ),
             ),
-          ),
+            // 标题 - 绝对居中
+            Positioned(
+              left: 0,
+              right: 0,
+              top: MediaQuery.of(Get.context!).padding.top,
+              bottom: 0,
+              child: Center(
+                child: Text(
+                  '聊天背景',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+            // 右侧使用按钮
+            Positioned(
+              right: 16,
+              // top: MediaQuery.of(Get.context!).padding.top,
+              bottom: 10,
+              child: GestureDetector(
+                onTap: controller.applyBackground,
+                child: Container(
+                  width: 70,
+                  height: 33,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffFF90CA),
+                    borderRadius: BorderRadius.circular(16.5),
+                  ),
+                  child: const Text(
+                    '使用',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -142,7 +169,7 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
             borderRadius: BorderRadius.circular(8),
             border: isSelected
                 ? Border.all(color: const Color(0xFFFF90CA), width: 2)
-                : null,
+                : Border.all(color: const Color(0xFFFBF0F0), width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(7),

@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 // import 'package:fl_chart/fl_chart.dart'; // 已替换为自定义实现
 import 'app_usage_detail_controller.dart';
 import 'dart:math' as math;
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
@@ -83,31 +82,46 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
 
   /// 顶部导航栏
   Widget _buildTopBar() {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
+      child: Stack(
         children: [
-          // 返回按钮（统一封装，点击区域更大且更灵敏）
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: "assets/4.0/kissu4_back.webp",
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          // 标题
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 "Ta的手机使用记录",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16, // 用户特别要求改为16
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 40),
         ],
       ),
     );

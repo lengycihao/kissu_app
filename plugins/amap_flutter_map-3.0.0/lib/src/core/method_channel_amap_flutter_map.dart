@@ -506,4 +506,149 @@ class MethodChannelAMapFlutterMap implements AMapFlutterPlatform {
     if (result == null) return null;
     return CameraPosition.fromMap(result);
   }
+
+  /// 启动GIF动画Marker
+  /// 
+  /// 从Flutter assets加载GIF文件并在Marker上播放帧动画
+  /// 
+  /// [mapId] 地图ID
+  /// [markerId] Marker的ID（必须是已存在的Marker）
+  /// [assetPath] GIF文件的asset路径（如: assets/gif/ceshi.gif）
+  /// [width] 可选，GIF显示宽度（像素）
+  /// [height] 可选，GIF显示高度（像素）
+  Future<bool> startGifAnimation({
+    required int mapId,
+    required String markerId,
+    required String assetPath,
+    int? width,
+    int? height,
+  }) async {
+    try {
+      final params = <String, dynamic>{
+        'markerId': markerId,
+        'assetPath': assetPath,
+      };
+      if (width != null && height != null) {
+        params['width'] = width;
+        params['height'] = height;
+      }
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#startGifAnimation',
+        params,
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('启动GIF动画失败: $e');
+      return false;
+    }
+  }
+
+  /// 停止GIF动画Marker
+  /// 
+  /// [mapId] 地图ID
+  /// [markerId] Marker的ID
+  Future<bool> stopGifAnimation({
+    required int mapId,
+    required String markerId,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#stopGifAnimation',
+        {
+          'markerId': markerId,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('停止GIF动画失败: $e');
+      return false;
+    }
+  }
+
+  /// 预加载GIF到缓存
+  /// 
+  /// 在首页等位置提前调用，预加载GIF帧数据到内存缓存
+  /// 后续使用时可以直接从缓存读取，无需重新解码
+  /// 
+  /// [mapId] 地图ID
+  /// [assetPath] GIF文件的asset路径（如: assets/gif/ceshi.gif）
+  /// [width] GIF显示宽度（像素）
+  /// [height] GIF显示高度（像素）
+  Future<bool> preloadGif({
+    required int mapId,
+    required String assetPath,
+    required int width,
+    required int height,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#preloadGif',
+        {
+          'assetPath': assetPath,
+          'width': width,
+          'height': height,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('预加载GIF失败: $e');
+      return false;
+    }
+  }
+
+  /// 🔄 启动Marker摆动动画（雨刷器效果）
+  /// 
+  /// 以Marker的锚点（尖尖）为圆心，左右摆动
+  /// 效果类似雨刷器，两个头像先靠拢再分开
+  /// 
+  /// [mapId] 地图ID
+  /// [markerId] Marker的ID
+  /// [fromAngle] 起始角度（度数）
+  /// [toAngle] 目标角度（度数）
+  /// [duration] 单次摆动时长（毫秒，默认800ms）
+  Future<bool> startSwingAnimation({
+    required int mapId,
+    required String markerId,
+    required double fromAngle,
+    required double toAngle,
+    int duration = 800,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#startSwingAnimation',
+        {
+          'markerId': markerId,
+          'fromAngle': fromAngle,
+          'toAngle': toAngle,
+          'duration': duration,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('启动摆动动画失败: $e');
+      return false;
+    }
+  }
+
+  /// 停止Marker摆动动画
+  /// 
+  /// [mapId] 地图ID
+  /// [markerId] Marker的ID
+  Future<bool> stopSwingAnimation({
+    required int mapId,
+    required String markerId,
+  }) async {
+    try {
+      final result = await channel(mapId).invokeMethod<bool>(
+        'marker#stopSwingAnimation',
+        {
+          'markerId': markerId,
+        },
+      );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('停止摆动动画失败: $e');
+      return false;
+    }
+  }
 }

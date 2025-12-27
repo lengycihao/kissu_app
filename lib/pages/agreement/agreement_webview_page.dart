@@ -491,14 +491,17 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             ? AppBar(
                 backgroundColor: scaffoldBg,
                 elevation: 0,
+                toolbarHeight: 44,
                 leading: GestureDetector(
                   onTap: _handleBack,
-                  child: Center(
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
                     child: Image.asset(
                       "assets/images/kissu_mine_back.webp",
                       width: 22,
                       height: 22,
-                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
@@ -511,22 +514,19 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
                   ),
                 ),
                 centerTitle: true,
-                // 当WebView有历史记录时显示关闭按钮
                 actions: _canGoBack
                     ? [
                         GestureDetector(
                           onTap: _handleClose,
                           child: Container(
-                            margin:
-                                const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
-                            child: const Center(
-                              child: Icon(
-                                Icons.close,
-                                color: Color(0xFF333333),
-                                size: 20,
-                              ),
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.close,
+                              color: Color(0xFF333333),
+                              size: 20,
                             ),
                           ),
                         ),

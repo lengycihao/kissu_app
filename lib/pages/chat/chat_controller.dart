@@ -411,18 +411,35 @@ class ChatController extends GetxController {
     }
   }
 
-  // 获取主题对应的按钮颜色
+  // 获取主题对应的按钮颜色（用于前三个图标）
   Color getThemeButtonColor() {
     switch (chatTheme.value) {
       case 1:
-      case 2:
         return const Color(0xffFF90CA);
-      case 3:
+      case 2:
         return const Color(0xffA6D7FF);
+      case 3:
+        return const Color(0xffFF90CA);
       case 4:
         return const Color(0xffAD7D63);
       default:
         return const Color(0xffFF90CA);
+    }
+  }
+
+  // 获取第四个图标的主题图片路径
+  String getThemeLocationIconPath() {
+    switch (chatTheme.value) {
+      case 1:
+        return 'assets/chat/kissu3_chat_location1.webp';
+      case 2:
+        return 'assets/chat/kissu3_chat_location2.webp';
+      case 3:
+        return 'assets/chat/kissu3_chat_location1.webp';
+      case 4:
+        return 'assets/chat/kissu3_chat_location3.webp';
+      default:
+        return 'assets/chat/kissu3_chat_location1.webp';
     }
   }
 
@@ -1088,9 +1105,12 @@ class ChatController extends GetxController {
         final raw = msg.customElem!.data!;
         final dynamic decoded = jsonDecode(raw);
         if (decoded is Map<String, dynamic>) {
-          // 处理敏感事件（使用 systemEvent 样式展示）
+          // 处理敏感事件（sensitive）——可能是文本或位置通知，支持 im_font_color 和 default_ext
           final String? msgType = decoded['msg_type'] as String?;
           if (msgType == 'sensitive') {
+            final String messageType = (decoded['message_type'] as String?) ?? 'text';
+
+            // 通用字段
             final String content =
                 (decoded['content'] as String?)?.trim().isNotEmpty == true
                     ? (decoded['content'] as String?)!
@@ -1098,18 +1118,83 @@ class ChatController extends GetxController {
             final String? icon = decoded['icon'] as String?;
             final String? jumpPage = decoded['jump_page'] as String?;
 
+            // 解析 im_font_color（可选）
+            List<FontColorItem>? fontItems;
+            try {
+              final rawFont = decoded['im_font_color'];
+              if (rawFont is List && rawFont.isNotEmpty) {
+                fontItems = rawFont.map<FontColorItem?>((e) {
+                  try {
+                    if (e is Map) {
+                      final changeText = (e['change_text'] as String?) ?? '';
+                      final colorHex = (e['color'] as String?) ?? '#4E90FF';
+                      if (changeText.isEmpty) return null;
+                      return FontColorItem(changeText: changeText, colorHex: colorHex);
+                    }
+                  } catch (_) {}
+                  return null;
+                }).whereType<FontColorItem>().toList();
+                if (fontItems.isEmpty) fontItems = null;
+              }
+            } catch (_) {
+              fontItems = null;
+            }
+            // 解析 is_vip（可选）
+            int? isVip;
+            try {
+              final rawVip = decoded['is_vip'];
+              if (rawVip != null) {
+                if (rawVip is int) {
+                  isVip = rawVip;
+                } else {
+                  isVip = int.tryParse(rawVip.toString());
+                }
+              }
+            } catch (_) {
+              isVip = null;
+            }
+
+            // 如果服务端把敏感事件标记为位置类型，则构建居中的位置通知（不走气泡）
+            if (messageType == 'location') {
+              final Map<String, dynamic>? ext =
+                  (decoded['default_ext'] is Map) ? Map<String, dynamic>.from(decoded['default_ext']) : null;
+              double? lat;
+              double? lng;
+              String? locName;
+              if (ext != null) {
+                lat = double.tryParse((ext['latitude'] ?? ext['lat'] ?? '').toString());
+                lng = double.tryParse((ext['longitude'] ?? ext['lon'] ?? ext['lng'] ?? '').toString());
+                locName = (ext['location_name'] as String?) ?? (ext['location'] as String?) ?? ext['location_name']?.toString();
+              }
+
+              return ChatMessage(
+                id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                content: content,
+                type: MessageType.locationNotice,
+                isSent: isSelf,
+                time: msgTime,
+                avatarUrl: null,
+                locationName: locName,
+                latitude: lat,
+                longitude: lng,
+                iconUrl: icon,
+                jumpPage: (jumpPage != null && jumpPage.isNotEmpty) ? jumpPage : null,
+                defaultExt: ext,
+              );
+            }
+
+            // 否则按文本型敏感事件处理（保留原有 systemEvent 展示，但支持富文本替换）
             return ChatMessage(
-              id: msg.msgID ??
-                  DateTime.now().millisecondsSinceEpoch.toString(),
+              id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
               content: content,
               type: MessageType.systemEvent,
               isSent: isSelf, // systemEvent 显示居中，不区分左右
               time: msgTime,
               avatarUrl: null,
               iconUrl: icon,
-              jumpPage: (jumpPage != null && jumpPage.isNotEmpty)
-                  ? jumpPage
-                  : null,
+              jumpPage: (jumpPage != null && jumpPage.isNotEmpty) ? jumpPage : null,
+              imFontColor: fontItems,
+              isVip: isVip,
             );
           }
 

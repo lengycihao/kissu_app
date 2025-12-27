@@ -50,9 +50,7 @@ extension LocationAnomalyTypeExtension on LocationAnomalyType {
       case LocationAnomalyType.location:
         return 'assets/phone_history/kissu3_history_location.webp';
       case LocationAnomalyType.exception:
-        return 'assets/phone_history/kissu3_history_yichang.webp';
-      // case LocationAnomalyType.yishi:
-      //   return 'assets/phone_history/kissu3_history_yishi.webp';
+        return 'assets/phone_history/kissu3_history_yichang.webp'; 
     }
   }
 

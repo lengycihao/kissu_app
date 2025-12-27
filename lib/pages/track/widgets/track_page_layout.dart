@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'track_sheet_manager.dart';
 import 'track_map_widget.dart';
 import 'track_overlay_manager.dart';
@@ -66,17 +67,57 @@ class _TrackPageLayoutState extends State<TrackPageLayout>
       backgroundColor: TrackPageConfig.backgroundWhite,
       body: Stack(
         children: [
+         
+
           // 地图组件
           TrackMapWidget(controller: widget.controller),
 
-          // 背景遮罩层
-          _overlayManager.buildBackgroundOverlay(),
+          // 渐变背景遮罩（在背景图片上方，避免覆盖按钮区域）
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 120, // 右侧留出空间给按钮，避免覆盖
+            height: 160,
+            child: Obx(() {
+              // 计算透明度：从底部吸顶到顶部吸顶时，从0x00ffffff变成0x99ffffff
+              final currentPercent = widget.controller.sheetPercent.value;
+              final minPercent = _sheetManager.getMinHeight() / MediaQuery.of(Get.context!).size.height;
+              final maxPercent = _sheetManager.maxHeight / MediaQuery.of(Get.context!).size.height;
 
-          // 全屏渐变背景
-          _overlayManager.buildGradientBackground(),
+              double opacity = 0.0;
+              if (currentPercent > minPercent) {
+                if (currentPercent >= maxPercent) {
+                  opacity = 0.7; // 0xb3ffffff 的 alpha 值是 0.7
+                } else {
+                  // 在中间位置时线性插值
+                  opacity = 0.7 * ((currentPercent - minPercent) / (maxPercent - minPercent));
+                }
+              }
 
-          // 左侧浮动按钮组
-          _toolbarWidget.buildLeftFloatingButtons(),
+              return Container(
+                color: Color(0xFFFFFFFF).withValues(alpha: opacity),
+              );
+            }),
+          ),
+
+          // 顶部背景图片
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 160, // 背景图片高度设为固定值
+            child: Image.asset(
+              'assets/4.0/kissu_location_bar_bg.webp', // 暂时使用定位页面的背景图片
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          // // 背景遮罩层
+          // _overlayManager.buildBackgroundOverlay(),
+
+          // // 全屏渐变背景
+          // _overlayManager.buildGradientBackground(),
+
 
           // 右侧轨迹播放浮动按钮
           _toolbarWidget.buildRightReplayButton(),
@@ -91,7 +132,7 @@ class _TrackPageLayoutState extends State<TrackPageLayout>
           _overlayManager.buildMapLogo(),
 
           // 顶部返回按钮
-          _toolbarWidget.buildBackButton(),
+          _toolbarWidget.buildBackButton(context, _sheetManager.scrollController),
 
           // 顶部头像行
           _toolbarWidget.buildAvatarRow(),

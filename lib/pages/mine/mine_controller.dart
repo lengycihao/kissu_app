@@ -4,13 +4,14 @@ import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
-import 'package:kissu_app/pages/mine/sub_pages/setting_homeview_page.dart';
-// import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+ // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../usage_report/usage_report_controller.dart';
+import '../usage_report/usage_report_page.dart';
+import '../usage_report/usage_report_binding.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -416,9 +417,9 @@ class MineController extends GetxController {
         onTap: () => _onPersonalizedHomeTap(),
       ),
       CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_change_homeview.webp",
-        title: "更换首页视图",
-        onTap: () => _onChangeHomeViewTap(),
+        icon: "assets/4.0/kissu4_mine_minganjilu.webp",
+        title: "敏感操作记录",
+        onTap: () => _onMinganJiluTap(),
       ),
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_change_logo.webp",
@@ -430,11 +431,7 @@ class MineController extends GetxController {
 
   void _initSettingItems() {
     settingItems = [
-      // SettingItem(
-      //   icon: "assets/3.0/kissu3_mine_ftp_icon.webp",
-      //   title: "防偷拍检测",
-      //   onTap: () => _onAntiSpyTap(),
-      // ),
+     
       SettingItem(
         icon: "assets/4.0/kissu4_share.webp",
         title: "分享APP",
@@ -889,10 +886,9 @@ class MineController extends GetxController {
     OKToastUtil.show('敬请期待！');
   }
 
-  /// 更换首页视图点击事件
-  void _onChangeHomeViewTap() async {
-    
-    Get.to(SettingHomePage(), transition: Transition.rightToLeft);
+  /// 敏感操作记录页面
+  void _onMinganJiluTap() {
+    Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
   }
 
   /// 更换app图标点击事件

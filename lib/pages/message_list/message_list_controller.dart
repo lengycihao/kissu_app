@@ -15,9 +15,14 @@ class MessageListController extends GetxController {
   // 是否有新的互动消息
   var hasNewInteractionMessage = false.obs;
 
+  // 是否显示通知提示横幅
+  var showNotificationTip = true.obs;
+
   @override
   void onInit() {
     super.onInit();
+    // 重置横幅显示状态，让横幅根据权限状态重新显示
+    showNotificationTip.value = true;
     _checkNotificationPermission();
     _syncRedDotFromHome();
   }
@@ -65,6 +70,11 @@ class MessageListController extends GetxController {
     } catch (e) {
       debugPrint('打开通知设置失败: $e');
     }
+  }
+
+  /// 隐藏通知提示横幅
+  void hideNotificationTip() {
+    showNotificationTip.value = false;
   }
 
   /// 返回上一页

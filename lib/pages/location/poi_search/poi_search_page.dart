@@ -45,25 +45,28 @@ class PoiSearchPage extends GetView<PoiSearchController> {
   Widget _buildCustomAppBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 19).copyWith(
-        top: MediaQuery.of(Get.context!).padding.top + 19,
+        top: MediaQuery.of(Get.context!).padding.top + 6,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-         
-         
+
+
       ),
-      child: Row(
+      child: SizedBox(
+        height: 44,
+        child: Row(
         children: [
           // 返回按钮
           GestureDetector(
             onTap: () => controller.goBack(),
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Image(
-                image: AssetImage('assets/location/kissu3_back.webp'),
-                width: 20,
-                color: Color(0xff333333),
-                height: 20,
+            child: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              child: Image.asset(
+                'assets/images/kissu_mine_back.webp',
+                width: 22,
+                height: 22,
               ),
             ),
           ),
@@ -156,8 +159,9 @@ class PoiSearchPage extends GetView<PoiSearchController> {
           }),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// 空状态
   Widget _buildEmptyState() {

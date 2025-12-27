@@ -72,6 +72,8 @@ class DeviceUsageController extends GetxController {
     _loadData(); // 加载真实数据
     // 检查并显示用机记录引导图（首次进入立即检查）
     _checkAndShowGuide();
+    // 启动使用情况访问权限监听（轮询检测，直到授权或页面关闭）
+    _startUsagePermissionMonitor();
   }
   
   /// 检查并显示用机记录引导图
@@ -109,6 +111,45 @@ class DeviceUsageController extends GetxController {
     super.onReady();
     // 页面准备就绪时，刷新状态（处理从其他页面返回的情况）
     _refreshStatusAndData();
+  }
+
+  Timer? _usagePermissionTimer;
+
+  /// 启动对“使用情况访问”权限的轮询检测（仅 Android 有效）
+  void _startUsagePermissionMonitor() {
+    // 先做一次快速检查
+    _checkUsagePermissionOnce();
+
+    // 如果已授权则不再启动定时器
+    if (hasUsagePermission.value) return;
+
+    // 每 2 秒检查一次，直到授权或控制器销毁
+    _usagePermissionTimer?.cancel();
+    _usagePermissionTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      await _checkUsagePermissionOnce();
+      if (hasUsagePermission.value) {
+        _usagePermissionTimer?.cancel();
+        _usagePermissionTimer = null;
+      }
+    });
+  }
+
+  /// 检查使用情况访问权限一次并更新状态
+  Future<void> _checkUsagePermissionOnce() async {
+    try {
+      final permissionService = PermissionService();
+      final granted = await permissionService.isUsageAccessGranted();
+      hasUsagePermission.value = granted;
+    } catch (e) {
+      logError('检查使用情况访问权限失败: $e', tag: 'DeviceUsage', error: e);
+    }
+  }
+
+  @override
+  void onClose() {
+    _usagePermissionTimer?.cancel();
+    _usagePermissionTimer = null;
+    super.onClose();
   }
 
   /// 更新绑定状态和会员状态

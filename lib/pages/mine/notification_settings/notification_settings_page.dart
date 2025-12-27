@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'notification_settings_controller.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -60,33 +59,45 @@ class NotificationSettingsPage extends GetView<NotificationSettingsController> {
 
   /// 构建顶部导航栏
   Widget _buildTopBar() {
-    return Container(
+    return SizedBox(
       height: 44,
       child: Stack(
         children: [
           // 返回按钮
           Positioned(
-            left: 6,
+            left: 5,
             top: 0,
             bottom: 0,
-            child: Center(
-              child: CommonBackButton(
-                onTap: () => Get.back(),
-                assetPath: "assets/4.0/kissu4_back.webp",
-                iconSize: 24,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
               ),
             ),
           ),
-          // 标题（居中）
-          Center(
-            child: Obx(() => Text(
-              controller.pageTitle.value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF000000),
-              ),
-            )),
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Obx(() => Text(
+                controller.pageTitle.value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF000000),
+                ),
+              )),
+            ),
           ),
         ],
       ),

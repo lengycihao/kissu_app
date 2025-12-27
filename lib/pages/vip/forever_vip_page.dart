@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'forever_vip_controller.dart';
 
 class ForeverVipPage extends GetView<ForeverVipController> {
@@ -24,14 +23,7 @@ class ForeverVipPage extends GetView<ForeverVipController> {
           SafeArea(
             child: Column(
               children: [
-                // 自定义顶部导航栏
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                  child: _buildTopBar(),
-                ),
+                _buildTopBar(),
                 // 页面内容
                 Expanded(
                   child: SingleChildScrollView(
@@ -69,23 +61,44 @@ class ForeverVipPage extends GetView<ForeverVipController> {
 
   // 自定义顶部导航栏
   Widget _buildTopBar() {
-    return Row(
-      children: [
-        CommonBackButton(
-          onTap: () => Get.back(),
-          assetPath: "assets/images/kissu_mine_back.webp",
-          iconSize: 22,
-        ),
-        const Expanded(
-          child: Center(
-            child: Text(
-              "会员权益",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+    return SizedBox(
+      height: 44,
+      child: Stack(
+        children: [
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 30), // 占位保持居中
-      ],
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text(
+                "会员权益",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
   Widget _buildTipsMiddleImage() {

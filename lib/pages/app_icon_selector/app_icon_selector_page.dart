@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// App图标选择页面
 class AppIconSelectorPage extends StatefulWidget {
@@ -195,28 +194,47 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage> {
 
   /// 构建顶部导航栏
   Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
-      child: Row(
+    return SizedBox(
+      height: 44,
+      child: Stack(
         children: [
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: "assets/images/kissu_mine_back.webp",
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          const Expanded(
+
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 "更换APP图标",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   color: Color(0xff333333),
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 22), // 占位保持居中
         ],
       ),
     );

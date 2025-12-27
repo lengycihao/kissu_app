@@ -4,7 +4,6 @@ import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/hourly_app_record_data.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'app_usage_controller.dart';
 
@@ -163,43 +162,46 @@ class _AppUsagePageState extends State<AppUsagePage> {
 
   /// 顶部导航栏
   Widget _buildTopBar(AppUsageController controller) {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
+      child: Stack(
         children: [
-          // 返回按钮（统一封装，点击区域更大且更灵敏）
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: "assets/4.0/kissu4_back.webp",
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          // 标题
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 "App使用统计",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),
               ),
             ),
           ),
-          SizedBox(width: 45,)
-          // // 测试页面入口按钮
-          // GestureDetector(
-          //   onTap: () => Get.toNamed(KissuRoutePath.dialogShowcase),
-          //   child: Container(
-          //     padding: const EdgeInsets.all(8),
-          //     child: const Icon(
-          //       Icons.science_outlined,
-          //       size: 24,
-          //       color: Color(0xFFFF839E),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
     );

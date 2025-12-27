@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 import 'package:kissu_app/model/setting/common_question_model/common_question_model.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 
 class QuestionPageInfo extends StatefulWidget {
   final CommonQuestionModel question;
@@ -53,16 +52,35 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
             child: Column(
               children: [
                 // 顶部导航栏
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-                  child: Row(
+                SizedBox(
+                  height: 44,
+                  child: Stack(
                     children: [
-                      CommonBackButton(
-                        onTap: () => Get.back(),
-                        assetPath: "assets/images/kissu_mine_back.webp",
-                        iconSize: 22,
+                      // 返回按钮
+                      Positioned(
+                        left: 5,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () => Get.back(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: Image.asset(
+                              "assets/images/kissu_mine_back.webp",
+                              width: 22,
+                              height: 22,
+                            ),
+                          ),
+                        ),
                       ),
-                      const Expanded(
+                      // 标题 - 绝对居中
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
                         child: Center(
                           child: Text(
                             "常见问题",
@@ -74,7 +92,6 @@ class _QuestionPageInfoState extends State<QuestionPageInfo> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 22),
                     ],
                   ),
                 ),

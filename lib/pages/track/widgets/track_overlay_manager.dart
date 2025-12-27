@@ -198,7 +198,7 @@ class _GradientBackgroundOverlayState extends State<_GradientBackgroundOverlay> 
           opacity: _opacity,
           child: Container(
             decoration: BoxDecoration(
-              gradient: TrackPageConfig.backgroundGradient,
+              gradient: TrackPageConfig.panelGradient,
             ),
           ),
         ),

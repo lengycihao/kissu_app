@@ -45,8 +45,8 @@ class InfoSettingPage extends StatelessWidget {
                       child: Text(
                         '完善信息',
                         style: TextStyle(
-                          color: Color(0xdd000000),
-                          fontSize: 18,
+                          color: Color(0xff333333),
+                          fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

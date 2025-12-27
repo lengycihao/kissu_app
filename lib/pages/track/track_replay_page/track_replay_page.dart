@@ -5,7 +5,6 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart'; 
 import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'track_replay_controller.dart';
 
 /// 轨迹播放页面
@@ -34,8 +33,8 @@ class TrackReplayPage extends StatelessWidget {
 
           // 顶部返回按钮
           Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 20,
+            top: MediaQuery.of(context).padding.top,
+            left: 5,
             child: _BackButton(),
           ),
         ],
@@ -400,21 +399,18 @@ class _BackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: CommonBackButton(
+      width: 44,
+      height: 44,
+       
+      child: GestureDetector(
         onTap: () => Get.back(),
-        assetPath: 'assets/images/kissu_mine_back.webp',
-        iconSize: 24,
+        child: Center(
+          child: Image.asset(
+            'assets/images/kissu_mine_back.webp',
+            width: 22,
+            height: 22,
+          ),
+        ),
       ),
     );
   }

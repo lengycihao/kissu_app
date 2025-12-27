@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/custom_refresh_header.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 
@@ -260,30 +259,46 @@ class UsageReportPage extends GetView<UsageReportController> {
 
   // 构建顶部标题栏
   Widget _buildHeader() {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6).copyWith(right: 12),
-      child: Row(
+      child: Stack(
         children: [
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: 'assets/images/kissu_mine_back.webp',
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/images/kissu_mine_back.webp',
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 '敏感操作记录',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),
               ),
             ),
           ),
-          // 右侧设置按钮已迁移到新的“用机记录”页面，这里不再展示
-          const SizedBox(width: 24),
         ],
       ),
     );

@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Lifecycle;
 
+import com.amap.flutter.map.overlays.marker.GifPreloadPlugin;
 import com.amap.flutter.map.utils.LogUtil;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -20,6 +21,7 @@ public class AMapFlutterMapPlugin implements
     private static final String CLASS_NAME = "AMapFlutterMapPlugin";
     private FlutterPluginBinding pluginBinding;
     private Lifecycle lifecycle;
+    private GifPreloadPlugin gifPreloadPlugin;
 
     private static final String VIEW_TYPE = "com.amap.flutter.map";
 
@@ -46,11 +48,22 @@ public class AMapFlutterMapPlugin implements
                                         return lifecycle;
                                     }
                                 }));
+        
+        // 注册GIF预加载插件
+        gifPreloadPlugin = new GifPreloadPlugin();
+        gifPreloadPlugin.onAttachedToEngine(binding);
     }
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         LogUtil.i(CLASS_NAME, "onDetachedFromEngine==>");
+        
+        // 注销GIF预加载插件
+        if (gifPreloadPlugin != null) {
+            gifPreloadPlugin.onDetachedFromEngine(binding);
+            gifPreloadPlugin = null;
+        }
+        
         pluginBinding = null;
     }
 

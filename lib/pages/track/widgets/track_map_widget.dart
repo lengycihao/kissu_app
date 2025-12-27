@@ -261,54 +261,26 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
   }
 
   /// 准备排序的停留点
+  /// 参考轨迹回放页面的逻辑：起点 + 所有停留点 + 终点
   List _prepareSortedStops(List<LatLng> trackPoints, List stopRecords) {
-    final sortedStops = <dynamic>[];
-
-    // 找到起点
-    final startRecord = stopRecords.firstWhere(
-      (record) => record.pointType == 'start',
-      orElse: () => stopRecords.first,
-    );
-    sortedStops.add(startRecord);
-
-    // 添加停留点（按serialNumber排序）
-    final stopRecordsList = stopRecords
-        .where((record) => record.pointType == 'stop')
-        .toList();
-    stopRecordsList.sort((a, b) {
-      final aNum = int.tryParse(a.serialNumber) ?? 0;
-      final bNum = int.tryParse(b.serialNumber) ?? 0;
-      return aNum.compareTo(bNum);
-    });
-    sortedStops.addAll(stopRecordsList);
-
-    // 添加终点
-    final endRecord = stopRecords.firstWhere(
-      (record) => record.pointType == 'end',
-      orElse: () => null,
-    );
-
-    if (endRecord != null && endRecord != startRecord) {
-      final endExists = sortedStops.any((stop) =>
-          stop.latitude == endRecord.latitude &&
-          stop.longitude == endRecord.longitude);
-      if (!endExists) {
-        sortedStops.add(endRecord);
-      }
-    }
-
-    // 确保最后一个轨迹点作为终点
+    final allPoints = <dynamic>[];
+    
+    // 1. 添加轨迹起点
     if (trackPoints.isNotEmpty) {
-      final lastPoint = trackPoints.last;
-      final hasLastPoint = sortedStops.any((stop) =>
-          stop.latitude == lastPoint.latitude &&
-          stop.longitude == lastPoint.longitude);
-      if (!hasLastPoint) {
-        sortedStops.add(_createEndPointFromTrackPoint(lastPoint));
-      }
+      allPoints.add(_createStartPointFromTrackPoint(trackPoints.first));
     }
-
-    return sortedStops;
+    
+    // 2. 添加所有停留点（不过滤pointType，直接使用所有记录）
+    allPoints.addAll(stopRecords);
+    
+    // 3. 添加轨迹终点
+    if (trackPoints.isNotEmpty) {
+      allPoints.add(_createEndPointFromTrackPoint(trackPoints.last));
+    }
+    
+    DebugUtil.info('🔍 准备停留点: 起点1 + 停留点${stopRecords.length} + 终点1 = ${allPoints.length}');
+    
+    return allPoints;
   }
 
   /// 创建有效的停留点（带索引）
@@ -353,42 +325,69 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
   }
 
   /// 创建默认轨迹线（无停留点时）
+  /// 按固定点数分段，红蓝交替显示
   Future<List<Polyline>> _createDefaultPolylines(List<LatLng> trackPoints) async {
-    if (_trackLineTextureRed == null) {
-      _trackLineTextureRed = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(),
-        'assets/texture/kissu4_track_line_red.png',
-      );
+    // 确保纹理已加载
+    await _loadTexturesIfNeeded();
+    
+    if (_trackLineTextureRed == null || _trackLineTextureBlue == null) {
+      DebugUtil.error('❌ 纹理未完全加载，无法创建默认轨迹线');
+      return [];
     }
 
-    const int maxPointsPerSegment = 100;
+    // 每段的点数（用于红蓝交替）
+    const int pointsPerColorSegment = 50;
+    // 每条Polyline的最大点数（性能限制）
+    const int maxPointsPerPolyline = 100;
     final polylines = <Polyline>[];
 
-    if (trackPoints.length <= maxPointsPerSegment) {
-      polylines.add(Polyline(
-        points: trackPoints,
-        width: 8,
-        visible: true,
-        customTexture: _trackLineTextureRed!,
-        capType: CapType.round,
-      ));
-    } else {
-      for (int i = 0; i < trackPoints.length - 1; i += maxPointsPerSegment - 1) {
-        final endIndex = (i + maxPointsPerSegment).clamp(0, trackPoints.length);
-        final segmentPoints = trackPoints.sublist(i, endIndex);
+    // 按颜色分段
+    int colorSegmentIndex = 0;
+    for (int i = 0; i < trackPoints.length - 1; i += pointsPerColorSegment - 1) {
+      final segmentEndIndex = (i + pointsPerColorSegment).clamp(0, trackPoints.length);
+      final segmentPoints = trackPoints.sublist(i, segmentEndIndex);
 
-        if (segmentPoints.length >= 2) {
+      if (segmentPoints.length >= 2) {
+        // 红蓝交替
+        final isRed = colorSegmentIndex % 2 == 0;
+        final texture = isRed ? _trackLineTextureRed! : _trackLineTextureBlue!;
+
+        DebugUtil.info(
+          '🎨 默认分段 $colorSegmentIndex: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentPoints.length}',
+        );
+
+        // 如果分段太长，需要进一步分割
+        if (segmentPoints.length <= maxPointsPerPolyline) {
           polylines.add(Polyline(
             points: segmentPoints,
             width: 8,
             visible: true,
-            customTexture: _trackLineTextureRed!,
+            customTexture: texture,
             capType: CapType.round,
           ));
+        } else {
+          // 分割成更小的段，但保持相同颜色
+          for (int j = 0; j < segmentPoints.length - 1; j += maxPointsPerPolyline - 1) {
+            final subEndIndex = (j + maxPointsPerPolyline).clamp(0, segmentPoints.length);
+            final subSegmentPoints = segmentPoints.sublist(j, subEndIndex);
+
+            if (subSegmentPoints.length >= 2) {
+              polylines.add(Polyline(
+                points: subSegmentPoints,
+                width: 8,
+                visible: true,
+                customTexture: texture,
+                capType: CapType.round,
+              ));
+            }
+          }
         }
+
+        colorSegmentIndex++;
       }
     }
 
+    DebugUtil.info('✅ 默认轨迹线创建完成，共 ${polylines.length} 条线段，${colorSegmentIndex} 个颜色分段');
     return polylines;
   }
 
@@ -457,6 +456,17 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
     final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 
     return earthRadius * c;
+  }
+
+  /// 从轨迹点创建起点记录
+  dynamic _createStartPointFromTrackPoint(LatLng point) {
+    return _MockStopRecord(
+      latitude: point.latitude,
+      longitude: point.longitude,
+      locationName: '起点',
+      pointType: 'start',
+      serialNumber: '起',
+    );
   }
 
   /// 从轨迹点创建终点记录

@@ -38,6 +38,7 @@ import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/services/gif_preload_service.dart';
 
 
 class HomeController extends GetxController {
@@ -194,6 +195,9 @@ class HomeController extends GetxController {
     
     // 预加载首页PAG资源 (已注释)
     // _preloadPagAssets();
+    
+    // 🚀 预加载定位页面GIF动画（在后台异步执行，不阻塞首页加载）
+    _preloadLocationGifs();
     
     _initializeLocationService();
     loadIndexData(); // 加载首页所有数据（弹窗流程在onReady中独立触发）
@@ -2144,7 +2148,26 @@ class HomeController extends GetxController {
     }
   }
   
-    
+  /// 预加载定位页面GIF动画
+  /// 
+  /// 在首页初始化时调用，提前加载定位页面需要的GIF动画
+  /// 这样进入定位页面时可以直接从缓存读取，无需等待解码
+  void _preloadLocationGifs() {
+    // 延迟执行，避免影响首页加载性能
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      try {
+        // 获取设备像素比
+        final window = WidgetsBinding.instance.platformDispatcher.views.first;
+        final devicePixelRatio = window.devicePixelRatio;
+        
+        // 预加载定位页面的GIF
+        await GifPreloadService.preloadLocationGifs(devicePixelRatio);
+        debugPrint('✅ 定位页面GIF预加载已启动');
+      } catch (e) {
+        debugPrint('❌ 预加载GIF失败: $e');
+      }
+    });
+  }
   
 }
 

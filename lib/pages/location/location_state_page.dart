@@ -51,207 +51,272 @@ class LocationStatePage extends StatelessWidget {
   Widget _buildCustomAppBar(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return Container(
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 标题区域（带背景图）
-          Container(
-            padding: EdgeInsets.only(
-              top: topPadding + 10,
-              bottom: 10,
-              left: 16,
-              right: 16,
+    return Obx(() {
+      final hasState = controller.hasStatus.value &&
+          controller.currentStatusEmoji.value.isNotEmpty &&
+          controller.currentStatusText.value.isNotEmpty;
+
+      // 当有状态时，将标题背景扩展为包含状态区域，形成一块连续背景
+      if (hasState) {
+        return Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
+          ),
+          child: Container(
             decoration: const BoxDecoration(
+              color: Color(0xffffffff),
               image: DecorationImage(
                 image: AssetImage('assets/setting/kissu_navbar_bg.webp'),
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
+                alignment: AlignmentGeometry.topCenter
               ),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
               ),
             ),
-            child: Stack(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Positioned(
-                  left: 0,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: () => controller.handleBack(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      child: Image.asset(
-                        'assets/images/kissu_mine_back.webp',
-                        width: 24,
-                        height: 24,
+                // 标题区（透明背景，位于图片上方）
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: topPadding,
+                     
+                    right: 16,
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 5,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () => controller.handleBack(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: Image.asset(
+                              'assets/images/kissu_mine_back.webp',
+                              width: 22,
+                              height: 22,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: const Text(
+                            '我的心情',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: const Text(
-                      '我的心情',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF333333),
+
+                // 状态区域（现在置于同一背景上，不再使用白色块）
+                Container(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    bottom: 12,
+                    top: 8,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () => _showDeleteConfirmDialog(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                children: [
+                                  Image(
+                                    image: const AssetImage(
+                                      'assets/setting/kissu_navbar_delete.webp',
+                                    ),
+                                    width: 16,
+                                    height: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    '删除',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF666666),
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: Column(
+                              children: [
+                                NetworkImageHelper.loadImage(
+                                  imageUrl: controller.currentStatusEmoji.value,
+                                  width: 46,
+                                  height: 46,
+                                  errorWidget: const Icon(
+                                    Icons.image_not_supported,
+                                    size: 46,
+                                  ),
+                                ),
+                                Text(
+                                  controller.currentStatusText.value,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF333333),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Obx(() {
+                            final hasChanges = controller.hasUnsavedChanges;
+                            return GestureDetector(
+                              onTap: hasChanges
+                                  ? () {
+                                      controller.saveStatus();
+                                    }
+                                  : null,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: hasChanges
+                                      ? const Color(0xFFFFA9E0)
+                                      : const Color(0xccFFA9E0),
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                child: Text(
+                                  '保存',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: hasChanges
+                                        ? const Color(0xFFffffff)
+                                        : const Color(0xFFffffff),
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '状态有效期:',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF333333)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildExpireTimeOptions(isBottomSheet: false),
+                      const SizedBox(height: 12),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+        );
+      }
 
-          // 当前状态显示区域（白色固定背景）
-          Obx(() {
-            if (!controller.hasStatus.value ||
-                controller.currentStatusEmoji.value.isEmpty ||
-                controller.currentStatusText.value.isEmpty) {
-              return const SizedBox.shrink();
-            }
-
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
+      // 没有状态时，保持原有标题背景（仅标题有背景图）
+      return Container(
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 标题区域（带背景图）
+            Container(
+              padding: EdgeInsets.only(
+                top: topPadding ,
+                bottom: 10,
+               ),
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/setting/kissu_navbar_bg.webp'),
+                  fit: BoxFit.cover,
+                ),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
               ),
-              padding: const EdgeInsets.only(
-                top: 16,
-                left: 16,
-                right: 16,
-                bottom: 12,
-              ),
-              child: Column(
+              child: Stack(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _showDeleteConfirmDialog(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                             vertical: 6,
-                          ),
-                          child: Row(
-                            children: [
-                              Image(
-                                image: AssetImage(
-                                  'assets/setting/kissu_navbar_delete.webp',
-                                ),
-                                width: 16,
-                                height: 16,
-                              ),
-                              SizedBox(width: 4),
-                              const Text(
-                                '删除',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF666666),
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
+                  Positioned(
+                    left: 5,
+                    top: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onTap: () => controller.handleBack(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        child: Image.asset(
+                          'assets/images/kissu_mine_back.webp',
+                          width: 22,
+                          height: 22,
                         ),
                       ),
-                      const Spacer(),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFFFF),
-                            
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Column(
-                          children: [
-                            NetworkImageHelper.loadImage(
-                              imageUrl: controller.currentStatusEmoji.value,
-                              width: 46,
-                              height: 46,
-                              errorWidget: const Icon(
-                                Icons.image_not_supported,
-                                size: 46,
-                              ),
-                            ),
-                            Text(
-                              controller.currentStatusText.value,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF333333),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      Obx(() {
-                        final hasChanges = controller.hasUnsavedChanges;
-                        return GestureDetector(
-                          onTap: hasChanges
-                              ? () {
-                                  controller.saveStatus();
-                                }
-                              : null,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: hasChanges
-                                  ? const Color(0xFFFFA9E0)
-                                  : const Color(0xccFFA9E0),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Text(
-                              '保存',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: hasChanges
-                                    ? const Color(0xFFffffff)
-                                    : const Color(0xFFffffff) ,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '状态有效期:',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF333333)),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildExpireTimeOptions(isBottomSheet: false),
-                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: const Text(
+                        '我的心情',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            );
-          }),
-        ],
-      ),
-    );
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   /// 表情列表内容 - 所有分类垂直滚动展示

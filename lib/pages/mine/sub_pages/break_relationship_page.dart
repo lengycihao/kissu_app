@@ -5,7 +5,6 @@ import 'package:kissu_app/model/unbind_reason_model.dart';
 import 'package:kissu_app/model/unbind_result.dart';
 import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'break_relationship_controller.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
@@ -117,16 +116,35 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
   }
 
   Widget _buildCustomAppBar() {
-    return Padding(
-      padding:   EdgeInsets.fromLTRB(6, 12, 16, 16),
-      child: Row(
+    return SizedBox(
+      height: 44,
+      child: Stack(
         children: [
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: 'assets/images/kissu_mine_back.webp',
-            iconSize: 24,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/images/kissu_mine_back.webp',
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 '解除关系',
@@ -138,7 +156,6 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
               ),
             ),
           ),
-          const SizedBox(width: 24), // 占位保持居中
         ],
       ),
     );
@@ -488,166 +505,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
     }
   }
 }
-
-// 复用恋爱信息的头像组件，适配解除关系页面（已废弃，使用新的并排头像布局）
-// class _BreakAvatarSection extends StatelessWidget {
-//   final BreakRelationshipController controller;
-
-//   const _BreakAvatarSection({required this.controller});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Obx(() {
-//       // if (controller.isBindPartner.value) {
-//       //   // 已绑定 - 显示两个头像
-//       //   return Stack(
-//       //     alignment: AlignmentGeometry.bottomCenter,
-//       //     children: [_buildMyAvatar(), _buildPartnerAvatar()],
-//       //   );
-//       // } else {
-//       //   // 未绑定 - 只显示我的头像
-//       //   return _buildMyAvatar();
-//       // }
-//       return Stack(
-//         alignment: Alignment.bottomCenter,
-//         children: [
-//           _buildMyAvatar(),
-//           _buildPartnerAvatar(),
-//         ],
-//       );
-//     });
-//   }
-
-//   Widget _buildMyAvatar() {
-//     return Container(
-//       width: 80,
-//       height: 80,
-//       padding: const EdgeInsets.all(2),
-//       decoration: const BoxDecoration(
-//         image: DecorationImage(
-//           image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
-//           fit: BoxFit.fill,
-//         ),
-//       ),
-//       child: Padding(
-//         padding: const EdgeInsets.all(3),
-//         child: ClipOval(
-//           child: controller.myAvatar.value.isNotEmpty
-//               ? controller.myAvatar.value.startsWith('assets/')
-//                     ? Image.asset(
-//                         controller.myAvatar.value,
-//                         width: 80,
-//                         height: 80,
-//                         fit: BoxFit.cover,
-//                         errorBuilder: (context, error, stackTrace) {
-//                           return Container(
-//                             decoration: BoxDecoration(
-//                               borderRadius: BorderRadius.circular(40),
-//                               color: const Color(0xFFE8B4CB),
-//                             ),
-//                             child: const Icon(
-//                               Icons.person,
-//                               size: 40,
-//                               color: Colors.white,
-//                             ),
-//                           );
-//                         },
-//                       )
-//                     : NetworkImageHelper.loadImage(
-//                         imageUrl: controller.myAvatar.value,
-//                         width: 80,
-//                         height: 80,
-//                         fit: BoxFit.cover,
-//                         errorWidget: Container(
-//                           decoration: BoxDecoration(
-//                             borderRadius: BorderRadius.circular(40),
-//                             color: const Color(0xFFE8B4CB),
-//                           ),
-//                           child: const Icon(
-//                             Icons.person,
-//                             size: 40,
-//                             color: Colors.white,
-//                           ),
-//                         ),
-//                       )
-//               : Container(
-//                   decoration: BoxDecoration(
-//                     borderRadius: BorderRadius.circular(40),
-//                     color: const Color(0xFFE8B4CB),
-//                   ),
-//                   child: const Icon(
-//                     Icons.person,
-//                     size: 40,
-//                     color: Colors.white,
-//                   ),
-//                 ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildPartnerAvatar() {
-//     return Container(
-//       width: 50,
-//       height: 50,
-//       margin: EdgeInsets.only(left: 50),
-//       padding: const EdgeInsets.all(2),
-//       decoration: const BoxDecoration(
-//         image: DecorationImage(
-//           image: AssetImage('assets/images/kissu_loveinfo_header_bg.webp'),
-//           fit: BoxFit.fill,
-//         ),
-//       ),
-//       child: ClipOval(
-//         child: controller.partnerAvatar.value.isNotEmpty
-//             ? controller.partnerAvatar.value.startsWith('assets/')
-//                   ? Image.asset(
-//                       controller.partnerAvatar.value,
-//                       width: 50,
-//                       height: 50,
-//                       fit: BoxFit.cover,
-//                       errorBuilder: (context, error, stackTrace) {
-//                         return Container(
-//                           decoration: BoxDecoration(
-//                             borderRadius: BorderRadius.circular(40),
-//                             color: const Color(0xFFE8B4CB),
-//                           ),
-//                           child: const Icon(
-//                             Icons.person,
-//                             size: 40,
-//                             color: Colors.white,
-//                           ),
-//                         );
-//                       },
-//                     )
-//                   : NetworkImageHelper.loadImage(
-//                       imageUrl: controller.partnerAvatar.value,
-//                       width: 50,
-//                       height: 50,
-//                       fit: BoxFit.cover,
-//                       errorWidget: Container(
-//                         decoration: BoxDecoration(
-//                           borderRadius: BorderRadius.circular(40),
-//                           color: const Color(0xFFE8B4CB),
-//                         ),
-//                         child: const Icon(
-//                           Icons.person,
-//                           size: 40,
-//                           color: Colors.white,
-//                         ),
-//                       ),
-//                     )
-//             : Container(
-//                 decoration: BoxDecoration(
-//                   borderRadius: BorderRadius.circular(40),
-//                   color: const Color(0xFFE8B4CB),
-//                 ),
-//                 child: const Icon(Icons.person, size: 40, color: Colors.white),
-//               ),
-//       ),
-//     );
-//   }
-// }
+ 
 
 // 复用恋爱信息的在一起天数卡片，适配解除关系页面
 class _BreakTogetherCard extends StatelessWidget {

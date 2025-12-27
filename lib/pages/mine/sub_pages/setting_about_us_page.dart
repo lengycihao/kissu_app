@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:kissu_app/services/version_service.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/utils/image_saver_util.dart';
 
 class AboutUsPage extends StatefulWidget {
@@ -35,32 +34,6 @@ class _AboutUsPageState extends State<AboutUsPage> {
     }
   }
 
-  Widget _buildDashedDivider() {
-    return Container(
-      height: 1,
-      margin: const EdgeInsets.symmetric(vertical: 7),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final boxWidth = constraints.constrainWidth();
-          const dashWidth = 2.0;
-          const dashSpace = 1.0;
-          final dashCount = (boxWidth / (dashWidth + dashSpace)).floor();
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(dashCount, (_) {
-              return SizedBox(
-                width: dashWidth,
-                height: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xffE6E2E3)),
-                ),
-              );
-            }),
-          );
-        },
-      ),
-    );
-  }
 
   Widget _buildItem(String title, VoidCallback onTap) {
     return GestureDetector(
@@ -110,26 +83,46 @@ class _AboutUsPageState extends State<AboutUsPage> {
           Column(
             children: [
               // 自定义导航栏
-              Padding(
-                padding:   EdgeInsets.only(top: MediaQuery.of(context).padding.top+12, left: 6, right: 16),
-                child: Row(
+              SizedBox(
+                height: 44 + MediaQuery.of(context).padding.top,
+                child: Stack(
                   children: [
-                    CommonBackButton(
-                      onTap: () => Get.back(),
-                      assetPath: "assets/images/kissu_mine_back.webp",
-                      iconSize: 22,
-                    ),
-                    const Spacer(),
-                    const Text(
-                      "关于我们",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF333333),
+                    // 返回按钮
+                    Positioned(
+                      left: 5,
+                      top: MediaQuery.of(context).padding.top,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    const SizedBox(width: 24),
+                    // 标题 - 绝对居中
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: MediaQuery.of(context).padding.top,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          "关于我们",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

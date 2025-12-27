@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../location_v2_controller.dart';
+import '../map_gif_test_page.dart';
 
 /// 左侧浮动按钮组
 /// 包含刷新和切换地图类型功能
@@ -53,14 +54,33 @@ class LeftFloatingButtons extends StatelessWidget {
           child: IgnorePointer(
             ignoring: opacity == 0.0,
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
+              
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                   // 切换地图类型按钮
+                  GestureDetector(
+                    onTap: () {
+                      _showMapTypePicker(context);
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Image(
+                        image: AssetImage(
+                          'assets/location/kissu3_change_map.webp',
+                        ),
+                        fit: BoxFit.contain,
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
+                  ), const SizedBox(height: 12),
                   // 刷新按钮
                   GestureDetector(
                     onTap: () async {
@@ -82,12 +102,12 @@ class LeftFloatingButtons extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 12),
 
-                  // 切换地图类型按钮
+                  // 切换视图按钮
                   GestureDetector(
                     onTap: () {
-                      _showMapTypePicker(context);
+                      controller.cycleMapView();
                     },
                     child: Container(
                       width: 24,
@@ -98,7 +118,7 @@ class LeftFloatingButtons extends StatelessWidget {
                       ),
                       child: Image(
                         image: AssetImage(
-                          'assets/location/kissu3_change_map.webp',
+                          'assets/location/kissu_exchange_avair.webp',
                         ),
                         fit: BoxFit.contain,
                         width: 24,
@@ -106,6 +126,33 @@ class LeftFloatingButtons extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // // GIF测试入口按钮
+                  // GestureDetector(
+                  //   onTap: () {
+                  //     Get.to(() => const MapGifTestPage());
+                  //   },
+                  //   child: Container(
+                  //     width: 24,
+                  //     height: 24,
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.pink,
+                  //       borderRadius: BorderRadius.circular(22),
+                  //     ),
+                  //     child: const Center(
+                  //       child: Text(
+                  //         'GIF',
+                  //         style: TextStyle(
+                  //           color: Colors.white,
+                  //           fontSize: 8,
+                  //           fontWeight: FontWeight.bold,
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+               
                 ],
               ),
             ),

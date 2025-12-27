@@ -4,7 +4,6 @@ import 'package:kissu_app/model/setting/common_question_model/common_question_mo
 import 'package:kissu_app/network/public/setting_api.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page_info.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 
 class QuestionPage extends StatefulWidget {
   final int? targetProblemId; // 目标问题ID，如果提供则自动跳转到对应问题详情
@@ -124,20 +123,36 @@ class _QuestionPageContent extends StatelessWidget {
           ),
           Column(
             children: [
-              SizedBox(height: MediaQuery.of(context).padding.top + 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 16,
-                ).copyWith(left: 6, top: 0),
-                child: Row(
+              SizedBox(height: MediaQuery.of(context).padding.top),
+              SizedBox(
+                height: 44,
+                child: Stack(
                   children: [
-                    CommonBackButton(
-                      onTap: () => Get.back(),
-                      assetPath: "assets/images/kissu_mine_back.webp",
-                      iconSize: 22,
+                    // 返回按钮
+                    Positioned(
+                      left: 5,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
+                      ),
                     ),
-                    const Expanded(
+                    // 标题 - 绝对居中
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Center(
                         child: Text(
                           "常见问题",
@@ -148,7 +163,6 @@ class _QuestionPageContent extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 22),
                   ],
                 ),
               ),

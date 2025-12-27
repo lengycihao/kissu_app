@@ -5,7 +5,6 @@ import 'device_usage_controller.dart';
 import 'dart:math' as math;
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -115,8 +114,10 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                       ),
                       child: Column(
                         children: [
-                          // 权限提示横幅
-                          _buildPermissionBanner(controller),
+                          // 权限提示横幅（只有在尚未授权使用情况访问权限时显示）
+                          Obx(() => controller.hasUsagePermission.value
+                              ? const SizedBox.shrink()
+                              : _buildPermissionBanner(controller)),
                           // 手机使用记录模块
                           DevicePhoneUsageCard(
                             controller: controller,
@@ -173,48 +174,71 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
 
   /// 顶部导航栏
   Widget _buildTopBar() {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
+      child: Stack(
         children: [
-          // 返回按钮（统一封装，点击区域更大且更灵敏）
-          CommonBackButton(
-            onTap: () {
-              // 使用 Navigator 返回，避免 GetX Snackbar 初始化错误
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-            assetPath: "assets/4.0/kissu4_back.webp",
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () {
+                // 使用 Navigator 返回，避免 GetX Snackbar 初始化错误
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          // 标题
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 "用机记录",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),
               ),
             ),
           ),
-          // 右侧设置按钮：从“敏感操作记录”页面迁移到这里
-          GestureDetector(
-            onTap: () {
-              // 复用用机记录设置入口，跳转到通知设置页面
-              Get.toNamed(KissuRoutePath.notificationSettings);
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              child: Image.asset(
-              'assets/phone_history/kissu_phone_setting.webp',
-              width: 24,
-              height: 24,
-            ),
+          // 右侧设置按钮
+          Positioned(
+            right: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () {
+                // 复用用机记录设置入口，跳转到通知设置页面
+                Get.toNamed(KissuRoutePath.notificationSettings);
+              },
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/phone_history/kissu_phone_setting.webp',
+                  width: 24,
+                  height: 24,
+                ),
+              ),
             ),
           ),
         ],

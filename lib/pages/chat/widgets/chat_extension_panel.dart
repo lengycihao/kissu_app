@@ -93,7 +93,7 @@ class ChatExtensionPanel extends StatelessWidget {
         iconPath = 'assets/chat/kissu3_chat_camera.webp';
         break;
       case ExtensionType.location:
-        iconPath = 'assets/chat/kissu3_chat_location.webp';
+        iconPath = 'assets/chat/kissu3_chat_location1.webp';
         break;
     }
 
