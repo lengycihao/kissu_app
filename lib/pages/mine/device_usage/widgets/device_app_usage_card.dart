@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 
@@ -554,13 +555,15 @@ class _FrostedGlassMask extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  Image.asset(
-                    isVipButton
-                        ? 'assets/images/kissu3_go_vip.webp'
-                        : 'assets/images/kissu3_go_bind.webp',
+                   
+                   Image.asset(
+                      isVipButton
+                          ? 'assets/gif/kissu_vip.gif' // 已绑定未开会员
+                          : 'assets/gif/kissu_bind.gif', // 未绑定
                     width: isVipButton ? 189 : 176,
-                    height:isVipButton?60: 44,
-                  ),
+                    height: isVipButton ? 60 : 44,
+                      fit: BoxFit.contain,
+                    ),
                 ],
               ),
             ),

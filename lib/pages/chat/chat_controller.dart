@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
-import 'package:kissu_app/pages/chat/widgets/chat_message_item.dart';
+import 'package:kissu_app/pages/chat/models/chat_message.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_more_menu.dart';
 import 'package:kissu_app/pages/chat/widgets/location_picker_page.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
@@ -220,7 +220,7 @@ class ChatController extends GetxController {
 
       final pos = scrollController.position;
       
-      // reverse: true 下，offset=0 是最新（底部），向上滚动变大，maxScrollExtent 是最旧（顶部）
+      // reverse:true时，pixels=0是底部（最新消息），maxScrollExtent是顶部（最旧消息）
       // 判断是否在底部（距离底部50像素内认为在底部）
       final isAtBottom = pos.pixels <= 50;
       
@@ -229,8 +229,8 @@ class ChatController extends GetxController {
         hasNewMessageWhenNotAtBottom.value = false;
       }
 
-      // 仅在接近顶部时分页加载历史，避免一进页面就把历史全拉完
-      final nearTop = pos.pixels >= (pos.maxScrollExtent - 80);
+      // 仅在接近顶部时分页加载历史（pixels接近maxScrollExtent）
+      final nearTop = pos.pixels >= pos.maxScrollExtent - 80;
       if (nearTop && !_isLoadingHistory && _hasMoreHistory) {
         _loadMoreHistoryMessages();
       }
@@ -241,7 +241,7 @@ class ChatController extends GetxController {
   bool _isAtBottom() {
     if (!scrollController.hasClients) return true;
     final pos = scrollController.position;
-    // reverse: true 时，offset=0 是底部，距离底部50像素内认为在底部
+    // reverse:true时，pixels=0是底部，距离底部50像素内认为在底部
     return pos.pixels <= 50;
   }
 
@@ -324,7 +324,7 @@ class ChatController extends GetxController {
         // 在列表头部插入更旧的消息
         messages.insertAll(0, toInsert);
 
-        // 如果之前已收到“对端全部已读”回执，补齐新插入的历史消息为已读状态
+        // 如果之前已收到"对端全部已读"回执，补齐新插入的历史消息为已读状态
         if (_peerHasReadAll) {
           _markAllSelfMessagesRead();
         }
@@ -494,131 +494,6 @@ class ChatController extends GetxController {
         _scrollToBottomWithDelay();
       }
     });
-  }
-
-  // 加载模拟消息
-  void _loadMockMessages() {
-    final now = DateTime.now();
-    // 创建一个相同的时间点，用于测试时间戳去重
-    final sameTime = now.subtract(const Duration(hours: 2, minutes: 21));
-    messages.addAll([
-      // 系统事件消息 - 对方更换手机进行了登录（显示时间戳）
-      ChatMessage(
-        id: 'event_1',
-        content: '对方更换手机进行了登录 (iPhone 15 Pro Max)',
-        type: MessageType.systemEvent,
-        isSent: false, // systemEvent类型isSent不影响显示
-        time: sameTime,
-        iconUrl: 'assets/phone_history/kissu_phone_type.webp', // 使用手机型号图标作为占位
-      ),
-      // 系统事件消息 - 对方退出账号（不显示时间戳，因为时间相同）
-      ChatMessage(
-        id: 'event_2',
-        content: '对方退出账号',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: sameTime.add(const Duration(seconds: 10)),
-        iconUrl: 'assets/phone_history/kissu_phone_barry.webp', // 使用占位图标
-      ),
-      // 系统事件消息 - 对方登录了Kissu（不显示时间戳，因为时间相同）
-      ChatMessage(
-        id: 'event_3',
-        content: '对方登录了Kissu',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: sameTime.add(const Duration(seconds: 20)),
-        iconUrl: 'assets/3.0/kissu3_love_avater.webp', // 使用Kissu图标
-      ),
-      // 系统事件消息 - 对方打开了Kissu（不显示时间戳，因为时间相同）
-      ChatMessage(
-        id: 'event_4',
-        content: '对方打开了Kissu',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: sameTime.add(const Duration(seconds: 30)),
-        iconUrl: 'assets/3.0/kissu3_love_avater.webp',
-      ),
-      // 系统事件消息 - 对方开启了定位（不显示时间戳，因为时间相同）
-      ChatMessage(
-        id: 'event_5',
-        content: '对方开启了定位',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: sameTime.add(const Duration(seconds: 40)),
-        iconUrl: 'assets/phone_history/kissu_phone_distance.webp', // 使用定位相关图标
-      ),
-      // 系统事件消息 - 对方关闭了定位（不显示时间戳，因为时间相同）
-      ChatMessage(
-        id: 'event_6',
-        content: '对方关闭了定位',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: sameTime.add(const Duration(seconds: 50)),
-        iconUrl: 'assets/phone_history/kissu_phone_distance.webp',
-      ),
-      // 系统事件消息 - 对方更换了网络（显示时间戳，因为时间不同）
-      ChatMessage(
-        id: 'event_7',
-        content: '对方更换了网络 (yuiuo-5G)',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: now.subtract(const Duration(hours: 2, minutes: 20)),
-        iconUrl: 'assets/phone_history/kissu_phone_wifi.webp',
-      ),
-      // 系统事件消息 - 对方切换成了移动网络（不显示时间戳，因为时间相同）
-      ChatMessage(
-        id: 'event_8',
-        content: '对方切换成了移动网络',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: now.subtract(const Duration(hours: 2, minutes: 20, seconds: 10)),
-        iconUrl: 'assets/phone_history/kissu_phone_wifi.webp',
-      ),
-      // 系统事件消息 - 对方手机正在充电（显示时间戳，因为时间不同）
-      ChatMessage(
-        id: 'event_9',
-        content: '对方手机正在充电,当前电量32%',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: now.subtract(const Duration(hours: 2, minutes: 19)),
-        iconUrl: 'assets/phone_history/kissu_phone_barry.webp',
-      ),
-      // 系统事件消息 - 对方手机结束了充电（显示时间戳，因为时间不同）
-      ChatMessage(
-        id: 'event_10',
-        content: '对方手机结束了充电,当前电量89%',
-        type: MessageType.systemEvent,
-        isSent: false,
-        time: now.subtract(const Duration(hours: 2, minutes: 18)),
-        iconUrl: 'assets/phone_history/kissu_phone_barry.webp',
-      ),
-      // 普通消息
-      ChatMessage(
-        id: '1',
-        content: '你好！',
-        type: MessageType.text,
-        isSent: false,
-        time: now.subtract(const Duration(minutes: 5)),
-        avatarUrl: null,
-      ),
-      ChatMessage(
-        id: '2',
-        content: '嗨，在干嘛呢？',
-        type: MessageType.text,
-        isSent: true,
-        time: now.subtract(const Duration(minutes: 4)),
-        avatarUrl: null,
-        isRead: true, // 已读
-      ),
-      ChatMessage(
-        id: '3',
-        content: '刚吃完饭，准备出去散步',
-        type: MessageType.text,
-        isSent: false,
-        time: now.subtract(const Duration(minutes: 3)),
-        avatarUrl: null,
-      ),
-    ]);
   }
 
   // 发送文字消息（走腾讯IM SDK）
@@ -1443,15 +1318,9 @@ class ChatController extends GetxController {
     
     Future.delayed(const Duration(milliseconds: 100), () {
       if (scrollController.hasClients && messages.isNotEmpty) {
-        final pos = scrollController.position;
-        // 当没有历史消息时（消息数量很少），滚动到顶部，让新消息从顶部开始显示
-        // 当有历史消息时，滚动到底部显示最新消息
-        // reverse:true 时，offset 0 代表列表"底部"（最新消息），maxScrollExtent 代表"顶部"（最旧消息）
-        final targetOffset = (messages.length <= 2 && !_hasMoreHistory && pos.maxScrollExtent > 0) 
-            ? pos.maxScrollExtent 
-            : 0.0;
+        // reverse:true时，滚动到0就是底部
         scrollController.animateTo(
-          targetOffset,
+          0.0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -1468,13 +1337,9 @@ class ChatController extends GetxController {
   void _scrollToBottomWithDelay() {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (scrollController.hasClients && messages.isNotEmpty) {
-        final pos = scrollController.position;
-        // 当没有历史消息时（消息数量很少），滚动到顶部，让新消息从顶部开始显示
-        final targetOffset = (messages.length <= 2 && !_hasMoreHistory && pos.maxScrollExtent > 0) 
-            ? pos.maxScrollExtent 
-            : 0.0;
+        // reverse:true时，滚动到0就是底部
         scrollController.animateTo(
-          targetOffset,
+          0.0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -1495,14 +1360,9 @@ class ChatController extends GetxController {
       // 再次延迟，确保ListView已经完全渲染
       Future.delayed(const Duration(milliseconds: 200), () {
         if (scrollController.hasClients && messages.isNotEmpty) {
-          final pos = scrollController.position;
-          // 当没有历史消息时（消息数量很少），滚动到顶部，让新消息从顶部开始显示
-          // reverse:true 时，offset 0.0 即为"底部"（最新一条），maxScrollExtent 为"顶部"
-          final targetOffset = (messages.length <= 2 && !_hasMoreHistory && pos.maxScrollExtent > 0) 
-              ? pos.maxScrollExtent 
-              : 0.0;
-          scrollController.jumpTo(targetOffset);
-          debugPrint('💬 初始化时自动定位: ${targetOffset == 0.0 ? "底部" : "顶部"}');
+          // reverse:true时，滚动到0就是底部
+          scrollController.jumpTo(0.0);
+          debugPrint('💬 初始化时自动定位到底部');
         }
       });
     });

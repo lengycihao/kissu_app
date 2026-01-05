@@ -361,6 +361,21 @@ class UsageReportController extends GetxController {
         debugPrint('📲 跳转到设备使用记录页面');
         Get.toNamed(KissuRoutePath.appUsageInfo);
         break;
+      case 'locationPage':
+        // 跳转到定位页面
+        debugPrint('📍 跳转到定位页面');
+        Get.toNamed(KissuRoutePath.location);
+        break;
+      case 'mobileUse':
+        // 跳转到设备使用页面
+        debugPrint('📱 跳转到设备使用页面');
+        Get.toNamed(KissuRoutePath.deviceUsage);
+        break;
+      case 'locationReminder':
+        // 跳转到定位提醒页面
+        debugPrint('🔔 跳转到定位提醒页面');
+        Get.toNamed(KissuRoutePath.locationReminder);
+        break;
       default:
         debugPrint('⚠️ 未知的跳转页面类型: $jumpPage');
     }

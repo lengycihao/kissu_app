@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 我的页面-顶部导航栏
@@ -77,12 +77,12 @@ class MineTopBar extends StatelessWidget {
                 // 通知图标（在设置按钮左边）
                 Builder(
                   builder: (context) {
-                    if (!Get.isRegistered<HomeController>()) {
+                    if (!Get.isRegistered<MineController>()) {
                       return const SizedBox.shrink();
                     }
-                    final homeController = Get.find<HomeController>();
+                    final mineController = Get.find<MineController>();
                     return Obx(() {
-                      final isRedDot = homeController.isRedDot.value;
+                      final isRedDot = mineController.isRedDot.value;
                       return GestureDetector(
                         onTap: _onNotificationTap,
                         child: Container(

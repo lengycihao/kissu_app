@@ -11,6 +11,11 @@ class LocationDetailPage extends StatefulWidget {
   final String locationName;
   final String? avatarUrl;
   final bool isMyself;
+  
+  /// 🎯 近距离模式：展示两人头像
+  final bool isCloseMode;
+  final String? myAvatarUrl;
+  final String? partnerAvatarUrl;
 
   const LocationDetailPage({
     super.key,
@@ -19,6 +24,9 @@ class LocationDetailPage extends StatefulWidget {
     required this.locationName,
     this.avatarUrl,
     required this.isMyself,
+    this.isCloseMode = false,
+    this.myAvatarUrl,
+    this.partnerAvatarUrl,
   });
 
   @override
@@ -41,64 +49,133 @@ class _LocationDetailPageState extends State<LocationDetailPage> {
 
   Future<void> _createMarkerIcons() async {
     try {
-      final String baseAsset = widget.isMyself
-          ? 'assets/images/kissu_location_run.webp'
-          : 'assets/3.0/kissu3_location_she.webp';
-
-      // 创建底座（尺寸与定位页一致）
-      final pedestal = await _markerBuilder.createPedestalMarker(
-        pedestalAsset: baseAsset,
-        size: widget.isMyself ? 800.0 : 40.0,
-      );
-
-      // 创建头像 marker（不包含底座）
-      final avatarData = await _markerBuilder.createAvatarMarker(
-        widget.avatarUrl ?? '',
-        defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
-        baseAsset: baseAsset,
-        useLargePedestal: widget.isMyself,
-        skipPedestal: true,
-      );
-
-      final avatarDescriptor = avatarData['descriptor'] as BitmapDescriptor?;
-      final avatarAnchor = avatarData['anchor'] as Offset?;
-
       final Set<Marker> markers = {};
+      final position = LatLng(widget.latitude, widget.longitude);
 
-      if (pedestal != null) {
-        final pedestalMarker = Marker(
-          position: LatLng(widget.latitude, widget.longitude),
-          icon: pedestal,
-          anchor: const Offset(0.5, 0.5),
-          zIndex: 1.0,
-          clickable: false,
-        );
-        pedestalMarker.setIdForCopy('detail_pedestal');
-        markers.add(pedestalMarker);
-      }
-
-      if (avatarDescriptor != null) {
-        final avatarMarker = Marker(
-          position: LatLng(widget.latitude, widget.longitude),
-          icon: avatarDescriptor,
-          anchor: avatarAnchor ?? const Offset(0.5, 1.0),
-          zIndex: 2.0,
-        );
-        avatarMarker.setIdForCopy('detail_avatar');
-        markers.add(avatarMarker);
+      if (widget.isCloseMode) {
+        // 🎯 近距离模式：展示两人头像（与定位页面一致）
+        await _createCloseModeMarkers(markers, position);
+      } else {
+        // 🎯 正常模式：展示单人头像
+        await _createNormalModeMarkers(markers, position);
       }
 
       if (mounted) {
         setState(() {
-          _pedestalIcon = pedestal;
-          _avatarIcon = avatarDescriptor;
-          _avatarAnchor = avatarAnchor;
           _markers = markers;
           _iconsCreated = true;
         });
       }
     } catch (e) {
       debugPrint('创建详情页标记图标失败: $e');
+    }
+  }
+
+  /// 🎯 创建正常模式的markers（单人头像）
+  Future<void> _createNormalModeMarkers(Set<Marker> markers, LatLng position) async {
+    // 🎯 统一使用 kissu3_location_she 作为底座
+    const String baseAsset = 'assets/3.0/kissu3_location_she.webp';
+
+    // 创建底座（尺寸与定位页一致）
+    final pedestal = await _markerBuilder.createPedestalMarker(
+      pedestalAsset: baseAsset,
+      size: 40.0,
+    );
+
+    // 创建头像 marker（不包含底座）
+    final avatarData = await _markerBuilder.createAvatarMarker(
+      widget.avatarUrl ?? '',
+      defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
+      baseAsset: baseAsset,
+      useLargePedestal: false,
+      skipPedestal: true,
+    );
+
+    final avatarDescriptor = avatarData['descriptor'] as BitmapDescriptor?;
+    final avatarAnchor = avatarData['anchor'] as Offset?;
+
+    if (pedestal != null) {
+      final pedestalMarker = Marker(
+        position: position,
+        icon: pedestal,
+        anchor: const Offset(0.5, 0.5),
+        zIndex: 1.0,
+        clickable: false,
+      );
+      pedestalMarker.setIdForCopy('detail_pedestal');
+      markers.add(pedestalMarker);
+    }
+
+    if (avatarDescriptor != null) {
+      final avatarMarker = Marker(
+        position: position,
+        icon: avatarDescriptor,
+        anchor: avatarAnchor ?? const Offset(0.5, 1.0),
+        zIndex: 2.0,
+      );
+      avatarMarker.setIdForCopy('detail_avatar');
+      markers.add(avatarMarker);
+    }
+
+    _pedestalIcon = pedestal;
+    _avatarIcon = avatarDescriptor;
+    _avatarAnchor = avatarAnchor;
+  }
+
+  /// 🎯 创建近距离模式的markers（两人头像，与定位页面一致）
+  Future<void> _createCloseModeMarkers(Set<Marker> markers, LatLng position) async {
+    // 1. 创建Ta的头像marker（左边，逆时针旋转20度）
+    final partnerMarkerData = await _markerBuilder.createAvatarWithBgMarker(
+      widget.partnerAvatarUrl ?? '',
+      defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
+      bgAsset: 'assets/images/kissu_map_avair_bg.webp',
+      designAvatarSize: 50.0,
+      designBgWidth: 60.0,
+      designBgHeight: 65.0,
+      avatarOffsetY: 5.5,
+      rotationDegrees: -20.0,
+    );
+    final partnerIcon = partnerMarkerData['descriptor'] as BitmapDescriptor?;
+    final partnerAnchor = partnerMarkerData['anchor'] as Offset? ?? const Offset(0.5, 1.0);
+    final partnerAnchorAdjusted = Offset(partnerAnchor.dx + 0.47, partnerAnchor.dy);
+
+    if (partnerIcon != null) {
+      final partnerMarker = Marker(
+        position: position,
+        icon: partnerIcon,
+        anchor: partnerAnchorAdjusted,
+        zIndex: 2.0,
+        clickable: false,
+      );
+      partnerMarker.setIdForCopy('detail_partner_avatar');
+      markers.add(partnerMarker);
+    }
+
+    // 2. 创建我的头像marker（右边，顺时针旋转20度）
+    final myMarkerData = await _markerBuilder.createAvatarWithBgMarker(
+      widget.myAvatarUrl ?? '',
+      defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
+      bgAsset: 'assets/images/kissu_map_avair_bg.webp',
+      designAvatarSize: 50.0,
+      designBgWidth: 60.0,
+      designBgHeight: 65.0,
+      avatarOffsetY: 5.5,
+      rotationDegrees: 20.0,
+    );
+    final myIcon = myMarkerData['descriptor'] as BitmapDescriptor?;
+    final myAnchor = myMarkerData['anchor'] as Offset? ?? const Offset(0.5, 1.0);
+    final myAnchorAdjusted = Offset(myAnchor.dx - 0.47, myAnchor.dy);
+
+    if (myIcon != null) {
+      final myMarker = Marker(
+        position: position,
+        icon: myIcon,
+        anchor: myAnchorAdjusted,
+        zIndex: 2.0,
+        clickable: false,
+      );
+      myMarker.setIdForCopy('detail_my_avatar');
+      markers.add(myMarker);
     }
   }
 
@@ -195,7 +272,9 @@ class _LocationDetailPageState extends State<LocationDetailPage> {
                               ),
                               Expanded(
                                 child: Text(
-                                  widget.isMyself ? '当前我的位置' : '当前Ta的位置',
+                                  widget.isCloseMode 
+                                      ? '我们的位置信息' 
+                                      : (widget.isMyself ? '当前我的位置' : '当前Ta的位置'),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Color(0xFF333333),

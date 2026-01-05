@@ -8,75 +8,15 @@ import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'location_preview_widget.dart';
-// map & marker utilities are used in dedicated location pages/widgets
+import 'image_preview_page.dart';
+import '../models/chat_message.dart';
 import '../chat_controller.dart';
 import 'package:kissu_app/pages/location/location_detail_page.dart';
+import 'package:kissu_app/pages/track/track_page.dart';
+import 'package:kissu_app/pages/track/track_binding.dart';
 
-/// 聊天消息类型
-enum MessageType {
-  text, // 文字消息
-  image, // 图片消息
-  location, // 位置消息
-  locationNotice, // 位置通知（居中显示，不带气泡，用地图快照展示）
-  systemEvent, // 系统事件消息（图标+文字，居中显示）
-  defecate, // 一起便便消息（特殊气泡样式）
-}
-
-/// 消息模型
-class ChatMessage {
-  final String id;
-  final String content;
-  final MessageType type;
-  final bool isSent; // true: 发送的消息, false: 接收的消息
-  final DateTime time;
-  final String? avatarUrl;
-  final String? imageUrl;
-  final double? imageWidth;   // 图片原始宽度（用于计算展示比例）
-  final double? imageHeight;  // 图片原始高度（用于计算展示比例）
-  final String? locationName;
-  final double? latitude; // 纬度
-  final double? longitude; // 经度
-  final bool isRead; // 是否已读（仅用于自己发送的消息）
-  final String? iconUrl; // 图标URL（用于systemEvent类型，支持网络图片）
-  final String? crapDuration; // 拉屎时长（用于endDefecate类型，如"0分30秒"）
-  final String? jumpPage; // 跳转页面标识（用于敏感事件systemEvent）
-  final List<FontColorItem>? imFontColor; // 文本需要变色的配置项
-  final Map<String, dynamic>? defaultExt; // 原始扩展字段（用于位置等）
-  final int? isVip; // 服务端字段 is_vip: 1 表示 VIP 优先展示
-
-  ChatMessage({
-    required this.id,
-    required this.content,
-    required this.type,
-    required this.isSent,
-    required this.time,
-    this.avatarUrl,
-    this.imageUrl,
-    this.imageWidth,
-    this.imageHeight,
-    this.locationName,
-    this.latitude,
-    this.longitude,
-    this.isRead = false, // 默认为未读
-    this.iconUrl, // 图标URL（用于systemEvent类型）
-    this.crapDuration, // 拉屎时长（用于endDefecate类型）
-    this.jumpPage, // 跳转页面标识
-    this.imFontColor,
-    this.defaultExt,
-    this.isVip,
-  });
-}
-
-/// 富文本颜色替换项（从服务端 im_font_color 字段解析）
-class FontColorItem {
-  final String changeText;
-  final String colorHex;
-
-  FontColorItem({
-    required this.changeText,
-    required this.colorHex,
-  });
-}
+// 导出模型类，保持向后兼容
+export '../models/chat_message.dart';
 
 /// 聊天消息气泡组件
 class ChatMessageItem extends StatefulWidget {
@@ -422,7 +362,21 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           Get.toNamed(KissuRoutePath.appUsage);
           break;
         case 'tracePage':
-          Get.toNamed(KissuRoutePath.track);
+          // 跳转到轨迹页面，如果有坐标则显示infowindow和圆圈
+          if (args != null && args['latitude'] != null && args['longitude'] != null) {
+            Get.to(
+              () => TrackPage(
+                initialLatitude: double.tryParse(args['latitude'].toString()),
+                initialLongitude: double.tryParse(args['longitude'].toString()),
+                initialLocationName: args['locationName'] as String?,
+                autoShowInfoWindow: true,
+              ),
+              binding: TrackBinding(),
+              transition: Transition.rightToLeft,
+            );
+          } else {
+            Get.toNamed(KissuRoutePath.track);
+          }
           break;
         case 'unlockPhonePage':
           Get.toNamed(KissuRoutePath.appUsageInfo);
@@ -888,15 +842,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       }
 
       if (baseUrl.isEmpty) {
-        baseUrl = 'https://www.ikissu.cn/share/couplesdeFecating.html';
-      } else {
-        // 规范为 HTTPS，避免使用明文 HTTP
-        if (baseUrl.startsWith('http://')) {
-          baseUrl = baseUrl.replaceFirst('http://', 'https://');
-        } else if (!baseUrl.startsWith('https://')) {
-          baseUrl = 'https://$baseUrl';
-        }
+        // 如果接口没有返回链接，使用默认链接（与首页保持一致）
+        baseUrl = 'http://devweb.ikissu.cn/share/couplesdeFecating.html';
       }
+      // 注意：不强制转换为 HTTPS，因为开发环境 SSL 证书可能有问题
 
       String url = baseUrl;
 
@@ -1101,153 +1050,6 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   }
 
 }
-
-// 图片预览页面
-class ImagePreviewPage extends StatefulWidget {
-  /// 需要预览的图片列表
-  final List<String> imageUrls;
-
-  /// 初始显示的图片索引
-  final int initialIndex;
-
-  const ImagePreviewPage({
-    super.key,
-    required this.imageUrls,
-    this.initialIndex = 0,
-  });
-
-  @override
-  State<ImagePreviewPage> createState() => _ImagePreviewPageState();
-}
-
-class _ImagePreviewPageState extends State<ImagePreviewPage> {
-  late final PageController _pageController;
-  late int _currentIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = (widget.initialIndex >= 0 &&
-            widget.initialIndex < widget.imageUrls.length)
-        ? widget.initialIndex
-        : 0;
-    _pageController = PageController(initialPage: _currentIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildImage(String imageUrl) {
-    // 判断是本地文件还是网络URL
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      // 网络图片
-      return Image.network(
-        imageUrl,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.black,
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.broken_image, size: 64, color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    '图片加载失败',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: Colors.black,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(color: Colors.white),
-                  const SizedBox(height: 16),
-                  Text(
-                    '加载中...',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } else {
-      // 本地文件
-      return Image.file(
-        File(imageUrl),
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.black,
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.broken_image, size: 64, color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    '图片加载失败',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => Navigator.of(context).pop(),
-        child: PageView.builder(
-          controller: _pageController,
-          itemCount: widget.imageUrls.length,
-          onPageChanged: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          itemBuilder: (context, index) {
-            final url = widget.imageUrls[index];
-            return Center(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: () => Navigator.of(context).pop(), // 点击大图也关闭
-                child: InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 4.0,
-                  child: _buildImage(url),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// 位置详情页已提取到 `lib/pages/location/location_detail_page.dart`
 
 /// 图片展示比例枚举：正方形 / 16:9 / 9:16
 enum _ImageRatioType {

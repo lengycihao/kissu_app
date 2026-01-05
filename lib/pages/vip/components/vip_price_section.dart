@@ -163,7 +163,7 @@ Widget _buildLifetimePlanCard(
           decoration: BoxDecoration(
             image: DecorationImage(
               image: AssetImage(backgroundAsset),
-              fit: BoxFit.contain,
+              fit: BoxFit.fitWidth,
             ),
           ),
           child: Row(
@@ -263,8 +263,8 @@ Widget _buildLifetimePlanCard(
           ),
         ),
         Positioned(
-          top: 6,
-          right: 5,
+          top: isSelected?6:0,
+          right: isSelected?5:0,
           child: Obx(() {
             final desc = controller.lifetimeActivityDesc.value;
             final countdown = controller.lifetimeCountdownText;

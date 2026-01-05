@@ -9,8 +9,10 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_receipt.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart';
+import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimAdvancedMsgListener.dart';
+import 'package:tencent_cloud_chat_sdk/enum/V2TimFriendshipListener.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/services/relationship_animation_service.dart';
@@ -25,8 +27,6 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/chat_new_message_banner.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
-
-// 推送插件导入
 import 'package:tencent_cloud_chat_push/tencent_cloud_chat_push.dart';
 
 /// 腾讯IM服务
@@ -40,6 +40,10 @@ class TencentIMService extends GetxService {
   
   // IM SDK AppID
   static const int sdkAppID = 1600095370;
+  
+  // 🔥 腾讯云IM推送服务客户端密钥（从IM控制台 > 推送服务Push > 接入设置 获取）
+  // 注意：这个appKey是腾讯云IM推送专用的，不是极光推送的appKey
+  static const String pushAppKey = "4M2JkNNiZkZslXJyw0YsmudcMw42THgiRtSud5H5iTRsT3GuHEXhQnzlQaYkjPrp";
   
   // 是否已初始化
   bool _isInitialized = false;
@@ -168,6 +172,11 @@ class TencentIMService extends GetxService {
       // 确保消息监听器已设置（应对应用重启或热重载的情况）
       _setupMessageListener();
       
+      // 🔥 重新注册推送服务（应对App被杀后重启的情况）
+      // 即使已经登录，每次App启动时都需要重新注册推送，确保设备token有效
+      await _registerPushService();
+      logger.info('已重新注册推送服务（App重启场景）', tag: 'TencentIMService');
+      
       return true;
     }
 
@@ -200,7 +209,10 @@ class TencentIMService extends GetxService {
 
         // 设置消息监听器
         _setupMessageListener();
-        
+
+        // 设置好友关系监听器
+        _setupFriendshipListener();
+
         // 🔥 注册推送服务（IM登录成功后）
         await _registerPushService();
         
@@ -299,7 +311,10 @@ class TencentIMService extends GetxService {
       
       // 移除消息监听器
       _removeMessageListener();
-      
+
+      // 移除好友关系监听器
+      _removeFriendshipListener();
+
       // 清除回调
       clearCallbacks();
       
@@ -379,6 +394,28 @@ class TencentIMService extends GetxService {
       final V2TimMsgCreateInfoResult createInfo = createResult.data!;
 
       // 发送消息（必须携带 messageInfo，否则会报 message and id are both empty）
+      // 🔥 添加离线推送配置，确保对方离线时能收到通知
+      // 构建ext字段，携带跳转信息
+      final extData = {
+        'scene': 'im_chat',
+        'conversation_id': 'c2c_$receiverID',
+        'sender_id': _currentUserID ?? '',
+        'user_id': receiverID,
+      };
+      
+      final offlinePushInfo = OfflinePushInfo(
+        title: '你有一条新消息',
+        desc: text.length > 50 ? '${text.substring(0, 50)}...' : text,
+        disablePush: false,
+        iOSSound: 'default',
+        ignoreIOSBadge: false,
+        androidOPPOChannelID: 'im_push_channel',
+        ext: jsonEncode(extData),
+      );
+      
+      // 🔥 调试日志：确认 offlinePushInfo 已设置
+      logger.info('🔔 发送消息携带离线推送配置: title=${offlinePushInfo.title}, desc=${offlinePushInfo.desc}, ext=${offlinePushInfo.ext}', tag: 'TencentIMService');
+      
       V2TimValueCallback<V2TimMessage> sendResult = 
           await TencentImSDKPlugin.v2TIMManager
               .getMessageManager()
@@ -386,6 +423,7 @@ class TencentIMService extends GetxService {
                 id: createInfo.id,
                 receiver: isGroup ? '' : receiverID,
                 groupID: isGroup ? receiverID : '',
+                offlinePushInfo: offlinePushInfo,
               );
 
       if (sendResult.code == 0) {
@@ -442,6 +480,24 @@ class TencentIMService extends GetxService {
       final V2TimMsgCreateInfoResult createInfo = createResult.data!;
 
       // 发送图片消息
+      // 🔥 添加离线推送配置
+      final extData = {
+        'scene': 'im_chat',
+        'conversation_id': 'c2c_$receiverID',
+        'sender_id': _currentUserID ?? '',
+        'user_id': receiverID,
+      };
+      
+      final offlinePushInfo = OfflinePushInfo(
+        title: '你有一条新消息',
+        desc: '[图片]',
+        disablePush: false,
+        iOSSound: 'default',
+        ignoreIOSBadge: false,
+        androidOPPOChannelID: 'im_push_channel',
+        ext: jsonEncode(extData),
+      );
+      
       final V2TimValueCallback<V2TimMessage> sendResult =
           await TencentImSDKPlugin.v2TIMManager
               .getMessageManager()
@@ -449,6 +505,7 @@ class TencentIMService extends GetxService {
                 id: createInfo.id,
                 receiver: isGroup ? '' : receiverID,
                 groupID: isGroup ? receiverID : '',
+                offlinePushInfo: offlinePushInfo,
               );
 
       if (sendResult.code == 0) {
@@ -583,12 +640,31 @@ class TencentIMService extends GetxService {
       final createInfo = createResult.data!;
 
       // 发送自定义消息
+      // 🔥 添加离线推送配置（自定义消息也需要离线推送）
+      final extData = {
+        'scene': 'im_chat',
+        'conversation_id': 'c2c_$receiverID',
+        'sender_id': _currentUserID ?? '',
+        'user_id': receiverID,
+      };
+      
+      final offlinePushInfo = OfflinePushInfo(
+        title: '你有一条新消息',
+        desc: '[消息]',
+        disablePush: false,
+        iOSSound: 'default',
+        ignoreIOSBadge: false,
+        androidOPPOChannelID: 'im_push_channel',
+        ext: jsonEncode(extData),
+      );
+      
       final sendResult = await TencentImSDKPlugin.v2TIMManager
           .getMessageManager()
           .sendMessage(
             id: createInfo.id,
             receiver: isGroup ? '' : receiverID,
             groupID: isGroup ? receiverID : '',
+            offlinePushInfo: offlinePushInfo,
           );
 
       if (sendResult.code == 0) {
@@ -937,6 +1013,68 @@ class TencentIMService extends GetxService {
     }
   }
 
+  /// 设置好友关系监听器
+  void _setupFriendshipListener() {
+    if (!_isInitialized) {
+      logger.warning('IM SDK未初始化，无法添加好友关系监听器', tag: 'TencentIMService');
+      return;
+    }
+
+    try {
+      // 先移除旧的监听器（避免重复添加）
+      try {
+        TencentImSDKPlugin.v2TIMManager.getFriendshipManager().removeFriendListener();
+      } catch (e) {
+        // 忽略移除失败的错误
+      }
+
+      // 添加新的好友关系监听器
+      TencentImSDKPlugin.v2TIMManager.getFriendshipManager().addFriendListener(
+        listener: V2TimFriendshipListener(
+          onFriendListAdded: (friendInfoList) {
+            logger.info('📨 检测到好友添加事件', tag: 'TencentIMService');
+            for (final friendInfo in friendInfoList) {
+              logger.info(
+                '新好友: userID=${friendInfo.userID}, nickname=${friendInfo.userProfile?.nickName}',
+                tag: 'TencentIMService',
+              );
+            }
+            // 触发绑定消息处理逻辑
+            _handleBindEvent();
+          },
+          onFriendListDeleted: (userIDList) {
+            logger.info('📨 检测到好友删除事件', tag: 'TencentIMService');
+            for (final userID in userIDList) {
+              logger.info('删除好友: userID=$userID', tag: 'TencentIMService');
+            }
+            // 触发解绑消息处理逻辑
+            _handleUnbindEvent();
+          },
+          onFriendApplicationListAdded: (applicationList) {
+            logger.info('📨 收到好友申请', tag: 'TencentIMService');
+            // 这里可以处理好友申请的通知，但当前主要关注绑定/解绑事件
+          },
+        ),
+      );
+
+      logger.info('✅ 好友关系监听器已成功设置', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('❌ 设置好友关系监听器失败: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 移除好友关系监听器
+  void _removeFriendshipListener() {
+    if (!_isInitialized) return;
+
+    try {
+      TencentImSDKPlugin.v2TIMManager.getFriendshipManager().removeFriendListener();
+      logger.info('好友关系监听器已移除', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('移除好友关系监听器失败: $e', tag: 'TencentIMService');
+    }
+  }
+
   /// 设置新消息接收回调
   /// 
   /// [callback] 接收到新消息时的回调函数
@@ -1190,10 +1328,10 @@ class TencentIMService extends GetxService {
       final authService = getIt<AuthService>();
       await authService.refreshUserInfoFromServer();
       logger.info('✅ 用户信息刷新成功', tag: 'TencentIMService');
-      
+
       // 2. 刷新当前页面
       animationService.refreshCurrentPage();
-      
+
       // 3. 播放解绑动画
       logger.info('🎬 开始播放解绑动画', tag: 'TencentIMService');
       animationService.showUnbindAnimation();
@@ -1201,6 +1339,103 @@ class TencentIMService extends GetxService {
       logger.error('❌ 处理解绑消息失败: $e', tag: 'TencentIMService');
       // 即使失败也播放动画
       animationService.showUnbindAnimation();
+    }
+  }
+
+  /// 处理好友添加事件（绑定事件）
+  /// 当检测到好友添加时，说明绑定成功
+  Future<void> _handleBindEvent() async {
+    try {
+      logger.info('🎉 检测到好友添加事件，执行绑定逻辑', tag: 'TencentIMService');
+
+      // 尝试获取动画服务并执行绑定逻辑
+      try {
+        final animationService = RelationshipAnimationService.instance;
+
+        // 0. 先触发绑定消息回调（关闭可能存在的绑定弹窗）
+        logger.info('💬 触发绑定消息回调，准备关闭绑定弹窗...', tag: 'TencentIMService');
+        if (onBindMessageReceived.value != null) {
+          onBindMessageReceived.value!();
+          logger.info('✅ 绑定消息回调已触发', tag: 'TencentIMService');
+          // 等待弹窗关闭动画完成
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+
+        // 1. 先刷新用户信息
+        logger.info('📥 开始刷新用户信息...', tag: 'TencentIMService');
+        final authService = getIt<AuthService>();
+        await authService.refreshUserInfoFromServer();
+        logger.info('✅ 用户信息刷新成功', tag: 'TencentIMService');
+
+        // 2. 刷新当前页面
+        animationService.refreshCurrentPage();
+
+        // 3. 播放绑定动画，动画完成后根据会员状态决定是否跳转到VIP页面
+        logger.info('🎬 开始播放绑定动画', tag: 'TencentIMService');
+        animationService.showBindAnimation(onComplete: () {
+          logger.info('🎯 绑定动画播放完成回调被触发', tag: 'TencentIMService');
+          try {
+            final isVip = authService.isVip;
+            logger.info('当前用户VIP状态: $isVip', tag: 'TencentIMService');
+            if (!isVip) {
+              logger.info('📍 当前为非会员用户，准备跳转到VIP页面...', tag: 'TencentIMService');
+              final result = Get.toNamed(
+                KissuRoutePath.vip,
+                arguments: {
+                  'previousPageName': 'IM好友添加事件',
+                  'previousPageId': 'im_friend_add',
+                },
+              );
+              logger.info('✅ VIP页面跳转已触发，返回值: $result', tag: 'TencentIMService');
+            } else {
+              logger.info('🎉 当前用户已是VIP，不跳转开通会员页面', tag: 'TencentIMService');
+            }
+          } catch (e) {
+            logger.error('❌ 处理绑定动画完成后的跳转逻辑失败: $e', tag: 'TencentIMService');
+          }
+        });
+      } catch (e) {
+        logger.warning('动画服务未初始化或调用失败: $e', tag: 'TencentIMService');
+      }
+    } catch (e) {
+      logger.error('❌ 处理好友添加事件失败: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 处理好友删除事件（解绑事件）
+  /// 当检测到好友删除时，说明解绑成功
+  Future<void> _handleUnbindEvent() async {
+    try {
+      logger.info('💔 检测到好友删除事件，执行解绑逻辑', tag: 'TencentIMService');
+
+      // 尝试获取动画服务并执行解绑逻辑
+      try {
+        final animationService = RelationshipAnimationService.instance;
+
+        // 1. 先刷新用户信息
+        logger.info('📥 开始刷新用户信息...', tag: 'TencentIMService');
+        final authService = getIt<AuthService>();
+        await authService.refreshUserInfoFromServer();
+        logger.info('✅ 用户信息刷新成功', tag: 'TencentIMService');
+
+        // 2. 刷新当前页面
+        animationService.refreshCurrentPage();
+
+        // 3. 播放解绑动画
+        logger.info('🎬 开始播放解绑动画', tag: 'TencentIMService');
+        animationService.showUnbindAnimation();
+      } catch (e) {
+        logger.warning('动画服务未初始化或调用失败: $e', tag: 'TencentIMService');
+        // 即使失败也尝试播放动画
+        try {
+          final animationService = RelationshipAnimationService.instance;
+          animationService.showUnbindAnimation();
+        } catch (e2) {
+          logger.error('❌ 播放解绑动画失败: $e2', tag: 'TencentIMService');
+        }
+      }
+    } catch (e) {
+      logger.error('❌ 处理好友删除事件失败: $e', tag: 'TencentIMService');
     }
   }
 
@@ -1492,7 +1727,7 @@ class TencentIMService extends GetxService {
   }
 
   /// 检查IM状态并打印详细信息
-  /// 
+  ///
   /// 用于调试，查看当前IM的状态
   void checkIMStatus() {
     logger.info('====== IM状态检查 ======', tag: 'TencentIMService');
@@ -1504,41 +1739,113 @@ class TencentIMService extends GetxService {
     logger.info('========================', tag: 'TencentIMService');
   }
 
+  /// 检查推送状态并打印详细信息
+  ///
+  /// 用于调试推送功能
+  Future<void> checkPushStatus() async {
+    logger.info('====== 推送状态检查 ======', tag: 'TencentIMService');
+
+    try {
+      // 检查基础状态
+      logger.info('📱 设备信息: ${await _getDeviceBrand()}', tag: 'TencentIMService');
+      logger.info('🔧 IM服务初始化状态: $_isInitialized', tag: 'TencentIMService');
+      logger.info('🔐 IM登录状态: $_isLoggedIn', tag: 'TencentIMService');
+      logger.info('👤 当前用户ID: $_currentUserID', tag: 'TencentIMService');
+
+      // 检查推送相关配置
+      logger.info('🔑 推送AppKey配置: ${pushAppKey.isNotEmpty ? "已配置" : "未配置"}', tag: 'TencentIMService');
+      logger.info('🆔 SDK AppID: $sdkAppID', tag: 'TencentIMService');
+
+      // 检查消息监听器状态
+      logger.info('📨 消息监听器状态:', tag: 'TencentIMService');
+      logger.info('  - 新消息回调: ${onReceiveNewMessage.value != null ? "已设置" : "未设置"}', tag: 'TencentIMService');
+      logger.info('  - 消息撤回回调: ${onRecvMessageRevoked.value != null ? "已设置" : "未设置"}', tag: 'TencentIMService');
+
+      logger.info('🔍 推送问题排查建议:', tag: 'TencentIMService');
+      logger.info('1. 📋 检查腾讯云IM控制台推送证书配置', tag: 'TencentIMService');
+      logger.info('2. 📱 检查设备厂商推送服务是否开启', tag: 'TencentIMService');
+      logger.info('3. 🔔 检查应用通知权限是否开启', tag: 'TencentIMService');
+      logger.info('4. 🔋 检查电池优化设置', tag: 'TencentIMService');
+      logger.info('5. 🌐 检查网络连接状态', tag: 'TencentIMService');
+      logger.info('6. 📝 查看推送注册的详细日志', tag: 'TencentIMService');
+      logger.info('7. 🧪 使用推送测试功能验证', tag: 'TencentIMService');
+
+      logger.info('========================', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('检查推送状态失败: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 手动触发推送测试
+  ///
+  /// 用于测试推送通道是否正常
+  Future<void> testPushNotification() async {
+    try {
+      logger.info('🔍 开始推送测试...', tag: 'TencentIMService');
+
+      // 发送一条测试消息给自己（会触发离线推送）
+      if (_isLoggedIn && _currentUserID != null) {
+        await sendCustomMessage(
+          receiverID: _currentUserID!,
+          customData: '{"type":"push_test","message":"推送测试消息"}',
+        );
+        logger.info('✅ 已发送测试消息给自己，请退出应用等待离线推送', tag: 'TencentIMService');
+      } else {
+        logger.warning('❌ IM未登录，无法进行推送测试', tag: 'TencentIMService');
+      }
+    } catch (e) {
+      logger.error('推送测试失败: $e', tag: 'TencentIMService');
+    }
+  }
+
   /// 注册推送服务
-  /// 
+  ///
   /// 在IM登录成功后调用，用于启用离线推送功能
-  /// 
-  /// 注意：需要先在腾讯云IM控制台配置推送证书和密钥
-  /// 1. Android: 需要配置FCM或厂商通道（小米、华为、OPPO、vivo、魅族等）
-  /// 2. 获取客户端密钥（appKey）
+  ///
+  /// 已配置的厂商通道（Android）：
+  /// - 小米推送（证书ID: 45159）
+  /// - 华为推送（证书ID: 45160）
+  /// - 魅族推送（证书ID: 45161）
+  /// - vivo推送（证书ID: 45162）
+  /// - OPPO推送（证书ID: 45163）
+  /// - 荣耀推送（证书ID: 45164）
+  ///
+  /// 注意：
+  /// - Android端厂商推送配置在timpush-configs.json中，插件会自动读取
+  /// - 必须传入sdkAppId参数，让插件关联到正确的配置
   Future<void> _registerPushService() async {
     try {
-      // TODO: 从腾讯云IM控制台获取appKey并配置
-      // 获取方式：
-      // 1. 登录腾讯云IM控制台：https://console.cloud.tencent.com/im
-      // 2. 进入应用（SDKAppID: 1600095370）
-      // 3. 在"应用配置" -> "离线推送配置"中获取"客户端密钥"
-      const String? appKey = null; // 🔥 需要从控制台获取并配置
+      logger.info('开始注册推送服务（sdkAppId: $sdkAppID）', tag: 'TencentIMService');
 
-      if (appKey == null || appKey.isEmpty) {
-        logger.warning(
-          '推送服务注册跳过：appKey未配置。'
-          '请在腾讯云IM控制台获取客户端密钥，并在代码中配置appKey',
-          tag: 'TencentIMService',
-        );
+      // 🔥 检查appKey是否已配置
+      if (pushAppKey.isEmpty) {
+        logger.error('❌ 腾讯云IM推送appKey未配置！', tag: 'TencentIMService');
+        logger.error('请从腾讯云IM控制台获取appKey：', tag: 'TencentIMService');
+        logger.error('路径：IM控制台 > 推送服务Push > 接入设置', tag: 'TencentIMService');
+        logger.error('获取后填入 TencentIMService.pushAppKey 常量', tag: 'TencentIMService');
         return;
       }
 
-      // 注册推送服务（Android平台，apnsCertificateID传null）
-      TencentCloudChatPush().registerPush(
+      // 🔥 调试信息：检查设备信息和推送配置
+      final loginUser = await TencentImSDKPlugin.v2TIMManager.getLoginUser();
+      logger.info('🔍 推送调试信息:', tag: 'TencentIMService');
+      logger.info('  - 当前登录用户ID (SDK): $loginUser', tag: 'TencentIMService');
+      logger.info('  - 当前登录用户ID (缓存): $_currentUserID', tag: 'TencentIMService');
+      logger.info('  - 设备厂商: ${await _getDeviceBrand()}', tag: 'TencentIMService');
+      // 注册推送服务
+      // sdkAppId: 必须传入，用于关联timpush-configs.json中的厂商配置
+      // appKey: 🔥 必须传入！从IM控制台 > 推送服务Push > 接入设置 获取
+      // apnsCertificateID: iOS平台的APNs证书ID，Android平台传null
+      final result = await TencentCloudChatPush().registerPush(
         sdkAppId: sdkAppID,
-        appKey: appKey,
+        appKey: pushAppKey, // 🔥 关键！必须传入客户端密钥
         apnsCertificateID: null, // Android平台不需要APNS证书
         onNotificationClicked: ({
           required String ext,
           String? userID,
           String? groupID,
         }) {
+          logger.info('📱 推送通知被点击: ext=$ext, userID=$userID, groupID=$groupID', tag: 'TencentIMService');
           _handlePushNotificationClick(
             ext: ext,
             userID: userID,
@@ -1547,10 +1854,61 @@ class TencentIMService extends GetxService {
         },
       );
 
-      logger.info('推送服务注册成功（Android平台）', tag: 'TencentIMService');
-    } catch (e) {
+      logger.info('✅ 推送服务注册完成', tag: 'TencentIMService');
+      logger.info('📊 推送注册结果类型: ${result.runtimeType}', tag: 'TencentIMService');
+      logger.info('📊 推送注册结果详情: $result', tag: 'TencentIMService');
+
+      // 🔥 检查注册结果
+      logger.info('✅ 推送注册成功！结果: $result', tag: 'TencentIMService');
+
+      // 🔥 禁用前台通知（App在前台时不显示通知栏推送）
+      // 后台通知由原生层的自定义推送监听器处理
+      await TencentCloudChatPush().disablePostNotificationInForeground(disable: true);
+      logger.info('已禁用前台通知显示', tag: 'TencentIMService');
+      
+      // 🔥 获取推送设备ID（RegistrationID），用于验证推送注册是否成功
+      try {
+        final registrationID = await TencentCloudChatPush().getRegistrationID();
+        logger.info('📱 推送设备ID (RegistrationID): $registrationID', tag: 'TencentIMService');
+      } catch (e) {
+        logger.error('获取推送设备ID失败: $e', tag: 'TencentIMService');
+      }
+
+      logger.info('🔧 请按以下步骤检查配置：', tag: 'TencentIMService');
+      logger.info('1. ✅ timpush-configs.json 已放置在 android/app/src/main/assets/ 目录', tag: 'TencentIMService');
+      logger.info('2. ✅ Application类已继承TencentCloudChatPushApplication', tag: 'TencentIMService');
+      logger.info('3. ✅ 厂商SDK依赖已正确添加到build.gradle.kts', tag: 'TencentIMService');
+      logger.info('4. ❓ 腾讯云IM控制台推送证书配置检查：', tag: 'TencentIMService');
+      logger.info('   - 登录腾讯云IM控制台', tag: 'TencentIMService');
+      logger.info('   - 进入 [推送服务Push] > [接入设置]', tag: 'TencentIMService');
+      logger.info('   - 确认客户端密钥(appKey)已正确配置', tag: 'TencentIMService');
+      logger.info('   - 为以下厂商配置推送证书：', tag: 'TencentIMService');
+      logger.info('     * 小米推送 (businessId: 45159)', tag: 'TencentIMService');
+      logger.info('     * 华为推送 (businessId: 45160)', tag: 'TencentIMService');
+      logger.info('     * 魅族推送 (businessId: 45161)', tag: 'TencentIMService');
+      logger.info('     * vivo推送 (businessId: 45162)', tag: 'TencentIMService');
+      logger.info('     * OPPO推送 (businessId: 45163)', tag: 'TencentIMService');
+      logger.info('     * 荣耀推送 (businessId: 45164)', tag: 'TencentIMService');
+      logger.info('5. ❓ 设备厂商推送服务检查：', tag: 'TencentIMService');
+      logger.info('   - 华为设备：设置 > 应用 > 应用启动 > 允许自启动', tag: 'TencentIMService');
+      logger.info('   - 小米设备：设置 > 应用设置 > 权限管理 > 允许后台运行', tag: 'TencentIMService');
+      logger.info('   - vivo设备：设置 > 电池 > 高耗电应用 > 允许后台运行', tag: 'TencentIMService');
+      logger.info('   - OPPO设备：设置 > 电池 > 应用快速启动', tag: 'TencentIMService');
+      logger.info('   - 荣耀设备：设置 > 应用 > 权限管理 > 通知权限', tag: 'TencentIMService');
+    } catch (e, stackTrace) {
       logger.error('推送服务注册失败: $e', tag: 'TencentIMService');
+      logger.error('堆栈信息: $stackTrace', tag: 'TencentIMService');
       // 推送注册失败不影响IM登录，只记录错误
+    }
+  }
+
+  /// 获取设备厂商信息（用于调试）
+  Future<String> _getDeviceBrand() async {
+    try {
+      // 这里可以调用设备信息插件获取厂商信息
+      return '请查看AndroidManifest.xml中的厂商配置';
+    } catch (e) {
+      return 'Error: $e';
     }
   }
 

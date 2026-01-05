@@ -8,6 +8,25 @@ import 'package:kissu_app/pages/location/poi_search/poi_search_controller.dart';
 class PoiSearchPage extends GetView<PoiSearchController> {
   const PoiSearchPage({super.key});
 
+  String _formatCityDisplay(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return '';
+
+    final matches = RegExp(r'([\u4e00-\u9fa5]{1,20}市)').allMatches(text);
+    String? cityWithSuffix;
+    for (final m in matches) {
+      cityWithSuffix = m.group(1);
+    }
+    if (cityWithSuffix != null && cityWithSuffix.isNotEmpty) {
+      return cityWithSuffix.replaceAll('市', '');
+    }
+
+    var normalized = text;
+    normalized = normalized.replaceAll(RegExp(r'.*?(省|自治区|特别行政区)'), '');
+    normalized = normalized.replaceAll(RegExp(r'.*?市'), '');
+    return normalized;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,7 +165,7 @@ class PoiSearchPage extends GetView<PoiSearchController> {
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: 90),
                       child: Text(
-                        city?.cityName.replaceAll('市', '') ?? '选择城市',
+                        city == null ? '选择城市' : _formatCityDisplay(city.cityName),
                         style: const TextStyle(fontSize: 13),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

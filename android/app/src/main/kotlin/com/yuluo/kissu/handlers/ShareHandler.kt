@@ -30,10 +30,17 @@ class ShareHandler(private val activity: Activity) {
     fun handleMethodCall(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             // 友盟分享 SDK 初始化（Flutter 侧在用户同意隐私之后调用）
-            // 目前主要依赖统计侧的 UMConfigure.init，这里不重复初始化，只做日志标记
+            // 🔥 隐私合规修复：在用户同意隐私政策后才初始化友盟SDK
             "umInit" -> {
-                Log.d(TAG, "收到 umInit 调用（初始化在 AnalyticsHandler 中统一处理）")
-                result.success(null)
+                try {
+                    Log.d(TAG, "收到 umInit 调用，开始初始化友盟SDK...")
+                    com.yuluo.kissu.KissuApplication.initUmengSdk(activity.applicationContext)
+                    Log.d(TAG, "✅ 友盟SDK初始化完成")
+                    result.success(null)
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ 友盟SDK初始化失败", e)
+                    result.error("INIT_FAILED", "友盟SDK初始化失败: ${e.message}", null)
+                }
             }
 
             // 配置微信 / QQ 平台

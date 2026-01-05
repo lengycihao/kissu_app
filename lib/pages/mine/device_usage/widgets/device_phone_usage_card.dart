@@ -2,19 +2,23 @@ import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 
 /// 首页「Ta的手机使用记录」卡片
 /// 只负责 UI，点击行为由外部通过 [onTap] 控制。
 class DevicePhoneUsageCard extends StatelessWidget {
+
+  final DeviceUsageController controller;
+  final VoidCallback onTap;
+  final VoidCallback? onVipTap; // 未开通会员时点击跳转开通会员
+
   const DevicePhoneUsageCard({
     super.key,
     required this.controller,
     required this.onTap,
+    this.onVipTap,
   });
-
-  final DeviceUsageController controller;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -44,91 +48,92 @@ class DevicePhoneUsageCard extends StatelessWidget {
                         // 左侧圆环模块
                         Expanded(
                           flex: 174,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9F9F9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Obx(() {
-                                // 已绑定但未开会员时显示星号
-                                if (controller.isUserBound.value &&
-                                    !controller.isUserVip.value) {
-                                  return const _CircularProgressWithStars();
-                                }
-                                return _CircularProgress(
-                                  hours: controller.screenUsageHours.value,
-                                  minutes: controller.screenUsageMinutes.value,
-                                  progress:
-                                      controller.getCircularProgress(),
-                                );
-                              }),
-                            ),
-                          ),
+                          child: Obx(() {
+                            final needsVip = controller.isUserBound.value &&
+                                !controller.isUserVip.value;
+                            return GestureDetector(
+                              onTap: needsVip ? onVipTap : onTap,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF9F9F9),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: needsVip
+                                      ? const _CircularProgressWithStars()
+                                      : _CircularProgress(
+                                          hours: controller.screenUsageHours.value,
+                                          minutes: controller.screenUsageMinutes.value,
+                                          progress: controller.getCircularProgress(),
+                                        ),
+                                ),
+                              ),
+                            );
+                          }),
                         ),
                         const SizedBox(width: 10),
                         // 右侧统计数据
                         Expanded(
                           flex: 131,
-                          child: Column(
-                            children: [
-                              // 解锁次数
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF9F9F9),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  child: Obx(() {
-                                    final value =
-                                        (controller.isUserBound.value &&
-                                                !controller.isUserVip.value)
+                          child: Obx(() {
+                            final needsVip = controller.isUserBound.value &&
+                                !controller.isUserVip.value;
+                            return Column(
+                              children: [
+                                // 解锁次数
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: needsVip ? onVipTap : onTap,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF9F9F9),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      child: _StatItem(
+                                        iconPath:
+                                            'assets/4.0/kissu4_new_use_times_pic.webp',
+                                        label: '解锁手机次数',
+                                        value: needsVip
                                             ? '*'
-                                            : '${controller.unlockCount.value}';
-                                    return _StatItem(
-                                      iconPath:
-                                          'assets/4.0/kissu4_new_use_times_pic.webp',
-                                      label: '解锁手机次数',
-                                      value: value,
-                                      unit: '次',
-                                    );
-                                  }),
+                                            : '${controller.unlockCount.value}',
+                                        unit: '次',
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              // 最近使用时长
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF9F9F9),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  child: Obx(() {
-                                    final value =
-                                        (controller.isUserBound.value &&
-                                                !controller.isUserVip.value)
+                                const SizedBox(height: 10),
+                                // 最近使用时长
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: needsVip ? onVipTap : onTap,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF9F9F9),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      child: _StatItem(
+                                        iconPath:
+                                            'assets/4.0/kissu4_new_use_time_pic.webp',
+                                        label: '最近使用时长',
+                                        value: needsVip
                                             ? '*'
-                                            : '${controller.recentUsageMinutes.value}';
-                                    return _StatItem(
-                                      iconPath:
-                                          'assets/4.0/kissu4_new_use_time_pic.webp',
-                                      label: '最近使用时长',
-                                      value: value,
-                                      unit: '分钟',
-                                    );
-                                  }),
+                                            : '${controller.recentUsageMinutes.value}',
+                                        unit: '分钟',
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            );
+                          }),
                         ),
                       ],
                     ),
@@ -136,19 +141,21 @@ class DevicePhoneUsageCard extends StatelessWidget {
                 ],
               ),
             ),
-            // 毛玻璃蒙版（未绑定或已绑定未开会员时显示）
+            // 毛玻璃蒙版（仅未绑定时显示）
             Obx(() {
               final isBound = controller.isUserBound.value;
-              final isVip = controller.isUserVip.value;
-              if (!isBound || (isBound && !isVip)) {
+              if (!isBound) {
                 return Positioned(
                   top: 40,
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: _FrostedGlassMask(
-                    text: '实时查看Ta的手机使用报告',
-                    isVipButton: isBound && !isVip,
+                  child: GestureDetector(
+                    onTap: onTap,
+                    child: const _FrostedGlassMask(
+                      text: '实时查看Ta的手机使用报告',
+                      isVipButton: false,
+                    ),
                   ),
                 );
               }
@@ -512,13 +519,15 @@ class _FrostedGlassMask extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 32),
+                 
                   Image.asset(
-                    isVipButton
-                        ? 'assets/images/kissu3_go_vip.webp'
-                        : 'assets/images/kissu3_go_bind.webp',
-                    width: isVipButton ? 179 : 176,
-                    height:isVipButton?60: 44,
-                  ),
+                      isVipButton
+                          ? 'assets/gif/kissu_vip.gif' // 已绑定未开会员
+                          : 'assets/gif/kissu_bind.gif', // 未绑定
+                      width: isVipButton ? 179 : 176,
+                    height: isVipButton ? 60 : 44,
+                      fit: BoxFit.contain,
+                    ),
                 ],
               ),
             ),

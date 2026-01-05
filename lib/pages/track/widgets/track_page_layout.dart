@@ -72,25 +72,33 @@ class _TrackPageLayoutState extends State<TrackPageLayout>
           // 地图组件
           TrackMapWidget(controller: widget.controller),
 
-          // 渐变背景遮罩（在背景图片上方，避免覆盖按钮区域）
+          // 渐变背景遮罩（在背景图片上方）
           Positioned(
             top: 0,
             left: 0,
-            right: 120, // 右侧留出空间给按钮，避免覆盖
+            right: 0,
             height: 160,
             child: Obx(() {
-              // 计算透明度：从底部吸顶到顶部吸顶时，从0x00ffffff变成0x99ffffff
+              // 计算透明度：从中间吸顶位置到顶部吸顶时，从0x00ffffff变成0x99ffffff
               final currentPercent = widget.controller.sheetPercent.value;
-              final minPercent = _sheetManager.getMinHeight() / MediaQuery.of(Get.context!).size.height;
-              final maxPercent = _sheetManager.maxHeight / MediaQuery.of(Get.context!).size.height;
+              final screenHeight = MediaQuery.of(Get.context!).size.height;
+              
+              // 计算中间吸顶位置
+              final actualBindStatus = widget.controller.getActualBindStatus();
+              final middleSnapSize = actualBindStatus
+                  ? 0.5 + (21 / screenHeight)
+                  : 0.5 + (57 / screenHeight);
+              
+              // 顶部吸顶位置
+              final maxPercent = _sheetManager.maxHeight / screenHeight;
 
               double opacity = 0.0;
-              if (currentPercent > minPercent) {
+              if (currentPercent > middleSnapSize) {
                 if (currentPercent >= maxPercent) {
                   opacity = 0.7; // 0xb3ffffff 的 alpha 值是 0.7
                 } else {
-                  // 在中间位置时线性插值
-                  opacity = 0.7 * ((currentPercent - minPercent) / (maxPercent - minPercent));
+                  // 从中间吸顶到顶部吸顶时线性插值
+                  opacity = 0.7 * ((currentPercent - middleSnapSize) / (maxPercent - middleSnapSize));
                 }
               }
 

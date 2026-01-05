@@ -123,13 +123,19 @@ class MyApp extends StatelessWidget {
           return _UnknownRouteHandler();
         },
       ),
-      // 全局 builder，用于在所有页面上叠加截图反馈按钮
+       
       builder: (context, child) {
-        return Stack(
-          children: [
-            child ?? const SizedBox.shrink(),
-            // 全局截图反馈浮动按钮
-          ],
+        // 🎯 禁用系统字体缩放，防止手机字体调大后布局错乱
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling,
+          ),
+          child: Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              
+            ],
+          ),
         );
       },
     );

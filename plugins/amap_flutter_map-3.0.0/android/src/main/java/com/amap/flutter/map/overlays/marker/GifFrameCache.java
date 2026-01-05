@@ -75,19 +75,54 @@ public class GifFrameCache {
     }
     
     /**
-     * 检查是否已缓存
+     * 检查是否已缓存（同时验证帧有效性）
      */
     public boolean isCached(String assetPath, int width, int height) {
         String key = getCacheKey(assetPath, width, height);
-        return cache.containsKey(key);
+        CachedGif cached = cache.get(key);
+        if (cached == null) {
+            return false;
+        }
+        // 🎯 检查帧是否有效，如果已被回收则清除缓存
+        if (!isFramesValid(cached)) {
+            LogUtil.e(TAG, "⚠️ isCached: 缓存的GIF帧已被回收，清除无效缓存: " + key, null);
+            cache.remove(key);
+            return false;
+        }
+        return true;
     }
     
     /**
      * 获取缓存的GIF
+     * 🎯 增加帧有效性检查，如果帧已被回收则清除缓存并返回null
      */
     public CachedGif getCached(String assetPath, int width, int height) {
         String key = getCacheKey(assetPath, width, height);
-        return cache.get(key);
+        CachedGif cached = cache.get(key);
+        
+        // 检查缓存的帧是否有效（未被回收）
+        if (cached != null && !isFramesValid(cached)) {
+            LogUtil.e(TAG, "⚠️ 缓存的GIF帧已被回收，清除无效缓存: " + key, null);
+            cache.remove(key);
+            return null;
+        }
+        
+        return cached;
+    }
+    
+    /**
+     * 检查缓存的帧是否有效（未被回收）
+     */
+    private boolean isFramesValid(CachedGif cached) {
+        if (cached == null || cached.frames == null || cached.frames.isEmpty()) {
+            return false;
+        }
+        for (Bitmap frame : cached.frames) {
+            if (frame == null || frame.isRecycled()) {
+                return false;
+            }
+        }
+        return true;
     }
     
     /**

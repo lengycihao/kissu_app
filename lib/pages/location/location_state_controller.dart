@@ -3,8 +3,7 @@ import 'package:kissu_app/network/public/face_status_api.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/emoji_cache_manager.dart';
-import 'package:kissu_app/pages/location/location_v2_controller.dart'; 
-import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/pages/location/location_v2_controller.dart';
 
 /// 状态设置页面控制器
 class LocationStateController extends GetxController {
@@ -152,8 +151,10 @@ class LocationStateController extends GetxController {
         // 缓存表情分类数据
         await _cacheManager.cacheEmojiCategories(newCategories);
         
-        // 设置当前状态
-        if (data.nowFace != null) {
+        // 设置当前状态（需要检查nowFace是否有效：不为null且有内容）
+        if (data.nowFace != null && 
+            data.nowFace!.faceText.isNotEmpty && 
+            data.nowFace!.faceUrl.isNotEmpty) {
           final nowFace = data.nowFace!;
           hasStatus.value = true;
           currentStatusId.value = nowFace.id;
@@ -224,45 +225,49 @@ class LocationStateController extends GetxController {
   final originalStatusEmoji = Rx<String?>(null);
   final originalStatusText = Rx<String?>(null);
   
-  /// 选择表情 - 直接显示底部有效期选择弹窗
+  /// 选择表情
+  /// - 新设置时：显示底部有效期选择弹窗
+  /// - 编辑时：直接回显到顶部状态区域，点击保存按钮保存
   void selectEmoji(EmojiItem emoji) {
-    selectedEmoji.value = emoji;
-    tempExpireHours.value = 1; // 底部弹窗有效期固定初始为1小时
-  }
-  
-  /// 显示替换确认弹窗的回调（由页面设置）
-  Function()? onShowReplaceDialog;
-  
-  /// 显示替换确认弹窗
-  void _showReplaceConfirmDialog() {
-    onShowReplaceDialog?.call();
-  }
-  
-  /// 确认设置状态 - 在底部弹窗点击确认时调用
-  void confirmSetStatus() {
-    if (selectedEmoji.value == null) return;
+    DebugUtil.info('🎯 选择表情: ${emoji.name}, hasStatus: ${hasStatus.value}');
     
-    // 如果当前没有状态，直接调用接口设置状态
-    if (!hasStatus.value) {
-      selectedExpireHours.value = tempExpireHours.value;
-      topExpireHours.value = tempExpireHours.value; // 同步到顶部有效期
-      _doSetStatus();
-    } else {
-      // 有状态时，直接替换当前状态显示，但不调用接口
-      // 如果是第一次设置临时状态，保存原始状态
+    if (hasStatus.value) {
+      // 编辑模式：直接回显到顶部状态区域
+      DebugUtil.info('✏️ 编辑模式：直接回显到顶部');
+      
+      // 保存原始状态（用于取消时恢复）
       if (!hasTempStatus.value) {
         originalStatusEmoji.value = currentStatusEmoji.value;
         originalStatusText.value = currentStatusText.value;
       }
       
-      currentStatusEmoji.value = selectedEmoji.value!.emoji;
-      currentStatusText.value = selectedEmoji.value!.name;
-      tempSelectedEmoji.value = selectedEmoji.value;
-      tempSelectedExpireHours.value = tempExpireHours.value;
+      // 直接更新顶部状态显示
+      currentStatusEmoji.value = emoji.emoji;
+      currentStatusText.value = emoji.name;
+      
+      // 设置临时状态
+      tempSelectedEmoji.value = emoji;
+      tempSelectedExpireHours.value = topExpireHours.value;
       hasTempStatus.value = true;
-      // 关闭底部弹窗
-      selectedEmoji.value = null;
+      
+      // 不显示底部弹窗（selectedEmoji保持为null）
+    } else {
+      // 新设置模式：显示底部弹窗选择有效期
+      DebugUtil.info('🆕 新设置模式：显示底部弹窗');
+      selectedEmoji.value = emoji;
+      tempExpireHours.value = 1; // 默认1小时
     }
+  }
+  
+  
+  /// 确认设置状态 - 在底部弹窗点击确认时调用
+  /// 新设置时不回显到顶部，只刷新父页面
+  void confirmSetStatus() {
+    if (selectedEmoji.value == null) return;
+
+    selectedExpireHours.value = tempExpireHours.value;
+    topExpireHours.value = tempExpireHours.value;
+    _doSetStatus(isNewStatus: !hasStatus.value); // 如果当前无状态，则为新设置
   }
   
   /// 确认替换状态 - 在替换弹窗点击"确认"时调用
@@ -291,41 +296,45 @@ class LocationStateController extends GetxController {
   }
   
   /// 执行设置状态的实际操作（保存成功后返回定位页面并刷新）
-  Future<void> _doSetStatus() async {
-    if (selectedEmoji.value == null) return;
+  Future<void> _doSetStatus({bool isNewStatus = false, EmojiItem? emoji}) async {
+    // 如果没有传入emoji，使用selectedEmoji
+    final emojiToUse = emoji ?? selectedEmoji.value;
+    if (emojiToUse == null) return;
     
     try {
       // 调用接口设置状态
       final result = await _api.setFaceStatus(
-        faceId: selectedEmoji.value!.id,
+        faceId: emojiToUse.id,
         faceExpire: selectedExpireHours.value,
       );
-      
+
       if (result.isSuccess) {
-        // 设置成功，更新本地状态
-        currentStatusId.value = selectedEmoji.value!.id;
-        currentStatusEmoji.value = selectedEmoji.value!.emoji;
-        currentStatusText.value = selectedEmoji.value!.name;
-        hasStatus.value = true;
-        statusExpireTime.value = DateTime.now().add(
-          Duration(hours: selectedExpireHours.value)
-        );
-        
-        // 更新缓存
-        final statusData = CurrentStatusData(
-          hasStatus: hasStatus.value,
-          currentStatusId: currentStatusId.value,
-          currentStatusText: currentStatusText.value,
-          currentStatusEmoji: currentStatusEmoji.value,
-          statusExpireTime: statusExpireTime.value,
-          selectedExpireHours: selectedExpireHours.value,
-          topExpireHours: topExpireHours.value,
-        );
-        await _cacheManager.cacheCurrentStatus(statusData);
-        
+        if (!isNewStatus) {
+          // 编辑模式：更新本地状态
+          currentStatusId.value = emojiToUse.id;
+          currentStatusEmoji.value = emojiToUse.emoji;
+          currentStatusText.value = emojiToUse.name;
+          hasStatus.value = true;
+          statusExpireTime.value = DateTime.now().add(
+            Duration(hours: selectedExpireHours.value)
+          );
+
+          // 更新缓存
+          final statusData = CurrentStatusData(
+            hasStatus: hasStatus.value,
+            currentStatusId: currentStatusId.value,
+            currentStatusText: currentStatusText.value,
+            currentStatusEmoji: currentStatusEmoji.value,
+            statusExpireTime: statusExpireTime.value,
+            selectedExpireHours: selectedExpireHours.value,
+            topExpireHours: topExpireHours.value,
+          );
+          await _cacheManager.cacheCurrentStatus(statusData);
+        }
+
         DebugUtil.info('✅ 设置状态成功');
         OKToastUtil.show('状态已设置');
-        
+
         // 返回定位页面并刷新数据
         _returnToLocationPageAndRefresh();
       } else {
@@ -404,6 +413,27 @@ class LocationStateController extends GetxController {
         currentStatusText.value = '';
         currentStatusEmoji.value = '';
         statusExpireTime.value = null;
+        selectedExpireHours.value = 1;
+        topExpireHours.value = 1;
+        
+        // 清空临时状态
+        tempSelectedEmoji.value = null;
+        tempSelectedExpireHours.value = null;
+        hasTempStatus.value = false;
+        originalStatusEmoji.value = null;
+        originalStatusText.value = null;
+        
+        // 更新缓存（标记为无状态）
+        final statusData = CurrentStatusData(
+          hasStatus: false,
+          currentStatusId: 0,
+          currentStatusText: '',
+          currentStatusEmoji: '',
+          statusExpireTime: null,
+          selectedExpireHours: 1,
+          topExpireHours: 1,
+        );
+        await _cacheManager.cacheCurrentStatus(statusData);
         
         DebugUtil.info('✅ 删除状态成功');
         OKToastUtil.show('状态已删除');
@@ -434,10 +464,14 @@ class LocationStateController extends GetxController {
   }
   
   /// 保存状态（公共方法）- 点击顶部保存按钮时调用
+  /// 直接调用设置接口，不再弹出二次确认弹窗
   void saveStatus() {
-    // 如果有临时状态，需要确认是否替换
+    // 如果有临时状态，直接调用接口设置（编辑模式）
     if (hasTempStatus.value && tempSelectedEmoji.value != null) {
-      _showReplaceConfirmDialog();
+      selectedExpireHours.value = tempSelectedExpireHours.value ?? topExpireHours.value;
+      topExpireHours.value = selectedExpireHours.value;
+      // 直接传入emoji，不设置selectedEmoji，避免弹窗显示
+      _doSetStatus(isNewStatus: false, emoji: tempSelectedEmoji.value);
     } else if (hasStatus.value && topExpireHours.value != selectedExpireHours.value) {
       // 只有有效期变化，使用设置状态接口更新
       _setStatusWithExpireOnly();

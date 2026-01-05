@@ -143,7 +143,7 @@ class MessageListController extends GetxController {
         homeController.isRedDot.value = false;
       }
 
-      OKToastUtil.show('已清空消息');
+      OKToastUtil.show('操作成功');
       debugPrint('✅ 已清空消息（红点）');
     } catch (e) {
       debugPrint('❌ 清空消息失败: $e');

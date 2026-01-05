@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -81,8 +83,12 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
   final FileUploadApi _fileUploadApi = FileUploadApi();
   final PhotoWallApi _photoWallApi = PhotoWallApi();
 
+  // 默认照片墙图片路径
+  static const String _defaultPhotoWallAsset = 'assets/3.0/kissu3_love_avater.webp';
+
   File? _selectedImageFile; // 选中的本地图片文件
   bool _isUploading = false; // 是否正在上传
+  bool _isResetToDefault = false; // 是否已点击恢复默认
 
   /// 选择头像
   Future<void> _pickAvatar() async {
@@ -359,6 +365,19 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
       );
     }
 
+    // 🔥 如果已点击恢复默认，显示默认图片
+    if (_isResetToDefault) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.asset(
+          _defaultPhotoWallAsset,
+          fit: BoxFit.cover,
+          width: 100,
+          height: 100,
+        ),
+      );
+    }
+
     // 如果有网络图片URL，显示网络图片
     if (widget.currentPhotoWallUrl != null &&
         widget.currentPhotoWallUrl!.isNotEmpty &&
@@ -371,7 +390,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           width: 100,
           height: 100,
           errorWidget: Image.asset(
-            "assets/3.0/kissu3_love_avater.webp",
+            _defaultPhotoWallAsset,
             fit: BoxFit.cover,
             width: 100,
             height: 100,
@@ -384,7 +403,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Image.asset(
-        "assets/3.0/kissu3_love_avater.webp",
+        _defaultPhotoWallAsset,
         fit: BoxFit.cover,
         width: 100,
         height: 100,
@@ -410,158 +429,174 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
             child: Container(color: Colors.transparent),
           ),
 
-          // 图片内容
+          // 图片内容和关闭按钮
           Center(
-            child: Container(
-              width: 270,
-              height: 340,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(widget.imagePath),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  
-                  SizedBox(height:130),
-                  // 使用Container包装Stack，确保超出部分可点击
-                  Container(
-                    width: 120, // 扩大容器宽度以容纳超出的按钮
-                    height: 100, // 扩大容器高度以容纳超出的按钮
-                    child: Stack(
-                      clipBehavior: Clip.none, // 允许子元素超出容器
-                      alignment: Alignment.center,
-                      children: [
-                        // 头像容器
-                        GestureDetector(
-                          onTap: _previewImage,
-                          child: Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Color(0xffFF9AD9),
-                                width: 1,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 背景图片容器
+                Container(
+                  width: 270,
+                  height: 340,
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(widget.imagePath),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 130),
+                      // 使用Container包装Stack，确保超出部分可点击
+                      Container(
+                        width: 120,
+                        height: 100,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            // 头像容器
+                            GestureDetector(
+                              onTap: _previewImage,
+                              child: Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Color(0xffFF9AD9),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: _buildAvatarDisplay(),
                               ),
                             ),
-                            child: _buildAvatarDisplay(),
-                          ),
+                            // 上传按钮
+                            Positioned(
+                              right: -10,
+                              bottom: -10,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _isUploading ? null : _pickAvatar,
+                                child: SizedBox(
+                                  width: 64,
+                                   height: 64,
+                                  child: Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: Container(
+                                      padding: EdgeInsets.all(10),
+                                      color: Colors.transparent,
+                                      child: Image.asset(
+                                        "assets/3.0/kissu3_upload_logo.webp",
+                                        width: 44,
+                                        height: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        // 上传按钮
-                        Positioned(
-                          right: -10, 
-                          bottom: -20,  
-                          child: GestureDetector(
-                            onTap: _isUploading ? null : _pickAvatar,
-                            // 扩大点击区域：添加10px的padding，让点击区域从46x24变为66x44
-                            child: Container(
-                              padding: EdgeInsets.all(10),
-                              color: Colors.transparent,
-                              child: Image.asset(
-                                "assets/3.0/kissu3_upload_logo.webp",
-                                width: 42,
+                      ),
+                      SizedBox(height: 22),
+                      // 上传中的加载指示器 - 显示在按钮上方
+                      if (_isUploading)
+                        Container(
+                          height: 36,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
                                 height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFFFF87E1),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                "上传中...",
+                                style: TextStyle(
+                                  color: Color(0xFFFF87E1),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: _isUploading
+                              ? null
+                              : () async {
+                                  // 🔥 如果已点击恢复默认，上传默认图片
+                                  if (_isResetToDefault) {
+                                    await _uploadDefaultAvatar();
+                                    return;
+                                  }
+                                  if (_selectedImageFile == null) {
+                                    CustomToast.show(context, '请先选择照片');
+                                    return;
+                                  }
+                                  await _uploadAvatar();
+                                },
+                          child: Container(
+                            height: 36,
+                            width: 228,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Color(0xffFF9AD9),
+                              borderRadius: BorderRadius.circular(21),
+                            ),
+                            child: Text(
+                              _isUploading ? "上传中..." : "保存照片",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 22),
-                  // 上传中的加载指示器 - 显示在按钮上方
-                  if (_isUploading)
-                    Container(
-                      height: 36,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFFFF87E1),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            "上传中...",
-                            style: TextStyle(
-                              color: Color(0xFFFF87E1),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    GestureDetector(
-                      onTap: _isUploading
-                          ? null
-                          : () async {
-                              if (_selectedImageFile == null) {
-                                CustomToast.show(context, '请先选择照片');
-                                return;
-                              }
-                              await _uploadAvatar();
-                            },
-                      child: Container(
-                        height: 36,
-                        width: 228,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Color(0xffFF9AD9),
-                          borderRadius: BorderRadius.circular(21),
-                        ),
+                      SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: _isUploading ? null : _resetToDefault,
                         child: Text(
-                          _isUploading ? "上传中..." : "保存照片",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          "恢复默认",
+                          style: TextStyle(color: Color(0xff777777), fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 🔥 关闭按钮：相对于背景图片容器定位
+                // 容器尺寸 270x340，关闭按钮在 269x338 设计稿上的位置是 top:71 right:16
+                // 使用固定像素定位，因为容器本身是固定尺寸
+                if (widget.showCloseButton)
+                  Positioned(
+                    top: 61.0,
+                    right: 6.0,
+                    child: GestureDetector(
+                      onTap: _handleCloseTap,
+                      child: Container(
+                        padding: EdgeInsets.all(12),
+                        child: Image.asset(
+                          "assets/3.0/kissu3_close.webp",
+                          width: 16,
+                          height: 16,
                         ),
                       ),
                     ),
-                  SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: _isUploading ? null : _resetToDefault,
-                    child: Text(
-                      "恢复默认",
-                      style: TextStyle(color: Color(0xff777777), fontSize: 12),
-                    ),
                   ),
-                  // SizedBox(height: 10),
-                ],
-              ),
+              ],
             ),
           ),
- 
-          // 关闭按钮
-          if (widget.showCloseButton)
-            Positioned(
-              top: 63,
-              right: 35,
-              child: GestureDetector(
-                onTap: _handleCloseTap,
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                   
-                  child: Image.asset(
-                    "assets/3.0/kissu3_close.webp",
-                    width: 16,
-                    height: 16,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -571,7 +606,70 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
   void _resetToDefault() {
     setState(() {
       _selectedImageFile = null;
+      _isResetToDefault = true; // 🔥 标记已点击恢复默认
     });
+  }
+
+  /// 上传默认头像（照片墙）
+  Future<void> _uploadDefaultAvatar() async {
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      // 🔥 将默认 asset 图片转换为临时文件
+      final byteData = await rootBundle.load(_defaultPhotoWallAsset);
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/default_photo_wall.webp');
+      await tempFile.writeAsBytes(byteData.buffer.asUint8List());
+
+      // 上传默认图片文件
+      final uploadResult = await _fileUploadApi.uploadFile(tempFile);
+
+      if (!uploadResult.isSuccess || uploadResult.data == null) {
+        setState(() {
+          _isUploading = false;
+        });
+        CustomToast.show(context, uploadResult.msg ?? '上传失败');
+        return;
+      }
+
+      // 保存照片墙
+      final saveResult = await _photoWallApi.savePhotoWall(uploadResult.data!);
+
+      setState(() {
+        _isUploading = false;
+      });
+
+      if (saveResult.isSuccess) {
+        CustomToast.show(context, '已恢复默认照片');
+
+        // 保存成功后关闭弹窗
+        Navigator.of(context).pop();
+
+        // 执行回调函数（刷新首页数据）
+        if (widget.onUploadSuccess != null) {
+          widget.onUploadSuccess!();
+        }
+      } else {
+        CustomToast.show(context, saveResult.msg ?? '保存失败');
+      }
+
+      // 清理临时文件
+      try {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      } catch (e) {
+        logError('清理临时文件失败: $e', tag: 'ImageDialog', error: e);
+      }
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+      });
+      logError('恢复默认照片失败: $e', tag: 'ImageDialog', error: e);
+      CustomToast.show(context, '操作失败: $e');
+    }
   }
 
   /// 处理右上角关闭按钮点击

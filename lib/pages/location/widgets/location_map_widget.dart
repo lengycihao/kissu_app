@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:amap_flutter_base/amap_flutter_base.dart';
 import '../../../widgets/safe_amap_widget.dart';
 import '../location_v2_controller.dart';
 
@@ -24,8 +25,16 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
     return Obx(() {
       // 🎯 修复：直接使用markers和polylines，但用RepaintBoundary优化性能
       // 连线位置已修复为使用actualMyLocation，与marker保持一致
-      final markers = widget.controller.markers;
+      var markers = widget.controller.markers;
       final polylines = widget.controller.polylines;
+      
+      // 🎯 添加临时InfoWindow Marker（从聊天页面跳转时显示）
+      if (widget.controller.tempInfoWindowMarker != null) {
+        markers = {...markers, widget.controller.tempInfoWindowMarker!};
+      }
+      
+      // 🎯 获取高亮圆圈
+      final circles = widget.controller.highlightCircles.toSet();
 
       final mapType = widget.controller.mapType.value == 2
           ? MapType.satellite
@@ -37,6 +46,7 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
           onMapCreated: widget.controller.onMapCreated,
           markers: markers,
           polylines: polylines,
+          circles: circles,
           compassEnabled: true,
           scaleEnabled: true,
           zoomGesturesEnabled: true,
@@ -44,6 +54,10 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
           rotateGesturesEnabled: true,
           tiltGesturesEnabled: true,
           mapType: mapType,
+          onTap: (LatLng position) {
+            // 点击地图空白处清除高亮
+            widget.controller.clearMapHighlights();
+          },
         ),
       );
     });

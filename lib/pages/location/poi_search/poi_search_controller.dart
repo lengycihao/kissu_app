@@ -11,8 +11,9 @@ import 'package:kissu_app/utils/oktoast_util.dart';
 /// POI搜索Controller
 class PoiSearchController extends GetxController {
   final CityModel? initialCity;
+  final String? initialLocation; // 🔥 初始位置（格式：经度,纬度）
 
-  PoiSearchController({this.initialCity});
+  PoiSearchController({this.initialCity, this.initialLocation});
 
   final AMapPoiService _poiService = AMapPoiService();
 
@@ -92,6 +93,13 @@ class PoiSearchController extends GetxController {
 
   /// 获取当前位置字符串（格式：经度,纬度）
   String? _getCurrentLocationString() {
+    // 🔥 优先使用传入的初始位置
+    if (initialLocation != null && initialLocation!.isNotEmpty) {
+      debugPrint('✅ 使用传入的初始位置: $initialLocation');
+      return initialLocation;
+    }
+    
+    // 其次尝试从定位服务获取
     try {
       final locationService = Get.find<SimpleLocationService>();
       final currentLoc = locationService.currentLocation.value;

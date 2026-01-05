@@ -6,6 +6,7 @@ import 'package:kissu_app/widgets/location_map_snapshot.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/agreement_utils.dart'; 
+import 'package:kissu_app/models/city_model.dart';
 // import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 
@@ -83,7 +84,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
                       // 居中标题
                       const Center(
                         child: Text(
-                          '地点提醒',
+                          '位置提醒',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -338,13 +339,15 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   Widget _buildAddLocationItem(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        
+        // 获取从定位页面传入的城市信息
+        final arguments = Get.arguments as Map<String, dynamic>?;
+        final partnerCity = arguments?['partnerCity'] as CityModel?;
         
         // 🔧 新建位置提醒时不传入初始位置，让用户在地图上自由选择
         // 只在编辑已有提醒时才传入位置
         final result = await Get.to(
           () => LocationPickerPage(
-            // 不传入任何初始位置参数
+            initialCity: partnerCity, // 传递另一半的城市信息
           ),
           transition: Transition.rightToLeft,
         );
@@ -441,28 +444,29 @@ class LocationReminderPage extends GetView<LocationReminderController> {
     String assetPath;
     switch (iconId) {
       case 1: // 公司
-        assetPath = 'assets/location/kissu3_gongsi_sel.webp';
+        assetPath = 'assets/location/kissu3_shangchang_list.webp';
         break;
       case 2: // 家
-        assetPath = 'assets/location/kissu3_jia_sel.webp';
+        assetPath = 'assets/location/kissu3_jia_list.webp';
         break;
       case 3: // 娱乐
-        assetPath = 'assets/location/kissu3_yule_sel.webp';
+        assetPath = 'assets/location/kissu3_gongsi_list.webp';
         break;
       case 4: // 健身房
-        assetPath = 'assets/location/kissu3_jianshen_sel.webp';
+        assetPath = 'assets/location/kissu3_jianshen_list.webp';
         break;
       case 5: // 商场
-        assetPath = 'assets/location/kissu3_shangchang_sel.webp';
+        assetPath = 'assets/location/kissu3_zidingyi_list.webp';
         break;
       default:
-        assetPath = 'assets/location/kissu3_jia_sel.webp'; // 默认使用家的图标
+        assetPath = 'assets/location/kissu3_zidingyi_list.webp'; // 默认使用家的图标
     }
 
     return Image.asset(
       assetPath,
-      width: 24,
-      height: 24,
+      width: 15,
+      height: 15,
+      fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
         // 如果图标加载失败，显示默认图标
         return const Icon(

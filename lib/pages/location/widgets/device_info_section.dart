@@ -10,6 +10,61 @@ class DeviceInfoSection extends StatelessWidget {
 
   const DeviceInfoSection({super.key, required this.controller});
 
+  /// 判断距离是否小于100米
+  bool _isDistanceLessThan100Meters(String distanceText) {
+    if (distanceText.isEmpty || distanceText == "未知") {
+      return false;
+    }
+
+    try {
+      // 移除所有空格
+      String cleaned = distanceText.trim().replaceAll(' ', '');
+
+      // 处理 "<100米" 这种格式，表示小于100米
+      if (cleaned.startsWith('<') || cleaned.startsWith('＜')) {
+        return true; // 直接认为是小于100米
+      }
+
+      // 处理中文"米"结尾
+      if (cleaned.endsWith('米')) {
+        final metersStr = cleaned.substring(0, cleaned.length - 1);
+        final meters = double.tryParse(metersStr);
+        return meters != null && meters < 100;
+      }
+
+      // 处理中文"千米"或"公里"结尾
+      if (cleaned.endsWith('千米') || cleaned.endsWith('公里')) {
+        final kmStr = cleaned.substring(0, cleaned.length - 2);
+        final km = double.tryParse(kmStr);
+        if (km != null) {
+          final meters = km * 1000;
+          return meters < 100;
+        }
+      }
+
+      // 处理英文单位 km
+      if (cleaned.endsWith('km')) {
+        final kmStr = cleaned.substring(0, cleaned.length - 2);
+        final km = double.tryParse(kmStr);
+        if (km != null) {
+          final meters = km * 1000;
+          return meters < 100;
+        }
+      }
+
+      // 处理英文单位 m
+      if (cleaned.endsWith('m')) {
+        final metersStr = cleaned.substring(0, cleaned.length - 1);
+        final meters = double.tryParse(metersStr);
+        return meters != null && meters < 100;
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -63,6 +118,7 @@ class DeviceInfoSection extends StatelessWidget {
                     controller.distance.value,
                     style: const TextStyle(
                       fontSize: 30,
+                      fontFamily: "Resource-Han-Rounded",
                       fontWeight: FontWeight.bold,
                       color: Color(0xcc000000),
                     ),
@@ -76,13 +132,19 @@ class DeviceInfoSection extends StatelessWidget {
         Positioned(
           right: 15,
           bottom: -9,
-          child: Image(
-          image: AssetImage(
-            'assets/location/kissu3_location_distance_logo.webp',
-          ),
-          width: 100,
-          height: 100,
-        )),
+          child: Obx(() {
+            final isCloseDistance = _isDistanceLessThan100Meters(controller.distance.value);
+            return Image(
+              image: AssetImage(
+                isCloseDistance
+                    ? 'assets/location/kissu3_location_distance_logo_close.webp'
+                    : 'assets/location/kissu3_location_distance_logo.webp',
+              ),
+              width: 100,
+              height: 100,
+            );
+          }),
+        ),
         // 绑定按钮（仅未绑定时显示）
         _buildBindButton(),
       ],

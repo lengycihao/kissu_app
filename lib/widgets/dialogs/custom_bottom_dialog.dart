@@ -77,9 +77,10 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       child: Stack(
         children: [
           // 透明Banner区域 - 透过可以看到首页内容
+          // 40px是轮播图和下方内容的间距
           if (showBanner && bannerImages != null && bannerImages!.isNotEmpty)
             Positioned(
-              top: MediaQuery.of(context).size.height - 356 - bannerHeight,
+              top: MediaQuery.of(context).size.height - 356 - bannerHeight - 40,
               left: 0,
               right: 0,
               height: bannerHeight,
@@ -337,7 +338,9 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                 children: [
                   // 输入框
                   Expanded(
-                    child: TextField(
+                    child: SizedBox(
+                      height: 36,
+                      child: TextField(
                       controller: controller.matchCodeController,
                       focusNode: focusNode,
                       autofocus: true,
@@ -364,6 +367,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                         fontSize: 14,
                         color: Color(0xff333333),
                       ),
+                      ),
                     ),
                   ),
                   SizedBox(width: 10),
@@ -372,8 +376,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                     final bool isEnabled =
                         controller.inputMatchCode.value.isNotEmpty;
                     return SizedBox(
-                      width: 62,
-                      height: 50,
+                      width: 76,
+                      height: 36,
                       child: GestureDetector(
                         onTap: isEnabled
                             ? () {
@@ -388,10 +392,10 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                               }
                             : null,
                         child: Opacity(
-                          opacity: isEnabled ? 1.0 : 0.4,
+                          opacity: 1.0,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xffFF2462),
+                              color: const Color(0xffFF9AD9),
                               borderRadius: BorderRadius.circular(25),
                             ),
                             alignment: Alignment.center,

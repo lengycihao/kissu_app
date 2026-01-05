@@ -30,53 +30,28 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
     }
 
      
-    return Column(
-      children: [
-        // Banner区域 - 使用card_swiper插件实现复杂轮播
-        Container(
-          height: 205,
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-          ),
-          child: Swiper(
-            itemBuilder: (context, index) {
-              return _buildCarouselItem(index);
-            },
-            itemCount: widget.imagePaths.length,
-            autoplay: widget.autoPlay,
-            autoplayDelay: widget.autoPlayInterval.inMilliseconds,
-            onIndexChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            // 关键配置：实现一屏显示三张图片的效果
-            viewportFraction: 0.75, // 当前图片占80%宽度，两侧各留10%
-            scale: 0.85, // 侧边图片缩放80%
-            loop: true, // 无限循环
-            fade: 0.7,
-             
-          ),
-        ),
-        // const SizedBox(height: 10),
-        // // 指示器 - 完全放在轮播图外面
-        // if (widget.imagePaths.length > 1)
-        //   Row(
-        //     mainAxisAlignment: MainAxisAlignment.center,
-        //     children: List.generate(
-        //       widget.imagePaths.length,
-        //       (index) => Container(
-        //         margin: const EdgeInsets.symmetric(horizontal: 4),
-        //         width:_currentIndex == index ? 14 : 8,
-        //         height:_currentIndex == index ? 14 : 8,
-        //         decoration: BoxDecoration(
-        //           shape: BoxShape.circle,
-        //           color: index == _currentIndex ? const Color(0xFFFF5787) : const Color(0xffffb4c4),
-        //         ),
-        //       ),
-        //     ),
-        //   ),
-      ],
+    // Banner区域 - 使用card_swiper插件实现复杂轮播
+    // 图片比例 282*234，间距40px已在custom_bottom_dialog.dart中通过Positioned处理
+    return SizedBox(
+      height: widget.height,
+      child: Swiper(
+        itemBuilder: (context, index) {
+          return _buildCarouselItem(index);
+        },
+        itemCount: widget.imagePaths.length,
+        autoplay: widget.autoPlay,
+        autoplayDelay: widget.autoPlayInterval.inMilliseconds,
+        onIndexChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        // 关键配置：实现一屏显示三张图片的效果
+        viewportFraction: 0.75, // 当前图片占75%宽度
+        scale: 0.85, // 侧边图片缩放85%
+        loop: true, // 无限循环
+        fade: 0.7,
+      ),
     );
   }
 
@@ -105,8 +80,9 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
           borderRadius: BorderRadius.circular(26),
           child: Image.asset(
             imagePath,
-            fit: BoxFit.fill,
+            fit: BoxFit.cover,
             width: double.infinity,
+            height: double.infinity,
           ),
         ),
       ),

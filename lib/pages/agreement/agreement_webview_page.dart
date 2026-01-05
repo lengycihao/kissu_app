@@ -474,8 +474,16 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color scaffoldBg =
-        widget.backgroundColor ?? const Color(0xFFFFF6F0);
+    // 判断是否是一起拉屎页面（通过URL或title判断）
+    final bool isDefecatePage = widget.url.contains('defecate') || 
+                                 widget.url.contains('lashi') ||
+                                 widget.title.contains('拉屎') ||
+                                 widget.title.contains('便便');
+    
+    // 一起拉屎页面使用原背景色，其他页面使用设置页面的背景色
+    final Color scaffoldBg = isDefecatePage 
+        ? (widget.backgroundColor ?? const Color(0xFFFFF6F0))
+        : const Color(0xFFF7F7F7);
 
     return PopScope(
       // 拦截系统返回按钮
@@ -489,9 +497,20 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
         backgroundColor: scaffoldBg,
         appBar: widget.showAppBar
             ? AppBar(
-                backgroundColor: scaffoldBg,
+                backgroundColor: Colors.transparent,
                 elevation: 0,
                 toolbarHeight: 44,
+                flexibleSpace: isDefecatePage 
+                    ? Container(color: scaffoldBg)
+                    : Container(
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: AssetImage("assets/4.0/kissu4_new_use_bg.webp"),
+                            fit: BoxFit.fitWidth,
+                            alignment: Alignment.topCenter,
+                          ),
+                        ),
+                      ),
                 leading: GestureDetector(
                   onTap: _handleBack,
                   child: Container(

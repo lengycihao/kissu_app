@@ -37,28 +37,22 @@ class ImageSourceDialog {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 50,
+        height: 44,
         margin: EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           border: Border.all(color: Color(0xffE5E5E5), width: 1),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEA39C).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Image(image: AssetImage(icon),width: 14,height: 14,fit: BoxFit.fill,),
-            ),
+            Image(image: AssetImage(icon),width: 24,height: 24,fit: BoxFit.fill,),
             SizedBox(width: 10),
             Text(
               title,
               style: const TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.w500,
                 color: Color(0xFF333333),
               ),
             ),
@@ -205,7 +199,7 @@ class _ImageSourceDialogContentState extends State<_ImageSourceDialogContent> {
               onTap: () => Navigator.of(context).pop(),
               child: Container(
                 width: double.infinity,
-                height: 50,
+                height: 44,
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
                   border: Border.all(color: Color(0xffE5E5E5), width: 1),
@@ -214,7 +208,7 @@ class _ImageSourceDialogContentState extends State<_ImageSourceDialogContent> {
                 alignment: Alignment.center,
                 child: Text(
                   '取消',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 14, color: Color(0xff777777),fontWeight: FontWeight.w500),
                 ),
               ),
             ),

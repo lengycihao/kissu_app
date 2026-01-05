@@ -1,14 +1,11 @@
-// card_swiper removed (banners eliminated)
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
-// image_dialog_util removed (photo wall interaction removed)
 import 'package:kissu_app/widgets/no_placeholder_image.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
-// banner builder and island view removed for cleaner home bottom
-// removed unused imports after bottom module cleanup
 import 'package:kissu_app/pages/home/widget/home_avatar_section.dart';
+import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:lottie/lottie.dart';
 
 class KissuHomePage extends StatefulWidget {
@@ -183,7 +180,18 @@ class _KissuHomePageState extends State<KissuHomePage>
                     top: ScreenAdaptation.scaleY(66), // Y坐标基于高度缩放
                     child: GestureDetector(
                     onTap: () {
-                        // 照片墙已移除交互
+                        // 点击照片墙打开编辑弹窗
+                        ImageDialogUtil.showImageDialog(
+                          context: context,
+                          imagePath: 'assets/3.0/kissu3_photo_viewbg.webp',
+                          currentPhotoWallUrl: controller.photoWallUrl.value.startsWith('http')
+                              ? controller.photoWallUrl.value
+                              : null,
+                          onUploadSuccess: () {
+                            // 上传成功后刷新首页数据
+                            controller.loadIndexData();
+                          },
+                        );
                       },
                       child: Obx(
                         () => ClipRRect(
@@ -384,7 +392,7 @@ class _KissuHomePageState extends State<KissuHomePage>
           Obx(
             () => GuideOverlayWidget(
               isVisible: controller.showGuideOverlay.value,
-              guideType: controller.currentGuideType.value, // 根据当前状态显示对应引导图
+              guideType: controller.currentGuideType.value, 
               onDismiss: () {
                 if (controller.currentGuideType.value == GuideType.swipe) {
                   // 引导图1关闭，执行其他逻辑

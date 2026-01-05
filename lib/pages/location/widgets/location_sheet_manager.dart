@@ -210,106 +210,100 @@ class LocationSheetManager {
       // 未绑定 或 已绑定但未开会员时显示蒙版
       final shouldShowMask = !isBindPartner || (isBindPartner && !isVip);
 
-      if (shouldShowMask) {
-        return Positioned.fill(
-          child: Stack(
-            children: [
-              // 蒙版内容层：使用 AbsorbPointer 阻止触摸事件穿透
-              AbsorbPointer(
-                child: Column(
-                  children: [
-                    // 顶部占位：与指示条高度对齐
-                    const SizedBox(height: 17),
-                    // 设备信息模块（白色背景，显示设备型号、电量、网络）
-                    MaskDeviceInfoWidget(controller: controller),
-                    const SizedBox(height: 10),
-                    // 蒙版整体
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(20),
-                              ),
+      if (!shouldShowMask) {
+        return const SizedBox.shrink();
+      }
+
+      // 🔥 蒙版存在时，使用 Stack 分离蒙版层和按钮层
+      // 蒙版层使用 AbsorbPointer 阻止滑动，按钮层不受影响可以点击
+      return Stack(
+        children: [
+          // 蒙版层（阻止滑动）
+          Positioned.fill(
+            child: AbsorbPointer(
+              absorbing: true,
+              child: Column(
+                children: [
+                  // 顶部占位：与指示条高度对齐
+                  const SizedBox(height: 17),
+                  // 设备信息模块（白色背景，显示设备型号、电量、网络）
+                  MaskDeviceInfoWidget(controller: controller),
+                  const SizedBox(height: 10),
+                  // 蒙版整体
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
                             ),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 40),
-                                  // 文字图片
-                                  Image.asset(
-                                    'assets/images/kissu3_go_label.webp',
-                                    width: 187,
-                                    height: 32,
-                                    fit: BoxFit.contain,
-                                  ),
-                                   // 按钮占位
-                                  // SizedBox(width: 175, height: 44),
-                                ],
-                              ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 40),
+                                // 文字图片
+                                Image.asset(
+                                  'assets/images/kissu3_go_label.webp',
+                                  width: 187,
+                                  height: 32,
+                                  fit: BoxFit.contain,
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              // 按钮层：允许点击
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: false,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (controller.isBindPartner.value &&
-                            controller.partnerOnlineStatus.value !=
-                                null &&
-                            controller
-                                    .partnerOnlineStatus
-                                    .value!
-                                    .status ==
-                                0)
-                          const SizedBox(height: 175)
-                        else
-                          const SizedBox(height: 140),
-                        GestureDetector(
-                          onTap: () async {
-                            if (!isBindPartner) {
-                              // 未绑定：显示绑定弹窗
-                              controller.performBindAction();
-                            } else {
-                              // 已绑定但未开会员：跳转到VIP页面
-                              controller.onOpenMembershipButtonTap();
-                            }
-                          },
-                          child: Image.asset(
-                            !isBindPartner
-                                ? 'assets/images/kissu3_go_bind.webp' // 未绑定
-                                : 'assets/images/kissu3_go_vip.webp', // 已绑定未开会员
-                            width: !isBindPartner ? 175 : 189,
-                            height: !isBindPartner ? 44 : 60,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ],
+            ),
+          ),
+          // 按钮层：不受 AbsorbPointer 影响，允许点击
+          Positioned.fill(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (controller.isBindPartner.value &&
+                      controller.partnerOnlineStatus.value != null &&
+                      controller.partnerOnlineStatus.value!.status == 0)
+                    const SizedBox(height: 175)
+                  else
+                    const SizedBox(height: 140),
+                  GestureDetector(
+                    onTap: () async {
+                      if (!isBindPartner) {
+                        // 未绑定：显示绑定弹窗
+                        controller.performBindAction();
+                      } else {
+                        // 已绑定但未开会员：跳转到VIP页面
+                        controller.onOpenMembershipButtonTap();
+                      }
+                    },
+                    child: Image.asset(
+                      !isBindPartner
+                          ? 'assets/gif/kissu_bind.gif' // 未绑定
+                          : 'assets/gif/kissu_vip.gif', // 已绑定未开会员
+                      width: !isBindPartner ? 175 : 189,
+                      height: !isBindPartner ? 44 : 60,
+                      fit: BoxFit.contain,
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        );
-      }
-      return const SizedBox.shrink();
+        ],
+      );
     });
   }
 }

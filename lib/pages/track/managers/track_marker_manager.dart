@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/pages/track/stay_point.dart'; 
+import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/pages/location/services/marker_builder.dart';
+import 'package:kissu_app/model/location_model/location_model.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -400,15 +402,19 @@ class TrackMarkerManager {
     // 解析停留时间段（如果stopPoint有startTime和endTime属性）
     String stayTime = '';
     try {
-      if (stopPoint.startTime?.isNotEmpty == true) {
-        if (stopPoint.endTime?.isNotEmpty == true && stopPoint.endTime != stopPoint.startTime) {
-          // 有开始和结束时间
-          stayTime = '${stopPoint.startTime}~${stopPoint.endTime}';
-        } else {
-          // 只有开始时间
-          stayTime = stopPoint.startTime!;
+      if (stopPoint is TrackStopPoint) {
+        // TrackStopPoint类型有startTime和endTime属性
+        if (stopPoint.startTime?.isNotEmpty == true) {
+          if (stopPoint.endTime?.isNotEmpty == true && stopPoint.endTime != stopPoint.startTime) {
+            // 有开始和结束时间
+            stayTime = '${stopPoint.startTime}~${stopPoint.endTime}';
+          } else {
+            // 只有开始时间
+            stayTime = stopPoint.startTime!;
+          }
         }
       }
+      // StayPoint类型没有startTime和endTime属性，stayTime保持为空
     } catch (e) {
       DebugUtil.info('解析停留时间段失败: $e');
     }
@@ -635,6 +641,28 @@ class TrackMarkerManager {
     return designSize * screenScale * dpr;
   }
 
+  /// 🔧 从asset加载图片并缩放到指定尺寸，返回BitmapDescriptor
+  /// 这个方法确保在所有设备上图片尺寸一致，不依赖ImageConfiguration.size
+  Future<BitmapDescriptor> _createScaledAssetIcon(String assetPath, int width, int height) async {
+    // 加载原始图片
+    final data = await rootBundle.load(assetPath);
+    final codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: width,
+      targetHeight: height,
+    );
+    final frameInfo = await codec.getNextFrame();
+    final image = frameInfo.image;
+    
+    // 转换为字节数据
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) {
+      throw Exception('无法转换图片为字节数据');
+    }
+    
+    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+  }
+
   /// 创建自定义停留点图标（黑色圆形/椭圆形，带数字）
   /// 参数: number - 显示的数字
   /// 根据数字位数自适应宽度：个位数为圆形，多位数为椭圆形
@@ -736,12 +764,21 @@ class TrackMarkerManager {
       // 创建起点标记
       if (startPoint != null) {
         try {
-          // 🔧 使用适配后的尺寸（设计稿：34x48），锚点在底部中心
-          final adaptedWidth = _calculateAdaptedSize(34.0);
-          final adaptedHeight = _calculateAdaptedSize(48.0);
-          final startIcon = await BitmapDescriptor.fromAssetImage(
-            ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+          // 🔧 使用手动加载和缩放图片的方式，确保在所有设备上尺寸一致
+          // BitmapDescriptor.fromAssetImage 的 ImageConfiguration.size 在某些设备上不生效
+          final dpr = ui.window.devicePixelRatio;
+          final screenWidth = ui.window.physicalSize.width / dpr;
+          const designWidth = 375.0;
+          final screenScale = screenWidth / designWidth;
+          // 计算物理像素尺寸（用于绘制）
+          final adaptedWidth = (34.0 * screenScale * dpr).round();
+          final adaptedHeight = (48.0 * screenScale * dpr).round();
+          DebugUtil.info('📍 起点marker尺寸: ${adaptedWidth}x$adaptedHeight (dpr=$dpr, screenScale=$screenScale)');
+          
+          final startIcon = await _createScaledAssetIcon(
             'assets/images/kissu_location_start.webp',
+            adaptedWidth,
+            adaptedHeight,
           );
           
           markers.add(Marker(
@@ -831,10 +868,15 @@ class TrackMarkerManager {
           DebugUtil.error('❌ 创建终点头像标记失败: $e，使用降级方案');
           // 降级方案：使用原有终点图标
           try {
-            final adaptedWidth = _calculateAdaptedSize(44.0);
-            final adaptedHeight = _calculateAdaptedSize(46.0);
+            // 注意：BitmapDescriptor.fromAssetImage 的 ImageConfiguration.size 期望的是逻辑像素
+            final dpr = ui.window.devicePixelRatio;
+            final screenWidth = ui.window.physicalSize.width / dpr;
+            const designWidth = 375.0;
+            final screenScale = screenWidth / designWidth;
+            final adaptedWidth = 44.0 * screenScale;  // 逻辑像素，不乘dpr
+            final adaptedHeight = 46.0 * screenScale; // 逻辑像素，不乘dpr
             final endIcon = await BitmapDescriptor.fromAssetImage(
-              ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+              ImageConfiguration(size: Size(adaptedWidth, adaptedHeight), devicePixelRatio: dpr),
               'assets/images/kissu_location_end.webp',
             );
             

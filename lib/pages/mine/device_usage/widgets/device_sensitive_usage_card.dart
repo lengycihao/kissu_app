@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
@@ -25,34 +26,54 @@ class DeviceSensitiveUsageCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _ModuleTitle(title: 'Ta的敏感操作记录'),
-              const SizedBox(height: 12),
-              Obx(() {
-                if (controller.sensitiveRecords.isEmpty ||
-                    controller.isDebugEmptyMode.value) {
-                  return const _EmptySensitiveRecords();
-                }
-                final records = controller.sensitiveRecords;
-                final maxCount = records.length > 3 ? 3 : records.length;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
-                    maxCount,
-                    (index) => _SensitiveRecordItem(
-                      record: records[index],
-                      showDivider: index < maxCount - 1,
-                    ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _ModuleTitle(title: 'Ta的敏感操作记录'),
+                  const SizedBox(height: 12),
+                  Obx(() {
+                    if (controller.sensitiveRecords.isEmpty ||
+                        controller.isDebugEmptyMode.value) {
+                      return const _EmptySensitiveRecords();
+                    }
+                    final records = controller.sensitiveRecords;
+                    final maxCount = records.length > 3 ? 3 : records.length;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        maxCount,
+                        (index) => _SensitiveRecordItem(
+                          record: records[index],
+                          showDivider: index < maxCount - 1,
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            // 🎯 毛玻璃蒙版（仅未绑定时显示，已绑定后不需要蒙版）
+            Obx(() {
+              final isBound = controller.isUserBound.value;
+              if (!isBound) {
+                return Positioned(
+                  top: 40,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _FrostedGlassMask(
+                    text: '实时查看Ta的敏感操作记录',
                   ),
                 );
-              }),
-            ],
-          ),
+              }
+              return const SizedBox.shrink();
+            }),
+          ],
         ),
       ),
     );
@@ -217,4 +238,96 @@ class _SensitiveRecordItem extends StatelessWidget {
   }
 }
 
+/// 毛玻璃蒙版（未绑定时显示）
+class _FrostedGlassMask extends StatelessWidget {
+  const _FrostedGlassMask({
+    required this.text,
+  });
 
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(12),
+        bottomRight: Radius.circular(12),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFFFFFFFF).withOpacity(0.2),
+                const Color(0xFFFDE4FF).withOpacity(0.8),
+              ],
+            ),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Image.asset(
+                          'assets/images/kissu4_vip_hat.webp',
+                          width: 16,
+                          height: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Stack(
+                        children: [
+                          Positioned(
+                            bottom: 2,
+                            right: 0,
+                            child: Image.asset(
+                              'assets/images/kissu4_vip_line.webp',
+                              width: 68,
+                              height: 12,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Text(
+                            text,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Image.asset(
+                    'assets/gif/kissu_bind.gif',
+                    width: 176,
+                    height: 44,
+                    fit: BoxFit.contain,
+                  ),
+                    
+                  
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

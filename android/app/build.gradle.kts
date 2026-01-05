@@ -5,6 +5,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     // 华为 AGConnect 插件，读取 agconnect-services.json
     id("com.huawei.agconnect")
+    // 荣耀推送插件（腾讯IM离线推送需要）
+    id("com.hihonor.mcs.asplugin")
 }
 
 // 添加本地 AAR 仓库
@@ -83,6 +85,11 @@ android {
         // 魅族
         manifestPlaceholders["JPUSH_MEIZU_APPID"] = "156177"
         manifestPlaceholders["JPUSH_MEIZU_APPKEY"] = "c4e0fad84dec44f7b77408012ad62149"
+
+        // 腾讯IM离线推送配置（vivo和荣耀需要在manifestPlaceholders中配置）
+        manifestPlaceholders["VIVO_APPKEY"] = "fa541d6f32b359e1d8c34d99e2d6d07a"
+        manifestPlaceholders["VIVO_APPID"] = "105947238"
+        manifestPlaceholders["HONOR_APPID"] = "104512674"
     }
 
 
@@ -147,31 +154,30 @@ configurations.all {
 }
 
 dependencies {
-    // 华为推送依赖（供极光华为通道使用）
-    implementation("com.huawei.hms:push:6.12.0.300")
     // ================= 极光推送本地SDK依赖 =================
-    // JPush 核心依赖 - 使用本地文件
+    // JPush 核心依赖 - 使用本地文件（只保留核心SDK，厂商通道暂时禁用以优先保障腾讯IM离线推送）
     implementation(files("../libs/jiguang/libs/jcore-android-5.2.2.aar"))
     implementation(files("../libs/jiguang/libs/jpush-android-5.9.0.jar"))
     
-    // 极光推送厂商通道插件（SDK 5.0+ 需要单独引入）
-    // 小米推送通道
-    implementation(files("../libs/jiguang/libs/jpush-android-plugin-xiaomi-v5.9.0.jar"))
-    implementation(files("../libs/jiguang/libs/MiPush_SDK_Client_6_0_1-C.jar"))
-    // OPPO推送通道
-    implementation(files("../libs/jiguang/libs/jpush-android-plugin-oppo-v5.9.0.jar"))
-    implementation(files("../libs/jiguang/libs/com.heytap.msp_V3.7.1.aar"))
-    // vivo推送通道
-    implementation(files("../libs/jiguang/libs/jpush-android-plugin-vivo-v5.9.0.jar"))
-    implementation(files("../libs/jiguang/libs/push_sdk_v4.1.0.0_510.jar"))
-    implementation(files("../libs/jiguang/libs/push-internal-5.0.5.aar"))
-    // 魅族推送通道
-    implementation(files("../libs/jiguang/libs/jpush-android-plugin-meizu-v5.9.0.jar"))
-    // 华为推送通道
-    implementation(files("../libs/jiguang/libs/jpush-android-plugin-huawei-v5.9.0.jar"))
-    implementation(files("../libs/jiguang/libs/HiPushSDK-8.0.12.307.aar"))
-    // 荣耀推送通道
-    implementation(files("../libs/jiguang/libs/jpush-android-plugin-honor-v5.9.0.jar"))
+    // 🔥 极光推送厂商通道暂时禁用，优先保障腾讯IM离线推送
+    // 极光推送仍可通过自有通道工作，只是厂商通道不可用
+    // // 小米推送通道
+    // implementation(files("../libs/jiguang/libs/jpush-android-plugin-xiaomi-v5.9.0.jar"))
+    // implementation(files("../libs/jiguang/libs/MiPush_SDK_Client_6_0_1-C.jar"))
+    // // OPPO推送通道
+    // implementation(files("../libs/jiguang/libs/jpush-android-plugin-oppo-v5.9.0.jar"))
+    // implementation(files("../libs/jiguang/libs/com.heytap.msp_V3.7.1.aar"))
+    // // vivo推送通道
+    // implementation(files("../libs/jiguang/libs/jpush-android-plugin-vivo-v5.9.0.jar"))
+    // implementation(files("../libs/jiguang/libs/push_sdk_v4.1.0.0_510.jar"))
+    // implementation(files("../libs/jiguang/libs/push-internal-5.0.5.aar"))
+    // // 魅族推送通道
+    // implementation(files("../libs/jiguang/libs/jpush-android-plugin-meizu-v5.9.0.jar"))
+    // // 华为推送通道
+    // implementation(files("../libs/jiguang/libs/jpush-android-plugin-huawei-v5.9.0.jar"))
+    // implementation(files("../libs/jiguang/libs/HiPushSDK-8.0.12.307.aar"))
+    // // 荣耀推送通道
+    // implementation(files("../libs/jiguang/libs/jpush-android-plugin-honor-v5.9.0.jar"))
     // ================= 极光推送本地SDK依赖结束 =================
     
     // 友盟本地SDK依赖
@@ -217,4 +223,23 @@ dependencies {
 
     // 本地 OAID SDK（替代远程 com.github.gzu-liyujiang:Android_CN_OAID:4.2.9）
     implementation(files("../libs/Android_CN_OAID-4.2.9.aar"))
+    
+    // ================= 腾讯IM离线推送厂商SDK =================
+    // 版本号参考：https://cloud.tencent.com/document/product/269/102807
+    // 🔥 保留完整的腾讯IM厂商SDK，确保离线推送正常工作
+    // 🔥 核心推送SDK（提供TIMPushManager、TIMPushListener等类）
+    implementation("com.tencent.timpush:timpush:7.8.5484")
+    // 华为推送
+    implementation("com.tencent.timpush:huawei:7.8.5484")
+    // 小米推送
+    implementation("com.tencent.timpush:xiaomi:7.8.5484")
+    // OPPO推送
+    implementation("com.tencent.timpush:oppo:7.8.5484")
+    // vivo推送
+    implementation("com.tencent.timpush:vivo:7.8.5484")
+    // 荣耀推送
+    implementation("com.tencent.timpush:honor:7.8.5484")
+    // 魅族推送
+    implementation("com.tencent.timpush:meizu:7.8.5484")
+    // ================= 腾讯IM离线推送厂商SDK结束 =================
 }

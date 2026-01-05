@@ -126,6 +126,11 @@ class LocationOverlayManager {
   /// 构建底部吸底图片
   Widget buildBottomImage() {
     return Obx(() {
+      // 如果已绑定伴侣，不显示底部背景图片
+      if (controller.isBindPartner.value) {
+        return const SizedBox.shrink();
+      }
+
       final currentPercent = controller.sheetPercent.value;
       final screenHeight = MediaQuery.of(Get.context!).size.height;
       final maxPercent = (screenHeight - 100.0) / screenHeight; // 使用固定的最大偏移

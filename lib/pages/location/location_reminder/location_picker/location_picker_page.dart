@@ -19,6 +19,26 @@ class LocationPickerPage extends StatelessWidget {
   final double? initialLongitude;
   final String? initialLocationName;
   final LocationReminder? editingReminder; // 编辑模式：传入已有的提醒对象
+  final CityModel? initialCity; // 初始城市信息（从定位页面传入）
+
+  String _formatCityDisplay(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return '';
+
+    final matches = RegExp(r'([\u4e00-\u9fa5]{1,20}市)').allMatches(text);
+    String? cityWithSuffix;
+    for (final m in matches) {
+      cityWithSuffix = m.group(1);
+    }
+    if (cityWithSuffix != null && cityWithSuffix.isNotEmpty) {
+      return cityWithSuffix.replaceAll('市', '');
+    }
+
+    var normalized = text;
+    normalized = normalized.replaceAll(RegExp(r'.*?(省|自治区|特别行政区)'), '');
+    normalized = normalized.replaceAll(RegExp(r'.*?市'), '');
+    return normalized;
+  }
 
   LocationPickerPage({
     super.key,
@@ -26,6 +46,7 @@ class LocationPickerPage extends StatelessWidget {
     this.initialLongitude,
     this.initialLocationName,
     this.editingReminder,
+    this.initialCity,
   });
 
   LocationPickerController get controller => Get.put(
@@ -34,6 +55,7 @@ class LocationPickerPage extends StatelessWidget {
       initialLongitude: initialLongitude,
       initialLocationName: initialLocationName,
       editingReminder: editingReminder,
+      initialCity: initialCity,
     ),
   );
 
@@ -148,7 +170,11 @@ class LocationPickerPage extends StatelessWidget {
               bottom: 0,
               child: Obx(() {
                 final currentCity = controller.currentCity.value;
-                final hasCity = currentCity.isNotEmpty;
+                // 只有当城市名不为空且不是"定位中..."时才认为有城市
+                final hasCity = currentCity.isNotEmpty && currentCity != '定位中...';
+                final displayText = hasCity 
+                    ? _formatCityDisplay(currentCity)
+                    : (currentCity == '定位中...' ? '定位中...' : '选择城市');
                 return ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 120),
                   child: GestureDetector(
@@ -172,12 +198,12 @@ class LocationPickerPage extends StatelessWidget {
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              hasCity ? currentCity.replaceAll('市', '') : '选择城市',
+                              displayText,
                               style: TextStyle(
                                 fontSize: 13,
                                 color: hasCity
                                     ? Colors.black
-                                    : const Color(0xFFFF408D),
+                                    : const Color(0xFF999999),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -198,12 +224,20 @@ class LocationPickerPage extends StatelessWidget {
 
   /// 跳转到POI搜索页面
   void _goToPoiSearch(BuildContext context) async {
+    // 🔥 获取当前位置用于计算距离
+    String? currentLocationStr;
+    final selectedLoc = controller.selectedLocation.value;
+    if (selectedLoc != null) {
+      currentLocationStr = '${selectedLoc.longitude},${selectedLoc.latitude}';
+    }
+    
     final result = await Get.to(
       () => const PoiSearchPage(),
       binding: BindingsBuilder(() {
         Get.lazyPut<PoiSearchController>(
           () => PoiSearchController(
             initialCity: controller.currentCityModel.value,
+            initialLocation: currentLocationStr, // 🔥 传递当前位置
           ),
         );
       }),

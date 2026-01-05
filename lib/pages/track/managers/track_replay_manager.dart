@@ -155,10 +155,19 @@ class TrackReplayManager extends GetxController {
 
       DebugUtil.info('🎭 创建播放头像标记，头像URL: $avatarUrl');
 
+      // 🔧 根据设备像素比计算头像尺寸，确保在所有设备上显示一致
+      final dpr = ui.window.devicePixelRatio;
+      final screenWidth = ui.window.physicalSize.width / dpr;
+      const designWidth = 375.0;
+      const designAvatarSize = 60.0; // 设计稿头像尺寸
+      final screenScale = screenWidth / designWidth;
+      final avatarSize = designAvatarSize * screenScale * dpr;
+      DebugUtil.info('📍 回放头像marker尺寸: $avatarSize (dpr=$dpr, screenScale=$screenScale)');
+
       // 使用 MapMarkerUtil 创建圆形头像标记（与定位页面一致的双层边框）
       final avatarIcon = await MapMarkerUtil.createCircleAvatarMarker(
         avatarUrl,
-        size: 180.0, // 🎯 放大三倍（原80.0 → 240.0）
+        size: avatarSize,
       );
 
       final marker = Marker(

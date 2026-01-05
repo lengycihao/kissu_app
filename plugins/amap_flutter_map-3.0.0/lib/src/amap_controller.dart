@@ -429,4 +429,36 @@ class AMapController {
       markerId: markerId,
     );
   }
+
+  /// 🔄 同步启动两个Marker的摆动动画
+  /// 
+  /// 确保两个头像的摆动动画在同一时刻启动，保持同步
+  /// 
+  /// [marker1Id] 第一个Marker的ID
+  /// [marker1FromAngle] 第一个Marker起始角度
+  /// [marker1ToAngle] 第一个Marker目标角度
+  /// [marker2Id] 第二个Marker的ID
+  /// [marker2FromAngle] 第二个Marker起始角度
+  /// [marker2ToAngle] 第二个Marker目标角度
+  /// [duration] 单次摆动时长（毫秒，默认800ms）
+  Future<bool> startSyncSwingAnimation({
+    required String marker1Id,
+    required double marker1FromAngle,
+    required double marker1ToAngle,
+    required String marker2Id,
+    required double marker2FromAngle,
+    required double marker2ToAngle,
+    int duration = 800,
+  }) {
+    return _methodChannel.startSyncSwingAnimation(
+      mapId: mapId,
+      marker1Id: marker1Id,
+      marker1FromAngle: marker1FromAngle,
+      marker1ToAngle: marker1ToAngle,
+      marker2Id: marker2Id,
+      marker2FromAngle: marker2FromAngle,
+      marker2ToAngle: marker2ToAngle,
+      duration: duration,
+    );
+  }
 }

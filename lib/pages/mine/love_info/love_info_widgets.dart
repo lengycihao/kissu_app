@@ -28,6 +28,7 @@ class InfoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 15),
         child: Row(
@@ -128,8 +129,9 @@ class TogetherCard extends StatelessWidget {
         },
         child: Container(
           width: double.infinity,
-          height: 83,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
+          // height: 60,
+          // color: Colors.red,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30).copyWith(bottom: 20),
           
         //相爱信息ROW
         child: Row(

@@ -43,6 +43,8 @@ class PrivacyComplianceManager extends GetxService {
   
   /// 加载隐私政策同意状态
   /// 🔑 关键改进：只加载状态，不自动初始化SDK，等待用户明确同意
+  /// 🔥 隐私合规修复：即使用户之前同意过，也不在启动时自动初始化SDK
+  /// 应用市场要求：必须在用户每次明确点击同意后才能初始化SDK
   Future<void> _loadPrivacyStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -73,9 +75,12 @@ class PrivacyComplianceManager extends GetxService {
           }
         }
         
-        // 🔑 关键修复：即使已同意，也要在启动时重新初始化SDK
-        // 这样确保每次启动都是在用户已明确同意的前提下初始化
-        await initializeSdks();
+        // 🔥 隐私合规修复：不在启动时自动初始化SDK
+        // 即使用户之前同意过，也需要等待启动页检查后再决定是否初始化
+        // 这样确保符合应用市场的隐私合规要求
+        if (kDebugMode) {
+          DebugUtil.info('⚠️ 隐私政策已同意，但不在启动时自动初始化SDK（等待启动页检查）');
+        }
         
       } else {
         _isPrivacyAgreed.value = false;
@@ -330,12 +335,11 @@ class PrivacyComplianceManager extends GetxService {
   }
   
   /// 启用友盟统计初始化
+  /// 🔥 隐私合规修复：在用户同意隐私政策后才初始化友盟SDK
   Future<void> _enableUmengAnalytics() async {
     try {
-     
-      
-      
-      
+      // 友盟SDK初始化已经在ShareService.startPrivacyCompliantService()中完成
+      // 这里只需要确认ShareService已经启动即可
       if (kDebugMode) {
         DebugUtil.success('友盟统计已初始化并授权隐私政策');
       }

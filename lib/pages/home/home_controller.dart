@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/mine_binding.dart';
-// import 'package:kissu_app/utils/pag_preloader.dart'; // 注释掉PAG预加载器导入
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/pages/mine/mine_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
@@ -13,7 +12,6 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
-import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -31,47 +29,27 @@ import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/index_api.dart';
 import 'package:kissu_app/network/http_resultN.dart';
-// import 'package:kissu_app/utils/memory_manager.dart'; // 注释掉未使用的导入
 import 'dart:math';
 import 'dart:async';
 import 'package:kissu_app/services/version_service.dart'; 
 import 'package:kissu_app/services/tencent_im_service.dart';
-import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
-import 'package:intl/intl.dart';
 import 'package:kissu_app/services/gif_preload_service.dart';
+import 'package:kissu_app/pages/home/services/home_popup_service.dart';
 
 
 class HomeController extends GetxController {
-  // 后面可以加逻辑，比如当前选中的按钮索引
+  // 当前选中的按钮索引
   var selectedIndex = 0.obs;
-  
- 
   
   // App启动标记 - 静态变量，app被杀掉时会自动重置
   static bool _hasAppStartedThisSession = false;
   
-  // 绑定弹窗控制标志位 - 静态变量，确保整个app会话期间只显示一次
-  static bool _hasShownBindingDialogThisSession = false;
-  
-  // VIP购买弹窗控制标志位 - 静态变量，确保整个app会话期间只显示一次
-  static bool _hasShownVipDialogThisSession = false;
-  
-  // 🔥 修复：添加弹窗显示状态标志，防止弹窗和引导图同时显示
+  // 🔥 弹窗显示状态标志，防止弹窗和引导图同时显示（与服务类共享）
   var _isShowingDialog = false.obs;
   bool get isShowingDialog => _isShowingDialog.value;
-
-  // VIP到期弹窗检查标志位 - 确保整个会话期间只检查一次
-  static bool _hasCheckedVipOuttimeDialogThisSession = false;
   
   // 保存VIP数据，用于在onReady中检查
   VipData? _cachedVipData;
-  
-  // VIP到期弹窗检查重试次数
-  int _vipOuttimeDialogCheckRetryCount = 0;
-  static const int _maxVipOuttimeDialogCheckRetries = 5; // 最多重试5次
-  
-  // VIP到期弹窗显示时的重试定时器（用于context为null时的延迟重试）
-  Timer? _vipOuttimeDialogRetryTimer;
 
   // 防重复刷新用户信息的变量
   bool _isRefreshingUserInfo = false;
@@ -155,10 +133,6 @@ class HomeController extends GetxController {
   // 当前引导图类型
   var currentGuideType = GuideType.swipe.obs;
   
-  
-  // PAG动画相关 - 暂时移除
-  // var pagAnimations = <Map<String, dynamic>>[].obs;
-  
   // 🔥 优化：防重复调用标志
   bool _isLoadingIndexData = false;
   DateTime? _lastLoadIndexDataTime;
@@ -169,17 +143,29 @@ class HomeController extends GetxController {
   
   // 应用生命周期监听
   StreamSubscription<AppLifecycleState>? _appLifecycleSubscription;
+  
+  // 弹窗和引导图服务
+  late HomePopupService _popupService;
 
   @override
   void onInit() {
     super.onInit();
     
-    debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: $_hasShownBindingDialogThisSession');
+    // 初始化弹窗和引导图服务
+    _popupService = HomePopupService(
+      isBound: isBound,
+      isVip: isVip,
+      showGuideOverlay: showGuideOverlay,
+      currentGuideType: currentGuideType,
+      isShowingDialog: _isShowingDialog,
+      onRefreshAfterBinding: _refreshAfterBinding,
+      getCachedVipData: () => _cachedVipData,
+    );
+    
+    debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: ${HomePopupService.hasShownBindingDialogThisSession}');
     
     // 进入首页即同步授权应用
     _syncAuthApp();
-    
- 
     
     // 🚀 关键修复：先初始化认证服务，再刷新用户信息
     _authService = getIt<AuthService>();
@@ -193,9 +179,6 @@ class HomeController extends GetxController {
     // 初始化滚动控制器，如果有预设位置则使用预设位置
     _initializeScrollController();
     
-    // 预加载首页PAG资源 (已注释)
-    // _preloadPagAssets();
-    
     // 🚀 预加载定位页面GIF动画（在后台异步执行，不阻塞首页加载）
     _preloadLocationGifs();
     
@@ -205,8 +188,6 @@ class HomeController extends GetxController {
     _setupAppLifecycleListener(); // 设置应用生命周期监听
     _setupRedDotListeners(); // 设置红点监听器
     _setupChatUnreadListener(); // 监听聊天未读数
-    
- 
   }
 
   @override
@@ -225,38 +206,8 @@ class HomeController extends GetxController {
     
     // 延迟检查VIP到期弹窗（等待数据加载完成，且整个会话期间只检查一次）
     Future.delayed(const Duration(milliseconds: 500), () {
-      _checkVipOuttimeDialogOnce();
+      _popupService.checkVipOuttimeDialogOnce();
     });
-  }
-  
-  /// 检查VIP到期弹窗（整个会话期间只执行一次）
-  void _checkVipOuttimeDialogOnce() {
-    // 如果已经检查过，直接返回
-    if (_hasCheckedVipOuttimeDialogThisSession) {
-      debugPrint('📱 VIP到期弹窗今天已检查过，跳过');
-      return;
-    }
-    
-    // 如果还没有VIP数据，等待一下再试（最多重试5次）
-    if (_cachedVipData == null) {
-      if (_vipOuttimeDialogCheckRetryCount >= _maxVipOuttimeDialogCheckRetries) {
-        debugPrint('📱 VIP数据加载超时，放弃检查VIP到期弹窗');
-        _hasCheckedVipOuttimeDialogThisSession = true; // 标记为已检查，避免继续重试
-        return;
-      }
-      _vipOuttimeDialogCheckRetryCount++;
-      debugPrint('📱 VIP数据还未加载，延迟检查VIP到期弹窗 (重试 $_vipOuttimeDialogCheckRetryCount/$_maxVipOuttimeDialogCheckRetries)');
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        _checkVipOuttimeDialogOnce();
-      });
-      return;
-    }
-    
-    // 标记为已检查
-    _hasCheckedVipOuttimeDialogThisSession = true;
-    
-    // 检查并显示VIP到期弹窗
-    _checkAndShowVipOuttimeDialog(_cachedVipData);
   }
   
   /// 启动App使用记录自动上报服务
@@ -317,20 +268,6 @@ class HomeController extends GetxController {
     }
   }
   
-  
-  /// 预加载首页PAG资源 (已注释)
-  // void _preloadPagAssets() {
-  //   // 异步预加载，不阻塞页面初始化
-  //   Future.microtask(() async {
-  //     try {
-  //       await PagPreloader.preloadHomePagAssets();
-  //       debugPrint('🎬 首页PAG资源预加载完成');
-  //     } catch (e) {
-  //       debugPrint('🎬 首页PAG资源预加载失败: $e');
-  //     }
-  //   });
-  // }
-
   /// 初始化滚动控制器，如果有预设位置则使用预设位置
   void _initializeScrollController() {
     try {
@@ -368,9 +305,10 @@ class HomeController extends GetxController {
   
   @override
   void onClose() {
-    debugPrint('🧹 HomeController 销毁 - 绑定弹窗标志位: $_hasShownBindingDialogThisSession, VIP弹窗标志位: $_hasShownVipDialogThisSession（静态变量不会被清除）');
+    debugPrint('🧹 HomeController 销毁 - 弹窗服务静态变量不会被清除');
     
- 
+    // 清理弹窗服务资源
+    _popupService.dispose();
     
     // 安全地清理ScrollController
     try {
@@ -378,14 +316,6 @@ class HomeController extends GetxController {
     } catch (e) {
       debugPrint('清理ScrollController时出错: $e');
     }
-    
-    // 清理PAG动画缓存资源 (已注释)
-    // try {
-    //   MemoryManager.clearAllCaches();
-    //   debugPrint('🧹 首页Controller销毁，清理资源');
-    // } catch (e) {
-    //   debugPrint('清理资源时出错: $e');
-    // }
     
     // 取消应用生命周期监听
     _appLifecycleSubscription?.cancel();
@@ -468,12 +398,9 @@ class HomeController extends GetxController {
   /// 处理定位权限获取成功
   Future<void> _handleLocationPermissionGranted() async {
     try {
-      debugPrint('🎯 首页用户同意定位权限，立即弹出绑定弹窗');
+      debugPrint('🎯 首页用户同意定位权限，启动弹窗流程');
       
-      // 立即弹出绑定弹窗，不等待定位服务启动结果
-      await _checkAndShowBindingDialog();
-      
-      // 绑定弹窗处理完成后，再启动定位服务（后台异步进行）
+      // 启动定位服务（后台异步进行）
       _locationService.startLocation().then((success) {
         if (success) {
           isLocationServiceStarted.value = true;
@@ -483,20 +410,8 @@ class HomeController extends GetxController {
         }
       });
       
-      // 绑定弹窗处理完成后，延迟检查VIP购买弹窗
-      Future.delayed(const Duration(milliseconds: 500), () async {
-        await _checkAndShowVipPurchaseDialog();
-        
-        // VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
-        Future.delayed(const Duration(milliseconds: 500), () async {
-          await _checkAndShowVipPromo();
-          
-          // VIP推广弹窗处理完成后，延迟检查引导图
-          Future.delayed(const Duration(milliseconds: 500), () {
-            _checkAndShowGuide1();
-          });
-        });
-      });
+      // 使用弹窗服务启动弹窗流程
+      await _popupService.startPopupFlow();
     } catch (e) {
       debugPrint('处理首页定位权限同意失败: $e');
     }
@@ -505,25 +420,9 @@ class HomeController extends GetxController {
   /// 处理定位权限被拒绝
   Future<void> _handleLocationPermissionDenied() async {
     try {
-      debugPrint('❌ 首页定位权限被拒绝，立即弹出绑定弹窗');
-      
-      // 立即弹出绑定弹窗，不需要等待
-      await _checkAndShowBindingDialog();
-      
-      // 绑定弹窗处理完成后，延迟检查VIP购买弹窗
-      Future.delayed(const Duration(milliseconds: 500), () async {
-        await _checkAndShowVipPurchaseDialog();
-        
-        // VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
-        Future.delayed(const Duration(milliseconds: 500), () async {
-          await _checkAndShowVipPromo();
-          
-          // VIP推广弹窗处理完成后，延迟检查引导图
-          Future.delayed(const Duration(milliseconds: 500), () {
-            _checkAndShowGuide1();
-          });
-        });
-      });
+      debugPrint('❌ 首页定位权限被拒绝，启动弹窗流程');
+      // 使用弹窗服务启动弹窗流程
+      await _popupService.startPopupFlow();
     } catch (e) {
       debugPrint('处理首页定位权限拒绝失败: $e');
     }
@@ -1014,18 +913,16 @@ class HomeController extends GetxController {
       // 重新加载当前页面数据，但不触发引导图检查（避免重复弹窗）
       loadIndexData();
       
-      // 绑定弹窗关闭后，检查是否需要显示VIP购买弹窗
-      debugPrint('💑 绑定弹窗关闭后，延迟检查VIP购买弹窗');
+      // 绑定弹窗关闭后，继续弹窗流程（VIP购买弹窗 -> VIP推广弹窗 -> 引导图）
+      debugPrint('💑 绑定弹窗关闭后，继续弹窗流程');
       Future.delayed(const Duration(milliseconds: 500), () async {
-        await _checkAndShowVipPurchaseDialog();
+        await _popupService.checkAndShowVipPurchaseDialog();
         
-        // VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
         Future.delayed(const Duration(milliseconds: 500), () async {
-          await _checkAndShowVipPromo();
+          await _popupService.checkAndShowVipPromo();
           
-          // VIP推广弹窗处理完成后，延迟检查引导图
           Future.delayed(const Duration(milliseconds: 500), () {
-            _checkAndShowGuide1();
+            _popupService.checkAndShowGuide1();
           });
         });
       });
@@ -1052,27 +949,6 @@ class HomeController extends GetxController {
   void onButtonTap(int index) async {
     selectedIndex.value = index;
     debugPrint("🔍 底部导航按钮 $index 被点击");
-
-    // 获取底部导航名称
-    String bottomName = '';
-    switch (index) {
-      case 0:
-        bottomName = '定位';
-        break;
-      case 1:
-        bottomName = '足迹';
-        break;
-      case 2:
-        bottomName = '聊天';
-        break;
-      case 3:
-        bottomName = '用机记录';
-        break;
-      case 4:
-        bottomName = '我的';
-        break;
-    }
-
     
     // 执行导航逻辑
     switch (index) {
@@ -1384,56 +1260,6 @@ class HomeController extends GetxController {
     loadIndexData();
   }
   
-  /// 初始化PAG动画 - 暂时移除
-  // void _initPAGAnimations() {
-  //   try {
-  //     debugPrint('🚀 开始初始化PAG动画配置...');
-  //     
-  //     // 配置五个PAG动画的位置和大小
-  //     pagAnimations.value = [
-  //       {
-  //         'assetPath': 'assets/pag/home_bg_clothes.pag',
-  //         'x': 1228,
-  //         'y': 68,
-  //         'width': 272,
-  //         'height': 174,
-  //       },
-  //       {
-  //         'assetPath': 'assets/pag/home_bg_leaf.pag',
-  //         'x': 675,
-  //         'y': 268,
-  //         'width': 232,
-  //         'height': 119,
-  //       },
-  //       {
-  //         'assetPath': 'assets/pag/home_bg_kitchen.pag',
-  //         'x': 22,
-  //         'y': 139,
-  //         'width': 174,
-  //         'height': 364,
-  //       },
-  //       {
-  //         'assetPath': 'assets/pag/home_bg_music.pag',
-  //         'x': 352,
-  //         'y': 260,
-  //         'width': 130,
-  //         'height': 108,
-  //       },
-  //       {
-  //         'assetPath': 'assets/pag/home_bg_person.pag',
-  //         'x': 395,
-  //         'y': 293,
-  //         'width': 350,
-  //         'height': 380,
-  //       },
-  //     ];
-  //     
-  //     debugPrint('🎯 PAG动画配置完成，共${pagAnimations.length}个动画');
-  //   } catch (e) {
-  //     debugPrint('❌ PAG动画初始化失败: $e');
-  //   }
-  // }
-  
   /// 跳转到H5页面
   void navigateToH5(
     String url, {
@@ -1527,221 +1353,24 @@ class HomeController extends GetxController {
     }
   }
 
-  /// 检查并显示VIP推广弹窗
-  Future<void> _checkAndShowVipPromo() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final shouldShow = prefs.getBool('should_show_vip_promo') ?? false;
-      
-      debugPrint('🔍 检查VIP推广标识: $shouldShow');
-      
-      if (shouldShow) {
-        debugPrint('🎁 检测到需要显示VIP推广弹窗');
-        
-        // 立即清除标识，防止重复显示（在延迟显示之前就清除）
-        await prefs.remove('should_show_vip_promo');
-        debugPrint('🧹 VIP推广标识已清除（在显示弹窗前）');
-        
-        // 延迟后显示弹窗，确保首页已完全加载
-        await Future.delayed(const Duration(milliseconds: 500));
-        
-        try {
-          final currentContext = Get.context;
-          if (currentContext != null) {
-            // 🔥 修复：标记弹窗正在显示，隐藏引导图
-            _isShowingDialog.value = true;
-            if (showGuideOverlay.value) {
-              hideGuideOverlay();
-              debugPrint('⚠️ 隐藏引导图，显示VIP推广弹窗');
-            }
-            
-            // 🔥 修复：添加超时保护，确保状态能够正确重置
-            final dialogFuture = DialogManager.showHuaweiVipPromo(currentContext);
-            final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
-              debugPrint('⚠️ VIP推广弹窗显示超时，强制重置状态');
-              _isShowingDialog.value = false;
-            });
-            
-            await Future.any([dialogFuture, timeoutFuture]);
-            debugPrint('✅ VIP推广弹窗已显示并关闭');
-            
-            // 🔥 修复：标记弹窗已关闭（延迟一下确保弹窗完全关闭）
-            Future.delayed(const Duration(milliseconds: 300), () {
-              _isShowingDialog.value = false;
-            });
-          } else {
-            // Context 为空时也要重置状态
-            _isShowingDialog.value = false;
-          }
-        } catch (e) {
-          // 🔥 修复：确保即使出错也重置弹窗状态
-          _isShowingDialog.value = false;
-          debugPrint('❌ 显示VIP推广弹窗失败: $e');
-        }
-      } else {
-        debugPrint('ℹ️ 无需显示VIP推广弹窗');
-      }
-    } catch (e) {
-      // 🔥 修复：确保即使出错也重置弹窗状态
-      _isShowingDialog.value = false;
-      debugPrint('❌ 检查VIP推广标识失败: $e');
-    }
-  }
-
   /// 显示引导层
   void displayGuideOverlay() {
-    // 🔥 修复：如果正在显示弹窗，延迟显示引导图，避免冲突
-    if (_isShowingDialog.value) {
-      debugPrint('⚠️ 正在显示弹窗，延迟显示引导图');
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (!_isShowingDialog.value) {
-            currentGuideType.value = GuideType.datingTime;
-            showGuideOverlay.value = true;
-            debugPrint('📱 弹窗已关闭，显示引导层');
-          }
-        });
-      return;
-    }
-    
-    currentGuideType.value = GuideType.datingTime;
-    showGuideOverlay.value = true;
-    debugPrint('📱 显示引导层');
+    _popupService.displayGuideOverlay();
   }
 
   /// 隐藏引导层
   void hideGuideOverlay() {
-    showGuideOverlay.value = false;
-    debugPrint('📱 隐藏引导层');
-    
-    // 🔥 修复：隐藏引导层时，确保弹窗状态也正确
-    // 如果引导层被隐藏但弹窗状态异常，强制重置
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!showGuideOverlay.value && _isShowingDialog.value) {
-        // 检查是否真的有弹窗在显示（通过检查 Navigator 栈）
-        final context = Get.context;
-        if (context != null && Navigator.of(context).canPop()) {
-          // 有弹窗在显示，保持状态
-          debugPrint('📱 引导层已隐藏，弹窗仍在显示');
-        } else {
-          // 没有弹窗在显示，但状态异常，强制重置
-          debugPrint('⚠️ 检测到弹窗状态异常（引导层已隐藏但状态仍为true），强制重置');
-          _isShowingDialog.value = false;
-        }
-      }
-    });
-  }
-
-  /// 检查并显示引导图1（新用户引导）
-  Future<void> _checkAndShowGuide1() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasShownGuide1 = prefs.getBool('has_shown_guide1') ?? false;
-      
-      debugPrint('🔍 检查引导图1显示状态: $hasShownGuide1 (已绑定: ${isBound.value})');
-      
-      if (!hasShownGuide1) {
-        debugPrint('📱 首次登录，显示引导图1');
-        
-        // 立即标记已显示，防止重复显示
-        await prefs.setBool('has_shown_guide1', true);
-        
-        // 延迟显示引导图1，确保首页完全加载
-        Future.delayed(const Duration(milliseconds: 500), () {
-          _showGuide1();
-        });
-      } else {
-        debugPrint('ℹ️ 引导图1已显示过，检查是否需要显示引导图2或VIP购买弹窗 (已绑定: ${isBound.value})');
-        
-        // 如果已绑定，检查是否需要显示引导图2
-        if (isBound.value) {
-          _checkAndShowGuide2();
-        } else {
-          // 未绑定老用户，不显示任何引导图
-          debugPrint('ℹ️ 未绑定老用户，不显示引导图');
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 检查引导图1状态失败: $e');
-    }
-  }
-
-  /// 检查并显示绑定弹窗
-  Future<void> _checkAndShowBindingDialog() async {
-    try {
-      // 检查是否已绑定
-      if (isBound.value) {
-        debugPrint('🔗 用户已绑定，不显示绑定弹窗');
-        return;
-      }
-
-      // 检查本次会话是否已显示过绑定弹窗
-      if (_hasShownBindingDialogThisSession) {
-        debugPrint('📱 本次会话已显示过绑定弹窗，不再显示');
-        return;
-      }
-
-      debugPrint('💕 用户未绑定且本次会话未显示过绑定弹窗，准备显示绑定弹窗');
-
-      // 延迟显示绑定弹窗，确保首页完全加载
-      Future.delayed(const Duration(milliseconds: 800), () {
-        _showBindingDialog();
-      });
-      
-    } catch (e) {
-      debugPrint('❌ 检查绑定弹窗时发生错误: $e');
-    }
-  }
-
-  /// 显示引导图1
-  void _showGuide1() {
-    // 🔥 修复：如果正在显示弹窗，延迟显示引导图，避免冲突
-    if (_isShowingDialog.value) {
-      debugPrint('⚠️ 正在显示弹窗，延迟显示引导图1');
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (!_isShowingDialog.value) {
-            currentGuideType.value = GuideType.swipe;
-            showGuideOverlay.value = true;
-            debugPrint('📱 弹窗已关闭，显示引导图1');
-          }
-        });
-      return;
-    }
-    
-    currentGuideType.value = GuideType.swipe;
-    showGuideOverlay.value = true;
-    debugPrint('📱 显示引导图1');
+    _popupService.hideGuideOverlay();
   }
 
   /// 引导图1关闭后的回调
   void onGuide1Dismissed() {
-    hideGuideOverlay();
-    debugPrint('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
-    
-    // 🔥 修复：延迟检查引导图2，确保弹窗流程完成
-    Future.delayed(const Duration(milliseconds: 300), () {
-      // 如果已绑定，检查是否需要显示引导图2
-      if (isBound.value && !_isShowingDialog.value) {
-        _checkAndShowGuide2();
-      } else {
-        if (_isShowingDialog.value) {
-          debugPrint('⚠️ 正在显示弹窗，延迟显示引导图2');
-          // 等待弹窗关闭后再显示引导图2
-          Future.delayed(const Duration(milliseconds: 1000), () {
-            if (isBound.value && !_isShowingDialog.value) {
-              _checkAndShowGuide2();
-            }
-          });
-        } else {
-          debugPrint('✅ 未绑定用户引导流程完成，引导图后不再弹出其他弹窗');
-        }
-      }
-    });
+    _popupService.onGuide1Dismissed();
   }
 
   /// 引导图2关闭后的回调
   void onGuide2Dismissed() {
-    hideGuideOverlay();
-    debugPrint('✅ 引导图2已关闭，引导流程完成，引导图后不再弹出其他弹窗');
+    _popupService.onGuide2Dismissed();
   }
 
   /// 检查定位权限状态并显示绑定弹窗
@@ -1754,268 +1383,28 @@ class HomeController extends GetxController {
       bool hasLocationPermission = await permissionManager.isLocationPermissionGranted();
       
       if (hasLocationPermission) {
-        debugPrint('✅ 用户已有定位权限，优先级顺序：绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图');
-        
-        // 1. 已有定位权限，直接弹出绑定弹窗（第一优先级）
-        await _checkAndShowBindingDialog();
-        
-        // 2. 绑定弹窗处理完成后，延迟检查VIP购买弹窗
-        Future.delayed(Duration(milliseconds: 500), () async {
-          await _checkAndShowVipPurchaseDialog();
-          
-          // 3. VIP购买弹窗处理完成后，延迟检查VIP推广弹窗
-          Future.delayed(Duration(milliseconds: 500), () async {
-            await _checkAndShowVipPromo();
-            
-            // 4. VIP推广弹窗处理完成后，延迟检查引导图（最后优先级）
-            Future.delayed(Duration(milliseconds: 500), () {
-              _checkAndShowGuide1();
-            });
-          });
-        });
+        debugPrint('✅ 用户已有定位权限，启动弹窗流程');
+        // 使用弹窗服务启动弹窗流程
+        await _popupService.startPopupFlow();
       } else {
         debugPrint('❌ 用户没有定位权限，优先级顺序：请求权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图');
-        
-        // 1. 没有定位权限，请求权限（权限回调中会立即弹出绑定弹窗）
+        // 没有定位权限，请求权限（权限回调中会启动弹窗流程）
         await _requestLocationPermissionOnHomePage();
       }
     } catch (e) {
       debugPrint('❌ 检查定位权限状态失败: $e');
-      // 出错时执行其他逻辑
       await _requestLocationPermissionOnHomePage();
-    }
-  }
-
-  /// 检查并显示VIP购买弹窗
-  Future<void> _checkAndShowVipPurchaseDialog() async {
-    try {
-      // 1. 检查是否已绑定
-      if (!isBound.value) {
-        debugPrint('💎 用户未绑定，不显示VIP购买弹窗');
-        return;
-      }
-
-      // 2. 检查是否为会员
-      if (UserManager.isVip) {
-        debugPrint('💎 用户已是VIP会员，不显示VIP购买弹窗');
-        return;
-      }
-
-      // 3. 检查本次会话是否已显示过VIP购买弹窗
-      if (_hasShownVipDialogThisSession) {
-        debugPrint('💎 本次会话已显示过VIP购买弹窗，不再显示');
-        return;
-      }
-
-      debugPrint('💎 用户已绑定且非会员，本次会话未显示过VIP购买弹窗，准备显示');
-
-      // 延迟显示VIP购买弹窗，确保首页完全加载
-      Future.delayed(const Duration(milliseconds: 800), () {
-        _showVipPurchaseDialog();
-      });
-      
-    } catch (e) {
-      debugPrint('❌ 检查VIP购买弹窗时发生错误: $e');
-    }
-  }
-
-  /// 显示VIP购买弹窗
-  void _showVipPurchaseDialog() {
-    try {
-      final currentContext = Get.context;
-      if (currentContext == null) {
-        debugPrint('❌ 无法获取Context，跳过显示VIP购买弹窗');
-        return;
-      }
-
-      debugPrint('💎 显示VIP购买弹窗');
-      
-      // 🔥 修复：标记弹窗正在显示，隐藏引导图
-      _isShowingDialog.value = true;
-      if (showGuideOverlay.value) {
-        hideGuideOverlay();
-        debugPrint('⚠️ 隐藏引导图，显示VIP购买弹窗');
-      }
-      
-      // 标记本次会话已显示
-      _hasShownVipDialogThisSession = true;
-      
-      // 🔥 修复：添加超时保护，确保状态能够正确重置
-      final dialogFuture = DialogManager.showVipPurchase(
-        context: currentContext,
-        onConfirm: () {
-          debugPrint('💎 点击了立即查看按钮，跳转到VIP页面');
-          // 🔥 修复：标记弹窗已关闭
-          _isShowingDialog.value = false;
-          // 弹窗会自动关闭，然后跳转到VIP页面
-          Get.toNamed(
-            KissuRoutePath.vip,
-            arguments: {
-              'previousPageName': '首页',
-              'previousPageId': 'home_page', // 首页还没有单独的页面浏览埋点
-            },
-          );
-        },
-        barrierDismissible: true,
-      );
-      
-      final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
-        debugPrint('⚠️ VIP购买弹窗显示超时，强制重置状态');
-        _isShowingDialog.value = false;
-      });
-      
-      Future.any([dialogFuture, timeoutFuture]).then((_) {
-        // 🔥 修复：弹窗关闭后重置状态（延迟一下确保弹窗完全关闭）
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _isShowingDialog.value = false;
-        });
-        debugPrint('💎 VIP购买弹窗已关闭');
-      }).catchError((e) {
-        // 🔥 修复：确保即使出错也重置弹窗状态
-        _isShowingDialog.value = false;
-        debugPrint('❌ VIP购买弹窗错误: $e');
-      });
-      
-    } catch (e) {
-      // 🔥 修复：确保即使出错也重置弹窗状态
-      _isShowingDialog.value = false;
-      debugPrint('❌ 显示VIP购买弹窗时发生错误: $e');
     }
   }
 
   /// 显示VIP开通弹窗（调试用）
   void showVipPurchaseDialog() {
-    _showVipPurchaseDialog();
-  }
-
-  /// 检查并显示引导图2（相恋时间设置引导）
-  /// 在引导图1关闭后，已绑定状态下检查是否第一次显示
-  Future<void> _checkAndShowGuide2() async {
-    try {
-      // 🔥 修复：如果正在显示弹窗，延迟检查引导图2
-      if (_isShowingDialog.value) {
-        debugPrint('⚠️ 正在显示弹窗，延迟检查引导图2');
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          if (!_isShowingDialog.value) {
-            _checkAndShowGuide2();
-          }
-        });
-        return;
-      }
-      
-      final prefs = await SharedPreferences.getInstance();
-      final hasShownGuide2 = prefs.getBool('has_shown_guide2') ?? false;
-      
-      debugPrint('🔍 检查引导图2显示状态: $hasShownGuide2');
-      
-      if (!hasShownGuide2) {
-        debugPrint('📱 显示引导图2（已绑定且第一次进入首页）');
-        
-        // 立即标记已显示，防止重复显示
-        await prefs.setBool('has_shown_guide2', true);
-        
-        // 🔥 修复：确保没有弹窗显示时才显示引导图2
-        if (!_isShowingDialog.value) {
-          // 延迟显示引导图2
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (!_isShowingDialog.value) {
-              displayGuideOverlay();
-            }
-          });
-        } else {
-          debugPrint('⚠️ 弹窗正在显示，延迟显示引导图2');
-          Future.delayed(const Duration(milliseconds: 1000), () {
-            if (!_isShowingDialog.value) {
-              displayGuideOverlay();
-            }
-          });
-        }
-      } else {
-        debugPrint('ℹ️ 引导图2已显示过，检查VIP购买弹窗');
-        // 引导图2已显示过，检查VIP购买弹窗
-        await _checkAndShowVipPurchaseDialog();
-      }
-    } catch (e) {
-      debugPrint('❌ 检查引导图2状态失败: $e');
-    }
+    _popupService.showVipPurchaseDialogForDebug();
   }
 
   /// 检查并显示引导层（调试模式：一直显示）
   Future<void> checkAndShowGuide() async {
-    try {
-      debugPrint('🔍 调试模式：强制显示引导层');
-      
-      // 延迟显示引导层，确保首页完全加载
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        displayGuideOverlay();
-        debugPrint('✅ 引导层已显示（调试模式）');
-      });
-    } catch (e) {
-      debugPrint('❌ 显示引导层失败: $e');
-    }
-  }
-
-
-  /// 显示绑定弹窗
-  void _showBindingDialog() {
-    try {
-      final currentContext = Get.context;
-      if (currentContext == null) {
-        debugPrint('❌ 无法获取Context，跳过显示绑定弹窗');
-        return;
-      }
-
-      debugPrint('💑 显示绑定弹窗');
-      
-      // 🔥 修复：标记弹窗正在显示，隐藏引导图
-      _isShowingDialog.value = true;
-      if (showGuideOverlay.value) {
-        hideGuideOverlay();
-        debugPrint('⚠️ 隐藏引导图，显示绑定弹窗');
-      }
-      
-      // 标记本次会话已显示
-      _hasShownBindingDialogThisSession = true;
-      
-      // 使用CustomBottomDialog显示绑定弹窗
-      // 注意：关闭按钮点击时会自动弹出挽回弹窗，无需单独设置 onCloseConfirm
-      final dialogFuture = CustomBottomDialog.show(
-        context: currentContext,
-        caller: BindingDialogCaller.home, // 标记为首页，用于埋点判断
-        onClose: () {
-          debugPrint('💑 绑定弹窗已关闭');
-        },
-      );
-      
-      // 🔥 优化：减少超时时间从30秒到10秒，避免用户等待过久
-      final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
-        debugPrint('⚠️ 绑定弹窗显示超时，强制重置状态');
-        _isShowingDialog.value = false;
-      });
-      
-      Future.any([dialogFuture, timeoutFuture]).then((result) {
-        // 🔥 修复：标记弹窗已关闭（延迟一下确保弹窗完全关闭）
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _isShowingDialog.value = false;
-        });
-        
-        // 无论用户是确认绑定还是关闭弹窗，都已经标记为已显示
-        debugPrint('💑 绑定弹窗已关闭，结果: $result');
-        // 延迟执行刷新，确保弹窗完全关闭后再执行
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _refreshAfterBinding();
-        });
-      }).catchError((e) {
-        // 🔥 修复：确保即使出错也重置弹窗状态
-        _isShowingDialog.value = false;
-        debugPrint('❌ 绑定弹窗显示错误: $e');
-      });
-      
-    } catch (e) {
-      // 🔥 修复：确保即使出错也重置弹窗状态
-      _isShowingDialog.value = false;
-      debugPrint('❌ 显示绑定弹窗时发生错误: $e');
-    }
+    await _popupService.checkAndShowGuideDebug();
   }
   
   /// 更新天气数据（从首页接口数据中解析）
@@ -2048,103 +1437,6 @@ class HomeController extends GetxController {
     } catch (e) {
       debugPrint('❌ 天气数据解析异常: $e');
       isWeatherLoading.value = false;
-    }
-  }
-
-  /// 检查并显示VIP到期弹窗
-  Future<void> _checkAndShowVipOuttimeDialog(VipData? vipData) async {
-    try {
-      // 检查是否有 vip_data 且 type == 1
-      if (vipData == null || vipData.type != 1) {
-        return;
-      }
-
-      // 检查 expireDays 是否为 1、3、7
-      if (![1, 3, 7].contains(vipData.expireDays)) {
-        return;
-      }
-
-      // 检查今天是否已弹过
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final prefs = await SharedPreferences.getInstance();
-      final lastShowDate = prefs.getString('vip_outtime_dialog_last_show_date');
-      
-      if (lastShowDate == today) {
-        debugPrint('📱 VIP到期弹窗今天已显示过，不再显示');
-        return;
-      }
-
-      // 在显示弹窗前就立即写入缓存，防止并发时重复弹窗
-      await prefs.setString('vip_outtime_dialog_last_show_date', today);
-      debugPrint('✅ VIP到期弹窗已提前记录: $today');
-
-      // 获取当前上下文
-      final context = Get.context;
-      if (context == null) {
-        debugPrint('⚠️ 无法获取上下文，延迟显示VIP到期弹窗');
-        // 取消之前的重试定时器
-        _vipOuttimeDialogRetryTimer?.cancel();
-        // 延迟一下再试，最多重试6次（3秒）
-        int retryCount = 0;
-        _vipOuttimeDialogRetryTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-          retryCount++;
-          final currentContext = Get.context;
-          if (currentContext != null) {
-            timer.cancel();
-            _vipOuttimeDialogRetryTimer = null;
-            // 直接执行显示逻辑
-            _showVipOuttimeDialog(currentContext, vipData.expireDays);
-          } else if (retryCount >= 6) {
-            // 最多重试6次（3秒），如果还是无法获取上下文，放弃
-            timer.cancel();
-            _vipOuttimeDialogRetryTimer = null;
-            debugPrint('⚠️ VIP到期弹窗：无法获取上下文，已放弃显示');
-          }
-        });
-        return;
-      }
-
-      // 显示弹窗
-      await _showVipOuttimeDialog(context, vipData.expireDays);
-    } catch (e) {
-      debugPrint('❌ 检查VIP到期弹窗异常: $e');
-    } finally {
-      // 确保定时器被清理
-      _vipOuttimeDialogRetryTimer?.cancel();
-      _vipOuttimeDialogRetryTimer = null;
-    }
-  }
-
-  /// 显示VIP到期弹窗（辅助方法）
-  Future<void> _showVipOuttimeDialog(BuildContext context, int expireDays) async {
-    try {
-      debugPrint('📱 显示VIP到期弹窗: expireDays=$expireDays');
-      final result = await VipOuttimeDialog.show(
-        context: context,
-        expireDays: expireDays,
-        onRenew: () {
-          debugPrint('📱 用户点击立即续费，跳转到VIP页面');
-          // 跳转到VIP页面
-          Get.toNamed(
-            KissuRoutePath.vip,
-            arguments: {
-              'previousPageName': '首页',
-              'previousPageId': 'home_page',
-            },
-          );
-        },
-        onLater: () {
-          debugPrint('📱 用户点击下次再说');
-        },
-      );
-
-      // 如果用户关闭了弹窗但没有点击按钮，可能需要处理
-      // 但缓存已经写入，所以不会重复弹窗
-      if (result != null) {
-        debugPrint('✅ VIP到期弹窗用户操作完成');
-      }
-    } catch (e) {
-      debugPrint('❌ 显示VIP到期弹窗异常: $e');
     }
   }
   

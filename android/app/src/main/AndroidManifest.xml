@@ -394,6 +394,38 @@
             android:name="JPUSH_MEIZU_APPKEY"
             android:value="${JPUSH_MEIZU_APPKEY}" />
         <!-- ================= 厂商通道配置结束 ================= -->
+        
+        <!-- ================= 腾讯IM离线推送厂商配置 ================= -->
+        <!-- vivo推送配置（腾讯IM离线推送） -->
+        <meta-data 
+            tools:replace="android:value"
+            android:name="com.vivo.push.api_key" 
+            android:value="fa541d6f32b359e1d8c34d99e2d6d07a" />
+        <meta-data 
+            tools:replace="android:value"
+            android:name="com.vivo.push.app_id" 
+            android:value="105947238" />
+        <!-- 荣耀推送配置（腾讯IM离线推送） -->
+        <meta-data 
+            tools:replace="android:value"
+            android:name="com.hihonor.push.app_id" 
+            android:value="104512674" />
+        <!-- OPPO SDK版本冲突解决（极光推送和腾讯IM推送使用不同版本） -->
+        <meta-data
+            tools:replace="android:value"
+            android:name="sdkVersion"
+            android:value="3701" />
+        <!-- 荣耀推送SDK版本冲突解决（极光推送8.0.12.307 vs 腾讯IM推送7.0.61.302） -->
+        <meta-data
+            tools:replace="android:value"
+            android:name="com.hihonor.push.sdk_version"
+            android:value="8.0.12.307" />
+        <!-- ================= 腾讯IM离线推送厂商配置结束 ================= -->
+        
+        <!-- 腾讯IM推送通知图标配置 -->
+        <meta-data
+            android:name="com.tencent.timpush.small_icon"
+            android:resource="@drawable/ic_notification" />
             
         <!-- 自定义通知样式配置 -->
         <meta-data

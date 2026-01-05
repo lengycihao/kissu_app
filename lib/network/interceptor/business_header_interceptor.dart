@@ -235,7 +235,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     // 设置默认渠道（可以根据实际需求修改）
     // 打包时请修改这里的渠道值：
     // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝> kissu_wdj  <豌豆荚>
-    _cachedChannel ??= Platform.isAndroid ? 'kissu_wdj' : 'kissu_default';
+    _cachedChannel ??= Platform.isAndroid ? 'kissu_meizu' : 'kissu_default';
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
 

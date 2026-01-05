@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../location_v2_controller.dart';
-import '../map_gif_test_page.dart';
 
 /// 左侧浮动按钮组
 /// 包含刷新和切换地图类型功能
@@ -18,20 +17,18 @@ class LeftFloatingButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // 🔧 根据绑定状态动态计算按钮底部位置（与右侧按钮对齐）
-      final isBindPartner = controller.isBindPartner.value;
-      final deviceHeightDiff = -42.0; // 设备模块高度差
-      final firstButtonBottom = isBindPartner
-          ? screenHeight / 2 - deviceHeightDiff // 已绑定：屏幕中间
-          : screenHeight / 2 - deviceHeightDiff; // 未绑定：向下偏移42px
+      // 🔧 修改：与右侧按钮保持相同的距离底部高度
+      final sheetPercent = controller.sheetPercent.value;
+      final sheetHeight = screenHeight * sheetPercent;
+      final buttonBottom = sheetHeight + 50; // 与右侧按钮相同的偏移量
 
       // 使用与右侧按钮相同的透明度计算逻辑
-      final sheetPercent = controller.sheetPercent.value;
+      final isBindPartner = controller.isBindPartner.value;
 
       // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final middleSnapSize = isBindPartner
-          ? 0.5
-          : 0.5 + (deviceHeightDiff / screenHeight);
+          ? 0.5 + (21 / screenHeight) // 已绑定：屏幕中间 + 21px偏移
+          : 0.5 + (57 / screenHeight); // 未绑定：屏幕中间 + 57px偏移
 
       final maxPercent = (screenHeight - 100) / screenHeight;
 
@@ -48,7 +45,7 @@ class LeftFloatingButtons extends StatelessWidget {
 
       return Positioned(
         left: 16,
-        bottom: firstButtonBottom,
+        bottom: buttonBottom,
         child: Opacity(
           opacity: opacity,
           child: IgnorePointer(
@@ -107,7 +104,13 @@ class LeftFloatingButtons extends StatelessWidget {
                   // 切换视图按钮
                   GestureDetector(
                     onTap: () {
-                      controller.cycleMapView();
+                      // 🎯 在点击时检查isCloseMode，而不是构建时
+                      if (controller.isCloseMode) {
+                        // 小于100米时：移动相机到我的坐标，缩放级别18，隐藏infowindow和圆圈
+                        controller.moveToMyLocationInCloseMode();
+                      } else {
+                        controller.cycleMapView();
+                      }
                     },
                     child: Container(
                       width: 24,

@@ -230,23 +230,24 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
       // 🔑 现在可以安全访问服务了（带异常保护和超时保护）
       try {
-        // 🔥 修复：为 SharedPreferences 操作添加超时保护
-        // 🔥 优化：减少超时时间到1秒，加快启动速度
+        // 🔥 修复：统一使用FirstLaunchService检查，避免双重检查逻辑冲突
         bool shouldShowPrivacyDialog = false;
         try {
           final firstLaunchService = FirstLaunchService.instance;
+          // 🔥 修复：增加超时时间到3秒，让FirstLaunchService内部有足够时间读取
+          // FirstLaunchService内部已经有缓存和智能判断逻辑，超时时会根据情况返回正确值
           shouldShowPrivacyDialog = await firstLaunchService
               .shouldShowFirstAgreement()
               .timeout(
-                const Duration(seconds: 1), // 🔥 从2秒减少到1秒
+                const Duration(seconds: 3),
                 onTimeout: () {
-                  DebugUtil.warning('⚠️ 检查首次协议状态超时，默认显示隐私政策弹窗');
-                  return true; // 超时则默认显示，确保用户能看到隐私政策
+                  DebugUtil.warning('⚠️ 检查首次协议状态超时，不显示弹窗（避免重复弹窗）');
+                  return false; // 🔥 修复：超时时不显示弹窗，避免二次打开app时重复弹窗
                 },
               );
         } catch (e) {
-          DebugUtil.error('⚠️ 检查首次协议状态失败: $e，默认显示隐私政策弹窗');
-          shouldShowPrivacyDialog = true; // 出错则默认显示
+          DebugUtil.error('⚠️ 检查首次协议状态失败: $e，不显示弹窗（避免重复弹窗）');
+          shouldShowPrivacyDialog = false; // 🔥 修复：出错时不显示弹窗，避免重复弹窗
         }
 
         if (shouldShowPrivacyDialog) {
@@ -257,34 +258,25 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
           return;
         }
 
-        // 检查隐私政策合规状态（带超时保护）
+        // 🔥 隐私合规修复：用户已同意隐私协议，需要初始化SDK
+        // 这确保SDK只在用户明确同意后才初始化，符合应用市场要求
         try {
           final privacyManager = Get.find<PrivacyComplianceManager>();
-          // 🔥 修复：添加超时保护，避免隐私状态检查阻塞
-          // 🔥 优化：减少超时时间到0.5秒
-          final isPrivacyAgreed = await Future.value(privacyManager.isPrivacyAgreed)
-              .timeout(
-                const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
-                onTimeout: () {
-                  DebugUtil.warning('⚠️ 检查隐私政策状态超时，默认未同意');
-                  return false; // 超时则默认未同意，显示隐私政策弹窗
-                },
-              );
-          
-          if (!isPrivacyAgreed) {
-            DebugUtil.warning('隐私政策未同意，在启动页显示隐私政策弹窗');
-            await _showPrivacyDialog();
-            // 🔥 修复：隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
-            _startNavigationTimeout();
-            return;
+          if (privacyManager.isPrivacyAgreed && !privacyManager.isSdkInitialized) {
+            DebugUtil.info('用户已同意隐私政策，开始初始化SDK...');
+            await privacyManager.initializeSdks()
+                .timeout(
+                  const Duration(seconds: 5),
+                  onTimeout: () {
+                    DebugUtil.warning('⚠️ SDK初始化超时（5秒），继续启动流程');
+                  },
+                )
+                .catchError((e) {
+                  DebugUtil.error('SDK初始化失败: $e，继续启动流程');
+                });
           }
         } catch (e) {
-          DebugUtil.error('⚠️ 获取隐私合规管理器失败: $e，显示隐私政策弹窗');
-          // 如果服务获取失败，显示隐私政策弹窗确保合规
-          await _showPrivacyDialog();
-          // 🔥 修复：隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
-          _startNavigationTimeout();
-          return;
+          DebugUtil.error('⚠️ 初始化SDK失败: $e，继续启动流程');
         }
       } catch (e) {
         DebugUtil.error('⚠️ 获取服务失败: $e，跳过隐私检查直接进入登录检查');
@@ -395,19 +387,6 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
     }
 
     _isShowingPrivacyDialog = true; // 🔥 标记正在显示
-
-    // 🔥 修复：标记已显示弹窗（带超时保护）
-    try {
-      await FirstLaunchService.instance.markFirstAgreementShown()
-          .timeout(
-            const Duration(seconds: 1),
-            onTimeout: () {
-              DebugUtil.warning('⚠️ 标记首次协议弹窗状态超时，继续显示弹窗');
-            },
-          );
-    } catch (e) {
-      DebugUtil.error('⚠️ 标记首次协议弹窗状态失败: $e，继续显示弹窗');
-    }
 
     // 🔥 修复：为对话框显示添加超时保护，防止无限等待
     bool? result;

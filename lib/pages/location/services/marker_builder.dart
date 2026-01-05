@@ -521,16 +521,18 @@ class MarkerBuilder {
           face.faceUrl!,
         );
         if (emojiIcon != null) {
+          // 🔧 所有尺寸都根据height按比例计算，确保在不同设备上显示一致
           final iconSize = height * 0.45;
+          final fontSize = height * 0.35; // 字体大小根据height按比例计算
           TextPainter? textPainter;
 
           if (face.faceText != null && face.faceText!.isNotEmpty) {
             textPainter = TextPainter(
               text: TextSpan(
                 text: face.faceText!,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.black,
-                  fontSize: 36,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'LiuHuanKaTongShouShu',
                 ),
@@ -540,7 +542,7 @@ class MarkerBuilder {
             textPainter.layout();
           }
 
-          final spacing = (textPainter != null) ? 6.0 : 0.0;
+          final spacing = (textPainter != null) ? height * 0.06 : 0.0; // 间距也按比例计算
           final textWidth = textPainter?.width ?? 0.0;
           final totalWidth = iconSize + spacing + textWidth;
           final startLeft = left + (width - totalWidth) / 2;
@@ -581,6 +583,7 @@ class MarkerBuilder {
   /// [designAvatarSize] 设计稿中头像尺寸（逻辑像素）
   /// [designBgSize] 设计稿中背景图尺寸（逻辑像素）
   /// [avatarOffsetY] 头像在背景图中的Y偏移（相对于背景图顶部的比例，0-1）
+  /// [face] 心情状态，如果有则在头像顶部显示
   Future<Map<String, dynamic>> createAvatarWithBgMarker(
     String avatarUrl, {
     String? defaultAsset,
@@ -590,6 +593,7 @@ class MarkerBuilder {
     double designBgHeight = 65.0,  // 背景图高度
     double avatarOffsetY = 5, // 头像顶部距离背景图顶部的比例
     double rotationDegrees = 0.0, // 旋转角度（度），正数顺时针，负数逆时针
+    Face? face, // 🎯 心情状态
   }) async {
     try {
       // 加载背景图
@@ -614,14 +618,25 @@ class MarkerBuilder {
       final avatarSize = designAvatarSize * screenScale * dpr;
       final spaceHeight = avatarOffsetY * screenScale * dpr;
       
+      // 🎯 心情状态尺寸计算（与createAvatarMarker保持一致）
+      final emojiBgHeight = (face != null && face.isValid)
+          ? avatarSize * (26.67 / 60.0)
+          : 0.0;
+      final emojiBgMargin = (face != null && face.isValid)
+          ? avatarSize * (3.33 / 60.0)
+          : 0.0;
+      
       // 旋转后需要更大的画布来容纳旋转后的图像
       final rotationRadians = rotationDegrees * 3.14159265359 / 180.0;
       
+      // 🎯 计算包含心情状态的总高度
+      final totalContentHeight = bgHeight + emojiBgHeight + emojiBgMargin;
+      
       // 计算旋转后的边界框大小（使用对角线长度作为画布大小）
-      final diagonal = (bgWidth * bgWidth + bgHeight * bgHeight);
+      final diagonal = (bgWidth * bgWidth + totalContentHeight * totalContentHeight);
       final diagonalSqrt = diagonal > 0 ? math.sqrt(diagonal) : bgWidth;
       final canvasWidth = rotationDegrees.abs() > 0.1 ? diagonalSqrt : bgWidth;
-      final canvasHeight = rotationDegrees.abs() > 0.1 ? diagonalSqrt : bgHeight;
+      final canvasHeight = rotationDegrees.abs() > 0.1 ? diagonalSqrt : totalContentHeight;
       
       debugPrint('📱 ============ 带背景头像Marker创建 ============');
       debugPrint('📱 背景图尺寸: ${bgWidth.toStringAsFixed(1)} x ${bgHeight.toStringAsFixed(1)}px');
@@ -633,6 +648,10 @@ class MarkerBuilder {
       final pictureRecorder = ui.PictureRecorder();
       final canvas = Canvas(pictureRecorder);
       
+      // 🎯 计算内容在画布中的偏移（用于旋转时居中）
+      final contentOffsetX = (canvasWidth - bgWidth) / 2;
+      final contentOffsetY = (canvasHeight - totalContentHeight) / 2;
+      
       // 如果需要旋转，先移动到画布中心，旋转，再移动回来
       if (rotationDegrees.abs() > 0.1) {
         canvas.save();
@@ -640,22 +659,40 @@ class MarkerBuilder {
         canvas.translate(canvasWidth / 2, canvasHeight / 2);
         // 旋转
         canvas.rotate(rotationRadians);
-        // 移动回来，使背景图中心对准画布中心
-        canvas.translate(-bgWidth / 2, -bgHeight / 2);
+        // 移动回来，使内容中心对准画布中心
+        canvas.translate(-bgWidth / 2, -totalContentHeight / 2);
+      } else {
+        // 不旋转时，内容从顶部开始
+        canvas.translate(contentOffsetX, contentOffsetY);
       }
 
-      // 1. 绘制背景图
+      // 🎯 1. 绘制心情状态背景（在顶部）
+      if (face != null && face.isValid) {
+        final emojiBgLeft = (bgWidth - avatarSize) / 2;
+        final emojiBgTop = 0.0;
+        await _drawEmojiBackground(
+          canvas,
+          emojiBgLeft,
+          emojiBgTop,
+          avatarSize,
+          emojiBgHeight,
+          face,
+        );
+      }
+
+      // 2. 绘制背景图（在心情状态下方）
+      final bgTop = emojiBgHeight + emojiBgMargin;
       final bgSrcRect = Rect.fromLTWH(
         0, 0,
         bgImage.width.toDouble(),
         bgImage.height.toDouble(),
       );
-      final bgDstRect = Rect.fromLTWH(0, 0, bgWidth, bgHeight);
+      final bgDstRect = Rect.fromLTWH(0, bgTop, bgWidth, bgHeight);
       canvas.drawImageRect(bgImage, bgSrcRect, bgDstRect, Paint()..isAntiAlias = true);
 
-      // 2. 计算头像位置（在背景图中心偏上）
+      // 3. 计算头像位置（在背景图中心偏上）
       final avatarCenterX = bgWidth / 2;
-      final avatarCenterY = bgHeight / 2 - spaceHeight;
+      final avatarCenterY = bgTop + bgHeight / 2 - spaceHeight;
       final avatarCenter = Offset(avatarCenterX, avatarCenterY);
 
       // 3. 加载并绘制头像（无边框，直接圆形裁剪）
@@ -709,15 +746,15 @@ class MarkerBuilder {
       final bytes = byteData!.buffer.asUint8List();
 
       // 计算锚点：旋转后需要根据背景图尖尖的实际位置计算
-      // 背景图尖尖原本在底部中心(bgWidth/2, bgHeight)
-      // 旋转后，尖尖位置会改变
+      // 背景图尖尖原本在内容底部中心
+      // 尖尖相对于内容中心的偏移是(0, totalContentHeight/2)
       Offset anchor;
       if (rotationDegrees.abs() > 0.1) {
-        // 旋转后，背景图中心在画布中心
-        // 尖尖相对于背景图中心的偏移是(0, bgHeight/2)
+        // 旋转后，内容中心在画布中心
+        // 尖尖相对于内容中心的偏移是(0, totalContentHeight/2)
         // 旋转后尖尖的新位置
-        final tipOffsetX = (bgHeight / 2) * math.sin(rotationRadians);
-        final tipOffsetY = (bgHeight / 2) * math.cos(rotationRadians);
+        final tipOffsetX = (totalContentHeight / 2) * math.sin(rotationRadians);
+        final tipOffsetY = (totalContentHeight / 2) * math.cos(rotationRadians);
         // 尖尖在画布中的位置
         final tipX = canvasWidth / 2 + tipOffsetX;
         final tipY = canvasHeight / 2 + tipOffsetY;

@@ -125,7 +125,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
       } catch (e) {
         debugPrint('⚠️ 停止滑动动画失败: $e');
       }
-      
+
       // 🔥 修复：使用更可靠的关闭逻辑
       try {
         _fadeController.reverse();
@@ -133,14 +133,14 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
       } catch (e) {
         debugPrint('⚠️ 停止淡入淡出/缩放动画失败: $e');
       }
-      
+
       // 🔥 修复：立即更新状态，不等待动画完成
       if (mounted) {
         setState(() {
           _isVisible = false;
         });
       }
-      
+
       // 🔥 修复：添加超时保护，确保引导图能正常关闭
       Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) {
@@ -182,7 +182,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
         if (_fadeAnimation.value <= 0.01) {
           return const SizedBox.shrink();
         }
-        
+
         return Opacity(
           opacity: _fadeAnimation.value,
           child: Material(
@@ -285,20 +285,17 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
         return Stack(
           children: [
             Positioned(
-              top: 94,
-              right: 17,
+              top: 92,
+              right: 20,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-                 decoration: BoxDecoration(
-                          color: Color(0xff5CC0FF),
-                          border: Border.all(color: Color(0xffffffff),width: 2),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(15),
-                          ),
-                        ),
+                padding: EdgeInsets.symmetric(horizontal: 15, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Color(0xffFFD9F1),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                ),
                 child: Text(
-                  "在一起${controller.loveDays.value}天",
-                  style: TextStyle(color: Color(0xff666666), fontSize: 12),
+                  "相爱${controller.loveDays.value}天",
+                  style: TextStyle(color: Color(0xffFF92D7), fontSize: 12),
                 ),
               ),
             ),
@@ -308,35 +305,54 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
               right: 44,
               child: Image.asset(
                 'assets/3.0/kissu3_guide_line.webp',
-                width: 14,
-                height: 58,
+                width: 48,
+                height: 38,
                 fit: BoxFit.contain,
               ),
             ),
 
             // 文字和我知道了按钮
             Positioned(
-              top: 174,
-              right: 16,
+              top: 164,
+              right: 43,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // 引导文字
-                  const Text(
-                    '相恋时间在这里设置哦~',
-                    style: TextStyle(fontSize: 20, color: Color(0xFFffffff)),
+                  Row(
+                    children: [
+                      Transform.translate(
+                        offset: Offset(-2, -10),
+                        child: Image(
+                          image: AssetImage(
+                            'assets/setting/kissu_guide_laba.webp',
+                          ),
+                          width: 14,
+                          height: 14,
+                        ),
+                      ),
+                      const Text(
+                        '相恋时间在这里设置哦~',
+
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: "AlimamaShuHeiTi",
+                          color: Color(0xFFffffff),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
 
                   // 我知道了按钮
                   GestureDetector(
                     onTap: _hideGuide,
                     child: Image.asset(
                       'assets/3.0/kissu3_guide_konw.webp',
-                      width: 108,
-                      height: 40,
+                      width: 90,
+                      height: 30,
                       fit: BoxFit.contain,
                     ),
                   ),

@@ -50,7 +50,7 @@ class SimpleImageSourceDialog {
                 // 相册选择
                 _buildImageSourceOption(
                   context,
-                  icon: Icons.photo_library_outlined,
+                  icon: 'assets/3.0/image_source.webp',
                   title: '相册选择',
                   onTap: () => Navigator.of(context).pop(ImageSource.gallery),
                 ),
@@ -59,7 +59,7 @@ class SimpleImageSourceDialog {
                 // 相机拍照
                 _buildImageSourceOption(
                   context,
-                  icon: Icons.camera_alt_outlined,
+                  icon: 'assets/3.0/camera_source.png',
                   title: '相机拍照',
                   onTap: () => Navigator.of(context).pop(ImageSource.camera),
                 ),
@@ -71,16 +71,16 @@ class SimpleImageSourceDialog {
                   onTap: () => Navigator.of(context).pop(),
                   child: Container(
                     width: double.infinity,
-                    height: 50,
+                    height: 44,
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
                       border: Border.all(color: Color(0xffFFD4D0), width: 1),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(22),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       '取消',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 16, color: Color(0xff777777)),
                     ),
                   ),
                 ),
@@ -96,29 +96,23 @@ class SimpleImageSourceDialog {
   /// 构建图片来源选项
   static Widget _buildImageSourceOption(
     BuildContext context, {
-    required IconData icon,
+    required String icon,
     required String title,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 50,
+        height: 44,
         margin: EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           border: Border.all(color: Color(0xffFFD4D0), width: 1),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEA39C).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: const Color(0xFFFEA39C), size: 18),
-            ),
+            Image.asset(icon, color: const Color(0xFFFEA39C), width: 18, height: 18),
             SizedBox(width: 10),
             Text(
               title,

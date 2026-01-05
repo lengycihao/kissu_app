@@ -84,8 +84,9 @@ class LoveInfoPage extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // SizedBox(height: 20),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // 我的头像 - 添加预览功能
                       GestureDetector(
@@ -123,6 +124,11 @@ class LoveInfoPage extends StatelessWidget {
                           ),
                         ),
                       ),
+                        Padding(padding: EdgeInsets.symmetric(horizontal: 10),child: Image.asset(
+                        'assets/images/kissu_mine_heart.webp',
+                        width: 110,
+                        height: 110,
+                      )),
                       // 另一半头像或添加按钮
                       controller.isBindPartner.value
                           ? GestureDetector(
@@ -197,7 +203,7 @@ class LoveInfoPage extends StatelessWidget {
                     ],
                   ),
                   // 在一起天数卡片
-                  const SizedBox(height: 5),
+                  // const SizedBox(height: 5),
                   TogetherCard(controller: controller),
                   // 页面内容
                   Expanded(

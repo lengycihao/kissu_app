@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
@@ -200,12 +201,19 @@ class TrackReplayController extends GetxController
     try {
       // 创建起点标记
       try {
-        // 🔧 使用适配后的尺寸（设计稿：34x48），锚点在底部中心
-        final adaptedWidth = _calculateAdaptedSize(34.0);
-        final adaptedHeight = _calculateAdaptedSize(48.0);
-        final startIcon = await BitmapDescriptor.fromAssetImage(
-          ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+        // 🔧 使用手动加载和缩放图片的方式，确保在所有设备上尺寸一致
+        // BitmapDescriptor.fromAssetImage 的 ImageConfiguration.size 在某些设备上不生效
+        final dpr = ui.window.devicePixelRatio;
+        final screenWidth = ui.window.physicalSize.width / dpr;
+        const designWidth = 375.0;
+        final screenScale = screenWidth / designWidth;
+        final adaptedWidth = (34.0 * screenScale * dpr).round();
+        final adaptedHeight = (48.0 * screenScale * dpr).round();
+        DebugUtil.info('📍 回放起点marker尺寸: ${adaptedWidth}x$adaptedHeight');
+        final startIcon = await _createScaledAssetIcon(
           'assets/images/kissu_location_start.webp',
+          adaptedWidth,
+          adaptedHeight,
         );
 
         markers.add(
@@ -242,11 +250,18 @@ class TrackReplayController extends GetxController
         try {
           // 终点使用固定资源图标（不使用头像）
           try {
-            final adaptedWidth = _calculateAdaptedSize(44.0);
-            final adaptedHeight = _calculateAdaptedSize(46.0);
-            final endIcon = await BitmapDescriptor.fromAssetImage(
-              ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
+            // 🔧 使用手动加载和缩放图片的方式，确保在所有设备上尺寸一致
+            final dpr = ui.window.devicePixelRatio;
+            final screenWidth = ui.window.physicalSize.width / dpr;
+            const designWidth = 375.0;
+            final screenScale = screenWidth / designWidth;
+            final adaptedWidth = (44.0 * screenScale * dpr).round();
+            final adaptedHeight = (46.0 * screenScale * dpr).round();
+            DebugUtil.info('📍 回放终点marker尺寸: ${adaptedWidth}x$adaptedHeight');
+            final endIcon = await _createScaledAssetIcon(
               'assets/images/kissu_location_end.webp',
+              adaptedWidth,
+              adaptedHeight,
             );
 
             markers.add(
@@ -263,68 +278,7 @@ class TrackReplayController extends GetxController
             DebugUtil.success('✅ 轨迹终点标记创建成功（使用固定图标）');
           } catch (e) {
             DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
-            // 降级方案：使用原有终点图标
-            try {
-              final adaptedWidth = _calculateAdaptedSize(44.0);
-              final adaptedHeight = _calculateAdaptedSize(46.0);
-              final endIcon = await BitmapDescriptor.fromAssetImage(
-                ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
-                'assets/images/kissu_location_end.webp',
-              );
-
-              markers.add(
-                Marker(
-                  position: endPoint,
-                  icon: endIcon,
-                  anchor: const Offset(0.59, 0.83),
-                  infoWindow: const InfoWindow(title: '', snippet: ''),
-                  onTap: (_) {
-                    DebugUtil.info('点击了轨迹终点');
-                  },
-                ),
-              );
-              DebugUtil.success('✅ 终点降级标记创建成功');
-            } catch (_) {
-              // 再兜底：使用红色圆点
-              final fallbackSize = _calculateAdaptedSize(24.0);
-              final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
-              markers.add(
-                Marker(
-                  position: endPoint,
-                  icon: fallbackIcon,
-                  infoWindow: const InfoWindow(title: '', snippet: ''),
-                  onTap: (_) {
-                    DebugUtil.info('点击了轨迹终点');
-                  },
-                ),
-              );
-            }
-          }
-        } catch (e) {
-          DebugUtil.error('❌ 创建终点头像标记失败: $e，使用降级方案');
-          // 降级方案：使用原有终点图标
-          try {
-            final adaptedWidth = _calculateAdaptedSize(44.0);
-            final adaptedHeight = _calculateAdaptedSize(46.0);
-            final endIcon = await BitmapDescriptor.fromAssetImage(
-              ImageConfiguration(size: Size(adaptedWidth, adaptedHeight)),
-              'assets/images/kissu_location_end.webp',
-            );
-
-            markers.add(
-              Marker(
-                position: endPoint,
-                icon: endIcon,
-                anchor: const Offset(0.59, 0.83),
-                infoWindow: const InfoWindow(title: '', snippet: ''),
-                onTap: (_) {
-                  DebugUtil.info('点击了轨迹终点');
-                },
-              ),
-            );
-            DebugUtil.success('✅ 终点降级标记创建成功');
-          } catch (_) {
-            // 再兜底：使用红色圆点
+            // 降级方案：使用红色圆点
             final fallbackSize = _calculateAdaptedSize(24.0);
             final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
             markers.add(
@@ -338,6 +292,21 @@ class TrackReplayController extends GetxController
               ),
             );
           }
+        } catch (e) {
+          DebugUtil.error('❌ 创建终点头像标记失败: $e，使用降级方案');
+          // 降级方案：使用红色圆点
+          final fallbackSize = _calculateAdaptedSize(24.0);
+          final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
+          markers.add(
+            Marker(
+              position: endPoint,
+              icon: fallbackIcon,
+              infoWindow: const InfoWindow(title: '', snippet: ''),
+              onTap: (_) {
+                DebugUtil.info('点击了轨迹终点');
+              },
+            ),
+          );
         }
       }
     } catch (e) {
@@ -621,6 +590,28 @@ class TrackReplayController extends GetxController
     return BitmapDescriptor.fromBytes(uint8List);
   }
 
+
+  /// 🔧 从asset加载图片并缩放到指定尺寸，返回BitmapDescriptor
+  /// 这个方法确保在所有设备上图片尺寸一致，不依赖ImageConfiguration.size
+  Future<BitmapDescriptor> _createScaledAssetIcon(String assetPath, int width, int height) async {
+    // 加载原始图片
+    final data = await rootBundle.load(assetPath);
+    final codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: width,
+      targetHeight: height,
+    );
+    final frameInfo = await codec.getNextFrame();
+    final image = frameInfo.image;
+    
+    // 转换为字节数据
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) {
+      throw Exception('无法转换图片为字节数据');
+    }
+    
+    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+  }
 
   /// 创建彩色圆形图标（降级方案）
   Future<BitmapDescriptor> _createColoredCircleIcon(

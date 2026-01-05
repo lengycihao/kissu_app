@@ -16,7 +16,7 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 class FeedbackController extends GetxController {
   var content = "".obs; // 问题和意见
   var contact = "".obs; // 联系方式
-  var selectedImage = Rx<File?>(null); // 选择的图片（只能一张）
+  var selectedImages = <File>[].obs; // 选择的图片（最多3张）
   var isSubmitting = false.obs; // 是否正在提交
   var loadingText = "正在提交反馈...".obs; // loading文案
 
@@ -95,6 +95,12 @@ class FeedbackController extends GetxController {
 
   /// 选择图片
   Future<void> pickImage() async {
+    // 检查是否已达到最大数量
+    if (selectedImages.length >= 3) {
+      CustomToast.show(Get.context!, "最多只能上传3张图片");
+      return;
+    }
+
     try {
       // 直接检查权限状态
       final hasPermission = await _permissionService.checkPermissionStatus(
@@ -106,7 +112,7 @@ class FeedbackController extends GetxController {
         logDebug('✅ 意见反馈: 已有权限，直接选择图片', tag: 'Feedback');
         final picked = await picker.pickImage(source: ImageSource.gallery);
         if (picked != null) {
-          selectedImage.value = File(picked.path);
+          selectedImages.add(File(picked.path));
           logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
         } else {
           logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
@@ -121,7 +127,7 @@ class FeedbackController extends GetxController {
           logDebug('✅ 意见反馈: 权限申请成功，开始选择图片', tag: 'Feedback');
           final picked = await picker.pickImage(source: ImageSource.gallery);
           if (picked != null) {
-            selectedImage.value = File(picked.path);
+            selectedImages.add(File(picked.path));
             logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
           } else {
             logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
@@ -138,24 +144,33 @@ class FeedbackController extends GetxController {
   }
 
   /// 删除图片
-  void removeImage() {
-    selectedImage.value = null;
+  void removeImage(int index) {
+    if (index >= 0 && index < selectedImages.length) {
+      selectedImages.removeAt(index);
+    }
   }
 
-  /// 上传图片
-  Future<String?> _uploadImage() async {
-    if (selectedImage.value == null) return null;
+  /// 上传多张图片
+  Future<List<String>> _uploadImages() async {
+    if (selectedImages.isEmpty) return [];
 
+    List<String> uploadedUrls = [];
+    
     try {
-      final result = await fileUploadApi.uploadFile(selectedImage.value!);
-
-      if (result.isSuccess && result.data != null) {
-        return result.data!;
+      for (var image in selectedImages) {
+        final result = await fileUploadApi.uploadFile(image);
+        if (result.isSuccess && result.data != null) {
+          uploadedUrls.add(result.data!);
+        } else {
+          // 如果有一张上传失败，返回空列表
+          logError('❌ 意见反馈: 图片上传失败', tag: 'Feedback');
+          return [];
+        }
       }
-      return null;
+      return uploadedUrls;
     } catch (e) {
       logError('❌ 意见反馈: 图片上传失败 - $e', tag: 'Feedback', error: e);
-      return null;
+      return [];
     }
   }
 
@@ -187,11 +202,11 @@ class FeedbackController extends GetxController {
       loadingText.value = "正在提交反馈...";
 
       // 先上传图片
-      String? attachmentUrl;
-      if (selectedImage.value != null) {
-        attachmentUrl = await _uploadImage();
+      List<String> attachmentUrls = [];
+      if (selectedImages.isNotEmpty) {
+        attachmentUrls = await _uploadImages();
 
-        if (selectedImage.value != null && attachmentUrl == null) {
+        if (selectedImages.isNotEmpty && attachmentUrls.isEmpty) {
           // 有图片但上传失败
           isSubmitting.value = false;
           CustomToast.show(Get.context!, "图片上传失败，请重试");
@@ -203,6 +218,9 @@ class FeedbackController extends GetxController {
       String contactWay = trimmedContact.isNotEmpty
           ? trimmedContact
           : (UserManager.userPhone ?? '');
+
+      // 将多张图片URL用逗号拼接
+      String? attachmentUrl = attachmentUrls.isNotEmpty ? attachmentUrls.join(',') : null;
 
       final result = await settingApi.submitFeedback(
         content: content.value.trim(),
@@ -219,7 +237,7 @@ class FeedbackController extends GetxController {
           content.value = "";
           contact.value = "";
           contactTextController.clear();
-          selectedImage.value = null;
+          selectedImages.clear();
 
           // 关闭loading
           isSubmitting.value = false;
@@ -257,22 +275,22 @@ class ImageItem extends StatelessWidget {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           child: Image.file(
             file,
-            width: 90,
-            height: 90,
+            width: 60,
+            height: 60,
             fit: BoxFit.cover,
             cacheWidth: 180, // 限制缓存尺寸
           ),
         ),
         Positioned(
-          right: -6,
-          top: -6,
-          child: IconButton(
-            icon: const Icon(Icons.close, color: Color(0xffFF7C98), size: 18),
-            onPressed: onRemove,
-          ),
+          right: 0,
+          top: 0,
+          child: GestureDetector(
+            onTap:  onRemove,
+            child: Image(image: AssetImage("assets/images/kissu_feedback_close.webp"),width: 16,height: 10),
+          )
         ),
       ],
     );
@@ -344,7 +362,7 @@ class FeedbackPage extends StatelessWidget {
                         bottom: 0,
                         child: Center(
                           child: Text(
-                            "意见反馈",
+                            "投诉与反馈",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -375,7 +393,7 @@ class FeedbackPage extends StatelessWidget {
                             Row(
                               children: [
                                 const Text(
-                                  "问题和意见",
+                                  "投诉与反馈",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
@@ -457,14 +475,16 @@ class FeedbackPage extends StatelessWidget {
                                 spacing: 10,
                                 runSpacing: 10,
                                 children: [
-                                  // 显示选择的图片（如果有的话）
-                                  if (controller.selectedImage.value != null)
-                                    ImageItem(
-                                      file: controller.selectedImage.value!,
-                                      onRemove: controller.removeImage,
+                                  // 显示已选择的图片
+                                  ...List.generate(
+                                    controller.selectedImages.length,
+                                    (index) => ImageItem(
+                                      file: controller.selectedImages[index],
+                                      onRemove: () => controller.removeImage(index),
                                     ),
-                                  // 添加图片按钮，只有没有图片时才显示
-                                  if (controller.selectedImage.value == null)
+                                  ),
+                                  // 添加图片按钮，最多3张
+                                  if (controller.selectedImages.length < 3)
                                     GestureDetector(
                                       onTap: controller.pickImage,
                                       child: Container(

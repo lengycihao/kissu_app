@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/utils/emoji_cache_manager.dart';
 import 'location_state_controller.dart';
@@ -13,8 +14,6 @@ class LocationStatePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 设置替换确认弹窗的回调
-    controller.onShowReplaceDialog = () => _showReplaceConfirmDialog(context);
     // 设置返回确认弹窗的回调
     controller.onShowBackDialog = () => _showBackConfirmDialog(context);
 
@@ -26,9 +25,9 @@ class LocationStatePage extends StatelessWidget {
             children: [
               // 自定义导航栏
               _buildCustomAppBar(context),
-              if (controller.hasStatus.value ||
-                  controller.currentStatusEmoji.value.isEmpty ||
-                  controller.currentStatusText.value.isEmpty)
+              if (controller.hasStatus.value &&
+                  controller.currentStatusEmoji.value.isNotEmpty &&
+                  controller.currentStatusText.value.isNotEmpty)
                 const SizedBox(height: 10),
               // 表情列表内容 - 添加RepaintBoundary优化
               Expanded(child: RepaintBoundary(child: _buildEmojiContent())),
@@ -52,9 +51,15 @@ class LocationStatePage extends StatelessWidget {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Obx(() {
-      final hasState = controller.hasStatus.value &&
+      // 显式监听所有相关状态
+      final _ = controller.tempSelectedEmoji.value;
+      final _2 = controller.tempSelectedExpireHours.value;
+
+      // 显示状态的条件：有正式状态 或者 有临时状态
+      final hasState = (controller.hasStatus.value &&
           controller.currentStatusEmoji.value.isNotEmpty &&
-          controller.currentStatusText.value.isNotEmpty;
+          controller.currentStatusText.value.isNotEmpty) ||
+          controller.hasTempStatus.value;
 
       // 当有状态时，将标题背景扩展为包含状态区域，形成一块连续背景
       if (hasState) {
@@ -175,7 +180,9 @@ class LocationStatePage extends StatelessWidget {
                             child: Column(
                               children: [
                                 NetworkImageHelper.loadImage(
-                                  imageUrl: controller.currentStatusEmoji.value,
+                                  imageUrl: controller.hasTempStatus.value
+                                      ? controller.tempSelectedEmoji.value?.emoji ?? ''
+                                      : controller.currentStatusEmoji.value,
                                   width: 46,
                                   height: 46,
                                   errorWidget: const Icon(
@@ -184,7 +191,9 @@ class LocationStatePage extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  controller.currentStatusText.value,
+                                  controller.hasTempStatus.value
+                                      ? controller.tempSelectedEmoji.value?.name ?? ''
+                                      : controller.currentStatusText.value,
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF333333),
@@ -380,20 +389,6 @@ class LocationStatePage extends StatelessWidget {
     );
   }
 
-  /// 显示替换状态确认弹窗
-  void _showReplaceConfirmDialog(BuildContext context) {
-    LocationStateDeleteDialog.show(
-      context: context,
-      title: '是否要替换之前的状态？',
-      onConfirm: () {
-        controller.confirmReplace();
-      },
-      onCancel: () {
-        controller.cancelReplace();
-      },
-    );
-  }
-
   /// 显示返回确认弹窗
   void _showBackConfirmDialog(BuildContext context) {
     LocationStateDeleteDialog.show(
@@ -561,7 +556,9 @@ class LocationStatePage extends StatelessWidget {
           // 根据是否是底部弹窗，使用不同的变量
           final isSelected = isBottomSheet
               ? controller.tempExpireHours.value == hours
-              : controller.topExpireHours.value == hours;
+              : (controller.hasTempStatus.value
+                  ? controller.tempSelectedExpireHours.value == hours
+                  : controller.topExpireHours.value == hours);
 
           return GestureDetector(
             onTap: () {
@@ -722,7 +719,10 @@ class _EmojiCategoryItemState extends State<_EmojiCategoryItem>
                   final emoji = widget.category.emojis[emojiIndex];
                   return _EmojiGridItem(
                     emoji: emoji,
-                    onTap: () => widget.onEmojiTap(emoji),
+                    onTap: () {
+                      DebugUtil.info('🖱️ 点击表情: ${emoji.name}');
+                      widget.onEmojiTap(emoji);
+                    },
                     index: emojiIndex,
                   );
                 },

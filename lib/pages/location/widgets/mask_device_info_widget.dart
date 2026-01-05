@@ -13,7 +13,7 @@ class MaskDeviceInfoWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 92,
+      height: 93,
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.symmetric(
         horizontal: 12,

@@ -48,6 +48,11 @@ class TrackOverlayManager {
   /// 构建底部吸底图片
   Widget buildBottomImage() {
     return Obx(() {
+      // 如果有有效的轨迹数据，不显示底部背景图片
+      if (controller.hasValidTrackData.value) {
+        return const SizedBox.shrink();
+      }
+
       final currentPercent = controller.sheetPercent.value;
       final screenHeight = MediaQuery.of(Get.context!).size.height;
       final maxPercent = (screenHeight - TrackPageConfig.maxPanelOffset) / screenHeight;

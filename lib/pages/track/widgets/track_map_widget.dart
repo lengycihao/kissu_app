@@ -5,6 +5,7 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:get/get.dart';
 import '../../../widgets/safe_amap_widget.dart';
 import '../../../utils/debug_util.dart';
+import '../../../utils/user_manager.dart';
 import '../track_controller.dart';
 import '../track_page_config.dart';
 
@@ -46,8 +47,13 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
           (widget.controller.tempInfoWindowMarker != null ? 10000 : 0);
 
       if (currentMarkersVersion != _markersVersion) {
-        _updateMarkers();
-        _markersVersion = currentMarkersVersion;
+        // 延迟更新标记，避免在build过程中调用setState
+        Future.microtask(() {
+          if (mounted) {
+            _updateMarkers();
+            _markersVersion = currentMarkersVersion;
+          }
+        });
       }
 
       // 检查轨迹线是否需要更新
@@ -72,7 +78,19 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
 
       // 根据下半屏展开程度控制地图手势
       final sheetPercent = widget.controller.sheetPercent.value;
-      final enableMapGestures = sheetPercent <= TrackPageConfig.mapEnableThreshold;
+      final isBindPartner = widget.controller.isBindPartner.value;
+      final isVip = UserManager.isVip;
+      
+      // 🔥 修复：未绑定或未开通会员时，始终启用地图手势
+      // 因为此时面板固定在底部，用户应该可以操作地图
+      final bool enableMapGestures;
+      if (!isBindPartner || !isVip) {
+        // 未绑定或未开通会员：始终启用地图手势
+        enableMapGestures = true;
+      } else {
+        // 已绑定且是会员：根据面板展开程度控制
+        enableMapGestures = sheetPercent <= TrackPageConfig.mapEnableThreshold;
+      }
 
       return AbsorbPointer(
         absorbing: !enableMapGestures,

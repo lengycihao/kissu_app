@@ -20,50 +20,69 @@ class MessageListPage extends GetView<MessageListController> {
 
       return GestureDetector(
         onTap: controller.openNotificationSettings,
-        child: Container(
-           margin: const EdgeInsets.fromLTRB(16, 0 , 16, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 12).copyWith(left: 50,top: 16),
-          decoration: BoxDecoration(
-            image: const DecorationImage(
-              image: AssetImage('assets/3.0/kissu3_noti_tip.webp'),
-              fit: BoxFit.fitWidth,
-            ),
-            color: const Color(0xFFF5F8FF),
-           ),
-          child: Row(
-            children: [
-              // 提示文字
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: const Text(
-                    '开启推送通知，重要消息不错过',
-                    style: TextStyle(fontSize: 12, color: Color(0xcc000000)),
-                    maxLines: 1,
+        child: Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              padding: const EdgeInsets.only(right: 12),
+              height: 40,
+              // padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 12).copyWith(left: 50,top: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFFFE5FB),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 50),
+                  // 提示文字
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: const Text(
+                        '开启推送通知，重要消息不错过',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xcc000000),
+                        ),
+                        maxLines: 1,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 3),
+                  // 去开启文字
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Color(0xffFF93D2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '去开启',
+                      style: TextStyle(fontSize: 10, color: Color(0xFFffffff)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: controller.hideNotificationTip,
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Color(0xFF777777),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 3),
-              // 去开启文字
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Color(0xffFF93D2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '去开启',
-                  style: TextStyle(fontSize: 10, color: Color(0xFFffffff)),
-                ),
+            ),
+            Transform.translate(
+              offset: Offset(16, -20),
+              child: Image.asset(
+                "assets/images/kissu_mine_noti_tip.webp",
+                width: 45,
+                height: 60,
               ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: controller.hideNotificationTip,
-                child: const Icon(Icons.close, size: 16, color: Color(0xFF777777)),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     });
@@ -80,9 +99,9 @@ class MessageListPage extends GetView<MessageListController> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(2, 16, 2, 0),
+        margin: const EdgeInsets.fromLTRB(2, 0, 2, 16),
         padding: const EdgeInsets.all(16).copyWith(bottom: 0),
-color: Color(0xffF6F6F6),
+        color: Color(0xffF6F6F6),
         child: Row(
           children: [
             // 图标
@@ -219,42 +238,43 @@ color: Color(0xffF6F6F6),
                   ),
                 ),
                 const SizedBox(height: 10), // 减少间距，避免标题距离顶部太远
-              // 内容区域
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
-                  child: Column(
-                    children: [
-                      // 通知开启提示
-                      _buildNotificationTip(),
-                      // 系统消息
-                      Obx(
-                        () => _buildMessageItem(
-                          icon: 'assets/3.0/kissu3_noti_noti.webp',
-                          title: '系统消息',
-                          subtitle: '您有一条新的系统消息',
-                          hasRedDot: controller.hasNewSystemMessage.value,
-                          onTap: controller.goToSystemMessage,
+                // 内容区域
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    child: Column(
+                      children: [
+                        // 通知开启提示
+                        _buildNotificationTip(),
+                        // 系统消息
+                        Obx(
+                          () => _buildMessageItem(
+                            icon: 'assets/3.0/kissu3_noti_noti.webp',
+                            title: '系统消息',
+                            subtitle: '您有一条新的系统消息',
+                            hasRedDot: controller.hasNewSystemMessage.value,
+                            onTap: controller.goToSystemMessage,
+                          ),
                         ),
-                      ),
-                      // 互动消息
-                      Obx(
-                        () => _buildMessageItem(
-                          icon: 'assets/3.0/kissu3_noti_message.webp',
-                          title: '互动消息',
-                          subtitle: '您有一条新的互动消息',
-                          hasRedDot: controller.hasNewInteractionMessage.value,
-                          onTap: controller.goToInteractionMessage,
+                        // 互动消息
+                        Obx(
+                          () => _buildMessageItem(
+                            icon: 'assets/3.0/kissu3_noti_message.webp',
+                            title: '互动消息',
+                            subtitle: '您有一条新的互动消息',
+                            hasRedDot:
+                                controller.hasNewInteractionMessage.value,
+                            onTap: controller.goToInteractionMessage,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         ],
       ),

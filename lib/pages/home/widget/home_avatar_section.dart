@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -202,13 +203,16 @@ class HomeAvatarSection extends StatelessWidget {
                     ),
                   ),
 
-            const SizedBox(height: 15), // 与下方两个按钮间距
+            const SizedBox(height: 5), // 与下方两个按钮间距
             // 通知图标和活动图标
             Transform.translate(
               offset: const Offset(19, 0),
               child: Column(
+                
                 children: [
-                  // 福利会员图标 - 非会员时展示，点击跳转到会员页面
+                  // 福利会员图标 - 非会员时展示，点击跳转到会员页面 
+
+                  
                   Obx(() {
                     if (controller.isVip.value || !controller.isBound.value) {
                       return const SizedBox.shrink();
@@ -216,8 +220,8 @@ class HomeAvatarSection extends StatelessWidget {
                     return Column(
                       children: [
                         SizedBox(
-                          width: 56,
-                          height: 56,
+                          width: 44,
+                          height: 44,
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -226,33 +230,22 @@ class HomeAvatarSection extends StatelessWidget {
                                   // 跳转到会员页面
                                   Get.toNamed(KissuRoutePath.vip);
                                 },
-                                child: Image.asset(
-                                  "assets/images/kissu_home_vip_icon.webp",
-                                  width: 56,
-                                  height: 56,
+                                child: Lottie.asset(
+                                  "assets/json/home_vip.json",
+                                  width: 44,
+                                  height: 44,
                                 ),
                               ),
-                              // // 红点角标
-                              // if (controller.isRedDot.value)
-                              //   Positioned(
-                              //     right: 0,
-                              //     top: 0,
-                              //     child: Container(
-                              //       width: 12,
-                              //       height: 12,
-                              //       decoration: BoxDecoration(
-                              //         color: const Color(0xffFF6B6B),
-                              //         shape: BoxShape.circle,
-                              //         border: Border.all(
-                              //           color: Colors.white,
-                              //           width: 1,
-                              //         ),
-                              //       ),
-                              //     ),
-                              //   ),
+                            
                             ],
                           ),
+
                         ),
+                        Text("会员福利", style: TextStyle(
+                          color: Color(0xff333333),
+                          fontSize: 12,
+                          fontFamily: "LiuHuanKaTongShouShu",
+                        ),),
                         const SizedBox(height: 5),
                       ],
                     );
@@ -286,6 +279,7 @@ class HomeAvatarSection extends StatelessWidget {
                     }
                     return const SizedBox.shrink();
                   }),
+               
                   SizedBox(height: 5),
                   // 拉屎图标 - 根据 crap_status 控制显示
                   Obx(() {
@@ -295,8 +289,8 @@ class HomeAvatarSection extends StatelessWidget {
                     }
 
                     return SizedBox(
-                      width: 56,
-                      height: 56,
+                      width: 48,
+                      height: 64,
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -351,8 +345,8 @@ class HomeAvatarSection extends StatelessWidget {
                             },
                             child: Image.asset(
                               "assets/images/kissu_home_lashi_icon.webp",
-                              width: 56,
-                              height: 56,
+                              width: 48,
+                              height: 64,
                             ),
                           ),
                           // // 红点角标

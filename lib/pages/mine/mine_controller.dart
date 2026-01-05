@@ -1,9 +1,13 @@
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/network/public/index_api.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
+import 'package:kissu_app/pages/mine/personal_info_collection_page.dart';
+import 'package:kissu_app/pages/mine/third_party_sharing_page.dart';
  // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -16,6 +20,7 @@ import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
@@ -50,6 +55,9 @@ class MineController extends GetxController {
   var vipEndDate = "".obs;
   var vipButtonText = "立即开通".obs;
   var vipDateText = "了解更多权益".obs;
+
+  // 红点状态
+  var isRedDot = false.obs;
 
   // 点击事件
   void onLocationTap() {
@@ -139,6 +147,8 @@ class MineController extends GetxController {
     _silentRefreshUserInfo();
     // 检查权限状态
     checkAllPermissions();
+    // 加载红点状态
+    _loadRedDotStatus();
   }
 
  
@@ -153,6 +163,32 @@ class MineController extends GetxController {
     _silentRefreshUserInfo();
     // 重新检查权限状态（从权限设置页面返回时）
     checkAllPermissions();
+    // 刷新红点状态
+    _loadRedDotStatus();
+  }
+
+  /// 加载红点状态
+  Future<void> _loadRedDotStatus() async {
+    try {
+      // 优先从 HomeController 获取红点状态（如果已注册）
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        isRedDot.value = homeController.isRedDot.value;
+        debugPrint('📊 从HomeController获取红点状态: ${isRedDot.value}');
+        return;
+      }
+
+      // HomeController 不存在，调用 /index 接口获取
+      debugPrint('📊 HomeController不存在，从接口获取红点状态');
+      final indexApi = IndexApi();
+      final result = await indexApi.getIndexData();
+      if (result.isSuccess && result.data != null) {
+        isRedDot.value = result.data!.isRedDot == 1;
+        debugPrint('📊 从接口获取红点状态: ${isRedDot.value}');
+      }
+    } catch (e) {
+      debugPrint('❌ 加载红点状态失败: $e');
+    }
   }
 
   /// 检查所有权限状态
@@ -487,7 +523,7 @@ class MineController extends GetxController {
 
       SettingItem(
         icon: "assets/4.0/kissu4_feedback.webp",
-        title: "意见反馈",
+        title: "投诉与反馈",
         onTap: () async { 
           Get.toNamed(KissuRoutePath.feedback);
         },
@@ -498,7 +534,27 @@ class MineController extends GetxController {
         onTap: () async { 
           Get.to(AboutUsPage(), transition: Transition.rightToLeft);
         },
+      ),SettingItem(
+        icon: "assets/4.0/kissu4_mine_info_collect.png",
+        title: "个人信息收集清单",
+        onTap: () async {
+          Get.to(() => const PersonalInfoCollectionPage(), transition: Transition.rightToLeft);
+        },
+      ),SettingItem(
+        icon: "assets/4.0/kissu4_mine_info_share.png",
+        title: "第三方信息共享清单",
+        onTap: () async {
+          Get.to(() => const ThirdPartySharingPage(), transition: Transition.rightToLeft);
+        },
       ),
+      // SettingItem(
+      //   icon: "assets/4.0/kissu4_mine_aboutus.webp",
+      //   title: "推送调试",
+      //   onTap: () async {
+      //     // 推送调试功能
+      //     _showPushDebugDialog();
+      //   },
+      // ),
       // SettingItem(
       //   icon: "assets/kissu_mine_item_ysaq.webp",
       //   title: "账号及隐私安全",
@@ -821,6 +877,7 @@ class MineController extends GetxController {
     Get.toNamed(KissuRoutePath.notificationSettings);
   }
 
+ 
   /// 防偷拍检测点击事件
   void _onAntiSpyTap() async {
     

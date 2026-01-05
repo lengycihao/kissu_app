@@ -318,12 +318,12 @@ class TrackSheetManager {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        spacing: 20,
+        spacing: 8,
         children: [
           Obx(() => _buildStat(
                 "停留次数",
                 controller.stayCount.value.toString(),
-                "次",
+                "",
                 icon: Icons.location_on,
                 color: const Color(0xFFFF6B6B),
               )),
@@ -351,7 +351,7 @@ class TrackSheetManager {
                 controller.moveDistance.value.isEmpty
                     ? "0.0km"
                     : controller.moveDistance.value,
-                "米",
+                "",
                 icon: Icons.directions_walk,
                 color: const Color(0xFF45B7D1),
               )),
@@ -381,7 +381,7 @@ class TrackSheetManager {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 15,
                   color: TrackPageConfig.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -476,19 +476,30 @@ class TrackSheetManager {
 
       if (!shouldShowMask) return const SizedBox.shrink();
 
-      return Positioned.fill(
-        child: Stack(
-          children: [
-            // 蒙版内容层
-            AbsorbPointer(
-              child: Column(
-                children: [
-                  const SizedBox(height: TrackPageConfig.tinyPadding),
-                  _buildIndicator(),
-                  const SizedBox(height: TrackPageConfig.tinyPadding),
-                  _buildDateModule(),
-                  const SizedBox(height: 10),
-                   Expanded(
+      // 🔥 蒙版存在时，使用 Stack 分离各个层级
+      // 1. 指示条和日期组件下方的空隙用 AbsorbPointer 阻止滑动
+      // 2. 日期组件独立出来，不受 AbsorbPointer 影响，可以点击
+      // 3. 按钮层可以点击
+      return Stack(
+        children: [
+          // 第一层：指示条和日期组件下方的空隙（阻止滑动）
+          Positioned.fill(
+            child: Column(
+              children: [
+                const SizedBox(height: TrackPageConfig.tinyPadding),
+                // 指示条（不可点击）
+                AbsorbPointer(
+                  absorbing: true,
+                  child: _buildIndicator(),
+                ),
+                const SizedBox(height: TrackPageConfig.tinyPadding),
+                // 日期模块占位（透明，不阻止点击）
+                SizedBox(height: 65),
+                const SizedBox(height: 10),
+                // 日期组件下方的空隙和模糊蒙版区域（阻止滑动）
+                Expanded(
+                  child: AbsorbPointer(
+                    absorbing: true,
                     child: ClipRRect(
                       borderRadius: TrackPageConfig.panelTopBorderRadiusGeometry,
                       child: BackdropFilter(
@@ -511,55 +522,59 @@ class TrackSheetManager {
                       ),
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          // 第二层：日期组件（可以点击）
+          Positioned(
+            top: TrackPageConfig.tinyPadding * 2 + TrackPageConfig.indicatorHeight,
+            left: 0,
+            right: 0,
+            child: _buildDateModule(),
+          ),
+          // 第三层：按钮（可以点击）
+          Positioned.fill(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 130),
+                  GestureDetector(
+                    onTap: () async {
+                      if (!isBindPartner) {
+                        if (Get.context!.mounted) {
+                          CustomBottomDialog.show(
+                            context: Get.context!,
+                            caller: BindingDialogCaller.track,
+                          ).then((_) {
+                            controller.refreshCurrentUserData();
+                          });
+                        }
+                      } else {
+                        Get.toNamed(
+                          KissuRoutePath.vip,
+                          arguments: {
+                            'previousPageName': '足迹页面',
+                            'previousPageId': 'footprint_page',
+                          },
+                        );
+                      }
+                    },
+                    child: Image.asset(
+                      !isBindPartner
+                          ? 'assets/gif/kissu_bind.gif'
+                          : 'assets/gif/kissu_vip.gif',
+                      width: !isBindPartner ? 175 : 189,
+                      height: !isBindPartner ? 44 : 60,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ],
               ),
             ),
-            // 按钮层
-            Positioned.fill(
-              child: IgnorePointer(
-                ignoring: false,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 130),
-                      GestureDetector(
-                        onTap: () async {
-                          if (!isBindPartner) {
-                            if (Get.context!.mounted) {
-                              CustomBottomDialog.show(
-                                context: Get.context!,
-                                caller: BindingDialogCaller.track,
-                              ).then((_) {
-                                controller.refreshCurrentUserData();
-                              });
-                            }
-                          } else {
-                            Get.toNamed(
-                              KissuRoutePath.vip,
-                              arguments: {
-                                'previousPageName': '足迹页面',
-                                'previousPageId': 'footprint_page',
-                              },
-                            );
-                          }
-                        },
-                        child: Image.asset(
-                          !isBindPartner
-                              ? 'assets/images/kissu3_go_bind.webp'
-                              : 'assets/images/kissu3_go_vip.webp',
-                          width: !isBindPartner ? 175 : 189,
-                          height: !isBindPartner ? 44 : 60,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     });
   }
