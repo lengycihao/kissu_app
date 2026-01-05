@@ -19,6 +19,7 @@ class IndexResponseModel {
   final VipData? vipData;
   final usage_record_model.HalfUserData? halfUserData;
   final CrapGameData? crapGame;
+  final SeedingData? seeding;
 
   IndexResponseModel({
     required this.isRedDot,
@@ -32,6 +33,7 @@ class IndexResponseModel {
     this.vipData,
     this.halfUserData,
     this.crapGame,
+    this.seeding,
   });
 
   factory IndexResponseModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,9 @@ class IndexResponseModel {
           : null,
       crapGame: json['crap_game'] != null
           ? CrapGameData.fromJson(json['crap_game'] as Map<String, dynamic>)
+          : null,
+      seeding: json['seeding'] != null
+          ? SeedingData.fromJson(json['seeding'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -184,6 +189,27 @@ class CrapGameData {
     return CrapGameData(
       crapLink: json['crap_link'] ?? '',
       crapStatus: json['crap_status'] ?? '0',
+    );
+  }
+}
+
+/// 种草数据模型
+class SeedingData {
+  final String seedingLink;
+  final String seedingStatus; // "1"展示 "0"不展示
+  final String seedingIcon;
+
+  SeedingData({
+    required this.seedingLink,
+    required this.seedingStatus,
+    required this.seedingIcon,
+  });
+
+  factory SeedingData.fromJson(Map<String, dynamic> json) {
+    return SeedingData(
+      seedingLink: json['seeding_link'] ?? '',
+      seedingStatus: json['seeding_status'] ?? '0',
+      seedingIcon: json['seeding_icon'] ?? '',
     );
   }
 }

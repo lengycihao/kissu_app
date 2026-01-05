@@ -34,12 +34,23 @@ class RelationshipAnimationService extends GetxService {
   /// 显示解绑成功动画（2秒）
   /// 
   /// [onComplete] 动画播放完成后的回调
-  void showUnbindAnimation({VoidCallback? onComplete}) {
+  /// [shouldReturnToRoot] 动画完成后是否返回到根路由，默认为true
+  void showUnbindAnimation({VoidCallback? onComplete, bool shouldReturnToRoot = true}) {
     _showAnimation(
       unbindGifPath, 
       '解绑成功', 
       const Duration(seconds: 2),
-      onComplete: onComplete,
+      onComplete: () {
+        // 先执行外部回调
+        onComplete?.call();
+        
+        // 返回到根路由
+        if (shouldReturnToRoot) {
+          logger.info('🔙 解绑动画完成，返回到根路由', tag: 'RelationshipAnimationService');
+          Get.until((route) => route.isFirst);
+          logger.info('✅ 已返回到根路由', tag: 'RelationshipAnimationService');
+        }
+      },
     );
   }
 

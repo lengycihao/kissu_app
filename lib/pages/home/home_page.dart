@@ -264,6 +264,70 @@ class _KissuHomePageState extends State<KissuHomePage>
             ),
           ),
 
+          // 种草浮动按钮 - 在导航栏上方
+          Obx(() {
+            if (!controller.showSeedingButton.value || controller.seedingIcon.value.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            
+            return Positioned(
+              bottom: 30 + 64 + 40, // 导航栏高度64 + 底部间距30 + 按钮与导航栏间距15
+              right: 20,
+              child: GestureDetector(
+                onTap: controller.openSeedingLink,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // 按钮主体 - 显示图标
+                    Container(
+                      width: 60,
+                      height: 60,
+                      
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: NoPlaceholderImage(
+                          imageUrl: controller.seedingIcon.value,
+                          defaultAssetPath: "assets/images/kissu_icon.webp",
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    // 关闭按钮 - 右上角
+                    Positioned(
+                      right: -4,
+                      top: -8,
+                      child: GestureDetector(
+                        onTap: () {
+                          controller.closeSeedingButton();
+                        },
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Color(0xff666666),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Color(0xff666666),
+                            weight: 4,
+                            size: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+
           // 底部按钮栏（自定义悬浮tabbar）
           Positioned(
             bottom: 30,

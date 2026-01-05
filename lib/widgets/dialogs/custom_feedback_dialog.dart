@@ -21,10 +21,8 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
   @override
   void initState() {
     super.initState();
-    // 默认选中第一个
-    if (widget.reasons.isNotEmpty) {
-      _selectedReason = widget.reasons.first;
-    }
+    // 不设置默认选项，用户必须主动选择
+    _selectedReason = null;
   }
 
   @override

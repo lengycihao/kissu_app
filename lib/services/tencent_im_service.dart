@@ -112,11 +112,15 @@ class TencentIMService extends GetxService {
             logger.warning('IM账号被踢下线', tag: 'TencentIMService');
             _isLoggedIn = false;
             _currentUserID = null;
+            // 🔥 修复：被踢下线后尝试自动重新登录
+            _handleIMDisconnected('被踢下线');
           },
           onUserSigExpired: () {
             logger.warning('IM UserSig已过期', tag: 'TencentIMService');
             _isLoggedIn = false;
             _currentUserID = null;
+            // 🔥 修复：签名过期后尝试自动重新登录
+            _handleIMDisconnected('UserSig过期');
           },
           onSelfInfoUpdated: (info) {
             logger.info('IM个人资料更新', tag: 'TencentIMService');
@@ -339,6 +343,37 @@ class TencentIMService extends GetxService {
       logger.error('IM退出登录异常: $e', tag: 'TencentIMService');
       return false;
     }
+  }
+
+  /// 🔥 新增：处理 IM 断线（被踢或签名过期）
+  void _handleIMDisconnected(String reason) {
+    logger.warning('IM断线: $reason，尝试自动重新登录', tag: 'TencentIMService');
+    
+    // 延迟3秒后尝试重新登录（避免频繁重试）
+    Future.delayed(const Duration(seconds: 3), () async {
+      try {
+        // 检查是否有登录用户
+        if (Get.isRegistered<AuthService>()) {
+          final authService = Get.find<AuthService>();
+          if (authService.isLoggedIn && authService.currentUser != null) {
+            final user = authService.currentUser!;
+            logger.info('检测到已登录用户，尝试重新登录IM: ${user.uniqueId}', tag: 'TencentIMService');
+            
+            // 重新登录
+            final success = await loginIM(user);
+            if (success) {
+              logger.info('IM自动重新登录成功', tag: 'TencentIMService');
+            } else {
+              logger.error('IM自动重新登录失败', tag: 'TencentIMService');
+            }
+          } else {
+            logger.warning('无已登录用户，跳过IM自动重新登录', tag: 'TencentIMService');
+          }
+        }
+      } catch (e) {
+        logger.error('IM自动重新登录异常: $e', tag: 'TencentIMService');
+      }
+    });
   }
 
   /// 卸载IM SDK

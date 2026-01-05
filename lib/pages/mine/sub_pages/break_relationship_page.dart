@@ -416,23 +416,8 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
         // 播放解除绑定动画
         try {
           final animationService = RelationshipAnimationService.instance;
-          animationService.showUnbindAnimation(
-            onComplete: () {
-              logDebug('🎯 解除绑定动画播放完成，返回到我的页面', tag: 'BreakRelationship');
-              // 动画完成后依次关闭：动画 -> 解除关系页 -> 设置页，回到“我的”
-              // 当前路由栈：我的 -> 设置(PrivacySettingPage) -> 解除关系(BreakRelationshipPage) -> 动画(overlay)
-              // 1）关闭动画
-              Get.back();
-              // 2）关闭解除关系页
-              if (Get.currentRoute != '/') {
-                Get.back();
-              }
-              // 3）关闭设置页，回到“我的”
-              if (Get.currentRoute != '/') {
-                Get.back();
-              }
-            },
-          );
+          // 动画服务内部会自动返回到根路由
+          animationService.showUnbindAnimation();
         } catch (e) {
           logError('❌ 播放解除绑定动画失败: $e', tag: 'BreakRelationship', error: e);
           // 如果动画服务失败，直接返回

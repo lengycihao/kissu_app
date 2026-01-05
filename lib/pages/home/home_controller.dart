@@ -24,6 +24,7 @@ import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
+import 'package:kissu_app/pages/home/widget/seeding_webview_page.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
@@ -100,6 +101,12 @@ class HomeController extends GetxController {
   // 拉屎游戏相关
   var crapLink = ''.obs;
   var crapStatus = '0'.obs; // "1"展示 "0"不展示
+
+  // 种草相关
+  var seedingLink = ''.obs;
+  var seedingStatus = '0'.obs; // "1"展示 "0"不展示
+  var seedingIcon = ''.obs;
+  var showSeedingButton = false.obs; // 是否显示种草按钮
 
   /// 聊天未读消息数（来自腾讯 IM，另一半会话的未读总数）
   final RxInt chatUnreadCount = 0.obs;
@@ -572,6 +579,24 @@ class HomeController extends GetxController {
           crapLink.value = '';
           crapStatus.value = '0';
           debugPrint('💩 拉屎游戏数据为空，使用默认值');
+        }
+        
+        // 更新种草信息
+        if (indexData.seeding != null) {
+          seedingLink.value = indexData.seeding!.seedingLink;
+          seedingStatus.value = indexData.seeding!.seedingStatus;
+          seedingIcon.value = indexData.seeding!.seedingIcon;
+          debugPrint('🌱 种草信息更新: link=${seedingLink.value}, status=${seedingStatus.value}, icon=${seedingIcon.value}');
+          
+          // 更新按钮显示状态
+          _updateSeedingButtonVisibility();
+        } else {
+          // 如果没有返回 seeding 数据，使用默认值
+          seedingLink.value = '';
+          seedingStatus.value = '0';
+          seedingIcon.value = '';
+          showSeedingButton.value = false;
+          debugPrint('🌱 种草数据为空，使用默认值');
         }
         
         debugPrint('📊 红点信息更新: 系统消息=${systemNoticeRedDot.value}, 互动消息=${interactionNoticeRedDot.value}, 总数=${redDotCount.value}, 显示红点=${isRedDot.value}');
@@ -1407,6 +1432,83 @@ class HomeController extends GetxController {
     await _popupService.checkAndShowGuideDebug();
   }
   
+  /// 更新种草按钮显示状态
+  /// 规则：
+  /// 1. 未绑定或未开通会员：每次打开都显示
+  /// 2. 已开通会员：关闭后每天只显示一次
+  Future<void> _updateSeedingButtonVisibility() async {
+    try {
+      // 检查 seedingStatus 是否为 "1"
+      if (seedingStatus.value != '1') {
+        showSeedingButton.value = false;
+        debugPrint('🌱 种草按钮不显示：seedingStatus=${seedingStatus.value}');
+        return;
+      }
+      
+      // 检查是否已绑定和是否为会员
+      final bound = isBound.value;
+      final vip = isVip.value;
+      
+      // 未绑定或未开通会员：每次打开都显示
+      if (!bound || !vip) {
+        showSeedingButton.value = true;
+        debugPrint('🌱 种草按钮显示：未绑定或未开通会员');
+        return;
+      }
+      
+      // 已开通会员：检查今天是否已关闭过
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
+      final lastClosedDate = prefs.getString('seeding_button_last_closed_date') ?? '';
+      
+      if (lastClosedDate == today) {
+        // 今天已关闭过，不显示
+        showSeedingButton.value = false;
+        debugPrint('🌱 种草按钮不显示：今天已关闭过（$today）');
+      } else {
+        // 今天还未关闭过，显示
+        showSeedingButton.value = true;
+        debugPrint('🌱 种草按钮显示：今天还未关闭过');
+      }
+    } catch (e) {
+      debugPrint('❌ 更新种草按钮显示状态失败: $e');
+      showSeedingButton.value = false;
+    }
+  }
+  
+  /// 关闭种草按钮
+  Future<void> closeSeedingButton() async {
+    try {
+      showSeedingButton.value = false;
+      
+      // 如果是会员，记录今天已关闭
+      if (isVip.value && isBound.value) {
+        final prefs = await SharedPreferences.getInstance();
+        final today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
+        await prefs.setString('seeding_button_last_closed_date', today);
+        debugPrint('🌱 种草按钮已关闭，记录日期：$today');
+      } else {
+        debugPrint('🌱 种草按钮已关闭（非会员，不记录日期）');
+      }
+    } catch (e) {
+      debugPrint('❌ 关闭种草按钮失败: $e');
+    }
+  }
+  
+  /// 打开种草链接
+  void openSeedingLink() {
+    if (seedingLink.value.isNotEmpty) {
+      debugPrint('🌱 打开种草链接: ${seedingLink.value}');
+      Get.to(
+        () => SeedingWebViewPage(
+          url: seedingLink.value,
+        ),
+      );
+    } else {
+      debugPrint('⚠️ 种草链接为空');
+    }
+  }
+
   /// 更新天气数据（从首页接口数据中解析）
   void _updateWeatherData(WeatherData weatherData) {
     try {

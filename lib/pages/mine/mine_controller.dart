@@ -29,6 +29,7 @@ import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart'; 
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
+import 'package:kissu_app/pages/mine/installed_apps/installed_apps_page.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -462,6 +463,11 @@ class MineController extends GetxController {
         title: "更换app图标",
         onTap: () => _onChangeAppIconTap(),
       ),
+      // CommonFunctionItem(
+      //   icon: "assets/4.0/kissu4_mine_app_time.webp",
+      //   title: "查看已安装应用",
+      //   onTap: () => _onInstalledAppsTap(),
+      // ),
     ];
   }
 
@@ -951,6 +957,14 @@ class MineController extends GetxController {
   /// 更换app图标点击事件
   void _onChangeAppIconTap() {
     Get.toNamed(KissuRoutePath.appIconSelector);
+  }
+
+  /// 查看已安装应用点击事件
+  void _onInstalledAppsTap() {
+    Get.to(
+      () => const InstalledAppsPage(),
+      transition: Transition.rightToLeft,
+    );
   }
 
 }

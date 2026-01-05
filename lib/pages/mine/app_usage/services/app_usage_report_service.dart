@@ -149,9 +149,36 @@ class AppUsageReportService {
   void _startReportTimer() {
     _reportTimer?.cancel();
     _reportTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      // 🔥 修复：每次定时上报前检查是否跨天
+      _checkAndHandleDayChange();
       _performIncrementalReport();
     });
     logger.info('⏰ 定时上报已启动（每2分钟）', tag: _tag);
+  }
+  
+  /// 🔥 新增：检查并处理跨天情况
+  Future<void> _checkAndHandleDayChange() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastReportDate = prefs.getString('last_report_date') ?? '';
+      final today = _getTodayString();
+      
+      if (lastReportDate.isNotEmpty && lastReportDate != today) {
+        // 检测到跨天，需要清除旧数据并触发新一天的首次上报
+        logger.info('🆕 定时检查检测到跨天：$lastReportDate -> $today，触发新一天首次上报', tag: _tag);
+        
+        // 清除旧数据
+        await prefs.remove('last_reported_sessions');
+        await prefs.setString('last_report_date', today);
+        _lastReportedSessions.clear();
+        _hasReportedToday = false;
+        
+        // 执行新一天的首次上报
+        await _performFirstReportOfDay();
+      }
+    } catch (e) {
+      logger.error('检查跨天失败: $e', tag: _tag, error: e);
+    }
   }
   
   /// 执行增量上报
@@ -230,9 +257,51 @@ class AppUsageReportService {
       _lastReportedSessions.clear();
       _hasReportedToday = false;
       
+      // 🔥 修复：更新last_report_date为新的一天
+      final tomorrow = DateTime.now().add(const Duration(seconds: 2)); // 加2秒确保已经过了午夜
+      final newDateStr = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+      await prefs.setString('last_report_date', newDateStr);
+      
       logger.info('✅ 午夜上报完成，本地记录已清空（logo缓存保留）', tag: _tag);
+      
+      // 🔥 修复：延迟几秒后触发新一天的首次上报
+      // 确保已经过了午夜12点，系统数据已更新
+      Future.delayed(const Duration(seconds: 5), () {
+        _performFirstReportOfNewDay();
+      });
     } catch (e) {
       logger.error('执行午夜上报异常: $e', tag: _tag, error: e);
+    }
+  }
+  
+  /// 🔥 新增：执行新一天的首次上报（午夜后自动触发）
+  Future<void> _performFirstReportOfNewDay() async {
+    try {
+      logger.info('🌅 开始执行新一天的首次上报...', tag: _tag);
+      
+      // 等待系统数据准备好
+      await Future.delayed(const Duration(seconds: 3));
+      
+      final records = await _collectUsageData(isFirstReport: true);
+      
+      if (records.isEmpty) {
+        logger.info('新一天暂无使用记录需要上报', tag: _tag);
+        _hasReportedToday = true;
+        await _saveReportStatus();
+        return;
+      }
+      
+      // 上报数据
+      await _reportUsageData(records);
+      
+      // 保存上报记录
+      await _saveLastReportedSessions(records);
+      _hasReportedToday = true;
+      await _saveReportStatus();
+      
+      logger.info('✅ 新一天首次上报完成', tag: _tag);
+    } catch (e) {
+      logger.error('新一天首次上报异常: $e', tag: _tag, error: e);
     }
   }
   

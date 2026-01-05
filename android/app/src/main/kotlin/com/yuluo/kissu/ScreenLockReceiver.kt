@@ -138,12 +138,13 @@ class ScreenLockReceiver : BroadcastReceiver() {
             fun loop() {
                 try {
                     checkCount++
-                    val currentLocked = isDeviceUnlocked(context)
+                    // 🔥 修复逻辑错误：isDeviceUnlocked 返回 true 表示已解锁，变量名改为 isUnlocked
+                    val isUnlocked = isDeviceUnlocked(context)
                     val elapsed = System.currentTimeMillis() - startAt
 
-                    Log.d(TAG, "🔄 连续检查 #$checkCount: locked=$currentLocked, elapsed=${elapsed}ms")
+                    Log.d(TAG, "🔄 连续检查 #$checkCount: isUnlocked=$isUnlocked, elapsed=${elapsed}ms")
 
-                    if (!currentLocked) {
+                    if (isUnlocked) {
                         Log.d(TAG, "🔓 连续检查 #$checkCount：检测到设备已解锁 (KeyguardManager)")
                         lastKeyguardLocked = false
                         sendScreenEvent(true)

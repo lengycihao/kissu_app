@@ -136,6 +136,9 @@ class LocationV2Controller extends GetxController
   // 🚀 修复：管理 ever 监听器，确保正确清理
   Worker? _locationServiceWorker;
   Worker? _headingWorker; // 方向监听器
+  
+  // 🔥 新增：定时刷新位置数据定时器（每30秒自动刷新）
+  Timer? _locationRefreshTimer;
 
   @override
   void onInit() {
@@ -163,6 +166,9 @@ class LocationV2Controller extends GetxController
       _initSwitchTransitionAnimation();
       _listenToSheetChanges();
       _initializePageAsync();
+      
+      // 🔥 新增：启动定时刷新位置数据（每30秒自动刷新）
+      _startLocationRefreshTimer();
 
     // 如果通过路由参数传入初始跳转坐标，保存以便地图创建完成后移动到该位置
     try {
@@ -217,6 +223,74 @@ class LocationV2Controller extends GetxController
       }
     } catch (e) {
       debugPrint('❌ 定位页面：静默刷新用户信息失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：启动定时刷新位置数据定时器
+  /// 每30秒自动刷新一次位置数据，确保用户看到的是最新位置
+  void _startLocationRefreshTimer() {
+    _locationRefreshTimer?.cancel();
+    _locationRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      // 只有在页面活跃且未在加载中时才刷新
+      if (!isClosed && !isLoading.value) {
+        debugPrint('🔄 定位页面：定时刷新位置数据（30秒周期）');
+        _silentRefreshLocationData();
+      }
+    });
+    debugPrint('⏰ 定位页面：定时刷新已启动（每30秒）');
+  }
+  
+  /// 🔥 新增：静默刷新位置数据（不阻塞UI，不显示Loading）
+  Future<void> _silentRefreshLocationData() async {
+    // 避免重复刷新
+    if (isLoading.value) return;
+    
+    try {
+      final result = await LocationApi().getLocation();
+      
+      if (result.isSuccess && result.data != null) {
+        final locationDataResult = result.data!;
+        locationData.value = locationDataResult;
+        
+        // 更新位置数据（与 loadLocationData 相同的逻辑）
+        if (!isBindPartner.value) {
+          if (locationDataResult.userLocationMobileDevice != null) {
+            _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
+            _updateMyLocationData(locationDataResult.userLocationMobileDevice!);
+          }
+          _clearPartnerData();
+        } else {
+          if (locationDataResult.userLocationMobileDevice != null) {
+            _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
+            _updateMyLocationData(locationDataResult.userLocationMobileDevice!);
+          }
+          if (locationDataResult.halfLocationMobileDevice != null) {
+            _updatePartnerAvatarData(locationDataResult.halfLocationMobileDevice!);
+            _updatePartnerLocationData(locationDataResult.halfLocationMobileDevice!);
+          }
+        }
+        
+        // 更新设备信息
+        UserLocationMobileDevice? currentUser;
+        if (!isBindPartner.value) {
+          currentUser = locationDataResult.userLocationMobileDevice;
+        } else if (isOneself.value == 1) {
+          currentUser = locationDataResult.userLocationMobileDevice;
+        } else {
+          currentUser = locationDataResult.halfLocationMobileDevice;
+        }
+        
+        if (currentUser != null) {
+          _updateCurrentUserDataWithoutLocation(currentUser);
+        }
+        
+        _updateLocationRecords(currentUser);
+        await _initTrackStartEndMarkers();
+        
+        debugPrint('✅ 定位页面：静默刷新位置数据成功');
+      }
+    } catch (e) {
+      debugPrint('❌ 定位页面：静默刷新位置数据失败: $e');
     }
   }
 
@@ -2499,6 +2573,15 @@ class LocationV2Controller extends GetxController
       debugPrint('✅ Marker重建定时器已清理');
     } catch (e) {
       debugPrint('Dispose marker rebuild timer error: $e');
+    }
+    
+    // 🔥 清理位置刷新定时器
+    try {
+      _locationRefreshTimer?.cancel();
+      _locationRefreshTimer = null;
+      debugPrint('✅ 位置刷新定时器已清理');
+    } catch (e) {
+      debugPrint('Dispose location refresh timer error: $e');
     }
 
     try {

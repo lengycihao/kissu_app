@@ -56,27 +56,36 @@ class LocationReportService(private val context: Context) {
         // 与Flutter层保持一致的上报策略参数
         const val COLLECTION_DISTANCE_METERS = 50 // 50米收集距离，与Flutter层 <50m 丢弃一致
         const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔
+        const val FORCE_COLLECT_INTERVAL_SECONDS = 60 // 🔥 强制收集间隔：即使距离不足，超过此时间也必须收集
         const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)
         const val MAX_CACHE_POOL_SIZE = 200 // 防御性上限，避免失败时无限增长
         const val WORK_UNIQUE_NAME = "location_report_restart"
         // 与 ForegroundLocationService 保持一致的通知渠道与文案
         const val WORKER_CHANNEL_ID = "kissu_location_service"
         const val WORKER_CHANNEL_NAME = "定位服务"
+        
+        // 🔥 关键修复：将定时器和缓冲区改为静态变量，避免多实例导致多个定时器同时运行
+        // 收集缓冲区，与Flutter层策略保持一致
+        private val collectionBuffer = mutableListOf<JSONObject>()
+        // 序列化上报，避免并发重复发送
+        private val isReporting = AtomicBoolean(false)
+        // 定时器相关 - 静态确保全局唯一
+        private var reportTimer: Timer? = null
+        private var isReportTimerRunning = false
+        // 保存最后收到的位置信息（无论是否收集到缓冲区）
+        @Volatile
+        private var lastReceivedLocation: AMapLocation? = null
+        @Volatile
+        private var lastReceivedLocationTime: Long = 0
+        // 协程作用域 - 静态确保全局唯一
+        private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }
     
     private val sharedPreferences: SharedPreferences = 
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
-    // 收集缓冲区，与Flutter层策略保持一致
-    private val collectionBuffer = mutableListOf<JSONObject>()
     // 避免老数据循环：超过此时间窗口的旧点会在收集/上报前被清理
     private val staleDurationMs = TimeUnit.HOURS.toMillis(1)
-    // 序列化上报，避免并发重复发送
-    private val isReporting = AtomicBoolean(false)
-    private var reportTimer: Timer? = null
-    private var isReportTimerRunning = false
     
     /**
      * 处理定位数据（与Flutter层策略保持一致）
@@ -87,6 +96,13 @@ class LocationReportService(private val context: Context) {
     fun reportLocation(location: AMapLocation) {
         coroutineScope.launch {
             try {
+                // 🔥 关键修复：无论是否收集到缓冲区，都保存最后收到的位置
+                // 这样定时上报时即使缓冲区为空，也能上报当前位置
+                if (location.errorCode == 0) {
+                    lastReceivedLocation = location
+                    lastReceivedLocationTime = System.currentTimeMillis()
+                }
+                
                 // 先判网络；断网则清空缓冲并跳过收集，避免离线旧数据循环
                 if (!isNetworkAvailable()) {
                     synchronized(collectionBuffer) {
@@ -166,16 +182,18 @@ class LocationReportService(private val context: Context) {
         // 创建新的定时器
         // 🔥 关键修复：定时任务中每次都从SharedPreferences读取最新token，而不是使用创建时的token
         // 这样切换账号后，定时器会自动使用新token
+        // 🔥 捕获当前实例引用，确保定时器回调中能正确访问实例方法
+        val serviceInstance = this
         reportTimer = Timer().apply {
             schedule(object : TimerTask() {
                 override fun run() {
                     // 每次都从SharedPreferences读取最新token，确保切换账号后使用新token
-                    val currentToken = sharedPreferences.getString(KEY_USER_TOKEN, null)
+                    val currentToken = serviceInstance.sharedPreferences.getString(KEY_USER_TOKEN, null)
                     if (currentToken.isNullOrEmpty()) {
                         Log.w(TAG, "⚠️ 定时上报：token为空，跳过上报")
                         return
                     }
-                    performScheduledReport(currentToken)
+                    serviceInstance.performScheduledReport(currentToken)
                 }
             }, REPORT_INTERVAL_SECONDS * 1000L, REPORT_INTERVAL_SECONDS * 1000L)
         }
@@ -247,23 +265,39 @@ class LocationReportService(private val context: Context) {
             try {
                 val locationsToReport: JSONArray
                 val bufferSize: Int
+                var usedLastReceivedLocation = false
                 
                 // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
                 synchronized(collectionBuffer) {
                     pruneStaleLocationsLocked()
-                    if (collectionBuffer.isEmpty()) {
-                        Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
-                        return@launch
-                    }
                     
-                    locationsToReport = JSONArray()
-                    collectionBuffer.forEach { locationData ->
-                        locationsToReport.put(locationData)
+                    // 🔥 关键修复：缓冲区为空时，使用最后收到的位置进行上报
+                    // 确保即使用户静止不动，也能定期上报当前位置
+                    if (collectionBuffer.isEmpty()) {
+                        val lastLocation = lastReceivedLocation
+                        val lastLocationAge = System.currentTimeMillis() - lastReceivedLocationTime
+                        
+                        // 检查最后位置是否有效（5分钟内收到的位置）
+                        if (lastLocation != null && lastLocation.errorCode == 0 && lastLocationAge < 5 * 60 * 1000L) {
+                            Log.d(TAG, "📦 缓冲区为空，使用最后收到的位置上报: ${lastLocation.latitude}, ${lastLocation.longitude}")
+                            locationsToReport = JSONArray()
+                            locationsToReport.put(buildLocationData(lastLocation))
+                            bufferSize = 1
+                            usedLastReceivedLocation = true
+                        } else {
+                            Log.d(TAG, "📦 缓冲区为空且无有效的最后位置（age=${lastLocationAge/1000}秒），跳过定时上报")
+                            return@launch
+                        }
+                    } else {
+                        locationsToReport = JSONArray()
+                        collectionBuffer.forEach { locationData ->
+                            locationsToReport.put(locationData)
+                        }
+                        bufferSize = collectionBuffer.size
                     }
-                    bufferSize = collectionBuffer.size
                 }
                 
-                Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize")
+                Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize${if (usedLastReceivedLocation) "（使用最后位置）" else ""}")
                 
                 // 在synchronized块外调用挂起函数
                 val success = sendLocationToServer(token, locationsToReport)
@@ -271,7 +305,9 @@ class LocationReportService(private val context: Context) {
                 // 根据结果处理缓冲区
                 synchronized(collectionBuffer) {
                     if (success) {
-                        collectionBuffer.clear()
+                        if (!usedLastReceivedLocation) {
+                            collectionBuffer.clear()
+                        }
                         Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
                     } else {
                         Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
@@ -360,6 +396,11 @@ class LocationReportService(private val context: Context) {
             return true
         }
         
+        // 🔥 关键修复：即使距离不足，超过强制收集间隔也必须收集
+        // 解决用户静止不动时位置不更新的问题
+        val timeSinceLastCollection = System.currentTimeMillis() - lastReportTime
+        val forceCollectDue = timeSinceLastCollection >= FORCE_COLLECT_INTERVAL_SECONDS * 1000L
+        
         // 检查与上次位置的距离
         val lastLat = sharedPreferences.getString(KEY_LAST_REPORT_LAT, null)?.toDoubleOrNull()
         val lastLng = sharedPreferences.getString(KEY_LAST_REPORT_LNG, null)?.toDoubleOrNull()
@@ -373,10 +414,20 @@ class LocationReportService(private val context: Context) {
             if (distance >= COLLECTION_DISTANCE_METERS) {
                 Log.d(TAG, "📍 距离触发收集: 移动${distance.toInt()}米 >= ${COLLECTION_DISTANCE_METERS}米 (精度: ${location.accuracy}m)")
                 return true
+            } else if (forceCollectDue) {
+                // 🔥 关键修复：距离不足但时间已到，强制收集
+                Log.d(TAG, "⏰ 时间触发强制收集: 距离${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米，但已超过${FORCE_COLLECT_INTERVAL_SECONDS}秒 (精度: ${location.accuracy}m)")
+                return true
             } else {
-                Log.d(TAG, "📍 距离不足，跳过收集: 移动${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米")
+                Log.d(TAG, "📍 距离不足且时间未到，跳过收集: 移动${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米，距上次收集${timeSinceLastCollection/1000}秒")
                 return false
             }
+        }
+        
+        // 🔥 如果没有上次位置记录但时间已到，也应该收集
+        if (forceCollectDue) {
+            Log.d(TAG, "⏰ 无上次位置记录，时间触发强制收集")
+            return true
         }
         
         return false
