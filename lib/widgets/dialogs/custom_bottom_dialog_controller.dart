@@ -17,6 +17,11 @@ import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 
 /// 调用绑定弹窗的页面类型
 enum BindingDialogCaller {
@@ -51,6 +56,13 @@ class CustomBottomDialogController extends GetxController {
   // 是否应该关闭弹窗（用于IM绑定消息触发关闭）
   var shouldClose = false.obs;
 
+  // 埋点相关：页面进入时间
+  int? _pageEnterTime;
+  // 埋点相关：来源页面ID
+  int? _sourcePage;
+  // 埋点相关：离开方式
+  int _exitType = ExitTypeValue.back;
+
  
 
   @override
@@ -67,7 +79,11 @@ class CustomBottomDialogController extends GetxController {
       );
     });
 
-   
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
+    // 埋点：根据 caller 设置来源页面ID
+    _sourcePage = _getSourcePageFromCaller();
 
     _loadUserInfo();
     
@@ -96,7 +112,8 @@ class CustomBottomDialogController extends GetxController {
 
   @override
   void onClose() {
-    
+    // 埋点：记录页面离开事件
+    _trackPageView();
     
     // 清除IM绑定消息监听器
     _removeBindMessageListener();
@@ -120,28 +137,28 @@ class CustomBottomDialogController extends GetxController {
   }
  
   /// 获取上一个页面信息（基于调用者类型）
-  Map<String, String> _getPreviousPageInfo() {
-    if (caller == null) {
-      return {'name': '未知页面', 'id': 'unknown'};
-    }
+  // Map<String, String> _getPreviousPageInfo() {
+  //   if (caller == null) {
+  //     return {'name': '未知页面', 'id': 'unknown'};
+  //   }
     
-    switch (caller!) {
-      case BindingDialogCaller.home:
-        return {'name': '首页', 'id': 'home'};
-      case BindingDialogCaller.mine:
-        return {'name': '我的页面', 'id': 'mine'};
-      case BindingDialogCaller.loveInfo:
-        return {'name': '恋爱信息页面', 'id': 'love_info'};
-      case BindingDialogCaller.track:
-        return {'name': '足迹页面', 'id': 'track'};
-      case BindingDialogCaller.location:
-        return {'name': '定位页面', 'id': 'location'};
-      case BindingDialogCaller.usageReport:
-        return {'name': '用机记录页面', 'id': 'usage_report'};
-      case BindingDialogCaller.deviceUsage:
-        return {'name': '用机记录页面', 'id': 'device_usage'};
-    }
-  }
+  //   switch (caller!) {
+  //     case BindingDialogCaller.home:
+  //       return {'name': '首页', 'id': 'home'};
+  //     case BindingDialogCaller.mine:
+  //       return {'name': '我的页面', 'id': 'mine'};
+  //     case BindingDialogCaller.loveInfo:
+  //       return {'name': '恋爱信息页面', 'id': 'love_info'};
+  //     case BindingDialogCaller.track:
+  //       return {'name': '足迹页面', 'id': 'track'};
+  //     case BindingDialogCaller.location:
+  //       return {'name': '定位页面', 'id': 'location'};
+  //     case BindingDialogCaller.usageReport:
+  //       return {'name': '用机记录页面', 'id': 'usage_report'};
+  //     case BindingDialogCaller.deviceUsage:
+  //       return {'name': '用机记录页面', 'id': 'device_usage'};
+  //   }
+  // }
 
   /// 加载用户信息
   void _loadUserInfo() {
@@ -175,11 +192,12 @@ class CustomBottomDialogController extends GetxController {
     try {
       isLoading.value = true;
 
-       
-
       // 调用绑定API
       final authApi = AuthApi();
       final result = await authApi.bindPartner(friendCode: inputCode);
+
+      // 埋点：确认绑定事件
+      trackBindSure(success: result.isSuccess);
 
       if (result.isSuccess) {
         // 刷新用户信息
@@ -529,4 +547,91 @@ class CustomBottomDialogController extends GetxController {
   //     OKToastUtil.show('复制失败，请手动复制匹配码：${userMatchCode.value}');
   //   }
   // }
+
+  // ==================== 埋点方法 ====================
+
+  /// 根据 caller 获取来源页面ID
+  int? _getSourcePageFromCaller() {
+    if (caller == null) return null;
+    
+    switch (caller!) {
+      case BindingDialogCaller.home:
+        return PageSourceIds.home;
+      case BindingDialogCaller.mine:
+        return PageSourceIds.myPage;
+      case BindingDialogCaller.loveInfo:
+        return PageSourceIds.editProfile; // 恋爱信息页面归类到编辑资料
+      case BindingDialogCaller.track:
+        return PageSourceIds.track;
+      case BindingDialogCaller.location:
+        return PageSourceIds.location;
+      case BindingDialogCaller.usageReport:
+        return PageSourceIds.sensitiveRecords; // 用机记录（敏感操作）
+      case BindingDialogCaller.deviceUsage:
+        return PageSourceIds.phoneHistory; // 用机记录页面
+    }
+  }
+
+  /// 设置来源页面
+  void setSourcePage(int sourcePage) {
+    _sourcePage = sourcePage;
+  }
+
+  /// 设置离开方式
+  void setExitType(int exitType) {
+    _exitType = exitType;
+  }
+
+  /// 记录页面浏览埋点
+  void _trackPageView() {
+    if (_pageEnterTime == null) return;
+
+    final exitTime = DateTime.now().millisecondsSinceEpoch;
+    final durationMs = exitTime - _pageEnterTime!;
+    final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+    final durationStr = _formatDuration(durationMs);
+
+    AnalyticsManager.instance.trackPageView(
+      pageId: BindEvents.pageId,
+      eventId: BindEvents.page,
+      enterTime: enterTimeStr,
+      duration: durationStr,
+      sourcePage: _sourcePage?.toString(),
+      exitType: _exitType,
+    );
+  }
+
+  /// 记录输入匹配码事件
+  void trackBindInput() {
+    AnalyticsHelper.trackBindInput();
+  }
+
+  /// 记录确认绑定事件
+  void trackBindSure({required bool success}) {
+    AnalyticsHelper.trackBindSure(success: success);
+  }
+
+  /// 记录取消绑定事件
+  void trackBindCancel() {
+    AnalyticsHelper.trackBindCancel();
+  }
+
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
 }

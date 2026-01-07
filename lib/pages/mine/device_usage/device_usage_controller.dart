@@ -10,6 +10,9 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/mine/device_usage/models/phone_record_stat_model.dart' as api_model;
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
 import 'device_usage_page.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// 用机记录控制器
 class DeviceUsageController extends GetxController {
@@ -61,10 +64,18 @@ class DeviceUsageController extends GetxController {
 
   final _usageRecordApi = UsageRecordApi();
   final _logoCacheService = AppLogoCacheService();
+  
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
 
   @override
   void onInit() {
     super.onInit();
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
     // 初始化 App Logo 缓存
     _logoCacheService.initialize();
     // 初始化绑定状态和会员状态
@@ -104,6 +115,25 @@ class DeviceUsageController extends GetxController {
   /// 隐藏用机记录引导图
   void hideGuideOverlay() {
     showGuideOverlay.value = false;
+  }
+  
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -147,6 +177,25 @@ class DeviceUsageController extends GetxController {
 
   @override
   void onClose() {
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: PhoneHistoryEvents.pageId,
+        eventId: PhoneHistoryEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+      );
+    }
+    
     _usagePermissionTimer?.cancel();
     _usagePermissionTimer = null;
     super.onClose();

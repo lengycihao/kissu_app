@@ -10,7 +10,7 @@ class AnalyticsHelper {
   // ==================== 用户协议页面 ====================
 
   /// 记录用户协议操作
-  static void trackAgreementOperation({required String btnName}) {
+  static void trackAgreementOperation({required int btnName}) {
     AnalyticsManager.instance.trackClick(
       pageId: UserAgreementEvents.pageId,
       eventId: UserAgreementEvents.operation,
@@ -119,7 +119,7 @@ class AnalyticsHelper {
       pageId: BindEvents.pageId,
       eventId: BindEvents.sure,
       params: {
-        AnalyticsParams.bindStatus: success ? BindStatusValue.bound : '绑定失败',
+        AnalyticsParams.bindStatus: success ? BindStatusValue.bound : BindStatusValue.notBound,
       },
     );
   }
@@ -133,7 +133,7 @@ class AnalyticsHelper {
   }
 
   /// 记录返回弹窗点击
-  static void trackBindRebackDialog({required String btnName}) {
+  static void trackBindRebackDialog({required int btnName}) {
     AnalyticsManager.instance.trackClick(
       pageId: BindEvents.pageId,
       eventId: BindEvents.rebackDialog,
@@ -171,7 +171,7 @@ class AnalyticsHelper {
   }
 
   /// 记录VIP充值弹窗点击
-  static void trackVipRechargeDialog({required String btnName}) {
+  static void trackVipRechargeDialog({required int btnName}) {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.vipRechargeDialog,
@@ -180,7 +180,7 @@ class AnalyticsHelper {
   }
 
   /// 记录续费提醒弹窗点击
-  static void trackRenewalReminderDialog({required String btnName}) {
+  static void trackRenewalReminderDialog({required int btnName}) {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.renewalReminderDialog,
@@ -189,11 +189,19 @@ class AnalyticsHelper {
   }
 
   /// 记录到期提示弹窗点击
-  static void trackExpiryTipDialog({required String btnName}) {
+  static void trackExpiryTipDialog({required int btnName}) {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.expiryTipDialog,
       btnName: btnName,
+    );
+  }
+
+  /// 记录一起便便按钮点击
+  static void trackPoopTogether() {
+    AnalyticsManager.instance.trackClick(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.poopTogether,
     );
   }
 
@@ -213,7 +221,7 @@ class AnalyticsHelper {
       pageId: LocationEvents.pageId,
       eventId: LocationEvents.currentState,
       params: {
-        AnalyticsParams.setStatus: hasSet ? '已设置' : '未设置',
+        AnalyticsParams.setStatus: hasSet ? YesNoValue.yes : YesNoValue.no,
       },
     );
   }
@@ -239,7 +247,9 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: LocationEvents.pageId,
       eventId: LocationEvents.toBind,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
     );
   }
 
@@ -256,6 +266,14 @@ class AnalyticsHelper {
     );
   }
 
+  /// 记录返回按钮点击
+  static void trackTrackBack() {
+    AnalyticsManager.instance.trackClick(
+      pageId: TrackEvents.pageId,
+      eventId: TrackEvents.back,
+    );
+  }
+
   /// 记录历史回放
   static void trackTrackHistoryReplay() {
     AnalyticsManager.instance.trackClick(
@@ -264,7 +282,26 @@ class AnalyticsHelper {
     );
   }
 
+  /// 记录去绑定/开通会员按钮点击
+  static void trackTrackToBind({required String btnName}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: TrackEvents.pageId,
+      eventId: TrackEvents.toBind,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
+    );
+  }
+
   // ==================== 聊天页面 ====================
+
+  /// 记录返回按钮点击
+  static void trackChatBack() {
+    AnalyticsManager.instance.trackClick(
+      pageId: ChatEvents.pageId,
+      eventId: ChatEvents.back,
+    );
+  }
 
   /// 记录聊天设置点击
   static void trackChatSetting() {
@@ -296,7 +333,7 @@ class AnalyticsHelper {
     );
   }
 
-  /// 记录主题选择
+  /// 记录聊天主题选择
   static void trackChatThemeBtn({required String themeName}) {
     AnalyticsManager.instance.trackClick(
       pageId: ChatEvents.pageId,
@@ -307,7 +344,84 @@ class AnalyticsHelper {
     );
   }
 
+  // ==================== 用机记录页面 ====================
+
+  /// 记录权限引导按钮点击
+  static void trackPermissionGuideBtn() {
+    AnalyticsManager.instance.trackClick(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.permissionGuideBtn,
+    );
+  }
+
+  /// 记录返回按钮点击
+  static void trackPhoneHistoryBack() {
+    AnalyticsManager.instance.trackClick(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.back,
+    );
+  }
+
+  /// 记录设置按钮点击
+  static void trackPhoneHistorySetting() {
+    AnalyticsManager.instance.trackClick(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.setting,
+    );
+  }
+
+  /// 记录手机使用模块点击
+  static void trackPhoneUseModule({required String btnName}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.phoneUseModule,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
+    );
+  }
+
+  /// 记录App使用模块点击
+  static void trackAppUseModule({required String btnName}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.appUseModule,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
+    );
+  }
+
+  /// 记录敏感操作模块点击
+  static void trackSensitiveOperationModule({required String btnName}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.sensitiveOperationModule,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
+    );
+  }
+
+  // ==================== 敏感操作记录页面 ====================
+
+  /// 记录敏感操作记录item上的vip按钮点击
+  static void trackSensitiveItemVipBtn() {
+    AnalyticsManager.instance.trackClick(
+      pageId: SensitiveEvents.pageId,
+      eventId: SensitiveEvents.itemVipBtn,
+    );
+  }
+
   // ==================== 我的页面 ====================
+
+  /// 记录返回按钮点击
+  static void trackMyPageBack() {
+    AnalyticsManager.instance.trackClick(
+      pageId: MyPageEvents.pageId,
+      eventId: MyPageEvents.back,
+    );
+  }
 
   /// 记录头像点击
   static void trackMyPageAvatar() {
@@ -322,7 +436,9 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.vipBtn,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
     );
   }
 
@@ -339,7 +455,9 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.functionsModule,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
     );
   }
 
@@ -354,7 +472,7 @@ class AnalyticsHelper {
     );
   }
 
-  /// 记录分享按钮点击
+  /// 记录分享APP按钮点击
   static void trackMyPageShareBtn() {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
@@ -365,7 +483,7 @@ class AnalyticsHelper {
   /// 记录分享渠道点击
   static void trackMyPageShareChannel({
     required String channelName,
-    required String shareStatus,
+    required int shareStatus,
   }) {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
@@ -377,10 +495,18 @@ class AnalyticsHelper {
     );
   }
 
+  /// 记录分享弹窗关闭
+  static void trackMyPageShareClose() {
+    AnalyticsManager.instance.trackClick(
+      pageId: MyPageEvents.pageId,
+      eventId: MyPageEvents.shareClose,
+    );
+  }
+
   // ==================== 会员中心 ====================
 
   /// 记录会员类型点击
-  static void trackMembershipTypeClick({required String clickStatus}) {
+  static void trackMembershipTypeClick({required int clickStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.typeClick,
@@ -394,7 +520,7 @@ class AnalyticsHelper {
   static void trackMembershipPayBtn({
     required String memberType,
     required String payType,
-    required String payStatus,
+    required int payStatus,
     required String btnName,
     required String payDuration,
   }) {
@@ -412,11 +538,24 @@ class AnalyticsHelper {
   }
 
   /// 记录返回弹窗点击
-  static void trackMembershipRebackPopup({required String btnName}) {
+  static void trackMembershipRebackPopup({required int btnName}) {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.rebackPopup,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
+    );
+  }
+
+  /// 记录19元弹窗点击
+  static void trackPopup19Dialog({required int btnName}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: MembershipEvents.pageId,
+      eventId: MembershipEvents.popup19Dialog,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
     );
   }
 

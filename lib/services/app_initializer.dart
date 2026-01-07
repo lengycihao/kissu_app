@@ -4,6 +4,7 @@ import 'package:kissu_app/network/example/http_manager_example.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/interceptor/api_response_interceptor.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/payment_service.dart';
 import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/share_service.dart';
@@ -140,7 +141,11 @@ class AppInitializer {
 
       // ========== 第二阶段：第三方SDK初始化 ==========
       
-      // 步骤7: 初始化支付服务
+      // 步骤7: 初始化埋点管理服务
+      Get.put(AnalyticsManager(), permanent: true);
+      DebugUtil.success('埋点管理服务初始化完成');
+      
+      // 步骤8: 初始化支付服务
       Get.put(PaymentService(), permanent: true);
       DebugUtil.success('支付服务初始化完成');
 

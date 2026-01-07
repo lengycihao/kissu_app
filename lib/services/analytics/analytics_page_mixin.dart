@@ -33,7 +33,7 @@ mixin AnalyticsPageMixin on GetxController {
   DateTime? _pageEnterTime;
   
   /// 离开方式
-  String _exitType = ExitTypeValue.back;
+  int _exitType = ExitTypeValue.back;
   
   /// 是否已记录页面离开事件
   bool _hasTrackedPageExit = false;
@@ -85,7 +85,7 @@ mixin AnalyticsPageMixin on GetxController {
   /// 
   /// 在页面跳转前调用此方法设置离开方式
   /// [exitType] 离开方式，使用 [ExitTypeValue] 中的常量
-  void setExitType(String exitType) {
+  void setExitType(int exitType) {
     _exitType = exitType;
   }
 
@@ -153,7 +153,7 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
   DateTime? _pageEnterTime;
   
   /// 离开方式
-  String _exitType = ExitTypeValue.back;
+  int _exitType = ExitTypeValue.back;
   
   /// 是否已记录页面离开事件
   bool _hasTrackedPageExit = false;
@@ -217,10 +217,9 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
   }
 
   /// 设置离开方式
-  void setExitType(String exitType) {
+ void setExitType(int exitType) {
     _exitType = exitType;
   }
-
   /// 标记进入下一页
   void markNavigateToNextPage() {
     _exitType = ExitTypeValue.nextPage;

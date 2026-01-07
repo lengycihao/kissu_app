@@ -12,11 +12,11 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/openinstall_service.dart'; 
 import 'package:kissu_app/services/app_usage_auto_report_service.dart'; 
-import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoginController extends GetxController {
@@ -311,8 +311,11 @@ class LoginController extends GetxController {
         // 首次登录请求定位权限
         //判断是否需要完善信息
         if (UserManager.needsPerfectInfo) {
-          // 需要完善信息，跳转到信息完善页面
-          Get.offAllNamed(KissuRoutePath.infoSetting);
+          // 需要完善信息，跳转到信息完善页面，传入来源页面为登录页面
+          Get.offAllNamed(
+            KissuRoutePath.infoSetting,
+            arguments: {'source_page': PageSourceIds.login},
+          );
         } else {
           // 使用命名路由跳转，确保HomeBinding被正确初始化
           Get.offAllNamed(KissuRoutePath.home);

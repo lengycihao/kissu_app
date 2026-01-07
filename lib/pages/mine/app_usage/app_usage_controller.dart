@@ -16,6 +16,9 @@ import 'package:kissu_app/pages/mine/app_usage/services/app_usage_report_service
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
 import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// App使用时长控制器
 class AppUsageController extends GetxController with WidgetsBindingObserver {
@@ -78,6 +81,10 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   // 时间轴视图数据：App打开记录详情列表
   var appOpenRecordDetail = <AppOpenRecordDetail>[].obs;
 
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+
   // Ta当前授权过的App列表
   var halfAuthorizedApps = <HalfAuthApp>[].obs;
   
@@ -129,6 +136,10 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
     // 监听应用生命周期，用于从系统设置返回后自动刷新权限与数据
     WidgetsBinding.instance.addObserver(this);
     _logoCacheService.initialize(); // 初始化logo缓存
@@ -174,8 +185,46 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     });
   }
 
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+  
   @override
   void onClose() {
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: AppUseEvents.pageId,
+        eventId: AppUseEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+      );
+    }
+    
     // 移除生命周期监听，避免内存泄漏
     WidgetsBinding.instance.removeObserver(this);
     // 取消防抖Timer

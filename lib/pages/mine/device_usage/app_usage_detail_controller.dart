@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// App使用记录详情控制器
 class AppUsageDetailController extends GetxController {
@@ -36,10 +39,18 @@ class AppUsageDetailController extends GetxController {
 
   // 引导图显示状态
   var showGuideOverlay = false.obs;
+  
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
 
   @override
   void onInit() {
     super.onInit();
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
     // 加载今天的数据
     loadData();
     // 检查并显示引导图
@@ -260,8 +271,46 @@ class AppUsageDetailController extends GetxController {
     DebugUtil.info('📱 隐藏引导图');
   }
   
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+  
   @override
   void onClose() {
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: PhoneUseEvents.pageId,
+        eventId: PhoneUseEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+      );
+    }
+    
     // 取消防抖Timer
     _debounceTimer?.cancel();
     super.onClose();

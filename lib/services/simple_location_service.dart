@@ -142,7 +142,10 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   // 多重保障定时器（增强后台稳定性）
   // ignore: unused_field
-  Timer? _quickCheckTimer; // 快速检查定时器（20秒）
+  Timer? _multipleGuaranteeTimer;
+  
+  // 权限检查定时器
+  Timer? _permissionCheckTimer; // 快速检查定时器（20秒）
   // ignore: unused_field
   Timer? _mediumCheckTimer; // 中等检查定位器（60秒）
   // ignore: unused_field
@@ -2070,8 +2073,11 @@ extension PermissionManagementExtension on SimpleLocationService {
     logger.info('初始化权限状态（参考iOS版本）', tag: 'Location');
     _updateCurrentPermissionStatus();
 
+    // 取消旧的定时器
+    _permissionCheckTimer?.cancel();
+    
     // 设置定时检查权限状态变化（模拟iOS的权限变化监听）
-    Timer.periodic(Duration(seconds: 10), (timer) {
+    _permissionCheckTimer = Timer.periodic(Duration(seconds: 10), (timer) {
       _checkPermissionChanges();
     });
   }
@@ -2085,9 +2091,8 @@ extension PermissionManagementExtension on SimpleLocationService {
       _currentLocationPermission.value = locationStatus;
       _currentBackgroundPermission.value = backgroundStatus;
 
-      logger.info('权限状态更新:', tag: 'Location');
-      logger.debug('前台定位: ${locationStatus.name}', tag: 'Location');
-      logger.debug('后台定位: ${backgroundStatus.name}', tag: 'Location');
+      // 只在 Debug 模式下记录权限状态
+      logger.debug('权限状态更新: 前台=${locationStatus.name}, 后台=${backgroundStatus.name}', tag: 'Location');
       
       // 更新 header 中的定位权限状态
       bool isGranted = locationStatus.isGranted;

@@ -9,6 +9,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'widgets/device_phone_usage_card.dart';
 import 'widgets/device_app_usage_card.dart';
 import 'widgets/device_sensitive_usage_card.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 // 导出模型和painter供其他文件使用
 export 'models/sensitive_record.dart';
@@ -124,6 +125,12 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                           DevicePhoneUsageCard(
                             controller: controller,
                             onTap: () {
+                              // 埋点：手机使用记录模块点击（不管是否会员都记录）
+                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
+                              if (btnName.isNotEmpty) {
+                                AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
+                              }
+                              
                               _handleVipFeatureTap(
                                 onVipUserNavigate: () => Get.toNamed(
                                   KissuRoutePath.appUsageInfo,
@@ -146,6 +153,12 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                           DeviceAppUsageCard(
                             controller: controller,
                             onTap: () {
+                              // 埋点：App使用记录模块点击（不管是否会员都记录）
+                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
+                              if (btnName.isNotEmpty) {
+                                AnalyticsHelper.trackAppUseModule(btnName: btnName);
+                              }
+                              
                               _handleVipFeatureTap(
                                 onVipUserNavigate: () =>
                                     Get.toNamed(KissuRoutePath.appUsage),
@@ -157,6 +170,12 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                           DeviceSensitiveUsageCard(
                             controller: controller,
                             onTap: () {
+                              // 埋点：敏感操作记录模块点击（不管是否会员都记录）
+                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
+                              if (btnName.isNotEmpty) {
+                                AnalyticsHelper.trackSensitiveOperationModule(btnName: btnName);
+                              }
+                              
                               if (!controller.isUserBound.value) {
                                 _checkAndShowBindingDialog();
                                 return;
@@ -197,6 +216,8 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
             bottom: 0,
             child: GestureDetector(
               onTap: () {
+                // 埋点：返回按钮点击
+                AnalyticsHelper.trackPhoneHistoryBack();
                 // 使用 Navigator 返回，避免 GetX Snackbar 初始化错误
                 if (Navigator.of(context).canPop()) {
                   Navigator.of(context).pop();
@@ -238,6 +259,8 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
             bottom: 0,
             child: GestureDetector(
               onTap: () {
+                // 埋点：设置按钮点击
+                AnalyticsHelper.trackPhoneHistorySetting();
                 // 复用用机记录设置入口，跳转到通知设置页面
                 Get.toNamed(KissuRoutePath.notificationSettings);
               },
@@ -440,7 +463,11 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
           ),
           SizedBox(width: 5),
           GestureDetector(
-            onTap: () => controller.openUsageSettings(),
+            onTap: () {
+              // 埋点：权限引导按钮点击
+              AnalyticsHelper.trackPermissionGuideBtn();
+              controller.openUsageSettings();
+            },
             child: Row(
               children: const [
                 Text(

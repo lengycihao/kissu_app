@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
@@ -543,6 +544,9 @@ class TrackSheetManager {
                   GestureDetector(
                     onTap: () async {
                       if (!isBindPartner) {
+                        // 埋点：去绑定按钮点击
+                        AnalyticsHelper.trackTrackToBind(btnName: 'bind');
+                        
                         if (Get.context!.mounted) {
                           CustomBottomDialog.show(
                             context: Get.context!,
@@ -552,6 +556,9 @@ class TrackSheetManager {
                           });
                         }
                       } else {
+                        // 埋点：开通会员按钮点击
+                        AnalyticsHelper.trackTrackToBind(btnName: 'vip');
+                        
                         Get.toNamed(
                           KissuRoutePath.vip,
                           arguments: {

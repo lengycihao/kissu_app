@@ -34,7 +34,7 @@ class AnalyticsParams {
   /// 点击时间（格式：年/月/日 时:分:秒）
   static const String clickTime = 'click_time';
   
-  /// 按钮名称
+  /// 按钮操作
   static const String btnName = 'btn_name';
   
   // ==================== 会员相关参数 ====================
@@ -140,109 +140,115 @@ class AnalyticsParams {
 
 /// 会员状态枚举值
 class VipStatusValue {
-  static const String notPaid = '未充值会员';
-  static const String active = '会员中';
-  static const String expired = '会员已到期';
+  static const int notPaid = 0;//未充值会员
+  static const int active = 1;//会员中
+  static const int expired = 2;//会员已到期
 }
 
 /// 绑定状态枚举值
 class BindStatusValue {
-  static const String notBound = '未绑定';
-  static const String bound = '已绑定';
-  static const String unbound = '已解绑';
+  static const int notBound = 0;//未绑定
+  static const int bound = 1;//已绑定
+  static const int unbound = 2;//已解绑
 }
 
 /// 188活动参与状态枚举值
 class Action188Value {
-  static const String participated = '已参与';
-  static const String notParticipated = '未参与';
+  static const int participated = 1;//已参与
+  static const int notParticipated = 0;//未参与
 }
 
 /// 离开方式枚举值
 class ExitTypeValue {
-  static const String back = '返回';
-  static const String closeApp = '关闭App';
-  static const String toBackground = '切换到后台';
-  static const String nextPage = '进入下一页';
+  static const int back = 1;//返回
+  static const int closeApp = 2;//关闭应用
+  static const int toBackground = 3;//到后台
+  static const int nextPage = 4;//下一页
 }
 
 /// 是/否枚举值
 class YesNoValue {
-  static const String yes = '是';
-  static const String no = '否';
+  static const int yes = 1;//是
+  static const int no = 0;//否
 }
 
 /// 发送状态枚举值
 class SendStatusValue {
-  static const String success = '成功';
-  static const String failed = '失败';
+  static const int success = 1;//成功
+  static const int failed = 0;//失败
 }
 
 /// 登录状态枚举值
 class LoginStatusValue {
-  static const String success = '成功';
-  static const String failed = '失败';
+  static const int success = 1;//成功
+  static const int failed = 0;//失败
 }
 
 /// 性别枚举值
 class GenderValue {
-  static const String defaultMale = '默认男性';
-  static const String male = '男性';
-  static const String female = '女性';
+  static const int defaultMale = 1;//默认男性
+  static const int male = 2;//男性
+  static const int female = 3;//女性
 }
 
 /// 支付方式枚举值
 class PayTypeValue {
-  static const String apple = '苹果';
-  static const String wechat = '微信';
-  static const String alipay = '支付宝';
+  static const String apple = 'apple';//苹果支付
+  static const String wechat = 'wechat';//微信支付
+  static const String alipay = 'alipay';//支付宝支付
 }
 
 /// 支付状态枚举值
 class PayStatusValue {
-  static const String success = '支付成功';
-  static const String failed = '支付失败';
-  static const String cancelled = '用户取消';
+  static const int success = 1;//成功
+  static const int failed = 0;//失败
+  static const int cancelled = 2;//取消
 }
 
 /// 分享状态枚举值
 class ShareStatusValue {
-  static const String success = '分享成功';
-  static const String failed = '分享失败';
-  static const String notShared = '未分享';
-  static const String copied = '复制成功';
+  static const int success = 1;//成功
+  static const int failed = 0;//失败
+  static const int notShared = 2;//未分享
+  static const int copied = 3;//已复制
 }
 
 /// 分享渠道枚举值
 class ShareChannelValue {
-  static const String wechat = '微信';
-  static const String qq = 'QQ';
-  static const String copyLink = '复制链接';
+  static const String wechat = 'wechat';
+  static const String qq = 'qq';
+  static const String copyLink = 'copy_link';
 }
 
 /// 底部导航名称枚举值
 class NavigationNameValue {
-  static const String location = '定位';
-  static const String track = '足迹';
-  static const String chat = '聊天';
-  static const String phoneHistory = '用机记录';
-  static const String mine = '我的';
+  static const String location = 'location';
+  static const String track = 'track';
+  static const String chat = 'chat';
+  static const String phoneHistory = 'phone_history';
+  static const String mine = 'mine';
 }
 
 /// 头像身份枚举值
 class AvatarNameValue {
-  static const String self = '本人头像';
-  static const String partner = 'Ta的头像';
+  static const String self = 'self';
+  static const String partner = 'partner';
 }
 
 /// 功能模块名称枚举值
 class FunctionModuleValue {
-  static const String realTimeLocation = '实时定位';
-  static const String appUsageRecord = 'app使用记录';
-  static const String phoneHistory = '用机记录';
-  static const String track = '足迹';
-  static const String hotelAntiSpy = '酒店防偷拍';
-  static const String personalizedHome = '个性化首页';
-  static const String sensitiveRecord = '敏感记录统计';
-  static const String changeAppIcon = '更换app图标';
+  static const String realTimeLocation = 'real_time_location';//实时位置
+  static const String appUsageRecord = 'app_usage_record';//app使用记录
+  static const String phoneHistory = 'phone_history';//用机记录
+  static const String track = 'track';//足迹
+  static const String hotelAntiSpy = 'hotel_anti_spy';//酒店防偷拍
+  static const String personalizedHome = 'personalized_home';//个性化首页
+  static const String sensitiveRecord = 'sensitive_record';//敏感记录统计
+  static const String changeAppIcon = 'change_app_icon';//更换app图标
+}
+
+/// 会员页面支付按钮名称枚举值
+class MembershipPayBtnValue {
+  static const int payNow = 1;//立即支付
+  static const int renewNow = 2;//立即续费
 }

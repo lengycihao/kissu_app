@@ -117,6 +117,9 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                     right: 8,
                     child: GestureDetector(
                       onTap: () async {
+                        // 埋点：关闭按钮事件
+                        controller.trackBindCancel();
+                        
                         // 统一弹出挽回弹窗
                         final result = await BindingCloseConfirmDialog.show(
                           context: context,
@@ -290,6 +293,9 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
 
   /// 显示输入对话框 - 底部弹窗形式
   void _showInputDialog() {
+    // 埋点：输入匹配码事件
+    controller.trackBindInput();
+    
     final FocusNode focusNode = FocusNode();
     bool isDisposed = false; // 标记 FocusNode 是否已释放
     bool manualClose = false; // 标记是否为手动点击确认关闭

@@ -9,6 +9,7 @@ import 'package:kissu_app/widgets/no_placeholder_image.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 首页右上角头像模块
 /// 包含：双头像、状态文本、通知图标、活动图标
@@ -38,6 +39,9 @@ class HomeAvatarSection extends StatelessWidget {
                     angle: 0, // 逆时针30度
                     child: GestureDetector(
                       onTap: () {
+                        // 埋点：右上角头像点击
+                        AnalyticsHelper.trackBindPartnerAvatar();
+                        
                         if (controller.isBound.value) {
                           // 已绑定状态下点击头像跳转到恋爱信息页
                           controller.navigateToLoveInfoPage();
@@ -77,7 +81,9 @@ class HomeAvatarSection extends StatelessWidget {
                     child: controller.isBound.value
                         ? GestureDetector(
                             onTap: () {
-                               
+                              // 埋点：右上角头像点击
+                              AnalyticsHelper.trackBindPartnerAvatar();
+                              
                               // 已绑定状态下点击头像跳转到恋爱信息页
                               controller.navigateToLoveInfoPage();
                             },
@@ -227,6 +233,9 @@ class HomeAvatarSection extends StatelessWidget {
                             children: [
                               GestureDetector(
                                 onTap: () {
+                                  // 埋点：会员福利按钮点击
+                                  AnalyticsHelper.trackVipAction();
+                                  
                                   // 跳转到会员页面
                                   Get.toNamed(KissuRoutePath.vip);
                                 },
@@ -297,6 +306,8 @@ class HomeAvatarSection extends StatelessWidget {
                           // 拉屎图标（固定位置）
                           GestureDetector(
                             onTap: () {
+                              // 埋点：一起便便按钮点击
+                              AnalyticsHelper.trackPoopTogether();
                               // 未绑定时先弹出绑定弹窗
                               if (!controller.isBound.value) {
                                 CustomBottomDialog.show(

@@ -16,6 +16,7 @@ import 'package:kissu_app/pages/track/managers/track_user_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_data_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_ui_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_marker_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 // 导出初始坐标信息类，供外部使用
 export 'package:kissu_app/pages/track/managers/track_marker_manager.dart'
@@ -301,6 +302,11 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 头像点击时切换用户视角（优化版本）
   void onAvatarTapped(bool isMyself) {
+    // 埋点：头像切换
+    AnalyticsHelper.trackTrackAvatarChange(
+      avatarName: isMyself ? 'mine' : 'partner',
+    );
+    
     DebugUtil.info('🎯 头像点击开始 - isMyself: $isMyself');
 
     // 计算目标用户类型
@@ -332,6 +338,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 处理旋转状态下的返回按钮点击
   void handleBackButtonTap([ScrollController? scrollController]) {
+    // 埋点：返回按钮点击
+    AnalyticsHelper.trackTrackBack();
+    
     _uiManager.handleBackButtonTap(scrollController);
   }
 

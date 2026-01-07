@@ -16,6 +16,9 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_receipt.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 class ChatController extends GetxController {
   // 滚动控制器
@@ -74,11 +77,20 @@ class ChatController extends GetxController {
 
   // 新消息提示：当不在底部且有新消息时显示
   final RxBool hasNewMessageWhenNotAtBottom = false.obs;
+  
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  int _sendMessageCount = 0; // 单方主动发送消息次数（不包含系统发送的）
 
   @override
   void onInit() {
     super.onInit();
     debugPrint('💬 ChatController 初始化');
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
     // 使用真实IM聊天，关闭本地mock消息
     _initPartnerInfo();
     _setupIMMessageListener();
@@ -445,11 +457,52 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: ChatEvents.pageId,
+        eventId: ChatEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+        params: {
+          'send_sum': _sendMessageCount,
+        },
+      );
+    }
+    
     scrollController.dispose();
     inputFocusNode.dispose();
     _deviceInfoTooltipTimer?.cancel();
     debugPrint('💬 ChatController 销毁');
     super.onClose();
+  }
+  
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   /// 清除设备信息提示（手动关闭 tip）
@@ -499,6 +552,9 @@ class ChatController extends GetxController {
   // 发送文字消息（走腾讯IM SDK）
   void sendTextMessage(String text) {
     if (text.trim().isEmpty) return;
+    
+    // 埋点：增加发送消息计数
+    _sendMessageCount++;
 
     final localId = DateTime.now().millisecondsSinceEpoch.toString();
     final now = DateTime.now();
@@ -841,6 +897,9 @@ class ChatController extends GetxController {
   // 发送图片消息
   Future<void> _sendImageMessage(File imageFile) async {
     try {
+      // 埋点：增加发送消息计数
+      _sendMessageCount++;
+      
       final partnerId = _partnerImId;
       final im = TencentIMService.instance;
 

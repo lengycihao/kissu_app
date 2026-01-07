@@ -4,6 +4,8 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/services/share_service.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// 分享底部弹窗组件
 class ShareBottomSheet extends StatelessWidget {
@@ -81,7 +83,11 @@ class ShareBottomSheet extends StatelessWidget {
             ),
           ),
           GestureDetector(
-             onTap: () => Navigator.of(context).pop(),
+             onTap: () {
+               // 埋点：记录分享弹窗关闭
+               AnalyticsHelper.trackMyPageShareClose();
+               Navigator.of(context).pop();
+             },
              child: Image(image: AssetImage('assets/images/kissu_location_close.webp'),width: 20,height: 20,),
           )
             ],
@@ -275,8 +281,20 @@ class ShareBottomSheet extends StatelessWidget {
       // bindCode会自动使用当前用户的friendCode
       await shareService.shareToWeChatWithConfig();
       
+      // 埋点：记录分享渠道点击（微信，未分享）
+      AnalyticsHelper.trackMyPageShareChannel(
+        channelName: ShareChannelValue.wechat,
+        shareStatus: ShareStatusValue.notShared,
+      );
+      
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
+      
+      // 埋点：记录分享失败
+      AnalyticsHelper.trackMyPageShareChannel(
+        channelName: ShareChannelValue.wechat,
+        shareStatus: ShareStatusValue.failed,
+      );
     }
   }
 
@@ -295,13 +313,31 @@ class ShareBottomSheet extends StatelessWidget {
       // 处理分享结果
       if (shareResult['success'] == true) {
         OKToastUtil.show('QQ分享成功');
+        
+        // 埋点：记录分享成功
+        AnalyticsHelper.trackMyPageShareChannel(
+          channelName: ShareChannelValue.qq,
+          shareStatus: ShareStatusValue.success,
+        );
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
         OKToastUtil.show('QQ分享失败: $errorMsg');
+        
+        // 埋点：记录分享失败
+        AnalyticsHelper.trackMyPageShareChannel(
+          channelName: ShareChannelValue.qq,
+          shareStatus: ShareStatusValue.failed,
+        );
       }
       
     } catch (e) {
       OKToastUtil.show('分享失败: $e');
+      
+      // 埋点：记录分享失败
+      AnalyticsHelper.trackMyPageShareChannel(
+        channelName: ShareChannelValue.qq,
+        shareStatus: ShareStatusValue.failed,
+      );
     }
   }
 
@@ -328,8 +364,20 @@ class ShareBottomSheet extends StatelessWidget {
     
     Clipboard.setData(ClipboardData(text: appLink)).then((_) {
       OKToastUtil.show('复制成功');
+      
+      // 埋点：记录复制成功
+      AnalyticsHelper.trackMyPageShareChannel(
+        channelName: ShareChannelValue.copyLink,
+        shareStatus: ShareStatusValue.copied,
+      );
     }).catchError((error) {
       OKToastUtil.show('复制失败: $error');
+      
+      // 埋点：记录复制失败
+      AnalyticsHelper.trackMyPageShareChannel(
+        channelName: ShareChannelValue.copyLink,
+        shareStatus: ShareStatusValue.failed,
+      );
     });
   }
 

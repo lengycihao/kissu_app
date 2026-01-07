@@ -35,6 +35,7 @@ import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
  import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/app_icon_selector/app_icon_selector_page.dart';
+import 'package:kissu_app/pages/app_icon_selector/app_icon_selector_binding.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_page.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_binding.dart';
 import 'package:kissu_app/pages/mine/device_usage/app_usage_detail_page.dart';
@@ -220,6 +221,7 @@ class KissuRoute {
     GetPage(
       name: KissuRoutePath.appIconSelector,
       page: () => const AppIconSelectorPage(),
+      binding: AppIconSelectorBinding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

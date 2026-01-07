@@ -4,6 +4,7 @@ import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class ChatThemeController extends GetxController {
   // 获取聊天控制器实例
@@ -75,6 +76,10 @@ class ChatThemeController extends GetxController {
     try {
       final theme = selectedTheme.value;
       
+      // 埋点：记录主题选择
+      final themeName = _getThemeId(theme);
+      AnalyticsHelper.trackChatThemeBtn(themeName: themeName);
+      
       // 获取主题对应的背景和气泡
       final backgroundPath = getThemeBackgroundPath(theme);
       final bubbleStyle = getThemeBubbleStyle(theme);
@@ -112,6 +117,16 @@ class ChatThemeController extends GetxController {
       // 出错时也直接返回到聊天页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
     }
+  }
+  
+  /// 根据主题获取对应的ID
+  String _getThemeId(int theme) {
+    // 主题ID映射：200011=第一套, 200012=第二套, 200013=第三套, 200014=第四套
+    const themeIds = ['200011', '200012', '200013', '200014'];
+    if (theme >= 1 && theme <= 4) {
+      return themeIds[theme - 1];
+    }
+    return '200011'; // 默认返回第一套
   }
 }
 

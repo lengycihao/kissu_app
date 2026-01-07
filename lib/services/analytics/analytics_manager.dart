@@ -126,14 +126,14 @@ class AnalyticsManager extends GetxService {
     required String enterTime,
     required String duration,
     String? sourcePage,
-    String? exitType,
+    int? exitType,
     Map<String, dynamic>? params,
   }) {
     final pageParams = <String, dynamic>{
       AnalyticsParams.pageEnterTime: enterTime,
       AnalyticsParams.pageDuration: duration,
       if (sourcePage != null) AnalyticsParams.sourcePage: sourcePage,
-      if (exitType != null) AnalyticsParams.exitType: exitType,
+      if (exitType != null) AnalyticsParams.exitType: exitType.toString(),
       ...?params,
     };
 
@@ -153,7 +153,7 @@ class AnalyticsManager extends GetxService {
   void trackClick({
     required String pageId,
     required String eventId,
-    String? btnName,
+    int? btnName,
     Map<String, dynamic>? params,
   }) {
     final clickParams = <String, dynamic>{
@@ -204,8 +204,8 @@ class AnalyticsManager extends GetxService {
     return params;
   }
 
-  /// 获取会员状态文本
-  String _getVipStatus() {
+  /// 获取会员状态
+  int _getVipStatus() {
     if (!UserManager.isLoggedIn) return VipStatusValue.notPaid;
     
     if (UserManager.isVip) {
@@ -226,8 +226,8 @@ class AnalyticsManager extends GetxService {
     return VipStatusValue.notPaid;
   }
 
-  /// 获取绑定状态文本
-  String _getBindStatus() {
+  /// 获取绑定状态
+  int _getBindStatus() {
     if (!UserManager.isLoggedIn) return BindStatusValue.notBound;
     
     final user = UserManager.currentUser;
@@ -253,7 +253,7 @@ class AnalyticsManager extends GetxService {
   }
 
   /// 获取188活动参与状态
-  String _getAction188Status() {
+  int _getAction188Status() {
     // TODO: 根据实际业务逻辑获取188活动参与状态
     return Action188Value.notParticipated;
   }

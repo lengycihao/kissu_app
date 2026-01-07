@@ -14,6 +14,10 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/discount_bottom_sheet.dart';
 import 'package:kissu_app/widgets/dialogs/vip_cancel_retention_dialog.dart'; 
 import 'package:kissu_app/widgets/dialogs/vip_open_success_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 class VipController extends GetxController {
   // Logger实例
@@ -89,18 +93,27 @@ class VipController extends GetxController {
   // 支付结果监听器
   StreamSubscription<Map<String, dynamic>>? _paymentResultSubscription;
 
- 
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  int _pageScrollNum = 0;
+  int? _payStartTime; // 支付开始时间
 
   @override
   void onInit() {
     super.onInit();
- 
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
 
     // 初始化控制器
     pageController = PageController();
     commentScrollController = ScrollController();
     priceScrollController = ScrollController();
     mainScrollController = ScrollController();
+    
+    // 添加滑动监听器用于统计滑动次数
+    mainScrollController.addListener(_onScroll);
 
     // 获取传入的参数
     final arguments = Get.arguments as Map<String, dynamic>?;
@@ -184,20 +197,68 @@ class VipController extends GetxController {
     lifetimeActivitySeconds.value = 0;
   }
 
+  /// 滑动监听器，用于统计滑动次数
+  double _lastScrollPosition = 0;
+  void _onScroll() {
+    if (mainScrollController.hasClients) {
+      final currentPosition = mainScrollController.position.pixels;
+      // 只统计向下滑动，且滑动距离超过50px
+      if (currentPosition > _lastScrollPosition && (currentPosition - _lastScrollPosition) > 50) {
+        _pageScrollNum++;
+        _lastScrollPosition = currentPosition;
+      }
+    }
+  }
+
+  /// 格式化页面进入时间为 "yyyy-MM-dd HH:mm:ss" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   void onClose() {
-    // 防止重复dispose
-    if (_isDisposed) {
-      return;
+    _logger.i('📦 VipController onClose 被调用');
+
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: MembershipEvents.pageId,
+        eventId: MembershipEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+        params: {
+          AnalyticsParams.pageScrollNum: _pageScrollNum,
+        },
+      );
     }
+
+    // 设置销毁标志
     _isDisposed = true;
 
- 
-
-    // 标记页面为不可见状态
-    isPageVisible.value = false;
-
-    // 停止所有自动轮播
+    // 停止轮播
     _stopAutoCarousel();
     _stopLifetimeCountdown();
 
@@ -565,6 +626,9 @@ class VipController extends GetxController {
 
     if (index >= 0 && index < vipPackages.length) {
       final package = vipPackages[index];
+
+      // 埋点：记录会员套餐点击
+      AnalyticsHelper.trackMembershipTypeClick(clickStatus: package.type);
 
       // 先选中套餐
       selectedPriceIndex.value = index;

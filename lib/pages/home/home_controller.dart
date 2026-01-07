@@ -36,6 +36,7 @@ import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/services/gif_preload_service.dart';
 import 'package:kissu_app/pages/home/services/home_popup_service.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 
 class HomeController extends GetxController {
@@ -974,6 +975,12 @@ class HomeController extends GetxController {
   void onButtonTap(int index) async {
     selectedIndex.value = index;
     debugPrint("🔍 底部导航按钮 $index 被点击");
+    
+    // 埋点：底部导航栏点击
+    final navigationNames = ['定位', '足迹', '聊天', '用机记录', '我的'];
+    if (index >= 0 && index < navigationNames.length) {
+      AnalyticsHelper.trackBottomNavigation(navigationName: navigationNames[index]);
+    }
     
     // 执行导航逻辑
     switch (index) {

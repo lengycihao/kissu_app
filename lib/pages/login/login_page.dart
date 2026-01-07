@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 import 'package:flutter/services.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/widgets/loading_dots_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
+import 'package:kissu_app/services/analytics/analytics_exit_types.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -15,10 +21,23 @@ class _LoginPageState extends State<LoginPage> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _codeFocusNode = FocusNode();
+  
+  // 埋点相关
+  int? _pageEnterTime; // 页面进入时间（毫秒）
+  int _sourcePage = PageSourceIds.agreementDialog; // 来源页面，默认为协议弹窗
 
   @override
   void initState() {
     super.initState();
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
+    // 获取来源页面参数（如果有的话）
+    final args = Get.arguments;
+    if (args != null && args is Map && args.containsKey('source_page')) {
+      _sourcePage = args['source_page'] as int;
+    }
 
     // 添加焦点监听
     _phoneFocusNode.addListener(() {
@@ -32,6 +51,35 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    // 埋点：记录页面浏览时长并上报
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      
+      // 格式化时间和时长
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      // 判断离开方式（默认为返回）
+      final exitType = ExitTypeValue.back;
+      
+      /**
+       * 埋点
+       * 页面名称：登录
+       * 事件名称：登录页面浏览
+       * 页面id: login_event
+       * 事件id: login_page
+       */
+      AnalyticsManager.instance.trackPageView(
+        pageId: LoginEvents.pageId,
+        eventId: LoginEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: _sourcePage.toString(),
+        exitType: exitType,
+      );
+    }
+    
     _scrollController.dispose();
     _phoneFocusNode.dispose();
     _codeFocusNode.dispose();
@@ -123,6 +171,8 @@ class _LoginPageState extends State<LoginPage> {
                         onTap: () {
                           // 释放所有焦点并收起键盘
                           _unfocusAll();
+                          // 埋点：登录按钮点击
+                          _trackLoginButtonClick();
                           controller.login();
                         },
                         child: Container(
@@ -346,6 +396,8 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: () {
                         // 释放所有焦点并收起键盘
                         _unfocusAll();
+                        // 埋点：获取验证码点击
+                        _trackGetVerificationCodeClick();
                         controller.validatePhoneNumber();
                       },
                       child: Obx(
@@ -374,5 +426,36 @@ class _LoginPageState extends State<LoginPage> {
               ],
       ),
     );
+  }
+  
+  /// 埋点：获取验证码点击事件
+  void _trackGetVerificationCodeClick() {
+    // 先记录点击事件，状态默认为成功
+    AnalyticsHelper.trackGetVerificationCode(success: true);
+  }
+  
+  /// 埋点：登录按钮点击事件
+  void _trackLoginButtonClick() {
+    // 先记录点击事件，状态默认为成功
+    AnalyticsHelper.trackLoginButton(success: true);
+  }
+  
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化时长为 mm:ss 格式
+  String _formatDuration(int milliseconds) {
+    final seconds = (milliseconds / 1000).round();
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }

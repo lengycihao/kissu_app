@@ -11,7 +11,8 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'package:kissu_app/utils/vip_navigation_helper.dart'; 
+import 'package:kissu_app/utils/vip_navigation_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart'; 
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
@@ -47,7 +48,7 @@ class UsageReportController extends GetxController {
   // 页面Context（用于Overlay）
   late BuildContext pageContext;
 
-  // 页面浏览时长统计
+  // 页面浏览时长统计（埋点用）
   DateTime? _pageEnterTime;
 
   // 筛选选项（改为多选）
@@ -332,6 +333,9 @@ class UsageReportController extends GetxController {
   /// 处理记录item点击
   void handleRecordItemClick(SensitiveRecordItem record) {
     if (record.needsVip) {
+      // 埋点：记录敏感操作记录item上的vip按钮点击
+      AnalyticsHelper.trackSensitiveItemVipBtn();
+      
       // 需要VIP权限，跳转到VIP页面
       debugPrint('🔒 需要VIP权限，跳转到VIP页面');
       _navigateToVipPage();

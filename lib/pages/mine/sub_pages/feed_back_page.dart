@@ -11,6 +11,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/log_upload_service.dart';
 
 /// 控制器
 class FeedbackController extends GetxController {
@@ -19,6 +20,11 @@ class FeedbackController extends GetxController {
   var selectedImages = <File>[].obs; // 选择的图片（最多3张）
   var isSubmitting = false.obs; // 是否正在提交
   var loadingText = "正在提交反馈...".obs; // loading文案
+  
+  // 日志上传相关
+  var isUploadingLog = false.obs; // 是否正在上传日志
+  var logUploadProgress = 0.0.obs; // 日志上传进度
+  var logFilesSize = ''.obs; // 日志文件大小
 
   // 联系方式输入相关
   final FocusNode contactFocusNode = FocusNode();
@@ -41,6 +47,58 @@ class FeedbackController extends GetxController {
 
     // 同步到 TextEditingController，确保初始值展示正确
     contactTextController.text = contact.value;
+    
+    // 获取日志文件大小
+    _loadLogFilesSize();
+  }
+  
+  /// 加载日志文件大小
+  Future<void> _loadLogFilesSize() async {
+    try {
+      logFilesSize.value = await LogUploadService.instance.getLogFilesSize();
+    } catch (e) {
+      logFilesSize.value = '0 B';
+    }
+  }
+  
+  /// 上传日志文件
+  Future<void> uploadLogs() async {
+    if (isUploadingLog.value) {
+      CustomToast.show(Get.context!, "正在上传中，请稍候...");
+      return;
+    }
+    
+    try {
+      isUploadingLog.value = true;
+      logUploadProgress.value = 0.0;
+      
+      logInfo('开始上传日志文件', tag: 'Feedback');
+      
+      final result = await LogUploadService.instance.uploadLogs(
+        remark: content.value.isNotEmpty ? content.value : '用户主动上传日志',
+        onProgress: (sent, total) {
+          if (total > 0) {
+            logUploadProgress.value = sent / total;
+          }
+        },
+      );
+      
+      isUploadingLog.value = false;
+      
+      if (result.isSuccess) {
+        logInfo('日志上传成功', tag: 'Feedback');
+        CustomToast.show(Get.context!, "日志上传成功，感谢您的配合！");
+        // 刷新日志文件大小
+        await _loadLogFilesSize();
+      } else {
+        logError('日志上传失败: ${result.msg}', tag: 'Feedback');
+        CustomToast.show(Get.context!, result.msg ?? "日志上传失败，请重试");
+      }
+    } catch (e) {
+      isUploadingLog.value = false;
+      logError('日志上传异常: $e', tag: 'Feedback', error: e);
+      CustomToast.show(Get.context!, "上传失败: $e");
+    }
   }
 
   @override
@@ -581,12 +639,112 @@ class FeedbackPage extends StatelessWidget {
                         ),
                       ),
 
+                      const SizedBox(height: 20),
+
+                      // 日志上传卡片
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: _cardDecoration(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "上传日志",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF333333),
+                                  ),
+                                ),
+                                Obx(() => Text(
+                                  controller.logFilesSize.value.isNotEmpty 
+                                    ? controller.logFilesSize.value 
+                                    : '计算中...',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF999999),
+                                  ),
+                                )),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "如遇到问题，上传日志可帮助我们更快定位并解决～",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF777777),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Obx(() => GestureDetector(
+                              onTap: controller.isUploadingLog.value 
+                                ? null 
+                                : controller.uploadLogs,
+                              child: Container(
+                                width: double.infinity,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: controller.isUploadingLog.value 
+                                    ? const Color(0xFFEEEEEE) 
+                                    : const Color(0xFFFFF0F5),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFA9E0).withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: controller.isUploadingLog.value
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            value: controller.logUploadProgress.value > 0 
+                                              ? controller.logUploadProgress.value 
+                                              : null,
+                                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                              Color(0xFFFFA9E0),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          controller.logUploadProgress.value > 0
+                                            ? '上传中 ${(controller.logUploadProgress.value * 100).toInt()}%'
+                                            : '准备中...',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF999999),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : const Center(
+                                      child: Text(
+                                        "点击上传日志",
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFFFFA9E0),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                              ),
+                            )),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 100), // 增加底部间距，为底部按钮留空间
                     ],
                   ),
                 ),
-
-               
 
                 // 底部提交按钮
                 Container(

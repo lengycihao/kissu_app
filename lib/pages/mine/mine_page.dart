@@ -34,6 +34,9 @@ class MinePage extends GetView<MineController> {
         onRenewTap: controller.onRenewTap,
         areAllPermissionsGranted: controller.areAllPermissionsGranted.value,
         onPermissionSettingTap: () async {
+          // 埋点：记录权限模块点击
+          controller.trackPermissionModuleClick();
+          
           await Get.to(
             () => const SystemPermissionPage(),
             binding: SystemPermissionBinding(),

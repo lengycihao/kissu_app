@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../routers/kissu_route_path.dart'; 
 import '../location_v2_controller.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 右侧浮动按钮组
 /// 包含位置提醒、轨迹、状态等功能按钮
@@ -61,11 +62,15 @@ class FloatingActionButtons extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 状态按钮
+                // 状态按钮（我的心情）
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_state_an.png',
                   onTap: () {
-                   
+                    // 埋点：我的心情按钮点击
+                    // 需要检查是否设置了状态
+                    final hasSetStatus = controller.myFace.value != null && controller.myFace.value!.isValid;
+                    AnalyticsHelper.trackLocationCurrentState(hasSet: hasSetStatus);
+                    
                     Get.toNamed(KissuRoutePath.locationState);
                   },
                 ),
@@ -75,6 +80,8 @@ class FloatingActionButtons extends StatelessWidget {
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_track_an.png',
                   onTap: () {
+                    // 埋点：Ta的足迹按钮点击
+                    AnalyticsHelper.trackLocationHerTrack();
                     
                     Get.toNamed(KissuRoutePath.track);
                   },
@@ -85,6 +92,9 @@ class FloatingActionButtons extends StatelessWidget {
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_knock_an.png',
                   onTap: () {
+                    // 埋点：位置提醒按钮点击
+                    AnalyticsHelper.trackLocationKnock();
+                    
                     controller.onLocationReminderButtonTap();
                   },
                 ),

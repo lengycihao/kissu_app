@@ -5,6 +5,9 @@ import 'location_map_widget.dart';
 import 'location_overlay_manager.dart';
 import 'location_toolbar_widget.dart';
 import '../location_v2_controller.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// 定位页面主布局组件
 /// 负责整体页面的布局结构和管理各个子组件
@@ -22,11 +25,18 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
   late final LocationSheetManager _sheetManager;
   late final LocationOverlayManager _overlayManager;
   late final LocationToolbarWidget _toolbarWidget;
+  
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
 
     _sheetManager = LocationSheetManager(controller: widget.controller);
     _overlayManager = LocationOverlayManager(controller: widget.controller);
@@ -35,8 +45,46 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
 
   @override
   void dispose() {
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: LocationEvents.pageId,
+        eventId: LocationEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+      );
+    }
+    
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+  
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override

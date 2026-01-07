@@ -94,6 +94,7 @@ dependencies:
   cached_network_image: ^3.3.1  # 网络图片缓存
   # chat_bubbles: ^1.7.0  # 聊天气泡组件
   tencent_cloud_chat_push: ^8.8.7357
+  archive: ^3.6.1  # 日志文件压缩打包
 
 dev_dependencies:
   flutter_test:

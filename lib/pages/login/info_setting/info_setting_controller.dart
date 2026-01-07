@@ -20,8 +20,9 @@ import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart'; 
-import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 
 class InfoSettingController extends GetxController {
@@ -37,6 +38,10 @@ class InfoSettingController extends GetxController {
   var selectedDate = Rx<DateTime>(DateTime(2007, 1, 1)); // 默认2007年1月1日，后续会根据用户数据更新
   var isLoading = false.obs;
   var uploadedHeadPortrait = RxString(''); // 上传后的头像URL
+  
+  // 埋点相关：追踪是否修改过
+  bool _hasChangedAvatar = false; // 是否修改过头像
+  String _initialNickname = ''; // 初始昵称
 
   // 昵称输入框控制器
   late TextEditingController nicknameController;
@@ -80,6 +85,9 @@ class InfoSettingController extends GetxController {
       if (user.gender != null) {
         selectedGender.value = user.gender == 1 ? '男' : '女';
       }
+      
+      // 记录初始昵称
+      _initialNickname = nickname.value;
 
       // 设置生日
       if (user.birthday?.isNotEmpty == true) {
@@ -320,6 +328,7 @@ class InfoSettingController extends GetxController {
       if (result.isSuccess && result.data != null) {
         avatarUrl.value = result.data!;
         uploadedHeadPortrait.value = result.data!;
+        _hasChangedAvatar = true; // 标记已修改头像
         OKToastUtil.show('头像上传成功');
       } else {
         OKToastUtil.show(result.msg ?? '头像上传失败');
@@ -371,6 +380,7 @@ class InfoSettingController extends GetxController {
       // 更新本地显示
       avatarUrl.value = networkAvatarUrl;
       uploadedHeadPortrait.value = networkAvatarUrl;
+      _hasChangedAvatar = true; // 标记已修改头像
       logDebug('✅ 头像已更新: avatarUrl=${avatarUrl.value}, uploadedHeadPortrait=${uploadedHeadPortrait.value}', tag: 'InfoSetting');
       
       OKToastUtil.show('头像已选择');
@@ -432,6 +442,9 @@ class InfoSettingController extends GetxController {
                         child: const Text("确定"),
                         onPressed: () {
                           selectedDate.value = tempPicked;
+                          // 埋点：生日选择
+                          final dateStr = DateFormat('yyyy-MM-dd').format(tempPicked);
+                          AnalyticsHelper.trackBirthdaySelect(date: dateStr);
                           Navigator.of(context).pop();
                         },
                       ),
@@ -532,6 +545,14 @@ class InfoSettingController extends GetxController {
     if (currentNickname.isEmpty) {
       currentNickname = nickname.value;
      }
+    
+    // 埋点：开启陪伴按钮点击
+    // 判断是否修改了昵称
+    final hasChangedNickname = currentNickname != _initialNickname;
+    AnalyticsHelper.trackLoginInfoSure(
+      changeAvatar: _hasChangedAvatar,
+      changeNickname: hasChangedNickname,
+    );
 
     try {
       isLoading.value = true;
@@ -603,7 +624,9 @@ class InfoSettingController extends GetxController {
   void selectGender(String gender) {
     selectedGender.value = gender;
     
-     
+    // 埋点：性别选择
+    final sexValue = gender == '男' ? GenderValue.male.toString() : GenderValue.female.toString();
+    AnalyticsHelper.trackGenderSelect(gender: sexValue);
   }
   
  

@@ -6,6 +6,7 @@ import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class ChatBackgroundController extends GetxController {
   // 获取聊天控制器实例
@@ -92,6 +93,10 @@ class ChatBackgroundController extends GetxController {
 
   // 使用选中的背景
   Future<void> applyBackground() async {
+    // 埋点：记录背景选择
+    final bgName = _getBackgroundId(selectedBackground.value);
+    AnalyticsHelper.trackChatBgBtn(bgName: bgName);
+    
     // 更新聊天控制器的背景
     chatController.backgroundImage.value = selectedBackground.value;
     
@@ -107,6 +112,18 @@ class ChatBackgroundController extends GetxController {
     });
     
     debugPrint('💬 应用聊天背景: ${selectedBackground.value}');
+  }
+  
+  /// 根据背景路径获取对应的ID
+  String _getBackgroundId(String backgroundPath) {
+    // 背景ID映射：100016=第一套, 100012=第二套, 100013=第三套, 100014=第四套, 100011=第五套, 100015=第六套
+    final index = defaultBackgrounds.indexOf(backgroundPath);
+    if (index >= 0 && index < 6) {
+      const bgIds = ['100016', '100012', '100013', '100014', '100011', '100015'];
+      return bgIds[index];
+    }
+    // 如果是自定义背景（从相册添加的），返回特殊ID
+    return '100099'; // 自定义背景
   }
 
   // 获取背景图片提供器（支持资产图片和文件图片）

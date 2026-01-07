@@ -7,6 +7,7 @@ import 'package:kissu_app/pages/chat/widgets/chat_emoji_panel.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_device_info_bar.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_message_list_view.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class ChatPage extends GetView<ChatController> {
   ChatPage({super.key});
@@ -137,7 +138,11 @@ class ChatPage extends GetView<ChatController> {
                     top: 0,
                     bottom: 0,
                     child: GestureDetector(
-                      onTap: () => Get.back(),
+                      onTap: () {
+                        // 埋点：返回按钮点击
+                        AnalyticsHelper.trackChatBack();
+                        Get.back();
+                      },
                       child: Container(
                         width: 44,
                         height: 44,
@@ -202,7 +207,11 @@ class ChatPage extends GetView<ChatController> {
                     top: 0,
                     bottom: 0,
                     child: GestureDetector(
-                      onTap: () => Get.toNamed(KissuRoutePath.chatSettings),
+                      onTap: () {
+                        // 埋点：设置按钮点击
+                        AnalyticsHelper.trackChatSetting();
+                        Get.toNamed(KissuRoutePath.chatSettings);
+                      },
                       child: Container(
                         width: 44,
                         height: 44,

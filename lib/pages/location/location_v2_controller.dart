@@ -24,6 +24,7 @@ import 'widgets/location_tips_manager.dart';
 import 'services/marker_builder.dart';
 import 'services/location_data_helper.dart';
 import 'package:kissu_app/pages/location/location_detail_page.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class LocationV2Controller extends GetxController
     with GetTickerProviderStateMixin {
@@ -342,7 +343,9 @@ class LocationV2Controller extends GetxController
  
  
   void handleBackButtonTap([ScrollController? scrollController]) {
-     
+    // 埋点：返回按钮点击
+    AnalyticsHelper.trackLocationBack();
+    
     Get.back();
   }
 
@@ -2062,8 +2065,9 @@ class LocationV2Controller extends GetxController
   }
 
   void performBindAction() {
+    // 埋点：去绑定按钮点击
+    AnalyticsHelper.trackLocationToBind(btnName: 'bind');
     
-
     if (Get.context != null) {
       CustomBottomDialog.show(context: Get.context!).then((_) {
         refreshUserInfo();
@@ -2256,7 +2260,9 @@ class LocationV2Controller extends GetxController
 
   /// 开通会员按钮点击
   Future<void> onOpenMembershipButtonTap() async {
-   
+    // 埋点：开通会员按钮点击
+    AnalyticsHelper.trackLocationToBind(btnName: 'vip');
+    
     // 跳转到会员页面
     Get.toNamed(
       KissuRoutePath.vip,

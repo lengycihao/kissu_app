@@ -34,6 +34,10 @@ import 'package:kissu_app/services/permission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:get/get_utils/src/platform/platform.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -62,11 +66,17 @@ class MineController extends GetxController {
 
   // 点击事件
   void onLocationTap() {
+    // 埋点：记录实时定位功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.realTimeLocation);
+    
     // 添加会员检查
     VipNavigationHelper.navigateToLocationWithVipCheck();
   }
 
   void onTrackTap() {
+    // 埋点：记录足迹功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.track);
+    
     Get.to(
       () => TrackPage(),
       binding: TrackBinding(),
@@ -75,6 +85,9 @@ class MineController extends GetxController {
   }
 
   void onHisstoryTap() {
+    // 埋点：记录用机记录功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.phoneHistory);
+    
     // 跳转到新的用机记录页面
     Get.toNamed(KissuRoutePath.deviceUsage);
   }
@@ -98,6 +111,10 @@ class MineController extends GetxController {
   /// - 以及：允许后台运行、防止程序休眠、让程序锁在后台（部分机型为 5 项）
   var areAllPermissionsGranted = false.obs;
   final PermissionService _permissionService = PermissionService();
+
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
 
   // 与系统权限页保持一致的教程完成状态持久化 key
   static const String _guidePreventSleepKey =
@@ -137,6 +154,10 @@ class MineController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    
     _initSettingItems();
     _initCommonFunctionItems();
 
@@ -640,7 +661,9 @@ class MineController extends GetxController {
 
   // 顶部返回
   void onBackTap() {
-     
+    // 埋点：记录返回按钮点击
+    AnalyticsHelper.trackMyPageBack();
+    
     Get.back();
   }
 
@@ -697,6 +720,9 @@ class MineController extends GetxController {
     logDebug('🔥 头像被点击了！', tag: 'Mine');
     logDebug('🔥 当前绑定状态: ${isBound.value}', tag: 'Mine');
 
+    // 埋点：记录头像点击
+    AnalyticsHelper.trackMyPageAvatar();
+
     // 如果已绑定，跳转到恋爱信息页面
     if (isBound.value) {
       logDebug('🔥 用户已绑定，跳转到恋爱信息页面', tag: 'Mine');
@@ -746,6 +772,8 @@ class MineController extends GetxController {
     if (!isBound.value) {
       logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
 
+      // 埋点：记录会员模块点击（立即绑定）
+      AnalyticsHelper.trackMyPageVipBtn(btnName: '立即绑定');
       
       if (Get.context != null) {
         CustomBottomDialog.show(
@@ -769,15 +797,30 @@ class MineController extends GetxController {
       // 永久会员，跳转到权益页面
       logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
 
+      // 埋点：记录会员模块点击（会员中心）
+      AnalyticsHelper.trackMyPageVipBtn(btnName: '会员中心');
    
       Get.toNamed(
         KissuRoutePath.foreverVip,
         arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
       );
-    } else {
-      // 普通会员或非会员，跳转到VIP页面
-      logDebug('💫 普通会员或非会员，跳转到VIP页面', tag: 'Mine');
+    } else if (isVip.value) {
+      // 普通会员，跳转到VIP页面（续费）
+      logDebug('💫 普通会员，跳转到VIP页面（续费）', tag: 'Mine');
 
+      // 埋点：记录会员模块点击（去续费）
+      AnalyticsHelper.trackMyPageVipBtn(btnName: '去续费');
+     
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
+      );
+    } else {
+      // 非会员，跳转到VIP页面（开通会员）
+      logDebug('💫 非会员，跳转到VIP页面（开通会员）', tag: 'Mine');
+
+      // 埋点：记录会员模块点击（开通会员）
+      AnalyticsHelper.trackMyPageVipBtn(btnName: '开通会员');
      
       Get.toNamed(
         KissuRoutePath.vip,
@@ -874,7 +917,9 @@ class MineController extends GetxController {
 
   /// 分享APP点击事件
   void _onShareAppTap() async {
-     
+    // 埋点：记录分享APP点击
+    AnalyticsHelper.trackMyPageShareBtn();
+    
     ShareBottomSheet.showShareApp(Get.context!);
   }
 
@@ -884,20 +929,23 @@ class MineController extends GetxController {
   }
 
  
-  /// 防偷拍检测点击事件
+  /// 酒店防偷拍点击事件
   void _onAntiSpyTap() async {
+    // 埋点：记录酒店防偷拍功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.hotelAntiSpy);
     
     Get.toNamed(KissuRoutePath.antiSpy);
   }
 
   /// 联系我们点击事件
   void _onContactTap() async {
-    
     openContact();
   }
 
-  /// app使用记录点击事件
+  /// App使用记录点击事件
   Future<void> _onAppUsageRecordTap() async {
+    // 埋点：记录App使用记录功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.appUsageRecord);
     // 1. 未绑定：先引导绑定
     if (!isBound.value) {
       logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
@@ -945,17 +993,26 @@ class MineController extends GetxController {
 
   /// 个性化首页点击事件
   void _onPersonalizedHomeTap() {
+    // 埋点：记录个性化首页功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.personalizedHome);
+    
     // 改为简单的 Toast 提示，而不是弹窗
     OKToastUtil.show('敬请期待！');
   }
 
   /// 敏感操作记录页面
   void _onMinganJiluTap() {
+    // 埋点：记录敏感操作记录功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.sensitiveRecord);
+    
     Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
   }
 
   /// 更换app图标点击事件
   void _onChangeAppIconTap() {
+    // 埋点：记录更换app图标功能点击
+    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.changeAppIcon);
+    
     Get.toNamed(KissuRoutePath.appIconSelector);
   }
 
@@ -965,6 +1022,54 @@ class MineController extends GetxController {
       () => const InstalledAppsPage(),
       transition: Transition.rightToLeft,
     );
+  }
+
+  /// 权限模块点击埋点
+  void trackPermissionModuleClick() {
+    AnalyticsHelper.trackMyPagePermissionBtn();
+  }
+
+  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
+  String _formatEnterTime(DateTime dateTime) {
+    final year = dateTime.year;
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+  
+  /// 格式化停留时长为 "分:秒" 格式
+  String _formatDuration(int durationMs) {
+    final totalSeconds = (durationMs / 1000).floor();
+    final minutes = (totalSeconds / 60).floor();
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+  
+  @override
+  void onClose() {
+    // 埋点：记录页面离开事件
+    if (_pageEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _pageEnterTime!;
+      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
+      final durationStr = _formatDuration(durationMs);
+      
+      AnalyticsManager.instance.trackPageView(
+        pageId: MyPageEvents.pageId,
+        eventId: MyPageEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
+            ? (Get.arguments['source_page'] as int).toString()
+            : null,
+        exitType: _exitType,
+      );
+    }
+    
+    super.onClose();
   }
 
 }

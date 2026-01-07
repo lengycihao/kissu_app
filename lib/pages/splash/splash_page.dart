@@ -17,6 +17,9 @@ import 'package:kissu_app/widgets/dialogs/base_dialog.dart';
 import 'package:kissu_app/services/app_initializer.dart';
 import 'package:kissu_app/pages/home/home_page.dart';
 import 'package:kissu_app/pages/home/home_binding.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -26,11 +29,14 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
-  static const MethodChannel _appIconChannel = MethodChannel('app_icon_channel');
+  static const MethodChannel _appIconChannel = MethodChannel(
+    'app_icon_channel',
+  );
 
   bool _imagesLoaded = false;
   String _currentIconId = 'default';
   bool _isShowingPrivacyDialog = false; // 🔥 标记是否正在显示隐私协议弹窗
+  int? _privacyDialogEnterTime; // 隐私弹窗进入时间（用于埋点）
 
   @override
   void initState() {
@@ -38,7 +44,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this); // 🔥 添加生命周期监听
     _loadCurrentIcon();
     _preloadImagesAndNavigate();
-    
+
     // 🔥 修复：移除固定超时，改为在隐私协议弹窗关闭后再启动超时
     // 避免第一次下载时，隐私协议弹窗还没显示完就被强制跳转
   }
@@ -62,8 +68,9 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
   /// 从原生获取当前正在使用的 App 图标 ID，用于匹配启动页 logo
   Future<void> _loadCurrentIcon() async {
     try {
-      final String? iconId =
-          await _appIconChannel.invokeMethod<String>('getCurrentIcon');
+      final String? iconId = await _appIconChannel.invokeMethod<String>(
+        'getCurrentIcon',
+      );
       if (!mounted) return;
       if (iconId != null && iconId.isNotEmpty) {
         setState(() {
@@ -87,9 +94,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
       await AppInitializer.initialize().timeout(
         timeout,
         onTimeout: () {
-          DebugUtil.error(
-            '⚠️ 应用初始化超时（${timeout.inSeconds}秒，$contextTag），强制继续',
-          );
+          DebugUtil.error('⚠️ 应用初始化超时（${timeout.inSeconds}秒，$contextTag），强制继续');
         },
       );
     } catch (e) {
@@ -111,22 +116,20 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
       // 🔥 优化：减少图片预加载时间到0.5秒，加快启动速度
       Future<void> criticalImages;
       try {
-        criticalImages = Future.wait([
-          precacheImage(
-            const AssetImage('assets/mipmap-xxhdpi/flash.webp'),
-            context,
-          ),
-          precacheImage(
-            const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'),
-            context,
-          ),
-          precacheImage(
-            AssetImage(_getSplashLogoAsset()),
-            context,
-          ),
-        ]).timeout(
-          const Duration(milliseconds: 500), // 🔥 减少到0.5秒
-        );
+        criticalImages =
+            Future.wait([
+              precacheImage(
+                const AssetImage('assets/mipmap-xxhdpi/flash.webp'),
+                context,
+              ),
+              precacheImage(
+                const AssetImage('assets/mipmap-xxhdpi/flash_title.webp'),
+                context,
+              ),
+              precacheImage(AssetImage(_getSplashLogoAsset()), context),
+            ]).timeout(
+              const Duration(milliseconds: 500), // 🔥 减少到0.5秒
+            );
       } catch (e) {
         DebugUtil.warning('关键图片预加载超时，继续启动: $e');
         criticalImages = Future.value();
@@ -135,14 +138,16 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
       // 🚀 应用初始化在后台执行，不阻塞启动页显示
       // 🔥 修复：如果已经初始化完成，不再重复初始化
       if (!AppInitializer.isInitialized) {
-        final initFuture = AppInitializer.initialize().timeout(
-          const Duration(seconds: 8),
-          onTimeout: () {
-            DebugUtil.warning('⚠️ 应用初始化超时（8秒），继续启动流程');
-          },
-        ).catchError((e) {
-          DebugUtil.error('应用初始化失败: $e，继续启动');
-        });
+        final initFuture = AppInitializer.initialize()
+            .timeout(
+              const Duration(seconds: 8),
+              onTimeout: () {
+                DebugUtil.warning('⚠️ 应用初始化超时（8秒），继续启动流程');
+              },
+            )
+            .catchError((e) {
+              DebugUtil.error('应用初始化失败: $e，继续启动');
+            });
 
         // 后台继续初始化（不阻塞）
         initFuture.then((_) {
@@ -166,51 +171,53 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
       // 后台预加载其他图标（不阻塞）
       Future.wait([
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon2.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon3.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon4.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon5.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon6.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon7.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon8.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon9.webp'),
-          context,
-        ),
-        precacheImage(
-          const AssetImage('assets/mipmap-xxhdpi/flash_icon10.webp'),
-          context,
-        ),
-      ]).then((_) {
-        // 预加载完成
-      }).catchError((e) {
-        DebugUtil.warning('其他图标预加载失败: $e');
-      });
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon2.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon3.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon4.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon5.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon6.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon7.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon8.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon9.webp'),
+              context,
+            ),
+            precacheImage(
+              const AssetImage('assets/mipmap-xxhdpi/flash_icon10.webp'),
+              context,
+            ),
+          ])
+          .then((_) {
+            // 预加载完成
+          })
+          .catchError((e) {
+            DebugUtil.warning('其他图标预加载失败: $e');
+          });
     } catch (e) {
       DebugUtil.error('预加载启动页图片失败: $e');
       // ✅ 即使预加载失败，也继续执行，不会卡住
@@ -262,9 +269,11 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         // 这确保SDK只在用户明确同意后才初始化，符合应用市场要求
         try {
           final privacyManager = Get.find<PrivacyComplianceManager>();
-          if (privacyManager.isPrivacyAgreed && !privacyManager.isSdkInitialized) {
+          if (privacyManager.isPrivacyAgreed &&
+              !privacyManager.isSdkInitialized) {
             DebugUtil.info('用户已同意隐私政策，开始初始化SDK...');
-            await privacyManager.initializeSdks()
+            await privacyManager
+                .initializeSdks()
                 .timeout(
                   const Duration(seconds: 5),
                   onTimeout: () {
@@ -314,14 +323,16 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
       try {
         // 🔥 修复：添加超时保护，避免服务获取阻塞
         // 🔥 优化：减少超时时间到0.5秒
-        authService = await Future.value(getIt<AuthService>())
-            .timeout(
-              const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
-              onTimeout: () {
-                DebugUtil.error('⚠️ 获取AuthService超时');
-                throw TimeoutException('获取AuthService超时', const Duration(milliseconds: 500));
-              },
+        authService = await Future.value(getIt<AuthService>()).timeout(
+          const Duration(milliseconds: 500), // 🔥 从1秒减少到0.5秒
+          onTimeout: () {
+            DebugUtil.error('⚠️ 获取AuthService超时');
+            throw TimeoutException(
+              '获取AuthService超时',
+              const Duration(milliseconds: 500),
             );
+          },
+        );
       } catch (e) {
         DebugUtil.error('⚠️ AuthService未注册: $e，跳转到登录页');
         if (mounted) {
@@ -388,121 +399,155 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
     _isShowingPrivacyDialog = true; // 🔥 标记正在显示
 
+    // 记录弹窗进入时间（埋点）
+    _privacyDialogEnterTime = DateTime.now().millisecondsSinceEpoch;
+
     // 🔥 修复：为对话框显示添加超时保护，防止无限等待
     bool? result;
     try {
       // 完全按照您原有的showDialogWithCloseButtonWithFirst方法实现
-      result = await showGeneralDialog<bool>(
-        context: context,
-        barrierDismissible: false, // 修改为false，不允许点击外部关闭
-        barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-        barrierColor: const Color(0xB3000000),
-        transitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (context, animation, secondaryAnimation) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
-            height: 300.0, // 使用您原来的高度
-            decoration: BoxDecoration(
-              image: const DecorationImage(
-                image: AssetImage('assets/images/kissu_privacy_bg.webp'),
-                fit: BoxFit.cover,
-              ),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 0),
-                Text('用户协议及隐私政策', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff333333)),),
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: 15,
-                    right: 15,
-                    bottom: 15,
-                    top: 20,
+      result =
+          await showGeneralDialog<bool>(
+            context: context,
+            barrierDismissible: false, // 修改为false，不允许点击外部关闭
+            barrierLabel: MaterialLocalizations.of(
+              context,
+            ).modalBarrierDismissLabel,
+            barrierColor: const Color(0xB3000000),
+            transitionDuration: const Duration(milliseconds: 300),
+            pageBuilder: (context, animation, secondaryAnimation) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
+                  height: 300.0, // 使用您原来的高度
+                  decoration: BoxDecoration(
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/kissu_privacy_bg.webp'),
+                      fit: BoxFit.cover,
+                    ),
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const AgreementRichText(textAlign: TextAlign.left),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    
-                    GestureDetector(
-                      child: Container(
-                        width: double.infinity,
-                        height: 36,
-                        margin: EdgeInsets.only(left: 15, right: 15,bottom: 15,top: 15),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFFF9AD9),
-                          borderRadius: BorderRadius.circular(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 0),
+                      Text(
+                        '用户协议及隐私政策',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff333333),
                         ),
-                        child: Text('同意', style: TextStyle(fontSize: 14, color: Color(0xffffffff)),),
                       ),
-                      onTap: () {
-                        Navigator.of(context).pop(true); // 返回 true 表示同意
-                      },
-                    ),
-                    GestureDetector(
-                      child: Container(
-                       
-                        child: Text('不同意', style: TextStyle(fontSize: 12, color: Color(0xff999999),fontWeight: FontWeight.w500),),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 15,
+                          right: 15,
+                          bottom: 15,
+                          top: 20,
+                        ),
+                        child: const AgreementRichText(
+                          textAlign: TextAlign.left,
+                        ),
                       ),
-                      onTap: () {
-                        Navigator.of(context).pop(false); // 返回 true 表示同意
-                      },
-                    ),
-                   
-                  ],
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            child: Container(
+                              width: double.infinity,
+                              height: 36,
+                              margin: EdgeInsets.only(
+                                left: 15,
+                                right: 15,
+                                bottom: 15,
+                                top: 15,
+                              ),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFFF9AD9),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Text(
+                                '同意',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xffffffff),
+                                ),
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.of(context).pop(true); // 返回 true 表示同意
+                            },
+                          ),
+                          GestureDetector(
+                            child: Container(
+                              child: Text(
+                                '不同意',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xff999999),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.of(context).pop(false); // 返回 true 表示同意
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        // 出现动画：由小到大，带回弹效果
-        final scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(
-            parent: animation,
-            curve: Curves.elasticOut, // 回弹效果
-          ),
-        );
+              );
+            },
+            transitionBuilder: (context, animation, secondaryAnimation, child) {
+              // 出现动画：由小到大，带回弹效果
+              final scaleAnimation = Tween<double>(begin: 0.0, end: 1.0)
+                  .animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.elasticOut, // 回弹效果
+                    ),
+                  );
 
-        // 消失动画：由大到小
-        final scaleOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-          CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeInBack),
-        );
+              // 消失动画：由大到小
+              final scaleOutAnimation = Tween<double>(begin: 1.0, end: 0.0)
+                  .animate(
+                    CurvedAnimation(
+                      parent: secondaryAnimation,
+                      curve: Curves.easeInBack,
+                    ),
+                  );
 
-        // 透明度动画
-        final fadeAnimation = Tween<double>(
-          begin: 0.0,
-          end: 1.0,
-        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+              // 透明度动画
+              final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOut),
+              );
 
-        return FadeTransition(
-          opacity: fadeAnimation,
-          child: ScaleTransition(
-            scale: animation.status == AnimationStatus.reverse
-                ? scaleOutAnimation
-                : scaleAnimation,
-            child: child,
-          ),
-        );
-      },
-      ).timeout(
-        const Duration(seconds: 30), // 🔥 修复：添加30秒超时，防止对话框无限等待
-        onTimeout: () {
-          DebugUtil.error('⚠️ 隐私政策对话框显示超时（30秒），默认拒绝并退出应用');
-          return false; // 超时则默认拒绝
-        },
-      );
+              return FadeTransition(
+                opacity: fadeAnimation,
+                child: ScaleTransition(
+                  scale: animation.status == AnimationStatus.reverse
+                      ? scaleOutAnimation
+                      : scaleAnimation,
+                  child: child,
+                ),
+              );
+            },
+          ).timeout(
+            const Duration(seconds: 30), // 🔥 修复：添加30秒超时，防止对话框无限等待
+            onTimeout: () {
+              DebugUtil.error('⚠️ 隐私政策对话框显示超时（30秒），默认拒绝并退出应用');
+              return false; // 超时则默认拒绝
+            },
+          );
     } catch (e) {
       DebugUtil.error('⚠️ 显示隐私政策对话框失败: $e，退出应用');
       result = false; // 出错则默认拒绝
@@ -510,6 +555,48 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
     // 🔥 修复：重置标记
     _isShowingPrivacyDialog = false;
+
+    // 记录页面浏览时长和操作埋点
+    if (_privacyDialogEnterTime != null) {
+      final exitTime = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = exitTime - _privacyDialogEnterTime!;
+
+      // 格式化时间和时长
+      final enterTimeStr = DateTime.fromMillisecondsSinceEpoch(
+        _privacyDialogEnterTime!,
+      ).toString();
+      final durationStr = _formatDuration(durationMs);
+      /**
+       * 埋点
+       * 页面名称：用户协议
+       * 事件名称：用户协议弹窗
+       * 页面id:user_agreement_event
+       * 事件id:user_agreement_page
+       */
+      // 记录页面浏览事件
+      AnalyticsManager.instance.trackPageView(
+        pageId: UserAgreementEvents.pageId,
+        eventId: UserAgreementEvents.page,
+        enterTime: enterTimeStr,
+        duration: durationStr,
+      );
+
+      // 如果用户有操作（同意或不同意），记录操作事件
+      if (result == true || result == false) {
+        final btnName = result == true ? 1 : 0;
+        /**
+       * 埋点
+       * 页面名称：用户协议
+       * 事件名称：协议操作
+       * 页面id:user_agreement_event
+       * 事件id:user_agreement_operation
+       */
+        // 使用 AnalyticsHelper 记录操作
+        AnalyticsHelper.trackAgreementOperation(btnName: btnName);
+      }
+
+      _privacyDialogEnterTime = null;
+    }
 
     // 🔥 修复：只有当用户明确拒绝（false）时才退出，null表示Dialog被意外关闭，重新显示
     if (result == true) {
@@ -565,16 +652,15 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
   /// 用户同意后初始化SDK
   Future<void> _initializeSDKsAfterAgreement() async {
     DebugUtil.info('用户在启动页同意隐私政策');
-    
+
     // 🔥 修复：标记同意状态（带超时保护）
     try {
-      await FirstLaunchService.instance.markFirstAgreementAgreed()
-          .timeout(
-            const Duration(seconds: 1),
-            onTimeout: () {
-              DebugUtil.warning('⚠️ 标记首次协议同意状态超时，继续初始化');
-            },
-          );
+      await FirstLaunchService.instance.markFirstAgreementAgreed().timeout(
+        const Duration(seconds: 1),
+        onTimeout: () {
+          DebugUtil.warning('⚠️ 标记首次协议同意状态超时，继续初始化');
+        },
+      );
     } catch (e) {
       DebugUtil.error('⚠️ 标记首次协议同意状态失败: $e，继续初始化');
     }
@@ -582,13 +668,12 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
     // 🔑 关键：启用隐私相关功能（带超时保护）
     try {
       final privacyManager = Get.find<PrivacyComplianceManager>();
-      await privacyManager.agreeToPrivacyPolicy()
-          .timeout(
-            const Duration(seconds: 5), // 🔥 修复：添加5秒超时，避免隐私功能初始化阻塞
-            onTimeout: () {
-              DebugUtil.error('⚠️ 隐私政策同意流程超时（5秒），继续启动');
-            },
-          );
+      await privacyManager.agreeToPrivacyPolicy().timeout(
+        const Duration(seconds: 5), // 🔥 修复：添加5秒超时，避免隐私功能初始化阻塞
+        onTimeout: () {
+          DebugUtil.error('⚠️ 隐私政策同意流程超时（5秒），继续启动');
+        },
+      );
       DebugUtil.success('✅ 隐私政策同意完成，所有功能已启用');
 
       // 🔥 新增：用户同意隐私政策后立即申请关键权限（后台执行，不阻塞）
@@ -792,5 +877,13 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  /// 格式化时长为 mm:ss 格式
+  String _formatDuration(int milliseconds) {
+    final seconds = (milliseconds / 1000).round();
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }

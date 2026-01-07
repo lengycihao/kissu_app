@@ -4,6 +4,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import '../track_controller.dart';
 import '../track_replay_page/track_replay_controller.dart';
 import '../track_replay_page/track_replay_page.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 轨迹播放浮动按钮
 /// 参考定位页面的右侧浮动按钮实现，跟随下半屏滑动渐变
@@ -81,7 +82,9 @@ class TrackReplayFloatingButton extends StatelessWidget {
 
   /// 播放按钮点击事件
   void _onPlayButtonTap(BuildContext context) {
-   
+    // 埋点：轨迹回放按钮点击
+    AnalyticsHelper.trackTrackHistoryReplay();
+    
     // 检查是否有有效的轨迹数据
     if (controller.trackPoints.length < 3) {
       CustomToast.show(context, '暂无足够的轨迹数据可回放');

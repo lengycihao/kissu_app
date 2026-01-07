@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart'; 
 import '../../utils/agreement_utils.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 开通VIP弹窗
 class VipPurchaseDialog extends StatefulWidget {
@@ -61,8 +62,9 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
 
   /// 处理开通会员按钮点击
   void _handleConfirm() {
+    // 埋点：充值弹窗确认按钮点击
+    AnalyticsHelper.trackVipRechargeDialog(btnName: 0); // 0=确认
     
- 
     Navigator.of(context).pop();
     widget.onConfirm?.call();
   }
@@ -129,6 +131,8 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
           bottom: -(closeButtonSize + 5 * scale), // 背景下方5px
           child: GestureDetector(
             onTap: () async {
+              // 埋点：充值弹窗关闭按钮点击
+              AnalyticsHelper.trackVipRechargeDialog(btnName: 1); // 1=关闭
               
               Navigator.of(context).pop();
             },

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class ChatBubbleController extends GetxController {
   // 获取聊天控制器实例
@@ -57,6 +58,10 @@ class ChatBubbleController extends GetxController {
   /// 保存样式到缓存，更新聊天控制器，然后返回聊天页面
   Future<void> applyBubbleStyle() async {
     try {
+      // 埋点：记录气泡选择
+      final buddleName = _getBubbleId(selectedBubbleStyle.value);
+      AnalyticsHelper.trackChatBuddleBtn(buddleName: buddleName);
+      
       // 保存到缓存（设备绑定，不是账号绑定）
       await SpUtil.putInteger(_bubbleStyleCacheKey, selectedBubbleStyle.value);
       
@@ -72,6 +77,16 @@ class ChatBubbleController extends GetxController {
       // 即使出错也直接返回到聊天页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
     }
+  }
+  
+  /// 根据气泡样式获取对应的ID
+  String _getBubbleId(int bubbleStyle) {
+    // 气泡ID映射：300011=第一套, 300012=第二套, 300013=第三套, 300014=第四套
+    const bubbleIds = ['300011', '300012', '300013', '300014'];
+    if (bubbleStyle >= 1 && bubbleStyle <= 4) {
+      return bubbleIds[bubbleStyle - 1];
+    }
+    return '300011'; // 默认返回第一套
   }
 }
 
