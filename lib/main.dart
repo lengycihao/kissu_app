@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kissu_app/network/utils/dir_util.dart';
@@ -7,9 +8,22 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:oktoast/oktoast.dart';
+import 'package:openinstall_flutter_plugin/openinstall_flutter_plugin.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 确保Flutter绑定初始化
+  
+  // 🔒 隐私合规：在应用启动时立即禁用OpenInstall剪贴板读取
+  // 必须在任何其他初始化之前执行，确保插件不会读取剪贴板
+  if (Platform.isAndroid) {
+    try {
+      final openinstallPlugin = OpeninstallFlutterPlugin();
+      openinstallPlugin.clipBoardEnabled(false);
+      debugPrint('✅ OpenInstall剪贴板读取已禁用（隐私合规）');
+    } catch (e) {
+      debugPrint('⚠️ 禁用OpenInstall剪贴板失败: $e');
+    }
+  }
   
   // � 优化：只做最基础的同步初始化，让启动页快速显示
   // 屏幕方向锁定（同步操作，不耗时）

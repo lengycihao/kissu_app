@@ -245,13 +245,14 @@ class HomePopupService {
       final dialogFuture = DialogManager.showVipPurchase(
         context: currentContext,
         onConfirm: () {
-          debugPrint('💎 点击了立即查看按钮，跳转到VIP页面');
+          debugPrint('💎 点击了立即查看按钮，跳转到VIP页面，默认选中永久会员');
           _resetPopupState();
           Get.toNamed(
             KissuRoutePath.vip,
             arguments: {
               'previousPageName': '首页',
               'previousPageId': 'home_page',
+              'defaultVipType': 4, // 永久会员 type = 4
             },
           );
         },
@@ -503,7 +504,10 @@ class HomePopupService {
 
   /// 引导图1关闭后的回调
   void onGuide1Dismissed() {
-    hideGuideOverlay();
+    debugPrint('📱 引导图1关闭回调被调用');
+    // 🔥 修复：确保状态正确重置
+    showGuideOverlay.value = false;
+    _resetPopupState();
     debugPrint('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
     
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -526,7 +530,10 @@ class HomePopupService {
 
   /// 引导图2关闭后的回调
   void onGuide2Dismissed() {
-    hideGuideOverlay();
+    debugPrint('📱 引导图2关闭回调被调用');
+    // 🔥 修复：确保状态正确重置
+    showGuideOverlay.value = false;
+    _resetPopupState();
     debugPrint('✅ 引导图2已关闭，引导流程完成，引导图后不再弹出其他弹窗');
   }
 
@@ -596,20 +603,17 @@ class HomePopupService {
 
   /// 隐藏引导层
   void hideGuideOverlay() {
+    debugPrint('📱 开始隐藏引导层...');
     showGuideOverlay.value = false;
-    debugPrint('📱 隐藏引导层');
     
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!showGuideOverlay.value && _isShowingPopup.value) {
-        final context = Get.context;
-        if (context != null && Navigator.of(context).canPop()) {
-          debugPrint('📱 引导层已隐藏，弹窗仍在显示');
-        } else {
-          debugPrint('⚠️ 检测到弹窗状态异常（引导层已隐藏但状态仍为true），强制重置');
-          _resetPopupState();
-        }
-      }
-    });
+    // 🔥 修复：立即重置弹窗状态，防止卡死
+    // 不要延迟检查，直接重置状态
+    if (_isShowingPopup.value) {
+      debugPrint('⚠️ 引导层关闭时检测到弹窗状态为true，强制重置');
+      _resetPopupState();
+    }
+    
+    debugPrint('📱 引导层已隐藏');
   }
 
   /// 检查并显示引导层（调试模式：一直显示）

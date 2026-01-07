@@ -266,6 +266,7 @@ class _KissuHomePageState extends State<KissuHomePage>
 
           // 种草浮动按钮 - 在导航栏上方
           Obx(() {
+            
             if (!controller.showSeedingButton.value || controller.seedingIcon.value.isEmpty) {
               return const SizedBox.shrink();
             }

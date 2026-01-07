@@ -48,15 +48,31 @@ class PrivacyComplianceManager extends GetxService {
   Future<void> _loadPrivacyStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final agreed = prefs.getBool(_privacyAgreedKey) ?? false;
+      var agreed = prefs.getBool(_privacyAgreedKey) ?? false;
       final version = prefs.getString(_privacyVersionKey) ?? '';
+      
+      // 🔥 修复：兼容 FirstLaunchService 的 key，避免重复弹窗
+      // 如果 privacy_policy_agreed 为 false，但 has_agreed_first_agreement 为 true
+      // 说明用户之前通过 FirstLaunchService 同意过，需要同步状态
+      if (!agreed) {
+        final firstLaunchAgreed = prefs.getBool('has_agreed_first_agreement') ?? false;
+        if (firstLaunchAgreed) {
+          if (kDebugMode) {
+            DebugUtil.info('📋 检测到 FirstLaunchService 已同意，同步状态到 PrivacyComplianceManager');
+          }
+          // 同步状态
+          await prefs.setBool(_privacyAgreedKey, true);
+          await prefs.setString(_privacyVersionKey, _currentPrivacyVersion);
+          agreed = true;
+        }
+      }
       
       if (kDebugMode) {
         DebugUtil.info('📋 加载隐私政策状态 - agreed: $agreed, version: $version, 当前版本: $_currentPrivacyVersion');
       }
       
       // 检查版本是否匹配，如果隐私政策更新了需要重新同意
-      if (agreed && version == _currentPrivacyVersion) {
+      if (agreed && (version == _currentPrivacyVersion || version.isEmpty)) {
         _isPrivacyAgreed.value = true;
         if (kDebugMode) {
           DebugUtil.success('✅ 隐私政策已同意，版本: $version');

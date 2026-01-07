@@ -1,198 +1,113 @@
-这个现象其实非常有代表性，而且你描述得已经把关键线索全暴露了 👍
-我直接给你结论 + 原理 + 对应解决方案，看完你就明白为什么是“刚杀掉几秒能收，之后全没”。
-
-一句话结论（核心原因）
-
-你收到的不是“真正的厂商离线推送”，而是「进程残留 / 系统兜底窗口」里的消息
-一旦这个窗口期过了，厂商推送因为某个条件不满足被彻底拦掉
-
-为什么会有“刚杀掉还能收”的几秒钟？
-真正发生的事情是这样的 👇
-① App 刚被杀掉（0～几秒）
-
-系统还没完全回收：
-
-进程
-
-推送通道
-
-socket / binder
-
-厂商认为你“刚刚在线过”
-
-推送还走的是：
-
-IM 长连接残留
-
-或系统临时保活通道
-
-👉 所以你 还能收到
-
-② 几秒～几十秒后
-
-系统彻底回收：
-
-App 进程
-
-后台能力
-
-厂商推送开始接管
-
-👉 从这一步开始，才是真正考验“离线推送配置是否完整”
-
-③ 结果：你收不到
-
-说明一件事 👇
-
-厂商推送这条链路“并没有真正生效”
-
-二、这不是 IM 的 bug，是厂商机制（尤其华为）
-
-在 华为 / vivo / OPPO 上：
-
-❌ App 被强制停止
-
-❌ 被后台限制
-
-❌ 通知权限不完整
-
-❌ 推送 token 对应用户失效
-
-👉 厂商直接 丢弃消息
-👉 不会给你任何失败回调
-
-三、最核心的 4 个原因（按概率）
-✅ ① 推送 token “逻辑上已失效”（超高概率）
-常见错误顺序
-registerPush()
-↓
-login IM
-↓
-logout / kill
-
-
-或者：
-
-登录后换了 userID
-
-App 重启但 没重新 registerPush
-
-👉 token 仍然存在
-👉 但 IM 已经不认为它属于当前用户
-
-现象
-
-刚杀掉能收（旧连接）
-
-之后全没（token 失效）
-
-解决方式（强烈建议）
-
-👉 每次 login 成功后，重新注册推送
-
-await V2TIMManager.instance.login(userID, userSig);
-await TencentCloudChatPush.registerPush();
-
-✅ ② 华为「后台 / 电池优化」开始生效（极常见）
-
-华为在你杀掉 App 后：
-
-前几秒：放行
-
-后面：彻底冻结
-
-必须检查（全部打开）
-设置 →
-  应用 →
-    你的 App →
-      电池
-
-
- 允许后台活动
-
- 不受限制
-
-设置 →
-  通知 →
-    你的 App
-
-
- 允许通知
-
- 允许锁屏
-
- 非静默
-
-⚠️ 哪怕只关一个：
-
-前几秒能收，之后永久收不到
-
-✅ ③ 华为证书 ID / 证书绑定“只对控制台生效”
-
-这个你之前已经踩过一半了，我再补一刀 👇
-
-很多人：
-
-控制台：证书 ✔
-
-客户端：initPush(huaweiCertId) ✔
-
-但：AppId / 包名 / flavor 不一致
-
-👉 厂商推送 只投递一次尝试
-👉 后面直接判定设备无效
-
-✅ ④ 你发的消息本身“不是离线消息”
-
-特别是以下情况：
-
-自定义消息
-
-REST API 发消息
-
-消息设置了 disablePush
-
-没带 offlinePushInfo
-
-解释你这个“几秒能收”的关键点
-
-刚杀掉时，IM 仍认为你在线 → 收到
-完全离线后 → 消息没离线配置 → 不推
-
-四、你现在的现象 = 典型「假离线」
-状态	实际走的通道
-刚杀	IM 残留 / 系统兜底
-稍后	真正厂商推送
-结果	厂商链路失败
-五、立刻验证你问题的方法（5 分钟内）
-✅ 标准验证流程
-
-App 启动
-
-login 成功
-
-registerPush
-
-手动：
-
-强制停止
-
-等 30 秒
-
-用 另一个账号 发 带 offlinePushInfo 的文本消息
-
-👉 如果这时能收到
-= 配置 OK
-👉 如果收不到
-= 厂商拦截（不是 IM）
-
-六、我可以直接帮你“精准命中原因”
-
-你只需要告诉我这 3 个点：
-
-1️⃣ registerPush 是在 login 前还是 login 后
-2️⃣ 华为手机型号 + HarmonyOS 版本
-3️⃣ 你是 SDK 发消息 还是 REST API
-
-我可以直接告诉你：
-👉 你卡在 token、系统限制，还是消息体本身
+{
+        "user_location_mobile_device": {
+            "power": "0%",
+            "network_name": "",
+            "mobile_model": "",
+            "is_wifi": "0",
+            "real_speed": "0",
+            "longitude": "120.22082",
+            "latitude": "30.275033",
+            "location": "浙江省杭州市上城区运河东路301号靠近中豪·湘和国际 附近",
+            "speed": "0m/s",
+            "location_time": "1767775559",
+            "calculate_location_time": "1分钟25秒",
+            "is_open_location": 1,
+            "is_oneself": 1,
+            "distance": "未知",
+            "stops": [
+                {
+                    "latitude": "30.275073",
+                    "longitude": "120.220825",
+                    "location_name": "浙江省杭州市上城区四季青街道杭州市上城区仁本职业培训学校中豪·湘和国际 附近",
+                    "start_time": "当前",
+                    "end_time": "",
+                    "duration": "7分钟1秒",
+                    "duration_int": 421,
+                    "status": "staying",
+                    "point_type": "stop",
+                    "serial_number": "1"
+                }
+            ],
+            "stay_collect": {
+                "stay_count": 1,
+                "stay_time": "7分钟1秒",
+                "move_distance": ""
+            },
+            "head_portrait": "https://kissustatic.yuluojishu.com/uploads/2025/12/03/7f9b77cf39aca41b541a5c0321834251.jpg",
+            "face": {}
+        },
+        "half_location_mobile_device": {
+            "power": "50%",
+            "network_name": "wifi_YuluoKeji_5G",
+            "mobile_model": "HONOR",
+            "is_wifi": "0",
+            "longitude": "",
+            "latitude": "",
+            "location": "未知 附近",
+            "location_time": "",
+            "speed": "未知",
+            "calculate_location_time": "",
+            "is_open_location": 1,
+            "is_oneself": 0,
+            "distance": "未知",
+            "stops": [],
+            "stay_collect": {
+                "stay_count": 0,
+                "stay_time": "0秒",
+                "move_distance": "0米"
+            },
+            "head_portrait": "https://kissustatic.yuluojishu.com/uploads/2025/12/03/7f9b77cf39aca41b541a5c0321834251.jpg",
+            "face": {},
+            "online": {
+                "status": 1,
+                "update_time": "",
+                "problem_id": 15
+            },
+            "lives": {
+                "base": [
+                    {
+                        "province": "浙江",
+                        "city": "西湖区",
+                        "adcode": "330106",
+                        "weather": "多云",
+                        "temperature": "29",
+                        "winddirection": "西北",
+                        "windpower": "≤3",
+                        "humidity": "55",
+                        "reporttime": "2025-09-22 11:32:31",
+                        "temperature_float": "29.0",
+                        "humidity_float": "55.0",
+                        "weather_icon": "https://kissustatic.yuluojishu.com/uploads/2025/09/23/b17d2ef38497f4ca09a61cb0a93eefa2.png"
+                    }
+                ],
+                "all": [
+                    {
+                        "city": "上城区",
+                        "adcode": "330102",
+                        "province": "浙江",
+                        "reporttime": "2025-09-24 09:06:57",
+                        "casts": [
+                            {
+                                "date": "2026-01-07",
+                                "week": "3",
+                                "dayweather": "小雨",
+                                "nightweather": "小雨",
+                                "daytemp": "32",
+                                "nighttemp": "24",
+                                "daywind": "东南",
+                                "nightwind": "东南",
+                                "daypower": "1-3",
+                                "nightpower": "1-3",
+                                "daytemp_float": "32.0",
+                                "nighttemp_float": "24.0"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "user": {
+            "id": 8365,
+            "half_uid": 8364
+        }
+    }

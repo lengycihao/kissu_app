@@ -207,10 +207,7 @@ class _SeedingWebViewPageState extends State<SeedingWebViewPage> {
       body: Stack(
         children: [
           // WebView主体
-          SafeArea(
-            child: WebViewWidget(controller: _controller),
-          ),
-
+         WebViewWidget(controller: _controller),
           // 加载进度条
           if (_isLoading)
             Positioned(

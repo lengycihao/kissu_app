@@ -90,7 +90,7 @@ class TrackReplayFloatingButton extends StatelessWidget {
 
     // 创建播放页面控制器
     final replayController = TrackReplayController(
-      trackPoints: controller.trackPoints.toList(),
+      trackPoints: controller.trackPoints.toList().reversed.toList(), // 反转轨迹点顺序
       stopPoints: controller.stopPoints.toList(),
       currentUserAvatar: _getCurrentUserAvatar(),
       // mapType: controller.mapType.value,

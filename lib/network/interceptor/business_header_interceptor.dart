@@ -162,6 +162,9 @@ class BusinessHeaderInterceptor extends Interceptor {
       options.headers[HttpHeaderKey.version] = _cachedVersion;
       options.headers[HttpHeaderKey.pkg] = _cachedPkg;
     }
+    
+    // 添加操作系统类型：1=Android, 2=iOS
+    options.headers[HttpHeaderKey.os] = Platform.isAndroid ? '1' : '2';
   }
 
   /// 添加设备相关请求头（隐私合规版本）
@@ -546,6 +549,7 @@ class BusinessHeaderInterceptor extends Interceptor {
         HttpHeaderKey.version,
         HttpHeaderKey.channel,
         HttpHeaderKey.pkg,
+        HttpHeaderKey.os,
         HttpHeaderKey.networkName,
         HttpHeaderKey.deviceId,
         HttpHeaderKey.mobileModel,

@@ -37,6 +37,8 @@ class LocationApi {
       if (rawJson['half_location_mobile_device'] != null) {
         final halfData = rawJson['half_location_mobile_device'];
         DebugUtil.check('  half_location_mobile_device keys: ${halfData.keys.toList()}');
+        // 🔥 调试：打印伴侣位置的经纬度值
+        DebugUtil.check('  half_location_mobile_device longitude: "${halfData['longitude']}", latitude: "${halfData['latitude']}"');
         if (halfData['stops'] != null) {
           DebugUtil.check('  half_location_mobile_device stops: ${halfData['stops']}');
         } else {

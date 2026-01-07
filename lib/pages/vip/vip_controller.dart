@@ -102,7 +102,12 @@ class VipController extends GetxController {
     priceScrollController = ScrollController();
     mainScrollController = ScrollController();
 
-     
+    // 获取传入的参数
+    final arguments = Get.arguments as Map<String, dynamic>?;
+    final defaultVipType = arguments?['defaultVipType'] as int?;
+    if (defaultVipType != null) {
+      debugPrint('📦 VIP页面接收到参数: defaultVipType=$defaultVipType');
+    }
 
     // 设置支付结果监听
     _setupPaymentResultListener();
@@ -290,9 +295,13 @@ class VipController extends GetxController {
       return;
     }
 
-    // 获取默认套餐（type = 4，如果没有则使用第一个）
-    final defaultPackage = _getDefaultPackage();
-    debugPrint('💫 选择默认套餐: ${defaultPackage.title}');
+    // 使用当前选中的套餐（而不是固定的默认套餐）
+    final currentPackage = selectedPackage;
+    if (currentPackage == null) {
+      OKToastUtil.show('请先选择套餐');
+      return;
+    }
+    debugPrint('💫 使用当前选中的套餐: ${currentPackage.title}');
 
     // 设置支付方式为微信
     selectedPaymentMethod.value = 0;
@@ -308,7 +317,7 @@ class VipController extends GetxController {
        
 
       // 执行支付
-      await _processPurchase(defaultPackage);
+      await _processPurchase(currentPackage);
     } catch (e) {
       debugPrint('❌ 从挽留弹窗购买失败: $e');
       // 错误提示已在_processPurchase中处理
@@ -674,16 +683,36 @@ class VipController extends GetxController {
           }
         }
         _updateLifetimeActivity(lifetimePlan);
-        // 如果有数据，默认选中 type = 4 的套餐，如果没有则选中第一个
+        // 如果有数据，根据传入参数或 isChecked 字段选中套餐
         if (vipPackages.isNotEmpty) {
-          // 查找 type = 4 的套餐索引
           int defaultIndex = 0;
-          for (int i = 0; i < vipPackages.length; i++) {
-            if (vipPackages[i].type == 4) {
-              defaultIndex = i;
-              break;
+          
+          // 获取传入的参数
+          final arguments = Get.arguments as Map<String, dynamic>?;
+          final defaultVipType = arguments?['defaultVipType'] as int?;
+          
+          if (defaultVipType != null) {
+            // 如果传入了 defaultVipType，优先根据 type 字段选择
+            debugPrint('📦 根据传入参数选择套餐: type=$defaultVipType');
+            for (int i = 0; i < vipPackages.length; i++) {
+              if (vipPackages[i].type == defaultVipType) {
+                defaultIndex = i;
+                debugPrint('✅ 找到匹配的套餐: ${vipPackages[i].title}');
+                break;
+              }
+            }
+          } else {
+            // 否则根据 isChecked 字段选择（1=选中，0=未选中）
+            debugPrint('📦 根据 isChecked 字段选择套餐');
+            for (int i = 0; i < vipPackages.length; i++) {
+              if (vipPackages[i].isChecked == 1) {
+                defaultIndex = i;
+                debugPrint('✅ 找到 isChecked=1 的套餐: ${vipPackages[i].title}');
+                break;
+              }
             }
           }
+          
           selectedPriceIndex.value = defaultIndex;
 
           // 延迟滚动到选中的套餐，确保UI已经渲染
@@ -723,21 +752,6 @@ class VipController extends GetxController {
       return vipPackages[selectedPriceIndex.value];
     }
     return null;
-  }
-
-  /// 获取默认套餐（type = 4，如果没有则返回第一个）
-  VipPackageModel _getDefaultPackage() {
-    if (vipPackages.isEmpty) {
-      throw StateError('套餐列表为空');
-    }
-    // 查找 type = 4 的套餐
-    for (final package in vipPackages) {
-      if (package.type == 4) {
-        return package;
-      }
-    }
-    // 如果没有 type = 4 的套餐，返回第一个
-    return vipPackages.first;
   }
 
   /// 获取默认套餐或null（如果没有套餐则返回null）

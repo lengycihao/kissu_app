@@ -5,8 +5,6 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/pages/track/managers/track_replay_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_map_manager.dart';
-// import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
-// import 'package:kissu_app/pages/location/services/marker_builder.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'dart:ui' as ui;
 import 'dart:math';
@@ -248,52 +246,36 @@ class TrackReplayController extends GetxController
       // 创建终点标记（只要trackPoints数量大于1就显示终点，移除距离限制）
       if (trackPoints.length > 1) {
         try {
-          // 终点使用固定资源图标（不使用头像）
-          try {
-            // 🔧 使用手动加载和缩放图片的方式，确保在所有设备上尺寸一致
-            final dpr = ui.window.devicePixelRatio;
-            final screenWidth = ui.window.physicalSize.width / dpr;
-            const designWidth = 375.0;
-            final screenScale = screenWidth / designWidth;
-            final adaptedWidth = (44.0 * screenScale * dpr).round();
-            final adaptedHeight = (46.0 * screenScale * dpr).round();
-            DebugUtil.info('📍 回放终点marker尺寸: ${adaptedWidth}x$adaptedHeight');
-            final endIcon = await _createScaledAssetIcon(
-              'assets/images/kissu_location_end.webp',
-              adaptedWidth,
-              adaptedHeight,
-            );
+          // 🔧 使用手动加载和缩放图片的方式，确保在所有设备上尺寸一致
+          // 终点marker使用与起点相同的尺寸计算方式
+          final dpr = ui.window.devicePixelRatio;
+          final screenWidth = ui.window.physicalSize.width / dpr;
+          const designWidth = 375.0;
+          final screenScale = screenWidth / designWidth;
+          final adaptedWidth = (34.0 * screenScale * dpr).round();
+          final adaptedHeight = (48.0 * screenScale * dpr).round();
+          DebugUtil.info('📍 回放终点marker尺寸: ${adaptedWidth}x$adaptedHeight');
+          final endIcon = await _createScaledAssetIcon(
+            'assets/images/kissu_location_end.webp',
+            adaptedWidth,
+            adaptedHeight,
+          );
 
-            markers.add(
-              Marker(
-                position: endPoint,
-                icon: endIcon,
-                anchor: const Offset(0.5, 1.0), // 底部中心对齐
-                infoWindow: const InfoWindow(title: '', snippet: ''),
-                onTap: (_) {
-                  DebugUtil.info('点击了轨迹终点');
-                },
-              ),
-            );
-            DebugUtil.success('✅ 轨迹终点标记创建成功（使用固定图标）');
-          } catch (e) {
-            DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
-            // 降级方案：使用红色圆点
-            final fallbackSize = _calculateAdaptedSize(24.0);
-            final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
-            markers.add(
-              Marker(
-                position: endPoint,
-                icon: fallbackIcon,
-                infoWindow: const InfoWindow(title: '', snippet: ''),
-                onTap: (_) {
-                  DebugUtil.info('点击了轨迹终点');
-                },
-              ),
-            );
-          }
+          markers.add(
+            Marker(
+              position: endPoint,
+              icon: endIcon,
+              anchor: const Offset(0.5, 1.0), // 使用与轨迹页面一致的anchor
+              infoWindow: const InfoWindow(title: '', snippet: ''),
+              zIndex: 2.0,
+              onTap: (_) {
+                DebugUtil.info('点击了轨迹终点');
+              },
+            ),
+          );
+          DebugUtil.success('✅ 轨迹终点标记创建成功');
         } catch (e) {
-          DebugUtil.error('❌ 创建终点头像标记失败: $e，使用降级方案');
+          DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
           // 降级方案：使用红色圆点
           final fallbackSize = _calculateAdaptedSize(24.0);
           final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
@@ -302,6 +284,7 @@ class TrackReplayController extends GetxController
               position: endPoint,
               icon: fallbackIcon,
               infoWindow: const InfoWindow(title: '', snippet: ''),
+              zIndex: 2.0,
               onTap: (_) {
                 DebugUtil.info('点击了轨迹终点');
               },

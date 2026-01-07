@@ -759,9 +759,10 @@ class LocationV2Controller extends GetxController
         final distanceInMeters = _parseDistanceToMeters(distance.value);
         final bool shouldUseCloseMode = distanceInMeters != null && distanceInMeters <= 100;
         
-        // 🎯 修复闪烁：如果距离数据还没到达，不创建任何marker，等待距离数据
-        if (distanceInMeters == null && isBindPartner.value) {
-          debugPrint('📍 距离数据未到达，等待接口数据...');
+        // 🎯 修复：距离为"未知"时仍然创建marker，只是不进入近距离模式
+        // 只有在完全没有位置数据时才跳过
+        if (myPos == null && partnerPos == null) {
+          debugPrint('📍 没有任何位置数据，跳过marker创建');
           return;
         }
         
