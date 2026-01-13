@@ -35,8 +35,8 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     
-    // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     _sheetManager = LocationSheetManager(controller: widget.controller);
     _overlayManager = LocationOverlayManager(controller: widget.controller);
@@ -47,44 +47,20 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
   void dispose() {
     // 埋点：记录页面离开事件
     if (_pageEnterTime != null) {
-      final exitTime = DateTime.now().millisecondsSinceEpoch;
-      final durationMs = exitTime - _pageEnterTime!;
-      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
-      final durationStr = _formatDuration(durationMs);
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final duration = currentTime - _pageEnterTime!;
       
       AnalyticsManager.instance.trackPageView(
         pageId: LocationEvents.pageId,
         eventId: LocationEvents.page,
-        enterTime: enterTimeStr,
-        duration: durationStr,
-        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
-            ? (Get.arguments['source_page'] as int).toString()
-            : null,
+        enterTime: _pageEnterTime!,
+        duration: duration,
         exitType: _exitType,
       );
     }
     
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-  
-  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-  
-  /// 格式化停留时长为 "分:秒" 格式
-  String _formatDuration(int durationMs) {
-    final totalSeconds = (durationMs / 1000).floor();
-    final minutes = (totalSeconds / 60).floor();
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override

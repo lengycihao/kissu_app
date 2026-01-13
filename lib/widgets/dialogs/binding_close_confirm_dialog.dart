@@ -60,7 +60,7 @@ class BindingCloseConfirmDialog extends BaseDialog {
                   GestureDetector(
                     onTap: () async {
                       // 埋点：返回弹窗 - 再想想按钮
-                      AnalyticsHelper.trackBindRebackDialog(btnName: 0);
+                      AnalyticsHelper.trackBindRebackDialog(btnStatus: 0); // 0=再想想
 
                       Navigator.of(context).pop(true); // 返回true表示允许关闭绑定弹窗
                       onCancel?.call();
@@ -98,7 +98,7 @@ class BindingCloseConfirmDialog extends BaseDialog {
                   GestureDetector(
                     onTap: () async {
                       // 埋点：返回弹窗 - 立马绑定按钮
-                      AnalyticsHelper.trackBindRebackDialog(btnName: 1);
+                      AnalyticsHelper.trackBindRebackDialog(btnStatus: 1); // 1=立马绑定
 
                       Navigator.of(context).pop(false); // 返回false表示不关闭绑定弹窗
                       onConfirm?.call();

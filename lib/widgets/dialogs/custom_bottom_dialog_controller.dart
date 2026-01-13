@@ -9,6 +9,7 @@ import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/relationship_animation_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
@@ -23,21 +24,12 @@ import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 
-/// 调用绑定弹窗的页面类型
-enum BindingDialogCaller {
-  home,        // 首页
-  mine,        // 我的页面
-  loveInfo,    // 恋爱信息页面
-  track,       // 足迹页面
-  location,    // 定位页面
-  usageReport, // 用机记录页面（敏感操作记录）
-  deviceUsage, // 用机记录页面（新的用机记录页面）
-}
+ 
 
 /// 自定义底部弹窗控制器
 class CustomBottomDialogController extends GetxController {
   // 调用者页面类型
-  BindingDialogCaller? caller;
+  SourcePageUtilsCaller? caller;
   // 匹配码输入框控制器
   late TextEditingController matchCodeController;
 
@@ -56,12 +48,13 @@ class CustomBottomDialogController extends GetxController {
   // 是否应该关闭弹窗（用于IM绑定消息触发关闭）
   var shouldClose = false.obs;
 
-  // 埋点相关：页面进入时间
+  // 埋点相关：页面进入时间（十位时间戳）
   int? _pageEnterTime;
-  // 埋点相关：来源页面ID
-  int? _sourcePage;
+  
   // 埋点相关：离开方式
   int _exitType = ExitTypeValue.back;
+  // 是否已记录页面离开
+  bool _hasTrackedPageExit = false;
 
  
 
@@ -79,11 +72,10 @@ class CustomBottomDialogController extends GetxController {
       );
     });
 
-    // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     
-    // 埋点：根据 caller 设置来源页面ID
-    _sourcePage = _getSourcePageFromCaller();
+    
 
     _loadUserInfo();
     
@@ -217,10 +209,7 @@ class CustomBottomDialogController extends GetxController {
             logDebug('🎯 绑定动画播放完成，准备跳转到VIP页面', tag: 'BindingDialog');
             Get.toNamed(
               KissuRoutePath.vip,
-              arguments: {
-                'previousPageName': '绑定弹窗',
-                'previousPageId': 'binding_dialog',
-              },
+              arguments: {'source_page': SourcePageUtilsCaller.bind, },
             );
           });
         } catch (e) {
@@ -228,10 +217,7 @@ class CustomBottomDialogController extends GetxController {
           // 如果动画服务失败，直接跳转到VIP页面
           Get.toNamed(
             KissuRoutePath.vip,
-            arguments: {
-              'previousPageName': '绑定弹窗',
-              'previousPageId': 'binding_dialog',
-            },
+            arguments: {'source_page': SourcePageUtilsCaller.bind, },
           );
         }
       } else {
@@ -270,7 +256,7 @@ class CustomBottomDialogController extends GetxController {
 
       // 根据调用者类型刷新对应的控制器
       switch (caller!) {
-        case BindingDialogCaller.home:
+        case SourcePageUtilsCaller.home:
           if (Get.isRegistered<HomeController>()) {
             try {
               final homeController = Get.find<HomeController>();
@@ -282,7 +268,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.mine:
+        case SourcePageUtilsCaller.mine:
           if (Get.isRegistered<MineController>()) {
             try {
               final mineController = Get.find<MineController>();
@@ -294,7 +280,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.loveInfo:
+        case SourcePageUtilsCaller.loveInfo:
           if (Get.isRegistered<LoveInfoController>()) {
             try {
               final loveInfoController = Get.find<LoveInfoController>();
@@ -308,7 +294,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.track:
+        case SourcePageUtilsCaller.track:
           if (Get.isRegistered<TrackController>()) {
             try {
               final trackController = Get.find<TrackController>();
@@ -320,7 +306,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.location:
+        case SourcePageUtilsCaller.location:
           if (Get.isRegistered<LocationV2Controller>()) {
             try {
               final locationController = Get.find<LocationV2Controller>();
@@ -332,7 +318,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.usageReport:
+        case SourcePageUtilsCaller.usageReport:
           if (Get.isRegistered<UsageReportController>()) {
             try {
               final usageReportController = Get.find<UsageReportController>();
@@ -344,7 +330,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.deviceUsage:
+        case SourcePageUtilsCaller.deviceUsage:
           if (Get.isRegistered<DeviceUsageController>()) {
             try {
               final deviceUsageController = Get.find<DeviceUsageController>();
@@ -356,6 +342,11 @@ class CustomBottomDialogController extends GetxController {
             }
           }
           break;
+        case SourcePageUtilsCaller.chat:
+          // 聊天页面不需要刷新数据
+          break;
+        case SourcePageUtilsCaller.bind:
+           break;
       }
 
       logDebug('✅ 当前页面数据刷新完成', tag: 'BindingDialog');
@@ -551,31 +542,32 @@ class CustomBottomDialogController extends GetxController {
   // ==================== 埋点方法 ====================
 
   /// 根据 caller 获取来源页面ID
-  int? _getSourcePageFromCaller() {
-    if (caller == null) return null;
-    
+  String? _getSourcePageFromCaller() {
+    if (caller == null) return PageSourceIds.home;
+
     switch (caller!) {
-      case BindingDialogCaller.home:
+      case SourcePageUtilsCaller.home:
         return PageSourceIds.home;
-      case BindingDialogCaller.mine:
+      case SourcePageUtilsCaller.mine:
         return PageSourceIds.myPage;
-      case BindingDialogCaller.loveInfo:
+      case SourcePageUtilsCaller.loveInfo:
         return PageSourceIds.editProfile; // 恋爱信息页面归类到编辑资料
-      case BindingDialogCaller.track:
+      case SourcePageUtilsCaller.track:
         return PageSourceIds.track;
-      case BindingDialogCaller.location:
+      case SourcePageUtilsCaller.location:
         return PageSourceIds.location;
-      case BindingDialogCaller.usageReport:
+      case SourcePageUtilsCaller.usageReport:
         return PageSourceIds.sensitiveRecords; // 用机记录（敏感操作）
-      case BindingDialogCaller.deviceUsage:
+      case SourcePageUtilsCaller.deviceUsage:
         return PageSourceIds.phoneHistory; // 用机记录页面
+      case SourcePageUtilsCaller.chat:
+        return PageSourceIds.chat; // 聊天页面
+      case SourcePageUtilsCaller.bind:
+        return PageSourceIds.bind; // 绑定页面
     }
   }
 
-  /// 设置来源页面
-  void setSourcePage(int sourcePage) {
-    _sourcePage = sourcePage;
-  }
+ 
 
   /// 设置离开方式
   void setExitType(int exitType) {
@@ -584,19 +576,18 @@ class CustomBottomDialogController extends GetxController {
 
   /// 记录页面浏览埋点
   void _trackPageView() {
-    if (_pageEnterTime == null) return;
+    if (_pageEnterTime == null || _hasTrackedPageExit) return;
+    _hasTrackedPageExit = true;
 
-    final exitTime = DateTime.now().millisecondsSinceEpoch;
-    final durationMs = exitTime - _pageEnterTime!;
-    final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
-    final durationStr = _formatDuration(durationMs);
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
 
     AnalyticsManager.instance.trackPageView(
       pageId: BindEvents.pageId,
       eventId: BindEvents.page,
-      enterTime: enterTimeStr,
-      duration: durationStr,
-      sourcePage: _sourcePage?.toString(),
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      sourcePage: _getSourcePageFromCaller(), // 绑定弹窗需要来源页
       exitType: _exitType,
     );
   }
@@ -616,22 +607,4 @@ class CustomBottomDialogController extends GetxController {
     AnalyticsHelper.trackBindCancel();
   }
 
-  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-
-  /// 格式化停留时长为 "分:秒" 格式
-  String _formatDuration(int durationMs) {
-    final totalSeconds = (durationMs / 1000).floor();
-    final minutes = (totalSeconds / 60).floor();
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
 }

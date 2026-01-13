@@ -6,6 +6,7 @@ import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -390,7 +391,7 @@ class UsageReportController extends GetxController {
     debugPrint('💎 跳转到VIP页面');
     
     // 跳转到VIP页面
-    final result = await Get.toNamed(KissuRoutePath.vip);
+    final result = await Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.usageReport, },);
     
     // 如果开通成功，刷新数据
     if (result == true) {
@@ -497,10 +498,7 @@ class UsageReportController extends GetxController {
     // 跳转到VIP页面
     await Get.toNamed(
       KissuRoutePath.vip,
-      arguments: {
-        'previousPageName': '用机记录页面',
-        'previousPageId': 'usage_report',
-      },
+     arguments: {'source_page': SourcePageUtilsCaller.usageReport, },
     );
 
     // 从VIP页面返回后，刷新用户信息
@@ -526,7 +524,7 @@ class UsageReportController extends GetxController {
     if (currentContext != null) {
       CustomBottomDialog.show(
         context: currentContext,
-        caller: BindingDialogCaller.usageReport,
+        caller: SourcePageUtilsCaller.usageReport,
         onClose: () {
           debugPrint('💑 绑定弹窗已关闭');
         },

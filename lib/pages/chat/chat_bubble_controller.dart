@@ -82,11 +82,11 @@ class ChatBubbleController extends GetxController {
   /// 根据气泡样式获取对应的ID
   String _getBubbleId(int bubbleStyle) {
     // 气泡ID映射：300011=第一套, 300012=第二套, 300013=第三套, 300014=第四套
-    const bubbleIds = ['300011', '300012', '300013', '300014'];
+    const bubbleIds = ['棕色气泡', '纯粉色气泡', '蓝色星星气泡', '粉色兔子气泡'];
     if (bubbleStyle >= 1 && bubbleStyle <= 4) {
       return bubbleIds[bubbleStyle - 1];
     }
-    return '300011'; // 默认返回第一套
+    return '棕色气泡'; // 默认返回第一套
   }
 }
 

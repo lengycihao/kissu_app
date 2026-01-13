@@ -10,54 +10,61 @@ class AnalyticsHelper {
   // ==================== 用户协议页面 ====================
 
   /// 记录用户协议操作
-  static void trackAgreementOperation({required int btnName}) {
+  /// [agree] true=同意, false=不同意
+  static void trackAgreementOperation({required bool agree}) {
     AnalyticsManager.instance.trackClick(
       pageId: UserAgreementEvents.pageId,
       eventId: UserAgreementEvents.operation,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.operation: agree ? YesNoValue.yes : YesNoValue.no,
+      },
     );
   }
 
   // ==================== 登录页面 ====================
 
-  /// 记录手机号输入
-  static void trackLoginPhoneInput({required bool hasInput}) {
+  /// 记录手机号输入事件
+  /// [hasInput] 是否有输入内容
+  static void trackPhoneInput({required bool hasInput}) {
     AnalyticsManager.instance.trackClick(
       pageId: LoginEvents.pageId,
       eventId: LoginEvents.phoneInput,
       params: {
-        AnalyticsParams.inputRequired: hasInput ? YesNoValue.yes : YesNoValue.no,
+        AnalyticsParams.isInput: hasInput ? YesNoValue.yes : YesNoValue.no,
       },
     );
   }
 
-  /// 记录验证码输入
-  static void trackLoginCodeInput({required bool hasInput}) {
+  /// 记录验证码输入事件
+  /// [hasInput] 是否有输入内容
+  static void trackCodeInput({required bool hasInput}) {
     AnalyticsManager.instance.trackClick(
       pageId: LoginEvents.pageId,
       eventId: LoginEvents.codeInput,
       params: {
-        AnalyticsParams.inputRequired: hasInput ? YesNoValue.yes : YesNoValue.no,
+        AnalyticsParams.isInput: hasInput ? YesNoValue.yes : YesNoValue.no,
       },
     );
   }
 
-  /// 记录获取验证码
+  /// 记录获取验证码点击事件
+  /// [success] 发送是否成功
   static void trackGetVerificationCode({required bool success}) {
     AnalyticsManager.instance.trackClick(
       pageId: LoginEvents.pageId,
-      eventId: LoginEvents.getVerificationCode,
+      eventId: LoginEvents.getCode,
       params: {
         AnalyticsParams.sendStatus: success ? SendStatusValue.success : SendStatusValue.failed,
       },
     );
   }
 
-  /// 记录登录按钮点击
+  /// 记录登录按钮点击事件
+  /// [success] 登录是否成功
   static void trackLoginButton({required bool success}) {
     AnalyticsManager.instance.trackClick(
       pageId: LoginEvents.pageId,
-      eventId: LoginEvents.button,
+      eventId: LoginEvents.loginButton,
       params: {
         AnalyticsParams.loginStatus: success ? LoginStatusValue.success : LoginStatusValue.failed,
       },
@@ -133,11 +140,14 @@ class AnalyticsHelper {
   }
 
   /// 记录返回弹窗点击
-  static void trackBindRebackDialog({required int btnName}) {
+  /// [btnStatus] 0=再想想, 1=立马绑定
+  static void trackBindRebackDialog({required int btnStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: BindEvents.pageId,
       eventId: BindEvents.rebackDialog,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnStatus: btnStatus,
+      },
     );
   }
 
@@ -171,29 +181,38 @@ class AnalyticsHelper {
   }
 
   /// 记录VIP充值弹窗点击
-  static void trackVipRechargeDialog({required int btnName}) {
+  /// [btnStatus] 1=进入, 0=关闭
+  static void trackVipRechargeDialog({required int btnStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.vipRechargeDialog,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnStatus: btnStatus,
+      },
     );
   }
 
   /// 记录续费提醒弹窗点击
-  static void trackRenewalReminderDialog({required int btnName}) {
+  /// [btnStatus] 1=进入, 0=关闭
+  static void trackRenewalReminderDialog({required int btnStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.renewalReminderDialog,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnStatus: btnStatus,
+      },
     );
   }
 
   /// 记录到期提示弹窗点击
-  static void trackExpiryTipDialog({required int btnName}) {
+  /// [btnStatus] 1=进入, 0=关闭
+  static void trackExpiryTipDialog({required int btnStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.expiryTipDialog,
-      btnName: btnName,
+      params: {
+        AnalyticsParams.btnStatus: btnStatus,
+      },
     );
   }
 
@@ -482,7 +501,7 @@ class AnalyticsHelper {
 
   /// 记录分享渠道点击
   static void trackMyPageShareChannel({
-    required String channelName,
+    required int channelName,
     required int shareStatus,
   }) {
     AnalyticsManager.instance.trackClick(

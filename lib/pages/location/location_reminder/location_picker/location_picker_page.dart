@@ -617,7 +617,7 @@ class LocationPickerPage extends StatelessWidget {
     return Positioned(
       bottom: 370, // 根据底部面板的高度计算，让logo在面板上方
       left: 14,
-      child: Image.asset('assets/images/map_logo.webp', width: 68, height: 22),
+      child: Image.asset('assets/images/map_logo.png', width: 68, height: 22),
     );
   }
 }

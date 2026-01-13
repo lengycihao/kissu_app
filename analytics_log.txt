@@ -1,0 +1,510 @@
+
+================================================================================
+📊 埋点上报时间: 2026-01-08T14:58:52.264249
+📦 事件数量: 5
+📱 应用版本: 未知
+📁 存储位置: 外部存储
+📂 文件路径: /storage/emulated/0/Android/data/com.yuluo.kissu/files/analytics_log.txt
+================================================================================
+
+【事件 1】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855503818
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 14:58:23
+    - navigation_name: 我的
+
+【事件 2】
+  页面ID: my_page_event_id
+  事件ID: my_page_functions_moudle_event
+  时间戳: 1767855511236
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 14:58:31
+    - btn_name: track
+
+【事件 3】
+  页面ID: track_event_id
+  事件ID: track_page_event
+  时间戳: 1767855513645
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 14:58:31
+    - page_duration: 00:02
+    - exit_type: 1
+
+【事件 4】
+  页面ID: my_page_event_id
+  事件ID: my_page_functions_moudle_event
+  时间戳: 1767855514034
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 14:58:34
+    - btn_name: phone_history
+
+【事件 5】
+  页面ID: phone_history_event_id
+  事件ID: phone_history_page_event
+  时间戳: 1767855515632
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 14:58:34
+    - page_duration: 00:01
+    - exit_type: 1
+
+================================================================================
+
+
+================================================================================
+📊 埋点上报时间: 2026-01-08T15:02:06.130167
+📦 事件数量: 4
+📱 应用版本: 未知
+📁 存储位置: 外部存储
+📂 文件路径: /storage/emulated/0/Android/data/com.yuluo.kissu/files/analytics_log.txt
+================================================================================
+
+【事件 1】
+  页面ID: my_page_event_id
+  事件ID: my_page_event
+  时间戳: 1767855718415
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 14:58:24
+    - page_duration: 03:34
+    - exit_type: 1
+
+【事件 2】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855719028
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:01:59
+    - navigation_name: 足迹
+
+【事件 3】
+  页面ID: track_event_id
+  事件ID: track_page_event
+  时间戳: 1767855720508
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:01:59
+    - page_duration: 00:01
+    - exit_type: 1
+
+【事件 4】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855720930
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:00
+    - navigation_name: 聊天
+
+================================================================================
+
+
+================================================================================
+📊 埋点上报时间: 2026-01-08T15:02:21.180668
+📦 事件数量: 5
+📱 应用版本: 未知
+📁 存储位置: 外部存储
+📂 文件路径: /storage/emulated/0/Android/data/com.yuluo.kissu/files/analytics_log.txt
+================================================================================
+
+【事件 1】
+  页面ID: chat_event_id
+  事件ID: chat_page_event
+  时间戳: 1767855727872
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:00
+    - page_duration: 00:06
+    - exit_type: 1
+    - send_sum: 0
+
+【事件 2】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855728412
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:08
+    - navigation_name: 用机记录
+
+【事件 3】
+  页面ID: phone_history_event_id
+  事件ID: phone_history_page_event
+  时间戳: 1767855729615
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:08
+    - page_duration: 00:01
+    - exit_type: 1
+
+【事件 4】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855733340
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:13
+    - navigation_name: 定位
+
+【事件 5】
+  页面ID: location_event_id
+  事件ID: location_current_state_event
+  时间戳: 1767855738090
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:18
+    - set_status: 0
+
+================================================================================
+
+
+================================================================================
+📊 埋点上报时间: 2026-01-08T15:02:36.216201
+📦 事件数量: 10
+📱 应用版本: 未知
+📁 存储位置: 外部存储
+📂 文件路径: /storage/emulated/0/Android/data/com.yuluo.kissu/files/analytics_log.txt
+================================================================================
+
+【事件 1】
+  页面ID: location_event_id
+  事件ID: location_location_knock_event
+  时间戳: 1767855741352
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:21
+
+【事件 2】
+  页面ID: location_event_id
+  事件ID: location_page_event
+  时间戳: 1767855743875
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:13
+    - page_duration: 00:10
+    - exit_type: 1
+
+【事件 3】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855744868
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:24
+    - navigation_name: 用机记录
+
+【事件 4】
+  页面ID: phone_history_event_id
+  事件ID: phone_history_setting_event
+  时间戳: 1767855746773
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:26
+
+【事件 5】
+  页面ID: phone_use_event_id
+  事件ID: phone_use_page_event
+  时间戳: 1767855749826
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:28
+    - page_duration: 00:01
+    - exit_type: 1
+
+【事件 6】
+  页面ID: phone_use_event_id
+  事件ID: phone_use_page_event
+  时间戳: 1767855751421
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:30
+    - page_duration: 00:01
+    - exit_type: 1
+
+【事件 7】
+  页面ID: app_use_event_id
+  事件ID: app_use_page_event
+  时间戳: 1767855752885
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:31
+    - page_duration: 00:01
+    - exit_type: 1
+
+【事件 8】
+  页面ID: phone_history_event_id
+  事件ID: phone_history_back_event
+  时间戳: 1767855755046
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:35
+
+【事件 9】
+  页面ID: phone_history_event_id
+  事件ID: phone_history_page_event
+  时间戳: 1767855755415
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:24
+    - page_duration: 00:10
+    - exit_type: 1
+
+【事件 10】
+  页面ID: home_event_id
+  事件ID: home_bottom_navigation_event
+  时间戳: 1767855756212
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:36
+    - navigation_name: 我的
+
+================================================================================
+
+
+================================================================================
+📊 埋点上报时间: 2026-01-08T15:02:41.182641
+📦 事件数量: 2
+📱 应用版本: 未知
+📁 存储位置: 外部存储
+📂 文件路径: /storage/emulated/0/Android/data/com.yuluo.kissu/files/analytics_log.txt
+================================================================================
+
+【事件 1】
+  页面ID: my_page_event_id
+  事件ID: my_page_permission_btn_event
+  时间戳: 1767855757979
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:37
+
+【事件 2】
+  页面ID: my_page_event_id
+  事件ID: my_page_vip_btn_event
+  时间戳: 1767855760259
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:40
+    - btn_name: 去续费
+
+================================================================================
+
+
+================================================================================
+📊 埋点上报时间: 2026-01-08T15:03:01.178728
+📦 事件数量: 5
+📱 应用版本: 未知
+📁 存储位置: 外部存储
+📂 文件路径: /storage/emulated/0/Android/data/com.yuluo.kissu/files/analytics_log.txt
+================================================================================
+
+【事件 1】
+  页面ID: membership_event_id
+  事件ID: popup_19_dialog_event
+  时间戳: 1767855762367
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:42
+    - btn_name: 0
+
+【事件 2】
+  页面ID: membership_event_id
+  事件ID: membership_page_type_click_event
+  时间戳: 1767855764295
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:44
+    - click_status: 3
+
+【事件 3】
+  页面ID: membership_event_id
+  事件ID: membership_page_type_click_event
+  时间戳: 1767855764745
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:44
+    - click_status: 4
+
+【事件 4】
+  页面ID: membership_event_id
+  事件ID: membership_page_reback_popup_event
+  时间戳: 1767855766319
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - click_time: 2026/01/08 15:02:46
+    - btn_name: 0
+
+【事件 5】
+  页面ID: membership_event_id
+  事件ID: membership_page_event
+  时间戳: 1767855766682
+  参数:
+    - mock_user_id: 18887152-1202-4a74-9d32-2b825f7d3d73
+    - user_id: 4277
+    - vip_status: 1
+    - bind_status: 0
+    - bind_num: 0
+    - action_188: 0
+    - page_enter_time: 2026-01-08 15:02:40
+    - page_duration: 00:06
+    - exit_type: 1
+    - page_scroll_num: 8
+
+================================================================================
+

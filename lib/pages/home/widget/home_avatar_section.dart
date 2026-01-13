@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:lottie/lottie.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
@@ -49,7 +50,7 @@ class HomeAvatarSection extends StatelessWidget {
                           // 未绑定状态下显示绑定弹窗
                           CustomBottomDialog.show(
                             context: context,
-                            caller: BindingDialogCaller.home,
+                            caller: SourcePageUtilsCaller.home,
                           );
                         }
                       },
@@ -112,7 +113,7 @@ class HomeAvatarSection extends StatelessWidget {
                               // 显示绑定弹窗
                               CustomBottomDialog.show(
                                 context: context,
-                                caller: BindingDialogCaller.home,
+                                caller: SourcePageUtilsCaller.home,
                               );
                             },
                             child: Container(
@@ -179,7 +180,7 @@ class HomeAvatarSection extends StatelessWidget {
                         // 未绑定状态下点击"绑定另一半"显示绑定弹窗
                         CustomBottomDialog.show(
                           context: context,
-                          caller: BindingDialogCaller.home,
+                          caller: SourcePageUtilsCaller.home,
                         );
                       },
                       child: Container(
@@ -210,17 +211,16 @@ class HomeAvatarSection extends StatelessWidget {
                   ),
 
             const SizedBox(height: 5), // 与下方两个按钮间距
-            // 通知图标和活动图标
-            Transform.translate(
+             Transform.translate(
               offset: const Offset(19, 0),
               child: Column(
                 
                 children: [
-                  // 福利会员图标 - 非会员时展示，点击跳转到会员页面 
+                  // 福利会员图标 - 非终身会员时展示，点击跳转到会员页面 
 
                   
                   Obx(() {
-                    if (controller.isVip.value || !controller.isBound.value) {
+                    if (controller.isForeverVip.value) {
                       return const SizedBox.shrink();
                     }
                     return Column(
@@ -237,7 +237,7 @@ class HomeAvatarSection extends StatelessWidget {
                                   AnalyticsHelper.trackVipAction();
                                   
                                   // 跳转到会员页面
-                                  Get.toNamed(KissuRoutePath.vip);
+                                  Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home,});
                                 },
                                 child: Lottie.asset(
                                   "assets/json/home_vip.json",
@@ -312,7 +312,7 @@ class HomeAvatarSection extends StatelessWidget {
                               if (!controller.isBound.value) {
                                 CustomBottomDialog.show(
                                   context: context,
-                                  caller: BindingDialogCaller.home,
+                                  caller: SourcePageUtilsCaller.home,
                                 );
                                 return;
                               }

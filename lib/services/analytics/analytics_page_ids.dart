@@ -6,122 +6,122 @@ library;
 /// 用于标识用户从哪个页面进入当前页面
 class PageSourceIds {
   /// 账号在其他设备登录被挤下线
-  static const int kickedOut = 9999;
+  static const String kickedOut = "9999";
   
   /// 首次进入App的协议弹窗
-  static const int agreementDialog = 1000;
+  static const String agreementDialog = "首次进入App的协议页面";
   
   /// 登录
-  static const int login = 1001;
+  static const String login = "登录";
   
   /// 完善信息
-  static const int loginInfo = 1002;
+  static const String loginInfo = "完善信息";
   
   /// 首页
-  static const int home = 1003;
+  static const String home = "首页";
   
   /// 消息中心
-  static const int messageCenter = 1004;
+  static const String messageCenter = "消息中心";
   
   /// 定位
-  static const int location = 1005;
+  static const String location = "定位";
   
   /// 足迹
-  static const int track = 1006;
+  static const String track = "足迹";
   
   /// 我的页面
-  static const int myPage = 1007;
+  static const String myPage = "我的页面";
   
   /// 编辑资料
-  static const int editProfile = 1008;
+  static const String editProfile = "编辑资料";
   
   /// 绑定页面
-  static const int bind = 1009;
+  static const String bind = "绑定页面";
   
   /// 充值页面
-  static const int recharge = 1010;
+  static const String recharge = "充值页面";
   
   /// 账号设置
-  static const int accountSettings = 1011;
+  static const String accountSettings = "账号设置";
   
   /// 用机记录
-  static const int phoneHistory = 1012;
+  static const String phoneHistory = "用机记录";
   
   /// 手机使用记录
-  static const int phoneUsage = 1013;
+  static const String phoneUsage = "手机使用记录";
   
   /// app使用统计
-  static const int appUsage = 1014;
+  static const String appUsage = "app使用统计";
   
   /// 敏感操作记录
-  static const int sensitiveRecords = 1015;
+  static const String sensitiveRecords = "敏感操作记录";
   
   /// 更换App图标页面
-  static const int changeAppIcon = 1016;
+  static const String changeAppIcon = "更换App图标页面";
   
   /// 我的心情
-  static const int myMood = 1017;
+  static const String myMood = "我的心情";
   
   /// 位置提醒
-  static const int locationReminder = 1018;
+  static const String locationReminder = "位置提醒";
   
   /// 添加地点
-  static const int addLocation = 1019;
+  static const String addLocation = "添加地点";
   
   /// 更换城市
-  static const int changeCity = 1020;
+  static const String changeCity = "更换城市";
   
   /// 使用须知
-  static const int usageGuide = 1021;
+  static const String usageGuide = "使用须知";
   
   /// 视频回放
-  static const int videoPlayback = 1022;
+  static const String videoPlayback = "视频回放";
   
   /// 聊天
-  static const int chat = 1023;
+  static const String chat = "聊天";
   
   /// 聊天设置
-  static const int chatSettings = 1024;
+  static const String chatSettings = "聊天设置";
   
   /// 设置聊天背景
-  static const int setChatBackground = 1025;
+  static const String setChatBackground = "设置聊天背景";
   
   /// 设置聊天气泡
-  static const int setChatBubble = 1026;
+  static const String setChatBubble = "设置聊天气泡";
   
   /// 设置聊天主题
-  static const int setChatTheme = 1027;
+  static const String setChatTheme = "设置聊天主题";
   
   /// 设置自动报备
-  static const int setAutoReport = 1028;
+  static const String setAutoReport = "设置自动报备";
   
   /// 用机记录设置
-  static const int phoneHistorySettings = 1029;
+  static const String phoneHistorySettings = "用机记录设置";
   
   /// 权限设置
-  static const int permissionSettings = 1030;
+  static const String permissionSettings = "权限设置";
   
   /// 酒店防偷拍
-  static const int hotelAntiSpy = 1031;
+  static const String hotelAntiSpy = "酒店防偷拍";
   
   /// 常见问题
-  static const int faq = 1032;
+  static const String faq = "常见问题";
   
   /// 意见反馈
-  static const int feedback = 1033;
+  static const String feedback = "意见反馈";
   
   /// 关于我们
-  static const int aboutUs = 1034;
+  static const String aboutUs = "关于我们";
   
   /// 隐私政策
-  static const int privacyPolicy = 1035;
+  static const String privacyPolicy = "隐私政策";
   
   /// 用户协议
-  static const int userAgreement = 1036;
+  static const String userAgreement = "用户协议";
   
   /// 个人信息收集清单
-  static const int personalInfoCollection = 1037;
+  static const String personalInfoCollection = "个人信息收集清单";
   
   /// 第三方信息共享清单
-  static const int thirdPartyInfoSharing = 1038;
+  static const String thirdPartyInfoSharing = "第三方信息共享清单";
 }

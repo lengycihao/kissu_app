@@ -7,7 +7,7 @@ class AnalyticsParams {
   // ==================== 用户相关参数 ====================
   
   /// 虚拟用户ID（通过设备号生成）
-  static const String mockUserId = 'mock_user_id';
+  static const String mockUserId = 'deviec_id';
   
   /// 用户ID（后台对应的用户ID）
   static const String userId = 'user_id';
@@ -43,7 +43,7 @@ class AnalyticsParams {
   static const String vipStatus = 'vip_status';
   
   /// 会员类型
-  static const String memberType = 'member_type';
+  static const String memberType = 'vip_type';
   
   // ==================== 绑定相关参数 ====================
   
@@ -56,18 +56,21 @@ class AnalyticsParams {
   // ==================== 活动相关参数 ====================
   
   /// 参与188活动
-  static const String action188 = 'action_188';
+  static const String action188 = 'is_check_in';
   
   // ==================== 登录相关参数 ====================
   
   /// 是否输入
-  static const String inputRequired = 'input_required';
+  static const String isInput = 'is_input';
   
   /// 发送状态
   static const String sendStatus = 'send_status';
   
   /// 登录状态
   static const String loginStatus = 'login_status';
+  
+  /// 操作协议（1同意 0不同意）
+  static const String operation = 'operation';
   
   // ==================== 个人信息相关参数 ====================
   
@@ -78,25 +81,25 @@ class AnalyticsParams {
   static const String selectDate = 'select_date';
   
   /// 是否更换头像
-  static const String changeAvatar = 'change_avatar';
+  static const String changeAvatar = 'is_change_avatar';
   
   /// 是否修改昵称
-  static const String changeNickname = 'change_nickname';
+  static const String changeNickname = 'is_change_nickname';
   
   // ==================== 定位相关参数 ====================
   
   /// 是否设置状态
-  static const String setStatus = 'set_status';
+  static const String setStatus = 'is_set_mood';
   
   // ==================== 足迹相关参数 ====================
   
   /// 头像身份
-  static const String avatarName = 'avatar_name';
+  static const String avatarName = 'is_oneself';
   
   // ==================== 聊天相关参数 ====================
   
   /// 单方发送消息次数
-  static const String sendSum = 'send_sum';
+  static const String sendSum = 'send_num';
   
   /// 背景名称
   static const String bgName = 'bg_name';
@@ -119,12 +122,12 @@ class AnalyticsParams {
   static const String payDuration = 'pay_duration';
   
   /// 点击的状态
-  static const String clickStatus = 'click_status';
+  static const String clickStatus = 'vip_type';
   
   // ==================== 分享相关参数 ====================
   
   /// 分享渠道名称
-  static const String shareChannelName = 'share_channel_name';
+  static const String shareChannelName = 'share_type';
   
   /// 分享状态
   static const String shareStatus = 'share_status';
@@ -136,6 +139,14 @@ class AnalyticsParams {
   
   /// 导航名称
   static const String navigationName = 'navigation_name';
+  
+  /// 按钮状态（用于弹窗等）
+  static const String btnStatus = 'btn_status';
+  
+  /// 头像身份（足迹页面）
+  // static const String isOneself = 'is_oneself';
+  
+  
 }
 
 /// 会员状态枚举值
@@ -193,40 +204,44 @@ class GenderValue {
 
 /// 支付方式枚举值
 class PayTypeValue {
-  static const String apple = 'apple';//苹果支付
-  static const String wechat = 'wechat';//微信支付
-  static const String alipay = 'alipay';//支付宝支付
+  static const int apple = 1;//苹果支付
+  static const int wechat = 2;//微信支付
+
+  static const int alipay = 3;//支付宝支付
 }
 
 /// 支付状态枚举值
 class PayStatusValue {
-  static const int success = 1;//成功
+ 
   static const int failed = 0;//失败
+   static const int success = 1;//成功
   static const int cancelled = 2;//取消
 }
 
 /// 分享状态枚举值
 class ShareStatusValue {
-  static const int success = 1;//成功
+  
   static const int failed = 0;//失败
-  static const int notShared = 2;//未分享
-  static const int copied = 3;//已复制
+  static const int success = 1;//成功
+ 
+  static const int copied = 2;//已复制
+   static const int notShared =3;//未分享
 }
 
 /// 分享渠道枚举值
 class ShareChannelValue {
-  static const String wechat = 'wechat';
-  static const String qq = 'qq';
-  static const String copyLink = 'copy_link';
+  static const int wechat = 1;
+  static const int qq = 2;
+  static const int copyLink = 3;
 }
 
 /// 底部导航名称枚举值
 class NavigationNameValue {
-  static const String location = 'location';
-  static const String track = 'track';
-  static const String chat = 'chat';
-  static const String phoneHistory = 'phone_history';
-  static const String mine = 'mine';
+  static const String location = 'location';//定位
+  static const String track = 'track';//足迹
+  static const String chat = 'chat';//聊天
+  static const String appUse = 'mobile_use';//用机记录
+  static const String mine = 'my';//我的
 }
 
 /// 头像身份枚举值
@@ -237,18 +252,26 @@ class AvatarNameValue {
 
 /// 功能模块名称枚举值
 class FunctionModuleValue {
-  static const String realTimeLocation = 'real_time_location';//实时位置
-  static const String appUsageRecord = 'app_usage_record';//app使用记录
-  static const String phoneHistory = 'phone_history';//用机记录
-  static const String track = 'track';//足迹
-  static const String hotelAntiSpy = 'hotel_anti_spy';//酒店防偷拍
-  static const String personalizedHome = 'personalized_home';//个性化首页
-  static const String sensitiveRecord = 'sensitive_record';//敏感记录统计
-  static const String changeAppIcon = 'change_app_icon';//更换app图标
+  static const String realTimeLocation = '实时位置';//实时位置
+  static const String appUsageRecord = 'app使用记录';//app使用记录
+  static const String phoneHistory = '用机记录';//用机记录
+  static const String track = '足迹';//足迹
+  static const String hotelAntiSpy = '酒店防偷拍';//酒店防偷拍
+  static const String personalizedHome = '个性化首页';//个性化首页
+  static const String sensitiveRecord = '敏感记录统计';//敏感记录统计
+  static const String changeAppIcon = '更换app图标';//更换app图标
+}
+
+/// 会员模块按钮名称枚举值
+class VipModuleBtnValue {
+  static const String bindNow = "立即绑定";//立即绑定
+  static const String openVip = "开通会员";//开通会员
+  static const String renewVip = "去续费";//去续费
+  static const String vipCenter = "会员中心";//会员中心
 }
 
 /// 会员页面支付按钮名称枚举值
 class MembershipPayBtnValue {
-  static const int payNow = 1;//立即支付
-  static const int renewNow = 2;//立即续费
+  static const String payNow = "立即支付";//立即支付
+  static const String renewNow = "立即续费";//
 }

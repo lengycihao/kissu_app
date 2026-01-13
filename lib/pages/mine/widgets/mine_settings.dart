@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../mine_controller.dart';
 
 /// 我的页面-应用设置模块
@@ -165,6 +166,16 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                     ),
                   ),
                 ),
+                // 显示副标题（如缓存大小）
+                if (widget.item.subtitle != null)
+                  Obx(() => Text(
+                    widget.item.subtitle!.value,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF999999),
+                    ),
+                  )),
+                const SizedBox(width: 8),
                 Image.asset(
                   "assets/4.0/kissu4_arrow_right.webp",
                   width: 16,

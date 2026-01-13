@@ -1420,7 +1420,7 @@ AnalyticsHelper.trackMyPageAvatar();
 
 **事件信息**:
 - 页面ID: `my_page_event_id`
-- 事件ID: `my_page_vip_btn_event`
+- 事件ID: `my_page_vip_module_event`
 
 **参数**:
 | 参数名 | 字段名 | 类型 | 说明 | 示例值 |
@@ -1431,22 +1431,21 @@ AnalyticsHelper.trackMyPageAvatar();
 | 会员状态 | vip_status | int | 自动添加: 0=未充值, 1=会员中, 2=已到期 | - |
 | 绑定状态 | bind_status | int | 自动添加: 0=未绑定, 1=已绑定, 2=已解绑 | - |
 | 参与188活动 | action_188 | int | 自动添加: 0=未参与, 1=已参与 | - |
-| 按钮名称 | btn_name | String | 立即绑定、开通会员、去续费、会员中心 | "立即绑定" |
 | 绑定次数 | bind_num | int | 自动添加 | - |
+| 按钮名称 | btn_name | int | 使用VipModuleBtnValue枚举值 | 1 |
 
-**实现说明**: 
-- 根据用户状态显示不同按钮文案并记录对应的 `btn_name`
-- 未绑定：`立即绑定`
-- 已绑定但非会员：`开通会员`
-- 普通会员：`去续费`
-- 永久会员：`会员中心`
+**按钮名称枚举值** (`VipModuleBtnValue`):
+- `1` (bindNow) - 立即绑定
+- `2` (openVip) - 开通会员
+- `3` (renewVip) - 去续费
+- `4` (vipCenter) - 会员中心
 
 **调用方法**:
 ```dart
-AnalyticsHelper.trackMyPageVipBtn(btnName: '立即绑定');
-AnalyticsHelper.trackMyPageVipBtn(btnName: '开通会员');
-AnalyticsHelper.trackMyPageVipBtn(btnName: '去续费');
-AnalyticsHelper.trackMyPageVipBtn(btnName: '会员中心');
+AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.bindNow);   // 立即绑定
+AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.openVip);   // 开通会员
+AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.renewVip);  // 去续费
+AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.vipCenter); // 会员中心
 ```
 
 **Helper方法位置**: `lib/services/analytics/analytics_helper.dart:435`

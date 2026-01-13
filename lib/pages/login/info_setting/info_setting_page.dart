@@ -6,7 +6,6 @@ import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_controller.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
-import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/services/analytics/analytics_exit_types.dart';
 
 class InfoSettingPage extends StatefulWidget {
@@ -18,62 +17,39 @@ class _InfoSettingPageState extends State<InfoSettingPage> {
   final controller = Get.put(InfoSettingController());
   
   // 埋点相关
-  int? _pageEnterTime; // 页面进入时间（毫秒）
-  int _sourcePage = PageSourceIds.login; // 来源页面，默认为登录页面
+  int? _pageEnterTime; // 页面进入时间（十位时间戳）
+  int _exitType = ExitTypeValue.back; // 离开方式
   
   @override
   void initState() {
     super.initState();
     
-    // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
-    
-    // 获取来源页面参数（如果有的话）
-    final args = Get.arguments;
-    if (args != null && args is Map && args.containsKey('source_page')) {
-      _sourcePage = args['source_page'] as int;
-    }
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   }
   
   @override
   void dispose() {
     // 埋点：记录页面离开事件
     if (_pageEnterTime != null) {
-      final exitTime = DateTime.now().millisecondsSinceEpoch;
-      final durationMs = exitTime - _pageEnterTime!;
-      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
-      final durationStr = _formatDuration(durationMs);
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final duration = currentTime - _pageEnterTime!;
       
       AnalyticsManager.instance.trackPageView(
         pageId: LoginInfoEvents.pageId,
         eventId: LoginInfoEvents.page,
-        enterTime: enterTimeStr,
-        duration: durationStr,
-        sourcePage: _sourcePage.toString(),
-        exitType: ExitTypeValue.nextPage, // 信息完善后进入下一页
+        enterTime: _pageEnterTime!,
+        duration: duration,
+        exitType: _exitType,
       );
     }
     
     super.dispose();
   }
   
-  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-  
-  /// 格式化停留时长为 "mm:ss" 格式
-  String _formatDuration(int milliseconds) {
-    final totalSeconds = milliseconds ~/ 1000;
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  /// 标记进入下一页
+  void _markNavigateToNextPage() {
+    _exitType = ExitTypeValue.nextPage;
   }
 
   @override
@@ -357,8 +333,10 @@ class _InfoSettingPageState extends State<InfoSettingPage> {
               bottom: 36,
               child: Obx(() {
                 return GestureDetector(
-                  onTap:
-                      controller.isLoading.value ? null : controller.onSubmit,
+                  onTap: controller.isLoading.value ? null : () {
+                    _markNavigateToNextPage();
+                    controller.onSubmit();
+                  },
                   child: Container(
                     height: 50,
                     width: double.infinity,

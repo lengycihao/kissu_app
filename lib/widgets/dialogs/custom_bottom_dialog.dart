@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'transparent_banner_widget.dart';
 import 'gradient_content_widget.dart';
 import 'custom_bottom_dialog_controller.dart';
@@ -15,7 +16,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
   final double bannerHeight;
   final bool showBanner;
   final Future<bool> Function()? onCloseConfirm; // 关闭确认回调，返回true表示允许关闭
-  final BindingDialogCaller? caller; // 调用者页面类型（用于判断是否上报埋点）
+  final SourcePageUtilsCaller? caller; // 调用者页面类型（用于判断是否上报埋点）
 
   const CustomBottomDialog({
     Key? key,
@@ -25,7 +26,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     this.bannerHeight = 220,
     this.showBanner = true,
     this.onCloseConfirm,
-    this.caller,
+    required this.caller,
   }) : super(key: key);
 
   @override
@@ -125,7 +126,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                           context: context,
                           barrierDismissible: true,
                           isFromHomePage:
-                              caller == BindingDialogCaller.home, // 只有首页才上报埋点
+                              caller == SourcePageUtilsCaller.home, // 只有首页才上报埋点
                           onCancel: () {
                             // 点击"再想想"，关闭绑定弹窗
                             debugPrint('💬 用户点击"再想想"，关闭绑定弹窗');
@@ -455,7 +456,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     bool showBanner = true,
     bool isDismissible = false, // 全局禁止点击背景关闭
     bool enableDrag = false, // 全局禁止滑动关闭
-    BindingDialogCaller? caller, // 调用者页面类型
+    SourcePageUtilsCaller? caller, // 调用者页面类型
     Future<bool> Function()? onCloseConfirm, // 关闭确认回调
   }) {
     // 删除旧的控制器实例（如果存在）

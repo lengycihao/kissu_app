@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'device_usage_controller.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
@@ -74,7 +75,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     if (!controller.isUserBound.value && context.mounted) {
       CustomBottomDialog.show(
         context: context,
-        caller: BindingDialogCaller.deviceUsage,
+        caller: SourcePageUtilsCaller.deviceUsage,
         onClose: () {
           // 绑定弹窗关闭后，刷新状态并重新加载数据
           controller.updateBindStatus();
@@ -141,10 +142,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                               // 未开通会员时点击跳转开通会员页面
                               Get.toNamed(
                                 KissuRoutePath.vip,
-                                arguments: {
-                                  'previousPageName': 'device_usage_page',
-                                  'previousPageId': 'device_usage_page'
-                                },
+                               arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, },
                               );
                             },
                           ),
@@ -296,10 +294,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     if (!controller.isUserVip.value) {
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: const {
-          'previousPageName': '用机记录页面',
-          'previousPageId': 'device_usage',
-        },
+        arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, },
       )?.then((_) {
         // 从VIP页面返回后，刷新绑定状态
         controller.updateBindStatus();

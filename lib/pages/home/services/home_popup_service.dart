@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -160,7 +161,7 @@ class HomePopupService {
       
       final dialogFuture = CustomBottomDialog.show(
         context: currentContext,
-        caller: BindingDialogCaller.home,
+        caller: SourcePageUtilsCaller.home,
         onClose: () {
           debugPrint('💑 绑定弹窗已关闭');
         },
@@ -250,9 +251,8 @@ class HomePopupService {
           Get.toNamed(
             KissuRoutePath.vip,
             arguments: {
-              'previousPageName': '首页',
-              'previousPageId': 'home_page',
-              'defaultVipType': 4, // 永久会员 type = 4
+                'defaultVipType': 4, // 永久会员 type = 4
+              'source_page': SourcePageUtilsCaller.home,
             },
           );
         },
@@ -434,9 +434,8 @@ class HomePopupService {
           Get.toNamed(
             KissuRoutePath.vip,
             arguments: {
-              'previousPageName': '首页',
-              'previousPageId': 'home_page',
-            },
+              'source_page': SourcePageUtilsCaller.home,
+              },
           );
         },
         onLater: () {

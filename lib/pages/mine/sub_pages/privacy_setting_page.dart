@@ -9,9 +9,22 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/pages/mine/sub_pages/cache_manager.dart';
 
-class PrivacySettingPage extends StatelessWidget {
+class PrivacySettingPage extends StatefulWidget {
   const PrivacySettingPage({super.key});
+
+  @override
+  State<PrivacySettingPage> createState() => _PrivacySettingPageState();
+}
+
+class _PrivacySettingPageState extends State<PrivacySettingPage> {
+  @override
+  void initState() {
+    super.initState();
+    // 计算缓存大小
+    CacheManager.calculateCacheSize();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +121,13 @@ class PrivacySettingPage extends StatelessWidget {
                 title: "更换账号",
                 trailingText: phoneNumber,
                 onTap: () => _handlePhoneChange(context, phoneNumber),
+              ),
+              const SizedBox(height: 14),
+              _AnimatedCacheItem(
+                delay: 300,
+                iconPath: "assets/4.0/kissu4_feedback.webp",
+                title: "清除缓存",
+                onTap: () => CacheManager.clearCache(),
               ),
 
               const Spacer(),
@@ -331,6 +351,112 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                     ),
                   ),
                 if (widget.trailingText != null) const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Color(0xFF333333),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 带缓存大小显示的动画设置项
+class _AnimatedCacheItem extends StatefulWidget {
+  final String iconPath;
+  final String title;
+  final VoidCallback? onTap;
+  final int delay;
+
+  const _AnimatedCacheItem({
+    required this.iconPath,
+    required this.title,
+    this.onTap,
+    this.delay = 0,
+  });
+
+  @override
+  State<_AnimatedCacheItem> createState() => _AnimatedCacheItemState();
+}
+
+class _AnimatedCacheItemState extends State<_AnimatedCacheItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            height: 54,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                Image.asset(widget.iconPath, width: 34, height: 34),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                // 显示缓存大小
+                Obx(() => Text(
+                  CacheManager.cacheSize.value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0x46777777),
+                  ),
+                )),
+                const SizedBox(width: 8),
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 16,

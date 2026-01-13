@@ -9,6 +9,7 @@ import 'package:kissu_app/pages/mine/device_usage/device_usage_binding.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
@@ -80,6 +81,7 @@ class HomeController extends GetxController {
   
   // 会员状态
   var isVip = false.obs;
+  var isForeverVip = false.obs; // 是否为终身会员
   
   // 定位服务相关
   late SimpleLocationService _locationService;
@@ -557,6 +559,7 @@ class HomeController extends GetxController {
         // 🔥 优化：直接更新响应式变量（GetX会自动优化UI重建）
         // 更新会员状态
         isVip.value = UserManager.isVip;
+        isForeverVip.value = UserManager.isForeverVip;
         
         // 更新红点信息
         systemNoticeRedDot.value = indexData.isSystemNoticeRedDot;
@@ -686,6 +689,7 @@ class HomeController extends GetxController {
     final user = UserManager.currentUser;
     // 更新会员状态
     isVip.value = UserManager.isVip;
+    isForeverVip.value = UserManager.isForeverVip;
     
     if (user != null) {
       // 🚀 优化：用户头像（确保有值，即使本地缓存也为空）
@@ -1007,7 +1011,7 @@ class HomeController extends GetxController {
           if (currentContext != null) {
             CustomBottomDialog.show(
               context: currentContext,
-              caller: BindingDialogCaller.home,
+              caller: SourcePageUtilsCaller.home,
               onClose: () {
                 debugPrint('💑 聊天入口绑定弹窗已关闭');
                 // 绑定弹窗关闭后刷新首页数据

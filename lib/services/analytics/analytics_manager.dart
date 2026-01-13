@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/oaid_util.dart';
@@ -23,7 +25,7 @@ class AnalyticsManager extends GetxService {
   static const int _batchThreshold = 10;
 
   /// 定时上报间隔（秒）
-  static const int _reportIntervalSeconds = 60;
+  static const int _reportIntervalSeconds = 20;
 
   /// 上报定时器
   Timer? _reportTimer;
@@ -36,6 +38,9 @@ class AnalyticsManager extends GetxService {
 
   /// 是否已初始化
   bool _isInitialized = false;
+
+  /// 本地测试模式（开启后将埋点写入log.txt而不是上报到服务器）
+  static const bool _localTestMode = true;
 
   @override
   void onInit() {
@@ -61,7 +66,7 @@ class AnalyticsManager extends GetxService {
     await _initMockUserId();
 
     // 启动定时上报
-    _startReportTimer();
+    // _startReportTimer();
 
     _isInitialized = true;
     debugPrint('📊 AnalyticsManager 初始化完成');
@@ -123,8 +128,8 @@ class AnalyticsManager extends GetxService {
   void trackPageView({
     required String pageId,
     required String eventId,
-    required String enterTime,
-    required String duration,
+    required int enterTime,
+    required int duration,
     String? sourcePage,
     int? exitType,
     Map<String, dynamic>? params,
@@ -133,7 +138,7 @@ class AnalyticsManager extends GetxService {
       AnalyticsParams.pageEnterTime: enterTime,
       AnalyticsParams.pageDuration: duration,
       if (sourcePage != null) AnalyticsParams.sourcePage: sourcePage,
-      if (exitType != null) AnalyticsParams.exitType: exitType.toString(),
+      if (exitType != null) AnalyticsParams.exitType: exitType,
       ...?params,
     };
 
@@ -157,7 +162,7 @@ class AnalyticsManager extends GetxService {
     Map<String, dynamic>? params,
   }) {
     final clickParams = <String, dynamic>{
-      AnalyticsParams.clickTime: _formatClickTime(DateTime.now()),
+      AnalyticsParams.clickTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       if (btnName != null) AnalyticsParams.btnName: btnName,
       ...?params,
     };
@@ -233,8 +238,19 @@ class AnalyticsManager extends GetxService {
     final user = UserManager.currentUser;
     if (user == null) return BindStatusValue.notBound;
     
+    // bindStatus 可能是 int、String 或其他类型，需要统一处理
     final bindStatus = user.bindStatus;
-    switch (bindStatus) {
+    int? statusValue;
+    
+    if (bindStatus is int) {
+      statusValue = bindStatus;
+    } else if (bindStatus is String) {
+      statusValue = int.tryParse(bindStatus);
+    }
+    
+    // 根据状态值返回对应的枚举
+    // 0 = 未绑定, 1 = 已绑定, 2 = 已解绑
+    switch (statusValue) {
       case 1:
         return BindStatusValue.bound;
       case 2:
@@ -256,17 +272,6 @@ class AnalyticsManager extends GetxService {
   int _getAction188Status() {
     // TODO: 根据实际业务逻辑获取188活动参与状态
     return Action188Value.notParticipated;
-  }
-
-  /// 格式化点击时间（格式：年/月/日 时:分:秒）
-  String _formatClickTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year/$month/$day $hour:$minute:$second';
   }
 
   /// 触发事件上报
@@ -312,6 +317,11 @@ class AnalyticsManager extends GetxService {
 
     debugPrint('📊 上报数据: ${jsonEncode(request.toJson())}');
 
+    // 本地测试模式：写入log.txt文件
+    if (_localTestMode) {
+      return await _writeToLogFile(request);
+    }
+
     // TODO: 调用实际的上报接口
     // final response = await HttpManagerN.post(
     //   url: '/api/analytics/report',
@@ -321,6 +331,89 @@ class AnalyticsManager extends GetxService {
 
     // 暂时返回true，模拟上报成功
     return true;
+  }
+
+  /// 将埋点数据写入log.txt文件（本地测试用）
+  Future<bool> _writeToLogFile(AnalyticsBatchRequest request) async {
+    try {
+      // 尝试多个位置，优先使用外部存储
+      File? logFile;
+      String? location;
+      
+      // 1. 尝试外部存储（Download目录）
+      try {
+        final downloadDir = await getExternalStorageDirectory();
+        if (downloadDir != null) {
+          logFile = File('${downloadDir.path}/analytics_log.txt');
+          location = '外部存储';
+        }
+      } catch (e) {
+        debugPrint('⚠️ 无法访问外部存储: $e');
+      }
+      
+      // 2. 如果外部存储失败，使用应用文档目录
+      if (logFile == null) {
+        final directory = await getApplicationDocumentsDirectory();
+        logFile = File('${directory.path}/analytics_log.txt');
+        location = '应用文档目录';
+      }
+      
+      // 确保文件存在
+      if (!await logFile.exists()) {
+        await logFile.create(recursive: true);
+      }
+      
+      // 格式化输出内容
+      final timestamp = DateTime.now().toIso8601String();
+      final separator = '=' * 80;
+      final buffer = StringBuffer();
+      
+      buffer.writeln('\n$separator');
+      buffer.writeln('📊 埋点上报时间: $timestamp');
+      buffer.writeln('📦 事件数量: ${request.events.length}');
+      buffer.writeln('📱 应用版本: ${request.appVersion ?? "未知"}');
+      buffer.writeln('📁 存储位置: $location');
+      buffer.writeln('📂 文件路径: ${logFile.path}');
+      buffer.writeln(separator);
+      
+      // 逐个输出事件详情
+      for (var i = 0; i < request.events.length; i++) {
+        final event = request.events[i];
+        buffer.writeln('\n【事件 ${i + 1}】');
+        buffer.writeln('  页面ID: ${event.pageId}');
+        buffer.writeln('  事件ID: ${event.eventId}');
+        buffer.writeln('  时间戳: ${event.timestamp}');
+        buffer.writeln('  参数:');
+        
+        // 格式化输出参数
+        event.params.forEach((key, value) {
+          buffer.writeln('    - $key: $value');
+        });
+      }
+      
+      buffer.writeln('\n$separator\n');
+      
+      // 追加写入文件
+      await logFile.writeAsString(
+        buffer.toString(),
+        mode: FileMode.append,
+        flush: true,
+      );
+      
+      debugPrint('✅ 埋点数据已写入 ($location): ${logFile.path}');
+      
+      // 如果是外部存储，提供ADB命令
+      if (location == '外部存储') {
+        debugPrint('� ADB查看命令: adb shell cat "${logFile.path}"');
+        debugPrint('💻 ADB拉取命令: adb pull "${logFile.path}" ./analytics_log.txt');
+      }
+      
+      return true;
+    } catch (e, stackTrace) {
+      debugPrint('❌ 写入日志文件失败: $e');
+      debugPrint('StackTrace: $stackTrace');
+      return false;
+    }
   }
 
   /// 获取应用版本
@@ -380,5 +473,36 @@ class AnalyticsManager extends GetxService {
   void clearAllEvents() {
     _eventQueue.clear();
     debugPrint('📊 已清空所有待上报事件');
+  }
+
+  /// 获取日志文件内容（用于应用内查看）
+  Future<String> getLogContent() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final logFile = File('${directory.path}/analytics_log.txt');
+      
+      if (await logFile.exists()) {
+        return await logFile.readAsString();
+      } else {
+        return '暂无埋点日志文件';
+      }
+    } catch (e) {
+      return '读取日志文件失败: $e';
+    }
+  }
+
+  /// 清空日志文件
+  Future<void> clearLogFile() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final logFile = File('${directory.path}/analytics_log.txt');
+      
+      if (await logFile.exists()) {
+        await logFile.writeAsString('');
+        debugPrint('✅ 日志文件已清空');
+      }
+    } catch (e) {
+      debugPrint('❌ 清空日志文件失败: $e');
+    }
   }
 }

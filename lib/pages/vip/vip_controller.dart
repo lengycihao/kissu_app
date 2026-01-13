@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:logger/logger.dart';
 import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
@@ -12,7 +14,7 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/discount_bottom_sheet.dart';
-import 'package:kissu_app/widgets/dialogs/vip_cancel_retention_dialog.dart'; 
+import 'package:kissu_app/widgets/dialogs/vip_cancel_retention_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/vip_open_success_dialog.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
@@ -94,29 +96,31 @@ class VipController extends GetxController {
   StreamSubscription<Map<String, dynamic>>? _paymentResultSubscription;
 
   // 埋点相关
-  int? _pageEnterTime;
+  int? _pageEnterTime; // 十位时间戳
   int _exitType = ExitTypeValue.back;
   int _pageScrollNum = 0;
-  int? _payStartTime; // 支付开始时间
+  int? _payStartTime; // 支付开始时间（十位时间戳）
+  SourcePageUtilsCaller? _sourcePage; // 来源页
 
   @override
   void onInit() {
     super.onInit();
-    
-    // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     // 初始化控制器
     pageController = PageController();
     commentScrollController = ScrollController();
     priceScrollController = ScrollController();
     mainScrollController = ScrollController();
-    
+
     // 添加滑动监听器用于统计滑动次数
     mainScrollController.addListener(_onScroll);
 
     // 获取传入的参数
     final arguments = Get.arguments as Map<String, dynamic>?;
+    _sourcePage = arguments?['source_page'] as SourcePageUtilsCaller?;
     final defaultVipType = arguments?['defaultVipType'] as int?;
     if (defaultVipType != null) {
       debugPrint('📦 VIP页面接收到参数: defaultVipType=$defaultVipType');
@@ -124,6 +128,32 @@ class VipController extends GetxController {
 
     // 设置支付结果监听
     _setupPaymentResultListener();
+  }
+
+  /// 根据 caller 获取来源页面ID
+  String? _getSourcePageFromCaller() {
+    if (_sourcePage == null) return PageSourceIds.home;
+
+    switch (_sourcePage!) {
+      case SourcePageUtilsCaller.home:
+        return PageSourceIds.home;
+      case SourcePageUtilsCaller.mine:
+        return PageSourceIds.myPage;
+      case SourcePageUtilsCaller.loveInfo:
+        return PageSourceIds.editProfile; // 恋爱信息页面归类到编辑资料
+      case SourcePageUtilsCaller.track:
+        return PageSourceIds.track;
+      case SourcePageUtilsCaller.location:
+        return PageSourceIds.location;
+      case SourcePageUtilsCaller.usageReport:
+        return PageSourceIds.sensitiveRecords; // 用机记录（敏感操作）
+      case SourcePageUtilsCaller.deviceUsage:
+        return PageSourceIds.phoneHistory; // 用机记录页面
+      case SourcePageUtilsCaller.chat:
+        return PageSourceIds.chat; // 聊天页面
+      case SourcePageUtilsCaller.bind:
+        return PageSourceIds.bind; // 绑定页面
+    }
   }
 
   @override
@@ -203,30 +233,12 @@ class VipController extends GetxController {
     if (mainScrollController.hasClients) {
       final currentPosition = mainScrollController.position.pixels;
       // 只统计向下滑动，且滑动距离超过50px
-      if (currentPosition > _lastScrollPosition && (currentPosition - _lastScrollPosition) > 50) {
+      if (currentPosition > _lastScrollPosition &&
+          (currentPosition - _lastScrollPosition) > 50) {
         _pageScrollNum++;
         _lastScrollPosition = currentPosition;
       }
     }
-  }
-
-  /// 格式化页面进入时间为 "yyyy-MM-dd HH:mm:ss" 格式
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-  
-  /// 格式化停留时长为 "分:秒" 格式
-  String _formatDuration(int durationMs) {
-    final totalSeconds = (durationMs / 1000).floor();
-    final minutes = (totalSeconds / 60).floor();
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -235,23 +247,17 @@ class VipController extends GetxController {
 
     // 埋点：记录页面离开事件
     if (_pageEnterTime != null) {
-      final exitTime = DateTime.now().millisecondsSinceEpoch;
-      final durationMs = exitTime - _pageEnterTime!;
-      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
-      final durationStr = _formatDuration(durationMs);
-      
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final duration = currentTime - _pageEnterTime!;
+
       AnalyticsManager.instance.trackPageView(
         pageId: MembershipEvents.pageId,
         eventId: MembershipEvents.page,
-        enterTime: enterTimeStr,
-        duration: durationStr,
-        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
-            ? (Get.arguments['source_page'] as int).toString()
-            : null,
+        enterTime: _pageEnterTime!,
+        duration: duration,
+        sourcePage: _getSourcePageFromCaller(), // 会员页面需要来源页
         exitType: _exitType,
-        params: {
-          AnalyticsParams.pageScrollNum: _pageScrollNum,
-        },
+        params: {AnalyticsParams.pageScrollNum: _pageScrollNum},
       );
     }
 
@@ -293,17 +299,12 @@ class VipController extends GetxController {
     super.onClose();
   }
 
-  
- 
-
   /// 返回按钮点击（用于埋点）
   Future<void> onBackTap() async {
     // 显示挽留弹窗
     final shouldLeave = await _showRetentionDialog();
 
     if (shouldLeave) {
-       
-
       Get.back();
     }
   }
@@ -324,9 +325,7 @@ class VipController extends GetxController {
           debugPrint('💫 用户点击"全部解锁"');
           _handleUnlockFromRetention();
         },
-        onCancel: () {
-          
-        },
+        onCancel: () {},
         barrierDismissible: true,
       );
 
@@ -368,15 +367,10 @@ class VipController extends GetxController {
     selectedPaymentMethod.value = 0;
     debugPrint('💫 设置支付方式为微信');
 
-    
-
-   
     // 设置正在购买标志
     isPurchasing.value = true;
 
     try {
-       
-
       // 执行支付
       await _processPurchase(currentPackage);
     } catch (e) {
@@ -386,8 +380,6 @@ class VipController extends GetxController {
       isPurchasing.value = false;
     }
   }
-
- 
 
   /// 加载VIP横幅数据
   void _loadVipBannerData() async {
@@ -750,11 +742,11 @@ class VipController extends GetxController {
         // 如果有数据，根据传入参数或 isChecked 字段选中套餐
         if (vipPackages.isNotEmpty) {
           int defaultIndex = 0;
-          
+
           // 获取传入的参数
           final arguments = Get.arguments as Map<String, dynamic>?;
           final defaultVipType = arguments?['defaultVipType'] as int?;
-          
+
           if (defaultVipType != null) {
             // 如果传入了 defaultVipType，优先根据 type 字段选择
             debugPrint('📦 根据传入参数选择套餐: type=$defaultVipType');
@@ -776,7 +768,7 @@ class VipController extends GetxController {
               }
             }
           }
-          
+
           selectedPriceIndex.value = defaultIndex;
 
           // 延迟滚动到选中的套餐，确保UI已经渲染
@@ -865,8 +857,6 @@ class VipController extends GetxController {
     try {
       isPurchasing.value = true;
 
-   
-
       // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
 
@@ -916,8 +906,6 @@ class VipController extends GetxController {
 
     try {
       isPurchasing.value = true;
-
-  
 
       // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
@@ -998,7 +986,6 @@ class VipController extends GetxController {
         // 检查是否是用户取消
         if (message.contains('取消')) {
           _logger.i('用户取消了支付');
-          
         } else {
           // 支付失败时，仍然检查一下VIP状态
           _checkVipStatusAfterFailure();
@@ -1007,7 +994,6 @@ class VipController extends GetxController {
     });
   }
 
- 
   /// 支付失败后检查VIP状态
   Future<void> _checkVipStatusAfterFailure() async {
     _logger.i('💡 支付失败，延迟检查VIP状态...');
@@ -1118,9 +1104,7 @@ class VipController extends GetxController {
           OKToastUtil.show('支付成功');
           _updateVipStatus(package);
           await _handlePaymentSuccess(package);
-        } else {
-           
-        }
+        } else {}
       }
     } catch (e) {
       _logger.e('💫 支付处理失败: $e');
@@ -1144,8 +1128,6 @@ class VipController extends GetxController {
   Future<void> _handlePaymentSuccess(VipPackageModel package) async {
     try {
       _logger.i('支付成功，开始处理后续操作...');
-
- 
 
       // 显示支付成功提示
       // OKToastUtil.show('支付成功');
@@ -1178,7 +1160,6 @@ class VipController extends GetxController {
     }
   }
 
-   
   /// 刷新我的页面并返回上一页
   Future<void> _refreshMinePageAndReturn() async {
     try {

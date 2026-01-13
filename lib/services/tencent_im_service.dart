@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimSDKListener.dart';
 import 'package:tencent_cloud_chat_sdk/enum/log_level_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart';
@@ -1332,10 +1333,7 @@ class TencentIMService extends GetxService {
             logger.info('📍 当前为非会员用户，准备跳转到VIP页面...', tag: 'TencentIMService');
             final result = Get.toNamed(
               KissuRoutePath.vip,
-              arguments: {
-                'previousPageName': 'IM绑定消息',
-                'previousPageId': 'im_bind_message',
-              },
+              arguments: {'source_page': SourcePageUtilsCaller.home, },
             );
             logger.info('✅ VIP页面跳转已触发，返回值: $result', tag: 'TencentIMService');
           } else {
@@ -1416,10 +1414,7 @@ class TencentIMService extends GetxService {
               logger.info('📍 当前为非会员用户，准备跳转到VIP页面...', tag: 'TencentIMService');
               final result = Get.toNamed(
                 KissuRoutePath.vip,
-                arguments: {
-                  'previousPageName': 'IM好友添加事件',
-                  'previousPageId': 'im_friend_add',
-                },
+              arguments: {'source_page': SourcePageUtilsCaller.home , },
               );
               logger.info('✅ VIP页面跳转已触发，返回值: $result', tag: 'TencentIMService');
             } else {

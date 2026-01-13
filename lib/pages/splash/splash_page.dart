@@ -399,8 +399,8 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
     _isShowingPrivacyDialog = true; // 🔥 标记正在显示
 
-    // 记录弹窗进入时间（埋点）
-    _privacyDialogEnterTime = DateTime.now().millisecondsSinceEpoch;
+    // 记录弹窗进入时间（埋点，十位时间戳）
+    _privacyDialogEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     // 🔥 修复：为对话框显示添加超时保护，防止无限等待
     bool? result;
@@ -558,41 +558,21 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
     // 记录页面浏览时长和操作埋点
     if (_privacyDialogEnterTime != null) {
-      final exitTime = DateTime.now().millisecondsSinceEpoch;
-      final durationMs = exitTime - _privacyDialogEnterTime!;
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final duration = currentTime - _privacyDialogEnterTime!;
 
-      // 格式化时间和时长
-      final enterTimeStr = DateTime.fromMillisecondsSinceEpoch(
-        _privacyDialogEnterTime!,
-      ).toString();
-      final durationStr = _formatDuration(durationMs);
-      /**
-       * 埋点
-       * 页面名称：用户协议
-       * 事件名称：用户协议弹窗
-       * 页面id:user_agreement_event
-       * 事件id:user_agreement_page
-       */
       // 记录页面浏览事件
       AnalyticsManager.instance.trackPageView(
         pageId: UserAgreementEvents.pageId,
         eventId: UserAgreementEvents.page,
-        enterTime: enterTimeStr,
-        duration: durationStr,
+        enterTime: _privacyDialogEnterTime!,
+        duration: duration,
       );
 
       // 如果用户有操作（同意或不同意），记录操作事件
       if (result == true || result == false) {
-        final btnName = result == true ? 1 : 0;
-        /**
-       * 埋点
-       * 页面名称：用户协议
-       * 事件名称：协议操作
-       * 页面id:user_agreement_event
-       * 事件id:user_agreement_operation
-       */
-        // 使用 AnalyticsHelper 记录操作
-        AnalyticsHelper.trackAgreementOperation(btnName: btnName);
+        // 埋点：用户协议操作
+        AnalyticsHelper.trackAgreementOperation(agree: result == true);
       }
 
       _privacyDialogEnterTime = null;
@@ -877,13 +857,5 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  /// 格式化时长为 mm:ss 格式
-  String _formatDuration(int milliseconds) {
-    final seconds = (milliseconds / 1000).round();
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }

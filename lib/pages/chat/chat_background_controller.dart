@@ -116,14 +116,14 @@ class ChatBackgroundController extends GetxController {
   
   /// 根据背景路径获取对应的ID
   String _getBackgroundId(String backgroundPath) {
-    // 背景ID映射：100016=第一套, 100012=第二套, 100013=第三套, 100014=第四套, 100011=第五套, 100015=第六套
+     
     final index = defaultBackgrounds.indexOf(backgroundPath);
     if (index >= 0 && index < 6) {
-      const bgIds = ['100016', '100012', '100013', '100014', '100011', '100015'];
+      const bgIds = ['纯白背景', '小熊左右背景', '小熊上下背景', '小狗平铺背景', '蓝色原点背景', 'kissu文字平铺背景'];
       return bgIds[index];
     }
     // 如果是自定义背景（从相册添加的），返回特殊ID
-    return '100099'; // 自定义背景
+    return '自定义背景'; // 自定义背景
   }
 
   // 获取背景图片提供器（支持资产图片和文件图片）

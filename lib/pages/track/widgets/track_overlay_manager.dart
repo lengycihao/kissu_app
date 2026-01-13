@@ -136,7 +136,7 @@ class TrackOverlayManager {
         child: Opacity(
           opacity: opacity,
           child: Image.asset(
-            'assets/images/map_logo.webp',
+            'assets/images/map_logo.png',
             width: TrackPageConfig.mapLogoWidth,
             height: TrackPageConfig.mapLogoHeight,
           ),

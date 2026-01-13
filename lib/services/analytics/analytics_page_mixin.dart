@@ -23,16 +23,19 @@ mixin AnalyticsPageMixin on GetxController {
   /// 事件ID（子类必须实现）
   String get analyticsEventId;
   
-  /// 来源页面（可选，子类可覆盖）
+  /// 是否需要来源页参数（默认false，只有绑定页面和会员页面需要设为true）
+  bool get needSourcePage => false;
+  
+  /// 来源页面（只有needSourcePage为true时才会传递）
   String? get analyticsSourcePage => null;
   
   /// 额外的页面参数（可选，子类可覆盖）
   Map<String, dynamic>? get analyticsExtraParams => null;
 
-  /// 页面进入时间
-  DateTime? _pageEnterTime;
+  /// 页面进入时间（十位时间戳）
+  int? _pageEnterTime;
   
-  /// 离开方式
+  /// 离开方式（默认为返回）
   int _exitType = ExitTypeValue.back;
   
   /// 是否已记录页面离开事件
@@ -52,8 +55,9 @@ mixin AnalyticsPageMixin on GetxController {
 
   /// 记录页面进入
   void _recordPageEnter() {
-    _pageEnterTime = DateTime.now();
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _hasTrackedPageExit = false;
+    _exitType = ExitTypeValue.back; // 重置离开方式
     debugPrint('📊 页面进入: $analyticsEventId');
   }
 
@@ -62,20 +66,21 @@ mixin AnalyticsPageMixin on GetxController {
     if (_hasTrackedPageExit || _pageEnterTime == null) return;
     _hasTrackedPageExit = true;
 
-    final enterTime = _formatEnterTime(_pageEnterTime!);
-    final duration = _calculateDuration(_pageEnterTime!);
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
 
     try {
       AnalyticsManager.instance.trackPageView(
         pageId: analyticsPageId,
         eventId: analyticsEventId,
-        enterTime: enterTime,
+        enterTime: _pageEnterTime!,
         duration: duration,
-        sourcePage: analyticsSourcePage,
+        // 只有需要来源页的页面才传递sourcePage
+        sourcePage: needSourcePage ? analyticsSourcePage : null,
         exitType: _exitType,
         params: analyticsExtraParams,
       );
-      debugPrint('📊 页面离开: $analyticsEventId, 停留: $duration');
+      debugPrint('📊 页面离开: $analyticsEventId, 停留: ${duration}秒, 离开方式: $_exitType');
     } catch (e) {
       debugPrint('❌ 记录页面离开失败: $e');
     }
@@ -85,42 +90,22 @@ mixin AnalyticsPageMixin on GetxController {
   /// 
   /// 在页面跳转前调用此方法设置离开方式
   /// [exitType] 离开方式，使用 [ExitTypeValue] 中的常量
+  /// - 1: 返回
+  /// - 2: 关闭APP
+  /// - 3: 切换到后台
+  /// - 4: 进入下一页
   void setExitType(int exitType) {
     _exitType = exitType;
   }
 
-  /// 标记进入下一页
-  /// 
-  /// 在跳转到下一页前调用
+  /// 标记进入下一页（在跳转到下一页前调用）
   void markNavigateToNextPage() {
     _exitType = ExitTypeValue.nextPage;
   }
 
-  /// 标记返回上一页
-  /// 
-  /// 在返回上一页前调用
+  /// 标记返回上一页（在返回上一页前调用）
   void markNavigateBack() {
     _exitType = ExitTypeValue.back;
-  }
-
-  /// 格式化进入时间（格式：年-月-日 时:分:秒）
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-
-  /// 计算停留时长（格式：mm:ss）
-  String _calculateDuration(DateTime enterTime) {
-    final now = DateTime.now();
-    final diff = now.difference(enterTime);
-    final minutes = diff.inMinutes;
-    final seconds = diff.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }
 
@@ -143,20 +128,26 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
   /// 事件ID（子类必须实现）
   String get analyticsEventId;
   
-  /// 来源页面（可选，子类可覆盖）
+  /// 是否需要来源页参数（默认false，只有绑定页面和会员页面需要设为true）
+  bool get needSourcePage => false;
+  
+  /// 来源页面（只有needSourcePage为true时才会传递）
   String? get analyticsSourcePage => null;
   
   /// 额外的页面参数（可选，子类可覆盖）
   Map<String, dynamic>? get analyticsExtraParams => null;
 
-  /// 页面进入时间
-  DateTime? _pageEnterTime;
+  /// 页面进入时间（十位时间戳）
+  int? _pageEnterTime;
   
-  /// 离开方式
+  /// 离开方式（默认为返回）
   int _exitType = ExitTypeValue.back;
   
   /// 是否已记录页面离开事件
   bool _hasTrackedPageExit = false;
+  
+  /// 是否是从后台恢复
+  bool _isResumedFromBackground = false;
 
   @override
   void initState() {
@@ -175,21 +166,36 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused) {
-      // App进入后台，记录离开方式
-      _exitType = ExitTypeValue.toBackground;
-    } else if (state == AppLifecycleState.detached) {
-      // App被关闭
-      _exitType = ExitTypeValue.closeApp;
-      _recordPageExit();
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App进入后台
+        _exitType = ExitTypeValue.toBackground;
+        _recordPageExit();
+        break;
+      case AppLifecycleState.resumed:
+        // App从后台恢复，重新记录页面进入
+        if (_hasTrackedPageExit) {
+          _isResumedFromBackground = true;
+          _recordPageEnter();
+        }
+        break;
+      case AppLifecycleState.detached:
+        // App被关闭
+        _exitType = ExitTypeValue.closeApp;
+        _recordPageExit();
+        break;
+      default:
+        break;
     }
   }
 
   /// 记录页面进入
   void _recordPageEnter() {
-    _pageEnterTime = DateTime.now();
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _hasTrackedPageExit = false;
-    debugPrint('📊 页面进入: $analyticsEventId');
+    _exitType = ExitTypeValue.back; // 重置离开方式
+    debugPrint('📊 页面进入: $analyticsEventId${_isResumedFromBackground ? " (从后台恢复)" : ""}');
+    _isResumedFromBackground = false;
   }
 
   /// 记录页面离开
@@ -197,56 +203,45 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
     if (_hasTrackedPageExit || _pageEnterTime == null) return;
     _hasTrackedPageExit = true;
 
-    final enterTime = _formatEnterTime(_pageEnterTime!);
-    final duration = _calculateDuration(_pageEnterTime!);
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
 
     try {
       AnalyticsManager.instance.trackPageView(
         pageId: analyticsPageId,
         eventId: analyticsEventId,
-        enterTime: enterTime,
+        enterTime: _pageEnterTime!,
         duration: duration,
-        sourcePage: analyticsSourcePage,
+        // 只有需要来源页的页面才传递sourcePage
+        sourcePage: needSourcePage ? analyticsSourcePage : null,
         exitType: _exitType,
         params: analyticsExtraParams,
       );
-      debugPrint('📊 页面离开: $analyticsEventId, 停留: $duration');
+      debugPrint('📊 页面离开: $analyticsEventId, 停留: ${duration}秒, 离开方式: $_exitType');
     } catch (e) {
       debugPrint('❌ 记录页面离开失败: $e');
     }
   }
 
   /// 设置离开方式
- void setExitType(int exitType) {
+  /// 
+  /// 在页面跳转前调用此方法设置离开方式
+  /// [exitType] 离开方式，使用 [ExitTypeValue] 中的常量
+  /// - 1: 返回
+  /// - 2: 关闭APP
+  /// - 3: 切换到后台
+  /// - 4: 进入下一页
+  void setExitType(int exitType) {
     _exitType = exitType;
   }
-  /// 标记进入下一页
+
+  /// 标记进入下一页（在跳转到下一页前调用）
   void markNavigateToNextPage() {
     _exitType = ExitTypeValue.nextPage;
   }
 
-  /// 标记返回上一页
+  /// 标记返回上一页（在返回上一页前调用）
   void markNavigateBack() {
     _exitType = ExitTypeValue.back;
-  }
-
-  /// 格式化进入时间
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-
-  /// 计算停留时长
-  String _calculateDuration(DateTime enterTime) {
-    final now = DateTime.now();
-    final diff = now.difference(enterTime);
-    final minutes = diff.inMinutes;
-    final seconds = diff.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }

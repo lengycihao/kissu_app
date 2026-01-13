@@ -16,28 +16,24 @@ class LoginPage extends StatefulWidget {
   _LoginPageState createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   final LoginController controller = Get.put(LoginController());
   final ScrollController _scrollController = ScrollController();
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _codeFocusNode = FocusNode();
-  
-  // 埋点相关
-  int? _pageEnterTime; // 页面进入时间（毫秒）
-  int _sourcePage = PageSourceIds.agreementDialog; // 来源页面，默认为协议弹窗
 
+  // 埋点相关
+  int? _pageEnterTime; // 页面进入时间（十位时间戳）
+  int _exitType = ExitTypeValue.back; // 离开方式
+  bool _hasTrackedPageExit = false; // 是否已记录页面离开
+ 
   @override
   void initState() {
     super.initState();
-    
+    WidgetsBinding.instance.addObserver(this);
+
     // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
-    
-    // 获取来源页面参数（如果有的话）
-    final args = Get.arguments;
-    if (args != null && args is Map && args.containsKey('source_page')) {
-      _sourcePage = args['source_page'] as int;
-    }
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     // 添加焦点监听
     _phoneFocusNode.addListener(() {
@@ -50,40 +46,62 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
-  void dispose() {
-    // 埋点：记录页面浏览时长并上报
-    if (_pageEnterTime != null) {
-      final exitTime = DateTime.now().millisecondsSinceEpoch;
-      final durationMs = exitTime - _pageEnterTime!;
-      
-      // 格式化时间和时长
-      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
-      final durationStr = _formatDuration(durationMs);
-      
-      // 判断离开方式（默认为返回）
-      final exitType = ExitTypeValue.back;
-      
-      /**
-       * 埋点
-       * 页面名称：登录
-       * 事件名称：登录页面浏览
-       * 页面id: login_event
-       * 事件id: login_page
-       */
-      AnalyticsManager.instance.trackPageView(
-        pageId: LoginEvents.pageId,
-        eventId: LoginEvents.page,
-        enterTime: enterTimeStr,
-        duration: durationStr,
-        sourcePage: _sourcePage.toString(),
-        exitType: exitType,
-      );
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App进入后台
+        _exitType = ExitTypeValue.toBackground;
+        _trackPageExit();
+        break;
+      case AppLifecycleState.resumed:
+        // App从后台恢复，重新记录页面进入
+        if (_hasTrackedPageExit) {
+          _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          _hasTrackedPageExit = false;
+          _exitType = ExitTypeValue.back;
+        }
+        break;
+      case AppLifecycleState.detached:
+        // App被关闭
+        _exitType = ExitTypeValue.closeApp;
+        _trackPageExit();
+        break;
+      default:
+        break;
     }
-    
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _trackPageExit();
     _scrollController.dispose();
     _phoneFocusNode.dispose();
     _codeFocusNode.dispose();
     super.dispose();
+  }
+
+  /// 记录页面离开埋点
+  void _trackPageExit() {
+    if (_hasTrackedPageExit || _pageEnterTime == null) return;
+    _hasTrackedPageExit = true;
+
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+
+    AnalyticsManager.instance.trackPageView(
+      pageId: LoginEvents.pageId,
+      eventId: LoginEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: _exitType,
+    );
+  }
+
+  /// 标记进入下一页（在跳转前调用）
+  void _markNavigateToNextPage() {
+    _exitType = ExitTypeValue.nextPage;
   }
 
   void _unfocusAll() {
@@ -171,6 +189,8 @@ class _LoginPageState extends State<LoginPage> {
                         onTap: () {
                           // 释放所有焦点并收起键盘
                           _unfocusAll();
+                          // 标记进入下一页（登录成功后会跳转）
+                          _markNavigateToNextPage();
                           // 埋点：登录按钮点击
                           _trackLoginButtonClick();
                           controller.login();
@@ -209,93 +229,100 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 36),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Obx(
-                        () => GestureDetector(
-                          onTap: () {
-                            // 切换勾选状态
-                            final newValue = !controller.isChecked.value;
-                            controller.isChecked.value = newValue;
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Obx(
+                          () => GestureDetector(
+                            onTap: () {
+                              // 切换勾选状态
+                              final newValue = !controller.isChecked.value;
+                              controller.isChecked.value = newValue;
 
-                        
-                          },
-                          child: Container(
-                            width: 16, // 设置圆的宽度
-                            height: 16, // 设置圆的高度
-                            decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(
-                                  controller.isChecked.value
-                                      ? 'assets/images/kissu_login_privite_sel.webp'
-                                      : 'assets/images/kissu_login_privite_unsel.webp',
+                              // 埋点：隐私协议勾选状态变化
+                            },
+                            child: Container(
+                              width: 16, // 设置圆的宽度
+                              height: 16, // 设置圆的高度
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(
+                                    controller.isChecked.value
+                                        ? 'assets/images/kissu_login_privite_sel.webp'
+                                        : 'assets/images/kissu_login_privite_unsel.webp',
+                                  ),
                                 ),
+                                // color: controller.isChecked.value
+                                //     ? Color(0xFFFF839E) // 勾选时的颜色
+                                //     : Colors.white,
+                                // shape: BoxShape.circle,
+                                // border: Border.all(
+                                //   color: Color(0xFF666666), // 未勾选时的边框颜色
+                                //   width: 1.5,
+                                // ),
                               ),
-                              // color: controller.isChecked.value
-                              //     ? Color(0xFFFF839E) // 勾选时的颜色
-                              //     : Colors.white,
-                              // shape: BoxShape.circle,
-                              // border: Border.all(
-                              //   color: Color(0xFF666666), // 未勾选时的边框颜色
-                              //   width: 1.5,
-                              // ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 7),
-                      const Text(
-                        '登录即代表同意 ',
-                        style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-                      ),
-                      
-                      GestureDetector(
-                        onTap: () {
-                          AgreementUtils.toPrivacyAgreement();
-                        },
-                        child: const Text(
-                          '《隐私政策》',
-                          style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+                        const SizedBox(width: 7),
+                        const Text(
+                          '登录即代表同意 ',
+                          style: TextStyle(color: Color(0xFF666666), fontSize: 12),
                         ),
-                      ),
-                      const Text(
-                        '和',
-                        style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-                      ),
-                      
-                      GestureDetector(
-                        onTap: () {
-                          AgreementUtils.toUserAgreement();
-                        },
-                        child: const Text(
-                          '《用户协议》',
-                          style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+
+                        GestureDetector(
+                          onTap: () {
+                            AgreementUtils.toPrivacyAgreement();
+                          },
+                          child: const Text(
+                            '《隐私政策》',
+                            style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+                          ),
                         ),
-                      ),
-                    ],
+                        const Text(
+                          '和',
+                          style: TextStyle(color: Color(0xFF666666), fontSize: 12),
+                        ),
+
+                        GestureDetector(
+                          onTap: () {
+                            AgreementUtils.toUserAgreement();
+                          },
+                          child: const Text(
+                            '《用户协议》',
+                            style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          
-          ],
+            ],
+          ),
         ),
-      ),
+      
     );
   }
 
   // 处理焦点变化，智能滚动
   void _handleFocusChange(bool hasFocus, int fieldIndex) {
     if (hasFocus) {
+      // 埋点：记录输入框点击事件（点击时还没输入，所以传false，失去焦点时再判断是否有输入）
+      if (fieldIndex == 0) {
+        AnalyticsHelper.trackPhoneInput(hasInput: controller.phoneNumber.value.isNotEmpty);
+      } else if (fieldIndex == 1) {
+        AnalyticsHelper.trackCodeInput(hasInput: controller.verificationCode.value.isNotEmpty);
+      }
+      
       // 延迟执行，等待键盘完全弹起
       Future.delayed(const Duration(milliseconds: 100), () {
         if (!mounted) return;
@@ -427,35 +454,16 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-  
+
   /// 埋点：获取验证码点击事件
   void _trackGetVerificationCodeClick() {
     // 先记录点击事件，状态默认为成功
     AnalyticsHelper.trackGetVerificationCode(success: true);
   }
-  
+
   /// 埋点：登录按钮点击事件
   void _trackLoginButtonClick() {
     // 先记录点击事件，状态默认为成功
     AnalyticsHelper.trackLoginButton(success: true);
-  }
-  
-  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-  
-  /// 格式化时长为 mm:ss 格式
-  String _formatDuration(int milliseconds) {
-    final seconds = (milliseconds / 1000).round();
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }

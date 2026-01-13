@@ -7,6 +7,7 @@ import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'location_preview_widget.dart';
 import 'image_preview_page.dart';
 import '../models/chat_message.dart';
@@ -216,7 +217,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                         GestureDetector(
                           onTap: () {
                             try {
-                              Get.toNamed(KissuRoutePath.vip);
+                              Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.chat});
                             } catch (e) {
                               debugPrint('跳转 VIP 页面失败: $e');
                             }

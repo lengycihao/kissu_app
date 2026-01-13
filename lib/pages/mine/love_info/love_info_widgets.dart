@@ -108,6 +108,7 @@ class InfoItem extends StatelessWidget {
 // 在一起天数卡片组件 - 性能优化版本
 class TogetherCard extends StatelessWidget {
   final LoveInfoController controller;
+  
 
   const TogetherCard({Key? key, required this.controller}) : super(key: key);
 
@@ -127,40 +128,45 @@ class TogetherCard extends StatelessWidget {
             ),
           );
         },
-        child: Container(
-          width: double.infinity,
-          // height: 60,
-          // color: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30).copyWith(bottom: 20),
-          
-        //相爱信息ROW
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-             
-            const Text(
-              '在一起',
-              style: TextStyle(
-                fontSize: 20,
-                fontFamily: "Resource-Han-Rounded",
-                color: Color(0xFF333333),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 12),
-            _buildDaysDisplay(),
-            const SizedBox(width: 12),
-            const Text(
-              '天',
-              style: TextStyle(
-                fontSize: 20, fontFamily: "Resource-Han-Rounded",
-                color: Color(0xFF333333),
-                // fontWeight: FontWeight.w600,
-              ),
-            ),
+        child: GestureDetector(
+          onTap: controller.isBindPartner.value 
+              ? () => controller.onLoveTimeTap(context)
+              : null,
+          child: Container(
+            width: double.infinity,
+            // height: 60,
+            // color: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30).copyWith(bottom: 20),
             
-          ],
-        ),
+          //相爱信息ROW
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+               
+              const Text(
+                '在一起',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontFamily: "Resource-Han-Rounded",
+                  color: Color(0xFF333333),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildDaysDisplay(),
+              const SizedBox(width: 12),
+              const Text(
+                '天',
+                style: TextStyle(
+                  fontSize: 20, fontFamily: "Resource-Han-Rounded",
+                  color: Color(0xFF333333),
+                  // fontWeight: FontWeight.w600,
+                ),
+              ),
+              
+            ],
+          ),
+          ),
         ),
       ),
     );

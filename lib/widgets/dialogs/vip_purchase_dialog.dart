@@ -63,7 +63,7 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
   /// 处理开通会员按钮点击
   void _handleConfirm() {
     // 埋点：充值弹窗确认按钮点击
-    AnalyticsHelper.trackVipRechargeDialog(btnName: 0); // 0=确认
+    AnalyticsHelper.trackVipRechargeDialog(btnStatus: 1); // 1=进入
     
     Navigator.of(context).pop();
     widget.onConfirm?.call();
@@ -132,7 +132,7 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
           child: GestureDetector(
             onTap: () async {
               // 埋点：充值弹窗关闭按钮点击
-              AnalyticsHelper.trackVipRechargeDialog(btnName: 1); // 1=关闭
+              AnalyticsHelper.trackVipRechargeDialog(btnStatus: 0); // 0=关闭
               
               Navigator.of(context).pop();
             },

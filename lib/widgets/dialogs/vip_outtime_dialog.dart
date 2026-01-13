@@ -86,7 +86,7 @@ class VipOuttimeDialog extends BaseDialog {
                 child: GestureDetector(
                   onTap: () {
                     // 埋点：续费弹窗立即续费按钮点击
-                    AnalyticsHelper.trackRenewalReminderDialog(btnName: 0); // 0=立即续费
+                    AnalyticsHelper.trackRenewalReminderDialog(btnStatus: 1); // 1=进入
                     
                     Navigator.of(context).pop(true); // 返回true表示用户选择续费
                     onRenew?.call();
@@ -120,7 +120,7 @@ class VipOuttimeDialog extends BaseDialog {
         GestureDetector(
           onTap: () {
             // 埋点：续费弹窗下次再说按钮点击
-            AnalyticsHelper.trackRenewalReminderDialog(btnName: 1); // 1=下次再说
+            AnalyticsHelper.trackRenewalReminderDialog(btnStatus: 0); // 0=关闭
             
             Navigator.of(context).pop(false); // 返回false表示用户选择下次再说
             onLater?.call();

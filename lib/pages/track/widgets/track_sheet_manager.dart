@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
@@ -550,7 +551,7 @@ class TrackSheetManager {
                         if (Get.context!.mounted) {
                           CustomBottomDialog.show(
                             context: Get.context!,
-                            caller: BindingDialogCaller.track,
+                            caller: SourcePageUtilsCaller.track,
                           ).then((_) {
                             controller.refreshCurrentUserData();
                           });
@@ -561,10 +562,7 @@ class TrackSheetManager {
                         
                         Get.toNamed(
                           KissuRoutePath.vip,
-                          arguments: {
-                            'previousPageName': '足迹页面',
-                            'previousPageId': 'footprint_page',
-                          },
+                          arguments: {'source_page': SourcePageUtilsCaller.track, },
                         );
                       }
                     },

@@ -13,6 +13,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import '../usage_report/usage_report_controller.dart';
 import '../usage_report/usage_report_page.dart';
 import '../usage_report/usage_report_binding.dart';
@@ -20,7 +21,6 @@ import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
-import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
@@ -155,8 +155,8 @@ class MineController extends GetxController {
   void onInit() {
     super.onInit();
     
-    // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch;
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     
     _initSettingItems();
     _initCommonFunctionItems();
@@ -702,7 +702,7 @@ class MineController extends GetxController {
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
-          caller: BindingDialogCaller.mine,
+          caller: SourcePageUtilsCaller.mine,
         );
       }
     } else {
@@ -773,12 +773,12 @@ class MineController extends GetxController {
       logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
 
       // 埋点：记录会员模块点击（立即绑定）
-      AnalyticsHelper.trackMyPageVipBtn(btnName: '立即绑定');
+      AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.bindNow);
       
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
-          caller: BindingDialogCaller.mine,
+          caller: SourcePageUtilsCaller.mine,
           isDismissible: false, // 禁用点击背景关闭
           enableDrag: false, // 禁用向下滑动关闭
           onCloseConfirm: () async {
@@ -798,33 +798,33 @@ class MineController extends GetxController {
       logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
 
       // 埋点：记录会员模块点击（会员中心）
-      AnalyticsHelper.trackMyPageVipBtn(btnName: '会员中心');
+      AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.vipCenter);
    
       Get.toNamed(
         KissuRoutePath.foreverVip,
-        arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
+        arguments: { },
       );
     } else if (isVip.value) {
       // 普通会员，跳转到VIP页面（续费）
       logDebug('💫 普通会员，跳转到VIP页面（续费）', tag: 'Mine');
 
       // 埋点：记录会员模块点击（去续费）
-      AnalyticsHelper.trackMyPageVipBtn(btnName: '去续费');
+      AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.renewVip);
      
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
+        arguments: {'source_page': SourcePageUtilsCaller.mine, },
       );
     } else {
       // 非会员，跳转到VIP页面（开通会员）
       logDebug('💫 非会员，跳转到VIP页面（开通会员）', tag: 'Mine');
 
       // 埋点：记录会员模块点击（开通会员）
-      AnalyticsHelper.trackMyPageVipBtn(btnName: '开通会员');
+      AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.openVip);
      
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'previousPageName': '我的页面', 'previousPageId': 'my_page'},
+        arguments: {'source_page': SourcePageUtilsCaller.mine, },
       );
     }
   }
@@ -954,7 +954,7 @@ class MineController extends GetxController {
       if (Get.context != null) {
         await CustomBottomDialog.show(
           context: Get.context!,
-          caller: BindingDialogCaller.mine,
+          caller: SourcePageUtilsCaller.mine,
           isDismissible: false, // 禁用点击背景关闭
           enableDrag: false, // 禁用向下滑动关闭
           onCloseConfirm: () async {
@@ -974,10 +974,7 @@ class MineController extends GetxController {
       logDebug('app使用记录：已绑定但非会员，跳转到开通会员页面', tag: 'Mine');
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {
-          'previousPageName': '我的-APP使用记录',
-          'previousPageId': 'mine_app_usage',
-        },
+       arguments: {'source_page': SourcePageUtilsCaller.mine, },
       );
       return;
     }
@@ -1029,42 +1026,18 @@ class MineController extends GetxController {
     AnalyticsHelper.trackMyPagePermissionBtn();
   }
 
-  /// 格式化页面进入时间为 "年-月-日 时:分:秒" 格式
-  String _formatEnterTime(DateTime dateTime) {
-    final year = dateTime.year;
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$year-$month-$day $hour:$minute:$second';
-  }
-  
-  /// 格式化停留时长为 "分:秒" 格式
-  String _formatDuration(int durationMs) {
-    final totalSeconds = (durationMs / 1000).floor();
-    final minutes = (totalSeconds / 60).floor();
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-  
   @override
   void onClose() {
     // 埋点：记录页面离开事件
     if (_pageEnterTime != null) {
-      final exitTime = DateTime.now().millisecondsSinceEpoch;
-      final durationMs = exitTime - _pageEnterTime!;
-      final enterTimeStr = _formatEnterTime(DateTime.fromMillisecondsSinceEpoch(_pageEnterTime!));
-      final durationStr = _formatDuration(durationMs);
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final duration = currentTime - _pageEnterTime!;
       
       AnalyticsManager.instance.trackPageView(
         pageId: MyPageEvents.pageId,
         eventId: MyPageEvents.page,
-        enterTime: enterTimeStr,
-        duration: durationStr,
-        sourcePage: Get.arguments != null && Get.arguments is Map && Get.arguments.containsKey('source_page')
-            ? (Get.arguments['source_page'] as int).toString()
-            : null,
+        enterTime: _pageEnterTime!,
+        duration: duration,
         exitType: _exitType,
       );
     }
@@ -1077,9 +1050,15 @@ class MineController extends GetxController {
 class SettingItem {
   final String icon;
   final String title;
+  final RxString? subtitle; // 用于显示额外信息（如缓存大小）
   final void Function()? onTap;
 
-  SettingItem({required this.icon, required this.title, this.onTap});
+  SettingItem({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+  });
 }
 
 class CommonFunctionItem {

@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/location_api.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
-import 'package:kissu_app/services/location_permission_manager.dart'; 
+import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart'; 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
@@ -2069,7 +2071,7 @@ class LocationV2Controller extends GetxController
     AnalyticsHelper.trackLocationToBind(btnName: 'bind');
     
     if (Get.context != null) {
-      CustomBottomDialog.show(context: Get.context!).then((_) {
+      CustomBottomDialog.show(context: Get.context!, caller: SourcePageUtilsCaller.location).then((_) {
         refreshUserInfo();
       });
     }
@@ -2267,9 +2269,8 @@ class LocationV2Controller extends GetxController
     Get.toNamed(
       KissuRoutePath.vip,
       arguments: {
-        'previousPageName': '定位页面',
-        'previousPageId': 'location_page',
-      },
+        'source_page': SourcePageUtilsCaller.location,
+       },
     )?.then((_) {
       refreshUserInfo();
     });

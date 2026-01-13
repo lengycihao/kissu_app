@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
@@ -200,7 +201,7 @@ class LoveInfoController extends GetxController {
     // 显示绑定弹窗
     CustomBottomDialog.show(
       context: context,
-      caller: BindingDialogCaller.loveInfo,
+      caller: SourcePageUtilsCaller.loveInfo,
     );
   }
 

@@ -9,6 +9,7 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -16,6 +17,7 @@ import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 
 /// 初始坐标信息类
 class InitialCoordinateInfo {
@@ -2326,7 +2328,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 执行绑定操作 - 显示绑定弹窗
   void performBindAction() {
     if (Get.context != null) {
-      CustomBottomDialog.show(context: Get.context!);
+      CustomBottomDialog.show(context: Get.context!, caller: SourcePageUtilsCaller.track);
     }
   }
 

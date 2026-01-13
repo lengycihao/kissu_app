@@ -122,11 +122,11 @@ class ChatThemeController extends GetxController {
   /// 根据主题获取对应的ID
   String _getThemeId(int theme) {
     // 主题ID映射：200011=第一套, 200012=第二套, 200013=第三套, 200014=第四套
-    const themeIds = ['200011', '200012', '200013', '200014'];
+    const themeIds = ['棕色主题', '星星主题', '蓝色主题', '粉色主题'];
     if (theme >= 1 && theme <= 4) {
       return themeIds[theme - 1];
     }
-    return '200011'; // 默认返回第一套
+    return '棕色主题'; // 默认返回第一套
   }
 }
 
