@@ -33,7 +33,7 @@ class LoginNavigationLock {
     _isNavigatingToLogin = true;
     _hasNavigatedToLogin = true;
     
-    logInfo('🔒 获取登录页导航锁，开始导航到登录页', tag: 'LoginNavLock');
+    logDebug('🔒 获取登录页导航锁，开始导航到登录页', tag: 'LoginNavLock');
     
     try {
       // 检查Get路由是否已经初始化

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/debug_util.dart';  
 
 /// 轨迹页面地图管理器
@@ -25,7 +26,7 @@ class TrackMapManager {
   /// 地图创建完成回调
   void onMapCreated(AMapController controller, Function? hideAllInfoWindows) {
     mapController = controller;
-    DebugUtil.success('轨迹页面高德地图创建成功');
+    logDebug('轨迹页面高德地图创建成功');
 
     // 设置地图就绪状态
     setMapReady(true);
@@ -39,7 +40,7 @@ class TrackMapManager {
     Future.delayed(const Duration(milliseconds: 50), () {
       if (hideAllInfoWindows != null) {
         hideAllInfoWindows();
-        DebugUtil.info('🔒 地图初始化后关闭所有 InfoWindow (50ms)');
+        logDebug('🔒 地图初始化后关闭所有 InfoWindow (50ms)');
       }
     });
   }
@@ -47,13 +48,13 @@ class TrackMapManager {
   /// 设置地图就绪状态
   void setMapReady(bool ready) {
     isMapReady.value = ready;
-    DebugUtil.info('地图就绪状态更新: $ready');
+    logDebug('地图就绪状态更新: $ready');
   }
 
   /// 🔒 设置动画锁状态
   void setAnimationLock(bool isLocked) {
     _isAnimating = isLocked;
-    DebugUtil.info('🔒 地图动画锁状态: $isLocked');
+    logDebug('🔒 地图动画锁状态: $isLocked');
   }
 
   /// 是否正在动画中
@@ -63,7 +64,7 @@ class TrackMapManager {
   void moveMapToLocation(LatLng location) {
     // 检查地图是否就绪
     if (!isMapReady.value || mapController == null) {
-      DebugUtil.warning('地图未就绪或控制器为空，无法移动地图位置');
+      logWarning('地图未就绪或控制器为空，无法移动地图位置');
       return;
     }
 
@@ -73,9 +74,9 @@ class TrackMapManager {
           CameraPosition(target: location, zoom: 18.0),
         ),
       );
-      DebugUtil.info('地图已移动到: ${location.latitude}, ${location.longitude}');
+      logDebug('地图已移动到: ${location.latitude}, ${location.longitude}');
     } catch (e) {
-      DebugUtil.error('移动地图失败: $e');
+      logError('移动地图失败: $e');
     }
   }
 
@@ -84,24 +85,24 @@ class TrackMapManager {
     try {
       mapController?.moveCamera(CameraUpdate.newLatLng(position));
     } catch (e) {
-      DebugUtil.error('平滑移动地图失败: $e');
+      logError('平滑移动地图失败: $e');
     }
   }
 
   /// 切换地图类型
   void switchMapType(int type) {
     if (type != 1 && type != 2) {
-      DebugUtil.warning('无效的地图类型: $type');
+      logDebug('无效的地图类型: $type');
       return;
     }
 
     if (mapType.value == type) {
-      DebugUtil.info('地图类型未改变，无需切换');
+      logDebug('地图类型未改变，无需切换');
       return;
     }
 
     mapType.value = type;
-    DebugUtil.info('地图类型切换为: ${type == 1 ? "经典地图" : "卫星地图"}');
+    logDebug('地图类型切换为: ${type == 1 ? "经典地图" : "卫星地图"}');
   }
 
   /// 🚀 简化：计算适合所有轨迹点的相机位置（仅用于初始化，具体缩放由 newLatLngBounds 控制）
@@ -120,7 +121,7 @@ class TrackMapManager {
     centerLat /= trackPoints.length;
     centerLng /= trackPoints.length;
 
-    DebugUtil.info('轨迹中心点: ($centerLat, $centerLng)');
+    logDebug('轨迹中心点: ($centerLat, $centerLng)');
 
     // 初始使用较低缩放级别，具体缩放由 fitMapToTrackPoints 中的 newLatLngBounds 精确控制
     return CameraPosition(target: LatLng(centerLat, centerLng), zoom: 10.0);
@@ -129,13 +130,13 @@ class TrackMapManager {
   /// 🚀 优化：自动调整地图视图以显示轨迹（使用原生 newLatLngBounds）
   Future<void> fitMapToTrack(List<LatLng> trackPoints) async {
     if (!isMapReady.value || mapController == null) {
-      DebugUtil.warning('地图未就绪或控制器为空，无法调整视图');
+      logInfo('地图未就绪或控制器为空，无法调整视图');
       return;
     }
 
      
     if (trackPoints.isEmpty) {
-      DebugUtil.warning('轨迹点为空，无法调整视图');
+      logWarning('轨迹点为空，无法调整视图');
       return;
     }
 
@@ -145,9 +146,9 @@ class TrackMapManager {
         await mapController!.moveCamera(
           CameraUpdate.newLatLngZoom(trackPoints.first, 18.0),
         );
-        DebugUtil.success('只有一个轨迹点，直接定位');
+        logInfo('只有一个轨迹点，直接定位');
       } catch (e) {
-        DebugUtil.error('移动到单点位置失败: $e');
+        logError('移动到单点位置失败: $e');
       }
       return;
     }
@@ -178,9 +179,9 @@ class TrackMapManager {
         duration: 500,
       );
 
-      DebugUtil.success('✅ 使用原生LatLngBounds调整地图到显示完整轨迹');
+      logDebug('✅ 使用原生LatLngBounds调整地图到显示完整轨迹');
     } catch (e) {
-      DebugUtil.error('调整地图视图失败: $e');
+      logError('调整地图视图失败: $e');
     }
   }
 
@@ -191,7 +192,7 @@ class TrackMapManager {
     required dynamic locationData,
   }) async {
     if (!isMapReady.value || mapController == null) {
-      DebugUtil.warning('地图未就绪或控制器为空，无法调整视图');
+      logInfo('地图未就绪或控制器为空，无法调整视图');
       return;
     }
 
@@ -206,7 +207,7 @@ class TrackMapManager {
           allPoints.add(LatLng(location.lat, location.lng));
         }
       }
-      DebugUtil.info('从 locations 添加轨迹点数量: ${locationData.locations.length}');
+      logDebug('从 locations 添加轨迹点数量: ${locationData.locations.length}');
     }
 
     // 2. 添加 trace 中的起点
@@ -214,7 +215,7 @@ class TrackMapManager {
       final startPoint = locationData.trace!.startPoint;
       if (startPoint.lat != 0.0 && startPoint.lng != 0.0) {
         allPoints.add(LatLng(startPoint.lat, startPoint.lng));
-        DebugUtil.info('添加起点: (${startPoint.lat}, ${startPoint.lng})');
+       logDebug('添加起点: (${startPoint.lat}, ${startPoint.lng})');
       }
     }
 
@@ -223,7 +224,7 @@ class TrackMapManager {
       final endPoint = locationData.trace!.endPoint;
       if (endPoint.lat != 0.0 && endPoint.lng != 0.0) {
         allPoints.add(LatLng(endPoint.lat, endPoint.lng));
-        DebugUtil.info('添加终点: (${endPoint.lat}, ${endPoint.lng})');
+       logDebug('添加终点: (${endPoint.lat}, ${endPoint.lng})');
       }
     }
 
@@ -234,14 +235,14 @@ class TrackMapManager {
           allPoints.add(LatLng(stop.lat, stop.lng));
         }
       }
-      DebugUtil.info('添加停留点数量: ${locationData.trace!.stops.length}');
+      logDebug('添加停留点数量: ${locationData.trace!.stops.length}');
     }
 
-    DebugUtil.info('🗺️ 总点数: ${allPoints.length}');
+    logDebug('🗺️ 总点数: ${allPoints.length}');
 
     // 如果没有任何点，显示默认位置
     if (allPoints.isEmpty) {
-      DebugUtil.warning('没有有效位置数据，显示全国地图视图');
+      logDebug('没有有效位置数据，显示全国地图视图');
       try {
         await mapController!.moveCamera(
           CameraUpdate.newCameraPosition(
@@ -252,7 +253,7 @@ class TrackMapManager {
           ),
         );
       } catch (e) {
-        DebugUtil.error('移动到默认位置失败: $e');
+        logError('移动到默认位置失败: $e');
       }
       return;
     }
@@ -263,9 +264,9 @@ class TrackMapManager {
         await mapController!.moveCamera(
           CameraUpdate.newLatLngZoom(allPoints.first, 18.0),
         );
-        DebugUtil.success('只有一个点，直接定位');
+        logDebug('只有一个点，直接定位');
       } catch (e) {
-        DebugUtil.error('移动到单点位置失败: $e');
+        logError('移动到单点位置失败: $e');
       }
       return;
     }
@@ -291,7 +292,7 @@ class TrackMapManager {
         northeast: LatLng(maxLat, maxLng),
       );
 
-      DebugUtil.info(
+      logDebug(
         '📍 bounds: southwest($minLat, $minLng), northeast($maxLat, $maxLng)',
       );
 
@@ -302,9 +303,9 @@ class TrackMapManager {
         duration: 500,
       );
 
-      DebugUtil.success('✅ 使用原生LatLngBounds自动调整地图视图');
+      logDebug('✅ 使用原生LatLngBounds自动调整地图视图');
     } catch (e) {
-      DebugUtil.error('调整地图视图失败: $e');
+      logError('调整地图视图失败: $e');
     }
   }
 
@@ -316,7 +317,7 @@ class TrackMapManager {
   }) {
     // 检查地图是否就绪
     if (!isMapReady.value || mapController == null) {
-      DebugUtil.warning('地图未就绪或控制器为空，无法强制更新');
+      logInfo('地图未就绪或控制器为空，无法强制更新');
       return;
     }
 

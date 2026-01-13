@@ -69,7 +69,7 @@ class LoveInfoController extends GetxController {
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    DebugUtil.info('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
+    logDebug('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
@@ -78,7 +78,7 @@ class LoveInfoController extends GetxController {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      DebugUtil.info('🔄 恋爱信息页面：静默刷新用户信息');
+      logDebug('🔄 恋爱信息页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
@@ -91,20 +91,20 @@ class LoveInfoController extends GetxController {
 
   /// 刷新用户信息（供外部调用，例如绑定成功后）
   void refreshUserInfo() {
-    DebugUtil.info('🔄 刷新恋爱信息页用户数据...');
+   logDebug('🔄 刷新恋爱信息页用户数据...');
     _loadUserInfo();
   }
 
   void _loadUserInfo() {
     final user = UserManager.currentUser;
     if (user != null) {
-      DebugUtil.info('Loading user info: ${user.nickname}');
+      logDebug('Loading user info: ${user.nickname}');
 
       // 绑定状态处理 (1绑定，2未绑定，0初始未绑定)
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
       // isBindPartner.value  = false;
-      DebugUtil.info('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
+      logDebug('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
 
       // 我的信息
       myAvatar.value = user.headPortrait ?? "";
@@ -118,7 +118,7 @@ class LoveInfoController extends GetxController {
       myPhone.value = user.phone ?? "";
 
       if (isBindPartner.value) {
-        DebugUtil.info('Processing bound state...');
+        logDebug('Processing bound state...');
         // 已绑定状态 - 处理伴侣信息和恋爱信息
         _handleBoundState(user);
       }
@@ -126,11 +126,11 @@ class LoveInfoController extends GetxController {
   }
 
   void _handleBoundState(user) {
-    DebugUtil.info('Handling bound state...');
+    logDebug('Handling bound state...');
 
     // 处理伴侣信息
     if (user.halfUserInfo != null) {
-      DebugUtil.info('Using halfUserInfo for partner data');
+      logDebug('Using halfUserInfo for partner data');
       final half = user.halfUserInfo!;
       partnerAvatar.value = half.headPortrait ?? "";
       partnerNickname.value = half.nickname ?? "";
@@ -142,7 +142,7 @@ class LoveInfoController extends GetxController {
       partnerBirthday.value = half.birthday ?? "未选择";
       partnerPhone.value = half.phone ?? "";
 
-      DebugUtil.info(
+      logDebug(
         'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
       );
     }
@@ -154,33 +154,33 @@ class LoveInfoController extends GetxController {
   void _handleDateAndDays(user) {
     // 只使用LoverInfo中的接口数据，不做本地计算
     if (user.loverInfo != null) {
-      DebugUtil.info('Using loverInfo for love data');
+      logDebug('Using loverInfo for love data');
       final lover = user.loverInfo!;
       
       // 绑定日期
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
-        DebugUtil.info('Bind date from loverInfo: ${bindDate.value}');
+        logDebug('Bind date from loverInfo: ${bindDate.value}');
       }
       
       // 相恋时间
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
-        DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
+        logDebug('Love time from loverInfo: ${loveTime.value}');
       }
 
       // 恋爱天数 - 直接使用服务器数据
       if (lover.loveDays != null) {
         loveDays.value = lover.loveDays!;
         togetherDays.value = lover.loveDays!;
-        DebugUtil.info('✅ Love days from loverInfo API: ${loveDays.value}');
+        logDebug('✅ Love days from loverInfo API: ${loveDays.value}');
       } else {
         loveDays.value = 0;
         togetherDays.value = 0;
-        DebugUtil.info('❌ Love days is null, set to 0');
+        logDebug('❌ Love days is null, set to 0');
       }
     } else {
-      DebugUtil.info('No loverInfo data available, keeping default value: 0');
+      logDebug('No loverInfo data available, keeping default value: 0');
       loveDays.value = 0;
       togetherDays.value = 0;
     }
@@ -405,6 +405,7 @@ class LoveInfoController extends GetxController {
 
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
+        logError(result.msg ?? '头像更新失败');
         CustomToast.show(Get.context!, result.msg ?? '头像更新失败');
       }
     } catch (e) {
@@ -412,6 +413,7 @@ class LoveInfoController extends GetxController {
       if (Get.isDialogOpen == true) {
         Get.back();
       }
+      logError('头像更新失败：$e');
       CustomToast.show(Get.context!, '头像更新失败：$e');
     }
   }
@@ -444,6 +446,7 @@ class LoveInfoController extends GetxController {
         await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
+      logError('选择图片失败: $e');
       CustomToast.show(Get.context!, '选择图片失败: $e');
     }
   }
@@ -505,6 +508,7 @@ class LoveInfoController extends GetxController {
         
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
+        logError(result.msg ?? '头像上传失败');
         CustomToast.show(Get.context!, result.msg ?? '头像上传失败');
       }
     } catch (e) {
@@ -512,6 +516,7 @@ class LoveInfoController extends GetxController {
       if (Get.isDialogOpen == true) {
         Get.back();
       }
+      logError('上传头像失败：$e');
       CustomToast.show(Get.context!, '上传头像失败：$e');
     }
   }
@@ -593,9 +598,11 @@ class LoveInfoController extends GetxController {
 
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
+        logError(result.msg ?? '头像更新失败');
         CustomToast.show(Get.context!, result.msg ?? '头像更新失败');
       }
     } catch (e) {
+      logError('头像更新失败：$e');
       CustomToast.show(Get.context!, '头像更新失败：$e');
     }
   }
@@ -743,9 +750,11 @@ class LoveInfoController extends GetxController {
 
         CustomToast.show(Get.context!, '昵称更新成功');
       } else {
+        logError(result.msg ?? '昵称更新失败');
         CustomToast.show(Get.context!, result.msg ?? '昵称更新失败');
       }
     } catch (e) {
+      logError('昵称更新失败：$e');
       CustomToast.show(Get.context!, '昵称更新失败：$e');
     }
   }
@@ -826,9 +835,11 @@ class LoveInfoController extends GetxController {
 
         CustomToast.show(Get.context!, '性别更新成功');
       } else {
+        logError(result.msg ?? '性别更新失败');
         CustomToast.show(Get.context!, result.msg ?? '性别更新失败');
       }
     } catch (e) {
+      logError('性别更新失败：$e');
       CustomToast.show(Get.context!, '性别更新失败：$e');
     }
   }
@@ -1040,9 +1051,11 @@ class LoveInfoController extends GetxController {
 
         CustomToast.show(Get.context!, '生日更新成功');
       } else {
+        logError(result.msg ?? '生日更新失败');
         CustomToast.show(Get.context!, result.msg ?? '生日更新失败');
       }
     } catch (e) {
+      logError('生日更新失败：$e');
       CustomToast.show(Get.context!, '生日更新失败：$e');
     }
   }
@@ -1179,9 +1192,11 @@ class LoveInfoController extends GetxController {
           CustomToast.show(Get.context!, '相恋时间更新成功');
         }
       } else {
+        logError(result.msg ?? '相恋时间更新失败');
         CustomToast.show(Get.context!, result.msg ?? '相恋时间更新失败');
       }
     } catch (e) {
+      logError('相恋时间更新失败：$e');
       CustomToast.show(Get.context!, '相恋时间更新失败：$e');
     }
   }

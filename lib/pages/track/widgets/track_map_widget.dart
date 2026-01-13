@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../../../widgets/safe_amap_widget.dart';
 import '../../../utils/debug_util.dart';
 import '../../../utils/user_manager.dart';
@@ -64,7 +65,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
 
       if (currentPolylinesVersion != _polylinesVersion ||
           currentStopRecordsVersion != _stopRecordsVersion) {
-        DebugUtil.info('🎨 检测到轨迹线需要更新 - 旧版本: $_polylinesVersion, 新版本: $currentPolylinesVersion, 停留点: $currentStopRecordsVersion');
+        logDebug('🎨 检测到轨迹线需要更新 - 旧版本: $_polylinesVersion, 新版本: $currentPolylinesVersion, 停留点: $currentStopRecordsVersion');
         // 立即更新版本号，避免重复触发
         _polylinesVersion = currentPolylinesVersion;
         _stopRecordsVersion = currentStopRecordsVersion;
@@ -129,16 +130,16 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       newMarkers.addAll(widget.controller.stopMarkers);
       newMarkers.addAll(widget.controller.trackStartEndMarkers);
     } catch (e) {
-      DebugUtil.error('添加标记失败: $e');
+      logError('添加标记失败: $e');
     }
 
     // 添加临时 InfoWindow 标记
     if (widget.controller.tempInfoWindowMarker != null) {
       try {
         newMarkers.add(widget.controller.tempInfoWindowMarker!);
-        DebugUtil.info('✅ 已添加临时 InfoWindow 标记到地图缓存');
+        logDebug('✅ 已添加临时 InfoWindow 标记到地图缓存');
       } catch (e) {
-        DebugUtil.error('添加临时 InfoWindow 标记失败: $e');
+        logError('添加临时 InfoWindow 标记失败: $e');
       }
     }
 
@@ -149,7 +150,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
   Future<void> _updatePolylines() async {
     // 防止重复更新
     if (_isUpdatingPolylines) {
-      DebugUtil.info('🎨 轨迹线正在更新中，跳过此次更新');
+      logDebug('🎨 轨迹线正在更新中，跳过此次更新');
       return;
     }
 
@@ -161,23 +162,23 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       final trackPoints = widget.controller.trackPoints.toList();
       final stopRecords = widget.controller.stopRecords.toList();
 
-      DebugUtil.info('🎯 更新轨迹线 - hasValidTrackData: ${widget.controller.hasValidTrackData.value}, trackPoints: ${trackPoints.length}, stopRecords: ${stopRecords.length}');
+      logDebug('🎯 更新轨迹线 - hasValidTrackData: ${widget.controller.hasValidTrackData.value}, trackPoints: ${trackPoints.length}, stopRecords: ${stopRecords.length}');
 
       if (widget.controller.hasValidTrackData.value && trackPoints.length >= 2) {
-        DebugUtil.info('🎨 轨迹数据有效，开始创建轨迹线');
-        DebugUtil.info('🎨 开始创建轨迹线，轨迹点数量: ${trackPoints.length}');
+        logDebug('🎨 轨迹数据有效，开始创建轨迹线');
+        logDebug('🎨 开始创建轨迹线，轨迹点数量: ${trackPoints.length}');
 
         // 加载轨迹线纹理
         await _loadTexturesIfNeeded();
 
         // 确保纹理已加载
         if (_trackLineTextureRed == null || _trackLineTextureBlue == null) {
-          DebugUtil.error('❌ 纹理未完全加载，无法创建轨迹线');
-          DebugUtil.error('❌ 红色纹理: ${_trackLineTextureRed != null}, 蓝色纹理: ${_trackLineTextureBlue != null}');
+          logError('❌ 纹理未完全加载，无法创建轨迹线');
+          logError('❌ 红色纹理: ${_trackLineTextureRed != null}, 蓝色纹理: ${_trackLineTextureBlue != null}');
           return;
         }
 
-        DebugUtil.info('✅ 纹理加载完成，开始创建轨迹线');
+        logDebug('✅ 纹理加载完成，开始创建轨迹线');
 
         if (stopRecords.isNotEmpty) {
           // 有停留点时按停留点分段
@@ -189,12 +190,12 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
           newPolylines.addAll(defaultPolylines);
         }
       } else {
-        DebugUtil.info('🎨 无有效轨迹数据，清空轨迹线');
+        logDebug('🎨 无有效轨迹数据，清空轨迹线');
         // 没有有效数据时，清空轨迹线
         newPolylines.clear();
       }
     } catch (e) {
-      DebugUtil.error('创建轨迹线失败: $e');
+      logError('创建轨迹线失败: $e');
       _isUpdatingPolylines = false;
       return;
     }
@@ -205,7 +206,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
           setState(() {
             _cachedPolylines = newPolylines;
           });
-          DebugUtil.info('✅ 轨迹线更新完成，共 ${newPolylines.length} 条线段');
+          logDebug('✅ 轨迹线更新完成，共 ${newPolylines.length} 条线段');
         }
         // 重置更新标志
         _isUpdatingPolylines = false;
@@ -224,9 +225,9 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
           const ImageConfiguration(),
           'assets/texture/kissu4_track_line_red.png',
         );
-        DebugUtil.info('✅ 红色纹理加载成功');
+        logDebug('✅ 红色纹理加载成功');
       } catch (e) {
-        DebugUtil.error('❌ 红色纹理加载失败: $e');
+        logError('❌ 红色纹理加载失败: $e');
       }
     }
 
@@ -236,9 +237,9 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
           const ImageConfiguration(),
           'assets/texture/kissu4_track_line_blue.png',
         );
-        DebugUtil.info('✅ 蓝色纹理加载成功');
+        logDebug('✅ 蓝色纹理加载成功');
       } catch (e) {
-        DebugUtil.error('❌ 蓝色纹理加载失败: $e');
+        logError('❌ 蓝色纹理加载失败: $e');
       }
     }
   }
@@ -249,7 +250,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
     final sortedStops = _prepareSortedStops(trackPoints, stopRecords);
     final validStops = _createValidStops(trackPoints, sortedStops);
 
-    DebugUtil.info('🎨 准备创建 ${validStops.length - 1} 段轨迹线');
+    logDebug('🎨 准备创建 ${validStops.length - 1} 段轨迹线');
 
     for (int i = 0; i < validStops.length - 1; i++) {
       final startStop = validStops[i];
@@ -265,7 +266,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
           final isRed = i % 2 == 0;
           final texture = isRed ? _trackLineTextureRed! : _trackLineTextureBlue!;
 
-          DebugUtil.info(
+          logDebug(
             '🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentPoints.length}',
           );
 
@@ -274,7 +275,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       }
     }
 
-    DebugUtil.info('✅ 轨迹线分段完成，共创建 ${polylines.length} 条线段');
+    logDebug('✅ 轨迹线分段完成，共创建 ${polylines.length} 条线段');
     return polylines;
   }
 
@@ -296,7 +297,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       allPoints.add(_createEndPointFromTrackPoint(trackPoints.last));
     }
     
-    DebugUtil.info('🔍 准备停留点: 起点1 + 停留点${stopRecords.length} + 终点1 = ${allPoints.length}');
+    logDebug('🔍 准备停留点: 起点1 + 停留点${stopRecords.length} + 终点1 = ${allPoints.length}');
     
     return allPoints;
   }
@@ -349,7 +350,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
     await _loadTexturesIfNeeded();
     
     if (_trackLineTextureRed == null || _trackLineTextureBlue == null) {
-      DebugUtil.error('❌ 纹理未完全加载，无法创建默认轨迹线');
+      logError('❌ 纹理未完全加载，无法创建默认轨迹线');
       return [];
     }
 
@@ -370,7 +371,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
         final isRed = colorSegmentIndex % 2 == 0;
         final texture = isRed ? _trackLineTextureRed! : _trackLineTextureBlue!;
 
-        DebugUtil.info(
+        logDebug(
           '🎨 默认分段 $colorSegmentIndex: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentPoints.length}',
         );
 
@@ -405,7 +406,7 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       }
     }
 
-    DebugUtil.info('✅ 默认轨迹线创建完成，共 ${polylines.length} 条线段，${colorSegmentIndex} 个颜色分段');
+    logDebug('✅ 默认轨迹线创建完成，共 ${polylines.length} 条线段，${colorSegmentIndex} 个颜色分段');
     return polylines;
   }
 

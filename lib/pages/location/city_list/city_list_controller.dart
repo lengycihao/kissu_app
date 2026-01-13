@@ -4,6 +4,7 @@ import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/network/public/api_request.dart';
 // city storage removed - recent history not needed
 import 'package:kissu_app/network/http_managerN.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 城市列表Controller
 class CityListController extends GetxController {
@@ -99,14 +100,14 @@ class CityListController extends GetxController {
         // 默认选中第一个字母
         selectedLetter.value = letterIndex.isNotEmpty ? letterIndex.first : '';
         
-        debugPrint('✅ 城市列表加载成功：${allCities.length}个分组，${hotCities.length}个热门城市');
+        logDebug('✅ 城市列表加载成功：${allCities.length}个分组，${hotCities.length}个热门城市');
       } else {
-        debugPrint('❌ 加载城市列表失败: ${result.msg}');
+        logDebug('❌ 加载城市列表失败: ${result.msg}');
         // 使用本地默认数据
         _loadDefaultCities();
       }
     } catch (e) {
-      debugPrint('❌ 加载城市列表异常: $e');
+      logError('❌ 加载城市列表异常: $e');
       // 使用本地默认数据
       _loadDefaultCities();
     } finally {
@@ -226,7 +227,7 @@ class CityListController extends GetxController {
       // 找到目标字母在列表中的索引
       final targetIndex = allCities.indexWhere((group) => group.firstLetter == letter);
       if (targetIndex == -1) {
-        debugPrint('⚠️ 未找到字母 $letter 的分组');
+        logDebug('⚠️ 未找到字母 $letter 的分组');
         return;
       }
       
@@ -241,11 +242,11 @@ class CityListController extends GetxController {
             alignment: 0.0,
             curve: Curves.easeInOut,
           );
-          debugPrint('📍 ensureVisible used for letter: $letter');
+          logDebug('📍 ensureVisible used for letter: $letter');
           return;
         }
       } catch (e) {
-        debugPrint('⚠️ ensureVisible failed: $e, fallback to offset calc');
+        logError('⚠️ ensureVisible failed: $e, fallback to offset calc');
       }
 
       // 计算目标位置，先计算顶部固定区域高度（搜索栏 + 当前定位 + 热门城市区域）
@@ -264,9 +265,9 @@ class CityListController extends GetxController {
         targetPosition.clamp(0.0, scrollController.position.maxScrollExtent),
       );
       
-      debugPrint('📍 滚动到字母: $letter (索引: $targetIndex, 位置: $targetPosition)');
+      logDebug('📍 滚动到字母: $letter (索引: $targetIndex, 位置: $targetPosition)');
     } catch (e) {
-      debugPrint('❌ 滚动到字母失败: $e');
+      logError('❌ 滚动到字母失败: $e');
     }
   }
 

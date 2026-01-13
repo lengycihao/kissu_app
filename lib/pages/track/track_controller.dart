@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:intl/intl.dart';
@@ -122,9 +123,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 默认已经是显示自己（currentUserType = 1），只有已绑定时才切换到显示另一半
     if (_userManager.isBindPartner.value) {
       _dataManager.currentUserType.value = 0; // 显示另一半
-      DebugUtil.info('🎯 已绑定，切换到显示另一半的轨迹');
+      logDebug('🎯 已绑定，切换到显示另一半的轨迹');
     } else {
-      DebugUtil.info('🎯 未绑定，保持显示自己的轨迹');
+      logDebug('🎯 未绑定，保持显示自己的轨迹');
     }
 
     // 然后静默刷新用户信息
@@ -142,7 +143,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    DebugUtil.info('🗺️ 足迹页面重新获得焦点，静默刷新用户信息');
+    logDebug('🗺️ 足迹页面重新获得焦点，静默刷新用户信息');
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
@@ -151,7 +152,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      DebugUtil.info('🔄 足迹页面：静默刷新用户信息');
+      logDebug('🔄 足迹页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
@@ -161,15 +162,15 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
         if (_userManager.isBindPartner.value &&
             _dataManager.currentUserType.value != 0) {
           _dataManager.currentUserType.value = 0; // 已绑定：切换到显示另一半
-          DebugUtil.info('🎯 刷新后发现已绑定，切换到显示另一半的轨迹');
+          logDebug('🎯 刷新后发现已绑定，切换到显示另一半的轨迹');
         } else if (!_userManager.isBindPartner.value &&
             _dataManager.currentUserType.value != 1) {
           _dataManager.currentUserType.value = 1; // 未绑定：切换到显示自己
-          DebugUtil.info('🎯 刷新后发现未绑定，切换到显示自己的轨迹');
+          logDebug('🎯 刷新后发现未绑定，切换到显示自己的轨迹');
         }
       }
     } catch (e) {
-      DebugUtil.error('❌ 足迹页面：静默刷新用户信息失败: $e');
+      logError('❌ 足迹页面：静默刷新用户信息失败: $e');
     }
   }
 
@@ -206,7 +207,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 高德地图PlatformView销毁时回调，释放Controller引用避免继续发送指令
   void onMapDisposed() {
-    DebugUtil.warning('🧹 足迹页面：地图PlatformView已销毁，清理控制器引用');
+    logDebug('🧹 足迹页面：地图PlatformView已销毁，清理控制器引用');
     _mapManager.onMapDisposed();
   }
 
@@ -221,20 +222,20 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     final targetUserType = initialInfo.targetUserType;
     if (targetUserType == null) {
       // 没有目标用户类型，不需要切换
-      DebugUtil.info('🎯 没有目标用户类型信息，直接显示InfoWindow');
+      logDebug('🎯 没有目标用户类型信息，直接显示InfoWindow');
       Future.delayed(const Duration(milliseconds: 200), () {
         _markerManager.checkAutoShowInfoWindow(stopPoints);
       });
       return;
     }
 
-    DebugUtil.info(
+    logDebug(
       '🎯 检查用户切换：目标用户类型=$targetUserType，当前用户类型=${isOneself.value}',
     );
 
     // 如果当前显示的用户类型不是目标用户类型，需要切换
     if (isOneself.value != targetUserType) {
-      DebugUtil.info(
+      logDebug(
         '🔄 需要切换用户：从${isOneself.value == 1 ? "自己" : "另一半"}切换到${targetUserType == 1 ? "自己" : "另一半"}',
       );
 
@@ -254,7 +255,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
         });
       });
     } else {
-      DebugUtil.info('✅ 用户类型已匹配，无需切换');
+      logDebug('✅ 用户类型已匹配，无需切换');
 
       // 直接处理初始坐标和自动显示InfoWindow
       Future.delayed(const Duration(milliseconds: 200), () {
@@ -307,23 +308,23 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       avatarName: isMyself ? 'mine' : 'partner',
     );
     
-    DebugUtil.info('🎯 头像点击开始 - isMyself: $isMyself');
+    logDebug('🎯 头像点击开始 - isMyself: $isMyself');
 
     // 计算目标用户类型
     final targetUserType = isMyself ? 1 : 0;
 
     // 如果点击的是当前用户，不做任何处理
     if (isOneself.value == targetUserType) {
-      DebugUtil.info('点击的是当前用户头像，不切换');
+      logDebug('点击的是当前用户头像，不切换');
       return;
     }
 
     // 📱 每次切换头像时，将下半屏恢复到底部吸顶位置
-    DebugUtil.info('💡 切换头像，恢复下半屏到底部吸顶位置');
+    logDebug('💡 切换头像，恢复下半屏到底部吸顶位置');
     _uiManager.collapseToBottomPosition();
 
     // 执行用户切换
-    DebugUtil.info('🔄 切换到${isMyself ? "自己" : "另一半"}');
+    logDebug('🔄 切换到${isMyself ? "自己" : "另一半"}');
     _dataManager.switchUser(targetUserType);
     _clearDataForAvatarSwitch();
     _updateMapAfterUserSwitch();
@@ -379,7 +380,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 选择日期
   void selectDate(DateTime date) {
-    DebugUtil.info(
+    logDebug(
       '📅 TrackController.selectDate 被调用: ${DateFormat('yyyy-MM-dd').format(date)}',
     );
 
@@ -395,7 +396,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     final index = 6 - difference.clamp(0, 6);
     selectedDateIndex.value = index;
 
-    DebugUtil.info('📅 日期索引更新为: $index');
+    logDebug('📅 日期索引更新为: $index');
 
     // 只有日期真正改变时才加载新数据
     if (previousDate.year != date.year ||
@@ -451,7 +452,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
         ),
       };
     } catch (e) {
-      DebugUtil.error('创建轨迹线失败: $e');
+      logError('创建轨迹线失败: $e');
       return {};
     }
   }
@@ -464,9 +465,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       // 使用 MarkerManager 获取所有标记
       markers.addAll(_markerManager.getAllMarkers());
 
-      DebugUtil.info('标记总数: ${markers.length}');
+      logDebug('标记总数: ${markers.length}');
     } catch (e) {
-      DebugUtil.error('获取标记失败: $e');
+      logError('获取标记失败: $e');
     }
 
     return markers.toSet();
@@ -477,26 +478,26 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   /// 请求定位权限并加载数据
   Future<void> _requestLocationPermissionAndLoadData() async {
     try {
-      DebugUtil.check('轨迹页面检查权限状态...');
+      logDebug('轨迹页面检查权限状态...');
 
       final hasPermission = await LocationPermissionManager.instance
           .requestLocationPermission();
 
       if (hasPermission) {
-        DebugUtil.success('轨迹页面权限已授予，加载数据');
+        logDebug('轨迹页面权限已授予，加载数据');
         Future.microtask(() => _loadDataAsync());
       } else {
-        DebugUtil.error('轨迹页面权限未授予');
+        logWarning('轨迹页面权限未授予');
       }
     } catch (e) {
-      DebugUtil.error('轨迹页面权限请求失败: $e');
+      logError('轨迹页面权限请求失败: $e');
       CustomToast.show(Get.context!, '定位权限请求失败');
     }
   }
 
   /// 异步加载位置数据
   Future<void> _loadDataAsync() async {
-    DebugUtil.info('📍 开始加载数据，当前 isLoading = ${isLoading.value}');
+    logDebug('📍 开始加载数据，当前 isLoading = ${isLoading.value}');
 
     // 增加数据版本号，确保数据一致性
     _dataVersion++;
@@ -508,7 +509,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
       // 检查版本号，如果不匹配说明有新的加载请求，放弃当前结果
       if (currentVersion != _dataVersion) {
-        DebugUtil.warning('数据版本不匹配，放弃当前加载结果');
+        logWarning('数据版本不匹配，放弃当前加载结果');
         return;
       }
 
@@ -529,13 +530,13 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
         locationData: _dataManager.currentData,
       );
     } catch (e) {
-      DebugUtil.error('加载数据失败: $e');
+      logError('加载数据失败: $e');
     }
   }
 
   /// 数据加载完成后更新地图和标记
   Future<void> _updateMapAfterDataLoad() async {
-    DebugUtil.info('🗺️ 数据加载完成，更新地图');
+    logDebug('🗺️ 数据加载完成，更新地图');
 
     // 重新创建标记
     await _createMarkers();
@@ -550,7 +551,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 用户切换后更新地图和标记
   Future<void> _updateMapAfterUserSwitch() async {
-    DebugUtil.info('🔄 用户切换完成，更新地图和标记');
+    logDebug('🔄 用户切换完成，更新地图和标记');
 
     // 重新创建标记
     await _createMarkers();
@@ -596,15 +597,15 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       // 更新停留记录列表
       _markerManager.updateStopRecordsFromApiData(_dataManager.currentData);
 
-      DebugUtil.info('所有标记创建完成');
+      logDebug('所有标记创建完成');
     } catch (e) {
-      DebugUtil.error('创建标记失败: $e');
+      logError('创建标记失败: $e');
     }
   }
 
   /// 立即清空数据，给用户即时反馈
   void _clearDataInstantly() {
-    DebugUtil.info('🧹 [ClearInstantly] 开始立即清空数据（日期切换）...');
+    logDebug('🧹 [ClearInstantly] 开始立即清空数据（日期切换）...');
 
     // 清空地图标记
     _markerManager.clearMapImmediately();
@@ -614,12 +615,12 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 清空数据
     _dataManager.clearAllData();
 
-    DebugUtil.success('✅ [ClearInstantly] 数据清空完成');
+    logDebug('✅ [ClearInstantly] 数据清空完成');
   }
 
   /// 智能清空数据 - 头像切换专用
   void _clearDataForAvatarSwitch() {
-    DebugUtil.info('🧹 [ClearAvatar] 开始清空数据（头像切换）...');
+    logDebug('🧹 [ClearAvatar] 开始清空数据（头像切换）...');
 
     // 立即清理地图
     _markerManager.clearMapImmediately();
@@ -627,7 +628,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 清空轨迹线状态
     hasValidTrackData.value = false;
 
-    DebugUtil.success('✅ [ClearAvatar] 清空完成');
+    logDebug('✅ [ClearAvatar] 清空完成');
   }
 
   /// 移动地图到停留点并高亮显示
@@ -642,7 +643,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     try {
       final targetLocation = LatLng(latitude, longitude);
 
-      DebugUtil.info('🎯 [StopPointClick] 开始执行完整流程...');
+      logDebug('🎯 [StopPointClick] 开始执行完整流程...');
 
       // 设置动画锁，防止用户在地图变化时滑动面板造成冲突
       _mapManager.setAnimationLock(true);
@@ -658,9 +659,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
           );
-          DebugUtil.info('🎯 [StopPointClick] 步骤0: ScrollView归位到顶部');
+          logDebug('🎯 [StopPointClick] 步骤0: ScrollView归位到顶部');
         } catch (e) {
-          DebugUtil.warning('⚠️ ScrollView归位失败: $e');
+          logWarning('⚠️ ScrollView归位失败: $e');
         }
         // 等待ScrollView归位动画完成
         await Future.delayed(const Duration(milliseconds: 100));
@@ -668,14 +669,14 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
       // 1. 收起下半屏到底部吸顶位置
       _uiManager.collapseToBottomPosition();
-      DebugUtil.info('🎯 [StopPointClick] 步骤1: 收起下半屏到底部吸顶位置');
+      logDebug('🎯 [StopPointClick] 步骤1: 收起下半屏到底部吸顶位置');
 
       // 2. 等待面板收起动画
       await Future.delayed(const Duration(milliseconds: 100));
 
       // 3. 清除之前的所有地图高亮
       _markerManager.clearMapHighlights();
-      DebugUtil.info('🎯 [StopPointClick] 步骤2: 清除旧高亮');
+      logDebug('🎯 [StopPointClick] 步骤2: 清除旧高亮');
 
       // 4. 等待清除操作完成
       await Future.delayed(const Duration(milliseconds: 100));
@@ -689,9 +690,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
               CameraPosition(target: targetLocation, zoom: 18.0),
             ),
           );
-          DebugUtil.info('🎯 [StopPointClick] 步骤3: 移动相机到目标点');
+          logDebug('🎯 [StopPointClick] 步骤3: 移动相机到目标点');
         } catch (e) {
-          DebugUtil.error('移动地图到停留点失败: $e');
+          logError('移动地图到停留点失败: $e');
         }
       }
 
@@ -702,9 +703,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
       if (stopPoint != null) {
         try {
           await _markerManager.showInfoWindowForStopPoint(stopPoint);
-          DebugUtil.info('🎯 [StopPointClick] 步骤4: 显示InfoWindow');
+          logDebug('🎯 [StopPointClick] 步骤4: 显示InfoWindow');
         } catch (e) {
-          DebugUtil.error('❌ 显示InfoWindow失败: $e');
+          logError('❌ 显示InfoWindow失败: $e');
         }
 
         // 8. 等待InfoWindow显示完成
@@ -712,21 +713,21 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
         // 9. 绘制高亮圆圈
         _markerManager.drawHighlightCircle(targetLocation);
-        DebugUtil.info('🎯 [StopPointClick] 步骤5: 绘制高亮圆圈');
+        logDebug('🎯 [StopPointClick] 步骤5: 绘制高亮圆圈');
       } else {
         // 没有stopPoint时，只绘制高亮圆圈
         await Future.delayed(const Duration(milliseconds: 300));
         _markerManager.drawHighlightCircle(targetLocation);
-        DebugUtil.info('🎯 [StopPointClick] 步骤4: 绘制高亮圆圈');
+        logDebug('🎯 [StopPointClick] 步骤4: 绘制高亮圆圈');
       }
 
-      DebugUtil.success('✅ [StopPointClick] 完整流程执行完成！');
+      logDebug('✅ [StopPointClick] 完整流程执行完成！');
 
       // 释放动画锁
       await Future.delayed(const Duration(milliseconds: 500));
       _mapManager.setAnimationLock(false);
     } catch (e) {
-      DebugUtil.error('❌ [StopPointClick] 执行失败: $e');
+      logError('❌ [StopPointClick] 执行失败: $e');
       _mapManager.setAnimationLock(false);
     }
   }
@@ -738,19 +739,19 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 刷新当前用户数据
   Future<void> refreshCurrentUserData() async {
-    DebugUtil.info('🔄 外部刷新请求: 重新加载当前日期的轨迹数据');
+    logDebug('🔄 外部刷新请求: 重新加载当前日期的轨迹数据');
 
     try {
       await _loadDataAsync();
-      DebugUtil.success('✅ 轨迹数据刷新完成');
+      logDebug('✅ 轨迹数据刷新完成');
     } catch (e) {
-      DebugUtil.error('❌ 轨迹数据刷新失败: $e');
+      logError('❌ 轨迹数据刷新失败: $e');
     }
   }
 
   @override
   void onClose() {
-    DebugUtil.info('🧹 开始清理轨迹页面资源和缓存...');
+    logDebug('🧹 开始清理轨迹页面资源和缓存...');
 
  
 
@@ -763,7 +764,7 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 手动调用继承 GetxController 的管理器的 onClose() 方法
     _uiManager.onClose();
 
-    DebugUtil.success('✅ 轨迹页面资源清理完成');
+    logDebug('✅ 轨迹页面资源清理完成');
     super.onClose();
   }
 

@@ -175,6 +175,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
+      logError('选择图片失败: $e', tag: 'ImageDialog', error: e);
       CustomToast.show(context, '选择图片失败: $e');
     }
   }
@@ -221,6 +222,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         setState(() {
           _isUploading = false;
         });
+        logError(uploadResult.msg ?? '图片上传失败', tag: 'ImageDialog');
         CustomToast.show(context, uploadResult.msg ?? '图片上传失败');
         return;
       }
@@ -247,6 +249,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           widget.onUploadSuccess!();
         }
       } else {
+        logError(saveResult.msg ?? '照片墙保存失败', tag: 'ImageDialog');
         CustomToast.show(context, saveResult.msg ?? '照片墙保存失败');
       }
     } catch (e) {
@@ -630,6 +633,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
         setState(() {
           _isUploading = false;
         });
+        logError(uploadResult.msg ?? '上传失败', tag: 'ImageDialog');
         CustomToast.show(context, uploadResult.msg ?? '上传失败');
         return;
       }
@@ -652,6 +656,7 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
           widget.onUploadSuccess!();
         }
       } else {
+        logError(saveResult.msg ?? '保存失败', tag: 'ImageDialog');
         CustomToast.show(context, saveResult.msg ?? '保存失败');
       }
 

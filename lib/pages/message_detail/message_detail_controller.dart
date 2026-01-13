@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -42,7 +43,7 @@ class MessageDetailController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = '网络错误: ${e.toString()}';
-      debugPrint('加载消息列表失败: $e');
+      logError('加载消息列表失败: $e');
     } finally {
       isLoading.value = false;
     }
@@ -71,7 +72,7 @@ class MessageDetailController extends GetxController {
   /// 同意绑定
   Future<void> _affirmBind(MessageItem message) async {
     try {
-      debugPrint('开始同意绑定，消息ID: ${message.id}');
+      logDebug('开始同意绑定，消息ID: ${message.id}');
       
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.affirmBind,
@@ -91,7 +92,7 @@ class MessageDetailController extends GetxController {
         CustomToast.show(Get.context!, result.msg ?? '绑定失败');
       }
     } catch (e) {
-      debugPrint('同意绑定失败: $e');
+      logError('同意绑定失败: $e');
       CustomToast.show(Get.context!, '绑定失败: $e');
     }
   }
@@ -99,7 +100,7 @@ class MessageDetailController extends GetxController {
   /// 拒绝绑定
   Future<void> _refuseBind(MessageItem message) async {
     try {
-      debugPrint('开始拒绝绑定，消息ID: ${message.id}');
+      logDebug('开始拒绝绑定，消息ID: ${message.id}');
       
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.refuseBind,
@@ -116,7 +117,7 @@ class MessageDetailController extends GetxController {
         CustomToast.show(Get.context!, result.msg ?? '操作失败');
       }
     } catch (e) {
-      debugPrint('拒绝绑定失败: $e');
+      logError('拒绝绑定失败: $e');
       CustomToast.show(Get.context!, '操作失败: $e');
     }
   }
@@ -133,7 +134,7 @@ class MessageDetailController extends GetxController {
         await homeController.refreshUserInfoAndState();
       }
     } catch (e) {
-      debugPrint('刷新用户信息失败: $e');
+      logError('刷新用户信息失败: $e');
     }
   }
 

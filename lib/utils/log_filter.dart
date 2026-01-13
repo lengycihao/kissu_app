@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LogFilter {
   static bool _isInitialized = false;
@@ -20,9 +21,9 @@ class LogFilter {
     try {
       // 设置系统属性来减少媒体编解码器的调试日志
       // 这些设置会在MainActivity中应用
-      debugPrint('🔧 日志过滤配置已初始化');
+      logDebug('🔧 日志过滤配置已初始化');
     } catch (e) {
-      debugPrint('⚠️ 日志过滤配置失败: $e');
+      logWarning('⚠️ 日志过滤配置失败: $e');
     }
   }
   
@@ -67,7 +68,7 @@ class LogFilter {
     }
     
     // 输出其他日志
-    debugPrint(message);
+    logDebug(message);
   }
   
   /// 检查是否应该过滤日志

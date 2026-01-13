@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/models/chat_message.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_more_menu.dart';
@@ -12,6 +13,7 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_receipt.dart';
@@ -86,7 +88,7 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    debugPrint('💬 ChatController 初始化');
+    logDebug('💬 ChatController 初始化');
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -173,12 +175,12 @@ class ChatController extends GetxController {
       if ((half.headPortrait ?? '').isNotEmpty) {
         avatarUrl.value = half.headPortrait!;
       }
-      debugPrint('💬 初始化聊天对象: imId=$_partnerImId, name=${chatName.value}');
+      logDebug('💬 初始化聊天对象: imId=$_partnerImId, name=${chatName.value}');
       
       // 异步从 IM SDK 获取最新资料（包括备注）
       _updatePartnerInfoFromIM();
     } else {
-      debugPrint('💬 未找到halfUserInfo，暂无法确定聊天对象IM ID');
+      logDebug('💬 未找到halfUserInfo，暂无法确定聊天对象IM ID');
     }
   }
 
@@ -206,7 +208,7 @@ class ChatController extends GetxController {
         if (face != null && face.isNotEmpty) {
           avatarUrl.value = face;
         }
-        debugPrint('💬 从IM SDK更新好友信息成功: name=${chatName.value}');
+        logDebug('💬 从IM SDK更新好友信息成功: name=${chatName.value}');
       } else {
         // 2. 如果不是好友，尝试获取普通用户信息
         final userInfo = await im.getUsersInfo(partnerId);
@@ -217,11 +219,11 @@ class ChatController extends GetxController {
           if (userInfo.faceUrl != null && userInfo.faceUrl!.isNotEmpty) {
             avatarUrl.value = userInfo.faceUrl!;
           }
-          debugPrint('💬 从IM SDK更新用户信息成功: name=${chatName.value}');
+          logDebug('💬 从IM SDK更新用户信息成功: name=${chatName.value}');
         }
       }
     } catch (e) {
-      debugPrint('💬 从IM SDK更新对方信息失败: $e');
+      logError('💬 从IM SDK更新对方信息失败: $e');
     }
   }
 
@@ -278,11 +280,11 @@ class ChatController extends GetxController {
     final partnerId = _partnerImId;
 
     if (partnerId == null || partnerId.isEmpty) {
-      debugPrint('💬 无法拉取历史消息：未找到另一半IM ID');
+      logDebug('💬 无法拉取历史消息：未找到另一半IM ID');
       return;
     }
     if (!im.isInitialized || !im.isLoggedIn) {
-      debugPrint('💬 IM未初始化或未登录，无法拉取历史消息');
+      logDebug('💬 IM未初始化或未登录，无法拉取历史消息');
       return;
     }
     if (_isLoadingHistory || !_hasMoreHistory) {
@@ -299,7 +301,7 @@ class ChatController extends GetxController {
       );
 
       if (res == null || res.code != 0 || res.data == null) {
-        debugPrint('💬 拉取历史消息失败: code=${res?.code}, desc=${res?.desc}');
+        logInfo('💬 拉取历史消息失败: code=${res?.code}, desc=${res?.desc}');
         _isLoadingHistory = false;
         return;
       }
@@ -355,7 +357,7 @@ class ChatController extends GetxController {
         _hasMoreHistory = false;
       }
     } catch (e) {
-      debugPrint('💬 拉取历史消息异常: $e');
+      logError('💬 拉取历史消息异常: $e');
     } finally {
       _isLoadingHistory = false;
     }
@@ -366,12 +368,12 @@ class ChatController extends GetxController {
     final savedBackground = await SpUtil.getString('chat_background_path');
     if (savedBackground.isNotEmpty) {
       backgroundImage.value = savedBackground;
-      debugPrint('💬 加载缓存的聊天背景: $savedBackground');
+      logDebug('💬 加载缓存的聊天背景: $savedBackground');
     } else {
       // 如果没有保存的背景，默认使用第一套主题的背景
       const defaultThemeBackground = 'assets/chat/kissu_chat_theme_bg1.webp';
       backgroundImage.value = defaultThemeBackground;
-      debugPrint('💬 使用默认主题背景（第一套主题）: $defaultThemeBackground');
+      logDebug('💬 使用默认主题背景（第一套主题）: $defaultThemeBackground');
     }
   }
 
@@ -380,13 +382,13 @@ class ChatController extends GetxController {
     final savedStyle = await SpUtil.getInteger('chat_bubble_style', 1);
     if (savedStyle > 0 && savedStyle <= 4) {
       bubbleStyle.value = savedStyle;
-      debugPrint('💬 加载缓存的气泡样式: $savedStyle');
+      logDebug('💬 加载缓存的气泡样式: $savedStyle');
     } else {
       // 如果缓存中没有或值无效，使用默认样式1
       bubbleStyle.value = 1;
       // 同时保存默认值到缓存
       await SpUtil.putInteger('chat_bubble_style', 1);
-      debugPrint('💬 使用默认气泡样式: 1');
+      logDebug('💬 使用默认气泡样式: 1');
     }
   }
 
@@ -395,11 +397,11 @@ class ChatController extends GetxController {
     final savedTheme = await SpUtil.getInteger('chat_theme', 1);
     if (savedTheme > 0 && savedTheme <= 4) {
       chatTheme.value = savedTheme;
-      debugPrint('💬 加载缓存的主题: $savedTheme');
+      logDebug('💬 加载缓存的主题: $savedTheme');
     } else {
       chatTheme.value = 1;
       await SpUtil.putInteger('chat_theme', 1);
-      debugPrint('💬 使用默认主题: 1');
+      logDebug('💬 使用默认主题: 1');
     }
   }
 
@@ -411,7 +413,7 @@ class ChatController extends GetxController {
       SpUtil.putInteger('chat_bubble_style', style);
       // 刷新消息列表以触发气泡重建
       messages.refresh();
-      debugPrint('💬 更新并保存气泡样式: $style');
+      logDebug('💬 更新并保存气泡样式: $style');
     }
   }
 
@@ -419,7 +421,7 @@ class ChatController extends GetxController {
   void updateTheme(int theme) {
     if (theme >= 1 && theme <= 4) {
       chatTheme.value = theme;
-      debugPrint('💬 更新主题: $theme');
+      logDebug('💬 更新主题: $theme');
     }
   }
 
@@ -477,7 +479,7 @@ class ChatController extends GetxController {
     scrollController.dispose();
     inputFocusNode.dispose();
     _deviceInfoTooltipTimer?.cancel();
-    debugPrint('💬 ChatController 销毁');
+    logDebug('💬 ChatController 销毁');
     super.onClose();
   }
 
@@ -518,7 +520,7 @@ class ChatController extends GetxController {
       // 当输入框获得焦点时（键盘抬起），关闭所有面板
       if (inputFocusNode.hasFocus) {
         showEmojiPanel.value = false;
-        debugPrint('💬 键盘抬起，关闭所有面板');
+        logDebug('💬 键盘抬起，关闭所有面板');
         // 键盘抬起时，延迟滚动到底部
         _scrollToBottomWithDelay();
       }
@@ -564,13 +566,13 @@ class ChatController extends GetxController {
   }) async {
     final partnerId = _partnerImId;
     if (partnerId == null || partnerId.isEmpty) {
-      debugPrint('💬 未找到另一半IM ID，暂时只本地显示消息: $text');
+      logDebug('💬 未找到另一半IM ID，暂时只本地显示消息: $text');
       return;
     }
 
     final im = TencentIMService.instance;
     if (!im.isInitialized || !im.isLoggedIn) {
-      debugPrint('💬 IM未初始化或未登录，暂时只本地显示消息: $text');
+      logDebug('💬 IM未初始化或未登录，暂时只本地显示消息: $text');
       return;
     }
 
@@ -742,7 +744,7 @@ class ChatController extends GetxController {
         }
       });
     } catch (e) {
-      debugPrint('💬 设置IM消息监听失败: $e');
+      logError('💬 设置IM消息监听失败: $e');
     }
   }
 
@@ -782,7 +784,7 @@ class ChatController extends GetxController {
         },
       );
     } catch (e) {
-      debugPrint('💬 设置IM已读回执监听失败: $e');
+      logError('💬 设置IM已读回执监听失败: $e');
     }
   }
 
@@ -813,7 +815,7 @@ class ChatController extends GetxController {
     if (showEmojiPanel.value) {
       // 展开表情面板时，收起键盘
       inputFocusNode.unfocus();
-      debugPrint('💬 表情面板展开，收起键盘');
+      logDebug('💬 表情面板展开，收起键盘');
       // 延迟滚动到底部，确保面板完全展开后再滚动
       _scrollToBottomWithDelay();
     }
@@ -880,7 +882,7 @@ class ChatController extends GetxController {
       final im = TencentIMService.instance;
 
       if (partnerId == null || partnerId.isEmpty) {
-        debugPrint('💬 未找到另一半IM ID，暂时本地显示图片: ${imageFile.path}');
+        logDebug('💬 未找到另一半IM ID，暂时本地显示图片: ${imageFile.path}');
       }
 
       // 先尝试读取图片原始宽高，用于前端按 1:1 / 16:9 / 9:16 展示
@@ -896,7 +898,7 @@ class ChatController extends GetxController {
         imgWidth = uiImage.width.toDouble();
         imgHeight = uiImage.height.toDouble();
       } catch (e) {
-        debugPrint('💬 解析图片宽高失败，使用默认比例展示: $e');
+        logError('💬 解析图片宽高失败，使用默认比例展示: $e');
       }
 
       // 本地先上屏一条图片消息，提升体验
@@ -929,7 +931,7 @@ class ChatController extends GetxController {
           imagePath: imageFile.path,
           isGroup: false,
         );
-        debugPrint('💬 发送图片消息到IM: ${imageFile.path}');
+        logDebug('💬 发送图片消息到IM: ${imageFile.path}');
 
         // 使用 SDK 返回的 msgID + 服务器时间，更新本地临时图片消息
         if (res != null && res.code == 0 && res.data != null) {
@@ -969,15 +971,9 @@ class ChatController extends GetxController {
         }
       }
     } catch (e) {
-      debugPrint('发送图片失败: $e');
-      Get.snackbar(
-        '错误',
-        '发送图片失败',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
+      logError('发送图片失败: $e');
+      OKToastUtil.showError("发送图片失败");
+      
     }
   }
 
@@ -1251,24 +1247,18 @@ class ChatController extends GetxController {
       messages.add(message);
       _scrollToBottom();
 
-      debugPrint('💬 发送位置: ${message.locationName} (${message.latitude}, ${message.longitude})');
+      logDebug('💬 发送位置: ${message.locationName} (${message.latitude}, ${message.longitude})');
       // TODO: 发送位置到服务器
     } catch (e) {
-      debugPrint('发送位置失败: $e');
-      Get.snackbar(
-        '错误',
-        '发送位置失败',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
+      logError('发送位置失败: $e');
+      OKToastUtil.showError("发送位置失败");
+       
     }
   }
 
   // 处理更多菜单点击
   void handleMoreMenuAction(MoreMenuType type) {
-    debugPrint('💬 更多菜单: ${type.name}');
+    logDebug('💬 更多菜单: ${type.name}');
 
     switch (type) {
       case MoreMenuType.editRemark:
@@ -1330,17 +1320,18 @@ class ChatController extends GetxController {
     if (imageFile != null) {
       // 使用本地图片路径作为背景
       backgroundImage.value = imageFile.path;
-      Get.snackbar(
-        '成功',
-        '背景已更换',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xffBA92FD),
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 1),
-      );
+      OKToastUtil.showSuccess("背景已更换");
+      // Get.snackbar(
+      //   '成功',
+      //   '背景已更换',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   backgroundColor: const Color(0xffBA92FD),
+      //   colorText: Colors.white,
+      //   margin: const EdgeInsets.all(16),
+      //   duration: const Duration(seconds: 1),
+      // );
       
-      debugPrint('💬 更换聊天背景: ${imageFile.path}');
+      logDebug('💬 更换聊天背景: ${imageFile.path}');
       // TODO: 上传背景图到服务器，保存用户偏好设置
     }
   }
@@ -1397,7 +1388,7 @@ class ChatController extends GetxController {
         if (scrollController.hasClients && messages.isNotEmpty) {
           // reverse:true时，滚动到0就是底部
           scrollController.jumpTo(0.0);
-          debugPrint('💬 初始化时自动定位到底部');
+          logDebug('💬 初始化时自动定位到底部');
         }
       });
     });

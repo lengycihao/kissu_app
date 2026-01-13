@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 内存管理工具类
 /// 用于统一管理应用的内存使用和资源清理
@@ -13,9 +14,9 @@ class MemoryManager {
       // 清理图片缓存
       _clearImageCache();
       
-      debugPrint('🧹 内存管理器：所有缓存已清理');
+      logDebug('🧹 内存管理器：所有缓存已清理');
     } catch (e) {
-      debugPrint('❌ 清理缓存时出错: $e');
+      logError('❌ 清理缓存时出错: $e');
     }
   }
 
@@ -29,9 +30,9 @@ class MemoryManager {
       imageCache.clear();
       imageCache.clearLiveImages();
       
-      debugPrint('🧹 图片缓存已清理');
+      logDebug('🧹 图片缓存已清理');
     } catch (e) {
-      debugPrint('❌ 清理图片缓存时出错: $e');
+      logError('❌ 清理图片缓存时出错: $e');
     }
   }
 
@@ -39,13 +40,13 @@ class MemoryManager {
   static void printMemoryUsage() {
     try {
       final imageCache = PaintingBinding.instance.imageCache;
-      debugPrint('📊 内存使用情况:');
-      debugPrint('  - 图片缓存数量: ${imageCache.currentSize}');
-      debugPrint('  - 图片缓存大小限制: ${imageCache.maximumSize}');
-      debugPrint('  - 图片缓存大小: ${imageCache.currentSizeBytes}');
-      debugPrint('  - 图片缓存大小限制: ${imageCache.maximumSizeBytes}');
+      logDebug('📊 内存使用情况:');
+      logDebug('  - 图片缓存数量: ${imageCache.currentSize}');
+      logDebug('  - 图片缓存大小限制: ${imageCache.maximumSize}');
+      logDebug('  - 图片缓存大小: ${imageCache.currentSizeBytes}');
+      logDebug('  - 图片缓存大小限制: ${imageCache.maximumSizeBytes}');
     } catch (e) {
-      debugPrint('❌ 获取内存使用情况时出错: $e');
+      logError('❌ 获取内存使用情况时出错: $e');
     }
   }
 
@@ -59,15 +60,15 @@ class MemoryManager {
       
       if (maxSize != null) {
         imageCache.maximumSize = maxSize;
-        debugPrint('📊 图片缓存数量限制设置为: $maxSize');
+        logDebug('📊 图片缓存数量限制设置为: $maxSize');
       }
       
       if (maxSizeBytes != null) {
         imageCache.maximumSizeBytes = maxSizeBytes;
-        debugPrint('📊 图片缓存大小限制设置为: $maxSizeBytes bytes');
+        logDebug('📊 图片缓存大小限制设置为: $maxSizeBytes bytes');
       }
     } catch (e) {
-      debugPrint('❌ 设置图片缓存限制时出错: $e');
+      logError('❌ 设置图片缓存限制时出错: $e');
     }
   }
 
@@ -79,6 +80,6 @@ class MemoryManager {
       maxSizeBytes: 50 * 1024 * 1024, // 最多缓存50MB
     );
     
-    debugPrint('🚀 内存管理器初始化完成');
+    logDebug('🚀 内存管理器初始化完成');
   }
 }

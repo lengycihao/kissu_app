@@ -196,20 +196,20 @@ class MineController extends GetxController {
       if (Get.isRegistered<HomeController>()) {
         final homeController = Get.find<HomeController>();
         isRedDot.value = homeController.isRedDot.value;
-        debugPrint('📊 从HomeController获取红点状态: ${isRedDot.value}');
+        logDebug('📊 从HomeController获取红点状态: ${isRedDot.value}');
         return;
       }
 
       // HomeController 不存在，调用 /index 接口获取
-      debugPrint('📊 HomeController不存在，从接口获取红点状态');
+      logDebug('📊 HomeController不存在，从接口获取红点状态');
       final indexApi = IndexApi();
       final result = await indexApi.getIndexData();
       if (result.isSuccess && result.data != null) {
         isRedDot.value = result.data!.isRedDot == 1;
-        debugPrint('📊 从接口获取红点状态: ${isRedDot.value}');
+        logDebug('📊 从接口获取红点状态: ${isRedDot.value}');
       }
     } catch (e) {
-      debugPrint('❌ 加载红点状态失败: $e');
+      logError('❌ 加载红点状态失败: $e');
     }
   }
 
@@ -268,14 +268,14 @@ class MineController extends GetxController {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      debugPrint('🔄 我的页面：静默刷新用户信息');
+      logDebug('🔄 我的页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
         loadUserInfo();
       }
     } catch (e) {
-      debugPrint('❌ 我的页面：静默刷新用户信息失败: $e');
+      logError('❌ 我的页面：静默刷新用户信息失败: $e');
     }
   }
 
@@ -290,10 +290,10 @@ class MineController extends GetxController {
     userAvatar.value = userInfo['avatar'].isNotEmpty ? userInfo['avatar'] : '';
 
     // 调试输出
-    debugPrint('👤 我的页面用户信息：');
-    debugPrint('   昵称: ${nickname.value}');
-    debugPrint('   另一半昵称: ${partnerNickname.value}');
-    debugPrint('   绑定状态: ${userInfo['isBound']}');
+    logDebug('👤 我的页面用户信息：');
+    logDebug('   昵称: ${nickname.value}');
+    logDebug('   另一半昵称: ${partnerNickname.value}');
+    logDebug('   绑定状态: ${userInfo['isBound']}');
 
     // 绑定状态
     isBound.value = userInfo['isBound'];
@@ -309,8 +309,8 @@ class MineController extends GetxController {
       // 如果有用户对象，继续处理绑定状态的其他数据
       final user = UserManager.currentUser;
       if (user != null) {
-        debugPrint('   loverInfo.nickname: ${user.loverInfo?.nickname}');
-        debugPrint('   halfUserInfo.nickname: ${user.halfUserInfo?.nickname}');
+        logDebug('   loverInfo.nickname: ${user.loverInfo?.nickname}');
+        logDebug('   halfUserInfo.nickname: ${user.halfUserInfo?.nickname}');
         _handleBoundState(user);
       }
     } else {
@@ -369,7 +369,7 @@ class MineController extends GetxController {
           days.value = "$difference";
           return;
         } catch (e) {
-          logWarning('解析LoverInfo bindTime失败: $e', tag: 'Mine', error: e);
+          logError('解析LoverInfo bindTime失败: $e', tag: 'Mine', error: e);
         }
       }
     }
@@ -835,11 +835,11 @@ class MineController extends GetxController {
     try {
       final currentContext = Get.context;
       if (currentContext == null) {
-        debugPrint('❌ 无法获取Context，跳过显示关闭确认弹窗');
+        logDebug('❌ 无法获取Context，跳过显示关闭确认弹窗');
         return true; // 出错时允许关闭
       }
 
-      debugPrint('💬 显示绑定弹窗关闭确认');
+      logDebug('💬 显示绑定弹窗关闭确认');
 
       // 使用 BindingCloseConfirmDialog
       final result = await BindingCloseConfirmDialog.show(
@@ -847,11 +847,11 @@ class MineController extends GetxController {
         barrierDismissible: true,
         onCancel: () {
           // 点击"再想想"，关闭所有弹窗
-          debugPrint('💬 用户点击"再想想"，关闭所有弹窗');
+          logDebug('💬 用户点击"再想想"，关闭所有弹窗');
         },
         onConfirm: () {
           // 点击"立即绑定"，只关闭确认弹窗
-          debugPrint('💬 用户点击"立即绑定"，保持绑定弹窗显示');
+          logDebug('💬 用户点击"立即绑定"，保持绑定弹窗显示');
         },
       );
 
@@ -860,7 +860,7 @@ class MineController extends GetxController {
       // result 为 null 表示点击了背景或其他方式关闭，默认不关闭绑定弹窗
       return result ?? false;
     } catch (e) {
-      debugPrint('❌ 显示绑定弹窗关闭确认时发生错误: $e');
+      logError('❌ 显示绑定弹窗关闭确认时发生错误: $e');
       return true; // 出错时允许关闭
     }
   }
@@ -891,6 +891,7 @@ class MineController extends GetxController {
 
       OKToastUtil.show('已退出登录');
     } catch (e) {
+      logError('退出登录时发生错误: $e', tag: 'Mine');
       OKToastUtil.showError('退出登录失败：$e');
     }
   }

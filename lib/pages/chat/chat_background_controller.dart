@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/utils/media_picker_util.dart';
@@ -87,7 +88,7 @@ class ChatBackgroundController extends GetxController {
       // 自动选中新添加的背景
       selectBackground(imageFile.path);
       
-      debugPrint('💬 添加本地背景（不显示在列表中）: ${imageFile.path}');
+      logDebug('💬 添加本地背景（不显示在列表中）: ${imageFile.path}');
     }
   }
 
@@ -111,7 +112,7 @@ class ChatBackgroundController extends GetxController {
       OKToastUtil.showSuccess('背景已更换');
     });
     
-    debugPrint('💬 应用聊天背景: ${selectedBackground.value}');
+    logDebug('💬 应用聊天背景: ${selectedBackground.value}');
   }
   
   /// 根据背景路径获取对应的ID

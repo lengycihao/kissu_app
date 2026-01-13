@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
@@ -37,12 +38,12 @@ class MessageListController extends GetxController {
         hasNewSystemMessage.value = homeController.systemNoticeRedDot.value > 0;
         hasNewInteractionMessage.value = homeController.interactionNoticeRedDot.value > 0;
         
-        debugPrint('📊 同步红点状态: 系统消息=${hasNewSystemMessage.value}, 互动消息=${hasNewInteractionMessage.value}');
+        logDebug('📊 同步红点状态: 系统消息=${hasNewSystemMessage.value}, 互动消息=${hasNewInteractionMessage.value}');
       } else {
-        debugPrint('⚠️ HomeController 未注册，无法同步红点状态');
+        logWarning('⚠️ HomeController 未注册，无法同步红点状态');
       }
     } catch (e) {
-      debugPrint('❌ 同步红点状态失败: $e');
+      logError('❌ 同步红点状态失败: $e');
     }
   }
 
@@ -52,9 +53,9 @@ class MessageListController extends GetxController {
       final permissionService = PermissionService();
       final isGranted = await permissionService.isNotificationPermissionGranted();
       hasNotificationPermission.value = isGranted;
-      debugPrint('通知权限状态: $isGranted');
+      logDebug('通知权限状态: $isGranted');
     } catch (e) {
-      debugPrint('检查通知权限失败: $e');
+      logError('检查通知权限失败: $e');
       hasNotificationPermission.value = false;
     }
   }
@@ -68,7 +69,7 @@ class MessageListController extends GetxController {
         _checkNotificationPermission();
       });
     } catch (e) {
-      debugPrint('打开通知设置失败: $e');
+      logError('打开通知设置失败: $e');
     }
   }
 
@@ -95,10 +96,10 @@ class MessageListController extends GetxController {
         homeController.systemNoticeRedDot.value = 0;
         // 清除主红点显示
         homeController.isRedDot.value = false;
-        debugPrint('✅ 已清除系统消息红点');
+        logDebug('✅ 已清除系统消息红点');
       }
     } catch (e) {
-      debugPrint('❌ 清除系统消息红点失败: $e');
+      logError('❌ 清除系统消息红点失败: $e');
     }
     
     Get.toNamed('/kisssu_app/message_detail', arguments: {'type': 'system'});
@@ -116,10 +117,10 @@ class MessageListController extends GetxController {
         homeController.interactionNoticeRedDot.value = 0;
         // 清除主红点显示
         homeController.isRedDot.value = false;
-        debugPrint('✅ 已清除互动消息红点');
+        logDebug('✅ 已清除互动消息红点');
       }
     } catch (e) {
-      debugPrint('❌ 清除互动消息红点失败: $e');
+      logError('❌ 清除互动消息红点失败: $e');
     }
     
     Get.toNamed('/kisssu_app/interaction_message');
@@ -144,9 +145,9 @@ class MessageListController extends GetxController {
       }
 
       OKToastUtil.show('操作成功');
-      debugPrint('✅ 已清空消息（红点）');
+      logDebug('✅ 已清空消息（红点）');
     } catch (e) {
-      debugPrint('❌ 清空消息失败: $e');
+      logError('❌ 清空消息失败: $e');
     }
   }
 }

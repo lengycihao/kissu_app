@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 
 /// 轨迹页面UI管理器
@@ -129,9 +130,9 @@ class TrackUIManager extends GetxController with GetTickerProviderStateMixin {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
-        DebugUtil.info('🎯 智能展开底部面板到中间位置');
+        logDebug('🎯 智能展开底部面板到中间位置');
       } catch (e) {
-        DebugUtil.error('❌ 展开底部面板失败: $e');
+        logError('❌ 展开底部面板失败: $e');
       }
     }
   }
@@ -145,9 +146,9 @@ class TrackUIManager extends GetxController with GetTickerProviderStateMixin {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
-        DebugUtil.info('🎯 收起底部面板到最小位置');
+        logDebug('🎯 收起底部面板到最小位置');
       } catch (e) {
-        DebugUtil.error('❌ 收起底部面板失败: $e');
+        logError('❌ 收起底部面板失败: $e');
       }
     }
   }
@@ -166,9 +167,9 @@ class TrackUIManager extends GetxController with GetTickerProviderStateMixin {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
-        DebugUtil.info('🎯 收起底部面板到底部吸顶位置');
+        logDebug('🎯 收起底部面板到底部吸顶位置');
       } catch (e) {
-        DebugUtil.error('❌ 收起底部面板到底部位置失败: $e');
+        logError('❌ 收起底部面板到底部位置失败: $e');
       }
     }
   }
@@ -177,7 +178,7 @@ class TrackUIManager extends GetxController with GetTickerProviderStateMixin {
   void updateDateIndex(int index) {
     if (index >= 0 && index < 7) {
       selectedDateIndex.value = index;
-      DebugUtil.info('日期选择器索引更新为: $index');
+      logDebug('日期选择器索引更新为: $index');
     }
   }
   

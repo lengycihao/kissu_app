@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:get/get.dart';  
+import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';  
 
 /// 轨迹页面专用的日期选择器组件
 /// 提供最近7天的日期选择功能
@@ -110,7 +111,7 @@ class TrackDateSelector extends StatelessWidget {
               onTap: () async {
 
                 currentSelectedIndex.value = index;
-                print('📅 选择日期: ${date.toString().split(' ')[0]}');
+                logDebug('📅 选择日期: ${date.toString().split(' ')[0]}');
                 if (onSelect != null) {
                   onSelect!(date);
                 }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/permission_service.dart';
 
 /// 媒体选择工具类
@@ -57,7 +58,7 @@ class MediaPickerUtil {
 
       return File(pickedFile.path);
     } catch (e) {
-      debugPrint('从相册选择图片失败: $e');
+      logError('从相册选择图片失败: $e');
       return null;
     }
   }
@@ -77,7 +78,7 @@ class MediaPickerUtil {
         // 请求权限
         final granted = await _permissionService.requestCameraPermission();
         if (!granted) {
-          debugPrint('相机权限未授予');
+          logDebug('相机权限未授予');
           return null;
         }
       }
@@ -102,7 +103,7 @@ class MediaPickerUtil {
 
       return File(pickedFile.path);
     } catch (e) {
-      debugPrint('拍照失败: $e');
+      logError('拍照失败: $e');
       return null;
     }
   }
@@ -149,13 +150,13 @@ class MediaPickerUtil {
       }
 
       if (compressedFile == null) {
-        debugPrint('图片压缩失败，返回原文件');
+        logDebug('图片压缩失败，返回原文件');
         return file;
       }
 
       return File(compressedFile.path);
     } catch (e) {
-      debugPrint('图片压缩失败: $e，返回原文件');
+      logError('图片压缩失败: $e，返回原文件');
       return file;
     }
   }

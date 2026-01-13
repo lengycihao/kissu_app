@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/managers/track_replay_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_map_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart';
@@ -76,7 +77,7 @@ class TrackReplayController extends GetxController
     // 🎯 初始化静态markers
     _initStaticMarkers();
 
-    DebugUtil.info('🎬 轨迹播放页面初始化完成');
+    logDebug('🎬 轨迹播放页面初始化完成');
   }
 
   /// 设置管理器之间的依赖关系
@@ -124,7 +125,7 @@ class TrackReplayController extends GetxController
 
   /// PlatformView销毁时释放地图控制器，避免继续发送Channel命令
   void onMapDisposed() {
-    DebugUtil.warning('🧹 轨迹播放：地图PlatformView已销毁，停止原生动画更新');
+    logDebug('🧹 轨迹播放：地图PlatformView已销毁，停止原生动画更新');
     _mapManager.onMapDisposed();
     _replayManager.onMapDisposed();
   }
@@ -152,7 +153,7 @@ class TrackReplayController extends GetxController
         ),
       };
     } catch (e) {
-      DebugUtil.error('创建轨迹线失败: $e');
+      logError('创建轨迹线失败: $e');
       return {};
     }
   }
@@ -165,9 +166,9 @@ class TrackReplayController extends GetxController
       await _addStopPointMarkers(staticMarkers);
       
       allMarkers.addAll(staticMarkers);
-      DebugUtil.info('✅ 静态markers初始化完成，数量: ${staticMarkers.length}');
+      logDebug('✅ 静态markers初始化完成，数量: ${staticMarkers.length}');
     } catch (e) {
-      DebugUtil.error('❌ 初始化静态markers失败: $e');
+      logError('❌ 初始化静态markers失败: $e');
     }
   }
   
@@ -207,7 +208,7 @@ class TrackReplayController extends GetxController
         final screenScale = screenWidth / designWidth;
         final adaptedWidth = (34.0 * screenScale * dpr).round();
         final adaptedHeight = (48.0 * screenScale * dpr).round();
-        DebugUtil.info('📍 回放起点marker尺寸: ${adaptedWidth}x$adaptedHeight');
+        logDebug('📍 回放起点marker尺寸: ${adaptedWidth}x$adaptedHeight');
         final startIcon = await _createScaledAssetIcon(
           'assets/images/kissu_location_start.webp',
           adaptedWidth,
@@ -221,13 +222,13 @@ class TrackReplayController extends GetxController
             anchor: const Offset(0.5, 1.0), // 底部中心对齐
             infoWindow: const InfoWindow(title: '', snippet: ''),
             onTap: (_) {
-              DebugUtil.info('点击了轨迹起点');
+              logDebug('点击了轨迹起点');
             },
           ),
         );
-        DebugUtil.success('✅ 轨迹起点标记创建成功');
+        logDebug('✅ 轨迹起点标记创建成功');
       } catch (e) {
-        DebugUtil.error('❌ 创建起点标记失败: $e，使用降级方案');
+        logError('❌ 创建起点标记失败: $e，使用降级方案');
         // 降级方案：使用绿色圆点（使用适配后的尺寸）
         final fallbackSize = _calculateAdaptedSize(24.0);
         final fallbackIcon = await _createColoredCircleIcon(Colors.green, fallbackSize);
@@ -237,7 +238,7 @@ class TrackReplayController extends GetxController
             icon: fallbackIcon,
             infoWindow: const InfoWindow(title: '', snippet: ''),
             onTap: (_) {
-              DebugUtil.info('点击了轨迹起点');
+              logDebug('点击了轨迹起点');
             },
           ),
         );
@@ -254,7 +255,7 @@ class TrackReplayController extends GetxController
           final screenScale = screenWidth / designWidth;
           final adaptedWidth = (34.0 * screenScale * dpr).round();
           final adaptedHeight = (48.0 * screenScale * dpr).round();
-          DebugUtil.info('📍 回放终点marker尺寸: ${adaptedWidth}x$adaptedHeight');
+          logDebug('📍 回放终点marker尺寸: ${adaptedWidth}x$adaptedHeight');
           final endIcon = await _createScaledAssetIcon(
             'assets/images/kissu_location_end.webp',
             adaptedWidth,
@@ -269,13 +270,13 @@ class TrackReplayController extends GetxController
               infoWindow: const InfoWindow(title: '', snippet: ''),
               zIndex: 2.0,
               onTap: (_) {
-                DebugUtil.info('点击了轨迹终点');
+                logDebug('点击了轨迹终点');
               },
             ),
           );
-          DebugUtil.success('✅ 轨迹终点标记创建成功');
+          logDebug('✅ 轨迹终点标记创建成功');
         } catch (e) {
-          DebugUtil.error('❌ 创建终点标记失败: $e，使用降级方案');
+          logError('❌ 创建终点标记失败: $e，使用降级方案');
           // 降级方案：使用红色圆点
           final fallbackSize = _calculateAdaptedSize(24.0);
           final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
@@ -286,14 +287,14 @@ class TrackReplayController extends GetxController
               infoWindow: const InfoWindow(title: '', snippet: ''),
               zIndex: 2.0,
               onTap: (_) {
-                DebugUtil.info('点击了轨迹终点');
+                logDebug('点击了轨迹终点');
               },
             ),
           );
         }
       }
     } catch (e) {
-      DebugUtil.error('❌ 添加起点终点标记失败: $e');
+      logError('❌ 添加起点终点标记失败: $e');
     }
   }
 
@@ -339,9 +340,9 @@ class TrackReplayController extends GetxController
           BitmapDescriptor customIcon;
           try {
             customIcon = await _createCustomStopPointIcon(displayNumber);
-            DebugUtil.info('✅ 停留点 $i 自定义图标创建成功');
+            logDebug('✅ 停留点 $i 自定义图标创建成功');
           } catch (e) {
-            DebugUtil.warning('创建自定义停留点图标失败，使用默认图标: $e');
+            logWarning('创建自定义停留点图标失败，使用默认图标: $e');
             customIcon = BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueRed,
             );
@@ -360,11 +361,11 @@ class TrackReplayController extends GetxController
         } else {}
       }
 
-      DebugUtil.info(
+      logDebug(
         '✅ 停留点标记处理完成，实际添加: ${markers.where((m) => m.icon != BitmapDescriptor.defaultMarker).length} 个',
       );
     } catch (e) {
-      DebugUtil.error('❌ 添加停留点标记失败: $e');
+      logError('❌ 添加停留点标记失败: $e');
     }
   }
 
@@ -381,7 +382,7 @@ class TrackReplayController extends GetxController
       }
       return stopPoint.latitude?.toDouble();
     } catch (e) {
-      DebugUtil.error('获取停留点纬度失败: $e');
+      logError('获取停留点纬度失败: $e');
       return null;
     }
   }
@@ -399,7 +400,7 @@ class TrackReplayController extends GetxController
       }
       return stopPoint.longitude?.toDouble();
     } catch (e) {
-      DebugUtil.error('获取停留点经度失败: $e');
+      logError('获取停留点经度失败: $e');
       return null;
     }
   }
@@ -418,7 +419,7 @@ class TrackReplayController extends GetxController
       }
       return stopPoint.locationName?.toString();
     } catch (e) {
-      DebugUtil.error('获取停留点位置名称失败: $e');
+      logError('获取停留点位置名称失败: $e');
       return null;
     }
   }
@@ -437,7 +438,7 @@ class TrackReplayController extends GetxController
       }
       return stopPoint.stayDuration?.toString();
     } catch (e) {
-      DebugUtil.error('获取停留点停留时长失败: $e');
+      logError('获取停留点停留时长失败: $e');
       return null;
     }
   }
@@ -473,13 +474,13 @@ class TrackReplayController extends GetxController
 
   @override
   void onClose() {
-    DebugUtil.info('🧹 轨迹播放页面资源清理...');
+    logDebug('🧹 轨迹播放页面资源清理...');
 
     // 清理管理器资源
     _mapManager.dispose();
     _replayManager.onClose();
 
-    DebugUtil.success('✅ 轨迹播放页面资源清理完成');
+    logDebug('✅ 轨迹播放页面资源清理完成');
     super.onClose();
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -68,12 +69,12 @@ class ChatBubbleController extends GetxController {
       // 更新聊天控制器的气泡样式（这会触发消息列表自动更新）
       chatController.updateBubbleStyle(selectedBubbleStyle.value);
       
-      debugPrint('💬 应用聊天气泡样式: ${selectedBubbleStyle.value}');
+      logDebug('💬 应用聊天气泡样式: ${selectedBubbleStyle.value}');
       
       // 直接返回到聊天页面，跳过设置页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
     } catch (e) {
-      debugPrint('💬 应用气泡样式失败: $e');
+      logError('💬 应用气泡样式失败: $e');
       // 即使出错也直接返回到聊天页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
     }

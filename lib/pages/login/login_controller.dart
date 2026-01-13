@@ -90,17 +90,16 @@ class LoginController extends GetxController {
     }
   }
 
-  // 🔑 已移除登录页面的隐私协议弹窗相关方法，现在统一在启动页处理
-
-  /// 重置首次协议状态（用于测试）
-  Future<void> resetFirstAgreementForTesting() async {
-    try {
-      await FirstLaunchService.instance.resetFirstAgreementStatus();
-      OKToastUtil.show('首次协议状态已重置，下次启动将重新显示弹窗');
-    } catch (e) {
-      OKToastUtil.show('重置失败: $e');
-    }
-  }
+ 
+  // /// 重置首次协议状态（用于测试）
+  // Future<void> resetFirstAgreementForTesting() async {
+  //   try {
+  //     await FirstLaunchService.instance.resetFirstAgreementStatus();
+  //     OKToastUtil.show('首次协议状态已重置，下次启动将重新显示弹窗');
+  //   } catch (e) {
+  //     OKToastUtil.show('重置失败: $e');
+  //   }
+  // }
 
   /// 获取OpenInstall邀请码
   Future<String?> _getOpenInstallFriendCode() async {
@@ -219,13 +218,13 @@ class LoginController extends GetxController {
     final now = DateTime.now();
     if (_lastLoginTime != null && 
         now.difference(_lastLoginTime!) < _loginDebounceDelay) {
-      debugPrint('⏱️ 登录按钮防抖：距离上次点击时间过短，忽略本次点击');
+      logDebug('⏱️ 登录按钮防抖：距离上次点击时间过短，忽略本次点击');
       return;
     }
     
     // 如果正在登录，防止重复点击
     if (isLoading.value) {
-      debugPrint('⏱️ 登录按钮防抖：正在登录中，忽略本次点击');
+      logDebug('⏱️ 登录按钮防抖：正在登录中，忽略本次点击');
       return;
     }
 
@@ -291,11 +290,8 @@ class LoginController extends GetxController {
         await Future.delayed(const Duration(milliseconds: 200));
 
         // 检查是否需要显示VIP推广弹窗，并保存标识到SharedPreferences
-        debugPrint('登录返回数据: result.data = ${result.data}');
-        debugPrint('is_alert_give_vip 字段: ${result.data?.isGiveVip}');
         final shouldShowVipPromo = result.data?.isGiveVip == 1;
-        debugPrint('是否显示VIP推广弹窗: $shouldShowVipPromo');
-        
+         
         // 保存VIP推广标识到SharedPreferences（无论是true还是false都要保存，覆盖旧值）
         await _saveVipPromoFlag(shouldShowVipPromo);
         
@@ -326,9 +322,8 @@ class LoginController extends GetxController {
         OKToastUtil.show(result.msg ?? '登录失败');
       }
     } catch (e) {
-         
-        
-        OKToastUtil.show("登录失败");
+      logError('❌登录失败: $e', tag: 'Login', error: e);
+      OKToastUtil.show("登录失败");
     } finally {
       // 结束加载状态
       isLoading.value = false;
@@ -370,9 +365,9 @@ class LoginController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('should_show_vip_promo', shouldShow);
-      debugPrint('VIP推广标识已保存: $shouldShow');
+      logDebug('VIP推广标识已保存: $shouldShow');
     } catch (e) {
-      debugPrint('保存VIP推广标识失败: $e');
+      logError('保存VIP推广标识失败: $e');
     }
   }
 

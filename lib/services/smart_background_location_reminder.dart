@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
@@ -58,9 +59,9 @@ class SmartBackgroundLocationReminder extends GetxService {
         _lastReminderTime.value = DateTime.parse(lastReminderTimeStr);
       }
       
-      debugPrint('📱 智能提醒设置已加载: 启用=${_isReminderEnabled.value}, 次数=${_reminderCount.value}');
+      logDebug('📱 智能提醒设置已加载: 启用=${_isReminderEnabled.value}, 次数=${_reminderCount.value}');
     } catch (e) {
-      debugPrint('❌ 加载提醒设置失败: $e');
+      logError('❌ 加载提醒设置失败: $e');
     }
   }
   
@@ -75,9 +76,9 @@ class SmartBackgroundLocationReminder extends GetxService {
         await prefs.setString(_keyLastReminderTime, _lastReminderTime.value!.toIso8601String());
       }
       
-      debugPrint('📱 智能提醒设置已保存');
+      logDebug('📱 智能提醒设置已保存');
     } catch (e) {
-      debugPrint('❌ 保存提醒设置失败: $e');
+      logError('❌ 保存提醒设置失败: $e');
     }
   }
   
@@ -91,9 +92,9 @@ class SmartBackgroundLocationReminder extends GetxService {
         _handleAppLifecycleChange(state);
       });
       
-      debugPrint('📱 智能提醒应用生命周期监听已设置');
+      logDebug('📱 智能提醒应用生命周期监听已设置');
     } catch (e) {
-      debugPrint('❌ 设置应用生命周期监听失败: $e');
+      logError('❌ 设置应用生命周期监听失败: $e');
     }
   }
   
@@ -117,15 +118,15 @@ class SmartBackgroundLocationReminder extends GetxService {
     // 只在第一次进入后台时记录时间，避免重复更新
     if (_lastAppBackgroundTime.value == null) {
       _lastAppBackgroundTime.value = DateTime.now();
-      debugPrint('📱 应用进入后台，记录时间: ${_lastAppBackgroundTime.value}');
+      logDebug('📱 应用进入后台，记录时间: ${_lastAppBackgroundTime.value}');
     } else {
-      debugPrint('📱 应用已在后台，不重复记录时间（当前记录: ${_lastAppBackgroundTime.value}）');
+      logDebug('📱 应用已在后台，不重复记录时间（当前记录: ${_lastAppBackgroundTime.value}）');
     }
   }
   
   /// 应用返回前台
   void _onAppReturnedToForeground() {
-    debugPrint('📱 应用返回前台，检查是否需要提醒后台定位权限');
+    logDebug('📱 应用返回前台，检查是否需要提醒后台定位权限');
     
     // 延迟检查，让应用完全恢复
     _reminderTimer?.cancel();
@@ -133,7 +134,7 @@ class SmartBackgroundLocationReminder extends GetxService {
       _checkAndShowBackgroundLocationReminder();
       // 检查完成后清空后台时间，为下次进入后台做准备
       _lastAppBackgroundTime.value = null;
-      debugPrint('📱 已清空后台时间记录，为下次后台检测做准备');
+      logDebug('📱 已清空后台时间记录，为下次后台检测做准备');
     });
   }
   
@@ -142,26 +143,26 @@ class SmartBackgroundLocationReminder extends GetxService {
     try {
       // 1. 检查基础条件
       if (!_shouldShowReminder()) {
-        debugPrint('📱 不满足提醒条件，跳过');
+        logInfo('📱 不满足提醒条件，跳过');
         return;
       }
       
       // 2. 检查后台时间是否足够长
       if (!_hasBeenInBackgroundLongEnough()) {
-        debugPrint('📱 后台时间不足，跳过提醒');
+        logInfo('📱 后台时间不足，跳过提醒');
         return;
       }
       
       // 3. 检查定位服务状态
       if (!_isLocationServiceActive()) {
-        debugPrint('📱 定位服务未激活，跳过提醒');
+        logInfo('📱 定位服务未激活，跳过提醒');
         return;
       }
       
       // 4. 检查后台定位权限状态
       final backgroundPermissionStatus = await _checkBackgroundLocationPermission();
       if (backgroundPermissionStatus == BackgroundLocationPermissionStatus.granted) {
-        debugPrint('📱 后台定位权限已授予，跳过提醒');
+        logInfo('📱 后台定位权限已授予，跳过提醒');
         return;
       }
       
@@ -169,7 +170,7 @@ class SmartBackgroundLocationReminder extends GetxService {
       _showSmartBackgroundLocationReminder(backgroundPermissionStatus);
       
     } catch (e) {
-      debugPrint('❌ 检查后台定位权限提醒失败: $e');
+      logError('❌ 检查后台定位权限提醒失败: $e');
     }
   }
   
@@ -182,7 +183,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     
     // 检查提醒次数限制
     if (_reminderCount.value >= _maxReminderCount) {
-      debugPrint('📱 已达到最大提醒次数限制: ${_reminderCount.value}');
+      logInfo('📱 已达到最大提醒次数限制: ${_reminderCount.value}');
       return false;
     }
     
@@ -190,7 +191,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     if (_lastReminderTime.value != null) {
       final timeSinceLastReminder = DateTime.now().difference(_lastReminderTime.value!);
       if (timeSinceLastReminder < _reminderCooldown) {
-        debugPrint('📱 提醒冷却中，剩余时间: ${_reminderCooldown - timeSinceLastReminder}');
+        logInfo('📱 提醒冷却中，剩余时间: ${_reminderCooldown - timeSinceLastReminder}');
         return false;
       }
     }
@@ -202,7 +203,7 @@ class SmartBackgroundLocationReminder extends GetxService {
   /// 检查是否在后台足够长时间
   bool _hasBeenInBackgroundLongEnough() {
     if (_lastAppBackgroundTime.value == null) {
-      debugPrint('📱 后台时间检查: _lastAppBackgroundTime 为 null');
+      logDebug('📱 后台时间检查: _lastAppBackgroundTime 为 null');
       return false;
     }
     
@@ -210,12 +211,12 @@ class SmartBackgroundLocationReminder extends GetxService {
     final thresholdSeconds = _backgroundTimeThreshold.inSeconds;
     final actualSeconds = backgroundDuration.inSeconds;
     
-    debugPrint('📱 后台时间检查:');
-    debugPrint('   - 进入后台时间: ${_lastAppBackgroundTime.value}');
-    debugPrint('   - 当前时间: ${DateTime.now()}');
-    debugPrint('   - 后台持续时长: ${actualSeconds}秒');
-    debugPrint('   - 要求阈值: ${thresholdSeconds}秒 (${_backgroundTimeThreshold.inMinutes}分钟)');
-    debugPrint('   - 是否满足: ${backgroundDuration >= _backgroundTimeThreshold}');
+    logDebug('📱 后台时间检查:');
+    logDebug('   - 进入后台时间: ${_lastAppBackgroundTime.value}');
+    logDebug('   - 当前时间: ${DateTime.now()}');
+    logDebug('   - 后台持续时长: ${actualSeconds}秒');
+    logDebug('   - 要求阈值: ${thresholdSeconds}秒 (${_backgroundTimeThreshold.inMinutes}分钟)');
+    logDebug('   - 是否满足: ${backgroundDuration >= _backgroundTimeThreshold}');
     
     return backgroundDuration >= _backgroundTimeThreshold;
   }
@@ -226,7 +227,7 @@ class SmartBackgroundLocationReminder extends GetxService {
       final locationService = SimpleLocationService.instance;
       return locationService.isLocationEnabled.value;
     } catch (e) {
-      debugPrint('❌ 检查定位服务状态失败: $e');
+      logError('❌ 检查定位服务状态失败: $e');
       return false;
     }
   }
@@ -244,7 +245,7 @@ class SmartBackgroundLocationReminder extends GetxService {
         return BackgroundLocationPermissionStatus.denied;
       }
     } catch (e) {
-      debugPrint('❌ 检查后台定位权限失败: $e');
+      logError('❌ 检查后台定位权限失败: $e');
       return BackgroundLocationPermissionStatus.denied;
     }
   }
@@ -252,7 +253,7 @@ class SmartBackgroundLocationReminder extends GetxService {
   /// 显示智能后台定位权限提醒
   void _showSmartBackgroundLocationReminder(BackgroundLocationPermissionStatus permissionStatus) {
     if (Get.context == null) {
-      debugPrint('❌ Context不可用，无法显示提醒');
+      logError('❌ Context不可用，无法显示提醒');
       return;
     }
     
@@ -261,7 +262,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     _lastReminderTime.value = DateTime.now();
     _saveReminderSettings();
     
-    debugPrint('📱 显示智能后台定位权限提醒 (第${_reminderCount.value}次)');
+    logDebug('📱 显示智能后台定位权限提醒 (第${_reminderCount.value}次)');
     
     // 根据权限状态显示不同的提醒内容
     final reminderContent = _getReminderContent(permissionStatus);
@@ -457,7 +458,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyUserDismissed, true);
     _isReminderEnabled.value = false;
-    debugPrint('📱 用户选择不再提醒，已永久关闭智能提醒');
+    logDebug('📱 用户选择不再提醒，已永久关闭智能提醒');
   }
   
   /// 处理提醒操作
@@ -478,7 +479,7 @@ class SmartBackgroundLocationReminder extends GetxService {
   /// 请求后台定位权限
   Future<void> _requestBackgroundLocationPermission() async {
     try {
-      debugPrint('📱 用户选择开启后台定位权限');
+      logDebug('📱 用户选择开启后台定位权限');
       
       final locationService = SimpleLocationService.instance;
       final success = await locationService.requestBackgroundLocationPermission();
@@ -489,10 +490,10 @@ class SmartBackgroundLocationReminder extends GetxService {
         _optimizeReminderFrequency();
       } else {
         // 不显示额外的错误提示，因为 SimpleLocationService 已经显示了具体的错误信息
-        debugPrint('📱 后台定位权限请求失败');
+        logDebug('📱 后台定位权限请求失败');
       }
     } catch (e) {
-      debugPrint('❌ 请求后台定位权限失败: $e');
+      logError('❌ 请求后台定位权限失败: $e');
       CustomToast.show(Get.context!, '权限请求失败，请稍后重试');
     }
   }
@@ -500,10 +501,10 @@ class SmartBackgroundLocationReminder extends GetxService {
   /// 打开应用设置
   Future<void> _openAppSettings() async {
     try {
-      debugPrint('📱 用户选择打开应用设置');
+      logDebug('📱 用户选择打开应用设置');
       await openAppSettings();
     } catch (e) {
-      debugPrint('❌ 打开应用设置失败: $e');
+      logError('❌ 打开应用设置失败: $e');
       CustomToast.show(Get.context!, '无法打开设置，请手动前往系统设置');
     }
   }
@@ -515,18 +516,18 @@ class SmartBackgroundLocationReminder extends GetxService {
     _lastReminderTime.value = DateTime.now().add(Duration(days: 1)); // 24小时内不再提醒
     _saveReminderSettings();
     
-    debugPrint('📱 后台权限获取成功，已优化提醒频率');
+    logDebug('📱 后台权限获取成功，已优化提醒频率');
   }
   
   /// 手动触发智能提醒检查（用于测试或特殊场景）
   Future<void> manualTriggerReminder() async {
-    debugPrint('📱 手动触发智能提醒检查');
+    logDebug('📱 手动触发智能提醒检查');
     await _checkAndShowBackgroundLocationReminder();
   }
   
   /// 直接显示弹窗（用于测试新UI效果）
   void showTestDialog() {
-    debugPrint('📱 显示测试弹窗');
+    logDebug('📱 显示测试弹窗');
     _showSmartBackgroundLocationReminder(BackgroundLocationPermissionStatus.denied);
   }
   
@@ -542,7 +543,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     await prefs.remove(_keyUserDismissed);
     await prefs.setBool(_keyReminderEnabled, true);
     
-    debugPrint('📱 智能提醒设置已重置');
+    logDebug('📱 智能提醒设置已重置');
   }
   
   /// 获取提醒统计信息

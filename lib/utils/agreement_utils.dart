@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/constants/agreement_constants.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
 
@@ -32,7 +33,7 @@ class AgreementUtils {
         }
       } catch (e2) {
         // 如果都失败，记录日志但不崩溃
-        debugPrint('打开隐私协议页面失败: $e2');
+        logError('打开隐私协议页面失败: $e2');
       }
     }
   }
@@ -63,7 +64,7 @@ class AgreementUtils {
         }
       } catch (e2) {
         // 如果都失败，记录日志但不崩溃
-        debugPrint('打开用户协议页面失败: $e2');
+        logError('打开用户协议页面失败: $e2');
       }
     }
   }

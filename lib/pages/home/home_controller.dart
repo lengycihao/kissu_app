@@ -172,7 +172,7 @@ class HomeController extends GetxController {
       getCachedVipData: () => _cachedVipData,
     );
     
-    debugPrint('🏠 HomeController 初始化 - 绑定弹窗标志位状态: ${HomePopupService.hasShownBindingDialogThisSession}');
+    logDebug('🏠 HomeController 初始化 - 绑定弹窗标志位状态: ${HomePopupService.hasShownBindingDialogThisSession}');
     
     // 进入首页即同步授权应用
     _syncAuthApp();
@@ -226,12 +226,12 @@ class HomeController extends GetxController {
       if (Get.isRegistered<AppUsageAutoReportService>()) {
         final service = Get.find<AppUsageAutoReportService>();
         service.start();
-        debugPrint('✅ App使用记录自动上报服务已启动');
+        logWarning('✅ App使用记录自动上报服务已启动');
       } else {
-        debugPrint('⚠️ App使用记录自动上报服务未注册');
+        logWarning('⚠️ App使用记录自动上报服务未注册');
       }
     } catch (e) {
-      debugPrint('❌ 启动App使用记录自动上报服务失败: $e');
+      logError('❌首页启动App使用记录自动上报服务失败', error: e);
     }
   }
   
@@ -241,13 +241,13 @@ class HomeController extends GetxController {
     
     // 🔥 修复：页面重新获得焦点时，检查并重置弹窗状态，防止卡死
     if (_isShowingDialog.value) {
-      debugPrint('⚠️ 检测到弹窗状态异常，强制重置');
+      logWarning('⚠️ 检测到弹窗状态异常，强制重置');
       _isShowingDialog.value = false;
     }
     
     // 🔥 修复：确保引导图状态正确
     if (showGuideOverlay.value && _isShowingDialog.value) {
-      debugPrint('⚠️ 检测到引导图和弹窗同时显示，隐藏引导图');
+      logWarning('⚠️ 检测到引导图和弹窗同时显示，隐藏引导图');
       hideGuideOverlay();
     }
     
@@ -262,19 +262,19 @@ class HomeController extends GetxController {
   Future<void> _syncAuthApp() async {
     try {
       await _authService.syncAuthApp();
-      debugPrint('🔄 同步授权应用完成');
+      logWarning('🔄 同步授权应用完成');
     } catch (e) {
-      debugPrint('❌ 同步授权应用失败: $e');
+      logError('❌ 同步授权应用失败', error: e);
     }
   }
   
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      debugPrint('🔄 首页：静默刷新用户信息');
+      logWarning('🔄 首页：静默刷新用户信息');
       await refreshUserInfoFromServer();
     } catch (e) {
-      debugPrint('❌ 首页：静默刷新用户信息失败: $e');
+      logError('❌ 首页：静默刷新用户信息失败', error: e);
     }
   }
   
@@ -291,16 +291,16 @@ class HomeController extends GetxController {
         // 使用后清除预设位置
         homeScrollService.clearPresetPosition();
         
-        debugPrint('✅ 使用预设滚动位置创建ScrollController: $presetOffset');
+        logDebug('✅ 使用预设滚动位置创建ScrollController: $presetOffset');
       } else {
         // 没有预设位置，使用默认居中偏移
         _setDefaultCenterOffset();
-        debugPrint('⚠️ 没有预设位置，使用默认居中偏移');
+        logWarning('⚠️ 没有预设位置，使用默认居中偏移');
       }
     } catch (e) {
       // 如果获取服务失败，使用默认居中偏移
       _setDefaultCenterOffset();
-      debugPrint('❌ 获取HomeScrollService失败，使用默认居中偏移: $e');
+      logError('❌ 获取HomeScrollService失败，使用默认居中偏移', error: e);
     }
   }
   
@@ -310,12 +310,12 @@ class HomeController extends GetxController {
     final defaultOffset = ScreenAdaptation.getPresetScrollOffset();
     
     scrollController = ScrollController(initialScrollOffset: defaultOffset);
-    debugPrint('🎯 使用自适应居中偏移创建ScrollController: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 默认偏移=$defaultOffset');
+    logDebug('🎯 使用自适应居中偏移创建ScrollController: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 默认偏移=$defaultOffset');
   }
   
   @override
   void onClose() {
-    debugPrint('🧹 HomeController 销毁 - 弹窗服务静态变量不会被清除');
+    logDebug('🧹 HomeController 销毁 - 弹窗服务静态变量不会被清除');
     
     // 清理弹窗服务资源
     _popupService.dispose();
@@ -324,7 +324,7 @@ class HomeController extends GetxController {
     try {
       scrollController.dispose();
     } catch (e) {
-      debugPrint('清理ScrollController时出错: $e');
+      logError('清理ScrollController时出错', error: e);
     }
     
     // 取消应用生命周期监听
@@ -342,44 +342,44 @@ class HomeController extends GetxController {
       // 只检查权限状态，不自动启动服务
       _checkLocationPermissionStatusOnly();
     } catch (e) {
-      debugPrint('初始化定位服务失败: $e');
+      logError('初始化定位服务失败', error: e);
     }
   }
 
   /// 首页请求定位权限并启动服务（仅在第一次进入时）
   Future<void> _requestLocationPermissionOnHomePage() async {
     try {
-      debugPrint('🏠 首页开始请求定位权限...');
+      logDebug('🏠 首页开始请求定位权限...');
 
       // 检查是否已经请求过权限
       final prefs = await SharedPreferences.getInstance();
       bool hasRequested = prefs.getBool('location_permission_requested') ?? false;
       
       if (hasRequested) {
-        debugPrint('🏠 已请求过定位权限，直接检查服务状态');
+        logDebug('🏠 已请求过定位权限，直接检查服务状态');
         await _checkLocationServiceStatus();
         return;
       }
 
-      debugPrint('🏠 首次进入首页，开始请求定位权限');
+      logDebug('🏠 首次进入首页，开始请求定位权限');
 
       // 请求定位权限
       bool hasPermission = await _locationService.requestLocationPermission();
 
       if (hasPermission) {
-        debugPrint('🏠 首页定位权限获取成功');
+        logDebug('🏠 首页定位权限获取成功');
         await _handleLocationPermissionGranted();
       } else {
-        debugPrint('🏠 首页定位权限被拒绝');
+        logDebug('🏠 首页定位权限被拒绝');
         await _handleLocationPermissionDenied();
       }
 
       // 标记已请求过权限
       await prefs.setBool('location_permission_requested', true);
       
-      debugPrint('🏠 定位权限申请流程完成');
+      logDebug('🏠 定位权限申请流程完成');
     } catch (e) {
-      debugPrint('🏠 首页请求定位权限失败: $e');
+      logError('🏠 首页请求定位权限失败', error: e);
     }
   }
 
@@ -387,54 +387,54 @@ class HomeController extends GetxController {
   Future<void> _checkLocationServiceStatus() async {
     try {
       if (!_locationService.isLocationEnabled.value) {
-        debugPrint('🏠 首页启动定位服务...');
+        logDebug('🏠 首页启动定位服务...');
         bool started = await _locationService.startLocation();
 
         if (started) {
           isLocationServiceStarted.value = true;
-          debugPrint('🏠 首页定位服务启动成功');
+          logDebug('🏠 首页定位服务启动成功');
         } else {
-          debugPrint('🏠 首页定位服务启动失败');
+          logDebug('🏠 首页定位服务启动失败');
         }
       } else {
-        debugPrint('🏠 首页定位服务已在运行');
+        logDebug('🏠 首页定位服务已在运行');
         isLocationServiceStarted.value = true;
       }
     } catch (e) {
-      debugPrint('🏠 首页检查定位服务状态失败: $e');
+      logError('🏠 首页检查定位服务状态失败', error: e);
     }
   }
 
   /// 处理定位权限获取成功
   Future<void> _handleLocationPermissionGranted() async {
     try {
-      debugPrint('🎯 首页用户同意定位权限，启动弹窗流程');
+      logDebug('🎯 首页用户同意定位权限，启动弹窗流程');
       
       // 启动定位服务（后台异步进行）
       _locationService.startLocation().then((success) {
         if (success) {
           isLocationServiceStarted.value = true;
-          debugPrint('✅ 首页定位服务启动成功');
+          logDebug('✅ 首页定位服务启动成功');
         } else {
-          debugPrint('❌ 首页定位服务启动失败');
+          logDebug('❌ 首页定位服务启动失败');
         }
       });
       
       // 使用弹窗服务启动弹窗流程
       await _popupService.startPopupFlow();
     } catch (e) {
-      debugPrint('处理首页定位权限同意失败: $e');
+      logError('处理首页定位权限同意失败', error: e);
     }
   }
 
   /// 处理定位权限被拒绝
   Future<void> _handleLocationPermissionDenied() async {
     try {
-      debugPrint('❌ 首页定位权限被拒绝，启动弹窗流程');
+      logDebug('❌ 首页定位权限被拒绝，启动弹窗流程');
       // 使用弹窗服务启动弹窗流程
       await _popupService.startPopupFlow();
     } catch (e) {
-      debugPrint('处理首页定位权限拒绝失败: $e');
+      logError('处理首页定位权限拒绝失败', error: e);
     }
   }
   
@@ -446,27 +446,27 @@ class HomeController extends GetxController {
       final hasRequested = prefs.getBool('location_permission_requested') ?? false;
       
       if (hasRequested) {
-        debugPrint('已请求过定位权限，检查服务状态');
+        logDebug('已请求过定位权限，检查服务状态');
         
         // 🚀 修复：如果已有权限但服务未启动，主动启动服务
         if (!_locationService.isLocationEnabled.value) {
           // 先检查是否有权限
           var locationStatus = await Permission.location.status;
           if (locationStatus.isGranted) {
-            debugPrint('🏠 已有定位权限但服务未启动，主动启动服务（避免不上报位置）');
+            logDebug('🏠 已有定位权限但服务未启动，主动启动服务（避免不上报位置）');
             bool started = await _locationService.startLocation();
             if (started) {
               isLocationServiceStarted.value = true;
-              debugPrint('✅ 首页定位服务已启动，开始收集和上报位置');
+              logDebug('✅ 首页定位服务已启动，开始收集和上报位置');
             }
           }
         } else {
           isLocationServiceStarted.value = true;
-          debugPrint('✅ 定位服务已在运行中');
+          logDebug('✅ 定位服务已在运行中');
         }
       }
     } catch (e) {
-      debugPrint('检查定位权限状态失败: $e');
+      logError('检查定位权限状态失败', error: e);
     }
   }
 
@@ -481,12 +481,12 @@ class HomeController extends GetxController {
       
       if (hasPermission) {
         // 权限获取成功，启动定位服务
-        debugPrint('定位权限获取成功，启动定位服务');
+        logDebug('定位权限获取成功，启动定位服务');
         bool started = await _locationService.startLocation();
         
         if (started) {
           isLocationServiceStarted.value = true;
-          debugPrint('定位服务启动成功，开始记录和上报位置');
+          logDebug('定位服务启动成功，开始记录和上报位置');
           
           // 保存已请求权限的状态
           final prefs = await SharedPreferences.getInstance();
@@ -498,21 +498,21 @@ class HomeController extends GetxController {
             '定位服务已启动，开始记录您的足迹',
           );
         } else {
-          debugPrint('定位服务启动失败');
+          logDebug('定位服务启动失败');
           CustomToast.show(
             Get.context!,
             '定位服务启动失败，请检查定位设置',
           );
         }
       } else {
-        debugPrint('定位权限被拒绝');
+        logDebug('定位权限被拒绝');
         CustomToast.show(
           Get.context!,
           '需要定位权限来记录您的足迹',
         );
       }
     } catch (e) {
-      debugPrint('请求定位权限并启动服务失败: $e');
+      logError('请求定位权限并启动服务失败', error: e);
       CustomToast.show(
         Get.context!,
         '定位服务初始化失败',
@@ -526,7 +526,7 @@ class HomeController extends GetxController {
   Future<void> loadIndexData() async {
     // 🔥 防重复调用：如果正在加载，直接返回
     if (_isLoadingIndexData) {
-      debugPrint('⏭️ 首页数据正在加载中，跳过重复调用');
+      logDebug('⏭️ 首页数据正在加载中，跳过重复调用');
       return;
     }
     
@@ -534,7 +534,7 @@ class HomeController extends GetxController {
     final now = DateTime.now();
     if (_lastLoadIndexDataTime != null && 
         now.difference(_lastLoadIndexDataTime!) < _minLoadIndexDataInterval) {
-      debugPrint('⏭️ 首页数据最近已加载（${now.difference(_lastLoadIndexDataTime!).inSeconds}秒前），跳过重复调用');
+      logDebug('⏭️ 首页数据最近已加载（${now.difference(_lastLoadIndexDataTime!).inSeconds}秒前），跳过重复调用');
       return;
     }
     
@@ -542,13 +542,13 @@ class HomeController extends GetxController {
     _lastLoadIndexDataTime = now;
     
     try {
-      debugPrint('🏠 开始加载首页数据...');
+      logDebug('🏠 开始加载首页数据...');
       
       // 🔥 优化：添加超时保护，防止请求无限挂起
       final result = await IndexApi().getIndexData().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          debugPrint('❌ 首页数据加载超时（10秒）');
+          logError('❌ 首页数据加载超时（10秒）');
           return HttpResultN.failure(-1, '请求超时');
         },
       );
@@ -577,12 +577,12 @@ class HomeController extends GetxController {
         if (indexData.crapGame != null) {
           crapLink.value = indexData.crapGame!.crapLink;
           crapStatus.value = indexData.crapGame!.crapStatus;
-          debugPrint('💩 拉屎游戏信息更新: link=${crapLink.value}, status=${crapStatus.value}');
+          logDebug('💩 拉屎游戏信息更新: link=${crapLink.value}, status=${crapStatus.value}');
         } else {
           // 如果没有返回 crap_game 数据，使用默认值
           crapLink.value = '';
           crapStatus.value = '0';
-          debugPrint('💩 拉屎游戏数据为空，使用默认值');
+          logDebug('💩 拉屎游戏数据为空，使用默认值');
         }
         
         // 更新种草信息
@@ -590,7 +590,7 @@ class HomeController extends GetxController {
           seedingLink.value = indexData.seeding!.seedingLink;
           seedingStatus.value = indexData.seeding!.seedingStatus;
           seedingIcon.value = indexData.seeding!.seedingIcon;
-          debugPrint('🌱 种草信息更新: link=${seedingLink.value}, status=${seedingStatus.value}, icon=${seedingIcon.value}');
+          logDebug('🌱 种草信息更新: link=${seedingLink.value}, status=${seedingStatus.value}, icon=${seedingIcon.value}');
           
           // 更新按钮显示状态
           _updateSeedingButtonVisibility();
@@ -600,10 +600,10 @@ class HomeController extends GetxController {
           seedingStatus.value = '0';
           seedingIcon.value = '';
           showSeedingButton.value = false;
-          debugPrint('🌱 种草数据为空，使用默认值');
+          logDebug('🌱 种草数据为空，使用默认值');
         }
         
-        debugPrint('📊 红点信息更新: 系统消息=${systemNoticeRedDot.value}, 互动消息=${interactionNoticeRedDot.value}, 总数=${redDotCount.value}, 显示红点=${isRedDot.value}');
+        logDebug('📊 红点信息更新: 系统消息=${systemNoticeRedDot.value}, 互动消息=${interactionNoticeRedDot.value}, 总数=${redDotCount.value}, 显示红点=${isRedDot.value}');
         
         // 更新位置信息
         distance.value = indexData.location.distance;
@@ -617,7 +617,7 @@ class HomeController extends GetxController {
           halfDeviceNetworkName.value = half.networkName;
           halfDeviceMobileModel.value = half.mobileModel;
           halfDeviceDistance.value = half.distance;
-          debugPrint(
+          logDebug(
               '📱 half_user_data 更新: power=${halfDevicePower.value}, network=${halfDeviceNetworkName.value}, model=${halfDeviceMobileModel.value}, distance=${halfDeviceDistance.value}');
         }
         
@@ -628,31 +628,31 @@ class HomeController extends GetxController {
         // 🚀 优化：更新头像（确保即使为空也有默认值）
         if (indexData.user.headPortrait.isNotEmpty) {
           userAvatar.value = indexData.user.headPortrait;
-          debugPrint('✅ 用户头像已更新: ${userAvatar.value}');
+          logDebug('✅ 用户头像已更新: ${userAvatar.value}');
         } else {
           // 服务器返回空头像时，保持默认头像
-          debugPrint('⚠️ 服务器返回的用户头像为空，使用默认头像');
+          logDebug('⚠️ 服务器返回的用户头像为空，使用默认头像');
         }
         
         if (isBound.value && indexData.user.halfHeadPortrait.isNotEmpty) {
           partnerAvatar.value = indexData.user.halfHeadPortrait;
-          debugPrint('✅ 伴侣头像已更新: ${partnerAvatar.value}');
+          logDebug('✅ 伴侣头像已更新: ${partnerAvatar.value}');
         } else if (!isBound.value) {
           partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
-          debugPrint('📌 未绑定状态，使用加号图标');
+          logDebug('📌 未绑定状态，使用加号图标');
         } else {
           // 已绑定但服务器返回空头像时，使用默认头像
           partnerAvatar.value = "assets/3.0/kissu3_love_avater.webp";
-          debugPrint('⚠️ 服务器返回的伴侣头像为空，使用默认头像');
+          logWarning('⚠️ 服务器返回的伴侣头像为空，使用默认头像');
         }
         
         // 更新照片墙
         if (indexData.photo.photoWall.isNotEmpty) {
           photoWallUrl.value = indexData.photo.photoWall;
-          debugPrint('📸 照片墙URL: ${photoWallUrl.value}');
+          logDebug('📸 照片墙URL: ${photoWallUrl.value}');
         } else {
           photoWallUrl.value = "assets/images/kissu_icon.webp";
-          debugPrint('📸 照片墙为空，使用默认图片');
+          logWarning('📸 照片墙为空，使用默认图片');
         }
         
         // 🚀 优化：预加载网络头像（在批量更新后异步执行，不阻塞UI）
@@ -669,14 +669,14 @@ class HomeController extends GetxController {
         // 缓存VIP数据，用于在onReady中检查（只检查一次）
         _cachedVipData = indexData.vipData;
         
-        debugPrint('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
+        logDebug('✅ 首页数据加载成功: 绑定状态=${isBound.value}, 恋爱天数=${loveDays.value}, 距离=${distance.value}');
       } else {
-        debugPrint('❌ 首页数据加载失败: ${result.msg}');
+        logWarning('❌ 首页数据加载失败: ${result.msg}');
         // 失败时回退到加载本地用户信息
         loadUserInfo();
       }
     } catch (e) {
-      debugPrint('❌ 首页数据加载异常: $e');
+      logError('❌ 首页数据加载异常: $e');
       // 异常时回退到加载本地用户信息
       loadUserInfo();
     } finally {
@@ -695,11 +695,11 @@ class HomeController extends GetxController {
       // 🚀 优化：用户头像（确保有值，即使本地缓存也为空）
       if (user.headPortrait?.isNotEmpty == true) {
         userAvatar.value = user.headPortrait!;
-        debugPrint('✅ 从本地加载用户头像: ${userAvatar.value}');
+        logDebug('✅ 从本地加载用户头像: ${userAvatar.value}');
       } else {
         // 本地也没有头像时，使用默认头像
         userAvatar.value = "assets/3.0/kissu3_love_avater.webp";
-        debugPrint('⚠️ 本地用户头像为空，使用默认头像');
+        logWarning('⚠️ 本地用户头像为空，使用默认头像');
       }
       
       // 绑定状态处理 (0从未绑定，1已绑定，2已解绑)
@@ -710,14 +710,14 @@ class HomeController extends GetxController {
         // 已绑定状态，获取伴侣头像
         _loadPartnerAvatar(user);
         // 获取距离信息
-        _loadDistanceInfo();
+        // _loadDistanceInfo();
         // 加载恋爱天数
         _loadLoveDays(user);
         // 天气数据现在从首页接口统一获取，不再单独调用
       } else {
         // 未绑定状态，重置伴侣头像
         partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
-        debugPrint('📌 未绑定状态，使用加号图标');
+        logDebug('📌 未绑定状态，使用加号图标');
         // 重置距离信息
         distance.value = "0KM";
         // 重置停留点数量
@@ -729,7 +729,7 @@ class HomeController extends GetxController {
       // 🚀 优化：用户未登录或用户信息为空时，确保使用默认头像
       userAvatar.value = "assets/3.0/kissu3_love_avater.webp";
       partnerAvatar.value = "assets/images/kissu_home_add_avair.webp";
-      debugPrint('⚠️ 用户信息为空，使用默认头像');
+      logDebug('⚠️ 用户信息为空，使用默认头像');
     }
   }
   
@@ -737,19 +737,19 @@ class HomeController extends GetxController {
   Future<void> checkAndRefreshUserInfoOnAppStartup() async {
     // 如果app已经启动过，跳过刷新
     if (_hasAppStartedThisSession) {
-      debugPrint('⏭️ App已在此会话中启动过，跳过用户信息刷新');
+      logDebug('⏭️ App已在此会话中启动过，跳过用户信息刷新');
       return;
     }
     
     try {
-      debugPrint('🚀 App首次启动，刷新用户信息...');
+      logDebug('🚀 App首次启动，刷新用户信息...');
       await refreshUserInfoFromServer();
       
       // 标记app已启动
       _hasAppStartedThisSession = true;
-      debugPrint('✅ 用户信息已刷新，已标记app启动状态');
+      logDebug('✅ 用户信息已刷新，已标记app启动状态');
     } catch (e) {
-      debugPrint('❌ App启动时刷新用户信息失败: $e');
+      logError('❌ App启动时刷新用户信息失败: $e');
     }
   }
   
@@ -757,7 +757,7 @@ class HomeController extends GetxController {
   Future<void> refreshUserInfoFromServer() async {
     // 防重复调用：如果正在刷新中，直接返回
     if (_isRefreshingUserInfo) {
-      debugPrint('⏭️ 用户信息正在刷新中，跳过重复调用');
+      logDebug('⏭️ 用户信息正在刷新中，跳过重复调用');
       return;
     }
     
@@ -765,7 +765,7 @@ class HomeController extends GetxController {
     final now = DateTime.now();
     if (_lastUserInfoRefreshTime != null && 
         now.difference(_lastUserInfoRefreshTime!).inSeconds < 3) {
-      debugPrint('⏭️ 用户信息最近已刷新（${now.difference(_lastUserInfoRefreshTime!).inSeconds}秒前），跳过重复调用');
+      logDebug('⏭️ 用户信息最近已刷新（${now.difference(_lastUserInfoRefreshTime!).inSeconds}秒前），跳过重复调用');
       return;
     }
     
@@ -773,19 +773,19 @@ class HomeController extends GetxController {
     _lastUserInfoRefreshTime = now;
     
     try {
-      debugPrint('🔄 开始从服务器刷新用户信息...');
+      logDebug('🔄 开始从服务器刷新用户信息...');
       
       final success = await _authService.refreshUserInfoFromServer();
       
       if (success) {
-        debugPrint('✅ 用户信息刷新成功，重新加载本地用户信息');
+        logDebug('✅ 用户信息刷新成功，重新加载本地用户信息');
         // 刷新成功后重新加载用户信息到UI
         loadUserInfo();
       } else {
-        debugPrint('⚠️ 用户信息刷新失败，使用本地缓存数据');
+        logDebug('⚠️ 用户信息刷新失败，使用本地缓存数据');
       }
     } catch (e) {
-      debugPrint('❌ 刷新用户信息时发生异常: $e');
+      logError('❌ 刷新用户信息时发生异常: $e');
       // 异常情况下继续使用本地缓存，不影响用户体验
     } finally {
       _isRefreshingUserInfo = false;
@@ -797,21 +797,21 @@ class HomeController extends GetxController {
     // 优先使用loverInfo中的头像
     if (user.loverInfo?.headPortrait?.isNotEmpty == true) {
       partnerAvatar.value = user.loverInfo!.headPortrait!;
-      debugPrint('✅ 从loverInfo加载伴侣头像: ${partnerAvatar.value}');
+      logDebug('✅ 从loverInfo加载伴侣头像: ${partnerAvatar.value}');
       // 🚀 优化：预加载网络头像
       _precacheAvatarImage(partnerAvatar.value);
     } 
     // 其次使用halfUserInfo中的头像
     else if (user.halfUserInfo?.headPortrait?.isNotEmpty == true) {
       partnerAvatar.value = user.halfUserInfo!.headPortrait!;
-      debugPrint('✅ 从halfUserInfo加载伴侣头像: ${partnerAvatar.value}');
+      logDebug('✅ 从halfUserInfo加载伴侣头像: ${partnerAvatar.value}');
       // 🚀 优化：预加载网络头像
       _precacheAvatarImage(partnerAvatar.value);
     }
     // 否则使用默认头像
     else {
       partnerAvatar.value = "assets/3.0/kissu3_love_avater.webp";
-      debugPrint('⚠️ 伴侣头像为空，使用默认头像');
+      logWarning('⚠️ 伴侣头像为空，使用默认头像');
     }
   }
   
@@ -827,13 +827,13 @@ class HomeController extends GetxController {
           NetworkImage(imageUrl),
           Get.context!,
         ).then((_) {
-          debugPrint('✅ 头像预加载成功: $imageUrl');
+          logDebug('✅ 头像预加载成功: $imageUrl');
         }).catchError((error) {
-          debugPrint('⚠️ 头像预加载失败: $imageUrl, 错误: $error');
+          logWarning('⚠️ 头像预加载失败: $imageUrl, 错误: $error');
         });
       }
     } catch (e) {
-      debugPrint('⚠️ 头像预加载异常: $e');
+      logError('⚠️ 头像预加载异常: $e');
     }
   }
   
@@ -842,96 +842,96 @@ class HomeController extends GetxController {
     // 直接使用服务器返回的loveDays数据
     if (user.loverInfo?.loveDays != null) {
       loveDays.value = user.loverInfo!.loveDays!;
-      debugPrint('🏠 加载恋爱天数: ${loveDays.value}天');
+      logDebug('🏠 加载恋爱天数: ${loveDays.value}天');
     } else {
       loveDays.value = 0;
-      debugPrint('🏠 恋爱天数数据为空，设置为0');
+      logDebug('🏠 恋爱天数数据为空，设置为0');
     }
   }
   
   /// 加载距离信息和停留点数量（已废弃，现在使用 loadIndexData）
-  @Deprecated('使用 loadIndexData() 替代')
-  Future<void> _loadDistanceInfo() async {
-    try {
-      debugPrint('📍 开始获取距离信息和停留点数量...');
-      final result = await LocationApi().getLocation();
+  // @Deprecated('使用 loadIndexData() 替代')
+  // Future<void> _loadDistanceInfo() async {
+  //   try {
+  //     debugPrint('📍 开始获取距离信息和停留点数量...');
+  //     final result = await LocationApi().getLocation();
       
-      if (result.isSuccess && result.data != null) {
-        final locationData = result.data!;
+  //     if (result.isSuccess && result.data != null) {
+  //       final locationData = result.data!;
         
-        // 获取用户和伴侣的位置数据
-        final userLocation = locationData.userLocationMobileDevice;
-        final partnerLocation = locationData.halfLocationMobileDevice;
+  //       // 获取用户和伴侣的位置数据
+  //       final userLocation = locationData.userLocationMobileDevice;
+  //       final partnerLocation = locationData.halfLocationMobileDevice;
         
-        // 优先使用用户数据中的距离信息
-        if (userLocation?.distance != null && userLocation!.distance!.isNotEmpty) {
-          distance.value = userLocation.distance!;
-          debugPrint('📍 获取到距离信息: ${distance.value}');
-        } else if (partnerLocation?.distance != null && partnerLocation!.distance!.isNotEmpty) {
-          distance.value = partnerLocation.distance!;
-          debugPrint('📍 获取到距离信息: ${distance.value}');
-        } else {
-          // 如果都没有距离信息，尝试计算距离
-          if (userLocation?.latitude != null && userLocation?.longitude != null &&
-              partnerLocation?.latitude != null && partnerLocation?.longitude != null) {
-            final userLat = double.tryParse(userLocation!.latitude!);
-            final userLng = double.tryParse(userLocation.longitude!);
-            final partnerLat = double.tryParse(partnerLocation!.latitude!);
-            final partnerLng = double.tryParse(partnerLocation.longitude!);
+  //       // 优先使用用户数据中的距离信息
+  //       if (userLocation?.distance != null && userLocation!.distance!.isNotEmpty) {
+  //         distance.value = userLocation.distance!;
+  //         debugPrint('📍 获取到距离信息: ${distance.value}');
+  //       } else if (partnerLocation?.distance != null && partnerLocation!.distance!.isNotEmpty) {
+  //         distance.value = partnerLocation.distance!;
+  //         debugPrint('📍 获取到距离信息: ${distance.value}');
+  //       } else {
+  //         // 如果都没有距离信息，尝试计算距离
+  //         if (userLocation?.latitude != null && userLocation?.longitude != null &&
+  //             partnerLocation?.latitude != null && partnerLocation?.longitude != null) {
+  //           final userLat = double.tryParse(userLocation!.latitude!);
+  //           final userLng = double.tryParse(userLocation.longitude!);
+  //           final partnerLat = double.tryParse(partnerLocation!.latitude!);
+  //           final partnerLng = double.tryParse(partnerLocation.longitude!);
             
-            if (userLat != null && userLng != null && partnerLat != null && partnerLng != null) {
-              final calculatedDistance = _calculateDistance(userLat, userLng, partnerLat, partnerLng);
-              distance.value = "${calculatedDistance.toStringAsFixed(1)}KM";
-              debugPrint('📍 计算得到距离: ${distance.value}');
-            } else {
-              distance.value = "0KM";
-              debugPrint('📍 无法解析坐标，设置默认距离');
-            }
-          } else {
-            distance.value = "0KM";
-            debugPrint('📍 缺少位置信息，设置默认距离');
-          }
-        }
+  //           if (userLat != null && userLng != null && partnerLat != null && partnerLng != null) {
+  //             final calculatedDistance = _calculateDistance(userLat, userLng, partnerLat, partnerLng);
+  //             distance.value = "${calculatedDistance.toStringAsFixed(1)}KM";
+  //             debugPrint('📍 计算得到距离: ${distance.value}');
+  //           } else {
+  //             distance.value = "0KM";
+  //             debugPrint('📍 无法解析坐标，设置默认距离');
+  //           }
+  //         } else {
+  //           distance.value = "0KM";
+  //           debugPrint('📍 缺少位置信息，设置默认距离');
+  //         }
+  //       }
         
-        // 获取停留点数量（优先从伴侣数据获取，因为要显示"TA的足迹"）
-        final partnerStayCollect = partnerLocation?.stayCollect;
-        if (partnerStayCollect != null && partnerStayCollect.stayCount != null) {
-          stayCount.value = partnerStayCollect.stayCount!;
-          debugPrint('📍 获取到停留点数量: ${stayCount.value}');
-        } else {
-          stayCount.value = 0;
-          debugPrint('📍 停留点数量为空，设置默认值0');
-        }
-      } else {
-        debugPrint('❌ 获取距离信息失败: ${result.msg}');
-        distance.value = "0KM";
-        stayCount.value = 0;
-      }
-    } catch (e) {
-      debugPrint('❌ 获取距离信息异常: $e');
-      distance.value = "0KM";
-      stayCount.value = 0;
-    }
-  }
+  //       // 获取停留点数量（优先从伴侣数据获取，因为要显示"TA的足迹"）
+  //       final partnerStayCollect = partnerLocation?.stayCollect;
+  //       if (partnerStayCollect != null && partnerStayCollect.stayCount != null) {
+  //         stayCount.value = partnerStayCollect.stayCount!;
+  //         debugPrint('📍 获取到停留点数量: ${stayCount.value}');
+  //       } else {
+  //         stayCount.value = 0;
+  //         debugPrint('📍 停留点数量为空，设置默认值0');
+  //       }
+  //     } else {
+  //       debugPrint('❌ 获取距离信息失败: ${result.msg}');
+  //       distance.value = "0KM";
+  //       stayCount.value = 0;
+  //     }
+  //   } catch (e) {
+  //     debugPrint('❌ 获取距离信息异常: $e');
+  //     distance.value = "0KM";
+  //     stayCount.value = 0;
+  //   }
+  // }
   
-  /// 计算两点间距离（使用Haversine公式）
-  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-    const double earthRadius = 6371; // 地球半径（公里）
+  // /// 计算两点间距离（使用Haversine公式）
+  // double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+  //   const double earthRadius = 6371; // 地球半径（公里）
     
-    final double dLat = _degreesToRadians(lat2 - lat1);
-    final double dLng = _degreesToRadians(lng2 - lng1);
+  //   final double dLat = _degreesToRadians(lat2 - lat1);
+  //   final double dLng = _degreesToRadians(lng2 - lng1);
     
-    final double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2);
-    final double c = 2 * asin(sqrt(a));
+  //   final double a = sin(dLat / 2) * sin(dLat / 2) +
+  //       cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2);
+  //   final double c = 2 * asin(sqrt(a));
     
-    return earthRadius * c;
-  }
+  //   return earthRadius * c;
+  // }
   
-  /// 角度转弧度
-  double _degreesToRadians(double degrees) {
-    return degrees * (3.14159265359 / 180);
-  }
+  // /// 角度转弧度
+  // double _degreesToRadians(double degrees) {
+  //   return degrees * (3.14159265359 / 180);
+  // }
   
   
   /// 绑定成功后刷新数据
@@ -944,7 +944,7 @@ class HomeController extends GetxController {
       loadIndexData();
       
       // 绑定弹窗关闭后，继续弹窗流程（VIP购买弹窗 -> VIP推广弹窗 -> 引导图）
-      debugPrint('💑 绑定弹窗关闭后，继续弹窗流程');
+      logDebug('💑 绑定弹窗关闭后，继续弹窗流程');
       Future.delayed(const Duration(milliseconds: 500), () async {
         await _popupService.checkAndShowVipPurchaseDialog();
         
@@ -978,7 +978,7 @@ class HomeController extends GetxController {
 
   void onButtonTap(int index) async {
     selectedIndex.value = index;
-    debugPrint("🔍 底部导航按钮 $index 被点击");
+    logDebug("🔍 底部导航按钮 $index 被点击");
     
     // 埋点：底部导航栏点击
     final navigationNames = ['定位', '足迹', '聊天', '用机记录', '我的'];
@@ -990,7 +990,7 @@ class HomeController extends GetxController {
     switch (index) {
       case 0:
         // 定位（新版）- 添加会员检查
-        debugPrint("📍 准备跳转到定位V2页面（检查会员状态）");
+        logDebug("📍 准备跳转到定位V2页面（检查会员状态）");
         VipNavigationHelper.navigateToLocationWithVipCheck();
         break;
       case 1:
@@ -1000,7 +1000,7 @@ class HomeController extends GetxController {
           binding: TrackBinding(),
           transition: Transition.downToUp,
         );
-        debugPrint('🔙 从足迹页面返回首页，刷新数据');
+        logDebug('🔙 从足迹页面返回首页，刷新数据');
         onPageResumed();
         break;
       case 2:
@@ -1013,7 +1013,7 @@ class HomeController extends GetxController {
               context: currentContext,
               caller: SourcePageUtilsCaller.home,
               onClose: () {
-                debugPrint('💑 聊天入口绑定弹窗已关闭');
+                logDebug('💑 聊天入口绑定弹窗已关闭');
                 // 绑定弹窗关闭后刷新首页数据
                 onPageResumed();
               },
@@ -1029,7 +1029,7 @@ class HomeController extends GetxController {
         await Get.toNamed(
           KissuRoutePath.chat,
         );
-        debugPrint('🔙 从聊天页面返回首页，刷新数据');
+        logDebug('🔙 从聊天页面返回首页，刷新数据');
         onPageResumed();
         break;
       case 3:
@@ -1039,7 +1039,7 @@ class HomeController extends GetxController {
           binding: DeviceUsageBinding(),
           transition: Transition.downToUp,
         );
-        debugPrint('🔙 从用机记录页面返回首页，刷新数据');
+        logDebug('🔙 从用机记录页面返回首页，刷新数据');
         onPageResumed();
         break;
       case 4:
@@ -1057,7 +1057,7 @@ class HomeController extends GetxController {
    
     // 跳转到消息列表页面（一级页面）
     // 注意：红点不在这里清除，而是在进入各个详情页时清除
-    debugPrint('📭 点击消息中心按钮，进入消息列表');
+    logDebug('📭 点击消息中心按钮，进入消息列表');
     Get.toNamed(KissuRoutePath.messageList);
   }
 
@@ -1131,7 +1131,7 @@ class HomeController extends GetxController {
   /// 手动请求后台定位权限
   Future<void> requestBackgroundLocationPermission() async {
     try {
-      debugPrint('🏠 首页手动请求后台定位权限');
+      logDebug('🏠 首页手动请求后台定位权限');
       bool success = await _locationService.requestBackgroundLocationPermission();
       
       if (success) {
@@ -1141,7 +1141,7 @@ class HomeController extends GetxController {
         );
       }
     } catch (e) {
-      debugPrint('🏠 首页请求后台定位权限失败: $e');
+      logError('🏠 首页请求后台定位权限失败: $e');
     }
   }
   
@@ -1150,13 +1150,13 @@ class HomeController extends GetxController {
     try {
       _locationService.stopLocation();
       isLocationServiceStarted.value = false;
-      debugPrint('定位服务已停止');
+      logDebug('定位服务已停止');
       CustomToast.show(
         Get.context!,
         '定位服务已停止',
       );
     } catch (e) {
-      debugPrint('停止定位服务失败: $e');
+      logError('停止定位服务失败: $e');
     }
   }
   
@@ -1181,9 +1181,9 @@ class HomeController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final savedMode = prefs.getBool('home_view_mode') ?? true; // 默认屏视图
       isScreenView.value = savedMode;
-      debugPrint('加载视图模式: ${savedMode ? "屏视图" : "岛视图"}');
+      logDebug('加载视图模式: ${savedMode ? "屏视图" : "岛视图"}');
     } catch (e) {
-      debugPrint('加载视图模式失败: $e');
+      logError('加载视图模式失败: $e');
       isScreenView.value = true; // 出错时默认屏视图
     }
   }
@@ -1193,9 +1193,9 @@ class HomeController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('home_view_mode', isScreenView.value);
-      debugPrint('保存视图模式: ${isScreenView.value ? "屏视图" : "岛视图"}');
+      logDebug('保存视图模式: ${isScreenView.value ? "屏视图" : "岛视图"}');
     } catch (e) {
-      debugPrint('保存视图模式失败: $e');
+      logError('保存视图模式失败: $e');
     }
   }
   
@@ -1203,7 +1203,7 @@ class HomeController extends GetxController {
   void toggleViewMode() {
     isScreenView.value = !isScreenView.value;
     _saveViewMode();
-    debugPrint('切换到: ${isScreenView.value ? "屏视图" : "岛视图"}');
+    logDebug('切换到: ${isScreenView.value ? "屏视图" : "岛视图"}');
   }
 
   /// 另一半设备信息（来自 /index 接口的 half_user_data）
@@ -1213,25 +1213,20 @@ class HomeController extends GetxController {
   final RxString halfDeviceMobileModel = '未知'.obs;
   final RxString halfDeviceDistance = '未知'.obs;
   
-  /// 加载红点信息（已废弃，现在使用 loadIndexData）
-  @Deprecated('使用 loadIndexData() 替代')
-  Future<void> loadRedDotInfo() async {
-    // 此方法已废弃，红点信息现在通过 /index 接口统一获取
-    debugPrint('⚠️ loadRedDotInfo() 已废弃，请使用 loadIndexData()');
-  }
+   
   
   /// 设置红点监听器，当子红点变化时自动更新总红点数
   void _setupRedDotListeners() {
     // 监听系统消息红点变化
     ever(systemNoticeRedDot, (_) {
       redDotCount.value = systemNoticeRedDot.value + interactionNoticeRedDot.value;
-      debugPrint('📊 系统消息红点变化，更新总红点数: ${redDotCount.value}');
+      logDebug('📊 系统消息红点变化，更新总红点数: ${redDotCount.value}');
     });
     
     // 监听互动消息红点变化
     ever(interactionNoticeRedDot, (_) {
       redDotCount.value = systemNoticeRedDot.value + interactionNoticeRedDot.value;
-      debugPrint('📊 互动消息红点变化，更新总红点数: ${redDotCount.value}');
+      logDebug('📊 互动消息红点变化，更新总红点数: ${redDotCount.value}');
     });
   }
 
@@ -1242,12 +1237,12 @@ class HomeController extends GetxController {
       chatUnreadCount.value = im.c2cUnreadCount.value;
       ever<int>(im.c2cUnreadCount, (value) {
         chatUnreadCount.value = value;
-        debugPrint('💬 IM 未读数更新: $value');
+        logDebug('💬 IM 未读数更新: $value');
       });
       // 初次进入首页时主动同步一次（处理离线消息未读）
       im.syncC2CUnreadCount();
     } catch (e) {
-      debugPrint('⚠️ 初始化聊天未读监听失败: $e');
+      logError('⚠️ 初始化聊天未读监听失败: $e');
     }
   }
 
@@ -1261,9 +1256,9 @@ class HomeController extends GetxController {
         _handleAppLifecycleChange(state);
       });
       
-      debugPrint('📱 首页应用生命周期监听已设置');
+      logDebug('📱 首页应用生命周期监听已设置');
     } catch (e) {
-      debugPrint('❌ 设置首页应用生命周期监听失败: $e');
+      logError('❌ 设置首页应用生命周期监听失败: $e');
     }
   }
   
@@ -1284,13 +1279,13 @@ class HomeController extends GetxController {
   
   /// 应用进入后台
   void _onAppEnteredBackground() {
-    debugPrint('📱 首页：应用进入后台');
+    logDebug('📱 首页：应用进入后台');
     // 🔥 优化：移除轮询，不再需要停止定时器
   }
   
   /// 应用返回前台
   void _onAppReturnedToForeground() {
-    debugPrint('📱 首页：应用返回前台，刷新首页数据');
+    logDebug('📱 首页：应用返回前台，刷新首页数据');
     
     // 🔥 优化：应用返回前台时刷新一次首页数据（带防重复调用保护）
     loadIndexData();
@@ -1318,16 +1313,16 @@ class HomeController extends GetxController {
         ),
         transition: Transition.rightToLeft,
       );
-      debugPrint('跳转到H5页面: $url');
+      logDebug('跳转到H5页面: $url');
     } else {
-      debugPrint('H5链接为空，无法跳转');
+      logDebug('H5链接为空，无法跳转');
     }
   }
   
   /// 跳转到我的页面，先刷新数据
   Future<void> _navigateToMinePage() async {
     try {
-      debugPrint('🔄 准备跳转到我的页面，先刷新用户数据...');
+      logDebug('🔄 准备跳转到我的页面，先刷新用户数据...');
       
       // 先刷新用户信息
       await refreshUserInfoFromServer();
@@ -1340,10 +1335,10 @@ class HomeController extends GetxController {
       );
       
       // 从我的页面返回时，刷新首页数据
-      debugPrint('🔙 从我的页面返回首页，刷新数据');
+      logDebug('🔙 从我的页面返回首页，刷新数据');
       onPageResumed();
     } catch (e) {
-      debugPrint('❌ 跳转到我的页面时刷新数据失败: $e');
+      logError('❌ 跳转到我的页面时刷新数据失败: $e');
       // 即使刷新失败也要跳转，不影响用户体验
       await Get.to(
         () => MinePage(),
@@ -1351,27 +1346,27 @@ class HomeController extends GetxController {
         transition: Transition.downToUp,
       );
       // 返回时也要刷新
-      debugPrint('🔙 从我的页面返回首页（异常流程），刷新数据');
+      logDebug('🔙 从我的页面返回首页（异常流程），刷新数据');
       onPageResumed();
     }
   }
   
   /// 跳转到恋爱信息页面，并在返回时刷新首页数据
   Future<void> navigateToLoveInfoPage() async {
-    debugPrint('💕 从首页跳转到恋爱信息页面');
+    logDebug('💕 从首页跳转到恋爱信息页面');
     await Get.to(
       () => const LoveInfoPage(),
       transition: Transition.rightToLeft,
     );
     // 从恋爱信息页面返回时，刷新首页数据
-    debugPrint('💕 从恋爱信息页面返回首页，刷新数据');
+    logDebug('💕 从恋爱信息页面返回首页，刷新数据');
     onPageResumed();
   }
 
   /// 检查版本更新（首页自动检查）
   Future<void> _checkVersionUpdate() async {
     try {
-      debugPrint('🔄 开始检查版本更新');
+      logDebug('🔄 开始检查版本更新');
       
       // 延迟一段时间后检查，避免影响首页加载
       await Future.delayed(const Duration(milliseconds: 800));
@@ -1380,12 +1375,12 @@ class HomeController extends GetxController {
       if (currentContext != null) {
         final versionService = Get.find<VersionService>();
         await versionService.checkVersionForHomePage(currentContext);
-        debugPrint('✅ 版本检查完成');
+        logDebug('✅ 版本检查完成');
       } else {
-        debugPrint('⚠️ 无法获取Context，跳过版本检查');
+        logDebug('⚠️ 无法获取Context，跳过版本检查');
       }
     } catch (e) {
-      debugPrint('❌ 检查版本更新失败: $e');
+      logError('❌ 检查版本更新失败: $e');
     }
   }
 
@@ -1412,23 +1407,23 @@ class HomeController extends GetxController {
   /// 检查定位权限状态并显示绑定弹窗
   Future<void> _checkLocationPermissionAndShowBindingDialog() async {
     try {
-      debugPrint('🔍 检查定位权限状态...');
+      logDebug('🔍 检查定位权限状态...');
       
       // 检查定位权限状态
       final permissionManager = LocationPermissionManager.instance;
       bool hasLocationPermission = await permissionManager.isLocationPermissionGranted();
       
       if (hasLocationPermission) {
-        debugPrint('✅ 用户已有定位权限，启动弹窗流程');
+        logDebug('✅ 用户已有定位权限，启动弹窗流程');
         // 使用弹窗服务启动弹窗流程
         await _popupService.startPopupFlow();
       } else {
-        debugPrint('❌ 用户没有定位权限，优先级顺序：请求权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图');
+        logDebug('❌ 用户没有定位权限，优先级顺序：请求权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图');
         // 没有定位权限，请求权限（权限回调中会启动弹窗流程）
         await _requestLocationPermissionOnHomePage();
       }
     } catch (e) {
-      debugPrint('❌ 检查定位权限状态失败: $e');
+      logError('❌ 检查定位权限状态失败: $e');
       await _requestLocationPermissionOnHomePage();
     }
   }
@@ -1452,7 +1447,7 @@ class HomeController extends GetxController {
       // 检查 seedingStatus 是否为 "1"
       if (seedingStatus.value != '1') {
         showSeedingButton.value = false;
-        debugPrint('🌱 种草按钮不显示：seedingStatus=${seedingStatus.value}');
+        logDebug('🌱 种草按钮不显示：seedingStatus=${seedingStatus.value}');
         return;
       }
       
@@ -1463,7 +1458,7 @@ class HomeController extends GetxController {
       // 未绑定或未开通会员：每次打开都显示
       if (!bound || !vip) {
         showSeedingButton.value = true;
-        debugPrint('🌱 种草按钮显示：未绑定或未开通会员');
+        logDebug('🌱 种草按钮显示：未绑定或未开通会员');
         return;
       }
       
@@ -1475,14 +1470,14 @@ class HomeController extends GetxController {
       if (lastClosedDate == today) {
         // 今天已关闭过，不显示
         showSeedingButton.value = false;
-        debugPrint('🌱 种草按钮不显示：今天已关闭过（$today）');
+        logDebug('🌱 种草按钮不显示：今天已关闭过（$today）');
       } else {
         // 今天还未关闭过，显示
         showSeedingButton.value = true;
-        debugPrint('🌱 种草按钮显示：今天还未关闭过');
+        logDebug('🌱 种草按钮显示：今天还未关闭过');
       }
     } catch (e) {
-      debugPrint('❌ 更新种草按钮显示状态失败: $e');
+      logError('❌ 更新种草按钮显示状态失败: $e');
       showSeedingButton.value = false;
     }
   }
@@ -1497,33 +1492,33 @@ class HomeController extends GetxController {
         final prefs = await SharedPreferences.getInstance();
         final today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
         await prefs.setString('seeding_button_last_closed_date', today);
-        debugPrint('🌱 种草按钮已关闭，记录日期：$today');
+        logDebug('🌱 种草按钮已关闭，记录日期：$today');
       } else {
-        debugPrint('🌱 种草按钮已关闭（非会员，不记录日期）');
+        logDebug('🌱 种草按钮已关闭（非会员，不记录日期）');
       }
     } catch (e) {
-      debugPrint('❌ 关闭种草按钮失败: $e');
+      logError('❌ 关闭种草按钮失败: $e');
     }
   }
   
   /// 打开种草链接
   void openSeedingLink() {
     if (seedingLink.value.isNotEmpty) {
-      debugPrint('🌱 打开种草链接: ${seedingLink.value}');
+      logDebug('🌱 打开种草链接: ${seedingLink.value}');
       Get.to(
         () => SeedingWebViewPage(
           url: seedingLink.value,
         ),
       );
     } else {
-      debugPrint('⚠️ 种草链接为空');
+      logWarning('⚠️ 种草链接为空');
     }
   }
 
   /// 更新天气数据（从首页接口数据中解析）
   void _updateWeatherData(WeatherData weatherData) {
     try {
-      debugPrint('🌤️ 开始解析首页天气数据');
+      logDebug('🌤️ 开始解析首页天气数据');
       
       // 解析 base 数据
       if (weatherData.base.isNotEmpty) {
@@ -1531,7 +1526,7 @@ class HomeController extends GetxController {
         weatherIconUrl.value = base.weatherIcon.isNotEmpty ? base.weatherIcon : null;
         weather.value = base.weather.isNotEmpty ? base.weather : null;
         currentTemp.value = base.temperature.isNotEmpty ? base.temperature : null;
-        debugPrint('🌤️ 解析 base 数据: icon=${weatherIconUrl.value}, weather=${weather.value}, temp=${currentTemp.value}');
+          logDebug('🌤️ 解析 base 数据: icon=${weatherIconUrl.value}, weather=${weather.value}, temp=${currentTemp.value}');
       }
       
       // 解析 all 数据
@@ -1541,14 +1536,14 @@ class HomeController extends GetxController {
           final todayCast = all.casts.first;
           minTemp.value = todayCast.nighttemp.isNotEmpty ? todayCast.nighttemp : null;
           maxTemp.value = todayCast.daytemp.isNotEmpty ? todayCast.daytemp : null;
-          debugPrint('🌤️ 解析 all 数据: min=${minTemp.value}, max=${maxTemp.value}');
+          logDebug('🌤️ 解析 all 数据: min=${minTemp.value}, max=${maxTemp.value}');
         }
       }
       
       isWeatherLoading.value = false;
-      debugPrint('✅ 天气数据解析成功');
+      logDebug('✅ 天气数据解析成功');
     } catch (e) {
-      debugPrint('❌ 天气数据解析异常: $e');
+      logError('❌ 天气数据解析异常: $e');
       isWeatherLoading.value = false;
     }
   }
@@ -1567,9 +1562,9 @@ class HomeController extends GetxController {
         
         // 预加载定位页面的GIF
         await GifPreloadService.preloadLocationGifs(devicePixelRatio);
-        debugPrint('✅ 定位页面GIF预加载已启动');
+        logDebug('✅ 定位页面GIF预加载已启动');
       } catch (e) {
-        debugPrint('❌ 预加载GIF失败: $e');
+        logError('❌ 预加载GIF失败: $e');
       }
     });
   }

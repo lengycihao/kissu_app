@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 地图标记摆动动画管理器
 /// 
@@ -48,7 +49,7 @@ class MarkerSwingAnimator {
 
     // 🚀 修复：检查地图控制器是否已初始化，避免Channel未初始化错误
     if (_mapController == null) {
-      debugPrint('⚠️ MapController未初始化，跳过摆动动画');
+      logDebug('⚠️ MapController未初始化，跳过摆动动画');
       return;
     }
 
@@ -142,7 +143,7 @@ class MarkerSwingAnimator {
         return;
       }
       // 其他错误才输出日志
-      debugPrint('Update marker rotation error: $e');
+      logError('Update marker rotation error: $e');
     }
   }
 

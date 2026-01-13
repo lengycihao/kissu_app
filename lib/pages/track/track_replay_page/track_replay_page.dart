@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart'; 
 import 'package:kissu_app/utils/debug_util.dart';
 import 'track_replay_controller.dart';
@@ -171,7 +172,7 @@ class _MapWidgetState extends State<_MapWidget> {
       }
       return null;
     } catch (e) {
-      DebugUtil.error('获取停留点位置失败: $e');
+      logError('获取停留点位置失败: $e');
       return null;
     }
   }
@@ -191,9 +192,9 @@ class _MapWidgetState extends State<_MapWidget> {
               const ImageConfiguration(),
               'assets/texture/kissu4_track_line_red.png',
             );
-            DebugUtil.info('✅ 红色纹理加载成功');
+            logDebug('✅ 红色纹理加载成功');
           } catch (e) {
-            DebugUtil.error('❌ 红色纹理加载失败: $e');
+            logError('❌ 红色纹理加载失败: $e');
           }
         }
         if (_trackLineTextureBlue == null) {
@@ -202,15 +203,15 @@ class _MapWidgetState extends State<_MapWidget> {
               const ImageConfiguration(),
               'assets/texture/kissu4_track_line_blue.png',
             );
-            DebugUtil.info('✅ 蓝色纹理加载成功');
+            logDebug('✅ 蓝色纹理加载成功');
           } catch (e) {
-            DebugUtil.error('❌ 蓝色纹理加载失败: $e');
+            logError('❌ 蓝色纹理加载失败: $e');
           }
         }
         
         // 确保纹理已加载
         if (_trackLineTextureRed == null || _trackLineTextureBlue == null) {
-          DebugUtil.error('❌ 纹理未完全加载，无法创建轨迹线');
+          logError('❌ 纹理未完全加载，无法创建轨迹线');
           return;
         }
 
@@ -268,10 +269,10 @@ class _MapWidgetState extends State<_MapWidget> {
             }
           }
           
-          DebugUtil.info('🎨 去重后有效分段点数: ${uniquePoints.length} (原始: ${allPoints.length + stopPositions.length})');
+          logDebug('🎨 去重后有效分段点数: ${uniquePoints.length} (原始: ${allPoints.length + stopPositions.length})');
 
           // 根据分段点创建轨迹线
-          DebugUtil.info('🎨 准备创建 ${uniquePoints.length - 1} 段轨迹线');
+          logDebug('🎨 准备创建 ${uniquePoints.length - 1} 段轨迹线');
           for (int i = 0; i < uniquePoints.length - 1; i++) {
             final startPoint = uniquePoints[i];
             final endPoint = uniquePoints[i + 1];
@@ -279,7 +280,7 @@ class _MapWidgetState extends State<_MapWidget> {
             final startIndex = startPoint.index;
             final endIndex = endPoint.index;
             
-            DebugUtil.info('🎨 分段 $i: startIndex=$startIndex, endIndex=$endIndex');
+            logDebug('🎨 分段 $i: startIndex=$startIndex, endIndex=$endIndex');
             
             // 确保索引顺序正确且有效
             if (endIndex > startIndex && endIndex < trackPoints.length) {
@@ -289,7 +290,7 @@ class _MapWidgetState extends State<_MapWidget> {
                 // 红蓝交替：偶数索引（0, 2, 4...）用红色，奇数索引（1, 3, 5...）用蓝色
                 final isRed = i % 2 == 0;
                 final texture = isRed ? _trackLineTextureRed! : _trackLineTextureBlue!;
-                DebugUtil.info('🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentTrackPoints.length}');
+                logDebug('🎨 分段 $i: 使用${isRed ? "红色" : "蓝色"}纹理, 点数=${segmentTrackPoints.length}');
                 
                 // 如果分段太长，需要进一步分割（每段最多100个点）
         const int maxPointsPerSegment = 100;
@@ -329,14 +330,14 @@ class _MapWidgetState extends State<_MapWidget> {
                   }
                 }
               } else {
-                DebugUtil.warning('⚠️ 分段 $i: 点数不足，跳过 (${segmentTrackPoints.length})');
+                logWarning('⚠️ 分段 $i: 点数不足，跳过 (${segmentTrackPoints.length})');
               }
             } else {
-              DebugUtil.warning('⚠️ 分段 $i: 索引无效，跳过 (startIndex=$startIndex, endIndex=$endIndex, trackPoints.length=${trackPoints.length})');
+              logWarning('⚠️ 分段 $i: 索引无效，跳过 (startIndex=$startIndex, endIndex=$endIndex, trackPoints.length=${trackPoints.length})');
             }
           }
           
-          DebugUtil.info('✅ 轨迹线分段完成，共创建 ${newPolylines.length} 条线段');
+          logDebug('✅ 轨迹线分段完成，共创建 ${newPolylines.length} 条线段');
         } else {
           // 如果没有停留点，使用默认纹理（红色）
           const int maxPointsPerSegment = 100;
@@ -378,7 +379,7 @@ class _MapWidgetState extends State<_MapWidget> {
         }
       }
     } catch (e) {
-      DebugUtil.error('创建轨迹线失败: $e');
+      logError('创建轨迹线失败: $e');
     }
 
     if (mounted) {

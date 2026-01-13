@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 
@@ -36,14 +37,14 @@ class InteractionMessageController extends GetxController {
         // 解析数据 - 使用listJson字段
         final dataList = result.getListJson();
         messageList.value = dataList.map((item) => InteractionMessageGroup.fromJson(item)).toList();
-        debugPrint('✅ 互动消息加载成功，共 ${messageList.length} 组');
+        logDebug('✅ 互动消息加载成功，共 ${messageList.length} 组');
       } else {
         errorMessage.value = result.msg ?? '加载失败';
-        debugPrint('❌ 互动消息加载失败: ${result.msg}');
+        logError('❌ 互动消息加载失败: ${result.msg}');
       }
     } catch (e) {
       errorMessage.value = '网络错误: ${e.toString()}';
-      debugPrint('❌ 加载互动消息列表失败: $e');
+      logError('❌ 加载互动消息列表失败: $e');
     } finally {
       isLoading.value = false;
     }
@@ -61,7 +62,7 @@ class InteractionMessageController extends GetxController {
 
   /// 查看消息详情
   void onViewMessage(InteractionMessageItem message) {
-    debugPrint('查看消息: ${message.title}');
+    logDebug('查看消息: ${message.title}');
     if (message.eventType == 2) {
       Get.toNamed(KissuRoutePath.location);
     }

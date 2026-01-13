@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/notification_settings_api.dart';
 import 'package:kissu_app/model/notification_settings_response.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
@@ -84,7 +85,7 @@ class NotificationSettingsController extends GetxController {
         });
       }
     } catch (e) {
-      print('检查通知权限失败: $e');
+      logError('检查通知权限失败: $e');
     }
   }
   
@@ -193,7 +194,7 @@ class NotificationSettingsController extends GetxController {
       try {
         await PermissionHelper.openNotificationSettings();
       } catch (e) {
-        print('跳转通知设置失败: $e');
+        logError('跳转通知设置失败: $e');
         OKToastUtil.showError('跳转通知设置失败');
       }
     }
@@ -228,7 +229,7 @@ class NotificationSettingsController extends GetxController {
         _updateItemInList(kissuItems, item);
         _updateItemInList(phoneStatusItems, item);
         _updateItemInList(systemNotificationItems, item);
-        
+        logError('更新失败: ${result.msg ?? '未知错误'}');
         OKToastUtil.showError(result.msg ?? '更新失败');
       } else {
         // 更新成功，刷新缓存（重新加载最新数据）
@@ -279,10 +280,10 @@ class NotificationSettingsController extends GetxController {
             .map((json) => NotificationSettingsResponse.fromJson(json as Map<String, dynamic>))
             .toList();
         _applyServerSettings(responses);
-        print('✅ 从缓存加载通知设置成功');
+        logDebug('✅ 从缓存加载通知设置成功');
       }
     } catch (e) {
-      print('⚠️ 从缓存加载通知设置失败: $e');
+      logError('⚠️ 从缓存加载通知设置失败: $e');
     }
   }
   
@@ -300,7 +301,7 @@ class NotificationSettingsController extends GetxController {
       
       return diff > _cacheValidDuration; // 超过5分钟，需要刷新
     } catch (e) {
-      print('⚠️ 检查缓存时间失败: $e');
+      logError('⚠️ 检查缓存时间失败: $e');
       return true; // 出错时刷新
     }
   }
@@ -311,9 +312,9 @@ class NotificationSettingsController extends GetxController {
       final jsonList = responses.map((r) => r.toJson()).toList();
       await SpUtil.putJsonMap(_cacheKey, jsonList);
       await SpUtil.putString(_cacheTimeKey, DateTime.now().toIso8601String());
-      print('✅ 通知设置已保存到缓存');
+      logDebug('✅ 通知设置已保存到缓存');
     } catch (e) {
-      print('⚠️ 保存通知设置到缓存失败: $e');
+      logError('⚠️ 保存通知设置到缓存失败: $e');
     }
   }
   
@@ -338,7 +339,7 @@ class NotificationSettingsController extends GetxController {
         await Future.microtask(() => _applyServerSettings(result.data!));
       }
     } catch (e) {
-      print('加载通知设置失败: $e');
+      logError('加载通知设置失败: $e');
     } finally {
       if (!silent) {
         isLoading.value = false;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -101,9 +102,9 @@ class ChatThemeController extends GetxController {
       chatController.updateBubbleStyle(bubbleStyle);
       chatController.updateTheme(theme);
       
-      debugPrint('💬 应用聊天主题: $theme');
-      debugPrint('💬 主题背景: $backgroundPath');
-      debugPrint('💬 主题气泡: $bubbleStyle');
+      logDebug('💬 应用聊天主题: $theme');
+      logDebug('💬 主题背景: $backgroundPath');
+      logDebug('💬 主题气泡: $bubbleStyle');
       
       // 直接返回到聊天页面，跳过设置页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
@@ -113,7 +114,7 @@ class ChatThemeController extends GetxController {
         OKToastUtil.showSuccess('主题已更换');
       });
     } catch (e) {
-      debugPrint('💬 应用主题失败: $e');
+      logError('💬 应用主题失败: $e');
       // 出错时也直接返回到聊天页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
     }

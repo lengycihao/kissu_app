@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
@@ -77,7 +78,7 @@ class AppUsageDetailController extends GetxController {
     
     // 使用防抖加载数据，避免连续点击时多次请求
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      DebugUtil.info('📊 防抖Timer触发，开始加载数据: $newDateStr');
+      logDebug('📊 防抖Timer触发，开始加载数据: $newDateStr');
       loadData();
     });
   }
@@ -89,7 +90,7 @@ class AppUsageDetailController extends GetxController {
       
       // 格式化日期
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-      DebugUtil.info('📊 加载屏幕解锁统计数据: $dateStr');
+      logDebug('📊 加载屏幕解锁统计数据: $dateStr');
       
       // 调用API
       final result = await _usageRecordApi.getScreenUnlockStat(date: dateStr);
@@ -115,7 +116,7 @@ class AppUsageDetailController extends GetxController {
           screenTrend.value = screenData.trend;
           screenTrendText.value = screenData.trendText;
           
-          DebugUtil.success('✅ 屏幕使用数据加载成功: ${screenData.hours}小时${screenData.minutes}分');
+          logDebug('✅ 屏幕使用数据加载成功: ${screenData.hours}小时${screenData.minutes}分');
         }
         
         // 处理解锁数据
@@ -136,10 +137,10 @@ class AppUsageDetailController extends GetxController {
           unlockTrend.value = unlockData.trend;
           unlockTrendText.value = unlockData.trendText;
           
-          DebugUtil.success('✅ 解锁数据加载成功: ${unlockData.unlockNumber}次');
+          logDebug('✅ 解锁数据加载成功: ${unlockData.unlockNumber}次');
         }
       } else {
-        DebugUtil.warning('❌ 数据加载失败: ${result.msg}');
+        logWarning('❌ 数据加载失败: ${result.msg}');
         // 加载失败时使用空数据
         todayScreenUsage.value = List.filled(24, 0);
         todayUnlockCount.value = List.filled(24, 0);
@@ -149,7 +150,7 @@ class AppUsageDetailController extends GetxController {
         unlockTrendText.value = '';
       }
     } catch (e) {
-      DebugUtil.error('💥 数据加载异常: $e');
+      logError('💥 数据加载异常: $e');
       // 异常时使用空数据
       todayScreenUsage.value = List.filled(24, 0);
       todayUnlockCount.value = List.filled(24, 0);
@@ -245,10 +246,10 @@ class AppUsageDetailController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final hasShownGuide = prefs.getBool('has_shown_phone_history_guide') ?? false;
       
-      DebugUtil.info('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+      logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
       
       if (!hasShownGuide) {
-        DebugUtil.info('📱 首次进入用机记录页面，显示引导图');
+        logDebug('📱 首次进入用机记录页面，显示引导图');
         
         // 立即标记已显示，防止重复显示
         await prefs.setBool('has_shown_phone_history_guide', true);
@@ -258,17 +259,17 @@ class AppUsageDetailController extends GetxController {
           showGuideOverlay.value = true;
         });
       } else {
-        DebugUtil.info('ℹ️ 引导图已显示过');
+        logDebug('ℹ️ 引导图已显示过');
       }
     } catch (e) {
-      DebugUtil.error('❌ 检查引导图状态失败: $e');
+      logError('❌ 检查引导图状态失败: $e');
     }
   }
 
   /// 隐藏引导图
   void hideGuideOverlay() {
     showGuideOverlay.value = false;
-    DebugUtil.info('📱 隐藏引导图');
+    logDebug('📱 隐藏引导图');
   }
   
   @override

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
 import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -117,7 +118,7 @@ class UsageReportController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    debugPrint('📊 UsageReportController 初始化');
+    logDebug('📊 UsageReportController 初始化');
 
     // 记录页面进入时间（用于计算停留时长）
     _pageEnterTime = DateTime.now();
@@ -149,7 +150,7 @@ class UsageReportController extends GetxController {
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    debugPrint('📊 用机记录页面重新获得焦点，静默刷新用户信息');
+    logDebug('📊 用机记录页面重新获得焦点，静默刷新用户信息');
   
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
@@ -158,14 +159,14 @@ class UsageReportController extends GetxController {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      debugPrint('🔄 用机记录页面：静默刷新用户信息');
+      logDebug('🔄 用机记录页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
         _updateUserBindStatus();
       }
     } catch (e) {
-      debugPrint('❌ 用机记录页面：静默刷新用户信息失败: $e');
+      logError('❌ 用机记录页面：静默刷新用户信息失败: $e');
     }
   }
 
@@ -176,7 +177,7 @@ class UsageReportController extends GetxController {
 
     _debounceTimer?.cancel();
     _deviceInfoTooltipTimer?.cancel();
-    debugPrint('📊 UsageReportController 销毁');
+    logDebug('📊 UsageReportController 销毁');
     super.onClose();
   }
 
@@ -195,11 +196,11 @@ class UsageReportController extends GetxController {
       final isVip = UserManager.isVip;
 
      
-      debugPrint(
+      logDebug(
         '✅ 用机记录页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定状态=${isBind ? "已绑定" : "未绑定"}, 会员状态=${isVip ? "已充值" : "未充值"}',
       );
     } catch (e) {
-      debugPrint('❌ 用机记录页面浏览埋点上报失败: $e');
+      logError('❌ 用机记录页面浏览埋点上报失败: $e');
     }
   }
 
@@ -210,7 +211,7 @@ class UsageReportController extends GetxController {
     final currentDateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
 
     if (newDateStr == currentDateStr) {
-      debugPrint('📊 相同日期，跳过切换: $newDateStr');
+      logDebug('📊 相同日期，跳过切换: $newDateStr');
       return;
     }
 
@@ -221,7 +222,7 @@ class UsageReportController extends GetxController {
 
     // 使用防抖加载数据，避免连续点击时多次请求
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      debugPrint('📊 防抖Timer触发，开始加载数据');
+      logDebug('📊 防抖Timer触发，开始加载数据');
       loadData();
     });
   }
@@ -229,7 +230,7 @@ class UsageReportController extends GetxController {
   /// 加载数据（重置分页）
   Future<void> loadData({bool isRefresh = false}) async {
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    debugPrint('📊 加载数据: $dateStr, isRefresh: $isRefresh');
+    logDebug('📊 加载数据: $dateStr, isRefresh: $isRefresh');
 
     try {
       // 只在非刷新时显示loading
@@ -247,20 +248,20 @@ class UsageReportController extends GetxController {
       );
 
       if (result.isSuccess && result.data != null) {
-        debugPrint('✅ 数据加载成功，共${result.data!.list.length}条记录');
+        logDebug('✅ 数据加载成功，共${result.data!.list.length}条记录');
         // 刷新时直接替换数据，不清空再添加
         sensitiveRecordList.value = result.data!.list;
         hasMore.value = result.data!.hasMore;
         // 保存设备信息
         halfUserData.value = result.data!.halfUserData;
-        debugPrint('📄 是否有更多数据: ${hasMore.value}');
-        debugPrint('📱 设备信息: ${result.data!.halfUserData?.mobileModel ?? "未知"}');
+        logDebug('📄 是否有更多数据: ${hasMore.value}');
+        logDebug('📱 设备信息: ${result.data!.halfUserData?.mobileModel ?? "未知"}');
       } else {
-        debugPrint('❌ 数据加载失败: ${result.msg}');
+        logError('❌ 数据加载失败: ${result.msg}');
         _showToastSafely(result.msg ?? '数据加载失败');
       }
     } catch (e) {
-      debugPrint('💥 数据加载异常: $e');
+      logError('💥 数据加载异常: $e');
       _showToastSafely('数据加载异常: $e');
     } finally {
       if (!isRefresh) {
@@ -273,12 +274,12 @@ class UsageReportController extends GetxController {
   /// 加载更多数据
   Future<void> loadMoreData() async {
     if (isLoadingMore.value || !hasMore.value) {
-      debugPrint('⚠️ 无法加载更多：isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
+      logDebug('⚠️ 无法加载更多：isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
       return;
     }
 
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    debugPrint('📊 加载更多数据，当前页: ${currentPage.value}');
+    logDebug('📊 加载更多数据，当前页: ${currentPage.value}');
 
     try {
       isLoadingMore.value = true;
@@ -292,21 +293,21 @@ class UsageReportController extends GetxController {
       );
 
       if (result.isSuccess && result.data != null) {
-        debugPrint('✅ 加载更多成功，新增${result.data!.list.length}条记录');
+        logDebug('✅ 加载更多成功，新增${result.data!.list.length}条记录');
         sensitiveRecordList.addAll(result.data!.list);
         hasMore.value = result.data!.hasMore;
         // 更新设备信息（加载更多时也可能更新）
         if (result.data!.halfUserData != null) {
           halfUserData.value = result.data!.halfUserData;
         }
-        debugPrint('📄 是否还有更多数据: ${hasMore.value}');
+        logDebug('📄 是否还有更多数据: ${hasMore.value}');
       } else {
-        debugPrint('❌ 加载更多失败: ${result.msg}');
+        logError('❌ 加载更多失败: ${result.msg}');
         currentPage.value--; // 恢复页码
         _showToastSafely(result.msg ?? '加载更多失败');
       }
     } catch (e) {
-      debugPrint('💥 加载更多异常: $e');
+      logError('💥 加载更多异常: $e');
       currentPage.value--; // 恢复页码
       _showToastSafely('加载更多异常: $e');
     } finally {
@@ -317,13 +318,13 @@ class UsageReportController extends GetxController {
   /// 切换筛选类型（已废弃，改用多选）
   @Deprecated('使用多选筛选，直接在showFilterDialog中处理')
   void changeFilter(String filter) {
-    debugPrint('🔄 切换筛选类型: $filter');
+    logDebug('🔄 切换筛选类型: $filter');
     // 已改为多选，此方法不再使用
   }
 
   /// 下拉刷新
   Future<void> onRefresh() async {
-    debugPrint('🔄 下拉刷新');
+    logDebug('🔄 下拉刷新');
     isPullingRefresh.value = true;
     await loadData(isRefresh: true);
     // 更新刷新时间
@@ -338,7 +339,7 @@ class UsageReportController extends GetxController {
       AnalyticsHelper.trackSensitiveItemVipBtn();
       
       // 需要VIP权限，跳转到VIP页面
-      debugPrint('🔒 需要VIP权限，跳转到VIP页面');
+      logDebug('🔒 需要VIP权限，跳转到VIP页面');
       _navigateToVipPage();
     } else if (record.showJumpButton) {
       // 有跳转按钮，处理跳转
@@ -348,54 +349,54 @@ class UsageReportController extends GetxController {
 
   /// 处理跳转按钮点击
   void handleJumpPageClick(String jumpPage) {
-    debugPrint('🔗 跳转页面: $jumpPage');
+    logDebug('🔗 跳转页面: $jumpPage');
     
     switch (jumpPage) {
       case 'appUsePage':
         // 跳转到app使用统计页面
-        debugPrint('📱 跳转到App使用统计页面');
+        logDebug('📱 跳转到App使用统计页面');
         Get.toNamed(KissuRoutePath.appUsage);
         break;
       case 'tracePage':
         // 跳转到足迹页面
-        debugPrint('👣 跳转到足迹页面');
+        logDebug('👣 跳转到足迹页面');
         Get.toNamed(KissuRoutePath.track);
         break;
       case 'unlockPhonePage':
         // 跳转到设备使用记录页面（包含解锁记录）
-        debugPrint('📲 跳转到设备使用记录页面');
+        logDebug('📲 跳转到设备使用记录页面');
         Get.toNamed(KissuRoutePath.appUsageInfo);
         break;
       case 'locationPage':
         // 跳转到定位页面
-        debugPrint('📍 跳转到定位页面');
+        logDebug('📍 跳转到定位页面');
         Get.toNamed(KissuRoutePath.location);
         break;
       case 'mobileUse':
         // 跳转到设备使用页面
-        debugPrint('📱 跳转到设备使用页面');
+        logDebug('📱 跳转到设备使用页面');
         Get.toNamed(KissuRoutePath.deviceUsage);
         break;
       case 'locationReminder':
         // 跳转到定位提醒页面
-        debugPrint('🔔 跳转到定位提醒页面');
+        logDebug('🔔 跳转到定位提醒页面');
         Get.toNamed(KissuRoutePath.locationReminder);
         break;
       default:
-        debugPrint('⚠️ 未知的跳转页面类型: $jumpPage');
+        logDebug('⚠️ 未知的跳转页面类型: $jumpPage');
     }
   }
 
   /// 跳转到VIP页面
   Future<void> _navigateToVipPage() async {
-    debugPrint('💎 跳转到VIP页面');
+    logDebug('💎 跳转到VIP页面');
     
     // 跳转到VIP页面
     final result = await Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.usageReport, },);
     
     // 如果开通成功，刷新数据
     if (result == true) {
-      debugPrint('✅ VIP开通成功，刷新数据');
+      logDebug('✅ VIP开通成功，刷新数据');
       await loadData();
     }
   }
@@ -406,7 +407,7 @@ class UsageReportController extends GetxController {
       // 优先使用pageContext（已在页面中保存）
       CustomToast.show(pageContext, message);
     } catch (e) {
-      debugPrint('⚠️ 使用pageContext显示Toast失败，尝试其他方式: $e');
+      logInfo('⚠️ 使用pageContext显示Toast失败，尝试其他方式: $e');
       // fallback到Get.context
       try {
         if (Get.context != null) {
@@ -416,10 +417,9 @@ class UsageReportController extends GetxController {
           OKToastUtil.show(message);
         }
       } catch (e2) {
-        debugPrint('⚠️ 所有Toast显示方式都失败: $e2');
+        logError('⚠️ 所有Toast显示方式都失败: $e2');
         // 最后使用print输出
-        print('Toast消息: $message');
-      }
+       }
     }
   }
 
@@ -459,7 +459,7 @@ class UsageReportController extends GetxController {
     }
     isUserBound.value = bound;
     isUserVip.value = UserManager.isVip; // 同时更新会员状态
-    debugPrint('📊 用户绑定状态更新: $bound, 会员状态: ${isUserVip.value}');
+    logDebug('📊 用户绑定状态更新: $bound, 会员状态: ${isUserVip.value}');
   }
 
   /// 检查用户是否已绑定（保持向后兼容）
@@ -471,18 +471,18 @@ class UsageReportController extends GetxController {
   void handleDistanceButtonClick() {
     if (isUserBound.value) {
       // 已绑定，跳转到定位页面（添加会员检查）
-      debugPrint('📍 用户已绑定，跳转到定位页面（检查会员状态）');
+      logDebug('📍 用户已绑定，跳转到定位页面（检查会员状态）');
       VipNavigationHelper.navigateToLocationWithVipCheck();
     } else {
       // 未绑定，显示绑定弹窗
-      debugPrint('💑 用户未绑定，显示绑定弹窗');
+      logDebug('💑 用户未绑定，显示绑定弹窗');
       showBindingDialog();
     }
   }
 
   /// 处理绑定按钮点击事件
   void handleBindButtonClick() async {
-    debugPrint('💑 立即绑定按钮被点击');
+    logDebug('💑 立即绑定按钮被点击');
 
  
 
@@ -491,7 +491,7 @@ class UsageReportController extends GetxController {
 
   /// 处理开通会员按钮点击事件
   void handleVipButtonClick() async {
-    debugPrint('💎 开通会员按钮被点击');
+    logDebug('💎 开通会员按钮被点击');
 
     
 
@@ -502,19 +502,19 @@ class UsageReportController extends GetxController {
     );
 
     // 从VIP页面返回后，刷新用户信息
-    debugPrint('📊 从VIP页面返回，刷新用户信息');
+    logDebug('📊 从VIP页面返回，刷新用户信息');
     try {
       final success = await UserManager.refreshUserInfo();
       if (success) {
         _updateUserBindStatus(); // 更新绑定状态和会员状态
         if (isUserBound.value && isUserVip.value) {
           // 如果已绑定且已开通会员，刷新数据
-          debugPrint('💎 用户已开通会员，刷新页面数据');
+          logDebug('💎 用户已开通会员，刷新页面数据');
           loadData();
         }
       }
     } catch (e) {
-      debugPrint('❌ 刷新用户信息失败: $e');
+      logError('❌ 刷新用户信息失败: $e');
     }
   }
 
@@ -526,18 +526,18 @@ class UsageReportController extends GetxController {
         context: currentContext,
         caller: SourcePageUtilsCaller.usageReport,
         onClose: () {
-          debugPrint('💑 绑定弹窗已关闭');
+          logDebug('💑 绑定弹窗已关闭');
         },
       ).then((result) {
         // 绑定弹窗关闭后，更新绑定状态并检查是否需要刷新页面
         _updateUserBindStatus();
         if (isUserBound.value) {
-          debugPrint('💑 用户已绑定，刷新页面数据');
+          logDebug('💑 用户已绑定，刷新页面数据');
           loadData();
         }
       });
     } else {
-      debugPrint('❌ 无法获取Context，跳过显示绑定弹窗');
+      logError('❌ 无法获取Context，跳过显示绑定弹窗');
     }
   }
  

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
@@ -65,7 +66,7 @@ class ChatSettingsController extends GetxController {
     if (newName.isNotEmpty && newName != currentNickname.value) {
       final partnerId = chatController.partnerImId;
       if (partnerId == null || partnerId.isEmpty) {
-        debugPrint('更新腾讯 IM 备注失败: 无法获取聊天对象ID');
+        logDebug('更新腾讯 IM 备注失败: 无法获取聊天对象ID');
         return;
       }
 
@@ -78,13 +79,13 @@ class ChatSettingsController extends GetxController {
             currentNickname.value = newName;
             // 同步更新聊天页面的昵称显示
             chatController.chatName.value = newName;
-            debugPrint('更新腾讯 IM 备注成功: $newName');
+            logDebug('更新腾讯 IM 备注成功: $newName');
           } else {
-            debugPrint('更新腾讯 IM 备注失败: SDK 返回失败');
+            logDebug('更新腾讯 IM 备注失败: SDK 返回失败');
           }
         }
       } catch (e) {
-        debugPrint('更新腾讯 IM 备注失败: $e');
+        logError('更新腾讯 IM 备注失败: $e');
       }
     }
     isEditingNickname.value = false;

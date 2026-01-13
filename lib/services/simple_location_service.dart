@@ -347,7 +347,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         },
       );
       _isGlobalListenerSetup = true;
-      logger.info('全局定位监听器设置完成', tag: 'Location');
+      logger.debug('全局定位监听器设置完成', tag: 'Location');
     } catch (e) {
       logger.error('设置全局定位监听器失败: ', tag: 'Location');
       if (e.toString().contains('Stream has already been listened to')) {
@@ -377,7 +377,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
           logger.warning('后台定位权限被永久拒绝', tag: 'Location');
           CustomToast.show(Get.context!, '后台定位权限被永久拒绝，可在设置中手动开启');
         } else if (backgroundLocationStatus.isDenied) {
-          logger.debug('后台定位权限未开启，前台定位仍可使用', tag: 'Location');
+          logger.warning('后台定位权限未开启，前台定位仍可使用', tag: 'Location');
           // 不主动请求后台权限，避免重复弹窗
           // 智能提醒服务会在适当时机提醒用户
         }
@@ -394,7 +394,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 请求后台定位权限（仅在用户明确需要时调用）
   Future<bool> requestBackgroundLocationPermission() async {
     try {
-      logger.info('开始申请后台定位权限...', tag: 'Location');
+      logger.debug('开始申请后台定位权限...', tag: 'Location');
 
       // 1. 首先确保有前台定位权限
       var locationStatus = await Permission.location.status;
@@ -403,7 +403,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       if (!locationStatus.isGranted) {
         // logger.info('先申请前台定位权限...', tag: 'Location');
         locationStatus = await Permission.location.request();
-        logger.info('申请前台定位权限结果: $locationStatus', tag: 'Location');
+        logger.debug('申请前台定位权限结果: $locationStatus', tag: 'Location');
 
         if (!locationStatus.isGranted) {
           logger.error('前台定位权限被拒绝，无法申请后台权限', tag: 'Location');
@@ -414,12 +414,12 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 2. 检查后台定位权限状态
       var backgroundLocationStatus = await Permission.locationAlways.status;
-      logger.info('后台定位权限状态: $backgroundLocationStatus', tag: 'Location');
+      logger.debug('后台定位权限状态: $backgroundLocationStatus', tag: 'Location');
 
       if (backgroundLocationStatus.isDenied) {
         // logger.info('申请后台定位权限...', tag: 'Location');
         backgroundLocationStatus = await Permission.locationAlways.request();
-        logger.info('申请后台定位权限结果: $backgroundLocationStatus', tag: 'Location');
+        logger.debug('申请后台定位权限结果: $backgroundLocationStatus', tag: 'Location');
 
         if (backgroundLocationStatus.isGranted) {
           // logger.info('后台定位权限获取成功', tag: 'Location');
@@ -467,7 +467,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 设置高德地图隐私合规（必须在任何定位操作之前）
       await _setupPrivacyCompliance();
-      logger.info('隐私合规设置完成', tag: 'Location');
+      logger.debug('隐私合规设置完成', tag: 'Location');
 
       // 检查权限状态，但不重复请求
       var locationStatus = await Permission.location.status;
@@ -479,7 +479,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 如果已经在定位，先停止
       if (isLocationEnabled.value) {
-        logger.info('定位服务已启动，先停止旧服务', tag: 'Location');
+        logger.debug('定位服务已启动，先停止旧服务', tag: 'Location');
         stopLocation();
         // 等待一小段时间确保停止完成
         await Future.delayed(Duration(milliseconds: 500));
@@ -493,7 +493,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         // logger.info('检查高德定位插件状态...', tag: 'Location');
         // 简单调用来检查插件是否正常
         _locationPlugin.stopLocation(); // 安全的检查调用
-        logger.info('高德定位插件状态正常', tag: 'Location');
+        logger.debug('高德定位插件状态正常', tag: 'Location');
       } catch (e) {
         logger.error('高德定位插件可能未正确初始化: ', tag: 'Location');
       }
@@ -502,15 +502,15 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       try {
         // 停止现有定位
         _locationPlugin.stopLocation();
-        logger.info('高德定位插件已停止', tag: 'Location');
+        logger.debug('高德定位插件已停止', tag: 'Location');
 
         // 全局监听器无需清理，直接继续
 
-        logger.info('所有流监听器清理完成', tag: 'Location');
+        logger.debug('所有流监听器清理完成', tag: 'Location');
 
         // 等待确保完全停止
         await Future.delayed(Duration(milliseconds: 500));
-        logger.info('清理完成，等待结束', tag: 'Location');
+        logger.debug('清理完成，等待结束', tag: 'Location');
       } catch (e) {
         logger.warning('清理监听器时出现异常: $e', tag: 'Location');
       }
@@ -549,7 +549,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       try {
         _locationPlugin.setLocationOption(locationOption);
-        logger.info('高德定位参数设置完成', tag: 'Location');
+        logger.debug('高德定位参数设置完成', tag: 'Location');
       } catch (e) {
         logger.error('设置高德定位参数失败: ', tag: 'Location');
         throw e;
@@ -564,7 +564,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       try {
         _locationPlugin.startLocation();
-        logger.info('高德定位启动请求已发送', tag: 'Location');
+        logger.debug('高德定位启动请求已发送', tag: 'Location');
       } catch (e) {
         logger.error('启动高德定位失败: ', tag: 'Location');
         throw e;
@@ -601,20 +601,20 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
       // 🔥 关键修复：立即启动前台服务，确保息屏后能继续定位
       // 不等到进入后台才启动，因为用户可能随时息屏
-      logger.info('立即启动前台服务以支持息屏后定位...', tag: 'Location');
+      logger.debug('立即启动前台服务以支持息屏后定位...', tag: 'Location');
       await _enableForegroundServiceIfNeeded();
 
       // 🔥 重要优化：根据应用状态智能决定是否启动后台定时器
       _smartStartLocationStrategy();
 
       // 🚀 每次启动定位服务时，立即尝试获取一次定位并放入收集池
-      logger.info('定位服务启动完成，立即尝试获取一次定位放入收集池', tag: 'Location');
+      logger.debug('定位服务启动完成，立即尝试获取一次定位放入收集池', tag: 'Location');
       _requestInitialLocationForCollection();
 
-      logger.info('高德定位服务已启动完成', tag: 'Location');
+      logger.debug('高德定位服务已启动完成', tag: 'Location');
       return true;
     } catch (e) {
-      logger.debug('启动高德定位失败: $e', tag: 'Location');
+      logger.error('启动高德定位失败: $e', tag: 'Location');
       return false;
     }
   }
@@ -666,7 +666,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
                 gpsOnly.onceLocation = false;
                 _locationPlugin.setLocationOption(gpsOnly);
                 _locationPlugin.startLocation();
-                logger.info('已切换到GPS-only降级模式', tag: 'Location');
+                logger.debug('已切换到GPS-only降级模式', tag: 'Location');
               } else {
                 logger.verbose('尝试纯网络定位以快速恢复', tag: 'Location');
                 tryNetworkLocationOnly();
@@ -857,7 +857,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 🚀 每次启动时主动获取一次定位放入收集池
   Future<void> _requestInitialLocationForCollection() async {
     try {
-      logger.info('主动获取初始定位，准备放入收集池...', tag: 'Location');
+      logger.debug('主动获取初始定位，准备放入收集池...', tag: 'Location');
 
       // 等待一小段时间让定位服务稳定
       await Future.delayed(Duration(seconds: 2));
@@ -972,7 +972,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       locationOption.onceLocation = false; // 持续定位
 
       _locationPlugin.setLocationOption(locationOption);
-      logger.info('持续定位参数重新设置完成', tag: 'Location');
+      logger.debug('持续定位参数重新设置完成', tag: 'Location');
     } catch (e) {
       logger.error('重新设置持续定位参数失败: ', tag: 'Location');
     }
@@ -981,7 +981,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 处理定位超时的智能恢复策略
   Future<void> _handleLocationTimeout() async {
     try {
-      logger.info('开始处理定位超时，当前重试次数: $_locationRetryCount', tag: 'Location');
+      logger.debug('开始处理定位超时，当前重试次数: $_locationRetryCount', tag: 'Location');
 
       if (_locationRetryCount < 3) {
         _locationRetryCount++;
@@ -1062,7 +1062,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 轻量级重新初始化插件（避免Stream冲突）
   Future<void> _lightweightReinitializePlugin() async {
     try {
-      logger.info('轻量级重新初始化高德定位插件...', tag: 'Location');
+      logger.debug('轻量级重新初始化高德定位插件...', tag: 'Location');
 
       // 只停止定位，不干扰Stream
       _locationPlugin.stopLocation();
@@ -1149,7 +1149,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       await Future.delayed(Duration(seconds: 15));
 
       if (currentLocation.value != null) {
-        logger.info('网络定位成功！', tag: 'Location');
+        logger.debug('网络定位成功！', tag: 'Location');
         logger.debug(
           '经度: ${currentLocation.value!.longitude}',
           tag: 'Location',
@@ -1173,11 +1173,11 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 综合定位问题排查工具
   Future<void> comprehensiveLocationTroubleshoot() async {
-    logger.info('========== 综合定位问题排查 ==========', tag: 'Location');
+    logger.debug('========== 综合定位问题排查 ==========', tag: 'Location');
 
     try {
       // 1. 基础检查
-      logger.info('第1步：基础环境检查', tag: 'Location');
+      logger.debug('第1步：基础环境检查', tag: 'Location');
       await diagnoseLocationService();
 
       // 2. API Key验证
@@ -1189,7 +1189,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       await tryNetworkLocationOnly();
 
       if (currentLocation.value != null) {
-        logger.info('网络定位成功，问题已解决！', tag: 'Location');
+        logger.debug('网络定位成功，问题已解决！', tag: 'Location');
         return;
       }
 
@@ -1210,7 +1210,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         logger.debug('6. 尝试重启应用或设备', tag: 'Location');
         logger.debug('7. 检查高德控制台配置和服务状态', tag: 'Location');
       } else {
-        logger.info('定位问题已解决！', tag: 'Location');
+        logger.debug('定位问题已解决！', tag: 'Location');
       }
     } catch (e) {
       logger.error('综合排查过程中出错: ', tag: 'Location');
@@ -1219,7 +1219,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 尝试不同定位模式
   Future<void> tryDifferentLocationModes() async {
-    logger.info('尝试不同定位模式...', tag: 'Location');
+    logger.debug('尝试不同定位模式...', tag: 'Location');
 
     // 模式列表
     final modes = [
@@ -1264,7 +1264,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
         await Future.delayed(Duration(seconds: 10));
 
         if (currentLocation.value != null) {
-          logger.info('${modeInfo['name']} 成功获取位置！', tag: 'Location');
+          logger.debug('${modeInfo['name']} 成功获取位置！', tag: 'Location');
           logger.debug(
             '位置: (${currentLocation.value!.latitude}, ${currentLocation.value!.longitude})',
             tag: 'Location',
@@ -1283,17 +1283,17 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 检查高德API Key是否配置正确
   Future<void> checkApiKeyConfiguration() async {
-    logger.info('检查高德地图API Key配置...', tag: 'Location');
+    logger.debug('检查高德地图API Key配置...', tag: 'Location');
 
     try {
       // 尝试验证API Key配置（通过设置参数来测试）
       // await _locationPlugin.init(); // 某些版本可能没有这个方法
-      logger.info('高德定位插件初始化成功，API Key可能配置正确', tag: 'Location');
+      logger.debug('高德定位插件初始化成功，API Key可能配置正确', tag: 'Location');
 
       // 检查是否能获取插件版本（这通常表示插件工作正常）
       try {
         // 注意：某些版本的高德插件可能没有getVersion方法
-        logger.info('高德定位插件已准备就绪', tag: 'Location');
+        logger.debug('高德定位插件已准备就绪', tag: 'Location');
       } catch (e) {
         logger.warning('无法获取插件版本信息，但这可能是正常的: $e', tag: 'Location');
       }
@@ -1310,7 +1310,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 诊断定位服务状态
   Future<void> diagnoseLocationService() async {
-    logger.info('========== 定位服务诊断报告 ==========', tag: 'Location');
+    logger.debug('========== 定位服务诊断报告 ==========', tag: 'Location');
 
     try {
       // 1. 检查定位服务是否启用
@@ -1352,7 +1352,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 运行完整的定位问题诊断和修复流程
   Future<bool> runLocationDiagnosticAndFix() async {
-    logger.info('========== 开始完整定位诊断和修复 ==========', tag: 'Location');
+    logger.debug('========== 开始完整定位诊断和修复 ==========', tag: 'Location');
 
     try {
       // 1. 运行综合排查
@@ -1381,7 +1381,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       for (int i = 0; i < 30; i++) {
         await Future.delayed(Duration(seconds: 1));
         if (currentLocation.value != null) {
-          logger.info('第${i + 1}秒获得位置数据！', tag: 'Location');
+          logger.debug('第${i + 1}秒获得位置数据！', tag: 'Location');
           logger.debug(
             '经度: ${currentLocation.value!.longitude}',
             tag: 'Location',
@@ -1596,7 +1596,7 @@ extension AppLifecycleExtension on SimpleLocationService {
 
   /// 启用后台位置模式
   void _enableBackgroundLocationMode() {
-    logger.info('启用后台位置采集模式', tag: 'Location');
+    logger.debug('启用后台位置采集模式', tag: 'Location');
     // 在后台时，降低采集频率以节省电量，同时保证一定的更新
     try {
       // 若后台定位权限未授予，避免触发网络/WIFI基站采集导致错误13
@@ -1665,7 +1665,7 @@ extension AppLifecycleExtension on SimpleLocationService {
 
       _locationPlugin.setLocationOption(option);
       _locationPlugin.startLocation();
-      logger.info(
+      logger.debug(
         '前台模式参数已应用：Hight_Accuracy / ${SimpleLocationService._locationInterval}ms / distanceFilter=${SimpleLocationService._distanceFilter}',
         tag: 'Location',
       );
@@ -1766,7 +1766,7 @@ extension AppLifecycleExtension on SimpleLocationService {
       final success = await foregroundService.startForegroundService();
 
       if (success) {
-        logger.info('前台服务启动成功（静默模式）', tag: 'Location');
+        logger.debug('前台服务启动成功（静默模式）', tag: 'Location');
         // 🔧 移除通知更新，保持静默
         // await foregroundService.updateForegroundServiceNotification(
         //   content: '正在后台为您提供位置定位服务',
@@ -1786,7 +1786,7 @@ extension AppLifecycleExtension on SimpleLocationService {
       final success = await foregroundService.stopForegroundService();
 
       if (success) {
-        logger.info('前台服务停止成功', tag: 'Location');
+        logger.debug('前台服务停止成功', tag: 'Location');
       } else {
         logger.error('前台服务停止失败', tag: 'Location');
       }
@@ -1895,7 +1895,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
         }
       }
 
-      logger.info('健康检查：定位服务状态良好', tag: 'Location');
+      logger.debug('健康检查：定位服务状态良好', tag: 'Location');
       return true;
     } catch (e) {
       logger.error('健康检查异常: ', tag: 'Location');
@@ -1993,7 +1993,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
       // 3. 重启成功，重置失败计数
       if (isLocationEnabled.value) {
         _consecutiveFailureCount = 0;
-        logger.info('智能重启成功，重置失败计数', tag: 'Location');
+        logger.debug('智能重启成功，重置失败计数', tag: 'Location');
       }
     } catch (e) {
       logger.error('智能重启失败: ', tag: 'Location');
@@ -2018,7 +2018,7 @@ extension BackgroundTaskExtension on SimpleLocationService {
 
   /// 重置定位状态
   void _resetLocationState() {
-    logger.info('重置定位服务状态', tag: 'Location');
+    logger.debug('重置定位服务状态', tag: 'Location');
 
     // 重置响应式状态
     isLocationEnabled.value = false;

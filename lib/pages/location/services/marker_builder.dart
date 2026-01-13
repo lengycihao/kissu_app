@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'map_image_service.dart';
 
 /// 地图标记构建器
@@ -39,18 +40,18 @@ class MarkerBuilder {
     final resolvedDesignSize = designSize ?? (size > 100 ? 200.0 : 21.0);
     final adjustedSize = resolvedDesignSize * screenScale * dpr;
 
-    debugPrint('📱 ============ 底座Marker创建 ============');
-    debugPrint('📱 设备像素比(DPI): $dpr');
-    debugPrint('📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}px');
-    debugPrint(
+    logDebug('📱 ============ 底座Marker创建 ============');
+    logDebug('📱 设备像素比(DPI): $dpr');
+    logDebug('📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}px');
+    logDebug(
       '📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)',
     );
-    debugPrint('📱 请求底座尺寸: ${size}px');
-    debugPrint('📱 设计稿尺寸: ${resolvedDesignSize}px');
-    debugPrint(
+    logDebug('📱 请求底座尺寸: ${size}px');
+    logDebug('📱 设计稿尺寸: ${resolvedDesignSize}px');
+    logDebug(
       '📱 实际底座尺寸: ${adjustedSize.toStringAsFixed(1)}px (${resolvedDesignSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
     );
-    debugPrint('📱 ==========================================');
+    logDebug('📱 ==========================================');
 
     // 创建画布（只包含底座）
     final pictureRecorder = ui.PictureRecorder();
@@ -106,9 +107,9 @@ class MarkerBuilder {
       final dpr = ui.window.devicePixelRatio;
       final screenWidth = ui.window.physicalSize.width / dpr; // 逻辑像素宽度
 
-      debugPrint('📱 ============ Marker创建调试信息 ============');
-      debugPrint('📱 设备像素比(DPI): $dpr');
-      debugPrint(
+      logDebug('📱 ============ Marker创建调试信息 ============');
+      logDebug('📱 设备像素比(DPI): $dpr');
+      logDebug(
         '📱 屏幕宽度: ${screenWidth.toStringAsFixed(0)}逻辑像素 (${ui.window.physicalSize.width.toStringAsFixed(0)}物理像素)',
       );
 
@@ -127,13 +128,13 @@ class MarkerBuilder {
           ? designLargePedestalSize * screenScale * dpr
           : designSmallPedestalSize * screenScale * dpr;
 
-      debugPrint(
+      logDebug(
         '📱 设计稿比例: ${screenScale.toStringAsFixed(3)}x (${screenWidth.toStringAsFixed(0)} / $designWidth)',
       );
-      debugPrint(
+      logDebug(
         '📱 头像尺寸: ${avatarSize.toStringAsFixed(1)}px (设计稿${designAvatarSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
       );
-      debugPrint(
+      logDebug(
         '📱 底座尺寸: ${pedestalWidth.toStringAsFixed(1)}px (设计稿${useLargePedestal ? designLargePedestalSize : designSmallPedestalSize}px × ${screenScale.toStringAsFixed(2)} × $dpr)',
       );
 
@@ -164,10 +165,10 @@ class MarkerBuilder {
           padding;
       final size = Size(canvasWidth, canvasHeight);
 
-      debugPrint(
+      logDebug(
         '📱 Canvas尺寸: ${canvasWidth.toStringAsFixed(1)} x ${canvasHeight.toStringAsFixed(1)}px',
       );
-      debugPrint('📱 边框宽度: ${avatarBorderWidth.toStringAsFixed(2)}px');
+      logDebug('📱 边框宽度: ${avatarBorderWidth.toStringAsFixed(2)}px');
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -222,18 +223,18 @@ class MarkerBuilder {
       final avatarBottomY = avatarTop + avatarSize;
       final anchorY = avatarBottomY / size.height;
 
-      debugPrint('📱 图片尺寸: ${size.width.toInt()} x ${size.height.toInt()}px');
-      debugPrint('📱 头像底部Y: ${avatarBottomY.toStringAsFixed(1)}px');
-      debugPrint('📱 锚点位置: (0.5, ${anchorY.toStringAsFixed(3)})');
-      debugPrint('📱 创建耗时: ${createDuration.inMilliseconds}ms');
-      debugPrint('📱 ============================================');
+      logDebug('📱 图片尺寸: ${size.width.toInt()} x ${size.height.toInt()}px');
+      logDebug('📱 头像底部Y: ${avatarBottomY.toStringAsFixed(1)}px');
+      logDebug('📱 锚点位置: (0.5, ${anchorY.toStringAsFixed(3)})');
+      logDebug('📱 创建耗时: ${createDuration.inMilliseconds}ms');
+      logDebug('📱 ============================================');
 
       return {
         'descriptor': BitmapDescriptor.fromBytes(bytes),
         'anchor': Offset(0.5, anchorY),
       };
     } catch (e) {
-      debugPrint('Create avatar marker error: $e');
+      logError('Create avatar marker error: $e');
       return {
         'descriptor': BitmapDescriptor.defaultMarker,
         'anchor': const Offset(0.5, 1.0),
@@ -277,7 +278,7 @@ class MarkerBuilder {
           avatarImage = await _imageService.loadImageFromAsset(avatarUrl);
         }
       } catch (e) {
-        debugPrint('Load avatar error: $e');
+        logError('Load avatar error: $e');
       }
     }
 
@@ -570,7 +571,7 @@ class MarkerBuilder {
         }
       }
     } catch (e) {
-      debugPrint('Draw emoji background error: $e');
+      logError('Draw emoji background error: $e');
     }
   }
 
@@ -599,7 +600,7 @@ class MarkerBuilder {
       // 加载背景图
       final bgImage = await _imageService.loadImageFromAsset(bgAsset);
       if (bgImage == null) {
-        debugPrint('❌ 加载背景图失败: $bgAsset');
+        logDebug('❌ 加载背景图失败: $bgAsset');
         return {
           'descriptor': BitmapDescriptor.defaultMarker,
           'anchor': const Offset(0.5, 1.0),
@@ -638,11 +639,11 @@ class MarkerBuilder {
       final canvasWidth = rotationDegrees.abs() > 0.1 ? diagonalSqrt : bgWidth;
       final canvasHeight = rotationDegrees.abs() > 0.1 ? diagonalSqrt : totalContentHeight;
       
-      debugPrint('📱 ============ 带背景头像Marker创建 ============');
-      debugPrint('📱 背景图尺寸: ${bgWidth.toStringAsFixed(1)} x ${bgHeight.toStringAsFixed(1)}px');
-      debugPrint('📱 头像尺寸: ${avatarSize.toStringAsFixed(1)}px');
-      debugPrint('📱 旋转角度: $rotationDegrees°');
-      debugPrint('📱 画布尺寸: ${canvasWidth.toStringAsFixed(1)} x ${canvasHeight.toStringAsFixed(1)}px');
+      logDebug('📱 ============ 带背景头像Marker创建 ============');
+      logDebug('📱 背景图尺寸: ${bgWidth.toStringAsFixed(1)} x ${bgHeight.toStringAsFixed(1)}px');
+      logDebug('📱 头像尺寸: ${avatarSize.toStringAsFixed(1)}px');
+      logDebug('📱 旋转角度: $rotationDegrees°');
+      logDebug('📱 画布尺寸: ${canvasWidth.toStringAsFixed(1)} x ${canvasHeight.toStringAsFixed(1)}px');
 
       // 创建画布
       final pictureRecorder = ui.PictureRecorder();
@@ -760,19 +761,19 @@ class MarkerBuilder {
         final tipY = canvasHeight / 2 + tipOffsetY;
         // 锚点是尖尖位置相对于画布的比例
         anchor = Offset(tipX / canvasWidth, tipY / canvasHeight);
-        debugPrint('📱 旋转后锚点: (${anchor.dx.toStringAsFixed(3)}, ${anchor.dy.toStringAsFixed(3)})');
+        logDebug('📱 旋转后锚点: (${anchor.dx.toStringAsFixed(3)}, ${anchor.dy.toStringAsFixed(3)})');
       } else {
         anchor = const Offset(0.5, 1.0);
       }
 
-      debugPrint('📱 ============================================');
+      logDebug('📱 ============================================');
 
       return {
         'descriptor': BitmapDescriptor.fromBytes(bytes),
         'anchor': anchor,
       };
     } catch (e) {
-      debugPrint('Create avatar with bg marker error: $e');
+      logError('Create avatar with bg marker error: $e');
       return {
         'descriptor': BitmapDescriptor.defaultMarker,
         'anchor': const Offset(0.5, 1.0),

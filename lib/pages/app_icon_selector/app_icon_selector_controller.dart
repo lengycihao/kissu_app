@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
@@ -108,7 +109,7 @@ class AppIconSelectorController extends GetxController {
       final String result = await platform.invokeMethod('getCurrentIcon');
       currentIcon.value = result;
     } catch (e) {
-      print('获取当前图标失败: $e');
+      logError('获取当前图标失败: $e');
     }
   }
 
@@ -134,7 +135,7 @@ class AppIconSelectorController extends GetxController {
         OKToastUtil.show('图标切换失败，请重试');
       }
     } catch (e) {
-      print('切换图标失败: $e');
+      logError('切换图标失败: $e');
       OKToastUtil.show('切换失败: $e');
     } finally {
       isLoading.value = false;

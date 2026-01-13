@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/location/services/marker_builder.dart';
 import 'package:kissu_app/widgets/safe_amap_widget.dart';
@@ -105,7 +106,7 @@ class _MapGifTestPageState extends State<MapGifTestPage> {
         );
         partnerMarker.setIdForCopy('partner_marker');
         markers.add(partnerMarker);
-        debugPrint('✅ Ta的头像marker创建成功（左边），锚点: $partnerAnchorAdjusted');
+        logDebug('✅ Ta的头像marker创建成功（左边），锚点: $partnerAnchorAdjusted');
       }
 
       // 2. 创建我的头像marker（右边，顺时针旋转20度）
@@ -134,7 +135,7 @@ class _MapGifTestPageState extends State<MapGifTestPage> {
         );
         myMarker.setIdForCopy('my_marker');
         markers.add(myMarker);
-        debugPrint('✅ 我的头像marker创建成功（右边），锚点: $myAnchorAdjusted');
+        logDebug('✅ 我的头像marker创建成功（右边），锚点: $myAnchorAdjusted');
       }
 
       // 3. 创建GIF动画marker（在两人头像底部尖尖下方）
@@ -149,7 +150,7 @@ class _MapGifTestPageState extends State<MapGifTestPage> {
       );
       gifMarker.setIdForCopy('gif_marker');
       markers.add(gifMarker);
-      debugPrint('✅ GIF占位marker创建成功');
+      logDebug('✅ GIF占位marker创建成功');
 
       if (mounted) {
         setState(() {
@@ -175,9 +176,9 @@ class _MapGifTestPageState extends State<MapGifTestPage> {
         );
         if (success) {
           _gifStarted = true;
-          debugPrint('✅ GIF动画启动成功，尺寸: ${gifSizeW}x$gifSizeH');
+          logDebug('✅ GIF动画启动成功，尺寸: ${gifSizeW}x$gifSizeH');
         } else {
-          debugPrint('❌ GIF动画启动失败');
+          logWarning('❌ GIF动画启动失败');
         }
         
         // 🔄 启动头像摆动动画（雨刷器效果）
@@ -188,7 +189,7 @@ class _MapGifTestPageState extends State<MapGifTestPage> {
           toAngle: -5.0,
           duration: 800,
         );
-        debugPrint('✅ Ta的头像摆动动画启动');
+        logDebug('✅ Ta的头像摆动动画启动');
         
         // 右边头像（我）：从20度摆动到5度（向左摆，靠近中间）
         await _mapController!.startSwingAnimation(
@@ -197,11 +198,11 @@ class _MapGifTestPageState extends State<MapGifTestPage> {
           toAngle: 5.0,
           duration: 800,
         );
-        debugPrint('✅ 我的头像摆动动画启动');
+        logDebug('✅ 我的头像摆动动画启动');
       }
 
     } catch (e) {
-      debugPrint('❌ 创建markers失败: $e');
+      logError('❌ 创建markers失败: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;

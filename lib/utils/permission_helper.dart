@@ -72,7 +72,7 @@ class PermissionHelper {
   static Future<void> openSystemSettings() async {
     try {
       await _channel.invokeMethod('openSystemSettings');
-      logger.info("✅ 系统设置页面打开成功", tag: 'PermissionHelper');
+      logger.debug("✅ 系统设置页面打开成功", tag: 'PermissionHelper');
     } on PlatformException catch (e) {
       logger.error("❌ 打开系统设置失败: ${e.message}",
           tag: 'PermissionHelper', error: e);

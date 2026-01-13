@@ -20,11 +20,12 @@ class FeedbackController extends GetxController {
   var selectedImages = <File>[].obs; // 选择的图片（最多3张）
   var isSubmitting = false.obs; // 是否正在提交
   var loadingText = "正在提交反馈...".obs; // loading文案
-  
+
   // 日志上传相关
   var isUploadingLog = false.obs; // 是否正在上传日志
   var logUploadProgress = 0.0.obs; // 日志上传进度
-  var logFilesSize = ''.obs; // 日志文件大小
+  var isSelectingLog = false.obs; // 是否正在选择日志
+  // var logFilesSize = ''.obs; // 日志文件大小
 
   // 联系方式输入相关
   final FocusNode contactFocusNode = FocusNode();
@@ -47,33 +48,36 @@ class FeedbackController extends GetxController {
 
     // 同步到 TextEditingController，确保初始值展示正确
     contactTextController.text = contact.value;
-    
+
     // 获取日志文件大小
-    _loadLogFilesSize();
+    // _loadLogFilesSize();
   }
-  
+
   /// 加载日志文件大小
-  Future<void> _loadLogFilesSize() async {
-    try {
-      logFilesSize.value = await LogUploadService.instance.getLogFilesSize();
-    } catch (e) {
-      logFilesSize.value = '0 B';
-    }
-  }
-  
+  // Future<void> _loadLogFilesSize() async {
+  //   try {
+  //     logFilesSize.value = await LogUploadService.instance.getLogFilesSize();
+  //   } catch (e) {
+  //     logFilesSize.value = '0 B';
+  //   }
+  // }
+
   /// 上传日志文件
-  Future<void> uploadLogs() async {
+  /// 返回上传成功后的 file_url，失败返回 null
+  Future<String?> uploadLogs({bool showToast = true}) async {
     if (isUploadingLog.value) {
-      CustomToast.show(Get.context!, "正在上传中，请稍候...");
-      return;
+      if (showToast) {
+        CustomToast.show(Get.context!, "正在上传中，请稍候...");
+      }
+      return null;
     }
-    
+
     try {
       isUploadingLog.value = true;
       logUploadProgress.value = 0.0;
-      
-      logInfo('开始上传日志文件', tag: 'Feedback');
-      
+
+      logDebug('开始上传日志文件', tag: 'Feedback');
+
       final result = await LogUploadService.instance.uploadLogs(
         remark: content.value.isNotEmpty ? content.value : '用户主动上传日志',
         onProgress: (sent, total) {
@@ -82,22 +86,31 @@ class FeedbackController extends GetxController {
           }
         },
       );
-      
+
       isUploadingLog.value = false;
-      
+
       if (result.isSuccess) {
-        logInfo('日志上传成功', tag: 'Feedback');
-        CustomToast.show(Get.context!, "日志上传成功，感谢您的配合！");
-        // 刷新日志文件大小
-        await _loadLogFilesSize();
+        final data = result.getDataJson();
+        final fileUrl = data['file_url'] as String?;
+        logDebug('日志上传成功，URL: $fileUrl', tag: 'Feedback');
+        if (showToast) {
+          CustomToast.show(Get.context!, "日志上传成功，感谢您的配合！");
+        }
+        return fileUrl;
       } else {
         logError('日志上传失败: ${result.msg}', tag: 'Feedback');
-        CustomToast.show(Get.context!, result.msg ?? "日志上传失败，请重试");
+        if (showToast) {
+          CustomToast.show(Get.context!, result.msg ?? "日志上传失败，请重试");
+        }
+        return null;
       }
     } catch (e) {
       isUploadingLog.value = false;
       logError('日志上传异常: $e', tag: 'Feedback', error: e);
-      CustomToast.show(Get.context!, "上传失败: $e");
+      if (showToast) {
+        CustomToast.show(Get.context!, "上传失败: $e");
+      }
+      return null;
     }
   }
 
@@ -213,7 +226,7 @@ class FeedbackController extends GetxController {
     if (selectedImages.isEmpty) return [];
 
     List<String> uploadedUrls = [];
-    
+
     try {
       for (var image in selectedImages) {
         final result = await fileUploadApi.uploadFile(image);
@@ -272,18 +285,36 @@ class FeedbackController extends GetxController {
         }
       }
 
+      // 如果勾选了上传日志，先上传日志获取URL
+      String? logUrl;
+      if (isSelectingLog.value) {
+        loadingText.value = "正在上传日志...";
+        logUrl = await uploadLogs(showToast: false);
+        
+        if (logUrl == null) {
+          // 日志上传失败
+          isSubmitting.value = false;
+          CustomToast.show(Get.context!, "日志上传失败，请重试");
+          return;
+        }
+      }
+
       // 确定联系方式：如果用户没有填写，则使用用户手机号
       String contactWay = trimmedContact.isNotEmpty
           ? trimmedContact
           : (UserManager.userPhone ?? '');
 
       // 将多张图片URL用逗号拼接
-      String? attachmentUrl = attachmentUrls.isNotEmpty ? attachmentUrls.join(',') : null;
+      String? attachmentUrl = attachmentUrls.isNotEmpty
+          ? attachmentUrls.join(',')
+          : null;
 
+      loadingText.value = "正在提交反馈...";
       final result = await settingApi.submitFeedback(
         content: content.value.trim(),
         contactWay: contactWay,
         attachment: attachmentUrl,
+        logUrl: logUrl,
       );
 
       if (result.isSuccess) {
@@ -311,10 +342,12 @@ class FeedbackController extends GetxController {
           }
         });
       } else {
+        logError('提交反馈失败: ${result.msg}', tag: 'Feedback');
         isSubmitting.value = false;
         CustomToast.show(Get.context!, result.msg ?? "提交失败，请重试");
       }
     } catch (e) {
+      logError('提交反馈失败: $e', tag: 'Feedback');
       isSubmitting.value = false;
       CustomToast.show(Get.context!, "提交失败: $e");
     }
@@ -346,9 +379,13 @@ class ImageItem extends StatelessWidget {
           right: 0,
           top: 0,
           child: GestureDetector(
-            onTap:  onRemove,
-            child: Image(image: AssetImage("assets/images/kissu_feedback_close.webp"),width: 16,height: 10),
-          )
+            onTap: onRemove,
+            child: Image(
+              image: AssetImage("assets/images/kissu_feedback_close.webp"),
+              width: 16,
+              height: 10,
+            ),
+          ),
         ),
       ],
     );
@@ -538,7 +575,8 @@ class FeedbackPage extends StatelessWidget {
                                     controller.selectedImages.length,
                                     (index) => ImageItem(
                                       file: controller.selectedImages[index],
-                                      onRemove: () => controller.removeImage(index),
+                                      onRemove: () =>
+                                          controller.removeImage(index),
                                     ),
                                   ),
                                   // 添加图片按钮，最多3张
@@ -641,106 +679,34 @@ class FeedbackPage extends StatelessWidget {
 
                       const SizedBox(height: 20),
 
-                      // 日志上传卡片
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: _cardDecoration(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  "上传日志",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF333333),
-                                  ),
-                                ),
-                                Obx(() => Text(
-                                  controller.logFilesSize.value.isNotEmpty 
-                                    ? controller.logFilesSize.value 
-                                    : '计算中...',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF999999),
-                                  ),
-                                )),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              "如遇到问题，上传日志可帮助我们更快定位并解决～",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF777777),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              controller.isSelectingLog.value = !controller.isSelectingLog.value;
+                            },
+                            child: Obx(
+                            () => Image(
+                              image: AssetImage(
+                                controller.isSelectingLog.value
+                                    ? 'assets/images/kissu_login_privite_sel.webp'
+                                    : 'assets/images/kissu_login_privite_unsel.webp',
                               ),
+                              width: 16,
+                              height: 16,
                             ),
-                            const SizedBox(height: 12),
-                            Obx(() => GestureDetector(
-                              onTap: controller.isUploadingLog.value 
-                                ? null 
-                                : controller.uploadLogs,
-                              child: Container(
-                                width: double.infinity,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: controller.isUploadingLog.value 
-                                    ? const Color(0xFFEEEEEE) 
-                                    : const Color(0xFFFFF0F5),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: const Color(0xFFFFA9E0).withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: controller.isUploadingLog.value
-                                  ? Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            value: controller.logUploadProgress.value > 0 
-                                              ? controller.logUploadProgress.value 
-                                              : null,
-                                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                              Color(0xFFFFA9E0),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          controller.logUploadProgress.value > 0
-                                            ? '上传中 ${(controller.logUploadProgress.value * 100).toInt()}%'
-                                            : '准备中...',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Color(0xFF999999),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : const Center(
-                                      child: Text(
-                                        "点击上传日志",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFFFFA9E0),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                              ),
-                            )),
-                          ],
-                        ),
+                          ),
+                          ),
+                          SizedBox(width: 5,),
+                          const Text(
+                            "上传日志(上传日志可帮助我们更快解决问题)",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFaaaaaa),
+                            ),
+                          ),
+                        ],
                       ),
-
                       const SizedBox(height: 100), // 增加底部间距，为底部按钮留空间
                     ],
                   ),
@@ -748,7 +714,10 @@ class FeedbackPage extends StatelessWidget {
 
                 // 底部提交按钮
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 45, vertical: 30),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 45,
+                    vertical: 30,
+                  ),
                   child: Obx(
                     () => SizedBox(
                       width: double.infinity,

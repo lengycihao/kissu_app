@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 // no-op: location preview widgets not required here
 import 'package:kissu_app/pages/location/services/marker_builder.dart';
 
@@ -67,7 +68,7 @@ class _LocationDetailPageState extends State<LocationDetailPage> {
         });
       }
     } catch (e) {
-      debugPrint('创建详情页标记图标失败: $e');
+      logError('创建详情页标记图标失败: $e');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 
 /// 引导图类型枚举
@@ -119,7 +120,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
   void _hideGuide() {
     if (!_isVisible) return;
     
-    debugPrint('📱 开始隐藏引导图...');
+    logDebug('📱 开始隐藏引导图...');
     
     // 🔥 修复：立即调用回调，确保状态更新
     final onDismissCallback = widget.onDismiss;
@@ -129,7 +130,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
       _slideController.stop();
       _slideController.reset();
     } catch (e) {
-      debugPrint('⚠️ 停止滑动动画失败: $e');
+      logDebug('⚠️ 停止滑动动画失败: $e');
     }
 
     // 🔥 修复：使用更可靠的关闭逻辑
@@ -137,7 +138,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
       _fadeController.reverse();
       _scaleController.reverse();
     } catch (e) {
-      debugPrint('⚠️ 停止淡入淡出/缩放动画失败: $e');
+      logError('⚠️ 停止淡入淡出/缩放动画失败: $e');
     }
 
     // 🔥 修复：立即更新状态，不等待动画完成
@@ -148,7 +149,7 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
     }
     
     // 🔥 修复：立即调用回调，不要延迟
-    debugPrint('📱 引导图已隐藏，调用回调');
+    logDebug('📱 引导图已隐藏，调用回调');
     onDismissCallback?.call();
   }
 

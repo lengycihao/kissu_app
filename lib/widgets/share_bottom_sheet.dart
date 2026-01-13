@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -204,6 +205,7 @@ class ShareBottomSheet extends StatelessWidget {
       // OKToastUtil.show('已调起微信分享');
       
     } catch (e) {
+      logError('分享失败: $e');
       OKToastUtil.show('分享失败: $e');
     }
   }
@@ -226,10 +228,12 @@ class ShareBottomSheet extends StatelessWidget {
         OKToastUtil.show('QQ分享成功');
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
+        logError('QQ分享失败: $errorMsg');
         OKToastUtil.show('QQ分享失败: $errorMsg');
       }
       
     } catch (e) {
+      logError('分享失败: $e');
       OKToastUtil.show('分享失败: $e');
     }
   }
@@ -243,6 +247,7 @@ class ShareBottomSheet extends StatelessWidget {
     Clipboard.setData(const ClipboardData(text: appLink)).then((_) {
        OKToastUtil.show('复制成功');
     }).catchError((error) {
+      logError('复制失败: $error');
       OKToastUtil.show('复制失败: $error');
     });
   }
@@ -288,6 +293,7 @@ class ShareBottomSheet extends StatelessWidget {
       );
       
     } catch (e) {
+      logError('分享失败: $e');
       OKToastUtil.show('分享失败: $e');
       
       // 埋点：记录分享失败
@@ -321,6 +327,7 @@ class ShareBottomSheet extends StatelessWidget {
         );
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
+        logError('QQ分享失败: $errorMsg');
         OKToastUtil.show('QQ分享失败: $errorMsg');
         
         // 埋点：记录分享失败
@@ -331,6 +338,7 @@ class ShareBottomSheet extends StatelessWidget {
       }
       
     } catch (e) {
+      logError('分享失败: $e');
       OKToastUtil.show('分享失败: $e');
       
       // 埋点：记录分享失败
@@ -371,6 +379,7 @@ class ShareBottomSheet extends StatelessWidget {
         shareStatus: ShareStatusValue.copied,
       );
     }).catchError((error) {
+      logError('复制失败: $error');
       OKToastUtil.show('复制失败: $error');
       
       // 埋点：记录复制失败
@@ -397,6 +406,7 @@ class ShareBottomSheet extends StatelessWidget {
       );
       
     } catch (e) {
+      logError('分享失败: $e');
       OKToastUtil.show('分享失败: $e');
     }
   }
@@ -421,10 +431,12 @@ class ShareBottomSheet extends StatelessWidget {
         OKToastUtil.show('QQ分享成功');
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
+        logError('QQ分享失败: $errorMsg');
         OKToastUtil.show('QQ分享失败: $errorMsg');
       }
       
     } catch (e) {
+      logError('分享失败: $e');
       OKToastUtil.show('分享失败: $e');
     }
   }
@@ -436,6 +448,7 @@ class ShareBottomSheet extends StatelessWidget {
     Clipboard.setData(ClipboardData(text: h5Url ?? '')).then((_) {
       OKToastUtil.show('复制成功');
     }).catchError((error) {
+      logError('复制失败: $error');
       OKToastUtil.show('复制失败: $error');
     });
   }

@@ -221,9 +221,11 @@ class CustomBottomDialogController extends GetxController {
           );
         }
       } else {
+        logError(result.msg ?? '绑定失败', tag: 'BindingDialog');
         OKToastUtil.show(result.msg ?? '绑定失败');
       }
     } catch (e) {
+      logError('绑定失败: $e', tag: 'BindingDialog', error: e);
       OKToastUtil.show('绑定失败: $e');
     } finally {
       isLoading.value = false;
@@ -458,6 +460,7 @@ class CustomBottomDialogController extends GetxController {
         ),
       );
     } else {
+      logError('二维码未生成', tag: 'BindingDialog');
       OKToastUtil.show('二维码未生成');
     }
   }

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../../../utils/user_manager.dart';
 
 class BreakRelationshipController extends GetxController {
@@ -60,7 +61,7 @@ class BreakRelationshipController extends GetxController {
         loveDays.value = difference;
         return;
       } catch (e) {
-        print('解析LoverInfo bindTime失败: $e');
+        logError('解析LoverInfo bindTime失败: $e');
       }
     }
 

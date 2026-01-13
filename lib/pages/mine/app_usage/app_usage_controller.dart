@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
@@ -282,9 +283,9 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         totalOpenAppNumber.value = statResponse.totalOpenAppNumber;
         totalUseAppDuration.value = statResponse.totalUseAppDuration;
         
-        logger.info('加载App使用统计数据成功: ${appUsageStatData.length}个App', tag: 'AppUsage');
+        logDebug('加载App使用统计数据成功: ${appUsageStatData.length}个App', tag: 'AppUsage');
       } else {
-        logger.error('加载App使用统计数据失败: ${result.msg}', tag: 'AppUsage');
+        logError('加载App使用统计数据失败: ${result.msg}', tag: 'AppUsage');
         // 失败时清空数据
         appUsageStatData.value = [];
         totalOpenAppNumber.value = 0;
@@ -295,7 +296,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 暂时保持为空列表，避免统计视图显示错误
       usageRecords.value = [];
     } catch (e) {
-      logger.error('加载使用数据失败: $e', tag: 'AppUsage', error: e);
+      logError('加载使用数据失败: $e', tag: 'AppUsage');
       // 异常时清空数据
       appUsageStatData.value = [];
       totalOpenAppNumber.value = 0;
@@ -427,7 +428,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     final currentDateStr = '${selectedDate.value.year}-${selectedDate.value.month.toString().padLeft(2, '0')}-${selectedDate.value.day.toString().padLeft(2, '0')}';
     
     if (newDateStr == currentDateStr) {
-      logger.info('相同日期，跳过切换: $newDateStr', tag: 'AppUsage');
+      logDebug('相同日期，跳过切换: $newDateStr', tag: 'AppUsage');
       return;
     }
     
@@ -439,7 +440,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     
     // 使用防抖加载数据，避免连续点击时多次请求
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      logger.info('防抖Timer触发，开始加载数据: $newDateStr', tag: 'AppUsage');
+      logDebug('防抖Timer触发，开始加载数据: $newDateStr', tag: 'AppUsage');
       _loadUsageData();  // 重新加载数据
       
       // 如果当前显示的是时间轴视图，也需要重新加载时间轴数据
@@ -454,7 +455,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   /// 加载统计数据（公开方法，供外部调用）
   Future<void> loadStatisticsData() async {
-    logger.info('开始加载统计数据: date=${selectedDate.value}', tag: 'AppUsage');
+    logDebug('开始加载统计数据: date=${selectedDate.value}', tag: 'AppUsage');
     await _loadStatisticsData();
   }
   
@@ -467,7 +468,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 格式化日期为 yyyy-MM-dd
       final dateStr = '${selectedDate.value.year}-${selectedDate.value.month.toString().padLeft(2, '0')}-${selectedDate.value.day.toString().padLeft(2, '0')}';
       
-      logger.info('调用API获取统计数据: date=$dateStr', tag: 'AppUsage');
+      logDebug('调用API获取统计数据: date=$dateStr', tag: 'AppUsage');
       
       // 调用API获取统计数据
       final result = await AppUsageApi.getAppRecordStat(date: dateStr);
@@ -478,17 +479,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         // 更新数据并同步logo缓存
         hourlyAppRecords.value = _applyLogoCacheToHourlyRecords(statResponse.hourlyRecords);
         
-        logger.info(
+        logDebug(
           '✅ 加载统计数据成功: ${hourlyAppRecords.length}个小时的记录',
           tag: 'AppUsage',
         );
       } else {
-        logger.error('❌ 加载统计数据失败: ${result.msg}', tag: 'AppUsage');
+        logError('❌ 加载统计数据失败: ${result.msg}', tag: 'AppUsage');
         // 失败时清空数据
         hourlyAppRecords.value = [];
       }
     } catch (e) {
-      logger.error('❌ 加载统计数据异常: $e', tag: 'AppUsage', error: e);
+      logError('❌ 加载统计数据异常: $e', tag: 'AppUsage');
       // 异常时清空数据
       hourlyAppRecords.value = [];
     } finally {
@@ -521,7 +522,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   /// 加载时间轴数据（公开方法，供外部调用）
   Future<void> loadTimelineData({String? appPkg}) async {
-    logger.info('开始加载时间轴数据: date=${selectedDate.value}, appPkg=$appPkg', tag: 'AppUsage');
+    logDebug('开始加载时间轴数据: date=${selectedDate.value}, appPkg=$appPkg', tag: 'AppUsage');
     await _loadTimelineData(appPkg: appPkg);
   }
   
@@ -534,7 +535,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 格式化日期为 yyyy-MM-dd
       final dateStr = '${selectedDate.value.year}-${selectedDate.value.month.toString().padLeft(2, '0')}-${selectedDate.value.day.toString().padLeft(2, '0')}';
       
-      logger.info('调用API获取时间轴数据: date=$dateStr, appPkg=$appPkg', tag: 'AppUsage');
+      logDebug('调用API获取时间轴数据: date=$dateStr, appPkg=$appPkg', tag: 'AppUsage');
       
       // 调用API获取时间轴数据
       final result = await AppUsageApi.getAppOpenRecordDetail(
@@ -551,23 +552,23 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         latelyUseAppData.value = processedLately;
         appOpenRecordDetail.value = processedDetails;
         
-        logger.info(
+        logDebug(
           '✅ 加载时间轴数据成功: ${latelyUseAppData.length}个App, ${appOpenRecordDetail.length}条记录',
           tag: 'AppUsage',
         );
         
         // 打印详细数据用于调试
         if (latelyUseAppData.isNotEmpty) {
-          logger.info('最近使用的App列表: ${latelyUseAppData.map((e) => e.appName).join(", ")}', tag: 'AppUsage');
+          logDebug('最近使用的App列表: ${latelyUseAppData.map((e) => e.appName).join(", ")}', tag: 'AppUsage');
         }
         if (appOpenRecordDetail.isNotEmpty) {
-          logger.info('记录详情数量: ${appOpenRecordDetail.length}', tag: 'AppUsage');
+          logDebug('记录详情数量: ${appOpenRecordDetail.length}', tag: 'AppUsage');
         }
         
         // 如果有数据且当前没有选中任何app，自动选中第一个app
         if (processedLately.isNotEmpty && selectedAppForTimeline.value.isEmpty) {
           final firstApp = processedLately.first;
-          logger.info('自动选中第一个App: ${firstApp.appName} (${firstApp.appPkg})', tag: 'AppUsage');
+          logDebug('自动选中第一个App: ${firstApp.appName} (${firstApp.appPkg})', tag: 'AppUsage');
           selectedAppForTimeline.value = firstApp.appPkg;
           // 加载第一个app的详细记录
           await _loadTimelineData(appPkg: firstApp.appPkg);
@@ -707,16 +708,16 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       final list = prefs.getStringList('selected_apps_for_usage') ?? [];
       selectedApps.clear();
       selectedApps.addAll(list);
-      logger.info('已加载筛选应用列表: ${selectedApps.length}个', tag: 'AppUsage');
+      logDebug('已加载筛选应用列表: ${selectedApps.length}个', tag: 'AppUsage');
     } catch (e) {
-      logger.error('加载筛选应用列表失败: $e', tag: 'AppUsage', error: e);
+      logError('加载筛选应用列表失败: $e', tag: 'AppUsage', error: e);
     }
   }
   
   /// 加载已安装应用列表
   Future<void> _loadInstalledApps() async {
     try {
-      logger.info('开始获取已安装应用列表（后台线程）', tag: 'AppUsage');
+      logDebug('开始获取已安装应用列表（后台线程）', tag: 'AppUsage');
       
       // 🔧 添加超时保护（30秒超时）
       final List<dynamic> result = await platform
@@ -738,15 +739,15 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         );
       }).toList();
       
-      logger.info('✅ 已获取 ${apps.length} 个用户应用', tag: 'AppUsage');
+      logDebug('✅ 已获取 ${apps.length} 个用户应用', tag: 'AppUsage');
     } on TimeoutException catch (e) {
-      logger.error('获取应用列表超时: $e', tag: 'AppUsage', error: e);
+      logError('获取应用列表超时: $e', tag: 'AppUsage', error: e);
       OKToastUtil.show('获取应用列表超时，请稍后重试');
     } on PlatformException catch (e) {
-      logger.error('获取应用列表失败: ${e.message}', tag: 'AppUsage', error: e);
+      logError('获取应用列表失败: ${e.message}', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取应用列表失败: ${e.message}');
     } catch (e) {
-      logger.error('获取应用列表异常: $e', tag: 'AppUsage', error: e);
+      logError('获取应用列表异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取应用列表失败');
     }
   }
@@ -758,17 +759,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       
       if (selectedApps.contains(packageName)) {
         selectedApps.remove(packageName);
-        logger.info('取消筛选应用: $packageName', tag: 'AppUsage');
+        logDebug('取消筛选应用: $packageName', tag: 'AppUsage');
       } else {
         selectedApps.add(packageName);
-        logger.info('筛选应用: $packageName', tag: 'AppUsage');
+        logDebug('筛选应用: $packageName', tag: 'AppUsage');
       }
       
       await prefs.setStringList('selected_apps_for_usage', selectedApps.toList());
       
       // 注意：上报服务不依赖筛选列表，这里的筛选只是用于调试页面显示
     } catch (e) {
-      logger.error('保存筛选状态失败: $e', tag: 'AppUsage', error: e);
+      logError('保存筛选状态失败: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('保存失败');
     }
   }
@@ -776,7 +777,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   /// 显示应用使用时长
   Future<void> showUsageTime(String packageName, String appName) async {
     try {
-      logger.info('获取应用使用时长: $packageName', tag: 'AppUsage');
+      logDebug('获取应用使用时长: $packageName', tag: 'AppUsage');
       final int millis = await platform.invokeMethod('getAppUsageTime', {'packageName': packageName});
       final duration = Duration(milliseconds: millis);
       final hours = duration.inHours;
@@ -790,11 +791,11 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       if (e.code == 'NO_PERMISSION') {
         _showPermissionDialog();
       } else {
-        logger.error('获取使用时长失败: ${e.message}', tag: 'AppUsage', error: e);
+        logError('获取使用时长失败: ${e.message}', tag: 'AppUsage', error: e);
         OKToastUtil.showError('获取使用时长失败: ${e.message}');
       }
     } catch (e) {
-      logger.error('获取使用时长异常: $e', tag: 'AppUsage', error: e);
+      logError('获取使用时长异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取使用时长失败');
     }
   }
@@ -813,7 +814,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     
     isReporting.value = true;
     try {
-      logger.info('开始采集 ${selectedApps.length} 个应用的使用数据', tag: 'AppUsage');
+      logDebug('开始采集 ${selectedApps.length} 个应用的使用数据', tag: 'AppUsage');
       
       // 批量获取详细使用数据
       final List<dynamic> result = await platform.invokeMethod(
@@ -843,12 +844,12 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       }
       
       if (records.isEmpty) {
-        logger.info('没有需要上报的使用记录', tag: 'AppUsage');
+        logDebug('没有需要上报的使用记录', tag: 'AppUsage');
         OKToastUtil.show('暂无使用记录需要上报');
         return;
       }
       
-      logger.info('准备上报 ${records.length} 个应用的使用记录', tag: 'AppUsage');
+      logDebug('准备上报 ${records.length} 个应用的使用记录', tag: 'AppUsage');
       
       // 处理每个应用的logo上传和数据转换
       final appUseRecordData = <Map<String, dynamic>>[];
@@ -862,7 +863,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
           iconBytes = appInfo.icon;
         } catch (e) {
           // 如果找不到应用，iconBytes保持为null
-          logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
+          logWarning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
         }
         
         // 获取或上传logo
@@ -892,16 +893,16 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       
       if (apiResult.isSuccess) {
         OKToastUtil.showSuccess('已成功上报 ${records.length} 个应用的使用记录');
-        logger.info('使用记录上报成功: ${records.length}个应用', tag: 'AppUsage');
+        logDebug('使用记录上报成功: ${records.length}个应用', tag: 'AppUsage');
       } else {
         OKToastUtil.showError(apiResult.msg ?? '上报失败');
-        logger.error('使用记录上报失败: ${apiResult.msg}', tag: 'AppUsage');
+        logError('使用记录上报失败: ${apiResult.msg}', tag: 'AppUsage');
       }
     } on PlatformException catch (e) {
-      logger.error('采集使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
+      logError('采集使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
       OKToastUtil.showError('采集使用数据失败: ${e.message}');
     } catch (e) {
-      logger.error('采集并上报使用数据异常: $e', tag: 'AppUsage', error: e);
+      logError('采集并上报使用数据异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('操作失败: $e');
     } finally {
       isReporting.value = false;
@@ -934,11 +935,11 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         hourlyRecords: hourlyRecords,
       );
     } on PlatformException catch (e) {
-      logger.error('获取详细使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
+      logError('获取详细使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取使用数据失败: ${e.message}');
       return null;
     } catch (e) {
-      logger.error('获取详细使用数据异常: $e', tag: 'AppUsage', error: e);
+      logError('获取详细使用数据异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取使用数据失败');
       return null;
     }
@@ -993,7 +994,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     try {
       await platform.invokeMethod('openUsageSettings');
     } catch (e) {
-      logger.error('打开使用情况设置失败: $e', tag: 'AppUsage', error: e);
+      logError('打开使用情况设置失败: $e', tag: 'AppUsage', error: e);
     }
   }
   
@@ -1123,14 +1124,14 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       final result = await AppUsageApi.getHalfAuthorizedApps();
       if (result.isSuccess && result.data != null) {
         halfAuthorizedApps.value = result.data!;
-        logger.info('加载半授权App成功: ${halfAuthorizedApps.length}', tag: 'AppUsage');
+        logDebug('加载半授权App成功: ${halfAuthorizedApps.length}', tag: 'AppUsage');
       } else {
         halfAuthorizedApps.value = [];
-        logger.error('加载半授权App失败: ${result.msg}', tag: 'AppUsage');
+        logError('加载半授权App失败: ${result.msg}', tag: 'AppUsage');
       }
     } catch (e) {
       halfAuthorizedApps.value = [];
-      logger.error('加载半授权App异常: $e', tag: 'AppUsage', error: e);
+      logError('加载半授权App异常: $e', tag: 'AppUsage', error: e);
     }
   }
   
@@ -1147,9 +1148,9 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   Future<void> initializeReportService() async {
     try {
       await _reportService.initialize();
-      logger.info('上报服务已初始化（自动采集所有应用）', tag: 'AppUsage');
+      logDebug('上报服务已初始化（自动采集所有应用）', tag: 'AppUsage');
     } catch (e) {
-      logger.error('初始化上报服务失败: $e', tag: 'AppUsage', error: e);
+      logError('初始化上报服务失败: $e', tag: 'AppUsage', error: e);
     }
   }
   
@@ -1192,15 +1193,15 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 先检查缓存
       final cachedUrl = _logoCacheService.getCachedLogoUrl(packageName);
       if (cachedUrl != null && cachedUrl.isNotEmpty) {
-        logger.info('✅ 使用缓存的logo: $packageName -> $cachedUrl', tag: 'AppUsage');
+        logDebug('✅ 使用缓存的logo: $packageName -> $cachedUrl', tag: 'AppUsage');
         return cachedUrl;
       }
       
       // 缓存中没有，需要上传
-      logger.info('📤 缓存中没有logo，开始上传: $packageName', tag: 'AppUsage');
+      logDebug('📤 缓存中没有logo，开始上传: $packageName', tag: 'AppUsage');
       
       if (iconBytes.isEmpty) {
-        logger.warning('⚠️ logo数据为空，无法上传: $packageName', tag: 'AppUsage');
+        logWarning('⚠️ logo数据为空，无法上传: $packageName', tag: 'AppUsage');
         return null;
       }
       
@@ -1221,17 +1222,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         try {
           await tempFile.delete();
         } catch (e) {
-          logger.warning('删除临时文件失败: $e', tag: 'AppUsage');
+          logWarning('删除临时文件失败: $e', tag: 'AppUsage');
         }
         
         if (result.isSuccess && result.data != null) {
           final logoUrl = result.data!;
           // 缓存URL
           await _logoCacheService.cacheLogoUrl(packageName, logoUrl);
-          logger.info('✅ logo上传成功: $packageName -> $logoUrl', tag: 'AppUsage');
+          logDebug('✅ logo上传成功: $packageName -> $logoUrl', tag: 'AppUsage');
           return logoUrl;
         } else {
-          logger.error('logo上传失败: ${result.msg}', tag: 'AppUsage');
+          logError('logo上传失败: ${result.msg}', tag: 'AppUsage');
           return null;
         }
       } catch (e) {
@@ -1244,7 +1245,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         rethrow;
       }
     } catch (e) {
-      logger.error('获取或上传logo失败: $packageName, $e', tag: 'AppUsage', error: e);
+      logError('获取或上传logo失败: $packageName, $e', tag: 'AppUsage', error: e);
       return null;
     }
   }

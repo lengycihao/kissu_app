@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/model/notification_settings_response.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 
@@ -74,7 +75,7 @@ class ImNotificationSettingsController extends GetxController {
         _updateItemInList(kissuItems, item);
         _updateItemInList(phoneStatusItems, item);
         _updateItemInList(systemNotificationItems, item);
-        
+        logError('更新失败: ${result.msg ?? '更新失败'}');
         OKToastUtil.showError(result.msg ?? '更新失败');
       } else {
         // 更新成功，刷新缓存（重新加载最新数据）
@@ -123,10 +124,10 @@ class ImNotificationSettingsController extends GetxController {
             .map((json) => NotificationSettingsResponse.fromJson(json as Map<String, dynamic>))
             .toList();
         _applyServerSettings(responses);
-        print('✅ 从缓存加载IM通知设置成功');
+        logDebug('✅ 从缓存加载IM通知设置成功');
       }
     } catch (e) {
-      print('⚠️ 从缓存加载IM通知设置失败: $e');
+      logError('⚠️ 从缓存加载IM通知设置失败: $e');
     }
   }
   
@@ -144,7 +145,7 @@ class ImNotificationSettingsController extends GetxController {
       
       return diff > _cacheValidDuration; // 超过5分钟，需要刷新
     } catch (e) {
-      print('⚠️ 检查缓存时间失败: $e');
+      logError('⚠️ 检查缓存时间失败: $e');
       return true; // 出错时刷新
     }
   }
@@ -155,9 +156,9 @@ class ImNotificationSettingsController extends GetxController {
       final jsonList = responses.map((r) => r.toJson()).toList();
       await SpUtil.putJsonMap(_cacheKey, jsonList);
       await SpUtil.putString(_cacheTimeKey, DateTime.now().toIso8601String());
-      print('✅ IM通知设置已保存到缓存');
+      logDebug('✅ IM通知设置已保存到缓存');
     } catch (e) {
-      print('⚠️ 保存IM通知设置到缓存失败: $e');
+      logError('⚠️ 保存IM通知设置到缓存失败: $e');
     }
   }
   
@@ -180,7 +181,7 @@ class ImNotificationSettingsController extends GetxController {
         await Future.microtask(() => _applyServerSettings(result.data!));
       }
     } catch (e) {
-      print('加载IM通知设置失败: $e');
+      logError('加载IM通知设置失败: $e');
     } finally {
       if (!silent) {
         isLoading.value = false;

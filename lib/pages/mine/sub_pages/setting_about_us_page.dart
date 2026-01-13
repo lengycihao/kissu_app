@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:kissu_app/services/version_service.dart';
@@ -28,6 +29,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
         _version = packageInfo.version;
       });
     } catch (e) {
+      logError('加载版本信息失败: $e', tag: 'AboutUsPage', error: e);
       setState(() {
         _version = '1.0.1'; // 默认版本号
       });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -38,12 +39,13 @@ class _ThirdPartySharingPageState extends State<ThirdPartySharingPage> {
             });
           },
           onWebResourceError: (WebResourceError error) {
+            OKToastUtil.showError("加载失败，请检查网络连接");
             // 处理加载错误
-            Get.snackbar(
-              '加载失败',
-              '无法加载页面，请检查网络连接',
-              snackPosition: SnackPosition.BOTTOM,
-            );
+            // Get.snackbar(
+            //   '加载失败',
+            //   '无法加载页面，请检查网络连接',
+            //   snackPosition: SnackPosition.BOTTOM,
+            // );
           },
           onNavigationRequest: (NavigationRequest request) {
             // 处理外部链接跳转

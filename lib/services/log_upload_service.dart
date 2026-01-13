@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:kissu_app/network/public/api_request.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kissu_app/network/http_managerN.dart';
@@ -18,7 +19,6 @@ class LogUploadService {
   LogUploadService._();
 
   /// 日志上传API路径（使用通用文件上传接口）
-  static const String _uploadLogApi = '/file/upload';
 
   /// 获取日志目录
   Future<Directory> _getLogDirectory() async {
@@ -93,7 +93,7 @@ class LogUploadService {
     if (UserManager.userPhone != null && UserManager.userPhone!.length >= 7) {
       // 手机号脱敏：138****1234
       final phone = UserManager.userPhone!;
-      info['userPhone'] = '${phone.substring(0, 3)}****${phone.substring(phone.length - 4)}';
+      info['userPhone'] = phone;
     }
 
     try {
@@ -116,18 +116,9 @@ class LogUploadService {
     return info;
   }
 
-  /// 创建设备信息文件
-  Future<File> _createDeviceInfoFile(Directory tempDir) async {
-    final deviceInfo = await _getDeviceInfo();
-    final file = File('${tempDir.path}${Platform.pathSeparator}device_info.json');
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(deviceInfo),
-    );
-    return file;
-  }
-
-  /// 打包日志文件为ZIP
-  Future<File?> _packageLogs({String? remark}) async {
+  /// 打包所有日志文件为 ZIP
+  /// [maxDays] 最多打包最近几天的日志，默认 7 天
+  Future<File?> _packageAllLogs({int maxDays = 7}) async {
     try {
       final logFiles = await getLogFiles();
       if (logFiles.isEmpty) {
@@ -135,37 +126,24 @@ class LogUploadService {
         return null;
       }
 
-      // 创建临时目录
-      final tempDir = await getTemporaryDirectory();
-      final packageDir = Directory(
-        '${tempDir.path}${Platform.pathSeparator}log_package_${DateTime.now().millisecondsSinceEpoch}',
-      );
-      await packageDir.create(recursive: true);
-
-      // 创建Archive
+      // 创建 Archive
       final archive = Archive();
-
+      
       // 添加设备信息文件
-      final deviceInfoFile = await _createDeviceInfoFile(packageDir);
-      final deviceInfoBytes = await deviceInfoFile.readAsBytes();
+      final deviceInfo = await _getDeviceInfo();
+      final deviceInfoJson = const JsonEncoder.withIndent('  ').convert(deviceInfo);
+      final deviceInfoBytes = utf8.encode(deviceInfoJson);
       archive.addFile(ArchiveFile(
         'device_info.json',
         deviceInfoBytes.length,
         deviceInfoBytes,
       ));
 
-      // 添加备注文件（如果有）
-      if (remark != null && remark.isNotEmpty) {
-        final remarkBytes = utf8.encode(remark);
-        archive.addFile(ArchiveFile(
-          'user_remark.txt',
-          remarkBytes.length,
-          remarkBytes,
-        ));
-      }
-
-      // 添加日志文件（最多保留最近7天的）
-      final cutoffTime = DateTime.now().subtract(const Duration(days: 7));
+      // 添加日志文件（最近 maxDays 天的）
+      final cutoffTime = DateTime.now().subtract(Duration(days: maxDays));
+      int totalSize = 0;
+      int fileCount = 0;
+      
       for (final logFile in logFiles) {
         try {
           final stat = await logFile.stat();
@@ -177,32 +155,36 @@ class LogUploadService {
               bytes.length,
               bytes,
             ));
+            totalSize += bytes.length;
+            fileCount++;
           }
         } catch (e) {
           logWarning('读取日志文件失败: ${logFile.path}', tag: 'LogUpload', error: e);
         }
       }
 
-      // 压缩为ZIP
+      if (fileCount == 0) {
+        logWarning('没有符合条件的日志文件', tag: 'LogUpload');
+        return null;
+      }
+
+      // 压缩为 ZIP
       final zipData = ZipEncoder().encode(archive);
       if (zipData == null || zipData.isEmpty) {
         logError('压缩日志文件失败', tag: 'LogUpload');
         return null;
       }
 
-      // 保存ZIP文件
+      // 保存 ZIP 文件
+      final tempDir = await getTemporaryDirectory();
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
       final zipFile = File('${tempDir.path}${Platform.pathSeparator}logs_$timestamp.zip');
       await zipFile.writeAsBytes(zipData);
 
-      // 清理临时目录
-      try {
-        await packageDir.delete(recursive: true);
-      } catch (e) {
-        // 忽略清理错误
-      }
-
-      logInfo('日志打包完成: ${zipFile.path}, 大小: ${_formatFileSize(zipData.length)}', tag: 'LogUpload');
+      logInfo(
+        '日志打包完成: $fileCount 个文件, 原始大小: ${_formatFileSize(totalSize)}, 压缩后: ${_formatFileSize(zipData.length)}',
+        tag: 'LogUpload',
+      );
       return zipFile;
     } catch (e) {
       logError('打包日志文件失败', tag: 'LogUpload', error: e);
@@ -213,15 +195,20 @@ class LogUploadService {
   /// 上传日志
   /// [remark] 用户备注（可选）
   /// [onProgress] 上传进度回调
+  /// [clearAfterUpload] 上传成功后是否清除日志文件，默认为 true
+  /// [maxDays] 最多上传最近几天的日志，默认 7 天
   Future<HttpResultN> uploadLogs({
     String? remark,
     void Function(int sent, int total)? onProgress,
+    bool clearAfterUpload = true,
+    int maxDays = 7,
   }) async {
+    File? zipFile;
     try {
       logInfo('开始上传日志...', tag: 'LogUpload');
 
-      // 打包日志
-      final zipFile = await _packageLogs(remark: remark);
+      // 打包所有日志文件
+      zipFile = await _packageAllLogs(maxDays: maxDays);
       if (zipFile == null) {
         return HttpResultN(
           isSuccess: false,
@@ -235,11 +222,18 @@ class LogUploadService {
 
       // 上传文件（使用通用文件上传接口）
       final result = await HttpManagerN.instance.executePost(
-        _uploadLogApi,
+        ApiRequest.fileUpload,
         paths: {'file': zipFile.path},
         paramEncrypt: false,
         send: onProgress,
       );
+      
+      // 清理临时 ZIP 文件
+      try {
+        await zipFile.delete();
+      } catch (e) {
+        // 忽略清理错误
+      }
       
       // 记录设备信息和备注到日志（因为文件上传接口不接受额外参数）
       if (result.isSuccess) {
@@ -247,23 +241,27 @@ class LogUploadService {
           '日志上传成功，设备信息: ${jsonEncode(deviceInfo)}${remark != null && remark.isNotEmpty ? '，备注: $remark' : ''}',
           tag: 'LogUpload',
         );
-      }
-
-      // 清理临时ZIP文件
-      try {
-        await zipFile.delete();
-      } catch (e) {
-        // 忽略清理错误
-      }
-
-      if (result.isSuccess) {
-        logInfo('日志上传成功', tag: 'LogUpload');
+        
+        // 上传成功后清除日志文件
+        if (clearAfterUpload) {
+          await clearLogs();
+          logInfo('日志文件已清除', tag: 'LogUpload');
+        }
       } else {
         logError('日志上传失败: ${result.msg}', tag: 'LogUpload');
       }
 
       return result;
     } catch (e) {
+      // 清理临时 ZIP 文件
+      if (zipFile != null) {
+        try {
+          await zipFile.delete();
+        } catch (_) {
+          // 忽略清理错误
+        }
+      }
+      
       logError('上传日志异常', tag: 'LogUpload', error: e);
       return HttpResultN(
         isSuccess: false,

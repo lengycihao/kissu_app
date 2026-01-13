@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 
@@ -18,9 +19,9 @@ class CacheManager {
       try {
         final tempDir = await getTemporaryDirectory();
         totalSize += await _calculateDirectorySize(tempDir);
-        debugPrint('临时目录大小: ${_formatBytes(totalSize)}');
+        logDebug('临时目录大小: ${_formatBytes(totalSize)}');
       } catch (e) {
-        debugPrint('计算临时目录大小失败: $e');
+        logWarning('计算临时目录大小失败: $e');
       }
       
       // 2. 计算应用缓存目录大小（仅Android）
@@ -36,7 +37,7 @@ class CacheManager {
             }
           }
         } catch (e) {
-          debugPrint('计算应用缓存目录大小失败: $e');
+          logError('计算应用缓存目录大小失败: $e');
         }
       }
       
@@ -55,7 +56,7 @@ class CacheManager {
           final logFile = File('${appDocDir.path}/$logFileName');
           if (await logFile.exists()) {
             totalSize += await logFile.length();
-            debugPrint('日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
+            logDebug('日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
           }
         }
         
@@ -68,16 +69,16 @@ class CacheManager {
                 final logFile = File('${externalDir.path}/$logFileName');
                 if (await logFile.exists()) {
                   totalSize += await logFile.length();
-                  debugPrint('外部日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
+                  logDebug('外部日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
                 }
               }
             }
           } catch (e) {
-            debugPrint('计算外部日志文件大小失败: $e');
+            logError('计算外部日志文件大小失败: $e');
           }
         }
       } catch (e) {
-        debugPrint('计算日志文件大小失败: $e');
+        logError('计算日志文件大小失败: $e');
       }
       
       // 4. 计算图片缓存（如果使用了cached_network_image）
@@ -87,17 +88,17 @@ class CacheManager {
         if (await imageCacheDir.exists()) {
           final imageSize = await _calculateDirectorySize(imageCacheDir);
           totalSize += imageSize;
-          debugPrint('图片缓存大小: ${_formatBytes(imageSize)}');
+          logDebug('图片缓存大小: ${_formatBytes(imageSize)}');
         }
       } catch (e) {
-        debugPrint('计算图片缓存大小失败: $e');
+        logError('计算图片缓存大小失败: $e');
       }
       
       // 格式化缓存大小
       cacheSize.value = _formatBytes(totalSize);
-      debugPrint('总缓存大小: ${cacheSize.value}');
+      logDebug('总缓存大小: ${cacheSize.value}');
     } catch (e) {
-      debugPrint('计算缓存大小失败: $e');
+      logError('计算缓存大小失败: $e');
       cacheSize.value = '未知';
     }
   }
@@ -121,7 +122,7 @@ class CacheManager {
         }
       }
     } catch (e) {
-      debugPrint('计算目录大小失败 ${directory.path}: $e');
+      logError('计算目录大小失败 ${directory.path}: $e');
     }
     
     return totalSize;
@@ -172,9 +173,9 @@ class CacheManager {
       try {
         final tempDir = await getTemporaryDirectory();
         deletedCount += await _clearDirectory(tempDir);
-        debugPrint('已清除临时目录');
+        logDebug('已清除临时目录');
       } catch (e) {
-        debugPrint('清除临时目录失败: $e');
+        logError('清除临时目录失败: $e');
       }
 
       // 2. 清除应用缓存目录（仅Android）
@@ -186,11 +187,11 @@ class CacheManager {
             final dir = Directory('${appDir.parent.path}/$subDir');
             if (await dir.exists()) {
               deletedCount += await _clearDirectory(dir);
-              debugPrint('已清除 $subDir 目录');
+              logDebug('已清除 $subDir 目录');
             }
           }
         } catch (e) {
-          debugPrint('清除应用缓存目录失败: $e');
+          logError('清除应用缓存目录失败: $e');
         }
       }
 
@@ -209,7 +210,7 @@ class CacheManager {
           if (await logFile.exists()) {
             await logFile.delete();
             deletedCount++;
-            debugPrint('已删除日志文件: $logFileName');
+            logDebug('已删除日志文件: $logFileName');
           }
         }
         
@@ -223,16 +224,16 @@ class CacheManager {
                 if (await logFile.exists()) {
                   await logFile.delete();
                   deletedCount++;
-                  debugPrint('已删除外部日志文件: $logFileName');
+                  logDebug('已删除外部日志文件: $logFileName');
                 }
               }
             }
           } catch (e) {
-            debugPrint('清除外部日志文件失败: $e');
+            logError('清除外部日志文件失败: $e');
           }
         }
       } catch (e) {
-        debugPrint('清除日志文件失败: $e');
+        logError('清除日志文件失败: $e');
       }
 
       // 4. 清除图片缓存
@@ -241,19 +242,19 @@ class CacheManager {
         final imageCacheDir = Directory('${tempDir.path}/libCachedImageData');
         if (await imageCacheDir.exists()) {
           deletedCount += await _clearDirectory(imageCacheDir);
-          debugPrint('已清除图片缓存');
+          logDebug('已清除图片缓存');
         }
       } catch (e) {
-        debugPrint('清除图片缓存失败: $e');
+        logError('清除图片缓存失败: $e');
       }
 
       // 重新计算缓存大小
       await calculateCacheSize();
 
-      debugPrint('缓存清除完成，共删除 $deletedCount 个文件/目录');
+      logDebug('缓存清除完成，共删除 $deletedCount 个文件/目录');
       OKToastUtil.show('缓存清除成功');
     } catch (e) {
-      debugPrint('清除缓存失败: $e');
+      logError('清除缓存失败: $e');
       OKToastUtil.show('清除缓存失败');
       cacheSize.value = '未知';
     }
@@ -278,11 +279,11 @@ class CacheManager {
             deletedCount++;
           }
         } catch (e) {
-          debugPrint('删除文件失败 ${entity.path}: $e');
+          logError('删除文件失败 ${entity.path}: $e');
         }
       }
     } catch (e) {
-      debugPrint('清除目录失败 ${directory.path}: $e');
+      logError('清除目录失败 ${directory.path}: $e');
     }
     
     return deletedCount;

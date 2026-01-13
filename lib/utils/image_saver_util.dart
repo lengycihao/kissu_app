@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -33,7 +34,7 @@ class ImageSaverUtil {
         return false;
       }
     } catch (e) {
-      print('保存图片失败: $e');
+      logError('保存图片失败: $e');
       OKToastUtil.showError('保存图片失败: $e');
       return false;
     }

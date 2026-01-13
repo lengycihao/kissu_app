@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
@@ -48,7 +49,7 @@ class StopListItem extends StatelessWidget {
             stopPoint: stopPoint,
           );
         } catch (e) {
-          print('无法找到轨迹控制器: $e');
+          logError('无法找到轨迹控制器: $e');
         }
       },
       // 添加空的拖拽处理回调，让GestureDetector能够处理滑动事件

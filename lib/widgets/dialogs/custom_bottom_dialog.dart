@@ -53,7 +53,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       if (controller.shouldClose.value) {
         // 延迟一帧执行，确保在build完成后再关闭
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          debugPrint('💬 检测到shouldClose标志，准备关闭绑定弹窗');
+          logDebug('💬 检测到shouldClose标志，准备关闭绑定弹窗');
           if (Navigator.of(context).canPop()) {
              // 调用onClose回调（如果存在）
             if (onClose != null) {
@@ -63,7 +63,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
             controller.shouldClose.value = false;
             // 关闭弹窗
             Navigator.of(context).pop();
-            debugPrint('✅ 绑定弹窗已自动关闭（通过Navigator）');
+            logDebug('✅ 绑定弹窗已自动关闭（通过Navigator）');
           }
         });
       }

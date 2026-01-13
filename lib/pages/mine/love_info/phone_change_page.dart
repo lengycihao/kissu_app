@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
@@ -92,14 +93,17 @@ class PhoneChangeController extends GetxController {
         type: 'change_phone',
       );
       if (result.isSuccess) {
+        logDebug('验证码已发送');
         CustomToast.show(Get.context!, '验证码已发送');
       } else {
+        logError('发送验证码失败：${result.msg ?? '未知错误'}');
         CustomToast.show(Get.context!, result.msg ?? '发送验证码失败');
         // 如果发送失败，停止倒计时
         _timer?.cancel();
         countdownTime.value = 0;
       }
     } catch (e) {
+      logError('发送验证码失败：$e');
       CustomToast.show(Get.context!, '发送验证码失败：$e');
       // 如果发送失败，停止倒计时
       _timer?.cancel();
@@ -143,10 +147,12 @@ class PhoneChangeController extends GetxController {
         });
       } else {
         isLoading.value = false;
+        logError('更换手机号失败：${result.msg ?? '未知错误'}');
         CustomToast.show(Get.context!, result.msg ?? '更换手机号失败');
       }
     } catch (e) {
       isLoading.value = false;
+      logError('更换手机号失败：$e');
       CustomToast.show(Get.context!, '更换手机号失败：$e');
     }
   }
@@ -167,6 +173,7 @@ class PhoneChangeController extends GetxController {
         // 退出登录API失败不影响UI，因为已经跳转到登录页了
       });
     } catch (e) {
+      logError('退出账号并跳转到登录页失败：$e');
       // 即使出错也要尝试跳转到登录页（使用导航锁）
       LoginNavigationLock.navigateToLoginSafely();
     }

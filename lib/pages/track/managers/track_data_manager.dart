@@ -3,6 +3,7 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:intl/intl.dart';
@@ -77,7 +78,7 @@ class TrackDataManager {
     
     // 更新轨迹线状态
     hasValidTrackData.value = points.isNotEmpty;
-    DebugUtil.info('轨迹点数量: ${points.length}, hasValidTrackData: ${hasValidTrackData.value}');
+    logDebug('轨迹点数量: ${points.length}, hasValidTrackData: ${hasValidTrackData.value}');
     
     return points;
   }
@@ -86,22 +87,22 @@ class TrackDataManager {
   /// 🎯 只返回 trace.stops 中 point_type="stop" 的数据，序号使用 serial_number
   List<StayPoint> get stopPoints {
     if (currentData == null || currentData!.trace?.stops == null) {
-      DebugUtil.info('📍 [StopPoints] currentData或trace.stops为null');
+      logDebug('📍 [StopPoints] currentData或trace.stops为null');
       return [];
     }
     
     final allStops = currentData!.trace!.stops;
-    DebugUtil.info('📍 [StopPoints] 总停留点数: ${allStops.length}');
+    logDebug('📍 [StopPoints] 总停留点数: ${allStops.length}');
     
     // 🎯 只筛选 point_type="stop" 的停留点
     final stopTypeStops = allStops.where((stop) {
       final isValid = stop.lat != 0.0 && stop.lng != 0.0;
       final isStopType = stop.pointType == "stop";
-      DebugUtil.info('📍 [StopPoints] 检查停留点: lat=${stop.lat}, lng=${stop.lng}, pointType=${stop.pointType}, serialNumber=${stop.serialNumber}, isValid=$isValid, isStopType=$isStopType');
+      logDebug('📍 [StopPoints] 检查停留点: lat=${stop.lat}, lng=${stop.lng}, pointType=${stop.pointType}, serialNumber=${stop.serialNumber}, isValid=$isValid, isStopType=$isStopType');
       return isValid && isStopType;
     }).toList();
     
-    DebugUtil.info('📍 [StopPoints] point_type="stop"的停留点数: ${stopTypeStops.length}');
+    logDebug('📍 [StopPoints] point_type="stop"的停留点数: ${stopTypeStops.length}');
     
     int index = 0;
     final result = stopTypeStops.map((stop) {
@@ -112,11 +113,11 @@ class TrackDataManager {
         index: index++,
         serialNumber: stop.serialNumber ?? '', // 🎯 使用 serial_number 作为序号
       );
-      DebugUtil.info('📍 [StopPoints] 创建StayPoint: serialNumber=${stayPoint.serialNumber}, position=${stayPoint.position}');
+      logDebug('📍 [StopPoints] 创建StayPoint: serialNumber=${stayPoint.serialNumber}, position=${stayPoint.position}');
       return stayPoint;
     }).toList();
     
-    DebugUtil.info('📍 [StopPoints] 最终返回停留点数: ${result.length}');
+    logDebug('📍 [StopPoints] 最终返回停留点数: ${result.length}');
     return result;
   }
   
@@ -124,7 +125,7 @@ class TrackDataManager {
   Future<void> loadBothUsersData({required DateTime date}) async {
     try {
       isLoading.value = true;
-      DebugUtil.info('📍 开始加载两个用户的轨迹数据 - 日期: ${DateFormat('yyyy-MM-dd').format(date)}');
+      logDebug('📍 开始加载两个用户的轨迹数据 - 日期: ${DateFormat('yyyy-MM-dd').format(date)}');
       
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
       
@@ -137,26 +138,26 @@ class TrackDataManager {
       // 处理自己的数据
       if (results[0].isSuccess && results[0].data != null) {
         myselfData.value = results[0].data;
-        DebugUtil.success('✅ 自己的轨迹数据加载成功');
+        logDebug('✅ 自己的轨迹数据加载成功');
       } else {
         myselfData.value = null;
-        DebugUtil.warning('⚠️ 自己的轨迹数据加载失败: ${results[0].msg}');
+        logWarning('⚠️ 自己的轨迹数据加载失败: ${results[0].msg}');
       }
       
       // 处理另一半的数据
       if (results[1].isSuccess && results[1].data != null) {
         partnerData.value = results[1].data;
-        DebugUtil.success('✅ 另一半的轨迹数据加载成功');
+        logDebug('✅ 另一半的轨迹数据加载成功');
       } else {
         partnerData.value = null;
-        DebugUtil.warning('⚠️ 另一半的轨迹数据加载失败: ${results[1].msg}');
+        logWarning('⚠️ 另一半的轨迹数据加载失败: ${results[1].msg}');
       }
       
       // 更新统计数据（基于当前显示的用户）
       updateStatistics();
       
     } catch (e) {
-      DebugUtil.error('❌ 加载轨迹数据异常: $e');
+      logError('❌ 加载轨迹数据异常: $e');
       myselfData.value = null;
       partnerData.value = null;
       _clearStatistics();
@@ -169,7 +170,7 @@ class TrackDataManager {
   void switchUser(int userType) {
     if (currentUserType.value == userType) return;
     
-    DebugUtil.info('🔄 切换用户: ${userType == 1 ? "自己" : "另一半"}');
+    logDebug('🔄 切换用户: ${userType == 1 ? "自己" : "另一半"}');
     currentUserType.value = userType;
     
     // 清空缓存，强制重新计算轨迹点
@@ -209,7 +210,7 @@ class TrackDataManager {
       moveDistance.value = "0米";
     }
     
-    DebugUtil.info('统计数据更新 - 停留: ${stayCount.value}次, 时长: ${stayDuration.value}, 距离: ${moveDistance.value}');
+    logDebug('统计数据更新 - 停留: ${stayCount.value}次, 时长: ${stayDuration.value}, 距离: ${moveDistance.value}');
   }
   
   /// 清空统计数据
@@ -221,7 +222,7 @@ class TrackDataManager {
   
   /// 清空所有数据
   void clearAllData() {
-    DebugUtil.info('🧹 清空所有轨迹数据...');
+    logDebug('🧹 清空所有轨迹数据...');
     myselfData.value = null;
     partnerData.value = null;
     _trackPointsCache.clear();
@@ -232,7 +233,7 @@ class TrackDataManager {
   /// 清空缓存
   void clearCache() {
     _trackPointsCache.clear();
-    DebugUtil.info('轨迹点缓存已清空');
+    logDebug('轨迹点缓存已清空');
   }
   
   /// 获取起点坐标

@@ -94,10 +94,10 @@ class DeviceUsageController extends GetxController {
       final hasShownGuide =
           prefs.getBool('has_shown_device_usage_guide') ?? false;
 
-      debugPrint('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+      logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
 
       if (!hasShownGuide) {
-        debugPrint('📱 首次进入用机记录页面，显示引导图');
+        logDebug('📱 首次进入用机记录页面，显示引导图');
 
         // 立即标记已显示，防止重复显示
         await prefs.setBool('has_shown_device_usage_guide', true);
@@ -108,7 +108,7 @@ class DeviceUsageController extends GetxController {
         }
       }
     } catch (e) {
-      debugPrint('❌ 检查用机记录引导图状态失败: $e');
+      logError('❌ 检查用机记录引导图状态失败: $e');
     }
   }
 

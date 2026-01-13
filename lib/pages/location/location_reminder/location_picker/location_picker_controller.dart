@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'package:kissu_app/services/amap_geocode_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
@@ -167,14 +168,14 @@ class LocationPickerController extends GetxController {
         }
       });
     } catch (e) {
-      DebugUtil.error('❌ 监听定位服务失败: $e');
+      logError('❌ 监听定位服务失败: $e');
     }
   }
   
   /// 从位置获取城市信息
   Future<void> _fetchCityFromLocation(double lat, double lng) async {
     try {
-      DebugUtil.info('📍 从位置获取城市: ($lat, $lng)');
+      logDebug('📍 从位置获取城市: ($lat, $lng)');
       
       // 更新选中位置
       if (selectedLocation.value == null) {
@@ -187,7 +188,7 @@ class LocationPickerController extends GetxController {
         latitude: lat,
       );
 
-      DebugUtil.info('📍 逆地理编码结果: $result');
+      logDebug('📍 逆地理编码结果: $result');
       if (result['success'] == true) {
         final cityName = result['city'] as String? ?? '';
         final adcode = result['adcode'] as String? ?? '';
@@ -198,17 +199,17 @@ class LocationPickerController extends GetxController {
             cityName: cityName,
             adcode: adcode,
           );
-          DebugUtil.success('✅ 从定位获取城市成功: $cityName (adcode: $adcode)');
+          logDebug('✅ 从定位获取城市成功: $cityName (adcode: $adcode)');
         } else {
-          DebugUtil.warning('⚠️ 逆地理编码返回空城市名或adcode');
+          logWarning('⚠️ 逆地理编码返回空城市名或adcode');
           currentCity.value = '';
         }
       } else {
-        DebugUtil.warning('⚠️ 逆地理编码失败: ${result['error']}');
+        logWarning('⚠️ 逆地理编码失败: ${result['error']}');
         currentCity.value = '';
       }
     } catch (e) {
-      DebugUtil.error('❌ 从位置获取城市失败: $e');
+      logError('❌ 从位置获取城市失败: $e');
       currentCity.value = '';
     }
   }
@@ -221,12 +222,12 @@ class LocationPickerController extends GetxController {
       if (initialCity != null) {
         currentCity.value = initialCity!.cityName;
         currentCityModel.value = initialCity;
-        DebugUtil.success('✅ 使用传入的城市信息: ${initialCity!.cityName}');
+        logDebug('✅ 使用传入的城市信息: ${initialCity!.cityName}');
         return;
       }
       
       // 🔥 2. 如果没有传入城市信息，默认使用北京
-      DebugUtil.info('📍 没有传入城市信息，默认使用北京');
+      logDebug('📍 没有传入城市信息，默认使用北京');
       currentCity.value = '北京市';
       currentCityModel.value = CityModel(
         cityName: '北京市',
@@ -234,9 +235,9 @@ class LocationPickerController extends GetxController {
       );
       // 设置北京的默认位置（天安门）
       selectedLocation.value = const LatLng(39.9042, 116.4074);
-      DebugUtil.success('✅ 已设置默认城市: 北京');
+      logDebug('✅ 已设置默认城市: 北京');
     } catch (e) {
-      DebugUtil.error('❌ 初始化城市失败: $e');
+      logError('❌ 初始化城市失败: $e');
       // 失败时使用北京作为默认值
       currentCity.value = '北京市';
       currentCityModel.value = CityModel(
@@ -273,7 +274,7 @@ class LocationPickerController extends GetxController {
       _updateMarker(position, reminder.address);
       _updateGeofenceCircle(position);
 
-      DebugUtil.info('🗺️ 编辑模式：已加载提醒数据 - ${reminder.note}');
+      logDebug('🗺️ 编辑模式：已加载提醒数据 - ${reminder.note}');
     }
     // 其次使用初始位置参数（新建模式）
     else if (initialLatitude != null && initialLongitude != null) {
@@ -291,10 +292,10 @@ class LocationPickerController extends GetxController {
         _getAddressFromLocation(position);
       }
 
-      DebugUtil.info('🗺️ 初始位置已设置: $position');
+      logDebug('🗺️ 初始位置已设置: $position');
     } else {
       // 🆕 没有初始位置时，不设置任何标记
-      DebugUtil.info('🗺️ 无初始位置，等待用户选择');
+      logInfo('🗺️ 无初始位置，等待用户选择');
     }
   }
 
@@ -307,7 +308,7 @@ class LocationPickerController extends GetxController {
   /// 地图创建完成回调
   void onMapCreated(AMapController controller) {
     mapController = controller;
-    DebugUtil.info('🗺️ 地图选点页面地图创建完成');
+    logDebug('🗺️ 地图选点页面地图创建完成');
   }
 
   /// 地图相机位置改变回调
@@ -318,7 +319,7 @@ class LocationPickerController extends GetxController {
   /// 切换地图类型
   void switchMapType(int type) {
     mapType.value = type;
-    DebugUtil.info('🗺️ 切换地图类型: ${type == 2 ? "卫星地图" : "经典地图"}');
+    logDebug('🗺️ 切换地图类型: ${type == 2 ? "卫星地图" : "经典地图"}');
     // 注意：高德地图在地图选择器中会自动根据 mapType 切换
   }
 
@@ -349,12 +350,12 @@ class LocationPickerController extends GetxController {
         final lat = double.tryParse(currentLoc.latitude);
         final lng = double.tryParse(currentLoc.longitude);
         if (lat != null && lng != null) {
-          DebugUtil.info('🗺️ 使用当前位置作为初始相机位置: ($lat, $lng)');
+          logDebug('🗺️ 使用当前位置作为初始相机位置: ($lat, $lng)');
           return CameraPosition(target: LatLng(lat, lng), zoom: 17.5);
         }
       }
     } catch (e) {
-      DebugUtil.error('获取当前位置失败: $e');
+      logError('获取当前位置失败: $e');
     }
 
     // 默认位置（天安门，但地图会根据用户选择的城市进行调整）
@@ -366,7 +367,7 @@ class LocationPickerController extends GetxController {
 
   /// 地图点击事件
   void onMapTap(LatLng position, BuildContext context) {
-    DebugUtil.info('🗺️ 地图点击: $position');
+    logDebug('🗺️ 地图点击: $position');
     selectedLocation.value = position;
 
     // 先更新地图标记（暂不显示地址）
@@ -380,7 +381,7 @@ class LocationPickerController extends GetxController {
       try {
         mapController!.moveCamera(CameraUpdate.newLatLngZoom(position, 17.0));
       } catch (e) {
-        DebugUtil.error('移动相机到最大层级失败: $e');
+        logError('移动相机到最大层级失败: $e');
       }
     }
 
@@ -390,7 +391,7 @@ class LocationPickerController extends GetxController {
 
   /// POI点击事件
   void onPoiTap(AMapPoi poi, BuildContext context) {
-    DebugUtil.info(
+    logDebug(
       '🗺️ POI点击: {name=${poi.name}, id=${poi.id}, latLng=${poi.latLng}}',
     );
 
@@ -411,14 +412,14 @@ class LocationPickerController extends GetxController {
         try {
           mapController!.moveCamera(CameraUpdate.newLatLngZoom(position, 17.0));
         } catch (e) {
-          DebugUtil.error('🐞 点击POI移动相机失败: $e');
+          logError('🐞 点击POI移动相机失败: $e');
         }
       }
 
       // 获取地址信息并拼接POI名称
       _getAddressFromLocation(position, context: context, poiName: poi.name);
     } else {
-      DebugUtil.warning('⚠️ POI没有位置信息');
+      logWarning('⚠️ POI没有位置信息');
     }
   }
 
@@ -495,10 +496,10 @@ class LocationPickerController extends GetxController {
       markers.add(marker);
       markers.refresh(); // 强制刷新
 
-      DebugUtil.success('🗺️ 地图标记已更新: $position');
-      DebugUtil.info('📍 地址信息: $address');
+      logDebug('🗺️ 地图标记已更新: $position');
+      logDebug('📍 地址信息: $address');
     } catch (e) {
-      DebugUtil.error('🗺️ 更新标记失败: $e');
+      logError('🗺️ 更新标记失败: $e');
     }
   }
 
@@ -528,10 +529,10 @@ class LocationPickerController extends GetxController {
         // 如果有POI名称，拼接到地址前面
         if (poiName != null && poiName.isNotEmpty) {
           selectedAddress.value = '$poiName - $detailAddress';
-          DebugUtil.success('✅ 地址获取成功（带POI）: ${selectedAddress.value}');
+          logDebug('✅ 地址获取成功（带POI）: ${selectedAddress.value}');
         } else {
           selectedAddress.value = detailAddress;
-          DebugUtil.success('✅ 地址获取成功: ${selectedAddress.value}');
+          logDebug('✅ 地址获取成功: ${selectedAddress.value}');
         }
 
         // 更新城市信息
@@ -543,21 +544,21 @@ class LocationPickerController extends GetxController {
             cityName: cityName,
             adcode: adcode,
           );
-          DebugUtil.info('🏙️ 更新城市信息: $cityName (adcode: $adcode)');
+          logDebug('🏙️ 更新城市信息: $cityName (adcode: $adcode)');
         }
 
         // 更新marker，显示获取到的地址
         _updateMarker(position, selectedAddress.value, context: context);
       } else {
         selectedAddress.value = '无法获取地址信息';
-        DebugUtil.error('❌ 地址获取失败: ${result['error']}');
+        logError('❌ 地址获取失败: ${result['error']}');
 
         // 更新marker，显示错误信息
         _updateMarker(position, '无法获取地址信息', context: context);
       }
     } catch (e) {
       selectedAddress.value = '地址获取失败';
-      DebugUtil.error('❌ 获取地址异常: $e');
+      logError('❌ 获取地址异常: $e');
 
       // 更新marker，显示错误信息
       _updateMarker(position, '地址获取失败', context: context);
@@ -580,13 +581,13 @@ class LocationPickerController extends GetxController {
       noteText.value = iconData.label;
     }
 
-    DebugUtil.info('🎨 选中图标: ${iconData.label} (ID: $iconId)');
+    logDebug('🎨 选中图标: ${iconData.label} (ID: $iconId)');
   }
 
   /// 更新围栏半径
   void updateGeofenceRadius(double radius) {
     geofenceRadius.value = radius;
-    DebugUtil.info('📏 更新围栏半径: ${radius}米');
+    logDebug('📏 更新围栏半径: ${radius}米');
 
     // 如果已经选择了位置，更新圆形覆盖物
     if (selectedLocation.value != null) {
@@ -614,7 +615,7 @@ class LocationPickerController extends GetxController {
     circles.add(circle);
     circles.refresh();
 
-    DebugUtil.success('🔵 围栏圆形已更新: 中心=$position, 半径=${geofenceRadius.value}米');
+    logDebug('🔵 围栏圆形已更新: 中心=$position, 半径=${geofenceRadius.value}米');
   }
 
   /// 保存位置
@@ -650,12 +651,12 @@ class LocationPickerController extends GetxController {
       );
 
       final mode = editingReminder != null ? '更新' : '创建';
-      DebugUtil.success(
+      logDebug(
         '✅ 位置提醒${mode}成功: 类型=${reminder.type}, 半径=${reminder.radius}米, 地图类型=${reminder.mapType}',
       );
       return reminder;
     } catch (e) {
-      DebugUtil.error('❌ 保存位置失败: $e');
+      logError('❌ 保存位置失败: $e');
       OKToastUtil.showError('保存位置失败，请重试');
       return null;
     }
@@ -677,7 +678,7 @@ class LocationPickerController extends GetxController {
         cityName: poi.cityname,
         adcode: poi.adcode,
       );
-      DebugUtil.info('🏙️ 从POI更新城市信息: ${poi.cityname} (adcode: ${poi.adcode})');
+      logDebug('🏙️ 从POI更新城市信息: ${poi.cityname} (adcode: ${poi.adcode})');
     }
 
     // 🆕 移动地图到选中位置，使用与编辑模式相同的缩放级别和偏移策略
@@ -686,7 +687,7 @@ class LocationPickerController extends GetxController {
       final offsetLatitude = location.latitude;
       final offsetPosition = LatLng(offsetLatitude, location.longitude);
 
-      DebugUtil.info(
+      logDebug(
         '📷 从POI移动相机: 原位置=$location, 偏移后=$offsetPosition, zoom=17.5',
       );
 
@@ -708,14 +709,14 @@ class LocationPickerController extends GetxController {
     // 更新围栏圆形
     _updateGeofenceCircle(location);
 
-    DebugUtil.success('✅ 从POI更新位置: ${poi.name}，围栏已添加');
+    logDebug('✅ 从POI更新位置: ${poi.name}，围栏已添加');
   }
 
   /// 更新当前城市
   void updateCurrentCity(CityModel city) {
     currentCity.value = city.cityName;
     currentCityModel.value = city;
-    DebugUtil.success('✅ 切换城市: ${city.cityName} (adcode: ${city.adcode})');
+    logDebug('✅ 切换城市: ${city.cityName} (adcode: ${city.adcode})');
 
     // 根据城市名调用正向地理编码，将地图相机移动到该城市中心位置
     () async {
@@ -730,7 +731,7 @@ class LocationPickerController extends GetxController {
           final lat = double.tryParse(latStr);
           final lng = double.tryParse(lngStr);
           if (lat != null && lng != null && mapController != null) {
-            DebugUtil.info('📍 将相机移动到城市中心: ${city.cityName} -> ($lat,$lng)');
+           logDebug('📍 将相机移动到城市中心: ${city.cityName} -> ($lat,$lng)');
             await mapController!.moveCamera(
               CameraUpdate.newCameraPosition(
                 CameraPosition(target: LatLng(lat, lng), zoom: 11.5),
@@ -740,10 +741,10 @@ class LocationPickerController extends GetxController {
             );
           }
         } else {
-          DebugUtil.warning('无法通过地名获取城市坐标: ${result['error']}');
+          logWarning('无法通过地名获取城市坐标: ${result['error']}');
         }
       } catch (e) {
-        DebugUtil.error('移动到城市失败: $e');
+        logError('移动到城市失败: $e');
       }
     }();
   }

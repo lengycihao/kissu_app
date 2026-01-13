@@ -255,7 +255,7 @@ class InfoSettingController extends GetxController {
           await _pickImageFromSource(result.imageSource!);
         }
       } else {
-        OKToastUtil.show('权限未授予，无法选择图片');
+         OKToastUtil.show('权限未授予，无法选择图片');
       }
     } catch (e) {
       logError('选择头像失败: $e', tag: 'InfoSetting', error: e);
@@ -291,6 +291,7 @@ class InfoSettingController extends GetxController {
         await _navigateToCropPage(pickedFile.path);
       }
     } catch (e) {
+      logError('❌选择图片失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('选择图片失败: $e');
     } finally {
       isLoading.value = false;
@@ -600,20 +601,22 @@ class InfoSettingController extends GetxController {
             // 通知其他Controller刷新数据（使用最新的缓存数据）
             _notifyControllersToRefresh();
           } else {
-            logWarning('❌ 用户信息刷新失败，但本地数据已更新', tag: 'InfoSetting');
+            logWarning('⚠️ 用户信息刷新失败，但本地数据已更新', tag: 'InfoSetting');
             // 即使服务器刷新失败，我们仍然有本地更新的数据
           }
         } catch (e) {
-          logError('⚠️ 刷新用户信息时发生异常: $e', tag: 'InfoSetting', error: e);
+          logError('❌ 刷新用户信息时发生异常: $e', tag: 'InfoSetting', error: e);
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
 
         // 注册完成后直接跳转到首页
         Get.offAllNamed(KissuRoutePath.home);
       } else {
+        logError('❌ 更新失败: ${result.msg}', tag: 'InfoSetting', error: result.msg);
          OKToastUtil.show(result.msg ?? '更新失败');
       }
     } catch (e) {
+      logError('❌ 更新失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('更新失败: $e');
     } finally {
       isLoading.value = false;
@@ -645,7 +648,7 @@ class InfoSettingController extends GetxController {
       homeController.loadUserInfo();
       logDebug('✅ 首页Controller已刷新', tag: 'InfoSetting');
     } catch (e) {
-      logWarning('❌ 首页Controller未找到: $e', tag: 'InfoSetting', error: e);
+      logWarning('⚠️ 首页Controller未找到: $e', tag: 'InfoSetting', error: e);
     }
     
     // 通知我的页面刷新
@@ -654,7 +657,7 @@ class InfoSettingController extends GetxController {
       mineController.loadUserInfo();
       logDebug('✅ 我的页面Controller已刷新', tag: 'InfoSetting');
     } catch (e) {
-      logWarning('❌ 我的页面Controller未找到: $e', tag: 'InfoSetting', error: e);
+      logWarning('⚠️ 我的页面Controller未找到: $e', tag: 'InfoSetting', error: e);
     }
     
     logDebug('通知其他Controller使用最新的用户数据', tag: 'InfoSetting');

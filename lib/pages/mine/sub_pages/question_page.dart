@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/model/setting/common_question_model/common_question_model.dart';
 import 'package:kissu_app/network/public/setting_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/mine/sub_pages/question_page_info.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 
@@ -45,12 +46,14 @@ class _QuestionPageState extends State<QuestionPage> {
           _navigateToTargetQuestion();
         }
       } else {
+        logError('加载常见问题失败: ${result.msg}', tag: 'QuestionPage');
         setState(() {
           errorMessage = result.msg ?? '加载失败';
           isLoading = false;
         });
       }
     } catch (e) {
+      logError('加载常见问题失败: $e', tag: 'QuestionPage', error: e);
       setState(() {
         errorMessage = '网络错误: $e';
         isLoading = false;

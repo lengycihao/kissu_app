@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
@@ -158,10 +159,10 @@ class UserManager {
       if (Get.isRegistered<AppUsageAutoReportService>()) {
         final service = Get.find<AppUsageAutoReportService>();
         service.stop();
-        DebugUtil.success('App使用记录自动上报服务已停止');
+        logDebug('App使用记录自动上报服务已停止');
       }
     } catch (e) {
-      DebugUtil.error('停止App使用记录自动上报服务失败: $e');
+      logError('停止App使用记录自动上报服务失败: $e');
     }
   }
 
@@ -185,10 +186,10 @@ class UserManager {
         if (Get.isRegistered<PrivacyComplianceManager>()) {
           final privacyManager = Get.find<PrivacyComplianceManager>();
           await privacyManager.clearPrivacyStatus();
-          DebugUtil.success('隐私合规状态已清除');
+          logDebug('隐私合规状态已清除');
         }
       } catch (e) {
-        DebugUtil.error('清除隐私合规状态失败: $e');
+        logError('清除隐私合规状态失败: $e');
       }
 
       // 清除用户数据
@@ -228,10 +229,10 @@ class UserManager {
       final locationService = Get.find<SimpleLocationService>();
       if (locationService.isLocationEnabled.value) {
         locationService.stopLocation();
-        DebugUtil.info('UserManager: 定位服务已停止');
+        logDebug('UserManager: 定位服务已停止');
       }
     } catch (e) {
-      DebugUtil.error('UserManager: 停止定位服务失败: $e');
+      logError('UserManager: 停止定位服务失败: $e');
     }
   }
 

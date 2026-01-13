@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/face_status_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/emoji_cache_manager.dart';
@@ -66,7 +67,7 @@ class LocationStateController extends GetxController {
       // 2. 如果有缓存，立即显示并关闭加载状态
       if (hasCache) {
         isLoading.value = false;
-        DebugUtil.info('✅ 缓存数据加载完成，页面可交互');
+        logDebug('✅ 缓存数据加载完成，页面可交互');
       }
       
       // 3. 在后台请求接口获取最新数据
@@ -77,7 +78,7 @@ class LocationStateController extends GetxController {
       });
       
     } catch (e) {
-      DebugUtil.error('❌ 加载表情状态数据异常: $e');
+      logError('❌ 加载表情状态数据异常: $e');
       OKToastUtil.showError('加载数据异常');
       isLoading.value = false;
     }
@@ -94,19 +95,19 @@ class LocationStateController extends GetxController {
       if (cachedCategories != null && cachedCategories.isNotEmpty) {
         emojiCategories.value = cachedCategories;
         hasData = true;
-        DebugUtil.info('✅ 从缓存加载表情分类数据成功，共 ${cachedCategories.length} 个分类');
+        logDebug('✅ 从缓存加载表情分类数据成功，共 ${cachedCategories.length} 个分类');
       }
       
       // 加载缓存的当前状态数据
       final cachedStatus = await _cacheManager.getCachedCurrentStatus();
       if (cachedStatus != null) {
         _applyStatusData(cachedStatus);
-        DebugUtil.info('✅ 从缓存加载当前状态数据成功');
+        logDebug('✅ 从缓存加载当前状态数据成功');
       }
       
       return hasData;
     } catch (e) {
-      DebugUtil.error('❌ 从缓存加载数据失败: $e');
+      logError('❌ 从缓存加载数据失败: $e');
       return false;
     }
   }
@@ -164,7 +165,7 @@ class LocationStateController extends GetxController {
           selectedExpireHours.value = nowFace.faceExpire; // 设置当前有效期
           topExpireHours.value = nowFace.faceExpire; // 同步到顶部有效期
           
-          DebugUtil.info('✅ 当前状态: ${nowFace.faceText}, 有效期: ${nowFace.faceExpire}小时');
+          logDebug('✅ 当前状态: ${nowFace.faceText}, 有效期: ${nowFace.faceExpire}小时');
         } else {
           // 没有状态时，清空所有状态相关字段
           hasStatus.value = false;
@@ -174,7 +175,7 @@ class LocationStateController extends GetxController {
           statusExpireTime.value = null;
           selectedExpireHours.value = 1; // 重置为默认值
           topExpireHours.value = 1; // 重置为默认值
-          DebugUtil.info('ℹ️ 当前没有设置状态');
+          logDebug('ℹ️ 当前没有设置状态');
         }
         
         // 缓存当前状态数据
@@ -189,13 +190,13 @@ class LocationStateController extends GetxController {
         );
         await _cacheManager.cacheCurrentStatus(statusData);
         
-        DebugUtil.info('✅ 从接口加载表情数据成功，共 ${emojiCategories.length} 个分类');
+        logDebug('✅ 从接口加载表情数据成功，共 ${emojiCategories.length} 个分类');
       } else {
-        DebugUtil.warning('⚠️ 加载表情数据失败: ${result.msg}');
+        logWarning('⚠️ 加载表情数据失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '加载失败');
       }
     } catch (e) {
-      DebugUtil.error('❌ 加载表情数据异常: $e');
+      logError('❌ 加载表情数据异常: $e');
       OKToastUtil.showError('加载数据异常');
     }
   }
@@ -229,11 +230,11 @@ class LocationStateController extends GetxController {
   /// - 新设置时：显示底部有效期选择弹窗
   /// - 编辑时：直接回显到顶部状态区域，点击保存按钮保存
   void selectEmoji(EmojiItem emoji) {
-    DebugUtil.info('🎯 选择表情: ${emoji.name}, hasStatus: ${hasStatus.value}');
+    logDebug('🎯 选择表情: ${emoji.name}, hasStatus: ${hasStatus.value}');
     
     if (hasStatus.value) {
       // 编辑模式：直接回显到顶部状态区域
-      DebugUtil.info('✏️ 编辑模式：直接回显到顶部');
+      logDebug('✏️ 编辑模式：直接回显到顶部');
       
       // 保存原始状态（用于取消时恢复）
       if (!hasTempStatus.value) {
@@ -253,7 +254,7 @@ class LocationStateController extends GetxController {
       // 不显示底部弹窗（selectedEmoji保持为null）
     } else {
       // 新设置模式：显示底部弹窗选择有效期
-      DebugUtil.info('🆕 新设置模式：显示底部弹窗');
+      logDebug('🆕 新设置模式：显示底部弹窗');
       selectedEmoji.value = emoji;
       tempExpireHours.value = 1; // 默认1小时
     }
@@ -332,17 +333,17 @@ class LocationStateController extends GetxController {
           await _cacheManager.cacheCurrentStatus(statusData);
         }
 
-        DebugUtil.info('✅ 设置状态成功');
+        logDebug('✅ 设置状态成功');
         OKToastUtil.show('状态已设置');
 
         // 返回定位页面并刷新数据
         _returnToLocationPageAndRefresh();
       } else {
-        DebugUtil.warning('⚠️ 设置状态失败: ${result.msg}');
+        logWarning('⚠️ 设置状态失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '设置失败');
       }
     } catch (e) {
-      DebugUtil.error('❌ 设置状态异常: $e');
+      logError('❌ 设置状态异常: $e');
       OKToastUtil.showError('设置状态异常');
     } finally {
       // 清空选中状态（关闭底部弹窗）
@@ -435,17 +436,17 @@ class LocationStateController extends GetxController {
         );
         await _cacheManager.cacheCurrentStatus(statusData);
         
-        DebugUtil.info('✅ 删除状态成功');
+        logDebug('✅ 删除状态成功');
         OKToastUtil.show('状态已删除');
         
         // 返回定位页面并刷新数据
         _returnToLocationPageAndRefresh();
       } else {
-        DebugUtil.warning('⚠️ 删除状态失败: ${result.msg}');
+        logWarning('⚠️ 删除状态失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '删除失败');
       }
     } catch (e) {
-      DebugUtil.error('❌ 删除状态异常: $e');
+      logError('❌ 删除状态异常: $e');
       OKToastUtil.showError('删除状态异常');
     }
   }
@@ -505,17 +506,17 @@ class LocationStateController extends GetxController {
         );
         await _cacheManager.cacheCurrentStatus(statusData);
         
-        DebugUtil.info('✅ 更新有效期成功');
+        logDebug('✅ 更新有效期成功');
         OKToastUtil.show('有效期已更新');
         
         // 返回定位页面并刷新数据
         _returnToLocationPageAndRefresh();
       } else {
-        DebugUtil.warning('⚠️ 更新有效期失败: ${result.msg}');
+        logWarning('⚠️ 更新有效期失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '更新失败');
       }
     } catch (e) {
-      DebugUtil.error('❌ 更新有效期异常: $e');
+      logError('❌ 更新有效期异常: $e');
       OKToastUtil.showError('更新有效期异常');
     }
   }
@@ -525,13 +526,13 @@ class LocationStateController extends GetxController {
     try {
       // 清除所有缓存
       await _cacheManager.clearAllCache();
-      DebugUtil.info('🗑️ 已清除所有缓存');
+      logDebug('🗑️ 已清除所有缓存');
       
       // 重新加载数据
       await _loadFaceStatusWithCache();
-      DebugUtil.info('🔄 数据刷新完成');
+      logDebug('🔄 数据刷新完成');
     } catch (e) {
-      DebugUtil.error('❌ 刷新数据失败: $e');
+      logError('❌ 刷新数据失败: $e');
       OKToastUtil.showError('刷新数据失败');
     }
   }
@@ -563,7 +564,7 @@ class LocationStateController extends GetxController {
   /// 返回定位页面并刷新数据
   void _returnToLocationPageAndRefresh() {
     try {
-      DebugUtil.info('🔄 表情设置保存成功，准备返回定位页面并刷新数据');
+      logDebug('🔄 表情设置保存成功，准备返回定位页面并刷新数据');
       
       // 返回到定位页面
       Get.back();
@@ -571,9 +572,9 @@ class LocationStateController extends GetxController {
       // 刷新定位页面数据
       _refreshLocationPageData();
       
-      DebugUtil.success('✅ 已返回定位页面并触发数据刷新');
+      logDebug('✅ 已返回定位页面并触发数据刷新');
     } catch (e) {
-      DebugUtil.error('❌ 返回定位页面并刷新数据失败: $e');
+      logError('❌ 返回定位页面并刷新数据失败: $e');
       // 即使刷新失败，也要返回页面
       Get.back();
     }
@@ -587,12 +588,12 @@ class LocationStateController extends GetxController {
       if (Get.isRegistered<LocationV2Controller>()) {
         final locationController = Get.find<LocationV2Controller>();
         locationController.refreshLocationData();
-        DebugUtil.info('🔄 已触发LocationV2Controller数据刷新');
+        logDebug('🔄 已触发LocationV2Controller数据刷新');
       } else {
-        DebugUtil.warning('⚠️ 未找到定位页面控制器，无法刷新数据');
+        logWarning('⚠️ 未找到定位页面控制器，无法刷新数据');
       }
     } catch (e) {
-      DebugUtil.error('❌ 刷新定位页面数据异常: $e');
+      logError('❌ 刷新定位页面数据异常: $e');
     }
   }
 }

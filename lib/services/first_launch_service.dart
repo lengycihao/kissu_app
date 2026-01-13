@@ -110,18 +110,18 @@ class FirstLaunchService extends GetxService {
     }
   }
   
-  /// 重置首次协议状态（用于测试或重新显示弹窗）
-  Future<void> resetFirstAgreementStatus() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_hasAgreedKey);
+  // /// 重置首次协议状态（用于测试或重新显示弹窗）
+  // Future<void> resetFirstAgreementStatus() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     await prefs.remove(_hasAgreedKey);
       
-      // 清除内存缓存
-      _cachedHasAgreed = null;
+  //     // 清除内存缓存
+  //     _cachedHasAgreed = null;
       
-      logger.info('首次协议状态已重置', tag: 'FirstLaunchService');
-    } catch (e) {
-      logger.error('重置首次协议状态失败: $e', tag: 'FirstLaunchService', error: e);
-    }
-  }
+  //     logger.info('首次协议状态已重置', tag: 'FirstLaunchService');
+  //   } catch (e) {
+  //     logger.error('重置首次协议状态失败: $e', tag: 'FirstLaunchService', error: e);
+  //   }
+  // }
 }

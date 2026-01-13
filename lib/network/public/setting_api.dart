@@ -8,10 +8,12 @@ class SettingApi {
   /// [content] 反馈内容（必填）
   /// [contactWay] 联系方式（必填）
   /// [attachment] 附件URL（选填）
+  /// [logUrl] 日志文件URL（选填）
   Future<HttpResultN> submitFeedback({
     required String content,
     required String contactWay,
     String? attachment,
+    String? logUrl,
   }) async {
     try {
       final params = <String, dynamic>{
@@ -21,6 +23,10 @@ class SettingApi {
 
       if (attachment?.isNotEmpty == true) {
         params['attachment'] = attachment;
+      }
+
+      if (logUrl?.isNotEmpty == true) {
+        params['log_url'] = logUrl;
       }
 
       final result = await HttpManagerN.instance.executePost(
