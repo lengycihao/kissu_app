@@ -7,7 +7,6 @@ import 'package:kissu_app/pages/login/login_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/services/app_usage_auto_report_service.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// 全局用户数据管理工具类
 /// 提供便捷的用户数据访问方法
@@ -344,7 +343,7 @@ class UserManager {
     if (isVip) {
       final days = vipRemainingDays;
       if (days != null) {
-        return days > 0 ? 'VIP还有${days}天' : 'VIP已过期';
+        return days > 0 ? 'VIP还有$days天' : 'VIP已过期';
       }
       return 'VIP用户';
     }

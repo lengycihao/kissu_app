@@ -6,7 +6,6 @@ import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_controller.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
-import 'package:kissu_app/services/analytics/analytics_exit_types.dart';
 
 class InfoSettingPage extends StatefulWidget {
   @override

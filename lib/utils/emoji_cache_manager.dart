@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// 表情数据缓存管理器
 /// 缓存表情分类数据和当前状态，提高加载速度

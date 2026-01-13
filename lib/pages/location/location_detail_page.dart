@@ -35,12 +35,8 @@ class LocationDetailPage extends StatefulWidget {
 }
 
 class _LocationDetailPageState extends State<LocationDetailPage> {
-  BitmapDescriptor? _pedestalIcon;
-  BitmapDescriptor? _avatarIcon;
-  Offset? _avatarAnchor;
   final MarkerBuilder _markerBuilder = MarkerBuilder();
   Set<Marker> _markers = {};
-  bool _iconsCreated = false;
 
   @override
   void initState() {
@@ -64,7 +60,6 @@ class _LocationDetailPageState extends State<LocationDetailPage> {
       if (mounted) {
         setState(() {
           _markers = markers;
-          _iconsCreated = true;
         });
       }
     } catch (e) {
@@ -95,18 +90,16 @@ class _LocationDetailPageState extends State<LocationDetailPage> {
     final avatarDescriptor = avatarData['descriptor'] as BitmapDescriptor?;
     final avatarAnchor = avatarData['anchor'] as Offset?;
 
-    if (pedestal != null) {
-      final pedestalMarker = Marker(
-        position: position,
-        icon: pedestal,
-        anchor: const Offset(0.5, 0.5),
-        zIndex: 1.0,
-        clickable: false,
-      );
-      pedestalMarker.setIdForCopy('detail_pedestal');
-      markers.add(pedestalMarker);
-    }
-
+    final pedestalMarker = Marker(
+      position: position,
+      icon: pedestal,
+      anchor: const Offset(0.5, 0.5),
+      zIndex: 1.0,
+      clickable: false,
+    );
+    pedestalMarker.setIdForCopy('detail_pedestal');
+    markers.add(pedestalMarker);
+  
     if (avatarDescriptor != null) {
       final avatarMarker = Marker(
         position: position,
@@ -118,9 +111,6 @@ class _LocationDetailPageState extends State<LocationDetailPage> {
       markers.add(avatarMarker);
     }
 
-    _pedestalIcon = pedestal;
-    _avatarIcon = avatarDescriptor;
-    _avatarAnchor = avatarAnchor;
   }
 
   /// 🎯 创建近距离模式的markers（两人头像，与定位页面一致）

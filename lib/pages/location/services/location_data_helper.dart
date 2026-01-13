@@ -1,6 +1,5 @@
 import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
+ import 'package:get/get.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 

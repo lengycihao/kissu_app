@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 

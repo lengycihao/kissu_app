@@ -5,7 +5,6 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../../../widgets/safe_amap_widget.dart';
-import '../../../utils/debug_util.dart';
 import '../../../utils/user_manager.dart';
 import '../track_controller.dart';
 import '../track_page_config.dart';

@@ -27,7 +27,7 @@ class OaidUtil {
 
     try {
       final oaid = await FlutterAndroidOaidPlugin.getOAID();
-      if (oaid != null && oaid.isNotEmpty) {
+      if (oaid.isNotEmpty) {
         _cachedOaid = oaid;
         logger.info('OAID 获取成功: ${oaid.substring(0, 8)}...', tag: 'OaidUtil');
         return oaid;

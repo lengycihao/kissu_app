@@ -53,7 +53,7 @@ class LocationStatePage extends StatelessWidget {
     return Obx(() {
       // 显式监听所有相关状态
       final _ = controller.tempSelectedEmoji.value;
-      final _2 = controller.tempSelectedExpireHours.value;
+      // final _2 = controller.tempSelectedExpireHours.value;
 
       // 显示状态的条件：有正式状态 或者 有临时状态
       final hasState = (controller.hasStatus.value &&

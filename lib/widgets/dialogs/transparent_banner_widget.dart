@@ -21,7 +21,7 @@ class TransparentBannerWidget extends StatefulWidget {
 }
 
 class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
-  int _currentIndex = 0;
+  // int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +43,7 @@ class _TransparentBannerWidgetState extends State<TransparentBannerWidget> {
         autoplayDelay: widget.autoPlayInterval.inMilliseconds,
         onIndexChanged: (index) {
           setState(() {
-            _currentIndex = index;
+            // _currentIndex = index;
           });
         },
         // 关键配置：实现一屏显示三张图片的效果

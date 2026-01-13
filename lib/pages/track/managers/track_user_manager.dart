@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// 轨迹页面用户管理器
 /// 负责用户信息管理、头像管理等功能

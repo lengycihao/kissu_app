@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/face_status_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/emoji_cache_manager.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';

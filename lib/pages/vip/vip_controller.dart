@@ -99,7 +99,7 @@ class VipController extends GetxController {
   int? _pageEnterTime; // 十位时间戳
   int _exitType = ExitTypeValue.back;
   int _pageScrollNum = 0;
-  int? _payStartTime; // 支付开始时间（十位时间戳）
+  // int? _payStartTime; // 支付开始时间（十位时间戳）
   SourcePageUtilsCaller? _sourcePage; // 来源页
 
   @override
@@ -810,20 +810,20 @@ class VipController extends GetxController {
     return null;
   }
 
-  /// 获取默认套餐或null（如果没有套餐则返回null）
-  VipPackageModel? _getDefaultPackageOrNull() {
-    if (vipPackages.isEmpty) {
-      return null;
-    }
-    // 查找 type = 4 的套餐
-    for (final package in vipPackages) {
-      if (package.type == 4) {
-        return package;
-      }
-    }
-    // 如果没有 type = 4 的套餐，返回第一个
-    return vipPackages.first;
-  }
+  // /// 获取默认套餐或null（如果没有套餐则返回null）
+  // VipPackageModel? _getDefaultPackageOrNull() {
+  //   if (vipPackages.isEmpty) {
+  //     return null;
+  //   }
+  //   // 查找 type = 4 的套餐
+  //   for (final package in vipPackages) {
+  //     if (package.type == 4) {
+  //       return package;
+  //     }
+  //   }
+  //   // 如果没有 type = 4 的套餐，返回第一个
+  //   return vipPackages.first;
+  // }
 
   /// 获取当前选中的价格文本
   String getCurrentPrice() {

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'base_dialog.dart'; 
-import 'package:intl/intl.dart';
-import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 性别选择弹窗
 class GenderSelectDialog extends BaseDialog {

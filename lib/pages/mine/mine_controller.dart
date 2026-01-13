@@ -25,15 +25,12 @@ import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart'; 
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
-import 'package:kissu_app/pages/mine/installed_apps/installed_apps_page.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:get/get_utils/src/platform/platform.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
@@ -1014,13 +1011,13 @@ class MineController extends GetxController {
     Get.toNamed(KissuRoutePath.appIconSelector);
   }
 
-  /// 查看已安装应用点击事件
-  void _onInstalledAppsTap() {
-    Get.to(
-      () => const InstalledAppsPage(),
-      transition: Transition.rightToLeft,
-    );
-  }
+  // /// 查看已安装应用点击事件
+  // void _onInstalledAppsTap() {
+  //   Get.to(
+  //     () => const InstalledAppsPage(),
+  //     transition: Transition.rightToLeft,
+  //   );
+  // }
 
   /// 权限模块点击埋点
   void trackPermissionModuleClick() {

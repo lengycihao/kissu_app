@@ -1228,77 +1228,77 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 综合识别设备类型
   
-  /// 综合设备分析
-  DeviceIdentificationScore _comprehensiveDeviceAnalysis(String ip, int port, String? httpFingerprint) {
-    DeviceIdentificationScore score = DeviceIdentificationScore();
+  // /// 综合设备分析
+  // DeviceIdentificationScore _comprehensiveDeviceAnalysis(String ip, int port, String? httpFingerprint) {
+  //   DeviceIdentificationScore score = DeviceIdentificationScore();
     
-    // 1. 端口特征分析
-    var portScore = _analyzePortSignature(port);
-    score.portSignatureScore = portScore.portSignatureScore;
+  //   // 1. 端口特征分析
+  //   var portScore = _analyzePortSignature(port);
+  //   score.portSignatureScore = portScore.portSignatureScore;
     
-    // 2. IP模式分析
-    var ipScore = _analyzeIpPattern(ip);
-    score.ipPatternScore = ipScore.ipPatternScore;
+  //   // 2. IP模式分析
+  //   var ipScore = _analyzeIpPattern(ip);
+  //   score.ipPatternScore = ipScore.ipPatternScore;
     
-    // 3. HTTP指纹分析
-    if (httpFingerprint != null) {
-      score.httpFingerprintScore = _analyzeHttpFingerprint(httpFingerprint);
-    }
+  //   // 3. HTTP指纹分析
+  //   if (httpFingerprint != null) {
+  //     score.httpFingerprintScore = _analyzeHttpFingerprint(httpFingerprint);
+  //   }
     
-    // 4. 综合判断设备类型
-    if (score.httpFingerprintScore > 0.8) {
-      // HTTP指纹最可靠
-      score.suggestedType = DeviceType.camera;
-    } else if (score.portSignatureScore > 0.8) {
-      // 端口特征次之
-      score.suggestedType = portScore.suggestedType;
-    } else if (score.portSignatureScore > 0.6 && score.ipPatternScore > 0.6) {
-      // 综合判断
-      score.suggestedType = portScore.suggestedType;
-    } else {
-      score.suggestedType = DeviceType.unknown;
-    }
+  //   // 4. 综合判断设备类型
+  //   if (score.httpFingerprintScore > 0.8) {
+  //     // HTTP指纹最可靠
+  //     score.suggestedType = DeviceType.camera;
+  //   } else if (score.portSignatureScore > 0.8) {
+  //     // 端口特征次之
+  //     score.suggestedType = portScore.suggestedType;
+  //   } else if (score.portSignatureScore > 0.6 && score.ipPatternScore > 0.6) {
+  //     // 综合判断
+  //     score.suggestedType = portScore.suggestedType;
+  //   } else {
+  //     score.suggestedType = DeviceType.unknown;
+  //   }
     
-    return score;
-  }
+  //   return score;
+  // }
   
-  /// 分析HTTP指纹
-  double _analyzeHttpFingerprint(String fingerprint) {
-    double score = 0.0;
-    String lowerFingerprint = fingerprint.toLowerCase();
+  // /// 分析HTTP指纹
+  // double _analyzeHttpFingerprint(String fingerprint) {
+  //   double score = 0.0;
+  //   String lowerFingerprint = fingerprint.toLowerCase();
     
-    // 检查摄像头厂商标识
-    if (lowerFingerprint.contains('cameravendor:')) {
-      score += 0.9;
-    }
+  //   // 检查摄像头厂商标识
+  //   if (lowerFingerprint.contains('cameravendor:')) {
+  //     score += 0.9;
+  //   }
     
-    // 检查摄像头内容特征
-    if (lowerFingerprint.contains('cameracontent:')) {
-      score += 0.7;
-    }
+  //   // 检查摄像头内容特征
+  //   if (lowerFingerprint.contains('cameracontent:')) {
+  //     score += 0.7;
+  //   }
     
-    // 检查摄像头登录页面
-    if (lowerFingerprint.contains('cameralogin:')) {
-      score += 0.8;
-    }
+  //   // 检查摄像头登录页面
+  //   if (lowerFingerprint.contains('cameralogin:')) {
+  //     score += 0.8;
+  //   }
     
-    // 检查服务器标识中的摄像头关键词
-    if (lowerFingerprint.contains('server:')) {
-      if (lowerFingerprint.contains('hikvision') || 
-          lowerFingerprint.contains('dahua') ||
-          lowerFingerprint.contains('axis') ||
-          lowerFingerprint.contains('vivotek') ||
-          lowerFingerprint.contains('foscam')) {
-        score += 0.95;
-      } else if (lowerFingerprint.contains('camera') ||
-                 lowerFingerprint.contains('ipcam') ||
-                 lowerFingerprint.contains('webcam')) {
-        score += 0.8;
-      }
-    }
+  //   // 检查服务器标识中的摄像头关键词
+  //   if (lowerFingerprint.contains('server:')) {
+  //     if (lowerFingerprint.contains('hikvision') || 
+  //         lowerFingerprint.contains('dahua') ||
+  //         lowerFingerprint.contains('axis') ||
+  //         lowerFingerprint.contains('vivotek') ||
+  //         lowerFingerprint.contains('foscam')) {
+  //       score += 0.95;
+  //     } else if (lowerFingerprint.contains('camera') ||
+  //                lowerFingerprint.contains('ipcam') ||
+  //                lowerFingerprint.contains('webcam')) {
+  //       score += 0.8;
+  //     }
+  //   }
     
-    return score > 1.0 ? 1.0 : score;
-  }
+  //   return score > 1.0 ? 1.0 : score;
+  // }
   
    
   

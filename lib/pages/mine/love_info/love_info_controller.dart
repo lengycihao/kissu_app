@@ -22,7 +22,6 @@ import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart'; 
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoveInfoController extends GetxController {

@@ -6,7 +6,6 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/managers/track_replay_manager.dart';
 import 'package:kissu_app/pages/track/managers/track_map_manager.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 import 'dart:ui' as ui;
 import 'dart:math';
 

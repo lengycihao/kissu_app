@@ -8,8 +8,8 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/models/chat_message.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_more_menu.dart';
-import 'package:kissu_app/pages/chat/widgets/location_picker_page.dart';
-import 'package:kissu_app/services/simple_location_service.dart';
+// import 'package:kissu_app/pages/chat/widgets/location_picker_page.dart';
+// import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
@@ -1196,65 +1196,65 @@ class ChatController extends GetxController {
     return null;
   }
 
-  // 选择并发送位置 - 打开位置选择页面
-  Future<void> _pickAndSendLocation() async {
-    try {
-      // 直接从全局定位服务获取当前位置
-      final locationService = SimpleLocationService.instance;
-      final currentLoc = locationService.currentLocation.value;
+  // // 选择并发送位置 - 打开位置选择页面
+  // Future<void> _pickAndSendLocation() async {
+  //   try {
+  //     // 直接从全局定位服务获取当前位置
+  //     final locationService = SimpleLocationService.instance;
+  //     final currentLoc = locationService.currentLocation.value;
 
-      if (currentLoc == null) {
-        Get.snackbar(
-          '提示',
-          '正在获取位置信息，请稍后再试',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-        );
-        return;
-      }
+  //     if (currentLoc == null) {
+  //       Get.snackbar(
+  //         '提示',
+  //         '正在获取位置信息，请稍后再试',
+  //         snackPosition: SnackPosition.BOTTOM,
+  //         backgroundColor: Colors.orange,
+  //         colorText: Colors.white,
+  //         margin: const EdgeInsets.all(16),
+  //       );
+  //       return;
+  //     }
 
-      // 打开位置选择页面
-      final selectedLocation = await Get.to<LocationInfo>(
-        () => LocationPickerPage(
-          initialLatitude: double.tryParse(currentLoc.latitude),
-          initialLongitude: double.tryParse(currentLoc.longitude),
-          initialLocationName: currentLoc.locationName.isNotEmpty 
-              ? currentLoc.locationName 
-              : '当前位置',
-          avatarUrl: null, // 可以传入对方的头像
-        ),
-        transition: Transition.downToUp,
-      );
+  //     // 打开位置选择页面
+  //     final selectedLocation = await Get.to<LocationInfo>(
+  //       () => LocationPickerPage(
+  //         initialLatitude: double.tryParse(currentLoc.latitude),
+  //         initialLongitude: double.tryParse(currentLoc.longitude),
+  //         initialLocationName: currentLoc.locationName.isNotEmpty 
+  //             ? currentLoc.locationName 
+  //             : '当前位置',
+  //         avatarUrl: null, // 可以传入对方的头像
+  //       ),
+  //       transition: Transition.downToUp,
+  //     );
 
-      if (selectedLocation == null) return;
+  //     if (selectedLocation == null) return;
 
-      // 发送位置消息
-      final message = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        content: selectedLocation.name,
-        type: MessageType.location,
-        isSent: true,
-        time: DateTime.now(),
-        // 使用当前用户头像
-        avatarUrl: UserManager.userAvatar,
-        locationName: selectedLocation.name,
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
-      );
+  //     // 发送位置消息
+  //     final message = ChatMessage(
+  //       id: DateTime.now().millisecondsSinceEpoch.toString(),
+  //       content: selectedLocation.name,
+  //       type: MessageType.location,
+  //       isSent: true,
+  //       time: DateTime.now(),
+  //       // 使用当前用户头像
+  //       avatarUrl: UserManager.userAvatar,
+  //       locationName: selectedLocation.name,
+  //       latitude: selectedLocation.latitude,
+  //       longitude: selectedLocation.longitude,
+  //     );
 
-      messages.add(message);
-      _scrollToBottom();
+  //     messages.add(message);
+  //     _scrollToBottom();
 
-      logDebug('💬 发送位置: ${message.locationName} (${message.latitude}, ${message.longitude})');
-      // TODO: 发送位置到服务器
-    } catch (e) {
-      logError('发送位置失败: $e');
-      OKToastUtil.showError("发送位置失败");
+  //     logDebug('💬 发送位置: ${message.locationName} (${message.latitude}, ${message.longitude})');
+  //     // TODO: 发送位置到服务器
+  //   } catch (e) {
+  //     logError('发送位置失败: $e');
+  //     OKToastUtil.showError("发送位置失败");
        
-    }
-  }
+  //   }
+  // }
 
   // 处理更多菜单点击
   void handleMoreMenuAction(MoreMenuType type) {

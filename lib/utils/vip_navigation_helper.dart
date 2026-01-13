@@ -3,7 +3,6 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/location/location_v2_page.dart';
 import 'package:kissu_app/pages/location/location_v2_binding.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// VIP导航助手类
 /// 用于统一处理需要会员权限的页面跳转

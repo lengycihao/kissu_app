@@ -25,7 +25,7 @@ class AnalyticsManager extends GetxService {
   static const int _batchThreshold = 10;
 
   /// 定时上报间隔（秒）
-  static const int _reportIntervalSeconds = 20;
+  // static const int _reportIntervalSeconds = 20;
 
   /// 上报定时器
   Timer? _reportTimer;
@@ -81,14 +81,14 @@ class AnalyticsManager extends GetxService {
     }
   }
 
-  /// 启动定时上报
-  void _startReportTimer() {
-    _reportTimer?.cancel();
-    _reportTimer = Timer.periodic(
-      const Duration(seconds: _reportIntervalSeconds),
-      (_) => _flushEvents(),
-    );
-  }
+  // /// 启动定时上报
+  // void _startReportTimer() {
+  //   _reportTimer?.cancel();
+  //   _reportTimer = Timer.periodic(
+  //     const Duration(seconds: _reportIntervalSeconds),
+  //     (_) => _flushEvents(),
+  //   );
+  // }
 
   /// 记录事件
   /// 

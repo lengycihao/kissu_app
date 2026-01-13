@@ -7,8 +7,6 @@ import 'package:kissu_app/widgets/loading_dots_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
-import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
-import 'package:kissu_app/services/analytics/analytics_exit_types.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class LoginPage extends StatefulWidget {

@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 
 /// 首页「Ta的手机使用记录」卡片

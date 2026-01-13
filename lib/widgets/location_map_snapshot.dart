@@ -205,27 +205,27 @@ class _CirclePainter extends CustomPainter {
   }
 }
 
-/// 绘制三角形指示器的画笔
-class _TrianglePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
+// /// 绘制三角形指示器的画笔
+// class _TrianglePainter extends CustomPainter {
+//   @override
+//   void paint(Canvas canvas, Size size) {
+//     final paint = Paint()
+//       ..color = Colors.white
+//       ..style = PaintingStyle.fill;
     
-    final path = Path()
-      ..moveTo(size.width / 2, size.height) // 底部中心
-      ..lineTo(0, 0) // 左上
-      ..lineTo(size.width, 0) // 右上
-      ..close();
+//     final path = Path()
+//       ..moveTo(size.width / 2, size.height) // 底部中心
+//       ..lineTo(0, 0) // 左上
+//       ..lineTo(size.width, 0) // 右上
+//       ..close();
     
-    canvas.drawPath(path, paint);
+//     canvas.drawPath(path, paint);
     
-    // 添加阴影效果
-    canvas.drawShadow(path, Colors.black.withOpacity(0.2), 2, true);
-  }
+//     // 添加阴影效果
+//     canvas.drawShadow(path, Colors.black.withOpacity(0.2), 2, true);
+//   }
   
-  @override
-  bool shouldRepaint(_TrianglePainter oldDelegate) => false;
-}
+//   @override
+//   bool shouldRepaint(_TrianglePainter oldDelegate) => false;
+// }
 

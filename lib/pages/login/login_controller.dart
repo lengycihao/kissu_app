@@ -10,7 +10,6 @@ import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/toast_toalog.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
-import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';

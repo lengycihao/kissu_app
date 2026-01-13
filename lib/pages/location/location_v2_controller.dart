@@ -2006,12 +2006,12 @@ class LocationV2Controller extends GetxController
     );
   }
 
-  void _updateActualPartnerLocationData(UserLocationMobileDevice userData) {
-    LocationDataHelper.updateLocationData(
-      userData: userData,
-      location: actualPartnerLocation,
-    );
-  }
+  // void _updateActualPartnerLocationData(UserLocationMobileDevice userData) {
+  //   LocationDataHelper.updateLocationData(
+  //     userData: userData,
+  //     location: actualPartnerLocation,
+  //   );
+  // }
 
   // 🔥 已弃用：这个方法会把当前查看用户的位置写入myLocation，导致bug
   // void _updateCurrentUserData(UserLocationMobileDevice userData) { ... }

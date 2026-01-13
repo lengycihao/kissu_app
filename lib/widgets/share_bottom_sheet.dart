@@ -157,7 +157,7 @@ class ShareBottomSheet extends StatelessWidget {
     dynamic icon,
     required String label,
     required VoidCallback onTap,
-    bool isIcon = false,
+    // bool isIcon = false,
   }) {
     return GestureDetector(
       onTap: onTap,

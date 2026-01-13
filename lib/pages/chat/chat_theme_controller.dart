@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+ import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/utils/sp_util.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';

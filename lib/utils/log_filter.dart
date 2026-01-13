@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LogFilter {

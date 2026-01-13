@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// 轨迹页面UI管理器
 /// 负责底部面板控制、动画管理、日期选择器等UI状态管理

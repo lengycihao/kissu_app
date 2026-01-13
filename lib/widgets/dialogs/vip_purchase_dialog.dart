@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart'; 
-import '../../utils/agreement_utils.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 开通VIP弹窗

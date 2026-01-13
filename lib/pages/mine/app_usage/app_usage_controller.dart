@@ -6,7 +6,6 @@ import 'package:get/get.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_open_record_detail_data.dart';
@@ -1137,12 +1136,6 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   // ==================== 调试方法 ====================
   
-  /// 安全地显示Toast（已废弃，使用OKToastUtil代替）
-  @Deprecated('使用OKToastUtil代替')
-  void _safeShowSnackbar(String title, String message, {Color? backgroundColor, Color? colorText}) {
-    // 直接使用OKToastUtil，不需要检查上下文
-    OKToastUtil.show(message);
-  }
   
   /// 初始化上报服务（自动采集所有应用）
   Future<void> initializeReportService() async {

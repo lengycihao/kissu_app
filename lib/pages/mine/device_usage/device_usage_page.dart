@@ -5,7 +5,6 @@ import 'device_usage_controller.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_page.dart';
 import 'package:kissu_app/pages/usage_report/usage_report_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'widgets/device_phone_usage_card.dart';
 import 'widgets/device_app_usage_card.dart';

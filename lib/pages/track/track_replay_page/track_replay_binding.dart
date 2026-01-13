@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'track_replay_controller.dart';
 
 /// 轨迹播放页面的绑定
 /// 注意：由于播放页面需要从轨迹页面传递数据，
