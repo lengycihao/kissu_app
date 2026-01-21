@@ -7,10 +7,10 @@ class AnalyticsParams {
   // ==================== 用户相关参数 ====================
   
   /// 虚拟用户ID（通过设备号生成）
-  static const String mockUserId = 'deviec_id';
+  static const String mockUserId = 'device_id';
   
   /// 用户ID（后台对应的用户ID）
-  static const String userId = 'user_id';
+  // static const String userId = 'user_id';
   
   // ==================== 页面相关参数 ====================
   
@@ -170,10 +170,12 @@ class Action188Value {
 }
 
 /// 离开方式枚举值
+/// 注意：关闭app(2)已合并到切换到后台(3)，因为关闭app不好处理
 class ExitTypeValue {
   static const int back = 1;//返回
-  static const int closeApp = 2;//关闭应用
-  static const int toBackground = 3;//到后台
+  @Deprecated('使用 toBackground 代替，关闭app已合并到切换到后台')
+  static const int closeApp = 3;//关闭应用（已合并到后台）
+  static const int toBackground = 3;//到后台（包含关闭app）
   static const int nextPage = 4;//下一页
 }
 
@@ -197,9 +199,9 @@ class LoginStatusValue {
 
 /// 性别枚举值
 class GenderValue {
-  static const int defaultMale = 1;//默认男性
-  static const int male = 2;//男性
-  static const int female = 3;//女性
+  static const String defaultMale = "默认男";//默认男性
+  static const String male = "男";//男性
+  static const String female = "女";//女性
 }
 
 /// 支付方式枚举值
@@ -208,6 +210,13 @@ class PayTypeValue {
   static const int wechat = 2;//微信支付
 
   static const int alipay = 3;//支付宝支付
+}
+
+
+/// 支付按钮枚举值
+class PayBtnValue {
+  static const String payNow = "立即支付";//立即支付
+  static const String payLater = "立即续费";//立即续费
 }
 
 /// 支付状态枚举值
@@ -223,9 +232,9 @@ class ShareStatusValue {
   
   static const int failed = 0;//失败
   static const int success = 1;//成功
- 
   static const int copied = 2;//已复制
-   static const int notShared =3;//未分享
+  static const int notShared = 3;//未分享
+  static const int cancelled = 4;//取消
 }
 
 /// 分享渠道枚举值
@@ -246,19 +255,19 @@ class NavigationNameValue {
 
 /// 头像身份枚举值
 class AvatarNameValue {
-  static const String self = 'self';
-  static const String partner = 'partner';
+  static const String self = '自己';
+  static const String partner = '另一半';
 }
 
 /// 功能模块名称枚举值
 class FunctionModuleValue {
-  static const String realTimeLocation = '实时位置';//实时位置
+  static const String realTimeLocation = '实时定位';//实时定位
   static const String appUsageRecord = 'app使用记录';//app使用记录
   static const String phoneHistory = '用机记录';//用机记录
   static const String track = '足迹';//足迹
   static const String hotelAntiSpy = '酒店防偷拍';//酒店防偷拍
   static const String personalizedHome = '个性化首页';//个性化首页
-  static const String sensitiveRecord = '敏感记录统计';//敏感记录统计
+  static const String sensitiveRecord = '敏感操作记录';//敏感操作记录
   static const String changeAppIcon = '更换app图标';//更换app图标
 }
 

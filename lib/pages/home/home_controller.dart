@@ -35,6 +35,9 @@ import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/services/gif_preload_service.dart';
 import 'package:kissu_app/pages/home/services/home_popup_service.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 
 class HomeController extends GetxController {
@@ -67,6 +70,10 @@ class HomeController extends GetxController {
   // Banner 手动滑动标记
   // 用于追踪用户是否手动滑动了 banner
   // true = 用户手动滑动，false = 自动播放
+  
+  // 首页埋点追踪
+  int? _homePageEnterTime;
+  bool _hasTrackedHomePageExit = false;
   var isBannerManuallyDragged = false.obs;
   
   // 视图模式：true=屏视图，false=岛视图（默认屏视图）
@@ -158,6 +165,10 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     
+    // 埋点：记录首页进入时间
+    _homePageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedHomePageExit = false;
+    
     // 初始化弹窗和引导图服务
     _popupService = HomePopupService(
       isBound: isBound,
@@ -167,15 +178,16 @@ class HomeController extends GetxController {
       isShowingDialog: _isShowingDialog,
       onRefreshAfterBinding: _refreshAfterBinding,
       getCachedVipData: () => _cachedVipData,
+      onNavigateToNextPage: _trackHomePageExit,
     );
     
     logDebug('🏠 HomeController 初始化 - 绑定弹窗标志位状态: ${HomePopupService.hasShownBindingDialogThisSession}');
     
+    // 🔥 修复：先初始化认证服务，再调用同步授权应用（避免LateInitializationError）
+    _authService = getIt<AuthService>();
+    
     // 进入首页即同步授权应用
     _syncAuthApp();
-    
-    // 🚀 关键修复：先初始化认证服务，再刷新用户信息
-    _authService = getIt<AuthService>();
     
     // 先加载本地用户信息（立即显示）
     loadUserInfo();
@@ -215,6 +227,11 @@ class HomeController extends GetxController {
     Future.delayed(const Duration(milliseconds: 500), () {
       _popupService.checkVipOuttimeDialogOnce();
     });
+    
+    // 延迟检查VIP过期提醒弹窗（type=2时显示，每天一次）
+    Future.delayed(const Duration(milliseconds: 600), () {
+      _popupService.checkVipExpireReminderDialogOnce();
+    });
   }
   
   /// 启动App使用记录自动上报服务
@@ -233,7 +250,57 @@ class HomeController extends GetxController {
   }
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
+  /// 埋点：上报首页离开事件
+  void _trackHomePageExit() {
+    if (_hasTrackedHomePageExit || _homePageEnterTime == null) return;
+    _hasTrackedHomePageExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _homePageEnterTime!;
+    
+    // 计算会员状态
+    final userInfo = UserManager.currentUser;
+    int vipStatus = 0;
+    if (userInfo != null) {
+      final isVip = userInfo.isVip ?? 0;
+      final vipEndTime = userInfo.vipEndTime ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      if (isVip == 1) {
+        vipStatus = (vipEndTime > now) ? 1 : 2;
+      }
+    }
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.page,
+      enterTime: _homePageEnterTime!,
+      duration: duration,
+      exitType: ExitTypeValue.nextPage,
+      params: {
+        AnalyticsParams.vipStatus: vipStatus,
+        AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
+        AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
+        AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,
+      },
+    );
+    
+    logDebug('📊 首页离开埋点：停留${duration}秒');
+    
+    // 立即重置状态，为从下一页返回后的埋点做准备
+    _homePageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedHomePageExit = false;
+  }
+  
+  /// 供Widget调用的首页离开埋点方法（公开方法）
+  void trackHomePageExitFromWidget() {
+    _trackHomePageExit();
+  }
+  
   void onPageResumed() {
+    // 埋点：重新记录首页进入时间
+    _homePageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedHomePageExit = false;
     debugPrint('🏠 首页重新获得焦点，刷新数据');
     
     // 🔥 修复：页面重新获得焦点时，检查并重置弹窗状态，防止卡死
@@ -353,8 +420,10 @@ class HomeController extends GetxController {
       bool hasRequested = prefs.getBool('location_permission_requested') ?? false;
       
       if (hasRequested) {
-        logDebug('🏠 已请求过定位权限，直接检查服务状态');
+        logDebug('🏠 已请求过定位权限，检查服务状态并启动弹窗流程');
         await _checkLocationServiceStatus();
+        // 🔥 修复：即使已经请求过权限，也要启动弹窗流程
+        await _popupService.startPopupFlow();
         return;
       }
 
@@ -983,6 +1052,9 @@ class HomeController extends GetxController {
       AnalyticsHelper.trackBottomNavigation(navigationName: navigationNames[index]);
     }
     
+    // 埋点：首页离开（进入下一页）
+    _trackHomePageExit();
+    
     // 执行导航逻辑
     switch (index) {
       case 0:
@@ -1297,6 +1369,9 @@ class HomeController extends GetxController {
     bool showLoadingIndicator = true, // 是否显示加载动画，默认显示
   }) {
     if (url.isNotEmpty) {
+      // 埋点：首页离开（进入下一页）
+      _trackHomePageExit();
+      
       Get.to(
         () => AgreementWebViewPage(
           title: title ??
@@ -1350,6 +1425,9 @@ class HomeController extends GetxController {
   
   /// 跳转到恋爱信息页面，并在返回时刷新首页数据
   Future<void> navigateToLoveInfoPage() async {
+    // 埋点：首页离开（进入下一页）
+    _trackHomePageExit();
+    
     logDebug('💕 从首页跳转到恋爱信息页面');
     await Get.to(
       () => const LoveInfoPage(),
@@ -1482,6 +1560,9 @@ class HomeController extends GetxController {
   /// 关闭种草按钮
   Future<void> closeSeedingButton() async {
     try {
+      // 埋点：种草浮动按钮关闭
+      _trackSeedingButtonClick(btnStatus: 0);
+      
       showSeedingButton.value = false;
       
       // 如果是会员，记录今天已关闭
@@ -1501,6 +1582,12 @@ class HomeController extends GetxController {
   /// 打开种草链接
   void openSeedingLink() {
     if (seedingLink.value.isNotEmpty) {
+      // 埋点：种草浮动按钮点击（进入）
+      _trackSeedingButtonClick(btnStatus: 1);
+      
+      // 埋点：首页离开（进入下一页）
+      _trackHomePageExit();
+      
       logDebug('🌱 打开种草链接: ${seedingLink.value}');
       Get.to(
         () => SeedingWebViewPage(
@@ -1510,6 +1597,36 @@ class HomeController extends GetxController {
     } else {
       logWarning('⚠️ 种草链接为空');
     }
+  }
+  
+  /// 埋点：种草浮动按钮点击
+  void _trackSeedingButtonClick({required int btnStatus}) {
+    final userInfo = UserManager.currentUser;
+    
+    // 计算会员状态
+    int vipStatus = 0;
+    if (userInfo != null) {
+      final isVip = userInfo.isVip ?? 0;
+      final vipEndTime = userInfo.vipEndTime ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      if (isVip == 1) {
+        vipStatus = (vipEndTime > now) ? 1 : 2;
+      }
+    }
+    
+    AnalyticsManager.instance.trackClick(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.seedingEvent,
+      params: {
+        AnalyticsParams.clickTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        AnalyticsParams.vipStatus: vipStatus,
+        AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
+        AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
+        AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,
+        AnalyticsParams.btnStatus: btnStatus,
+      },
+    );
   }
 
   /// 更新天气数据（从首页接口数据中解析）

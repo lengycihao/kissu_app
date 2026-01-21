@@ -14,6 +14,7 @@ import '../../home/home_controller.dart';
 import '../mine_controller.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class BreakRelationshipPage extends StatefulWidget {
   const BreakRelationshipPage({super.key});
@@ -114,7 +115,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       ),
     );
   }
-
+//解除关系页面的自定义AppBar
   Widget _buildCustomAppBar() {
     return SizedBox(
       height: 44,
@@ -341,6 +342,9 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
       margin: const EdgeInsets.symmetric(horizontal: 30),
       child: ElevatedButton(
         onPressed: () async {
+          // 埋点：解除关系页面确认按钮点击
+          AnalyticsHelper.trackUnbindBtn();
+          
           final confirmResult =
               await DialogManager.showUnbindRelationshipDialog();
           if (confirmResult == true) {

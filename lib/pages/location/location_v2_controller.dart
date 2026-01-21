@@ -76,6 +76,9 @@ class LocationV2Controller extends GetxController
 
   // 🚀 新的服务和工具类
   late MarkerBuilder _markerBuilder;
+  
+  // 埋点：页面离开回调（由Layout注册）
+  VoidCallback? onNavigateToNextPage;
 
   DraggableScrollableController? _draggableController;
   AMapController? mapController;
@@ -726,6 +729,9 @@ class LocationV2Controller extends GetxController
               onTap: (String markerId) {
                 // 点击头像直接跳转到详情页（与聊天页面行为一致）
                 try {
+                  // 埋点：页面离开（进入下一页）
+                  onNavigateToNextPage?.call();
+                  
                   Get.to(
                     () => LocationDetailPage(
                       latitude: capturedPos.latitude,
@@ -2128,6 +2134,9 @@ class LocationV2Controller extends GetxController
         logError('提取另一半城市信息失败: $e');
       }
 
+      // 埋点：页面离开（进入下一页）
+      onNavigateToNextPage?.call();
+      
       Get.toNamed(
         KissuRoutePath.locationReminder,
         arguments: {
@@ -2265,6 +2274,9 @@ class LocationV2Controller extends GetxController
     // 埋点：开通会员按钮点击
     AnalyticsHelper.trackLocationToBind(btnName: 'vip');
     
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     // 跳转到会员页面
     Get.toNamed(
       KissuRoutePath.vip,
@@ -2278,6 +2290,9 @@ class LocationV2Controller extends GetxController
 
   void navigateToQuestionPage(int? problemId) {
   
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     if (problemId == null) {
       Get.to(() => const QuestionPage(), transition: Transition.rightToLeft);
       return;
@@ -2306,6 +2321,7 @@ class LocationV2Controller extends GetxController
 
         if (targetQuestion != null) {
           final CommonQuestionModel nonNullQuestion = targetQuestion;
+          // 注意：这里已经在navigateToQuestionPage开头调用过了，不需要重复调用
           Get.to(
             () => QuestionPageInfo(question: nonNullQuestion),
             transition: Transition.rightToLeft,
@@ -2321,6 +2337,7 @@ class LocationV2Controller extends GetxController
     }
 
     // 兜底：如果接口异常或未找到问题，保持原有逻辑，先进入问题列表
+    // 注意：这里已经在navigateToQuestionPage开头调用过了，不需要重复调用
     Get.to(
       () => QuestionPage(targetProblemId: problemId),
       transition: Transition.rightToLeft,

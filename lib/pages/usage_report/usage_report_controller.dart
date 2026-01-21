@@ -13,7 +13,10 @@ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
-import 'package:kissu_app/services/analytics/analytics_helper.dart'; 
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart'; 
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
@@ -49,8 +52,13 @@ class UsageReportController extends GetxController {
   // 页面Context（用于Overlay）
   late BuildContext pageContext;
 
-  // 页面浏览时长统计（埋点用）
-  DateTime? _pageEnterTime;
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
 
   // 筛选选项（改为多选）
   final selectedFilters = <String>['位置轨迹', 'Kissu', '手机状态', 'App使用统计'].obs; // 已选中的筛选项列表，默认4个都勾选
@@ -119,8 +127,13 @@ class UsageReportController extends GetxController {
     super.onInit();
     logDebug('📊 UsageReportController 初始化');
 
-    // 记录页面进入时间（用于计算停留时长）
-    _pageEnterTime = DateTime.now();
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
 
     // 初始化用户绑定状态（使用本地数据）
     _updateUserBindStatus();
@@ -169,38 +182,58 @@ class UsageReportController extends GetxController {
     }
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    // 上报埋点：sensitive_page_event
+    AnalyticsManager.instance.trackPageView(
+      pageId: SensitiveEvents.pageId,
+      eventId: SensitiveEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    logDebug(
+      '✅ 敏感操作记录页面离开埋点: 停留时长=${duration}s, exitType=$exitType',
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  /// 应用切换到后台
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// 应用从后台返回
+  void onAppResumed() {
+    // 重置状态，准备下次埋点
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
-    // 上报页面浏览埋点（计算停留时长）
-    _trackPageView();
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
 
     _debounceTimer?.cancel();
     _deviceInfoTooltipTimer?.cancel();
     logDebug('📊 UsageReportController 销毁');
     super.onClose();
-  }
-
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-
-      // 获取绑定状态和会员状态
-      final isBind = isUserBound.value;
-      final isVip = UserManager.isVip;
-
-     
-      logDebug(
-        '✅ 用机记录页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定状态=${isBind ? "已绑定" : "未绑定"}, 会员状态=${isVip ? "已充值" : "未充值"}',
-      );
-    } catch (e) {
-      logError('❌ 用机记录页面浏览埋点上报失败: $e');
-    }
   }
 
   /// 切换日期
@@ -350,6 +383,9 @@ class UsageReportController extends GetxController {
   void handleJumpPageClick(String jumpPage) {
     logDebug('🔗 跳转页面: $jumpPage');
     
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     switch (jumpPage) {
       case 'appUsePage':
         // 跳转到app使用统计页面
@@ -390,6 +426,9 @@ class UsageReportController extends GetxController {
   Future<void> _navigateToVipPage() async {
     logDebug('💎 跳转到VIP页面');
     
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     // 跳转到VIP页面
     final result = await Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.usageReport, },);
     
@@ -424,6 +463,9 @@ class UsageReportController extends GetxController {
 
   /// 显示设置对话框
   void showSettingDialog() async {
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     // 跳转到用机设置页面
     Get.toNamed(KissuRoutePath.notificationSettings);
   }

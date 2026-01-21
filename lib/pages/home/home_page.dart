@@ -7,6 +7,10 @@ import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/pages/home/widget/home_avatar_section.dart';
 import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
 import 'package:lottie/lottie.dart';
+import 'package:kissu_app/services/analytics/analytics_page_mixin.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 class KissuHomePage extends StatefulWidget {
   const KissuHomePage({super.key});
@@ -16,11 +20,41 @@ class KissuHomePage extends StatefulWidget {
 }
 
 class _KissuHomePageState extends State<KissuHomePage>
-    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin, AnalyticsPageStateMixin {
   late HomeController controller;
 
   @override
   bool get wantKeepAlive => false; // 禁用页面状态保持，减少内存占用
+
+  // 埋点相关
+  @override
+  String get analyticsPageId => HomeEvents.pageId;
+
+  @override
+  String get analyticsEventId => HomeEvents.page;
+
+  @override
+  Map<String, dynamic>? get analyticsExtraParams {
+    final userInfo = UserManager.currentUser;
+    // 计算会员状态：0非会员 1会员中 2会员到期
+    int vipStatus = 0;
+    if (userInfo != null) {
+      final isVip = userInfo.isVip ?? 0;
+      final vipEndTime = userInfo.vipEndTime ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      if (isVip == 1) {
+        vipStatus = (vipEndTime > now) ? 1 : 2;
+      }
+    }
+    
+    return {
+      AnalyticsParams.vipStatus: vipStatus,
+      AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
+      AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
+      AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,
+    };
+  }
 
   @override
   void initState() {
@@ -37,6 +71,7 @@ class _KissuHomePageState extends State<KissuHomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 🔥 关键：调用父类的生命周期处理，确保后台切换埋点正确上报
     super.didChangeAppLifecycleState(state);
 
     // 应用生命周期变化时不需要特殊处理
@@ -44,7 +79,7 @@ class _KissuHomePageState extends State<KissuHomePage>
     if (state == AppLifecycleState.resumed) {
       final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
       if (isCurrentRoute) {
-        debugPrint('🏠 应用回到前台且首页可见，但不需要刷新用户信息（已通过静态变量控制）');
+        debugPrint('🏠 应用回到前台且首页可见');
       } else {
         debugPrint('🏠 应用回到前台但首页不可见');
       }

@@ -559,6 +559,9 @@ class TrackSheetManager {
                         // 埋点：开通会员按钮点击
                         AnalyticsHelper.trackTrackToBind(btnName: 'vip');
                         
+                        // 埋点：页面离开（进入下一页）
+                        controller.onNavigateToNextPage?.call();
+                        
                         Get.toNamed(
                           KissuRoutePath.vip,
                           arguments: {'source_page': SourcePageUtilsCaller.track, },

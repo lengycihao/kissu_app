@@ -390,15 +390,23 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         // 页面中的 kissu_icon（默认）
         "default" to "com.yuluo.kissu.MainActivityDefault",
         // kissu_logo_2 ~ kissu_logo_10
-        "logo_two" to "com.yuluo.kissu.MainActivityIcon2",
-        "logo_three" to "com.yuluo.kissu.MainActivityIcon3",
-        "logo_four" to "com.yuluo.kissu.MainActivityIcon4",
-        "logo_five" to "com.yuluo.kissu.MainActivityIcon5",
-        "logo_six" to "com.yuluo.kissu.MainActivityIcon6",
-        "logo_seven" to "com.yuluo.kissu.MainActivityIcon7",
-        "logo_eight" to "com.yuluo.kissu.MainActivityIcon8",
-        "logo_nine" to "com.yuluo.kissu.MainActivityIcon9",
-        "logo_ten" to "com.yuluo.kissu.MainActivityIcon10",
+        "logo_2" to "com.yuluo.kissu.MainActivityIcon2",
+        "logo_3" to "com.yuluo.kissu.MainActivityIcon3",
+        "logo_4" to "com.yuluo.kissu.MainActivityIcon4",
+        "logo_5" to "com.yuluo.kissu.MainActivityIcon5",
+        "logo_6" to "com.yuluo.kissu.MainActivityIcon6",
+        "logo_7" to "com.yuluo.kissu.MainActivityIcon7",
+        "logo_8" to "com.yuluo.kissu.MainActivityIcon8",
+        "logo_9" to "com.yuluo.kissu.MainActivityIcon9",
+        "logo_10" to "com.yuluo.kissu.MainActivityIcon10",
+        "logo_11" to "com.yuluo.kissu.MainActivityIcon11",
+        "logo_12" to "com.yuluo.kissu.MainActivityIcon12",
+        "logo_13" to "com.yuluo.kissu.MainActivityIcon13",
+        "logo_14" to "com.yuluo.kissu.MainActivityIcon14",
+        "logo_15" to "com.yuluo.kissu.MainActivityIcon15",
+        "logo_16" to "com.yuluo.kissu.MainActivityIcon16",
+        "logo_17" to "com.yuluo.kissu.MainActivityIcon17",
+        "logo_18" to "com.yuluo.kissu.MainActivityIcon18",
     )
 
     /**

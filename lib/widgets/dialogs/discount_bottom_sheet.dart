@@ -28,7 +28,7 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
     return WillPopScope(
       onWillPop: () async {
         // 埋点：记录19元弹窗关闭（点击空白区域或返回键，使用YesNoValue.no表示关闭）
-        AnalyticsHelper.trackPopup19Dialog(btnName: YesNoValue.no);
+        AnalyticsHelper.trackPopup19Dialog(btnStatus: YesNoValue.no);
         return true;
       },
       child: Container(
@@ -50,7 +50,7 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
             GestureDetector(
               onTap: () {
                 // 埋点：记录19元弹窗关闭（使用YesNoValue.no表示关闭）
-                AnalyticsHelper.trackPopup19Dialog(btnName: YesNoValue.no);
+                AnalyticsHelper.trackPopup19Dialog(btnStatus: YesNoValue.no);
                 Navigator.of(context).pop();
               },
               child: Container(
@@ -105,7 +105,7 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
          GestureDetector(
               onTap: () {
                 // 埋点：记录19元弹窗立即支付按钮点击（使用YesNoValue.yes表示立即支付）
-                AnalyticsHelper.trackPopup19Dialog(btnName: YesNoValue.yes);
+                AnalyticsHelper.trackPopup19Dialog(btnStatus: YesNoValue.yes);
                 widget.onPayment(selectedPaymentMethod);
               },
               child: Container(

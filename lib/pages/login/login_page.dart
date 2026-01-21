@@ -7,7 +7,6 @@ import 'package:kissu_app/widgets/loading_dots_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
-import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -189,8 +188,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                           _unfocusAll();
                           // 标记进入下一页（登录成功后会跳转）
                           _markNavigateToNextPage();
-                          // 埋点：登录按钮点击
-                          _trackLoginButtonClick();
                           controller.login();
                         },
                         child: Container(
@@ -278,6 +275,14 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
                         GestureDetector(
                           onTap: () {
+                            // 埋点：页面离开（进入下一页）
+                            _markNavigateToNextPage();
+                            _trackPageExit();
+                            // 重置状态，为从协议页返回后的埋点做准备
+                            _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                            _hasTrackedPageExit = false;
+                            _exitType = ExitTypeValue.back;
+                            
                             AgreementUtils.toPrivacyAgreement();
                           },
                           child: const Text(
@@ -292,6 +297,14 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
                         GestureDetector(
                           onTap: () {
+                            // 埋点：页面离开（进入下一页）
+                            _markNavigateToNextPage();
+                            _trackPageExit();
+                            // 重置状态，为从协议页返回后的埋点做准备
+                            _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                            _hasTrackedPageExit = false;
+                            _exitType = ExitTypeValue.back;
+                            
                             AgreementUtils.toUserAgreement();
                           },
                           child: const Text(
@@ -314,13 +327,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   // 处理焦点变化，智能滚动
   void _handleFocusChange(bool hasFocus, int fieldIndex) {
     if (hasFocus) {
-      // 埋点：记录输入框点击事件（点击时还没输入，所以传false，失去焦点时再判断是否有输入）
-      if (fieldIndex == 0) {
-        AnalyticsHelper.trackPhoneInput(hasInput: controller.phoneNumber.value.isNotEmpty);
-      } else if (fieldIndex == 1) {
-        AnalyticsHelper.trackCodeInput(hasInput: controller.verificationCode.value.isNotEmpty);
-      }
-      
       // 延迟执行，等待键盘完全弹起
       Future.delayed(const Duration(milliseconds: 100), () {
         if (!mounted) return;
@@ -421,8 +427,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                       onTap: () {
                         // 释放所有焦点并收起键盘
                         _unfocusAll();
-                        // 埋点：获取验证码点击
-                        _trackGetVerificationCodeClick();
                         controller.validatePhoneNumber();
                       },
                       child: Obx(
@@ -453,15 +457,4 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     );
   }
 
-  /// 埋点：获取验证码点击事件
-  void _trackGetVerificationCodeClick() {
-    // 先记录点击事件，状态默认为成功
-    AnalyticsHelper.trackGetVerificationCode(success: true);
-  }
-
-  /// 埋点：登录按钮点击事件
-  void _trackLoginButtonClick() {
-    // 先记录点击事件，状态默认为成功
-    AnalyticsHelper.trackLoginButton(success: true);
-  }
 }

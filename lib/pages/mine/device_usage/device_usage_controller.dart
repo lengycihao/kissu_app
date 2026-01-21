@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -67,6 +68,23 @@ class DeviceUsageController extends GetxController {
   // 埋点相关
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
+  
+  /// App进入后台时调用
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// App从后台恢复时调用
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
 
   @override
   void onInit() {
@@ -74,6 +92,11 @@ class DeviceUsageController extends GetxController {
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
     
     // 初始化 App Logo 缓存
     _logoCacheService.initialize();
@@ -155,21 +178,34 @@ class DeviceUsageController extends GetxController {
     }
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
   @override
   void onClose() {
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: PhoneHistoryEvents.pageId,
-        eventId: PhoneHistoryEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
     
     _usagePermissionTimer?.cancel();
     _usagePermissionTimer = null;

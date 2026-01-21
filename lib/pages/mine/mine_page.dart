@@ -10,8 +10,39 @@ import 'widgets/mine_settings.dart';
 import 'sub_pages/system_permission_page.dart';
 import 'sub_pages/system_permission_binding.dart';
 
-class MinePage extends GetView<MineController> {
+class MinePage extends StatefulWidget {
   const MinePage({super.key});
+
+  @override
+  State<MinePage> createState() => _MinePageState();
+}
+
+class _MinePageState extends State<MinePage> with WidgetsBindingObserver {
+  late MineController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<MineController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+    }
+  }
 
   // 会员模块 - 根据状态选择显示哪个卡片
   Widget _buildVipCard() {
@@ -37,6 +68,7 @@ class MinePage extends GetView<MineController> {
           // 埋点：记录权限模块点击
           controller.trackPermissionModuleClick();
           
+          controller.onNavigateToNextPage?.call();
           await Get.to(
             () => const SystemPermissionPage(),
             binding: SystemPermissionBinding(),

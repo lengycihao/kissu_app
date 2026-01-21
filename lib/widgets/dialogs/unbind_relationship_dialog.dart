@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 解除关系提示弹窗
 class UnbindRelationshipDialog extends StatefulWidget {
@@ -29,6 +30,9 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
   /// 确认解除关系
   void _confirmUnbind() {
+    // 埋点：解除关系弹窗-确认解除按钮点击
+    AnalyticsHelper.trackUnbindStatement(btnName: '确定');
+    
     // 验证输入文字是否正确
     final inputText = _textController.text.trim();
     if (inputText == _requiredText) {
@@ -40,6 +44,9 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
   /// 取消解除
   void _cancelUnbind() {
+    // 埋点：解除关系弹窗-我再想想按钮点击
+    AnalyticsHelper.trackUnbindStatement(btnName: '我再想想');
+    
     Get.back(result: false);
   }
 
@@ -194,8 +201,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // 我再想想按钮
-                      GestureDetector(
+                       GestureDetector(
                         onTap: _confirmUnbind,
                         child: Container(
                           width: 106,
@@ -219,8 +225,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                         ),
                       ),
 
-                      // 确认解除按钮
-                      GestureDetector(
+                       GestureDetector(
                         onTap: _cancelUnbind,
                         child: Container(
                           width: 106,

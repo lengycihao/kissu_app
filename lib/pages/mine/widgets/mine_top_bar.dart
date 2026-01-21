@@ -19,6 +19,15 @@ class MineTopBar extends StatelessWidget {
     // 跳转到消息列表页面（一级页面）
     // 注意：红点不在这里清除，而是在进入各个详情页时清除
     debugPrint('📭 点击消息中心按钮，进入消息列表');
+    
+    // 获取MineController并调用页面离开埋点
+    try {
+      final mineController = Get.find<MineController>();
+      mineController.onNavigateToNextPage?.call();
+    } catch (e) {
+      debugPrint('获取MineController失败: $e');
+    }
+    
     Get.toNamed(KissuRoutePath.messageList);
   }
 

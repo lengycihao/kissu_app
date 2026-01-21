@@ -192,10 +192,20 @@ class AppUsageReportService(private val context: Context) {
                 
                 Log.d(TAG, "📱 采集到 ${usageData.size} 个应用的使用记录")
                 
-                // 添加到缓冲区
+                // 添加到缓冲区（按app_pkg去重，新数据覆盖旧数据）
                 synchronized(reportBufferByDate) {
                     val bufferForDate = reportBufferByDate.getOrPut(todayDate) { mutableListOf() }
+                    
+                    // 按app_pkg去重：移除已存在的相同包名数据，然后添加新数据
+                    for (newData in usageData) {
+                        val newPkg = newData.optString("app_pkg", "")
+                        if (newPkg.isNotEmpty()) {
+                            bufferForDate.removeAll { it.optString("app_pkg", "") == newPkg }
+                        }
+                    }
                     bufferForDate.addAll(usageData)
+                    
+                    Log.d(TAG, "📱 缓冲区更新后: ${bufferForDate.size} 个应用")
                     
                     // 如果当日缓冲区满了，立即上报
                     if (bufferForDate.size >= MAX_BUFFER_SIZE) {
@@ -301,8 +311,8 @@ class AppUsageReportService(private val context: Context) {
                     
                     appEvents.sortBy { it.second }
                     
-                    // 构建会话记录
-                    val sessions = buildSessions(appEvents, endTime)
+                    // 构建会话记录（传入startTime用于处理跨天会话）
+                    val sessions = buildSessions(appEvents, startTime, endTime)
                     
                     if (sessions.isEmpty()) {
                         continue
@@ -359,11 +369,16 @@ class AppUsageReportService(private val context: Context) {
      *
      * 逻辑：
      * 1. 先根据前后台事件构建原始会话列表
-     * 2. 过滤掉时长小于3秒的会话
-     * 3. 合并间隔小于10秒的会话
-     * 4. 最终再过滤一次，保留时长≥5秒的会话
+     * 2. 🔥 处理跨天会话：如果openTime在今天0点之前，调整为今天0点
+     * 3. 过滤掉时长小于3秒的会话
+     * 4. 合并间隔小于10秒的会话
+     * 5. 最终再过滤一次，保留时长≥5秒的会话
+     * 
+     * @param appEvents 应用事件列表
+     * @param startTime 今天0点的时间戳，用于处理跨天会话
+     * @param endTime 当前时间戳
      */
-    private fun buildSessions(appEvents: List<Pair<Int, Long>>, endTime: Long): List<JSONObject> {
+    private fun buildSessions(appEvents: List<Pair<Int, Long>>, startTime: Long, endTime: Long): List<JSONObject> {
         val sessions = mutableListOf<JSONObject>()
         var lastOpenTime: Long? = null
 
@@ -372,24 +387,38 @@ class AppUsageReportService(private val context: Context) {
             if (eventType == 1) {
                 lastOpenTime = timestamp
             } else if (eventType == 0 && lastOpenTime != null) {
-                sessions.add(JSONObject().apply {
-                    put("openTime", lastOpenTime)
-                    put("closeTime", timestamp)
-                    put("duration", timestamp - lastOpenTime)
-                    put("isRunning", false)
-                })
+                // 🔥 跨天会话处理：如果openTime在今天0点之前，调整为今天0点
+                val adjustedOpenTime = if (lastOpenTime < startTime) startTime else lastOpenTime
+                val duration = timestamp - adjustedOpenTime
+                
+                // 只添加有效时长的会话（调整后时长>0）
+                if (duration > 0) {
+                    sessions.add(JSONObject().apply {
+                        put("openTime", adjustedOpenTime)
+                        put("closeTime", timestamp)
+                        put("duration", duration)
+                        put("isRunning", false)
+                    })
+                }
                 lastOpenTime = null
             }
         }
 
         // 如果还有未关闭的会话
         if (lastOpenTime != null) {
-            sessions.add(JSONObject().apply {
-                put("openTime", lastOpenTime)
-                put("closeTime", -1L)
-                put("duration", endTime - lastOpenTime!!)
-                put("isRunning", true)
-            })
+            // 🔥 跨天会话处理：如果openTime在今天0点之前，调整为今天0点
+            val adjustedOpenTime = if (lastOpenTime < startTime) startTime else lastOpenTime
+            val duration = endTime - adjustedOpenTime
+            
+            // 只添加有效时长的会话
+            if (duration > 0) {
+                sessions.add(JSONObject().apply {
+                    put("openTime", adjustedOpenTime)
+                    put("closeTime", -1L)
+                    put("duration", duration)
+                    put("isRunning", true)
+                })
+            }
         }
 
         // 2. 过滤掉时长太短的会话（小于3秒）

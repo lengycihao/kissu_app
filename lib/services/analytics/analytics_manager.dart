@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/oaid_util.dart';
+import 'package:kissu_app/network/public/analytics_api.dart';
 import 'analytics_event_model.dart';
 import 'analytics_params.dart';
 
@@ -25,7 +26,7 @@ class AnalyticsManager extends GetxService {
   static const int _batchThreshold = 10;
 
   /// 定时上报间隔（秒）
-  // static const int _reportIntervalSeconds = 20;
+  static const int _reportIntervalSeconds = 5;
 
   /// 上报定时器
   Timer? _reportTimer;
@@ -40,7 +41,10 @@ class AnalyticsManager extends GetxService {
   bool _isInitialized = false;
 
   /// 本地测试模式（开启后将埋点写入log.txt而不是上报到服务器）
-  static const bool _localTestMode = true;
+  static const bool _localTestMode = false;
+
+  /// 埋点上传 API
+  final _analyticsApi = AnalyticsApi();
 
   @override
   void onInit() {
@@ -66,7 +70,7 @@ class AnalyticsManager extends GetxService {
     await _initMockUserId();
 
     // 启动定时上报
-    // _startReportTimer();
+    _startReportTimer();
 
     _isInitialized = true;
     debugPrint('📊 AnalyticsManager 初始化完成');
@@ -81,14 +85,14 @@ class AnalyticsManager extends GetxService {
     }
   }
 
-  // /// 启动定时上报
-  // void _startReportTimer() {
-  //   _reportTimer?.cancel();
-  //   _reportTimer = Timer.periodic(
-  //     const Duration(seconds: _reportIntervalSeconds),
-  //     (_) => _flushEvents(),
-  //   );
-  // }
+  /// 启动定时上报
+  void _startReportTimer() {
+    _reportTimer?.cancel();
+    _reportTimer = Timer.periodic(
+      const Duration(seconds: _reportIntervalSeconds),
+      (_) => _flushEvents(),
+    );
+  }
 
   /// 记录事件
   /// 
@@ -184,10 +188,10 @@ class AnalyticsManager extends GetxService {
     }
 
     // 添加用户ID
-    final userId = UserManager.userId;
-    if (userId != null) {
-      params[AnalyticsParams.userId] = userId;
-    }
+    // final userId = UserManager.userId;
+    // if (userId != null) {
+    //   params[AnalyticsParams.userId] = userId;
+    // }
 
     // 添加会员状态
     params[AnalyticsParams.vipStatus] = _getVipStatus();
@@ -238,19 +242,12 @@ class AnalyticsManager extends GetxService {
     final user = UserManager.currentUser;
     if (user == null) return BindStatusValue.notBound;
     
-    // bindStatus 可能是 int、String 或其他类型，需要统一处理
-    final bindStatus = user.bindStatus;
-    int? statusValue;
-    
-    if (bindStatus is int) {
-      statusValue = bindStatus;
-    } else if (bindStatus is String) {
-      statusValue = int.tryParse(bindStatus);
-    }
+    // bindStatus 现在是 int? 类型
+    final bindStatus = user.bindStatus ?? 0;
     
     // 根据状态值返回对应的枚举
     // 0 = 未绑定, 1 = 已绑定, 2 = 已解绑
-    switch (statusValue) {
+    switch (bindStatus) {
       case 1:
         return BindStatusValue.bound;
       case 2:
@@ -263,15 +260,17 @@ class AnalyticsManager extends GetxService {
   /// 获取绑定次数
   int _getBindNum() {
     if (!UserManager.isLoggedIn) return 0;
-    // LoginModel中没有bindNum字段，暂时返回0
-    // TODO: 根据实际业务逻辑获取绑定次数
-    return 0;
+    final user = UserManager.currentUser;
+    return user?.bindNum ?? 0;
   }
 
   /// 获取188活动参与状态
   int _getAction188Status() {
-    // TODO: 根据实际业务逻辑获取188活动参与状态
-    return Action188Value.notParticipated;
+    if (!UserManager.isLoggedIn) return Action188Value.notParticipated;
+    final user = UserManager.currentUser;
+    final isCheckIn = user?.isCheckIn ?? 0;
+    // isCheckIn: 1已参与 0未参与
+    return isCheckIn == 1 ? Action188Value.participated : Action188Value.notParticipated;
   }
 
   /// 触发事件上报
@@ -306,31 +305,36 @@ class AnalyticsManager extends GetxService {
   }
 
   /// 上报事件到服务器
-  /// 
-  /// TODO: 接口出来后实现具体的上报逻辑
   Future<bool> _reportEvents(List<AnalyticsEvent> events) async {
-    // 构建请求数据
-    final request = AnalyticsBatchRequest(
-      events: events,
-      appVersion: await _getAppVersion(),
-    );
+    try {
+      // 本地测试模式：写入log.txt文件
+      if (_localTestMode) {
+        final request = AnalyticsBatchRequest(
+          events: events,
+          appVersion: await _getAppVersion(),
+        );
+        return await _writeToLogFile(request);
+      }
 
-    debugPrint('📊 上报数据: ${jsonEncode(request.toJson())}');
+      // 将事件转换为后端需要的格式
+      final pointData = events.map((e) => e.toUploadJson()).toList();
 
-    // 本地测试模式：写入log.txt文件
-    if (_localTestMode) {
-      return await _writeToLogFile(request);
+      debugPrint('📊 上报数据: ${jsonEncode({'point_data': pointData})}');
+
+      // 调用埋点上传接口
+      final result = await _analyticsApi.uploadPoint(pointData: pointData);
+
+      if (result.isSuccess) {
+        debugPrint('✅ 埋点上报成功');
+        return true;
+      } else {
+        debugPrint('❌ 埋点上报失败: ${result.msg}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ 埋点上报异常: $e');
+      return false;
     }
-
-    // TODO: 调用实际的上报接口
-    // final response = await HttpManagerN.post(
-    //   url: '/api/analytics/report',
-    //   jsonParams: request.toJson(),
-    // );
-    // return response.isSuccess;
-
-    // 暂时返回true，模拟上报成功
-    return true;
   }
 
   /// 将埋点数据写入log.txt文件（本地测试用）
@@ -464,6 +468,49 @@ class AnalyticsManager extends GetxService {
   /// 强制立即上报所有事件
   Future<void> forceFlush() async {
     await _flushEvents();
+  }
+
+  /// 立即上报单个事件（不进事件池，直接上报）
+  /// 用于需要立即上报的场景，如更换logo后app会被杀掉
+  Future<void> trackEventImmediately({
+    required String pageId,
+    required String eventId,
+    Map<String, dynamic>? params,
+  }) async {
+    final mergedParams = _buildParams(params);
+    final event = AnalyticsEvent(
+      pageId: pageId,
+      eventId: eventId,
+      params: mergedParams,
+    );
+
+    debugPrint('📊 立即上报事件: $eventId');
+
+    // 本地测试模式：写入日志文件
+    if (_localTestMode) {
+      final request = AnalyticsBatchRequest(
+        events: [event],
+        appVersion: await _getAppVersion(),
+      );
+      await _writeToLogFile(request);
+      return;
+    }
+
+    // 直接上报单个事件
+    try {
+      final pointData = [event.toUploadJson()];
+      final result = await _analyticsApi.uploadPoint(pointData: pointData);
+      
+      if (result.isSuccess) {
+        debugPrint('📊 事件立即上报成功: $eventId');
+      } else {
+        debugPrint('📊 事件立即上报失败: $eventId，已保存到队列');
+        _eventQueue.add(event);
+      }
+    } catch (e) {
+      debugPrint('❌ 事件立即上报异常: $e，已保存到队列');
+      _eventQueue.add(event);
+    }
   }
 
   /// 获取当前队列中的事件数量

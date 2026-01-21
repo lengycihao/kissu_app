@@ -5,11 +5,15 @@ import 'package:get/get.dart';
 class DeleteLocationReminderDialog extends StatelessWidget {
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
+  final String? title;
+  final String? content;
 
   const DeleteLocationReminderDialog({
     Key? key,
     this.onConfirm,
     this.onCancel,
+    this.title,
+    this.content,
   }) : super(key: key);
 
   @override
@@ -34,8 +38,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // 标题
-              const Text(
-                '确定要删除吗？',
+              Text(
+                title ?? '确定要删除吗？',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF333333),
@@ -46,8 +50,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
               const SizedBox(height: 8),
               
               // 内容
-              const Text(
-                '删除数据后将无法恢复数据，请谨慎操作！',
+              Text(
+                content ?? '删除数据后将无法恢复数据，请谨慎操作！',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -132,11 +136,15 @@ class DeleteLocationReminderDialogUtil {
   static Future<bool?> show({
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
+    String title = "确定要删除吗？",
+    String content = "删除数据后将无法恢复数据，请谨慎操作！",
   }) {
     return Get.dialog<bool>(
       DeleteLocationReminderDialog(
         onConfirm: onConfirm,
         onCancel: onCancel,
+        title: title,
+        content: content,
       ),
       barrierDismissible: false,
     );

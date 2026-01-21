@@ -198,15 +198,34 @@ class ShareBottomSheet extends StatelessWidget {
       final shareService = Get.find<ShareService>();
       
       // 调用新的统一方法，只传入bindCode，标题和描述使用接口配置
-      await shareService.shareToWeChatWithConfig(
+      final shareResult = await shareService.shareToWeChatWithConfig(
         bindCode: matchCode,
       );
-      // 微信分享暂时不返回结果，假设成功
-      // OKToastUtil.show('已调起微信分享');
+      
+      // 处理分享结果并上报埋点
+      if (shareResult['success'] == true) {
+        // OKToastUtil.show('微信分享成功');
+        AnalyticsHelper.trackMyPageShareChannel(
+          channelName: ShareChannelValue.wechat,
+          shareStatus: ShareStatusValue.success,
+        );
+      } else {
+        final errorMsg = shareResult['message'] ?? '分享失败';
+        logError('微信分享失败: $errorMsg');
+        OKToastUtil.show('微信分享失败: $errorMsg');
+        AnalyticsHelper.trackMyPageShareChannel(
+          channelName: ShareChannelValue.wechat,
+          shareStatus: ShareStatusValue.failed,
+        );
+      }
       
     } catch (e) {
-      logError('分享失败: $e');
+      logError('微信分享异常: $e');
       OKToastUtil.show('分享失败: $e');
+      AnalyticsHelper.trackMyPageShareChannel(
+        channelName: ShareChannelValue.wechat,
+        shareStatus: ShareStatusValue.failed,
+      );
     }
   }
 
@@ -225,7 +244,7 @@ class ShareBottomSheet extends StatelessWidget {
       
       // 处理分享结果
       if (shareResult['success'] == true) {
-        OKToastUtil.show('QQ分享成功');
+        // OKToastUtil.show('QQ分享成功');
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
         logError('QQ分享失败: $errorMsg');
@@ -284,16 +303,27 @@ class ShareBottomSheet extends StatelessWidget {
       
       // 调用新的统一方法，不传入自定义参数，完全使用配置中的值
       // bindCode会自动使用当前用户的friendCode
-      await shareService.shareToWeChatWithConfig();
+      final shareResult = await shareService.shareToWeChatWithConfig();
       
-      // 埋点：记录分享渠道点击（微信，未分享）
-      AnalyticsHelper.trackMyPageShareChannel(
-        channelName: ShareChannelValue.wechat,
-        shareStatus: ShareStatusValue.notShared,
-      );
+      // 处理分享结果并上报埋点
+      if (shareResult['success'] == true) {
+        // OKToastUtil.show('微信分享成功');
+        AnalyticsHelper.trackMyPageShareChannel(
+          channelName: ShareChannelValue.wechat,
+          shareStatus: ShareStatusValue.success,
+        );
+      } else {
+        final errorMsg = shareResult['message'] ?? '分享失败';
+        logError('微信分享失败: $errorMsg');
+        OKToastUtil.show('微信分享失败: $errorMsg');
+        AnalyticsHelper.trackMyPageShareChannel(
+          channelName: ShareChannelValue.wechat,
+          shareStatus: ShareStatusValue.failed,
+        );
+      }
       
     } catch (e) {
-      logError('分享失败: $e');
+      logError('微信分享异常: $e');
       OKToastUtil.show('分享失败: $e');
       
       // 埋点：记录分享失败
@@ -318,7 +348,7 @@ class ShareBottomSheet extends StatelessWidget {
       
       // 处理分享结果
       if (shareResult['success'] == true) {
-        OKToastUtil.show('QQ分享成功');
+        // OKToastUtil.show('QQ分享成功');
         
         // 埋点：记录分享成功
         AnalyticsHelper.trackMyPageShareChannel(
@@ -428,7 +458,7 @@ class ShareBottomSheet extends StatelessWidget {
       
       // 处理分享结果
       if (shareResult['success'] == true) {
-        OKToastUtil.show('QQ分享成功');
+        // OKToastUtil.show('QQ分享成功');
       } else {
         final errorMsg = shareResult['message'] ?? '分享失败';
         logError('QQ分享失败: $errorMsg');

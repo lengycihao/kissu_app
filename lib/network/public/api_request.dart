@@ -83,4 +83,7 @@ class ApiRequest {
   static const getRegion = '/get/region';
   static const syncAuthApp = '/sync/auth/app';
   static const fileUpload = '/file/upload';
+  
+  // 埋点上传 API
+  static const uploadPoint = '/upload/point';
   }

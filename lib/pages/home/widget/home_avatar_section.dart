@@ -43,6 +43,8 @@ class HomeAvatarSection extends StatelessWidget {
                         AnalyticsHelper.trackBindPartnerAvatar();
                         
                         if (controller.isBound.value) {
+                          // 埋点：首页离开（进入下一页）
+                          controller.trackHomePageExitFromWidget();
                           // 已绑定状态下点击头像跳转到恋爱信息页
                           controller.navigateToLoveInfoPage();
                         } else {
@@ -84,6 +86,8 @@ class HomeAvatarSection extends StatelessWidget {
                               // 埋点：右上角头像点击
                               AnalyticsHelper.trackBindPartnerAvatar();
                               
+                              // 埋点：首页离开（进入下一页）
+                              controller.trackHomePageExitFromWidget();
                               // 已绑定状态下点击头像跳转到恋爱信息页
                               controller.navigateToLoveInfoPage();
                             },
@@ -151,6 +155,10 @@ class HomeAvatarSection extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: Color(0xffFFD9F1),
+                          gradient: LinearGradient(colors: [
+                            Color(0xffFFB3FF),
+                            Color(0xffFF9EFF)
+                          ],begin: Alignment.topLeft,end: Alignment.bottomRight),
                           boxShadow: [
                             BoxShadow(
                               color: Color(0xff000000).withOpacity(0.1),
@@ -164,7 +172,7 @@ class HomeAvatarSection extends StatelessWidget {
                           () => Text(
                             "相爱${controller.loveDays.value}天",
                             style: TextStyle(
-                              color: Color(0xffFF92D7),
+                              color: Color(0xffffffff),
                               fontSize: 12,
                             ),
                           ),
@@ -235,11 +243,14 @@ class HomeAvatarSection extends StatelessWidget {
                                   // 埋点：会员福利按钮点击
                                   AnalyticsHelper.trackVipAction();
                                   
+                                  // 埋点：首页离开（进入下一页）
+                                  controller.trackHomePageExitFromWidget();
+                                  
                                   // 跳转到会员页面
                                   Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home,});
                                 },
-                                child: Lottie.asset(
-                                  "assets/json/home_vip.json",
+                                child: Image.asset(
+                                  "assets/gif/home_vip.gif",
                                   width: 44,
                                   height: 44,
                                 ),
@@ -268,7 +279,11 @@ class HomeAvatarSection extends StatelessWidget {
                           const SizedBox(height: 5), // 间距30px
                           GestureDetector(
                             onTap: () async {
-                             
+                              // 埋点：VIP活动点击
+                              AnalyticsHelper.trackVipAction();
+                              
+                              // 埋点：首页离开（进入下一页）
+                              controller.trackHomePageExitFromWidget();
 
                               controller.navigateToH5(
                                 controller.activityLink.value,
@@ -288,7 +303,7 @@ class HomeAvatarSection extends StatelessWidget {
                     return const SizedBox.shrink();
                   }),
                
-                  SizedBox(height: 5),
+                  SizedBox(height: 6),
                   // 拉屎图标 - 根据 crap_status 控制显示
                   Obx(() {
                     // 只有当 crap_status 为 "1" 时才显示
@@ -307,6 +322,9 @@ class HomeAvatarSection extends StatelessWidget {
                             onTap: () {
                               // 埋点：一起便便按钮点击
                               AnalyticsHelper.trackPoopTogether();
+                              
+                              // 埋点：首页离开（进入下一页）
+                              controller.trackHomePageExitFromWidget();
                               // 未绑定时先弹出绑定弹窗
                               if (!controller.isBound.value) {
                                 CustomBottomDialog.show(
@@ -353,11 +371,20 @@ class HomeAvatarSection extends StatelessWidget {
                                 showLoadingIndicator: false, // 拉屎H5不显示加载动画
                               );
                             },
-                            child: Image.asset(
-                              "assets/images/kissu_home_lashi_icon.webp",
-                              width: 48,
-                              height: 64,
+                            child: Column(
+                              children: [
+                                Image.asset(
+                              "assets/gif/kissu_home_lashi_icon.gif",
+                              width: 44,
+                              height: 44,
                             ),
+                            Text("拉了么", style: TextStyle(
+                              color: Color(0xff333333),
+                              fontSize: 12,
+                              fontFamily: "LiuHuanKaTongShouShu",
+                            ),),
+                              ],
+                            )
                           ),
                           // // 红点角标
                           // Obx(() {

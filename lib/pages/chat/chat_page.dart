@@ -9,11 +9,46 @@ import 'package:kissu_app/pages/chat/widgets/chat_message_list_view.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
-class ChatPage extends GetView<ChatController> {
-  ChatPage({super.key});
+class ChatPage extends StatefulWidget {
+  const ChatPage({super.key});
 
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   // 输入框的 GlobalKey，用于访问输入框的 state
   final GlobalKey<ChatInputBarState> _inputBarKey = GlobalKey<ChatInputBarState>();
+  
+  ChatController get controller => Get.find<ChatController>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App进入后台
+        controller.onAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        // App从后台恢复
+        controller.onAppResumed();
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +245,10 @@ class ChatPage extends GetView<ChatController> {
                       onTap: () {
                         // 埋点：设置按钮点击
                         AnalyticsHelper.trackChatSetting();
+                        
+                        // 埋点：页面离开（进入下一页）
+                        controller.onNavigateToNextPage?.call();
+                        
                         Get.toNamed(KissuRoutePath.chatSettings);
                       },
                       child: Container(

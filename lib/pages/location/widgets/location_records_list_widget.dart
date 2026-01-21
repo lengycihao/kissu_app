@@ -230,6 +230,9 @@ class _LocationRecordItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        // 埋点：页面离开（进入下一页）
+        controller.onNavigateToNextPage?.call();
+        
         if (record.latitude != null && record.longitude != null) {
           Get.to(
             () => TrackPage(
@@ -246,6 +249,7 @@ class _LocationRecordItem extends StatelessWidget {
             transition: Transition.rightToLeft,
           );
         } else {
+          // 注意：已经在上面调用过了，不需要重复调用
           Get.to(
             () => TrackPage(),
             binding: TrackBinding(),

@@ -13,7 +13,7 @@ import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/app_activation_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';
- import 'package:kissu_app/services/app_initializer.dart';
+import 'package:kissu_app/services/app_initializer.dart';
 import 'package:kissu_app/pages/home/home_page.dart';
 import 'package:kissu_app/pages/home/home_binding.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
@@ -570,8 +570,8 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
       // 如果用户有操作（同意或不同意），记录操作事件
       if (result == true || result == false) {
-        // 埋点：用户协议操作
-        AnalyticsHelper.trackAgreementOperation(agree: result == true);
+        // 埋点：用户协议操作（不同意时会立即上报）
+        await AnalyticsHelper.trackAgreementOperation(agree: result == true);
       }
 
       _privacyDialogEnterTime = null;
@@ -589,7 +589,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         _navigateToNextPage();
       }
     } else if (result == false) {
-      // 用户明确拒绝，退出应用
+      // 用户明确拒绝，埋点已立即上报完成，直接退出应用
       _exitApp();
     } else {
       // result == null，Dialog被意外关闭（可能是应用生命周期变化或系统原因），重新显示Dialog
@@ -764,24 +764,41 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
   /// 根据当前 App 图标选择启动页 logo 资源
   String _getSplashLogoAsset() {
     switch (_currentIconId) {
-      case 'logo_two':
+      case 'logo_2':
         return 'assets/mipmap-xxhdpi/flash_icon2.webp';
-      case 'logo_three':
+      case 'logo_3':
         return 'assets/mipmap-xxhdpi/flash_icon3.webp';
-      case 'logo_four':
+      case 'logo_4':
         return 'assets/mipmap-xxhdpi/flash_icon4.webp';
-      case 'logo_five':
+      case 'logo_5':
         return 'assets/mipmap-xxhdpi/flash_icon5.webp';
-      case 'logo_six':
+      case 'logo_6':
         return 'assets/mipmap-xxhdpi/flash_icon6.webp';
-      case 'logo_seven':
+      case 'logo_7':
         return 'assets/mipmap-xxhdpi/flash_icon7.webp';
-      case 'logo_eight':
+      case 'logo_8':
         return 'assets/mipmap-xxhdpi/flash_icon8.webp';
-      case 'logo_nine':
+      case 'logo_9':
         return 'assets/mipmap-xxhdpi/flash_icon9.webp';
-      case 'logo_ten':
+      case 'logo_10':
         return 'assets/mipmap-xxhdpi/flash_icon10.webp';
+      case 'logo_11':
+        return 'assets/mipmap-xxhdpi/flash_icon11.webp';
+      case 'logo_12':
+        return 'assets/mipmap-xxhdpi/flash_icon12.webp';
+      case 'logo_13':
+        return 'assets/mipmap-xxhdpi/flash_icon13.webp';
+      case 'logo_14':
+        return 'assets/mipmap-xxhdpi/flash_icon14.webp';
+      case 'logo_15':
+        return 'assets/mipmap-xxhdpi/flash_icon15.webp';
+      case 'logo_16':
+        return 'assets/mipmap-xxhdpi/flash_icon16.webp';
+      case 'logo_17':
+        return 'assets/mipmap-xxhdpi/flash_icon17.webp';
+      case 'logo_18':
+        return 'assets/mipmap-xxhdpi/flash_icon18.webp';
+
       case 'default':
       default:
         return 'assets/mipmap-xxhdpi/flash_icon.webp';

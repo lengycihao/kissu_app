@@ -4,8 +4,9 @@ import 'package:kissu_app/services/analytics/analytics_helper.dart';
 /// 开通VIP弹窗
 class VipPurchaseDialog extends StatefulWidget {
   final VoidCallback? onConfirm;
+  final VoidCallback? onCloseTracked;
 
-  const VipPurchaseDialog({Key? key, this.onConfirm}) : super(key: key);
+  const VipPurchaseDialog({Key? key, this.onConfirm, this.onCloseTracked}) : super(key: key);
 
   @override
   State<VipPurchaseDialog> createState() => _VipPurchaseDialogState();
@@ -16,6 +17,9 @@ class VipPurchaseDialog extends StatefulWidget {
     VoidCallback? onConfirm,
     bool barrierDismissible = false, // 默认不允许点击背景关闭
   }) async {
+    // 标记是否已经上报过埋点（避免重复上报）
+    bool hasTrackedClose = false;
+    
     await showGeneralDialog(
       context: context,
       barrierDismissible: barrierDismissible,
@@ -30,7 +34,12 @@ class VipPurchaseDialog extends StatefulWidget {
             child: GestureDetector(
               // 阻止点击弹窗内容区域时关闭
               onTap: () {},
-              child: VipPurchaseDialog(onConfirm: onConfirm),
+              child: VipPurchaseDialog(
+                onConfirm: onConfirm,
+                onCloseTracked: () {
+                  hasTrackedClose = true;
+                },
+              ),
             ),
           ),
         );
@@ -48,10 +57,10 @@ class VipPurchaseDialog extends StatefulWidget {
       },
     );
 
-    // 埋点说明：
-    // 1. 点击关闭按钮会触发 trackVipAlertClose
-    // 2. 点击立即查看按钮会触发 trackVipAlertOpen
-    // 3. 点击屏幕背景会触发 trackVipAlertClose（如果barrierDismissible为true）
+    // 弹窗关闭后，如果没有上报过关闭埋点（说明是点击背景关闭的），则上报
+    if (!hasTrackedClose) {
+      AnalyticsHelper.trackVipRechargeDialog(btnStatus: 0); // 0=关闭
+    }
   }
 }
 
@@ -62,6 +71,9 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
   void _handleConfirm() {
     // 埋点：充值弹窗确认按钮点击
     AnalyticsHelper.trackVipRechargeDialog(btnStatus: 1); // 1=进入
+    
+    // 标记已上报埋点（确认按钮也算已处理，不需要再上报关闭）
+    widget.onCloseTracked?.call();
     
     Navigator.of(context).pop();
     widget.onConfirm?.call();
@@ -131,6 +143,9 @@ class _VipPurchaseDialogState extends State<VipPurchaseDialog> {
             onTap: () async {
               // 埋点：充值弹窗关闭按钮点击
               AnalyticsHelper.trackVipRechargeDialog(btnStatus: 0); // 0=关闭
+              
+              // 标记已上报埋点
+              widget.onCloseTracked?.call();
               
               Navigator.of(context).pop();
             },

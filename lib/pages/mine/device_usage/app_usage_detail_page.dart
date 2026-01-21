@@ -8,8 +8,39 @@ import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
 
 /// App使用记录详情页面
-class AppUsageDetailPage extends GetView<AppUsageDetailController> {
+class AppUsageDetailPage extends StatefulWidget {
   const AppUsageDetailPage({super.key});
+
+  @override
+  State<AppUsageDetailPage> createState() => _AppUsageDetailPageState();
+}
+
+class _AppUsageDetailPageState extends State<AppUsageDetailPage> with WidgetsBindingObserver {
+  late AppUsageDetailController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<AppUsageDetailController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,29 +75,23 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
                         horizontal: 16,
                         vertical: 16,
                       ),
-                      child: Obx(() {
-                        // if (!controller.hasTodayData) {
-                        //   return _buildEmptyState();
-                        // }
-
-                        return Column(
-                          children: [
-                            // 日期选择器（已有自己的margin，不需要额外padding）
-                            _buildDateSelector(),
-                            const SizedBox(height: 16),
-                            // 标题行（使用与主页面相同的样式）
-                            _buildModuleTitle("屏幕使用时间"),
-                            const SizedBox(height: 12),
-                            // 屏幕使用时间
-                            _buildScreenUsageChart(),
-                            const SizedBox(height: 16),
-                            _buildModuleTitle("手机解锁次数"),
-                            const SizedBox(height: 12),
-                            // 手机解锁次数
-                            _buildUnlockCountChart(),
-                          ],
-                        );
-                      }),
+                      child: Column(
+                        children: [
+                          // 日期选择器（已有自己的margin，不需要额外padding）
+                          _buildDateSelector(),
+                          const SizedBox(height: 16),
+                          // 标题行（使用与主页面相同的样式）
+                          _buildModuleTitle("屏幕使用时间"),
+                          const SizedBox(height: 12),
+                          // 屏幕使用时间
+                          _buildScreenUsageChart(),
+                          const SizedBox(height: 16),
+                          _buildModuleTitle("手机解锁次数"),
+                          const SizedBox(height: 12),
+                          // 手机解锁次数
+                          _buildUnlockCountChart(),
+                        ],
+                      ),
                     ),
                   ),
                 ),

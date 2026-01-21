@@ -55,6 +55,9 @@ class CustomBottomDialogController extends GetxController {
   int _exitType = ExitTypeValue.back;
   // 是否已记录页面离开
   bool _hasTrackedPageExit = false;
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
 
  
 
@@ -74,6 +77,11 @@ class CustomBottomDialogController extends GetxController {
 
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
     
     
 
@@ -381,7 +389,8 @@ class CustomBottomDialogController extends GetxController {
 
   /// 扫描二维码
   void scanQRCode() {
-     
+    // 埋点：页面离开（进入下一页）
+    _trackPageExit(ExitTypeValue.nextPage);
     
     Get.toNamed(KissuRoutePath.qrScanPage)?.then((value) {
       if (value is String && value.isNotEmpty) {
@@ -514,7 +523,7 @@ class CustomBottomDialogController extends GetxController {
           logDebug('QQ分享结果: $shareResult', tag: 'BindingDialog');
 
           if (shareResult['success'] == true) {
-            OKToastUtil.show('QQ分享成功');
+            // OKToastUtil.show('QQ分享成功');
           } else {
             final errorMsg = shareResult['message'] ?? '分享失败';
             OKToastUtil.show('QQ分享失败: $errorMsg');
@@ -579,6 +588,11 @@ class CustomBottomDialogController extends GetxController {
 
   /// 记录页面浏览埋点
   void _trackPageView() {
+    _trackPageExit(_exitType);
+  }
+  
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
     if (_pageEnterTime == null || _hasTrackedPageExit) return;
     _hasTrackedPageExit = true;
 
@@ -590,9 +604,26 @@ class CustomBottomDialogController extends GetxController {
       eventId: BindEvents.page,
       enterTime: _pageEnterTime!,
       duration: duration,
-      sourcePage: _getSourcePageFromCaller(), // 绑定弹窗需要来源页
-      exitType: _exitType,
+      sourcePage: _getSourcePageFromCaller(),
+      exitType: exitType,
     );
+    
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedPageExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedPageExit = false;
+    _exitType = ExitTypeValue.back;
   }
 
   /// 记录输入匹配码事件

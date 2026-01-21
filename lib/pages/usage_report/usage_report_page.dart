@@ -7,8 +7,41 @@ import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'usage_report_controller.dart';
 import 'widgets/usage_record_item.dart';
 
-class UsageReportPage extends GetView<UsageReportController> {
+class UsageReportPage extends StatefulWidget {
   const UsageReportPage({super.key});
+
+  @override
+  State<UsageReportPage> createState() => _UsageReportPageState();
+}
+
+class _UsageReportPageState extends State<UsageReportPage> with WidgetsBindingObserver {
+  late UsageReportController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<UsageReportController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // 切换到后台
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      // 从后台返回
+      controller.onAppResumed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

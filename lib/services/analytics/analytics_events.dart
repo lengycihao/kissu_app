@@ -272,6 +272,15 @@ class MyPageEvents {
   
   /// 分享关闭事件
   static const String shareClose = 'my_page_share_close_event';
+  
+  /// 解除关系item点击事件（设置页面）
+  static const String unbind = 'my_page_unbind_event';
+  
+  /// 解除关系页面确认按钮事件
+  static const String unbindBtn = 'my_page_unbind_btn_event';
+  
+  /// 解除关系弹窗按钮事件
+  static const String unbindStatement = 'my_page_unbind_statement_event';
 }
 
 /// 会员中心页面事件

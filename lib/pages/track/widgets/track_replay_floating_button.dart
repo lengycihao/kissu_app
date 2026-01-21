@@ -102,6 +102,9 @@ class TrackReplayFloatingButton extends StatelessWidget {
     // 注册控制器
     Get.put(replayController);
 
+    // 埋点：页面离开（进入下一页）
+    controller.onNavigateToNextPage?.call();
+
     // 跳转到播放页面
     Get.to(
       () => const TrackReplayPage(),

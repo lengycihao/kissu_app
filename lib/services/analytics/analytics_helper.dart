@@ -11,14 +11,26 @@ class AnalyticsHelper {
 
   /// 记录用户协议操作
   /// [agree] true=同意, false=不同意
-  static void trackAgreementOperation({required bool agree}) {
-    AnalyticsManager.instance.trackClick(
-      pageId: UserAgreementEvents.pageId,
-      eventId: UserAgreementEvents.operation,
-      params: {
-        AnalyticsParams.operation: agree ? YesNoValue.yes : YesNoValue.no,
-      },
-    );
+  static Future<void> trackAgreementOperation({required bool agree}) async {
+    // 如果用户不同意，需要立即上报（因为会退出应用）
+    if (!agree) {
+      await AnalyticsManager.instance.trackEventImmediately(
+        pageId: UserAgreementEvents.pageId,
+        eventId: UserAgreementEvents.operation,
+        params: {
+          AnalyticsParams.operation: YesNoValue.no,
+        },
+      );
+    } else {
+      // 同意时正常上报即可
+      AnalyticsManager.instance.trackClick(
+        pageId: UserAgreementEvents.pageId,
+        eventId: UserAgreementEvents.operation,
+        params: {
+          AnalyticsParams.operation: YesNoValue.yes,
+        },
+      );
+    }
   }
 
   // ==================== 登录页面 ====================
@@ -480,13 +492,15 @@ class AnalyticsHelper {
     );
   }
 
-  /// 记录更换Logo项点击
-  static void trackChangeLogoItemBtn({required String logoName}) {
-    AnalyticsManager.instance.trackClick(
+  /// 记录更换Logo项点击（立即上报，不进事件池）
+  /// 因为更换logo后app会被杀掉，所以需要立即上报
+  static Future<void> trackChangeLogoItemBtn({required String logoName}) async {
+    await AnalyticsManager.instance.trackEventImmediately(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.changeLogoItemBtn,
       params: {
         AnalyticsParams.logoName: logoName,
+        AnalyticsParams.clickTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       },
     );
   }
@@ -536,44 +550,50 @@ class AnalyticsHelper {
   }
 
   /// 记录支付按钮点击
+  /// [vipType] 会员类型：1=月度会员, 2=年度会员, 3=永久会员
+  /// [payType] 支付方式：1=支付宝, 2=微信, 3=苹果
+  /// [payStatus] 支付状态：0=支付失败, 1=支付成功, 2=取消支付
+  /// [btnName] 按钮名称
+  /// [payDuration] 支付用时（秒）
   static void trackMembershipPayBtn({
-    required String memberType,
-    required String payType,
+    required int vipType,
+    required int payType,
     required int payStatus,
     required String btnName,
-    required String payDuration,
+     required int payDuration,
   }) {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.payBtn,
       params: {
-        AnalyticsParams.memberType: memberType,
+        AnalyticsParams.memberType: vipType,
         AnalyticsParams.payType: payType,
-        AnalyticsParams.payStatus: payStatus,
         AnalyticsParams.btnName: btnName,
-        AnalyticsParams.payDuration: payDuration,
+        AnalyticsParams.payStatus: payStatus,
+         AnalyticsParams.payDuration: payDuration,
       },
     );
   }
 
   /// 记录返回弹窗点击
-  static void trackMembershipRebackPopup({required int btnName}) {
+  /// [btnStatus] 1=全部解锁, 0=取消
+  static void trackMembershipRebackPopup({required int btnStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.rebackPopup,
       params: {
-        AnalyticsParams.btnName: btnName,
+        AnalyticsParams.btnStatus: btnStatus,
       },
     );
   }
 
   /// 记录19元弹窗点击
-  static void trackPopup19Dialog({required int btnName}) {
+  static void trackPopup19Dialog({required int btnStatus}) {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.popup19Dialog,
       params: {
-        AnalyticsParams.btnName: btnName,
+        AnalyticsParams.btnStatus: btnStatus,
       },
     );
   }
@@ -583,6 +603,63 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.restorePurchases,
+    );
+  }
+
+  /// 记录99元支付事件
+  /// [vipType] 会员类型：1=月度会员, 2=年度会员, 3=永久会员
+  /// [payType] 支付方式：1=支付宝, 2=微信, 3=苹果
+  /// [payStatus] 支付状态：0=支付失败, 1=支付成功, 2=取消支付
+  /// [btnName] 按钮名称
+  /// [payDuration] 支付用时（秒）
+  static void track99PayEvent({
+    required int vipType,
+    required int payType,
+    required int payStatus,
+    required String btnName,
+    required int payDuration,
+  }) {
+    AnalyticsManager.instance.trackClick(
+      pageId: MembershipEvents.pageId,
+      eventId: MembershipEvents.pay99,
+      params: {
+        AnalyticsParams.memberType: vipType,
+        AnalyticsParams.payType: payType,
+        AnalyticsParams.payStatus: payStatus,
+        AnalyticsParams.btnName: btnName,
+        AnalyticsParams.payDuration: payDuration,
+      },
+    );
+  }
+ 
+
+  // ==================== 解除关系相关 ====================
+
+  /// 记录设置页面点击"解除关系"item
+  static void trackUnbindItem() {
+    AnalyticsManager.instance.trackClick(
+      pageId: MyPageEvents.pageId,
+      eventId: MyPageEvents.unbind,
+    );
+  }
+
+  /// 记录解除关系页面确认按钮点击
+  static void trackUnbindBtn() {
+    AnalyticsManager.instance.trackClick(
+      pageId: MyPageEvents.pageId,
+      eventId: MyPageEvents.unbindBtn,
+    );
+  }
+
+  /// 记录解除关系弹窗按钮点击
+  /// [btnName] 按钮名称
+  static void trackUnbindStatement({required String btnName}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: MyPageEvents.pageId,
+      eventId: MyPageEvents.unbindStatement,
+      params: {
+        AnalyticsParams.btnName: btnName,
+      },
     );
   }
 }

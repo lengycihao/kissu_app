@@ -208,6 +208,118 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+
+        <!-- kissu_logo_11 -> ic_launcher_11.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon11"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_11"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_12 -> ic_launcher_12.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon12"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_12"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_13 -> ic_launcher_13.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon13"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_13"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_14 -> ic_launcher_14.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon14"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_14"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_15 -> ic_launcher_15.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon15"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_15"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_16 -> ic_launcher_16.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon16"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_16"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_17 -> ic_launcher_17.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon17"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_17"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- kissu_logo_18 -> ic_launcher_18.png -->
+        <activity-alias
+            android:name="com.yuluo.kissu.MainActivityIcon18"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_18"
+            android:label="Kissu"
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
  
         
         <!-- 微信回调 Activity：支付/分享/登录 -->

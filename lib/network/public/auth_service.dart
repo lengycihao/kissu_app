@@ -11,6 +11,7 @@ import 'package:kissu_app/services/native_location_report_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/pages/home/services/home_popup_service.dart';
 
 class AuthService {
   // ✅ 公开构造函数，GetIt 可以直接 new 出来
@@ -213,10 +214,17 @@ class AuthService {
   /// 登录腾讯IM
   /// 🔥 修复：改为异步方法，确保IM登录完成后再继续
   Future<void> _loginTencentIM(LoginModel user) async {
+    logger.info('🔄 准备登录腾讯IM...', tag: 'AuthService');
     try {
       // 检查IM服务是否已注册
-      if (Get.isRegistered<TencentIMService>()) {
+      final isRegistered = Get.isRegistered<TencentIMService>();
+      logger.info('IM服务注册状态: $isRegistered', tag: 'AuthService');
+      
+      if (isRegistered) {
         final imService = Get.find<TencentIMService>();
+        
+        // 🔥 检查用户IM登录所需参数
+        logger.info('IM登录参数检查 - uniqueId: ${user.uniqueId != null ? "有值" : "空"}, imSign: ${user.imSign != null ? "有值" : "空"}', tag: 'AuthService');
         
         logger.info('开始登录腾讯IM', tag: 'AuthService');
         
@@ -225,13 +233,13 @@ class AuthService {
         if (success) {
           logger.info('腾讯IM登录成功', tag: 'AuthService');
         } else {
-          logger.w('腾讯IM登录失败', tag: 'AuthService');
+          logger.warning('腾讯IM登录失败', tag: 'AuthService');
         }
       } else {
-        logger.w('腾讯IM服务未注册，跳过IM登录', tag: 'AuthService');
+        logger.warning('腾讯IM服务未注册，跳过IM登录', tag: 'AuthService');
       }
-    } catch (e) {
-      logger.e('登录腾讯IM失败: $e', tag: 'AuthService');
+    } catch (e, stackTrace) {
+      logger.error('登录腾讯IM失败: $e', tag: 'AuthService', error: e, stackTrace: stackTrace);
     }
   }
 
@@ -416,6 +424,14 @@ class AuthService {
       } catch (e) {
         logger.error('退出登录API调用异常: $e', tag: 'AuthService');
       }
+    }
+
+    // 重置首页弹窗会话标志位，确保重新登录时能正常显示弹窗
+    try {
+      HomePopupService.resetSessionFlags();
+      logger.info('首页弹窗会话标志位已重置', tag: 'AuthService');
+    } catch (e) {
+      logger.warning('重置首页弹窗标志位失败: $e', tag: 'AuthService');
     }
 
     // 清除本地数据

@@ -10,6 +10,7 @@ import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/pages/mine/sub_pages/cache_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class PrivacySettingPage extends StatefulWidget {
   const PrivacySettingPage({super.key});
@@ -103,10 +104,17 @@ class _PrivacySettingPageState extends State<PrivacySettingPage> {
                 onTap: () => AgreementUtils.toPrivacySecurity(),
               ),
               const SizedBox(height: 14),
+              _AnimatedCacheItem(
+                delay: 50,
+                iconPath: "assets/images/kissu_setting_account_qchc.webp",
+                title: "存储空间",
+                onTap: () => CacheManager.clearCache(),
+              ),
+              const SizedBox(height: 14),
               // 根据绑定状态显示解除关系选项
               _buildBreakRelationshipItem(),
               _AnimatedSettingItem(
-                delay: 100,
+                delay: 150,
                 iconPath: "assets/images/kissu_setting_account_zxzh.webp",
                 title: "注销账号",
                 onTap: () => Get.to(
@@ -122,13 +130,7 @@ class _PrivacySettingPageState extends State<PrivacySettingPage> {
                 trailingText: phoneNumber,
                 onTap: () => _handlePhoneChange(context, phoneNumber),
               ),
-              const SizedBox(height: 14),
-              _AnimatedCacheItem(
-                delay: 300,
-                iconPath: "assets/4.0/kissu4_feedback.webp",
-                title: "清除缓存",
-                onTap: () => CacheManager.clearCache(),
-              ),
+              
 
               const Spacer(),
 
@@ -176,13 +178,18 @@ class _PrivacySettingPageState extends State<PrivacySettingPage> {
       return Column(
         children: [
           _AnimatedSettingItem(
-            delay: 50,
+            delay: 100,
             iconPath: "assets/images/kissu_setting_account_jcgx.webp",
             title: "解除关系",
-            onTap: () => Get.to(
-              () => const BreakRelationshipPage(),
-              transition: Transition.rightToLeft,
-            ),
+            onTap: () {
+              // 埋点：设置页面点击解除关系item
+              AnalyticsHelper.trackUnbindItem();
+              
+              Get.to(
+                () => const BreakRelationshipPage(),
+                transition: Transition.rightToLeft,
+              );
+            },
           ),
           const SizedBox(height: 14),
         ],
@@ -354,7 +361,7 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: Color(0xFF333333),
+                  color: Color(0xFF6D383E),
                 ),
               ],
             ),

@@ -111,13 +111,15 @@ class ShareService extends GetxService {
   }
 
   // 分享到微信好友
-  Future<void> shareToWeChat({
+  Future<Map<String, dynamic>> shareToWeChat({
     required String title,
     required String description,
     String? imageUrl,
     required String webpageUrl,
   }) async {
-    await _channel.invokeMethod('umShare', {
+    logger.info('🔍 开始微信分享（使用配置）...', tag: 'ShareService');
+    
+    final result = await _channel.invokeMethod('umShare', {
       'title': title,
       'text': description,
       'img': imageUrl ?? '',
@@ -125,6 +127,15 @@ class ShareService extends GetxService {
       
       'sharemedia': 0, // 0 = 微信好友
     });
+
+    logger.info('微信好友分享结果: $result', tag: 'ShareService');
+
+    // 🔥 修复：原生层返回的是Map<Object?, Object?>，需要正确转换
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    } else {
+      return {'success': false, 'message': '分享失败'};
+    }
   }
 
   // 分享到微信朋友圈
@@ -170,8 +181,9 @@ class ShareService extends GetxService {
       
       logger.info('QQ好友分享结果: $result', tag: 'ShareService');
       
-      if (result is Map<String, dynamic>) {
-        return result;
+      // 🔥 修复：原生层返回的是Map<Object?, Object?>，需要正确转换
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
       } else {
         return {'success': false, 'message': '分享失败'};
       }
@@ -201,8 +213,9 @@ class ShareService extends GetxService {
       
       logger.info('QQ空间分享结果: $result', tag: 'ShareService');
       
-      if (result is Map<String, dynamic>) {
-        return result;
+      // 🔥 修复：原生层返回的是Map<Object?, Object?>，需要正确转换
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
       } else {
         return {'success': false, 'message': '分享结果格式错误'};
       }
@@ -426,7 +439,7 @@ class ShareService extends GetxService {
   /// - [customDescription] 自定义描述，如果为null则使用配置中的描述
   /// - [customUrl] 自定义分享链接，如果为null则自动构建链接
   /// - [useDefaultFallback] 当配置不存在时是否使用默认值（默认true）
-  Future<void> shareToWeChatWithConfig({
+  Future<Map<String, dynamic>> shareToWeChatWithConfig({
     String? bindCode,
     String? customTitle,
     String? customDescription,
@@ -434,13 +447,13 @@ class ShareService extends GetxService {
     bool useDefaultFallback = true,
   }) async {
     try {
-      logger.info('🔍 开始微信分享（使用配置）...', tag: 'ShareService');
+      logger.info(' 开始微信分享（使用配置）...', tag: 'ShareService');
       
       // 1. 先检查微信是否安装
       final isInstalled = await isWeChatInstalled();
       if (!isInstalled) {
-        logger.warning('❌ 微信未安装', tag: 'ShareService');
-        throw Exception('微信未安装');
+        logger.warning(' 微信未安装', tag: 'ShareService');
+        return {'success': false, 'message': '微信未安装'};
       }
       
       // 2. 构建分享参数（使用提取的公共方法）
@@ -454,28 +467,28 @@ class ShareService extends GetxService {
       
       // 检查是否有错误
       if (params.containsKey('error')) {
-        throw Exception(params['error']);
+        return {'success': false, 'message': params['error']};
       }
       
-      logger.debug('📤 微信分享参数:', tag: 'ShareService');
+      logger.debug(' 微信分享参数:', tag: 'ShareService');
       logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
       logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
       logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
       logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
       
-      // 3. 调用底层分享方法
-      await shareToWeChat(
+      // 3. 调用底层分享方法并返回结果
+      final result = await shareToWeChat(
         title: params['title'],
         description: params['description'],
         imageUrl: params['cover'],
         webpageUrl: params['url'],
       );
       
-      logger.info('✅ 微信分享已调起', tag: 'ShareService');
-      
+      logger.info(' 微信分享结果: $result', tag: 'ShareService');
+      return result;
     } catch (e) {
-      logger.error('❌ 微信分享异常: $e', tag: 'ShareService', error: e);
-      rethrow;
+      logger.error(' 微信分享失败: $e', tag: 'ShareService', error: e);
+      return {'success': false, 'message': '分享失败: $e'};
     }
   }
 }

@@ -9,8 +9,39 @@ import 'components/vip_price_section.dart';
 import 'components/vip_top_feature_section.dart';
 import 'components/vip_comment_section.dart';
 
-class VipPage extends GetView<VipController> {
+class VipPage extends StatefulWidget {
   const VipPage({super.key});
+
+  @override
+  State<VipPage> createState() => _VipPageState();
+}
+
+class _VipPageState extends State<VipPage> with WidgetsBindingObserver {
+  late VipController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<VipController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

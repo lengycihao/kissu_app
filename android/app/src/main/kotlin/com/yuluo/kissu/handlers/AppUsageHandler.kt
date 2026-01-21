@@ -333,22 +333,36 @@ class AppUsageHandler(private val activity: Activity) {
             if (eventType == 1) {
                 lastOpenTime = timestamp
             } else if (eventType == 0 && lastOpenTime != null) {
-                rawSessions.add(mapOf(
-                    "openTime" to lastOpenTime,
-                    "closeTime" to timestamp,
-                    "duration" to (timestamp - lastOpenTime)
-                ))
+                // 🔥 跨天会话处理：如果openTime在今天0点之前，调整为今天0点
+                val adjustedOpenTime = if (lastOpenTime < startTime) startTime else lastOpenTime
+                val duration = timestamp - adjustedOpenTime
+                
+                // 只添加有效时长的会话（调整后时长>0）
+                if (duration > 0) {
+                    rawSessions.add(mapOf(
+                        "openTime" to adjustedOpenTime,
+                        "closeTime" to timestamp,
+                        "duration" to duration
+                    ))
+                }
                 lastOpenTime = null
             }
         }
         
         if (lastOpenTime != null) {
-            rawSessions.add(mapOf(
-                "openTime" to lastOpenTime,
-                "closeTime" to -1L,
-                "duration" to (endTime - lastOpenTime),
-                "isRunning" to true
-            ))
+            // 🔥 跨天会话处理：如果openTime在今天0点之前，调整为今天0点
+            val adjustedOpenTime = if (lastOpenTime < startTime) startTime else lastOpenTime
+            val duration = endTime - adjustedOpenTime
+            
+            // 只添加有效时长的会话
+            if (duration > 0) {
+                rawSessions.add(mapOf(
+                    "openTime" to adjustedOpenTime,
+                    "closeTime" to -1L,
+                    "duration" to duration,
+                    "isRunning" to true
+                ))
+            }
         }
         
         // 使用清理后的会话数据（过滤+合并）
@@ -357,16 +371,11 @@ class AppUsageHandler(private val activity: Activity) {
         // 按小时分组统计
         val hourlyRecords = buildHourlyRecords(sessions, endTime)
         
-         // 这样可以确保date字段与实际数据的日期一致
+        // 🔥 修复：date字段应该始终使用查询的目标日期（startTime对应的日期）
+        // 而不是根据会话的openTime来决定，避免跨天会话导致日期错乱
+        // 例如：凌晨0:01上报时，如果有昨晚23:50开始的会话，date不应该变成昨天
         val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val date = if (sessions.isNotEmpty()) {
-            // 找到最早的会话时间戳
-            val earliestTime = sessions.minOfOrNull { it["openTime"] as Long } ?: startTime
-            dateFormat.format(java.util.Date(earliestTime))
-        } else {
-            // 如果没有会话数据，使用当前日期（endTime对应的日期）
-            dateFormat.format(java.util.Date(endTime))
-        }
+        val date = dateFormat.format(java.util.Date(startTime))
         
         return mapOf(
             "appName" to appName,

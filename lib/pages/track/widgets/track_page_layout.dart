@@ -33,6 +33,7 @@ class _TrackPageLayoutState extends State<TrackPageLayout>
   // 埋点相关
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
 
   @override
   void initState() {
@@ -41,6 +42,11 @@ class _TrackPageLayoutState extends State<TrackPageLayout>
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 埋点：注册页面离开回调到Controller
+    widget.controller.onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
 
     _sheetManager = TrackSheetManager(controller: widget.controller);
     _overlayManager = TrackOverlayManager(controller: widget.controller);
@@ -52,37 +58,59 @@ class _TrackPageLayoutState extends State<TrackPageLayout>
     });
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: TrackEvents.pageId,
+      eventId: TrackEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
   @override
   void dispose() {
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: TrackEvents.pageId,
-        eventId: TrackEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
     
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // 埋点：切换到后台
+      _trackPageExit(ExitTypeValue.toBackground);
+    } else if (state == AppLifecycleState.resumed) {
+      // 从后台返回前台，重置埋点状态
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // 更新屏幕尺寸参数
     _sheetManager.updateDimensions(context);
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    // 生命周期管理逻辑可以在这里处理
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
@@ -18,6 +19,10 @@ class AppIconSelectorController extends GetxController {
   // 埋点相关
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false;
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
 
   // 可用的图标列表
   final List<AppIconItem> iconItems = [
@@ -26,71 +31,128 @@ class AppIconSelectorController extends GetxController {
       name: '默认',
       logoName: '最美时光',
       previewPath: 'assets/setting/kissu_icon.webp',
-      description: '默认图标',
+      description: '最美时光',
     ),
     AppIconItem(
-      id: 'logo_two',
-      name: '暖心',
-      logoName: '心跳频率',
+      id: 'logo_2',
+      name: '幸福加马',
+      logoName: '幸福加马',
       previewPath: 'assets/setting/kissu_logo_2.png',
-      description: '暖心图标',
+      description: '幸福加马',
     ),
     AppIconItem(
-      id: 'logo_three',
-      name: '手绘',
-      logoName: '情书',
+      id: 'logo_3',
+      name: 'YEAH哥',
+      logoName: 'YEAH哥',
       previewPath: 'assets/setting/kissu_logo_3.png',
-      description: '手绘图标',
+      description: 'YEAH哥',
     ),
     AppIconItem(
-      id: 'logo_four',
-      name: '简约',
-      logoName: '缠绵',
+      id: 'logo_4',
+      name: '好运来',
+      logoName: '好运来',
       previewPath: 'assets/setting/kissu_logo_4.png',
-      description: '简约图标',
+      description: '好运来',
     ),
     AppIconItem(
-      id: 'logo_five',
-      name: '霓虹',
+      id: 'logo_5',
+      name: '怦然心动',
       logoName: '怦然心动',
       previewPath: 'assets/setting/kissu_logo_5.png',
-      description: '霓虹图标',
+      description: '怦然心动',
     ),
     AppIconItem(
-      id: 'logo_six',
-      name: '爱意灼灼',
-      logoName: '初恋',
+      id: 'logo_6',
+      name: '缠绵',
+      logoName: '缠绵',
       previewPath: 'assets/setting/kissu_logo_6.png',
-      description: '爱意灼灼图标',
+      description: '缠绵',
     ),
     AppIconItem(
-      id: 'logo_seven',
-      name: '叶柔甜伴',
-      logoName: '想见你',
+      id: 'logo_7',
+      name: '情书',
+      logoName: '情书',
       previewPath: 'assets/setting/kissu_logo_7.png',
-      description: '叶柔甜伴图标',
+      description: '情书',
     ),
     AppIconItem(
-      id: 'logo_eight',
-      name: '甜邻少年',
-      logoName: '一见钟情',
+      id: 'logo_8',
+      name: '心跳频率',
+      logoName: '心跳频率',
       previewPath: 'assets/setting/kissu_logo_8.png',
-      description: '甜邻少年图标',
+      description: '心跳频率',
     ),
     AppIconItem(
-      id: 'logo_nine',
-      name: '糖绒甜崽',
-      logoName: '初心悸动',
+      id: 'logo_9',
+      name: '初恋',
+      logoName: '初恋',
       previewPath: 'assets/setting/kissu_logo_9.png',
-      description: '糖绒甜崽图标',
+      description: '初恋',
     ),
     AppIconItem(
-      id: 'logo_ten',
-      name: '甜煦少年',
-      logoName: '浪漫挚爱',
+      id: 'logo_10',
+      name: 'Wink仔',
+      logoName: 'Wink仔',
       previewPath: 'assets/setting/kissu_logo_10.png',
-      description: '甜煦少年图标',
+      description: 'Wink仔',
     ),
+    AppIconItem(
+      id: 'logo_11',
+      name: 'Kissu酱',
+      logoName: 'Kissu酱',
+      previewPath: 'assets/setting/kissu_logo_11.png',
+      description: 'Kissu酱',
+    ),
+    AppIconItem(
+      id: 'logo_12',
+      name: '心动讯号',
+      logoName: '心动讯号',
+      previewPath: 'assets/setting/kissu_logo_12.png',
+      description: '心动讯号',
+    ),
+    AppIconItem(
+      id: 'logo_13',
+      name: '晕晕菇',
+      logoName: '晕晕菇',
+      previewPath: 'assets/setting/kissu_logo_13.png',
+      description: '晕晕菇',
+    ),
+    AppIconItem(
+      id: 'logo_14',
+      name: '闪闪菇',
+      logoName: '闪闪菇',
+      previewPath: 'assets/setting/kissu_logo_14.png',
+      description: '闪闪菇',
+    ),
+    AppIconItem(
+      id: 'logo_15',
+      name: '想见你',
+      logoName: '想见你',
+      previewPath: 'assets/setting/kissu_logo_15.png',
+      description: '想见你',
+    ),
+    AppIconItem(
+      id: 'logo_16',
+      name: '一见钟情',
+      logoName: '一见钟情',
+      previewPath: 'assets/setting/kissu_logo_16.png',
+      description: '一见钟情',
+    ),
+    AppIconItem(
+      id: 'logo_17',
+      name: '初心悸动',
+      logoName: '初心悸动',
+      previewPath: 'assets/setting/kissu_logo_17.png',
+      description: '初心悸动',
+    ),
+    AppIconItem(
+      id: 'logo_18',
+      name: '浪漫挚爱',
+      logoName: '浪漫挚爱',
+      previewPath: 'assets/setting/kissu_logo_18.png',
+      description: '浪漫挚爱',
+    ),
+   
   ];
 
   @override
@@ -99,6 +161,11 @@ class AppIconSelectorController extends GetxController {
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
     
     getCurrentIcon();
   }
@@ -120,6 +187,9 @@ class AppIconSelectorController extends GetxController {
       return;
     }
 
+    // 埋点：在调用原生方法前立即上报（因为切换logo后app会被杀掉）
+    await AnalyticsHelper.trackChangeLogoItemBtn(logoName: logoName);
+    
     isLoading.value = true;
 
     try {
@@ -128,9 +198,6 @@ class AppIconSelectorController extends GetxController {
       if (success) {
         currentIcon.value = iconId;
         OKToastUtil.show('切换成功，稍等几秒后重启生效');
-        
-        // 埋点：记录图标点击
-        AnalyticsHelper.trackChangeLogoItemBtn(logoName: logoName);
       } else {
         OKToastUtil.show('图标切换失败，请重试');
       }
@@ -142,21 +209,47 @@ class AppIconSelectorController extends GetxController {
     }
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: ChangeLogoEvents.pageId,
+      eventId: ChangeLogoEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  /// 应用切换到后台
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// 应用从后台返回
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: ChangeLogoEvents.pageId,
-        eventId: ChangeLogoEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
     
     super.onClose();
   }

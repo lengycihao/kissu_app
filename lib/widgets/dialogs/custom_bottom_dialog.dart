@@ -9,7 +9,7 @@ import 'binding_close_confirm_dialog.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 自定义底部弹窗组件
-class CustomBottomDialog extends GetView<CustomBottomDialogController> {
+class CustomBottomDialog extends StatefulWidget {
   final VoidCallback? onClose;
   final Widget? customContent;
   final List<String>? bannerImages;
@@ -28,6 +28,97 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
     this.onCloseConfirm,
     required this.caller,
   }) : super(key: key);
+
+  @override
+  State<CustomBottomDialog> createState() => _CustomBottomDialogState();
+
+  /// 显示自定义底部弹窗
+  static Future<T?> show<T>({
+    required BuildContext context,
+    VoidCallback? onClose,
+    Widget? customContent,
+    List<String>? bannerImages,
+    double bannerHeight = 220,
+    bool showBanner = true,
+    bool isDismissible = false, // 全局禁止点击背景关闭
+    bool enableDrag = false, // 全局禁止滑动关闭
+    SourcePageUtilsCaller? caller, // 调用者页面类型
+    Future<bool> Function()? onCloseConfirm, // 关闭确认回调
+  }) {
+    // 删除旧的控制器实例（如果存在）
+    if (Get.isRegistered<CustomBottomDialogController>()) {
+      Get.delete<CustomBottomDialogController>();
+    }
+
+    // 初始化新的控制器并设置调用者
+    final controller = Get.put(CustomBottomDialogController());
+    controller.caller = caller;
+
+    // 使用默认轮播图图片（如果未提供）
+    final defaultBannerImages = [
+      'assets/3.0/kissu3_banner_1.webp',
+      'assets/3.0/kissu3_banner_2.webp',
+      'assets/3.0/kissu3_banner_3.webp',
+      'assets/3.0/kissu3_banner_4.webp',
+    ];
+
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: isDismissible,
+      enableDrag: enableDrag,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CustomBottomDialog(
+        onClose: onClose,
+        customContent: customContent,
+        bannerImages: bannerImages ?? defaultBannerImages,
+        bannerHeight: bannerHeight,
+        showBanner: showBanner,
+        onCloseConfirm: onCloseConfirm,
+        caller: caller, // 传递调用者页面类型
+      ),
+    ).then((result) {
+      // 延迟删除控制器，确保所有 UI 重建完成
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (Get.isRegistered<CustomBottomDialogController>()) {
+          Get.delete<CustomBottomDialogController>();
+        }
+      });
+      return result;
+    });
+  }
+}
+
+class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBindingObserver {
+  CustomBottomDialogController get controller => Get.find<CustomBottomDialogController>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App进入后台
+        controller.onAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        // App从后台恢复
+        controller.onAppResumed();
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,8 +147,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
           logDebug('💬 检测到shouldClose标志，准备关闭绑定弹窗');
           if (Navigator.of(context).canPop()) {
              // 调用onClose回调（如果存在）
-            if (onClose != null) {
-              onClose!();
+            if (widget.onClose != null) {
+              widget.onClose!();
             }
             // 重置关闭标志
             controller.shouldClose.value = false;
@@ -79,15 +170,15 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
         children: [
           // 透明Banner区域 - 透过可以看到首页内容
           // 40px是轮播图和下方内容的间距
-          if (showBanner && bannerImages != null && bannerImages!.isNotEmpty)
+          if (widget.showBanner && widget.bannerImages != null && widget.bannerImages!.isNotEmpty)
             Positioned(
-              top: MediaQuery.of(context).size.height - 356 - bannerHeight - 40,
+              top: MediaQuery.of(context).size.height - 356 - widget.bannerHeight - 40,
               left: 0,
               right: 0,
-              height: bannerHeight,
+              height: widget.bannerHeight,
               child: TransparentBannerWidget(
-                imagePaths: bannerImages!,
-                height: bannerHeight,
+                imagePaths: widget.bannerImages!,
+                height: widget.bannerHeight,
               ),
             ),
 
@@ -109,7 +200,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                   // 主要内容区域
                   GradientContentWidget(
                     padding: const EdgeInsets.all(20).copyWith(top: 15),
-                    child: customContent ?? _buildDefaultContent(),
+                    child: widget.customContent ?? _buildDefaultContent(),
                   ),
 
                   // 关闭按钮 - 使用Positioned定位
@@ -126,7 +217,7 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
                           context: context,
                           barrierDismissible: true,
                           isFromHomePage:
-                              caller == SourcePageUtilsCaller.home, // 只有首页才上报埋点
+                              widget.caller == SourcePageUtilsCaller.home, // 只有首页才上报埋点
                           onCancel: () {
                             // 点击"再想想"，关闭绑定弹窗
                             debugPrint('💬 用户点击"再想想"，关闭绑定弹窗');
@@ -139,8 +230,8 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
 
                         // result 为 true 表示点击了"再想想"，应该关闭绑定弹窗
                         if (result == true) {
-                          if (onClose != null) {
-                            onClose!();
+                          if (widget.onClose != null) {
+                            widget.onClose!();
                           }
                           Get.back();
                         }
@@ -444,61 +535,5 @@ class CustomBottomDialog extends GetView<CustomBottomDialogController> {
       height: 40,
       child: Image(image: AssetImage(icon), fit: BoxFit.contain),
     );
-  }
-
-  /// 显示自定义底部弹窗
-  static Future<T?> show<T>({
-    required BuildContext context,
-    VoidCallback? onClose,
-    Widget? customContent,
-    List<String>? bannerImages,
-    double bannerHeight = 220,
-    bool showBanner = true,
-    bool isDismissible = false, // 全局禁止点击背景关闭
-    bool enableDrag = false, // 全局禁止滑动关闭
-    SourcePageUtilsCaller? caller, // 调用者页面类型
-    Future<bool> Function()? onCloseConfirm, // 关闭确认回调
-  }) {
-    // 删除旧的控制器实例（如果存在）
-    if (Get.isRegistered<CustomBottomDialogController>()) {
-      Get.delete<CustomBottomDialogController>();
-    }
-
-    // 初始化新的控制器并设置调用者
-    final controller = Get.put(CustomBottomDialogController());
-    controller.caller = caller;
-
-    // 使用默认轮播图图片（如果未提供）
-    final defaultBannerImages = [
-      'assets/3.0/kissu3_banner_1.webp',
-      'assets/3.0/kissu3_banner_2.webp',
-      'assets/3.0/kissu3_banner_3.webp',
-      'assets/3.0/kissu3_banner_4.webp',
-    ];
-
-    return showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: isDismissible,
-      enableDrag: enableDrag,
-      backgroundColor: Colors.transparent,
-      builder: (context) => CustomBottomDialog(
-        onClose: onClose,
-        customContent: customContent,
-        bannerImages: bannerImages ?? defaultBannerImages,
-        bannerHeight: bannerHeight,
-        showBanner: showBanner,
-        onCloseConfirm: onCloseConfirm,
-        caller: caller, // 传递调用者页面类型
-      ),
-    ).then((result) {
-      // 延迟删除控制器，确保所有 UI 重建完成
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (Get.isRegistered<CustomBottomDialogController>()) {
-          Get.delete<CustomBottomDialogController>();
-        }
-      });
-      return result;
-    });
   }
 }

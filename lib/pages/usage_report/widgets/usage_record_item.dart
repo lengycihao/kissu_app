@@ -98,7 +98,7 @@ class UsageRecordItem extends StatelessWidget {
         Expanded(child: _buildContentWithHighlight()),
         const SizedBox(width: 8),
         Text(
-          UsageReportPage.formatTime(record.createTime),
+          _formatTime(record.createTime),
           style: const TextStyle(
             fontSize: 13,
             color: Color(0xFF999999),
@@ -154,7 +154,7 @@ class UsageRecordItem extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          UsageReportPage.formatTime(record.createTime),
+          _formatTime(record.createTime),
           style: const TextStyle(
             fontSize: 13,
             color: Color(0xFF999999),
@@ -202,6 +202,15 @@ class UsageRecordItem extends StatelessWidget {
           ),
       ],
     );
+  }
+  
+  static String _formatTime(String createTime) {
+    try {
+      final dateTime = DateTime.parse(createTime);
+      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return createTime;
+    }
   }
 }
 

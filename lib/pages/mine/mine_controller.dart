@@ -66,6 +66,7 @@ class MineController extends GetxController {
     // 埋点：记录实时定位功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.realTimeLocation);
     
+    onNavigateToNextPage?.call();
     // 添加会员检查
     VipNavigationHelper.navigateToLocationWithVipCheck();
   }
@@ -74,6 +75,7 @@ class MineController extends GetxController {
     // 埋点：记录足迹功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.track);
     
+    onNavigateToNextPage?.call();
     Get.to(
       () => TrackPage(),
       binding: TrackBinding(),
@@ -85,6 +87,7 @@ class MineController extends GetxController {
     // 埋点：记录用机记录功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.phoneHistory);
     
+    onNavigateToNextPage?.call();
     // 跳转到新的用机记录页面
     Get.toNamed(KissuRoutePath.deviceUsage);
   }
@@ -112,6 +115,10 @@ class MineController extends GetxController {
   // 埋点相关
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
+  
+  // 页面离开回调（由Widget或其他组件注册）
+  VoidCallback? onNavigateToNextPage;
 
   // 与系统权限页保持一致的教程完成状态持久化 key
   static const String _guidePreventSleepKey =
@@ -154,6 +161,11 @@ class MineController extends GetxController {
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
     
     _initSettingItems();
     _initCommonFunctionItems();
@@ -541,6 +553,7 @@ class MineController extends GetxController {
         icon: "assets/4.0/kissu4_mine_question.webp",
         title: "常见问题",
         onTap: () async { 
+          onNavigateToNextPage?.call();
           Get.to(QuestionPage(), transition: Transition.rightToLeft);
         },
       ),
@@ -549,6 +562,7 @@ class MineController extends GetxController {
         icon: "assets/4.0/kissu4_feedback.webp",
         title: "投诉与反馈",
         onTap: () async { 
+          onNavigateToNextPage?.call();
           Get.toNamed(KissuRoutePath.feedback);
         },
       ),
@@ -556,18 +570,21 @@ class MineController extends GetxController {
         icon: "assets/4.0/kissu4_mine_aboutus.webp",
         title: "关于我们",
         onTap: () async { 
+          onNavigateToNextPage?.call();
           Get.to(AboutUsPage(), transition: Transition.rightToLeft);
         },
       ),SettingItem(
-        icon: "assets/4.0/kissu4_mine_info_collect.png",
+        icon: "assets/4.0/kissu4_mine_info_collect.webp",
         title: "个人信息收集清单",
         onTap: () async {
+          onNavigateToNextPage?.call();
           Get.to(() => const PersonalInfoCollectionPage(), transition: Transition.rightToLeft);
         },
       ),SettingItem(
-        icon: "assets/4.0/kissu4_mine_info_share.png",
+        icon: "assets/4.0/kissu4_mine_info_share.webp",
         title: "第三方信息共享清单",
         onTap: () async {
+          onNavigateToNextPage?.call();
           Get.to(() => const ThirdPartySharingPage(), transition: Transition.rightToLeft);
         },
       ),
@@ -666,14 +683,13 @@ class MineController extends GetxController {
 
   // 右上角设置按钮
   void onSettingTap() async {
-     
+    onNavigateToNextPage?.call();
     Get.to(PrivacySettingPage(), transition: Transition.rightToLeft);
   }
 
   // 点击恋爱信息标签
   void onLabelTap() async {
-    
-
+    onNavigateToNextPage?.call();
     await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
     // 从恋爱信息页面返回时，刷新我的页面
     onPageResumed();
@@ -693,6 +709,7 @@ class MineController extends GetxController {
 
   // 点击另一半头像
   void onPartnerAvatarTap() async {
+    AnalyticsHelper.trackMyPageAvatar();
     // 如果未绑定，显示绑定弹窗
     if (!isBound.value) {
     
@@ -706,6 +723,7 @@ class MineController extends GetxController {
     
 
       // 如果已绑定，跳转到恋爱信息页面
+      onNavigateToNextPage?.call();
       await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
       // 从恋爱信息页面返回时，刷新我的页面
       onPageResumed();
@@ -724,8 +742,7 @@ class MineController extends GetxController {
     if (isBound.value) {
       logDebug('🔥 用户已绑定，跳转到恋爱信息页面', tag: 'Mine');
 
-       
-
+      onNavigateToNextPage?.call();
       await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
       // 从恋爱信息页面返回时，刷新我的页面
       onPageResumed();
@@ -796,7 +813,7 @@ class MineController extends GetxController {
 
       // 埋点：记录会员模块点击（会员中心）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.vipCenter);
-   
+      onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.foreverVip,
         arguments: { },
@@ -807,7 +824,7 @@ class MineController extends GetxController {
 
       // 埋点：记录会员模块点击（去续费）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.renewVip);
-     
+      onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
         arguments: {'source_page': SourcePageUtilsCaller.mine, },
@@ -818,7 +835,7 @@ class MineController extends GetxController {
 
       // 埋点：记录会员模块点击（开通会员）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.openVip);
-     
+      onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
         arguments: {'source_page': SourcePageUtilsCaller.mine, },
@@ -923,6 +940,7 @@ class MineController extends GetxController {
 
   /// 通知设置点击事件
   void _onNotificationSettingsTap() {
+    onNavigateToNextPage?.call();
     Get.toNamed(KissuRoutePath.notificationSettings);
   }
 
@@ -932,6 +950,7 @@ class MineController extends GetxController {
     // 埋点：记录酒店防偷拍功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.hotelAntiSpy);
     
+    onNavigateToNextPage?.call();
     Get.toNamed(KissuRoutePath.antiSpy);
   }
 
@@ -970,6 +989,7 @@ class MineController extends GetxController {
     // 2. 已绑定但非会员：跳转到开通会员页面
     if (!UserManager.isVip) {
       logDebug('app使用记录：已绑定但非会员，跳转到开通会员页面', tag: 'Mine');
+      onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
        arguments: {'source_page': SourcePageUtilsCaller.mine, },
@@ -979,6 +999,7 @@ class MineController extends GetxController {
 
     // 3. 已绑定且是会员：进入 App 使用记录页面
     logDebug('app使用记录：已绑定且为会员，进入App使用记录页面', tag: 'Mine');
+    onNavigateToNextPage?.call();
     Get.to(
       () => const AppUsagePage(),
       binding: AppUsageBinding(),
@@ -1000,6 +1021,7 @@ class MineController extends GetxController {
     // 埋点：记录敏感操作记录功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.sensitiveRecord);
     
+    onNavigateToNextPage?.call();
     Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
   }
 
@@ -1008,6 +1030,7 @@ class MineController extends GetxController {
     // 埋点：记录更换app图标功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.changeAppIcon);
     
+    onNavigateToNextPage?.call();
     Get.toNamed(KissuRoutePath.appIconSelector);
   }
 
@@ -1024,21 +1047,47 @@ class MineController extends GetxController {
     AnalyticsHelper.trackMyPagePermissionBtn();
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: MyPageEvents.pageId,
+      eventId: MyPageEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  /// 应用切换到后台
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// 应用从后台返回
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: MyPageEvents.pageId,
-        eventId: MyPageEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
     
     super.onClose();
   }

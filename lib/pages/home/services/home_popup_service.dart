@@ -5,7 +5,8 @@ import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
- import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/vip_expire_reminder_dialog.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/public/index_api.dart';
@@ -50,6 +51,9 @@ class HomePopupService {
   /// 获取缓存的VIP数据
   final VipData? Function() getCachedVipData;
   
+  /// 跳转到下一页前的回调（用于触发首页离开埋点）
+  final VoidCallback? onNavigateToNextPage;
+  
   HomePopupService({
     required this.isBound,
     required this.isVip,
@@ -58,6 +62,7 @@ class HomePopupService {
     required this.isShowingDialog,
     required this.onRefreshAfterBinding,
     required this.getCachedVipData,
+    this.onNavigateToNextPage,
   });
 
   // ==================== 会话级别控制标志 ====================
@@ -70,6 +75,9 @@ class HomePopupService {
   
   /// VIP到期弹窗是否已在本次会话检查过
   static bool _hasCheckedVipOuttimeDialogThisSession = false;
+  
+  /// VIP过期提醒弹窗是否已在本次会话检查过
+  static bool _hasCheckedVipExpireReminderDialogThisSession = false;
 
   // ==================== 实例级别状态 ====================
   
@@ -116,6 +124,8 @@ class HomePopupService {
   /// 检查并显示绑定弹窗
   Future<void> checkAndShowBindingDialog() async {
     try {
+      logDebug('🔍 检查绑定弹窗条件: isBound=${isBound.value}, hasShown=$_hasShownBindingDialogThisSession');
+      
       if (isBound.value) {
         logDebug('🔗 用户已绑定，不显示绑定弹窗');
         return;
@@ -129,6 +139,7 @@ class HomePopupService {
       logDebug('💕 用户未绑定且本次会话未显示过绑定弹窗，准备显示绑定弹窗');
 
       Future.delayed(const Duration(milliseconds: 800), () {
+        logDebug('⏰ 延迟800ms后，开始显示绑定弹窗');
         _showBindingDialog();
       });
       
@@ -248,6 +259,10 @@ class HomePopupService {
         onConfirm: () {
           logDebug('💎 点击了立即查看按钮，跳转到VIP页面，默认选中永久会员');
           _resetPopupState();
+          
+          // 埋点：首页离开（进入下一页）
+          onNavigateToNextPage?.call();
+          
           Get.toNamed(
             KissuRoutePath.vip,
             arguments: {
@@ -372,6 +387,7 @@ class HomePopupService {
   /// 检查并显示VIP到期弹窗
   Future<void> _checkAndShowVipOuttimeDialog(VipData? vipData) async {
     try {
+      
       if (vipData == null || vipData.type != 1) {
         return;
       }
@@ -448,6 +464,90 @@ class HomePopupService {
       }
     } catch (e) {
       logError('❌ 显示VIP到期弹窗异常: $e');
+    }
+  }
+
+  // ==================== VIP过期提醒弹窗 ====================
+
+  /// 检查VIP过期提醒弹窗（整个会话期间只执行一次）
+  void checkVipExpireReminderDialogOnce() {
+    
+    if (_hasCheckedVipExpireReminderDialogThisSession) {
+      logDebug('📱 VIP过期提醒弹窗今天已检查过，跳过');
+      return;
+    }
+    
+    final vipData = getCachedVipData();
+    if (vipData == null) {
+      logDebug('📱 VIP数据还未加载，跳过VIP过期提醒弹窗检查');
+      return;
+    }
+    
+    _hasCheckedVipExpireReminderDialogThisSession = true;
+    _checkAndShowVipExpireReminderDialog(vipData);
+  }
+
+  /// 检查并显示VIP过期提醒弹窗
+  Future<void> _checkAndShowVipExpireReminderDialog(VipData? vipData) async {
+    try {
+      // 只有当type=2时才显示
+      if (vipData == null || vipData.type != 2) {
+        return;
+      }
+
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final prefs = await SharedPreferences.getInstance();
+      final lastShowDate = prefs.getString('vip_expire_reminder_dialog_last_show_date');
+      
+      if (lastShowDate == today) {
+        logDebug('📱 VIP过期提醒弹窗今天已显示过，不再显示');
+        return;
+      }
+
+      await prefs.setString('vip_expire_reminder_dialog_last_show_date', today);
+      logDebug('✅ VIP过期提醒弹窗已提前记录: $today');
+
+      final context = Get.context;
+      if (context == null) {
+        logWarning('⚠️ 无法获取上下文，跳过VIP过期提醒弹窗');
+        return;
+      }
+
+      await _showVipExpireReminderDialog(context, vipData.desc, vipData.expireDays);
+    } catch (e) {
+      logError('❌ 检查VIP过期提醒弹窗异常: $e');
+    }
+  }
+
+  /// 显示VIP过期提醒弹窗
+  Future<void> _showVipExpireReminderDialog(BuildContext context, String desc, int expireDays) async {
+    try {
+      logDebug('📱 显示VIP过期提醒弹窗: desc=$desc, expireDays=$expireDays');
+      
+      final result = await VipExpireReminderDialog.show(
+        context: context,
+        desc: desc,
+        expireDays: expireDays,
+        onRenewal: () {
+          logDebug('📱 用户点击立即续费，跳转到VIP页面');
+          onNavigateToNextPage?.call();
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'source_page': SourcePageUtilsCaller.home,
+            },
+          );
+        },
+        onCancel: () {
+          logDebug('📱 用户点击下次再说');
+        },
+      );
+
+      if (result != null) {
+        logDebug('✅ VIP过期提醒弹窗用户操作完成');
+      }
+    } catch (e) {
+      logError('❌ 显示VIP过期提醒弹窗异常: $e');
     }
   }
 

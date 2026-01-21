@@ -12,16 +12,18 @@ class InfoSettingPage extends StatefulWidget {
   _InfoSettingPageState createState() => _InfoSettingPageState();
 }
 
-class _InfoSettingPageState extends State<InfoSettingPage> {
+class _InfoSettingPageState extends State<InfoSettingPage> with WidgetsBindingObserver {
   final controller = Get.put(InfoSettingController());
   
   // 埋点相关
   int? _pageEnterTime; // 页面进入时间（十位时间戳）
   int _exitType = ExitTypeValue.back; // 离开方式
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
   
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -29,21 +31,47 @@ class _InfoSettingPageState extends State<InfoSettingPage> {
   
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: LoginInfoEvents.pageId,
-        eventId: LoginInfoEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-      );
-    }
+    _trackPageExit();
     
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App进入后台
+        _exitType = ExitTypeValue.toBackground;
+        _trackPageExit();
+        break;
+      case AppLifecycleState.resumed:
+        // App从后台恢复，重新记录页面进入时间
+        _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        _hasTrackedExit = false;
+        _exitType = ExitTypeValue.back;
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// 上报页面离开埋点
+  void _trackPageExit() {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: LoginInfoEvents.pageId,
+      eventId: LoginInfoEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: _exitType,
+    );
   }
   
   /// 标记进入下一页

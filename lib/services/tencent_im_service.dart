@@ -89,12 +89,12 @@ class TencentIMService extends GetxService {
   /// 🔥 修复：公开此方法，供 PrivacyComplianceManager 在用户同意隐私政策后调用
   Future<bool> initIM() async {
     if (_isInitialized) {
-      logger.debug('IM SDK 已经初始化', tag: 'TencentIMService');
+      logger.info('IM SDK 已经初始化', tag: 'TencentIMService');
       return true;
     }
 
     try {
-      logger.debug('开始初始化腾讯IM SDK...', tag: 'TencentIMService');
+      logger.info('开始初始化腾讯IM SDK...', tag: 'TencentIMService');
       
       // 初始化SDK
       V2TimValueCallback<bool> initResult = await TencentImSDKPlugin.v2TIMManager.initSDK(
@@ -102,10 +102,10 @@ class TencentIMService extends GetxService {
         loglevel: LogLevelEnum.V2TIM_LOG_DEBUG,
         listener: V2TimSDKListener(
           onConnecting: () {
-            logger.debug('IM正在连接...', tag: 'TencentIMService');
+            logger.info('IM正在连接...', tag: 'TencentIMService');
           },
           onConnectSuccess: () {
-            logger.debug('IM连接成功', tag: 'TencentIMService');
+            logger.info('IM连接成功', tag: 'TencentIMService');
           },
           onConnectFailed: (code, error) {
             logger.error('IM连接失败: code=$code, error=$error', tag: 'TencentIMService');
@@ -132,7 +132,7 @@ class TencentIMService extends GetxService {
 
       if (initResult.code == 0) {
         _isInitialized = true;
-        logger.debug('腾讯IM SDK初始化成功', tag: 'TencentIMService');
+        logger.info('腾讯IM SDK初始化成功', tag: 'TencentIMService');
         return true;
       } else {
         logger.error(
@@ -173,7 +173,7 @@ class TencentIMService extends GetxService {
 
     // 如果已经登录同一个用户，不需要重复登录，但要确保监听器已设置
     if (_isLoggedIn && _currentUserID == user.uniqueId) {
-      logger.debug('IM已登录该用户: ${user.uniqueId}', tag: 'TencentIMService');
+      logger.info('IM已登录该用户: ${user.uniqueId}', tag: 'TencentIMService');
       
       // 确保消息监听器已设置（应对应用重启或热重载的情况）
       _setupMessageListener();
@@ -181,13 +181,13 @@ class TencentIMService extends GetxService {
       // 🔥 重新注册推送服务（应对App被杀后重启的情况）
       // 即使已经登录，每次App启动时都需要重新注册推送，确保设备token有效
       await _registerPushService();
-      logger.debug('已重新注册推送服务（App重启场景）', tag: 'TencentIMService');
+      logger.info('已重新注册推送服务（App重启场景）', tag: 'TencentIMService');
       
       return true;
     }
 
     try {
-      logger.debug(
+      logger.info(
         '开始登录腾讯IM: userID=${user.uniqueId}',
         tag: 'TencentIMService',
       );
@@ -200,7 +200,7 @@ class TencentIMService extends GetxService {
       if (loginResult.code == 0) {
         _isLoggedIn = true;
         _currentUserID = user.uniqueId;
-        logger.debug(
+        logger.info(
           'IM登录成功: userID=${user.uniqueId}',
           tag: 'TencentIMService',
         );
@@ -308,12 +308,12 @@ class TencentIMService extends GetxService {
   /// 退出登录IM
   Future<bool> logoutIM() async {
     if (!_isLoggedIn) {
-      logger.debug('IM未登录，无需退出', tag: 'TencentIMService');
+      logger.info('IM未登录，无需退出', tag: 'TencentIMService');
       return true;
     }
 
     try {
-      logger.debug('开始退出IM登录...', tag: 'TencentIMService');
+      logger.info('开始退出IM登录...', tag: 'TencentIMService');
       
       // 移除消息监听器
       _removeMessageListener();
@@ -364,12 +364,12 @@ class TencentIMService extends GetxService {
             // 重新登录
             final success = await loginIM(user);
             if (success) {
-              logger.debug('IM自动重新登录成功', tag: 'TencentIMService');
+              logger.info('IM自动重新登录成功', tag: 'TencentIMService');
             } else {
               logger.error('IM自动重新登录失败', tag: 'TencentIMService');
             }
           } else {
-            logger.debug('无已登录用户，跳过IM自动重新登录', tag: 'TencentIMService');
+            logger.info('无已登录用户，跳过IM自动重新登录', tag: 'TencentIMService');
           }
         }
       } catch (e) {

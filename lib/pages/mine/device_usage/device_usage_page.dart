@@ -46,6 +46,22 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App进入后台
+        controller.onAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        // App从后台恢复
+        controller.onAppResumed();
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // 首次构建时不刷新，后续页面恢复时刷新
@@ -127,17 +143,30 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                             onTap: () {
                               // 埋点：手机使用记录模块点击（不管是否会员都记录）
                               final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
+                              AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
+                              
+                              _handleVipFeatureTap(
+                                onVipUserNavigate: () {
+                                  // 埋点：页面离开（进入下一页）
+                                  controller.onNavigateToNextPage?.call();
+                                  // 埋点：手机使用记录模块点击（不管是否会员都记录）
+                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
                               if (btnName.isNotEmpty) {
                                 AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
                               }
-                              
-                              _handleVipFeatureTap(
-                                onVipUserNavigate: () => Get.toNamed(
-                                  KissuRoutePath.appUsageInfo,
-                                ),
+                                  Get.toNamed(
+                                    KissuRoutePath.appUsageInfo,
+                                  );
+                                },
                               );
                             },
                             onVipTap: () {
+                              // 埋点：页面离开（进入下一页）
+                              controller.onNavigateToNextPage?.call();
+                               final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
+                              if (btnName.isNotEmpty) {
+                                AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
+                              }
                               // 未开通会员时点击跳转开通会员页面
                               Get.toNamed(
                                 KissuRoutePath.vip,
@@ -152,13 +181,15 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                             onTap: () {
                               // 埋点：App使用记录模块点击（不管是否会员都记录）
                               final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
-                              if (btnName.isNotEmpty) {
-                                AnalyticsHelper.trackAppUseModule(btnName: btnName);
-                              }
+                               AnalyticsHelper.trackAppUseModule(btnName: btnName);
                               
                               _handleVipFeatureTap(
-                                onVipUserNavigate: () =>
-                                    Get.toNamed(KissuRoutePath.appUsage),
+                                onVipUserNavigate: () {
+                                  // 埋点：页面离开（进入下一页）
+                                  controller.onNavigateToNextPage?.call();
+                                  
+                                  Get.toNamed(KissuRoutePath.appUsage);
+                                },
                               );
                             },
                           ),
@@ -169,14 +200,15 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                             onTap: () {
                               // 埋点：敏感操作记录模块点击（不管是否会员都记录）
                               final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
-                              if (btnName.isNotEmpty) {
                                 AnalyticsHelper.trackSensitiveOperationModule(btnName: btnName);
-                              }
                               
                               if (!controller.isUserBound.value) {
                                 _checkAndShowBindingDialog();
                                 return;
                               }
+                              // 埋点：页面离开（进入下一页）
+                              controller.onNavigateToNextPage?.call();
+                              
                               Get.to(
                                 () => const UsageReportPage(),
                                 binding: UsageReportBinding(),
@@ -258,6 +290,10 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               onTap: () {
                 // 埋点：设置按钮点击
                 AnalyticsHelper.trackPhoneHistorySetting();
+                
+                // 埋点：页面离开（进入下一页）
+                controller.onNavigateToNextPage?.call();
+                
                 // 复用用机记录设置入口，跳转到通知设置页面
                 Get.toNamed(KissuRoutePath.notificationSettings);
               },
@@ -291,6 +327,9 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
 
     // 已绑定但未开会员：跳转到VIP页面
     if (!controller.isUserVip.value) {
+      // 埋点：页面离开（进入下一页）
+      controller.onNavigateToNextPage?.call();
+      
       Get.toNamed(
         KissuRoutePath.vip,
         arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, },

@@ -217,6 +217,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                         GestureDetector(
                           onTap: () {
                             try {
+                              // 埋点：页面离开（进入下一页）
+                              try {
+                                final controller = Get.find<ChatController>();
+                                controller.onNavigateToNextPage?.call();
+                              } catch (_) {}
+                              
                               Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.chat});
                             } catch (e) {
                               debugPrint('跳转 VIP 页面失败: $e');
@@ -358,6 +364,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         return;
       }
 
+      // 埋点：页面离开（进入下一页）
+      try {
+        final controller = Get.find<ChatController>();
+        controller.onNavigateToNextPage?.call();
+      } catch (_) {}
+      
       switch (jump) {
         case 'appUsePage':
           Get.toNamed(KissuRoutePath.appUsage);
@@ -789,7 +801,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           // 标题："一起便便"
           SizedBox(height: 2),
           const Text(
-            '一起便便',
+            '【拉了么】',
             style: TextStyle(
               fontSize: 13,
               color: Color(0xFF333333),
@@ -863,6 +875,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         url = baseUrl;
       }
 
+      // 埋点：页面离开（进入下一页）
+      try {
+        final controller = Get.find<ChatController>();
+        controller.onNavigateToNextPage?.call();
+      } catch (_) {}
+      
       // 跳转到H5页面
       Get.to(
         () => AgreementWebViewPage(

@@ -198,6 +198,10 @@ class LocationTipsManager extends GetxController {
   /// 点击会员到期提示 - 跳转到会员页面
   void onVipExpiryTipTap() {
     logDebug('👑 点击会员到期提示，跳转到会员页面');
+    
+    // 埋点：页面离开（进入下一页）
+    locationController.onNavigateToNextPage?.call();
+    
     // 使用项目路由常量保持一致性
     Get.toNamed('/kisssu_app/vip');
   }

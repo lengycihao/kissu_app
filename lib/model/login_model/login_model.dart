@@ -88,7 +88,8 @@ class LoginModel {
   @JsonKey(name: 'city_name')
   String? cityName;
   @JsonKey(name: 'bind_status')
-  dynamic bindStatus;
+  @StringToIntConverter()
+  int? bindStatus;
   @JsonKey(name: 'lately_bind_time')
   @StringToIntConverter()
   int? latelyBindTime;
@@ -133,12 +134,19 @@ class LoginModel {
   @JsonKey(name: 'is_alert_give_vip')
   @StringToIntConverter()
   int? isGiveVip;
+  @JsonKey(name: 'is_check_in')
+  @StringToIntConverter()
+  int? isCheckIn;
+  @JsonKey(name: 'bind_num')
+  @StringToIntConverter()
+  int? bindNum;
   @JsonKey(name: 'half_user_info')
   HalfUserInfo? halfUserInfo;
   @JsonKey(name: 'lover_info')
   LoverInfo? loverInfo;
   @JsonKey(name: 'share_config')
   ShareConfig? shareConfig;
+  
 
   LoginModel({
     this.id,
@@ -178,6 +186,8 @@ class LoginModel {
     this.imSign,
     this.isPerfectInformation,
     this.isGiveVip,
+    this.isCheckIn,
+    this.bindNum,
     this.halfUserInfo,
     this.loverInfo,
     this.shareConfig,

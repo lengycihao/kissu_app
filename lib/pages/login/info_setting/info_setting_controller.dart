@@ -23,6 +23,8 @@ import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 
 
 class InfoSettingController extends GetxController {
@@ -42,6 +44,12 @@ class InfoSettingController extends GetxController {
   // 埋点相关：追踪是否修改过
   bool _hasChangedAvatar = false; // 是否修改过头像
   String _initialNickname = ''; // 初始昵称
+  bool _hasSelectedGender = false; // 是否手动选择过性别
+  
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false;
+  VoidCallback? onNavigateToNextPage;
 
   // 昵称输入框控制器
   late TextEditingController nicknameController;
@@ -50,13 +58,53 @@ class InfoSettingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+    
     nicknameController = TextEditingController();
     nicknameFocusNode = FocusNode();
     _initUserData();
   }
 
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: LoginInfoEvents.pageId,
+      eventId: LoginInfoEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
+    _trackPageExit(_exitType);
     nicknameController.dispose();
     nicknameFocusNode.dispose();
     super.onClose();
@@ -82,8 +130,13 @@ class InfoSettingController extends GetxController {
       }
 
       // 设置性别 (1男2女)
-      if (user.gender != null) {
-        selectedGender.value = user.gender == 1 ? '男' : '女';
+      if (user.gender == 1) {
+        selectedGender.value = '男';
+      } else if (user.gender == 2) {
+        selectedGender.value = '女';
+      } else {
+        // 如果用户性别为null或0或其他值，默认为男
+        selectedGender.value = '男';
       }
       
       // 记录初始昵称
@@ -554,6 +607,11 @@ class InfoSettingController extends GetxController {
       changeAvatar: _hasChangedAvatar,
       changeNickname: hasChangedNickname,
     );
+    
+    // 埋点：如果用户未手动选择性别，补埋性别事件（默认男性）
+    if (!_hasSelectedGender) {
+      AnalyticsHelper.trackGenderSelect(gender: GenderValue.defaultMale);
+    }
 
     try {
       isLoading.value = true;
@@ -626,9 +684,10 @@ class InfoSettingController extends GetxController {
   /// 选择性别
   void selectGender(String gender) {
     selectedGender.value = gender;
+    _hasSelectedGender = true; // 标记用户已手动选择性别
     
     // 埋点：性别选择
-    final sexValue = gender == '男' ? GenderValue.male.toString() : GenderValue.female.toString();
+    final sexValue = gender == '男' ? GenderValue.male : GenderValue.female;
     AnalyticsHelper.trackGenderSelect(gender: sexValue);
   }
   

@@ -83,31 +83,23 @@ class ChatController extends GetxController {
   // 埋点相关
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
   int _sendMessageCount = 0; // 单方主动发送消息次数（不包含系统发送的）
-
-  @override
-  void onInit() {
-    super.onInit();
-    logDebug('💬 ChatController 初始化');
-    
-    // 埋点：记录页面进入时间（十位时间戳）
+  
+  // 页面离开回调（由Widget或其他组件注册）
+  VoidCallback? onNavigateToNextPage;
+  
+  /// App进入后台时调用
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// App从后台恢复时调用
+  void onAppResumed() {
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    
-    // 使用真实IM聊天，关闭本地mock消息
-    _initPartnerInfo();
-    _setupIMMessageListener();
-    _setupIMReadReceiptListener();
-    _setupScrollForHistory();
-    _loadInitialHistoryMessages();
-    _setupFocusListener();
-    _loadBackgroundFromCache();
-    _loadBubbleStyleFromCache();
-    _loadThemeFromCache();
-    // 进入聊天页面时，将未读消息数清零
-    try {
-      final im = TencentIMService.instance;
-      im.clearC2CUnreadCount();
-    } catch (_) {}
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
   }
 
   /// 是否需要在当前消息上方显示时间（类似微信的时间气泡）
@@ -457,24 +449,67 @@ class ChatController extends GetxController {
     }
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: ChatEvents.pageId,
+      eventId: ChatEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+      params: {
+        AnalyticsParams.sendSum: _sendMessageCount,
+      },
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  @override
+  void onInit() {
+    super.onInit();
+    logDebug('💬 ChatController 初始化');
+    
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+    
+    // 使用真实IM聊天，关闭本地mock消息
+    _initPartnerInfo();
+    _setupIMMessageListener();
+    _setupIMReadReceiptListener();
+    _setupScrollForHistory();
+    _loadInitialHistoryMessages();
+    _setupFocusListener();
+    _loadBackgroundFromCache();
+    _loadBubbleStyleFromCache();
+    _loadThemeFromCache();
+    // 进入聊天页面时，将未读消息数清零
+    try {
+      final im = TencentIMService.instance;
+      im.clearC2CUnreadCount();
+    } catch (_) {}
+  }
+  
   @override
   void onClose() {
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: ChatEvents.pageId,
-        eventId: ChatEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-        params: {
-          AnalyticsParams.sendSum: _sendMessageCount,
-        },
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
     
     scrollController.dispose();
     inputFocusNode.dispose();
@@ -845,6 +880,10 @@ class ChatController extends GetxController {
   /// 功能区：位置 - 跳转到定位页面
   Future<void> onLocationTap() async {
     hideAllPanels();
+    
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     Get.toNamed(KissuRoutePath.location);
   }
 
@@ -881,7 +920,7 @@ class ChatController extends GetxController {
       final partnerId = _partnerImId;
       final im = TencentIMService.instance;
 
-      if (partnerId == null || partnerId.isEmpty) {
+      if (partnerId == null || partnerId.isEmpty) {                                                                                                                                                                                                                                                                                                           
         logDebug('💬 未找到另一半IM ID，暂时本地显示图片: ${imageFile.path}');
       }
 

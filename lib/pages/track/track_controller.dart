@@ -6,6 +6,7 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/location_permission_manager.dart'; 
 import 'package:kissu_app/utils/user_manager.dart';
@@ -34,8 +35,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 数据版本控制，确保异步操作的一致性
   int _dataVersion = 0;
-
- 
+  
+  // 埋点：页面离开回调（由Layout注册）
+  VoidCallback? onNavigateToNextPage;
 
   /// 构造函数
   TrackController() {
@@ -302,9 +304,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
 
   /// 头像点击时切换用户视角（优化版本）
   void onAvatarTapped(bool isMyself) {
-    // 埋点：头像切换
+    // 埋点：头像切换 
     AnalyticsHelper.trackTrackAvatarChange(
-      avatarName: isMyself ? 'mine' : 'partner',
+      avatarName: isMyself ? AvatarNameValue.self : AvatarNameValue.partner,
     );
     
     logDebug('🎯 头像点击开始 - isMyself: $isMyself');

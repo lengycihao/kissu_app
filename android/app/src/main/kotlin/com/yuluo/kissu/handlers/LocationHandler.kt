@@ -101,11 +101,13 @@ class LocationHandler(private val activity: Activity) {
     }
     
     /**
-     * 打开定位设置页面
+     * 打开定位设置页面（跳转到App应用详情页，用户可在此管理定位权限）
      */
     private fun openLocationSettings() {
         try {
-            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", activity.packageName, null)
+            }
             activity.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开定位设置失败", e)

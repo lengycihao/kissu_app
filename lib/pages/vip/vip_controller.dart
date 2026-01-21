@@ -96,10 +96,12 @@ class VipController extends GetxController {
   StreamSubscription<Map<String, dynamic>>? _paymentResultSubscription;
 
   // 埋点相关
-  int? _pageEnterTime; // 十位时间戳
+  int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
+  VoidCallback? onNavigateToNextPage;
   int _pageScrollNum = 0;
-  // int? _payStartTime; // 支付开始时间（十位时间戳）
+  int? _payStartTime; // 支付开始时间（十位时间戳）
   SourcePageUtilsCaller? _sourcePage; // 来源页
 
   @override
@@ -108,6 +110,11 @@ class VipController extends GetxController {
 
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
 
     // 初始化控制器
     pageController = PageController();
@@ -241,25 +248,51 @@ class VipController extends GetxController {
     }
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: MembershipEvents.pageId,
+      eventId: MembershipEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      sourcePage: _getSourcePageFromCaller(),
+      exitType: exitType,
+      params: {AnalyticsParams.pageScrollNum: _pageScrollNum},
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  /// 应用切换到后台
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// 应用从后台返回
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
     _logger.i('📦 VipController onClose 被调用');
 
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-
-      AnalyticsManager.instance.trackPageView(
-        pageId: MembershipEvents.pageId,
-        eventId: MembershipEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        sourcePage: _getSourcePageFromCaller(), // 会员页面需要来源页
-        exitType: _exitType,
-        params: {AnalyticsParams.pageScrollNum: _pageScrollNum},
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
 
     // 设置销毁标志
     _isDisposed = true;
@@ -618,9 +651,16 @@ class VipController extends GetxController {
 
     if (index >= 0 && index < vipPackages.length) {
       final package = vipPackages[index];
-
+      int vipType;
+    if (package.isForever) {
+      vipType = 3; // 永久会员
+    } else if (package.type == 3) {
+      vipType = 2; // 年度会员
+    } else {
+      vipType = 1; // 月度会员
+    }
       // 埋点：记录会员套餐点击
-      AnalyticsHelper.trackMembershipTypeClick(clickStatus: package.type);
+      AnalyticsHelper.trackMembershipTypeClick(clickStatus: vipType);
 
       // 先选中套餐
       selectedPriceIndex.value = index;
@@ -968,6 +1008,9 @@ class VipController extends GetxController {
             selectedPriceIndex.value < vipPackages.length) {
           final package = vipPackages[selectedPriceIndex.value];
 
+          // 埋点：记录支付成功
+          _trackPaymentResult(package, payStatus: 1);
+
           // 显示成功提示
           OKToastUtil.show('支付成功');
 
@@ -979,6 +1022,15 @@ class VipController extends GetxController {
         }
       } else {
         _logger.e('❌ 支付失败通知 - 类型: $payType, 原因: $message');
+
+        // 埋点：记录支付失败或取消
+        if (selectedPriceIndex.value >= 0 &&
+            selectedPriceIndex.value < vipPackages.length) {
+          final package = vipPackages[selectedPriceIndex.value];
+          // 判断是取消还是失败：2=取消支付, 0=支付失败
+          final payStatus = message.contains('取消') ? 2 : 0;
+          _trackPaymentResult(package, payStatus: payStatus);
+        }
 
         // 重置购买状态
         isPurchasing.value = false;
@@ -1026,6 +1078,9 @@ class VipController extends GetxController {
   /// 处理购买流程
   Future<void> _processPurchase(VipPackageModel package) async {
     try {
+      // 记录支付开始时间（十位时间戳）
+      _payStartTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
       _logger.i(
         '💫 开始处理购买流程，套餐: ${package.title}, 支付方式: ${selectedPaymentMethod.value}',
       );
@@ -1033,6 +1088,17 @@ class VipController extends GetxController {
 
       if (selectedPaymentMethod.value == 0) {
         // 微信支付
+        // 🔥 先检查微信是否安装
+        final isWechatInstalled = await _paymentService.isWechatInstalled();
+        if (!isWechatInstalled) {
+          _logger.e('💫 微信未安装');
+          // 埋点：记录微信未安装（支付失败）
+          _trackPaymentResult(package, payStatus: 0);
+          OKToastUtil.show('请先安装微信');
+          isPurchasing.value = false;
+          return;
+        }
+        
         _logger.i('💫 开始创建微信支付订单');
         final wxPayResult = await _vipService.wxPay(vipPackageId: package.id);
         _logger.i(
@@ -1062,6 +1128,17 @@ class VipController extends GetxController {
         }
       } else {
         // 支付宝支付
+        // 🔥 先检查支付宝是否安装
+        final isAlipayInstalled = await _paymentService.isAlipayInstalled();
+        if (!isAlipayInstalled) {
+          _logger.e('💫 支付宝未安装');
+          // 埋点：记录支付宝未安装（支付失败）
+          _trackPaymentResult(package, payStatus: 0);
+          OKToastUtil.show('请先安装支付宝');
+          isPurchasing.value = false;
+          return;
+        }
+        
         _logger.i('💫 开始创建支付宝支付订单');
         final aliPayResult = await _vipService.aliPay(vipPackageId: package.id);
         _logger.i(
@@ -1094,22 +1171,57 @@ class VipController extends GetxController {
       // 实际支付结果通过 PaymentService 的回调处理
       // 对于支付宝，result 表示实际支付结果
       if (selectedPaymentMethod.value == 0) {
-        // 微信支付：不处理返回值，等待回调
-        _logger.i('💫 微信支付已唤起，等待用户操作和回调...');
-        // 不做任何处理，让 PaymentService 的回调来处理结果
+        // 微信支付
+        if (result) {
+          // 成功唤起微信，等待回调
+          _logger.i('💫 微信支付已唤起，等待用户操作和回调...');
+          // 不做任何处理，让 PaymentService 的回调来处理结果
+        } else {
+          // 🔥 微信支付唤起失败（可能是微信未安装或版本过低）
+          _logger.e('💫 微信支付唤起失败（可能未安装微信）');
+          
+          // 埋点：记录微信支付失败（未安装/唤起失败）
+          _trackPaymentResult(package, payStatus: 0);
+          
+          // 重置购买状态
+          isPurchasing.value = false;
+        }
       } else {
         // 支付宝支付：处理返回值
         if (result) {
-          _logger.i('💫 支付成功，开始处理后续操作');
+          _logger.i('💫 支付宝支付成功，开始处理后续操作');
+          
+          // 🔥 埋点：记录支付宝支付成功
+          _trackPaymentResult(package, payStatus: 1);
+          
           OKToastUtil.show('支付成功');
           _updateVipStatus(package);
           await _handlePaymentSuccess(package);
-        } else {}
+        } else {
+          // 🔥 支付宝支付失败或取消
+          _logger.e('💫 支付宝支付失败或取消');
+          
+          // 埋点：记录支付宝支付取消（支付宝返回false通常是用户取消）
+          _trackPaymentResult(package, payStatus: 2);
+          
+          OKToastUtil.show('支付已取消');
+          
+          // 重置购买状态
+          isPurchasing.value = false;
+        }
       }
     } catch (e) {
       _logger.e('💫 支付处理失败: $e');
       _logger.e('💫 异常类型: ${e.runtimeType}');
       _logger.e('💫 异常堆栈: ${e.toString()}');
+      
+      // 🔥 埋点：记录支付异常失败
+      if (selectedPriceIndex.value >= 0 &&
+          selectedPriceIndex.value < vipPackages.length) {
+        final package = vipPackages[selectedPriceIndex.value];
+        _trackPaymentResult(package, payStatus: 0);
+      }
+      
       OKToastUtil.show("支付失败");
       rethrow; // 重新抛出异常，让上层处理
     }
@@ -1330,5 +1442,71 @@ class VipController extends GetxController {
   /// 检查是否是推荐套餐
   bool isRecommendedPrice(int index) {
     return index == 2; // 年卡为推荐套餐
+  }
+
+  /// 上报支付结果埋点
+  /// [package] 套餐信息
+  /// [payStatus] 支付状态：0=支付失败, 1=支付成功, 2=取消支付
+  void _trackPaymentResult(VipPackageModel package, {required int payStatus}) {
+    // 计算支付用时（秒）
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final payDuration = _payStartTime != null ? currentTime - _payStartTime! : 0;
+
+    // 获取会员类型：1=月度会员, 2=年度会员, 3=永久会员
+    int vipType;
+    if (package.isForever) {
+      vipType = 3; // 永久会员
+    } else if (package.type == 3) {
+      vipType = 2; // 年度会员
+    } else {
+      vipType = 1; // 月度会员
+    }
+
+    // 获取支付方式：1=支付宝, 2=微信, 3=苹果
+    final payType = selectedPaymentMethod.value == 1 ? 1 : 2; // 0=微信(2), 1=支付宝(1)
+
+    
+
+    _logger.i('📊 上报支付埋点: vipType=$vipType, payType=$payType, payStatus=$payStatus, payDuration=$payDuration');
+
+    // 根据是否是会员设置按钮名称
+    final btnName = isVipStatus.value ? PayBtnValue.payLater : PayBtnValue.payNow;
+
+    // 调用埋点
+    AnalyticsHelper.trackMembershipPayBtn(
+      vipType: vipType,
+      payType: payType,
+      btnName: btnName,
+      payStatus: payStatus,
+      payDuration: payDuration,
+    );
+
+    // 🔥 如果是终身套餐（99元），额外上报 vip_page_99_pay_event 埋点
+    if (package.isForever) {
+      _track99PayEvent(package, payStatus: payStatus, payDuration: payDuration);
+    }
+  }
+
+  /// 上报99元支付事件埋点（终身套餐专用）
+  /// [package] 套餐信息
+  /// [payStatus] 支付状态：0=支付失败, 1=支付成功, 2=取消支付
+  /// [payDuration] 支付用时（秒）
+  void _track99PayEvent(VipPackageModel package, {required int payStatus, required int payDuration}) {
+    // 获取支付方式：1=支付宝, 2=微信, 3=苹果
+    final payType = selectedPaymentMethod.value == 1 ? 1 : 2; // 0=微信(2), 1=支付宝(1)
+
+    // 按钮名称
+    final btnName = package.title;
+
+    _logger.i('📊 上报99元支付埋点: payType=$payType, payStatus=$payStatus, btnName=$btnName, payDuration=$payDuration');
+
+    // 调用99元支付埋点
+    AnalyticsHelper.track99PayEvent(
+      vipType: 3, // 永久会员
+      payType: payType,
+      payStatus: payStatus,
+      btnName: btnName,
+      payDuration: payDuration,
+    );
   }
 }

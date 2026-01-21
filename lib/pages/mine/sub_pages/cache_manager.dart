@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 
@@ -145,22 +146,14 @@ class CacheManager {
   static Future<void> clearCache() async {
     try {
       // 显示确认对话框
-      final confirmed = await Get.dialog<bool>(
-        AlertDialog(
-          title: const Text('清除缓存'),
-          content: Text('确定要清除缓存吗？\n当前缓存大小：${cacheSize.value}\n\n将清除：\n• 临时文件\n• 图片缓存\n• 日志文件\n• 应用缓存'),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Get.back(result: true),
-              child: const Text('确定'),
-            ),
-          ],
-        ),
-      );
+      final confirmed = await DeleteLocationReminderDialogUtil.show(
+      onConfirm: () => Get.back(result: true),
+      onCancel: (){
+        //  return false;
+      },
+      title: '确认清除缓存',
+      content: '将清除本地图片等缓存信息',
+    ) ;
 
       if (confirmed != true) return;
 

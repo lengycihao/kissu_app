@@ -63,6 +63,20 @@ class AnalyticsEvent {
     return AnalyticsEvent.fromJson(jsonDecode(jsonString) as Map<String, dynamic>);
   }
 
+  /// 转换为上传接口需要的格式
+  /// 将 params 中的字段扁平化到顶层
+  Map<String, dynamic> toUploadJson() {
+    final result = <String, dynamic>{
+      'event_id': eventId,
+      'page_id': pageId,
+    };
+    
+    // 将 params 中的所有字段添加到顶层
+    result.addAll(params);
+    
+    return result;
+  }
+
   @override
   String toString() {
     return 'AnalyticsEvent(pageId: $pageId, eventId: $eventId, params: $params)';

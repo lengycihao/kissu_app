@@ -84,6 +84,10 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   // 埋点相关
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false;
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
 
   // Ta当前授权过的App列表
   var halfAuthorizedApps = <HalfAuthApp>[].obs;
@@ -137,6 +141,14 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   void onInit() {
     super.onInit();
     
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+    
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     
@@ -185,21 +197,34 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     });
   }
   
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: AppUseEvents.pageId,
+      eventId: AppUseEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
   @override
   void onClose() {
-    // 埋点：记录页面离开事件
-    if (_pageEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _pageEnterTime!;
-      
-      AnalyticsManager.instance.trackPageView(
-        pageId: AppUseEvents.pageId,
-        eventId: AppUseEvents.page,
-        enterTime: _pageEnterTime!,
-        duration: duration,
-        exitType: _exitType,
-      );
-    }
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
     
     // 移除生命周期监听，避免内存泄漏
     WidgetsBinding.instance.removeObserver(this);
@@ -216,7 +241,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
+    
+    // 埋点：切换到后台
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _exitType = ExitTypeValue.toBackground;
+      _trackPageExit(ExitTypeValue.toBackground);
+    } else if (state == AppLifecycleState.resumed) {
+      // 从后台返回，重置埋点状态
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+      
       // 稍微延迟，确保系统权限状态已更新
       Future.delayed(const Duration(milliseconds: 500), () async {
         await _checkPermission();

@@ -100,21 +100,33 @@ class ChatSettingsController extends GetxController {
 
   // 设置聊天背景 - 跳转到背景选择页面
   void setChatBackground() {
+    // 埋点：页面离开（进入下一页）
+    chatController.onNavigateToNextPage?.call();
+    
     Get.toNamed(KissuRoutePath.chatBackground);
   }
 
   // 设置聊天气泡 - 跳转到气泡选择页面
   void setChatBubbles() {
+    // 埋点：页面离开（进入下一页）
+    chatController.onNavigateToNextPage?.call();
+    
     Get.toNamed(KissuRoutePath.chatBubble);
   }
 
   // 设置自动报备消息 - 跳转到IM通知设置页面
   void setSensitiveInfo() {
+    // 埋点：页面离开（进入下一页）
+    chatController.onNavigateToNextPage?.call();
+    
     Get.toNamed(KissuRoutePath.imNotificationSettings);
   }
 
     // 设置聊天主题 - 跳转到主题选择页面
     void setChatTheme() {
+      // 埋点：页面离开（进入下一页）
+      chatController.onNavigateToNextPage?.call();
+      
       Get.toNamed(KissuRoutePath.chatTheme);
     }
 

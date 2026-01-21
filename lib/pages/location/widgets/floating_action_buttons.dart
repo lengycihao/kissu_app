@@ -71,6 +71,9 @@ class FloatingActionButtons extends StatelessWidget {
                     final hasSetStatus = controller.myFace.value != null && controller.myFace.value!.isValid;
                     AnalyticsHelper.trackLocationCurrentState(hasSet: hasSetStatus);
                     
+                    // 埋点：页面离开（进入下一页）
+                    controller.onNavigateToNextPage?.call();
+                    
                     Get.toNamed(KissuRoutePath.locationState);
                   },
                 ),
@@ -82,6 +85,9 @@ class FloatingActionButtons extends StatelessWidget {
                   onTap: () {
                     // 埋点：Ta的足迹按钮点击
                     AnalyticsHelper.trackLocationHerTrack();
+                    
+                    // 埋点：页面离开（进入下一页）
+                    controller.onNavigateToNextPage?.call();
                     
                     Get.toNamed(KissuRoutePath.track);
                   },

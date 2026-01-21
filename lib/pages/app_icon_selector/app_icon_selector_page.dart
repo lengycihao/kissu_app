@@ -3,9 +3,39 @@ import 'package:get/get.dart';
 import 'app_icon_selector_controller.dart';
 
 /// App图标选择页面
-class AppIconSelectorPage extends GetView<AppIconSelectorController> {
+class AppIconSelectorPage extends StatefulWidget {
   const AppIconSelectorPage({super.key});
 
+  @override
+  State<AppIconSelectorPage> createState() => _AppIconSelectorPageState();
+}
+
+class _AppIconSelectorPageState extends State<AppIconSelectorPage> with WidgetsBindingObserver {
+  late AppIconSelectorController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<AppIconSelectorController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +58,7 @@ class AppIconSelectorPage extends GetView<AppIconSelectorController> {
                 _buildAppBar(),
                 // 图标列表
                 Expanded(
-                  child: Obx(() => GridView.builder(
+                  child: GridView.builder(
                     padding: const EdgeInsets.all(16),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3, // 一行3个
@@ -39,10 +69,9 @@ class AppIconSelectorPage extends GetView<AppIconSelectorController> {
                     itemCount: controller.iconItems.length,
                     itemBuilder: (context, index) {
                       final item = controller.iconItems[index];
-                      final isSelected = controller.currentIcon.value == item.id;
-                      return _buildIconItem(item, isSelected);
+                      return _buildIconItem(item);
                     },
-                  )),
+                  ),
                 ),
               ],
             ),
@@ -112,7 +141,7 @@ class AppIconSelectorPage extends GetView<AppIconSelectorController> {
   }
 
   /// 构建图标项
-  Widget _buildIconItem(AppIconItem item, bool isSelected) {
+  Widget _buildIconItem(AppIconItem item) {
     return GestureDetector(
       onTap: () => controller.changeIcon(item.id, item.logoName),
       child: Column(
@@ -120,46 +149,49 @@ class AppIconSelectorPage extends GetView<AppIconSelectorController> {
           // 图标图片（带边框）- 正方形
           AspectRatio(
             aspectRatio: 1.0, // 1:1 正方形
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? const Color(0xFFFFA1DB) : Colors.transparent,
-                  width: 3,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(9),
-                    child: Image.asset(
-                      item.previewPath,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+            child: Obx(() {
+              final isSelected = controller.currentIcon.value == item.id;
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFFFFA1DB) : Colors.transparent,
+                    width: 3,
                   ),
-                  // 选中指示器
-                  if (isSelected)
-                    Positioned(
-                      bottom: 6,
-                      right: 6,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFA1DB),
-                          shape: BoxShape.circle,
-                        ),
-                        padding: const EdgeInsets.all(2),
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                ),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(9),
+                      child: Image.asset(
+                        item.previewPath,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
                       ),
                     ),
-                ],
-              ),
-            ),
+                    // 选中指示器
+                    if (isSelected)
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFA1DB),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(2),
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 8),
           // 图标名称（在边框外）
