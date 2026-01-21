@@ -125,9 +125,9 @@ flutter:
     - family: LiuHuanKaTongShouShu
       fonts:
         - asset: assets/font/LiuHuanKaTongShouShu.ttf
-    - family: Resource-Han-Rounded
-      fonts:
-        - asset: assets/font/Resource-Han-Rounded-CN.ttf
+    # - family: Resource-Han-Rounded
+    #   fonts:
+    #     - asset: assets/font/Resource-Han-Rounded-CN.ttf
     - family: AlimamaShuHeiTi
       fonts:
         - asset: assets/font/AlimamaShuHeiTi-Bold.ttf
