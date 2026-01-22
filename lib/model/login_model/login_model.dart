@@ -89,7 +89,7 @@ class LoginModel {
   String? cityName;
   @JsonKey(name: 'bind_status')
   @StringToIntConverter()
-  int? bindStatus;
+  String? bindStatus;
   @JsonKey(name: 'lately_bind_time')
   @StringToIntConverter()
   int? latelyBindTime;

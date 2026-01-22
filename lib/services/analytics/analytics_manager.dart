@@ -66,20 +66,28 @@ class AnalyticsManager extends GetxService {
     // 从本地恢复缓存的事件
     await _restoreFromLocal();
 
-    // 获取虚拟用户ID
-    await _initMockUserId();
+    // 🔒 隐私合规：不在初始化时获取OAID，等待用户同意隐私政策后再获取
+    // await _initMockUserId(); // 移除：OAID获取延迟到用户同意隐私政策后
 
     // 启动定时上报
     _startReportTimer();
 
     _isInitialized = true;
-    debugPrint('📊 AnalyticsManager 初始化完成');
+    debugPrint('📊 AnalyticsManager 初始化完成（OAID将在隐私政策同意后获取）');
   }
 
-  /// 初始化虚拟用户ID
-  Future<void> _initMockUserId() async {
+  /// 初始化虚拟用户ID（在用户同意隐私政策后调用）
+  /// 🔒 隐私合规：只有在用户同意隐私政策后才获取OAID
+  Future<void> initMockUserIdAfterPrivacyAgreed() async {
+    if (_mockUserId != null) {
+      debugPrint('📊 虚拟用户ID已存在，跳过获取');
+      return;
+    }
     try {
       _mockUserId = await OaidUtil.instance.getOaid();
+      if (_mockUserId != null) {
+        debugPrint('📊 虚拟用户ID获取成功（隐私政策同意后）');
+      }
     } catch (e) {
       debugPrint('❌ 获取虚拟用户ID失败: $e');
     }

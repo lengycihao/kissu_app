@@ -10,6 +10,7 @@ import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/utils/debug_util.dart'; 
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
@@ -264,7 +265,10 @@ class PrivacyComplianceManager extends GetxService {
       // 7. 启用敏感数据收集
       await _enableSensitiveDataCollection();
       
-      // 8. 通知其他服务隐私政策已同意
+      // 8. 🔒 隐私合规：初始化OAID（用于埋点虚拟用户ID）
+      await _enableOaidCollection();
+      
+      // 9. 通知其他服务隐私政策已同意
       _notifyPrivacyAgreement();
       
       if (kDebugMode) {
@@ -401,6 +405,24 @@ class PrivacyComplianceManager extends GetxService {
     } catch (e) {
       if (kDebugMode) {
         DebugUtil.error('OpenInstall服务初始化失败: $e');
+      }
+    }
+  }
+  
+  /// 🔒 隐私合规：初始化OAID收集（用于埋点虚拟用户ID）
+  /// 只有在用户同意隐私政策后才获取OAID
+  Future<void> _enableOaidCollection() async {
+    try {
+      if (Get.isRegistered<AnalyticsManager>()) {
+        final analyticsManager = Get.find<AnalyticsManager>();
+        await analyticsManager.initMockUserIdAfterPrivacyAgreed();
+        if (kDebugMode) {
+          DebugUtil.success('OAID收集已启用（隐私政策同意后）');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('启用OAID收集失败: $e');
       }
     }
   }

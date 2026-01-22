@@ -27,7 +27,7 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
   uniqueId: json['unique_id'] as String?,
   provinceName: json['province_name'] as String?,
   cityName: json['city_name'] as String?,
-  bindStatus: const StringToIntConverter().fromJson(json['bind_status']),
+  bindStatus: json['bind_status'] as String?,
   latelyBindTime: const StringToIntConverter().fromJson(
     json['lately_bind_time'],
   ),
@@ -90,7 +90,7 @@ Map<String, dynamic> _$LoginModelToJson(
   'unique_id': instance.uniqueId,
   'province_name': instance.provinceName,
   'city_name': instance.cityName,
-  'bind_status': const StringToIntConverter().toJson(instance.bindStatus),
+  'bind_status': instance.bindStatus,
   'lately_bind_time': const StringToIntConverter().toJson(
     instance.latelyBindTime,
   ),
