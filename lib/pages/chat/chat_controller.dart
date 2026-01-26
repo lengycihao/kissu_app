@@ -47,6 +47,9 @@ class ChatController extends GetxController {
   // 聊天主题（1-4，默认1）
   final RxInt chatTheme = 1.obs;
 
+  // 敏感消息折叠开关（默认关闭）
+  final RxBool sensitiveCollapseEnabled = false.obs;
+
   // 顶部“对方正在输入”提示
   final RxBool isPartnerTyping = false.obs;
 
@@ -286,9 +289,12 @@ class ChatController extends GetxController {
     _isLoadingHistory = true;
 
     try {
+      // 初始加载时拉取更多消息（50条），避免折叠后消息不够一屏幕
+      // 后续分页加载保持20条
+      final fetchCount = initialLoad ? 50 : 30;
       final res = await im.getC2CHistoryMessages(
         userID: partnerId,
-        count: 20,
+        count: fetchCount,
         lastMsgID: _lastHistoryMsgId,
       );
 
@@ -343,6 +349,8 @@ class ChatController extends GetxController {
         if (initialLoad) {
           // 首次加载后滚动到底部，显示最新消息
           _scrollToBottomWithDelay();
+          // 检查内容是否不够一屏幕，如果不够则继续加载更多
+          _checkAndLoadMoreIfNeeded();
         }
       } else {
         // 说明已经没有更旧的消息
@@ -353,6 +361,25 @@ class ChatController extends GetxController {
     } finally {
       _isLoadingHistory = false;
     }
+  }
+
+  /// 检查内容是否不够一屏幕，如果不够则继续加载更多历史消息
+  void _checkAndLoadMoreIfNeeded() {
+    // 延迟执行，等待ListView渲染完成
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!scrollController.hasClients || !_hasMoreHistory) return;
+      
+      final pos = scrollController.position;
+      // 如果maxScrollExtent很小（内容不够一屏幕），继续加载更多
+      // reverse:true时，maxScrollExtent是可滚动的最大距离
+      if (pos.maxScrollExtent < 100) {
+        logDebug('💬 内容不够一屏幕，自动加载更多历史消息');
+        _loadMoreHistoryMessages().then((_) {
+          // 递归检查，直到内容够一屏幕或没有更多历史
+          _checkAndLoadMoreIfNeeded();
+        });
+      }
+    });
   }
 
   // 从缓存加载背景
@@ -395,6 +422,13 @@ class ChatController extends GetxController {
       await SpUtil.putInteger('chat_theme', 1);
       logDebug('💬 使用默认主题: 1');
     }
+  }
+
+  // 从缓存加载敏感消息折叠开关状态
+  Future<void> _loadSensitiveCollapseFromCache() async {
+    final enabled = await SpUtil.getBool('sensitive_collapse_enabled', false);
+    sensitiveCollapseEnabled.value = enabled;
+    logDebug('💬 加载敏感消息折叠开关状态: $enabled');
   }
 
   // 更新气泡样式（由 ChatBubbleController 调用）
@@ -499,6 +533,7 @@ class ChatController extends GetxController {
     _loadBackgroundFromCache();
     _loadBubbleStyleFromCache();
     _loadThemeFromCache();
+    _loadSensitiveCollapseFromCache();
     // 进入聊天页面时，将未读消息数清零
     try {
       final im = TencentIMService.instance;

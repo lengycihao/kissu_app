@@ -5,6 +5,7 @@ import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/network/utils/sp_util.dart';
 
 class ChatSettingsController extends GetxController {
   // 获取聊天控制器实例
@@ -15,6 +16,9 @@ class ChatSettingsController extends GetxController {
   
   // 是否正在编辑昵称
   final RxBool isEditingNickname = false.obs;
+  
+  // 是否开启敏感消息折叠
+  final RxBool isSensitiveCollapseEnabled = false.obs;
   
   // 昵称编辑控制器
   final TextEditingController nicknameController = TextEditingController();
@@ -29,6 +33,9 @@ class ChatSettingsController extends GetxController {
     currentNickname.value = chatController.chatName.value;
     nicknameController.text = currentNickname.value;
     
+    // 从本地加载敏感消息折叠开关状态
+    _loadSensitiveCollapseState();
+    
     // 监听焦点变化
     nicknameFocusNode.addListener(() {
       if (!nicknameFocusNode.hasFocus && isEditingNickname.value) {
@@ -36,6 +43,15 @@ class ChatSettingsController extends GetxController {
         saveNickname();
       }
     });
+  }
+  
+  // 从本地加载敏感消息折叠开关状态
+  Future<void> _loadSensitiveCollapseState() async {
+    final enabled = await SpUtil.getBool('sensitive_collapse_enabled', false);
+    isSensitiveCollapseEnabled.value = enabled;
+    // 同步到聊天控制器
+    chatController.sensitiveCollapseEnabled.value = enabled;
+    logDebug('💬 加载敏感消息折叠开关状态: $enabled');
   }
 
   @override
@@ -128,6 +144,16 @@ class ChatSettingsController extends GetxController {
       chatController.onNavigateToNextPage?.call();
       
       Get.toNamed(KissuRoutePath.chatTheme);
+    }
+
+    // 切换敏感消息折叠开关状态
+    void toggleSensitiveCollapse() {
+      isSensitiveCollapseEnabled.value = !isSensitiveCollapseEnabled.value;
+      // 保存到本地
+      SpUtil.putBool('sensitive_collapse_enabled', isSensitiveCollapseEnabled.value);
+      // 同步到聊天控制器
+      chatController.sensitiveCollapseEnabled.value = isSensitiveCollapseEnabled.value;
+      logDebug('💬 切换敏感消息折叠开关: ${isSensitiveCollapseEnabled.value}');
     }
 
     // 举报对方 - 跳转到举报页面

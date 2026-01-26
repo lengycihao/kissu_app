@@ -412,6 +412,33 @@ class HomeAvatarSection extends StatelessWidget {
                       ),
                     );
                   }),
+                  
+                  SizedBox(height: 6),
+                  // 188打卡入口
+                  GestureDetector(
+                    onTap: () {
+                      // 埋点：首页离开（进入下一页）
+                      controller.trackHomePageExitFromWidget();
+                      Get.toNamed(KissuRoutePath.checkIn188);
+                    },
+                    child: Column(
+                      children: [
+                        Image.asset(
+                          "assets/188/kissu_188_notice_icon.webp",
+                          width: 44,
+                          height: 44,
+                        ),
+                        Text(
+                          "188打卡",
+                          style: TextStyle(
+                            color: Color(0xff333333),
+                            fontSize: 12,
+                            fontFamily: "LiuHuanKaTongShouShu",
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

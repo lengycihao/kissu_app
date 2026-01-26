@@ -2,7 +2,7 @@ class AppConfigN {
   /// 服务环境
   /// 测试环境:true
   /// 生产环境:false
-  static const serverEnvironmentTest = false;
+  static const serverEnvironmentTest = true;
 
 
   // 生产环境加密，测试环境不加密

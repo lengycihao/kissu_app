@@ -50,4 +50,9 @@ class KissuRoutePath {
   static const chatBubble = '/kisssu_app/chat_bubble';
   static const chatTheme = '/kisssu_app/chat_theme';
   static const imNotificationSettings = '/kisssu_app/im_notification_settings';
+  static const checkIn188 = '/kisssu_app/check_in_188';
+  static const checkIn188Progress = '/kisssu_app/check_in_188_progress';
+  static const checkIn188RecoveryCard = '/kisssu_app/check_in_188_recovery_card';
+  static const checkIn188CardLog = '/kisssu_app/check_in_188_card_log';
+  static const checkIn188Activity = '/kisssu_app/check_in_188_activity';
 }

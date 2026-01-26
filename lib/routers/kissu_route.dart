@@ -56,6 +56,16 @@ import 'package:kissu_app/pages/chat/chat_theme_page.dart';
 import 'package:kissu_app/pages/chat/chat_theme_binding.dart';
 import 'package:kissu_app/pages/chat/im_notification_settings/im_notification_settings_page.dart';
 import 'package:kissu_app/pages/chat/im_notification_settings/im_notification_settings_binding.dart';
+import 'package:kissu_app/pages/check_in_188/check_in_188_page.dart';
+import 'package:kissu_app/pages/check_in_188/check_in_188_binding.dart';
+import 'package:kissu_app/pages/check_in_188/check_in_188_progress_page.dart';
+import 'package:kissu_app/pages/check_in_188/check_in_188_progress_binding.dart';
+import 'package:kissu_app/pages/check_in_188/views/check_in_188_recovery_card_page.dart';
+import 'package:kissu_app/pages/check_in_188/views/check_in_188_recovery_card_binding.dart';
+import 'package:kissu_app/pages/check_in_188/views/check_in_188_card_log_page.dart';
+import 'package:kissu_app/pages/check_in_188/views/check_in_188_card_log_binding.dart';
+import 'package:kissu_app/pages/check_in_188/views/check_in_188_activity_page.dart';
+import 'package:kissu_app/pages/check_in_188/views/check_in_188_activity_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -314,6 +324,36 @@ class KissuRoute {
     //   transition: Transition.cupertino, // 配置过渡动画
     //   binding: WebViewBinding(),
     // ),
+    GetPage(
+      name: KissuRoutePath.checkIn188,
+      page: () => const CheckIn188Page(),
+      binding: CheckIn188Binding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.checkIn188Progress,
+      page: () => const CheckIn188ProgressPage(),
+      binding: CheckIn188ProgressBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.checkIn188RecoveryCard,
+      page: () => const CheckIn188RecoveryCardPage(),
+      binding: CheckIn188RecoveryCardBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.checkIn188CardLog,
+      page: () => const CheckIn188CardLogPage(),
+      binding: CheckIn188CardLogBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.checkIn188Activity,
+      page: () => const CheckIn188ActivityPage(),
+      binding: CheckIn188ActivityBinding(),
+      transition: Transition.rightToLeft,
+    ),
   ];
 }
 

@@ -105,6 +105,16 @@ android {
         }
     }
 
+    // ABI分包配置 - 按CPU架构分包，显著减小单个APK体积
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a")  // 只保留主流架构
+            isUniversalApk = true  // 同时生成通用包
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             // 如果本地存在正式签名文件，则复用；否则使用系统默认 debug 签名

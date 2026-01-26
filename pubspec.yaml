@@ -86,7 +86,6 @@ dependencies:
     path: plugins/ping_discover_network_forked-0.0.1
   # Intl for date formatting
   intl: ^0.20.2
-  shimmer: ^3.0.0  # Shimmer 加载动画效果
   # 腾讯IM SDK
   tencent_cloud_chat_sdk: ^8.2.6325
   # fl_chart: ^0.69.0  # 专业图表库
@@ -148,3 +147,4 @@ flutter:
     - assets/home/
     - assets/json/
     - assets/setting/
+    - assets/188/

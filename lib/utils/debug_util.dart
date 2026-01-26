@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-
+import 'package:kissu_app/network/tools/logging/logging.dart';
+ 
 /// 调试工具类
 /// 提供统一的调试输出接口，在发布版本中自动禁用
 class DebugUtil {
@@ -23,7 +24,8 @@ class DebugUtil {
   /// 只在调试模式下输出，发布版本中会被自动移除
   static void error(Object? message) {
     if (kDebugMode) {
-      debugPrint('ERROR: ${message?.toString()}');
+      // debugPrint('ERROR: ${message?.toString()}');
+      logError('${message?.toString()}',tag: 'ERROR');
     }
   }
 
@@ -37,7 +39,8 @@ class DebugUtil {
   /// 只在调试模式下输出，发布版本中会被自动移除
   static void warning(Object? message) {
     if (kDebugMode) {
-      debugPrint('WARNING: ${message?.toString()}');
+      // debugPrint('WARNING: ${message?.toString()}');
+      logWarning('${message?.toString()}',tag: 'WARNING');
     }
   }
 

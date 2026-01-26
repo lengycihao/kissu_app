@@ -250,15 +250,14 @@ class AnalyticsManager extends GetxService {
     final user = UserManager.currentUser;
     if (user == null) return BindStatusValue.notBound;
     
-    // bindStatus 现在是 int? 类型
-    final bindStatus = user.bindStatus ?? 0;
-    
-    // 根据状态值返回对应的枚举
+    // bindStatus 是 String? 类型，需要转换为 int 进行比较
     // 0 = 未绑定, 1 = 已绑定, 2 = 已解绑
-    switch (bindStatus) {
-      case 1:
+    final bindStatusStr = user.bindStatus?.toString() ?? '0';
+    
+    switch (bindStatusStr) {
+      case '1':
         return BindStatusValue.bound;
-      case 2:
+      case '2':
         return BindStatusValue.unbound;
       default:
         return BindStatusValue.notBound;

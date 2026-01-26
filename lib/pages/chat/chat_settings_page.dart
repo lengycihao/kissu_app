@@ -16,7 +16,9 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
 
   PreferredSizeWidget _buildAppBar() {
     return PreferredSize(
-      preferredSize: Size.fromHeight(44 + MediaQuery.of(Get.context!).padding.top),
+      preferredSize: Size.fromHeight(
+        44 + MediaQuery.of(Get.context!).padding.top,
+      ),
       child: Container(
         height: 44 + MediaQuery.of(Get.context!).padding.top,
         color: Colors.white,
@@ -76,36 +78,45 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
         children: [
           // 修改昵称
           _buildNicknameItem(),
-        
+
           // 设置聊天背景
           _buildSettingItem(
             title: '设置聊天背景',
             onTap: controller.setChatBackground,
             showArrow: true,
-          ), 
+          ),
           // 设置聊天气泡
           _buildSettingItem(
             title: '设置聊天气泡',
             onTap: controller.setChatBubbles,
             showArrow: true,
-          ), 
+          ),
           // 敏感信息
           _buildSettingItem(
             title: '设置自动报备消息',
             // subtitle: '可设置聊天页面中敏恋信息展示/隐藏',
             onTap: controller.setSensitiveInfo,
             showArrow: true,
-          ), 
+          ),
           // 设置聊天主题
           _buildSettingItem(
             title: '设置聊天主题',
             onTap: controller.setChatTheme,
             showArrow: true,
           ),
-
+          // 收起敏感消息
+          Obx(() => _buildSettingItem(
+            title: '收起敏感消息',
+            onTap: () {},
+            subtitle: '连续超3条已读敏感信息，将自动收起',
+            switchOnTap: controller.toggleSensitiveCollapse,
+            showSwitch: true,
+            isEnabled: controller.isSensitiveCollapseEnabled.value,
+            showArrow: false,
+          )),
           // 设置聊天主题
           _buildSettingItem(
-            title: '举报对方',
+            title: '举报用户',
             onTap: controller.reportPartner,
             showArrow: true,
           ),
@@ -118,6 +129,9 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
     required String title,
     String? subtitle,
     Widget? trailing,
+    bool showSwitch = false,
+    bool isEnabled = false,
+    VoidCallback? switchOnTap,
     required VoidCallback onTap,
     required bool showArrow,
   }) {
@@ -135,42 +149,54 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
                     title,
                     style: const TextStyle(
                       color: Color(0xcc000000),
-                      fontSize:13,
+                      fontSize: 13,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  
                 ],
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 12),
-              trailing,
-            ],
-           Row(
-            children: [
-               if (subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0x99000000),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                      ),
+            if (trailing != null) ...[const SizedBox(width: 12), trailing],
+            Row(
+              children: [
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0x99000000),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
                     ),
-                  ],
-            if (showArrow) ...[
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF999999),
-                size: 20,
-              ),
-            ],
-            ],
-           )
-            
+                  ),
+                ],
+                if (showArrow) ...[
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFF999999),
+                    size: 20,
+                  ),
+                ],
+                if (showSwitch) ...[
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: switchOnTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Image.asset(
+                      isEnabled
+                          ? "assets/4.0/kissu4_setting_switch_open.webp"
+                          : "assets/4.0/kissu4_setting_switch_close.webp",
+                      width: 38,
+                      height: 20,
+                      gaplessPlayback: true,
+                      cacheWidth: 76,
+                      cacheHeight: 40,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
@@ -195,40 +221,44 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
               ),
             ),
             const SizedBox(width: 12),
-            Obx(() => controller.isEditingNickname.value
-                ? SizedBox(
-                    width: 120,
-                    child: TextField(
-                      controller: controller.nicknameController,
-                      focusNode: controller.nicknameFocusNode,
+            Obx(
+              () => controller.isEditingNickname.value
+                  ? SizedBox(
+                      width: 120,
+                      child: TextField(
+                        controller: controller.nicknameController,
+                        focusNode: controller.nicknameFocusNode,
+                        style: const TextStyle(
+                          color: Color(0x99000000),
+                          fontSize: 11,
+                        ),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Color(0xffBA92FD)),
+                          ),
+                        ),
+                        onSubmitted: (_) => controller.saveNickname(),
+                      ),
+                    )
+                  : Text(
+                      controller.currentNickname.value,
                       style: const TextStyle(
                         color: Color(0x99000000),
                         fontSize: 11,
                       ),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFFE0E0E0)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xffBA92FD)),
-                        ),
-                      ),
-                      onSubmitted: (_) => controller.saveNickname(),
                     ),
-                  )
-                : Text(
-                    controller.currentNickname.value,
-                    style: const TextStyle(
-                      color: Color(0x99000000),
-                      fontSize: 11,
-                    ),
-                  )),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
