@@ -246,7 +246,16 @@ class HomeAvatarSection extends StatelessWidget {
                                   // 埋点：首页离开（进入下一页）
                                   controller.trackHomePageExitFromWidget();
                                   
-                                  // 跳转到会员页面
+                                  // 🔥 未绑定时先弹出绑定弹窗
+                                  if (!controller.isBound.value) {
+                                    CustomBottomDialog.show(
+                                      context: context,
+                                      caller: SourcePageUtilsCaller.home,
+                                    );
+                                    return;
+                                  }
+                                  
+                                  // 已绑定：跳转到会员页面
                                   Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home,});
                                 },
                                 child: Image.asset(

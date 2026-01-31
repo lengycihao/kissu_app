@@ -5,11 +5,13 @@ import 'package:get/get.dart';
 class CheckIn188RetentionDialog extends StatelessWidget {
   final VoidCallback onJoinNow;
   final VoidCallback onNextTime;
+  final VoidCallback onBack;
 
   const CheckIn188RetentionDialog({
     super.key,
     required this.onJoinNow,
     required this.onNextTime,
+    required this.onBack,
   });
 
   @override
@@ -113,7 +115,7 @@ class CheckIn188RetentionDialog extends StatelessWidget {
                     const SizedBox(height: 12),
                     // 下次再说按钮
                     GestureDetector(
-                      onTap: onNextTime,
+                      onTap: onBack,
                       child: const Text(
                         '下次再说',
                         style: TextStyle(
@@ -164,6 +166,10 @@ class CheckIn188RetentionDialog extends StatelessWidget {
           onJoinNow();
         },
         onNextTime: () {
+          Get.back(result: false);
+        },
+        onBack: () {
+          Get.back(result: false);
           Get.back(result: false);
         },
       ),

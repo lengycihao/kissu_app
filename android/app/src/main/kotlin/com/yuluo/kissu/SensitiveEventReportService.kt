@@ -20,6 +20,10 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 原生敏感事件上报服务（锁屏/解锁）
@@ -33,6 +37,7 @@ class SensitiveEventReportService(private val context: Context) {
 
     companion object {
         private const val TAG = "SensitiveEventReport"
+        private const val NATIVE_LOG_TAG = "NativeSensitiveEvent"
 
         // SharedPreferences 名称与键，与 AppUsageReportService 保持一致
         private const val PREF_NAME = "kissu_preferences"
@@ -91,7 +96,7 @@ class SensitiveEventReportService(private val context: Context) {
                 val userId = sharedPreferences.getString(KEY_USER_ID, null)
 
                 if (token.isNullOrEmpty() || baseUrl.isNullOrEmpty()) {
-                    Log.w(TAG, "Token 或 BaseUrl 为空，无法上报敏感事件")
+                    logWarning("Token 或 BaseUrl 为空，无法上报敏感事件")
                     return@launch
                 }
 
@@ -107,15 +112,15 @@ class SensitiveEventReportService(private val context: Context) {
                 )
 
                 if (success) {
-                    Log.d(TAG, "✅ 原生敏感事件上报成功: eventType=$eventType")
+                    logInfo("✅ 原生敏感事件上报成功", extra = mapOf("eventType" to eventType))
                 } else {
-                    Log.w(TAG, "❌ 原生敏感事件上报失败: eventType=$eventType")
+                    logWarning("❌ 原生敏感事件上报失败", extra = mapOf("eventType" to eventType))
                     if (retryIfFailed) {
                         scheduleRetry(eventType, extMap, extraHeaders, forceNative)
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "💥 原生敏感事件上报异常: ${e.message}", e)
+                logError("💥 原生敏感事件上报异常", extra = mapOf("error" to (e.message ?: "unknown"), "eventType" to eventType))
                 if (retryIfFailed) {
                     scheduleRetry(eventType, extMap, extraHeaders, forceNative)
                 }
@@ -141,7 +146,7 @@ class SensitiveEventReportService(private val context: Context) {
                     forceNative = forceNative
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "重试敏感事件上报调度失败: ${e.message}", e)
+                logError("重试敏感事件上报调度失败", extra = mapOf("error" to (e.message ?: "unknown")))
             }
         }
     }
@@ -263,7 +268,7 @@ class SensitiveEventReportService(private val context: Context) {
 
             false
         } catch (e: Exception) {
-            Log.e(TAG, "💥 发送敏感事件请求异常", e)
+            logError("💥 发送敏感事件请求异常", extra = mapOf("error" to (e.message ?: "unknown")))
             false
         } finally {
             connection?.disconnect()
@@ -341,7 +346,7 @@ class SensitiveEventReportService(private val context: Context) {
             val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             prefs.getBoolean("flutter.privacy_policy_agreed", false)
         } catch (e: Exception) {
-            Log.w(TAG, "检查隐私政策状态失败", e)
+            logWarning("检查隐私政策状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
             false // 默认返回 false，确保合规
         }
     }
@@ -353,7 +358,6 @@ class SensitiveEventReportService(private val context: Context) {
     private fun getDeviceId(): String {
         // 🔥 关键修复：检查隐私政策是否已同意
         if (!isPrivacyPolicyAgreed()) {
-            Log.d(TAG, "用户未同意隐私政策，返回降级设备ID")
             return "privacy_not_agreed_${System.currentTimeMillis()}"
         }
         
@@ -363,7 +367,7 @@ class SensitiveEventReportService(private val context: Context) {
                 android.provider.Settings.Secure.ANDROID_ID
             ) ?: "unknown"
         } catch (e: Exception) {
-            Log.e(TAG, "获取设备ID失败", e)
+            logError("获取设备ID失败", extra = mapOf("error" to (e.message ?: "unknown")))
             "unknown"
         }
     }
@@ -409,7 +413,7 @@ class SensitiveEventReportService(private val context: Context) {
             }
             "none"
         } catch (e: Exception) {
-            Log.e(TAG, "获取网络头部信息失败: ${e.message}", e)
+            logError("获取网络头部信息失败", extra = mapOf("error" to (e.message ?: "unknown")))
             "unknown"
         }
     }
@@ -420,7 +424,7 @@ class SensitiveEventReportService(private val context: Context) {
             val level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
             if (level >= 0) level.toString() else "100"
         } catch (e: Exception) {
-            Log.e(TAG, "获取电量信息失败: ${e.message}", e)
+            logError("获取电量信息失败", extra = mapOf("error" to (e.message ?: "unknown")))
             "100"
         }
     }
@@ -437,7 +441,7 @@ class SensitiveEventReportService(private val context: Context) {
             ) == PackageManager.PERMISSION_GRANTED
             if (fineGranted || coarseGranted) "1" else "0"
         } catch (e: Exception) {
-            Log.e(TAG, "获取定位权限状态失败: ${e.message}", e)
+            logError("获取定位权限状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
             "0"
         }
     }
@@ -452,6 +456,65 @@ class SensitiveEventReportService(private val context: Context) {
         // 由于OAID获取需要异步回调，原生代码中实现较复杂
         // 建议通过SharedPreferences存储Flutter层获取的OAID，或通过extraHeaders传递
         return null
+    }
+    
+    // ================================
+    // 🔥 原生层文件日志功能
+    // ================================
+    
+    private fun writeNativeLog(
+        level: String,
+        message: String,
+        extra: Map<String, Any?>? = null
+    ) {
+        try {
+            // 使用与 Flutter 层相同的日志目录：filesDir/logs（对应 getApplicationSupportDirectory()/logs）
+            val logDir = File(context.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.US)
+            val now = Date()
+            val fileName = "${dateFormat.format(now)}_app.log"
+            val logFile = File(logDir, fileName)
+            
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
+            val timestamp = isoFormat.format(now)
+            
+            val logEntry = org.json.JSONObject().apply {
+                put("timestamp", timestamp)
+                put("level", level)
+                put("tag", NATIVE_LOG_TAG)
+                put("message", message)
+                extra?.let {
+                    val extraJson = org.json.JSONObject()
+                    it.forEach { (key, value) ->
+                        extraJson.put(key, value ?: org.json.JSONObject.NULL)
+                    }
+                    put("extra", extraJson)
+                }
+            }
+            
+            logFile.appendText(logEntry.toString() + "\n")
+        } catch (e: Exception) {
+            Log.e(TAG, "写入原生日志失败", e)
+        }
+    }
+    
+    private fun logInfo(message: String, extra: Map<String, Any?>? = null) {
+        Log.d(TAG, message)
+        writeNativeLog("INFO", message, extra)
+    }
+    
+    private fun logWarning(message: String, extra: Map<String, Any?>? = null) {
+        Log.w(TAG, message)
+        writeNativeLog("WARNING", message, extra)
+    }
+    
+    private fun logError(message: String, extra: Map<String, Any?>? = null) {
+        Log.e(TAG, message)
+        writeNativeLog("ERROR", message, extra)
     }
 }
 

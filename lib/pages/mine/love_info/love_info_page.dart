@@ -10,7 +10,9 @@ class LoveInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LoveInfoController(), permanent: true);
+    // 🔥 修复：移除 permanent: true，确保每次进入页面都会重新初始化控制器
+    // 这样 onInit 会被调用，从而刷新数据
+    final controller = Get.put(LoveInfoController());
 
     Widget buildDefaultAvatar(double radius) {
       return Container(

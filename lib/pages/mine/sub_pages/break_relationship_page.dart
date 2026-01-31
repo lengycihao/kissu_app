@@ -30,11 +30,11 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
 
   // 解绑须知文案常量，避免每次构建时重复创建列表
   static const List<String> _unbindNotices = [
-    '清空188打卡记录',
     '清空双方聊天记录',
     '清空双方足迹记录',
     '会员权益（未购买方）失效',
     '清空双方用机记录（手机记录、App记录、敏感信息）',
+    '「188打卡活动」仅对本次配对中有效，解除关系后双方将失去参与「188打卡活动」资格，同时会清空188打卡记录'
   ];
 
   @override
@@ -318,7 +318,7 @@ class _BreakRelationshipPageState extends State<BreakRelationshipPage> {
               '${index + 1}、',
               style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
             ),
-            const SizedBox(width: 8),
+            // const SizedBox(width: 8),
             Expanded(
               child: Text(
                 notice,

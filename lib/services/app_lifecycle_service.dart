@@ -4,6 +4,8 @@ import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/services/screen_lock_service.dart';
 
 /// 应用生命周期服务
 class AppLifecycleService extends GetxService with WidgetsBindingObserver {
@@ -91,6 +93,12 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     // 检查通知权限变化
     _checkNotificationPermissionChange();
     
+    // 🔥 新增：检查并确保 IM 登录状态
+    _ensureIMLoginStatus();
+    
+    // 🔥 新增：检查并确保锁屏监听服务正常运行
+    _ensureScreenLockListening();
+    
     try {
       final simpleLocationService = SimpleLocationService.instance;
       if (simpleLocationService.isLocationEnabled.value) {
@@ -100,6 +108,38 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('❌ 前台策略优化失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：确保 IM 登录状态
+  Future<void> _ensureIMLoginStatus() async {
+    try {
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = Get.find<TencentIMService>();
+        await imService.ensureIMLoginStatus();
+      }
+    } catch (e) {
+      debugPrint('❌ 检查IM登录状态失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：确保锁屏监听服务正常运行
+  void _ensureScreenLockListening() {
+    try {
+      if (Get.isRegistered<ScreenLockService>()) {
+        final screenLockService = Get.find<ScreenLockService>();
+        final status = screenLockService.getServiceStatus();
+        
+        // 如果服务未初始化或订阅已丢失，重新启动监听
+        if (status['isInitialized'] != true || status['hasSubscription'] != true) {
+          debugPrint('🔒 锁屏监听服务状态异常，尝试重新启动...');
+          screenLockService.startListening();
+        } else {
+          debugPrint('🔒 锁屏监听服务运行正常');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 检查锁屏监听服务失败: $e');
     }
   }
   

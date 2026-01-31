@@ -36,6 +36,11 @@ import com.amap.api.location.AMapLocationListener
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.TimeUnit
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import org.json.JSONObject
 
 /**
  * 前台定位服务
@@ -48,6 +53,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     
     companion object {
         private const val TAG = "ForegroundLocationService"
+        private const val NATIVE_LOG_TAG = "NativeKeepAlive"
         private const val DEFAULT_NOTIFICATION_ID = 1001
         private const val DEFAULT_CHANNEL_ID = "kissu_location_service"
         
@@ -155,6 +161,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "前台定位服务创建")
+        logInfo("🚀 原生前台定位服务创建")
         // ⚡ 关键修复：onCreate 中不做任何耗时操作，避免5秒超时
         // 所有初始化将在 onStartCommand 中的 startForeground() 之后进行
     }
@@ -231,6 +238,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 startAppUsageReporting()
                 
                 Log.d(TAG, "前台定位服务已恢复（else分支）")
+                logInfo("🔄 原生前台定位服务已恢复（系统重启/被杀后恢复）")
             }
         }
         
@@ -278,10 +286,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     Log.d(TAG, "WakeLock 已立即获取（服务启动时）")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "立即获取 WakeLock 失败", e)
+                logError("立即获取 WakeLock 失败", extra = mapOf("error" to (e.message ?: "unknown")))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "创建 WakeLock 失败", e)
+            logError("创建 WakeLock 失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
         
         // 🔥 初始化定位上报服务（先释放旧的，防止 Binder 泄漏）
@@ -305,7 +313,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             appUsageReportService = AppUsageReportService(this)
             Log.d(TAG, "App使用记录上报服务初始化成功")
         } catch (e: Exception) {
-            Log.e(TAG, "初始化App使用记录上报服务失败", e)
+            logError("初始化App使用记录上报服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
 
         // 🔥 初始化敏感事件上报服务（锁屏/解锁）（先释放旧的，防止 Binder 泄漏）
@@ -327,7 +335,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             registerChargingReceiver()
             Log.d(TAG, "敏感事件上报服务初始化成功")
         } catch (e: Exception) {
-            Log.e(TAG, "初始化敏感事件上报服务失败", e)
+            logError("初始化敏感事件上报服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
         
         // 🔥 初始化原生定位客户端
@@ -346,7 +354,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 startScreenOffKeepAlive()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "检查屏幕状态失败", e)
+            logError("检查屏幕状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -357,7 +365,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     override fun onDestroy() {
         super.onDestroy()
         
-        Log.w(TAG, "⚠️ 前台定位服务被销毁，尝试自恢复")
+         logWarning("⚠️ 原生前台定位服务被销毁，尝试自恢复")
         
         // 🔥 停止定位监听（会释放 locationClient）
         stopLocationTracking()
@@ -369,7 +377,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             sensitiveEventReportService = null
             Log.d(TAG, "已释放所有上报服务")
         } catch (e: Exception) {
-            Log.e(TAG, "释放上报服务失败", e)
+            logWarning("释放上报服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
         
         // 🔥 停止健康检查
@@ -400,7 +408,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
             // 注意：不设置为 null，因为重启时可能需要重新获取
         } catch (e: Exception) {
-            Log.e(TAG, "释放 WakeLock 失败", e)
+            logError("释放 WakeLock 失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
         
         // 无论是否打算重启，先同步运行状态，避免 Flutter 层误判
@@ -419,7 +427,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.w(TAG, "⚠️ 应用任务被移除，尝试重启服务")
+         logWarning("⚠️ 应用任务被移除（用户上滑清理），尝试重启服务")
         
         scheduleRestart(reason = "onTaskRemoved")
         scheduleWorkRestart(reason = "onTaskRemoved")
@@ -519,7 +527,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     val serviceType = if (hasLocationPerms) {
                         android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
                     } else {
-                        Log.w(TAG, "⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（默认通知）")
+                        logWarning("⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（默认通知）")
                         android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                     }
                     startForeground(DEFAULT_NOTIFICATION_ID, defaultNotification, serviceType)
@@ -529,7 +537,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 isServiceRunning = true
                 Log.d(TAG, "⚡ 使用默认通知启动前台服务")
             } catch (e2: Exception) {
-                Log.e(TAG, "创建默认前台通知也失败", e2)
+                logError("创建默认前台通知也失败", extra = mapOf("error" to (e2.message ?: "unknown")))
                 // 🔥 最后兜底：即使所有通知创建都失败，也必须调用 startForeground() 避免崩溃
                 try {
                     val emergencyNotification = NotificationCompat.Builder(this, DEFAULT_CHANNEL_ID)
@@ -543,7 +551,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         val serviceType = if (hasLocationPerms) {
                             android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
                         } else {
-                            Log.w(TAG, "⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（紧急通知）")
+                            logWarning("⚠️ 定位权限不足，使用 DATA_SYNC 类型启动前台服务（紧急通知）")
                             android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                         }
                         startForeground(DEFAULT_NOTIFICATION_ID, emergencyNotification, serviceType)
@@ -553,7 +561,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     isServiceRunning = true
                     Log.d(TAG, "⚡ 使用紧急通知启动前台服务（避免崩溃）")
                 } catch (e3: Exception) {
-                    Log.e(TAG, "紧急通知也失败，服务可能崩溃", e3)
+                    logError("紧急通知也失败，服务可能崩溃", extra = mapOf("error" to (e3.message ?: "unknown")))
                     // 如果连紧急通知都失败，只能抛出异常
                     throw e3
                 }
@@ -601,12 +609,12 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "获取 WakeLock 失败", e)
+                logError("获取 WakeLock 失败", extra = mapOf("error" to (e.message ?: "unknown")))
             }
             
             // 🔥 确保组件已初始化（防止服务已存在但组件丢失的情况）
             if (locationClient == null || locationReportService == null) {
-                Log.w(TAG, "检测到组件丢失，重新初始化")
+                logWarning("检测到组件丢失，重新初始化")
                 initializeServiceComponents()
             }
             
@@ -619,10 +627,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             // 🔥 启动App使用记录上报
             startAppUsageReporting()
             
-            Log.d(TAG, "前台定位服务启动成功")
+             logInfo("✅ 原生前台定位服务启动成功")
             
         } catch (e: Exception) {
-            Log.e(TAG, "启动前台服务失败", e)
+             logError("❌ 启动前台服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -644,9 +652,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             isServiceRunning = false
             // 标记服务不再需要保持运行
             markServiceEnabled(false)
-            Log.d(TAG, "前台定位服务停止成功")
+             logInfo("⏹️ 原生前台定位服务停止成功")
         } catch (e: Exception) {
-            Log.e(TAG, "停止前台服务失败", e)
+             logError("❌ 停止前台服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -677,10 +685,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 val notificationManager = NotificationManagerCompat.from(this)
                 notificationManager.notify(notificationId, builder.build())
                 
-                Log.d(TAG, "通知更新成功: $title - $content")
+                 logInfo("通知更新成功: $title - $content")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "更新通知失败", e)
+             logError("更新通知失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -808,7 +816,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!fgOk || (!coarseOk && !fineOk)) {
-            Log.e(TAG, "定位权限不足：fg=$fgOk, coarse=$coarseOk, fine=$fineOk")
+            logError("定位权限不足", extra = mapOf("fg" to fgOk, "coarse" to coarseOk, "fine" to fineOk))
         }
         return fgOk && (coarseOk || fineOk)
     }
@@ -848,9 +856,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val triggerAt = SystemClock.elapsedRealtime() + delayMs
             am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent)
-            Log.d(TAG, "🔄 已安排重启（$reason），delay=${delayMs}ms")
+            logInfo("🔄 已安排重启（$reason），delay=${delayMs}ms")
         } catch (e: Exception) {
-            Log.e(TAG, "安排重启失败（$reason）", e)
+            logError("安排重启失败（$reason）", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
 
@@ -869,9 +877,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 ExistingWorkPolicy.REPLACE,
                 request
             )
-            Log.d(TAG, "🛠️ WorkManager 兜底重启已安排（$reason）")
+            logInfo("🛠️ WorkManager 兜底重启已安排（$reason）")
         } catch (e: Exception) {
-            Log.e(TAG, "安排 WorkManager 重启失败（$reason）", e)
+            logError("安排 WorkManager 重启失败（$reason）", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
 
@@ -882,9 +890,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         try {
             val prefs = getSharedPreferences("kissu_location_prefs", Context.MODE_PRIVATE)
             prefs.edit().putBoolean("location_service_enabled", enabled).apply()
-            Log.d(TAG, "服务期望状态已更新: $enabled")
+            logInfo("服务期望状态已更新: $enabled")
         } catch (e: Exception) {
-            Log.e(TAG, "更新服务期望状态失败", e)
+            logError("更新服务期望状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
 
@@ -933,7 +941,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             
             if (resourceId != 0) resourceId else android.R.drawable.ic_dialog_info
         } catch (e: Exception) {
-            Log.w(TAG, "无法找到图标资源: $iconName，使用默认图标")
+            logWarning("无法找到图标资源: $iconName，使用默认图标")
             android.R.drawable.ic_dialog_info
         }
     }
@@ -985,7 +993,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 Log.d(TAG, "原生定位客户端初始化成功")
                 
             } catch (e: Exception) {
-                Log.e(TAG, "初始化定位客户端失败", e)
+                logError("初始化定位客户端失败", extra = mapOf("error" to (e.message ?: "unknown")))
                 locationClient = null
             }
         }
@@ -998,12 +1006,12 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         try {
             locationClient?.let { client ->
                 if (!hasLocationPermissions()) {
-                    Log.w(TAG, "缺少定位权限，暂不启动定位监听，等待后续授权")
+                    logWarning("缺少定位权限，暂不启动定位监听，等待后续授权")
                     return
                 }
                 if (!client.isStarted) {
                     client.startLocation()
-                    Log.d(TAG, "🚀 原生定位监听已启动（APP被杀后仍可工作）")
+                     logInfo("🚀 原生定位监听已启动")
                 } else {
                     Log.d(TAG, "原生定位监听已在运行中")
                 }
@@ -1021,14 +1029,14 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             locationClient?.let { client ->
                 if (client.isStarted) {
                     client.stopLocation()
-                    Log.d(TAG, "原生定位监听已停止")
+                     logInfo("⏹️ 原生定位监听已停止")
                 }
                 client.onDestroy()
             }
             locationClient = null
             locationReportService = null
         } catch (e: Exception) {
-            Log.e(TAG, "停止定位监听失败", e)
+             logError("❌ 停止定位监听失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
 
@@ -1041,6 +1049,16 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             schedule(object : TimerTask() {
                 override fun run() {
                     try {
+                        // 🔥 每次健康检查都输出日志，确认保活在运行
+                        val clientStatus = locationClient?.isStarted ?: false
+                        val reportServiceStatus = locationReportService != null
+                        val wakeLockStatus = wakeLock?.isHeld ?: false
+                        logInfo("💓 保活心跳", extra = mapOf(
+                            "locationClient" to clientStatus,
+                            "reportService" to reportServiceStatus,
+                            "wakeLock" to wakeLockStatus
+                        ))
+                        
                         // 定位客户端存活且在运行
                         synchronized(locationClientLock) {
                             if (locationClient == null) {
@@ -1050,11 +1068,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         locationClient?.let { client ->
                             if (!client.isStarted) {
                                 if (!hasLocationPermissions()) {
-                                    Log.w(TAG, "保活：缺少定位权限，等待授权后再启动定位")
+                                     logWarning("💡 保活检查：缺少定位权限，等待授权")
                                     return
                                 }
                                 client.startLocation()
-                                Log.d(TAG, "💡 保活：重新启动定位客户端")
+                                 logInfo("💡 保活检查：重新启动定位客户端")
                             }
                         }
 
@@ -1070,7 +1088,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                                 }
                             }
                             locationReportService = LocationReportService(this@ForegroundLocationService)
-                            Log.d(TAG, "💡 保活：重新创建上报服务")
+                             logInfo("💡 保活检查：重新创建上报服务")
                         }
                         
                         // 🔥 确保上报定时器在运行（可能被系统回收）
@@ -1088,15 +1106,15 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "保活时获取 WAKE_LOCK 失败", e)
+                            logError("保活时获取 WAKE_LOCK 失败", extra = mapOf("error" to (e.message ?: "unknown")))
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "保活健康检查异常", e)
+                        logError("保活健康检查异常", extra = mapOf("error" to (e.message ?: "unknown")))
                     }
                 }
             }, 60_000L, 60_000L) // 60秒检查一次，降低被判高频唤醒风险
         }
-        Log.d(TAG, "🚑 原生保活健康检查已启动（60秒）")
+        logInfo("🚑 原生保活健康检查已启动（60秒）")
     }
 
     /**
@@ -1138,9 +1156,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     pi
                 )
             }
-            Log.d(TAG, "❤️ 心跳闹钟已设置，3分钟后触发")
+            logInfo("❤️ 心跳闹钟已设置，3分钟后触发")
         } catch (e: Exception) {
-            Log.e(TAG, "设置心跳闹钟失败", e)
+            logError("设置心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
 
@@ -1152,9 +1170,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             heartbeatIntent?.let { am.cancel(it) }
             heartbeatIntent = null
-            Log.d(TAG, "❤️ 心跳闹钟已停止")
+            logInfo("❤️ 心跳闹钟已停止")
         } catch (e: Exception) {
-            Log.e(TAG, "停止心跳闹钟失败", e)
+            logError("停止心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -1202,7 +1220,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                             
                             Log.d(TAG, "🌙 息屏保活检查完成")
                         } catch (e: Exception) {
-                            Log.e(TAG, "息屏保活检查异常", e)
+                            logError("息屏保活检查异常", extra = mapOf("error" to (e.message ?: "unknown")))
                         }
                     }
                 }, 60_000L, 60_000L) // 每60秒检查一次
@@ -1211,9 +1229,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             // 2. 设置息屏心跳闹钟（每120秒唤醒一次，平衡保活与耗电）
             ensureScreenOffHeartbeatAlarm()
             
-            Log.d(TAG, "🌙 息屏保活机制已启动（60秒检查 + 120秒心跳）")
+            logInfo("🌙 息屏保活机制已启动（60秒检查 + 120秒心跳）")
         } catch (e: Exception) {
-            Log.e(TAG, "启动息屏保活机制失败", e)
+            logError("启动息屏保活机制失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -1231,7 +1249,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             
             Log.d(TAG, "🌙 息屏保活机制已停止")
         } catch (e: Exception) {
-            Log.e(TAG, "停止息屏保活机制失败", e)
+            logError("停止息屏保活机制失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -1285,7 +1303,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
             Log.d(TAG, "🌙 息屏心跳闹钟已设置，120秒后触发")
         } catch (e: Exception) {
-            Log.e(TAG, "设置息屏心跳闹钟失败", e)
+            logError("设置息屏心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -1299,7 +1317,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             screenOffHeartbeatIntent = null
             Log.d(TAG, "🌙 息屏心跳闹钟已停止")
         } catch (e: Exception) {
-            Log.e(TAG, "停止息屏心跳闹钟失败", e)
+            logError("停止息屏心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -1308,11 +1326,18 @@ class ForegroundLocationService : Service(), AMapLocationListener {
      */
     override fun onLocationChanged(location: AMapLocation?) {
         if (location == null) {
-            Log.w(TAG, "⚠️ 原生定位回调：位置为空")
+             logWarning("⚠️ 原生定位回调：位置为空")
             return
         }
         
         Log.d(TAG, "📍 原生定位成功: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
+        logInfo("📍 原生定位成功", extra = mapOf(
+            "latitude" to location.latitude,
+            "longitude" to location.longitude,
+            "accuracy" to location.accuracy,
+            "provider" to (location.provider ?: "unknown"),
+            "address" to (location.address ?: "")
+        ))
         
         // 统一走原生上报通道（前台/后台/被杀）
         locationReportService?.reportLocation(location)
@@ -1340,7 +1365,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             true
             
         } catch (e: Exception) {
-            Log.e(TAG, "检查应用状态失败，默认允许上报", e)
+            logError("检查应用状态失败，默认允许上报", extra = mapOf("error" to (e.message ?: "unknown")))
             // 如果检查失败，为了保险起见，允许上报
             true
         }
@@ -1385,7 +1410,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "UsageStats检测失败，可能缺少权限", e)
+                    logError("UsageStats检测失败，可能缺少权限", extra = mapOf("error" to (e.message ?: "unknown")))
                 }
             }
             
@@ -1403,11 +1428,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
             
             // 如果所有方法都失败，默认认为应用在后台
-            Log.w(TAG, "无法检测应用状态，默认认为在后台")
+            logWarning("无法检测应用状态，默认认为在后台")
             false
             
         } catch (e: Exception) {
-            Log.e(TAG, "检测应用前台状态失败", e)
+            logError("检测应用前台状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
             false
         }
     }
@@ -1450,7 +1475,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 Log.d(TAG, "🚀 App使用记录上报已启动（每2分钟采集一次，前台/后台统一原生）")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "启动App使用记录上报失败", e)
+            logError("启动App使用记录上报失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -1487,7 +1512,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         }
 
         if (sensitiveEventReportService == null) {
-            Log.w(TAG, "敏感事件上报服务未初始化，无法注册锁屏广播接收器")
+            logWarning(TAG, "敏感事件上报服务未初始化，无法注册锁屏广播接收器")
             return
         }
 
@@ -1502,7 +1527,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 try {
                     when (action) {
                         Intent.ACTION_SCREEN_OFF -> {
-                            Log.d(TAG, "🌙 [Service] 收到锁屏广播 ACTION_SCREEN_OFF")
+                             logInfo("🌙 收到锁屏广播")
                             
                             // 🔥 息屏时加强保活：确保 WAKE_LOCK 持续持有
                             try {
@@ -1513,7 +1538,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                                     }
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "息屏时获取 WAKE_LOCK 失败", e)
+                                logError("息屏时获取 WAKE_LOCK 失败", extra = mapOf("error" to (e.message ?: "unknown")))
                             }
                             
                             // 🔥 息屏时立即设置心跳闹钟，确保1分钟后唤醒
@@ -1534,6 +1559,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         }
                         Intent.ACTION_USER_PRESENT, Intent.ACTION_USER_UNLOCKED -> {
                             Log.d(TAG, "🔓 [Service] 收到解锁广播 $action")
+                            logInfo("🔓 收到解锁广播", extra = mapOf("action" to action))
                             if (MainActivity.isFlutterEngineAlive) {
                                 Log.d(TAG, "Flutter 引擎存活，解锁事件交由 Flutter 处理")
                                 return
@@ -1544,7 +1570,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                             )
                         }
                         Intent.ACTION_SCREEN_ON -> {
-                            Log.d(TAG, "💡 [Service] 收到亮屏广播 ACTION_SCREEN_ON")
+                             logInfo("💡 收到亮屏广播")
                             
                             // 🔥 亮屏时停止息屏保活机制（节省资源）
                             stopScreenOffKeepAlive()
@@ -1564,7 +1590,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                                     )
                                     Log.d(TAG, "💡 亮屏自拉起前台服务")
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "亮屏自拉起前台服务失败", e)
+                                    logError("亮屏自拉起前台服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
                                 }
                             }
                             
@@ -1601,12 +1627,12 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                                 
                                 Log.d(TAG, "💡 亮屏检查完成，服务状态已恢复")
                             } catch (e: Exception) {
-                                Log.e(TAG, "亮屏时恢复服务失败", e)
+                                logError("亮屏时恢复服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "处理锁屏/解锁广播时异常", e)
+                    logError("处理锁屏/解锁广播时异常", extra = mapOf("error" to (e.message ?: "unknown")))
                 }
             }
         }
@@ -1623,7 +1649,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             registerReceiver(screenEventReceiver, filter)
             Log.d(TAG, "锁屏/解锁广播接收器已注册（服务级）")
         } catch (e: Exception) {
-            Log.e(TAG, "注册锁屏/解锁广播接收器失败", e)
+            logError("注册锁屏/解锁广播接收器失败", extra = mapOf("error" to (e.message ?: "unknown")))
             screenEventReceiver = null
         }
     }
@@ -1637,7 +1663,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 unregisterReceiver(it)
                 Log.d(TAG, "锁屏/解锁广播接收器已注销")
             } catch (e: Exception) {
-                Log.e(TAG, "注销锁屏/解锁广播接收器失败", e)
+                logError("注销锁屏/解锁广播接收器失败", extra = mapOf("error" to (e.message ?: "unknown")))
             }
         }
         screenEventReceiver = null
@@ -1667,7 +1693,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             registerReceiver(networkReceiver, filter)
             Log.d(TAG, "网络状态广播接收器已注册")
         } catch (e: Exception) {
-            Log.e(TAG, "注册网络状态广播接收器失败", e)
+            logError("注册网络状态广播接收器失败", extra = mapOf("error" to (e.message ?: "unknown")))
             networkReceiver = null
         }
     }
@@ -1678,7 +1704,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 unregisterReceiver(it)
                 Log.d(TAG, "网络状态广播接收器已注销")
             } catch (e: Exception) {
-                Log.e(TAG, "注销网络状态广播接收器失败", e)
+                logError("注销网络状态广播接收器失败", extra = mapOf("error" to (e.message ?: "unknown")))
             }
         }
         networkReceiver = null
@@ -1710,7 +1736,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             registerReceiver(chargingReceiver, filter)
             Log.d(TAG, "充电状态广播接收器已注册")
         } catch (e: Exception) {
-            Log.e(TAG, "注册充电状态广播接收器失败", e)
+            logError("注册充电状态广播接收器失败", extra = mapOf("error" to (e.message ?: "unknown")))
             chargingReceiver = null
         }
     }
@@ -1721,7 +1747,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 unregisterReceiver(it)
                 Log.d(TAG, "充电状态广播接收器已注销")
             } catch (e: Exception) {
-                Log.e(TAG, "注销充电状态广播接收器失败", e)
+                logError("注销充电状态广播接收器失败", extra = mapOf("error" to (e.message ?: "unknown")))
             }
         }
         chargingReceiver = null
@@ -1789,6 +1815,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
 
             if (lastNetworkState != NetworkState.WIFI || sanitizedName != lastWifiName) {
+                logInfo("📡 网络变化：切换到WiFi", extra = mapOf("wifiName" to sanitizedName))
                 sensitiveEventReportService?.reportSensitiveEvent(
                     eventType = 6,
                     extMap = mapOf("network_name" to sanitizedName),
@@ -1804,6 +1831,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
         if (newState == NetworkState.MOBILE) {
             if (lastNetworkState != NetworkState.MOBILE) {
+                logInfo("📡 网络变化：切换到移动网络")
                 sensitiveEventReportService?.reportSensitiveEvent(
                     eventType = 21,
                     extraHeaders = mapOf("network-name" to "mobile"),
@@ -1830,6 +1858,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
         val batteryLevel = getBatteryLevel()
         val eventType = if (isCharging) 7 else 8
+        logInfo("🔋 充电状态变化", extra = mapOf(
+            "isCharging" to isCharging,
+            "batteryLevel" to batteryLevel
+        ))
         sensitiveEventReportService?.reportSensitiveEvent(
             eventType = eventType,
             extMap = mapOf("power" to batteryLevel.toString()),
@@ -1871,6 +1903,81 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
     private enum class NetworkState {
         NONE, WIFI, MOBILE, OTHER
+    }
+
+    // ================================
+    // 🔥 原生层文件日志功能
+    // ================================
+    
+    /**
+     * 写入原生层日志到文件（与 Flutter 层日志目录一致）
+     * 日志格式与 Flutter 层保持一致，便于统一分析
+     */
+    private fun writeNativeLog(level: String, message: String, tag: String = NATIVE_LOG_TAG, extra: Map<String, Any>? = null) {
+        try {
+            // 使用与 Flutter 层相同的日志目录：filesDir/logs（对应 getApplicationSupportDirectory()/logs）
+            val logDir = File(applicationContext.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            // 使用与 Flutter 层相同的文件命名格式
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.getDefault())
+            val todayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val today = todayFormat.format(Date())
+            
+            // 查找今天的日志文件，如果不存在则创建新的
+            val existingLogFile = logDir.listFiles()?.find { 
+                it.name.startsWith(today) && it.name.endsWith("_app.log") 
+            }
+            
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app.log")
+            
+            // 构建与 Flutter 层格式一致的 JSON 日志
+            val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault()).format(Date())
+            val logJson = JSONObject().apply {
+                put("level", level)
+                put("message", message)
+                put("tag", tag)
+                put("timestamp", timestamp)
+                put("error", JSONObject.NULL)
+                put("stackTrace", JSONObject.NULL)
+                if (extra != null) {
+                    put("extra", JSONObject(extra))
+                } else {
+                    put("extra", JSONObject.NULL)
+                }
+            }
+            
+            logFile.appendText(logJson.toString() + "\n")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "写入原生日志文件失败", e)
+        }
+    }
+    
+    /**
+     * 记录 INFO 级别日志
+     */
+    private fun logInfo(message: String, tag: String = NATIVE_LOG_TAG, extra: Map<String, Any>? = null) {
+        Log.d(TAG, "[$tag] $message")
+        writeNativeLog("INFO", message, tag, extra)
+    }
+    
+    /**
+     * 记录 WARNING 级别日志
+     */
+    private fun logWarning(message: String, tag: String = NATIVE_LOG_TAG, extra: Map<String, Any>? = null) {
+        Log.w(TAG, "[$tag] $message")
+        writeNativeLog("WARNING", message, tag, extra)
+    }
+    
+    /**
+     * 记录 ERROR 级别日志
+     */
+    private fun logError(message: String, tag: String = NATIVE_LOG_TAG, extra: Map<String, Any>? = null) {
+        Log.e(TAG, "[$tag] $message")
+        writeNativeLog("ERROR", message, tag, extra)
     }
 }
 

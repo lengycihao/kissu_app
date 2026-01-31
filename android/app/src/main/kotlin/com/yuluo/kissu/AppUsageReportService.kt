@@ -45,6 +45,7 @@ class AppUsageReportService(private val context: Context) {
     
     companion object {
         private const val TAG = "AppUsageReportService"
+        private const val NATIVE_LOG_TAG = "NativeAppUsage"
         private const val PREF_NAME = "kissu_preferences"
         private const val KEY_USER_TOKEN = "user_token"
         private const val KEY_USER_ID = "user_id"
@@ -92,7 +93,7 @@ class AppUsageReportService(private val context: Context) {
             )
             mode == android.app.AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
-            Log.e(TAG, "检查使用情况权限失败", e)
+            logError("检查使用情况权限失败", mapOf("error" to (e.message ?: "unknown")))
             false
         }
     }
@@ -130,7 +131,7 @@ class AppUsageReportService(private val context: Context) {
             }
             false
         } catch (e: Exception) {
-            Log.e(TAG, "检查应用前台状态失败", e)
+            logError("检查应用前台状态失败", mapOf("error" to (e.message ?: "unknown")))
             false
         }
     }
@@ -218,7 +219,7 @@ class AppUsageReportService(private val context: Context) {
                 startReportTimer(token)
                 
             } catch (e: Exception) {
-                Log.e(TAG, "💥 采集App使用记录异常", e)
+                logError("💥 采集App使用记录异常", mapOf("error" to (e.message ?: "unknown")))
                 setNativeReportingFlag(false)
             }
         }
@@ -508,7 +509,8 @@ class AppUsageReportService(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "💥 上传logo失败: $packageName", e)
+            Log.e(TAG, "上传logo失败", e)
+            logError("上传logo失败", mapOf("packageName" to packageName, "error" to (e.message ?: "unknown")))
             null
         }
     }
@@ -615,15 +617,18 @@ class AppUsageReportService(private val context: Context) {
                 if (code == 0) {
                     val dataObj = json.optJSONObject("data")
                     val logoUrl = dataObj?.optString("file_url") ?: json.optString("data")
-                    Log.d(TAG, "✅ logo上传成功: $logoUrl")
+                    Log.d(TAG, "logo上传成功: $logoUrl")
+                    logInfo("logo上传成功: $logoUrl", mapOf("logoUrl" to logoUrl))
                     return logoUrl
                 }
             }
             
-            Log.w(TAG, "❌ logo上传失败: HTTP=$responseCode, response=$responseText")
+            Log.w(TAG, "logo上传失败: HTTP=$responseCode, response=$responseText")
+            logWarning("logo上传失败: HTTP=$responseCode, response=$responseText", mapOf("responseCode" to responseCode, "responseText" to responseText))
             null
         } catch (e: Exception) {
-            Log.e(TAG, "💥 logo上传异常", e)
+            Log.e(TAG, "logo上传异常", e)
+            logError("logo上传异常", mapOf("error" to (e.message ?: "unknown")))
             null
         } finally {
             connection?.disconnect()
@@ -639,7 +644,7 @@ class AppUsageReportService(private val context: Context) {
         }
         
         reportTimer?.cancel()
-        // 🔥 关键修复：定时任务中每次都从SharedPreferences读取最新token，而不是使用创建时的token
+        // 定时任务中每次都从SharedPreferences读取最新token，而不是使用创建时的token
         // 这样切换账号后，定时器会自动使用新token
         reportTimer = Timer().apply {
             schedule(object : TimerTask() {
@@ -647,7 +652,8 @@ class AppUsageReportService(private val context: Context) {
                     // 每次都从SharedPreferences读取最新token，确保切换账号后使用新token
                     val currentToken = sharedPreferences.getString(KEY_USER_TOKEN, null)
                     if (currentToken.isNullOrEmpty()) {
-                        Log.w(TAG, "⚠️ 定时上报：token为空，跳过上报")
+                        Log.w(TAG, "定时上报：token为空，跳过上报")
+                        logWarning("定时上报：token为空，跳过上报", mapOf("token" to currentToken))
                         return
                     }
                     performScheduledReport(currentToken)
@@ -655,7 +661,8 @@ class AppUsageReportService(private val context: Context) {
             }, REPORT_INTERVAL_SECONDS * 1000L, REPORT_INTERVAL_SECONDS * 1000L)
         }
         isReportTimerRunning = true
-        Log.d(TAG, "⏰ 定时上报器已启动，间隔: ${REPORT_INTERVAL_SECONDS}秒")
+        Log.d(TAG, "定时上报器已启动，间隔: ${REPORT_INTERVAL_SECONDS}秒")
+        logInfo("定时上报器已启动，间隔: ${REPORT_INTERVAL_SECONDS}秒", mapOf("interval" to REPORT_INTERVAL_SECONDS))
     }
     
     /**
@@ -668,7 +675,8 @@ class AppUsageReportService(private val context: Context) {
             // 拷贝按日期分组的数据，避免在同步块内做网络请求
             synchronized(reportBufferByDate) {
                 if (reportBufferByDate.isEmpty()) {
-                    Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
+                    Log.d(TAG, "缓冲区为空，跳过定时上报")
+                    logInfo("缓冲区为空，跳过定时上报", mapOf("bufferSize" to reportBufferByDate.size))
                     return@launch
                 }
                 bufferSnapshot = reportBufferByDate.mapValues { (_, list) -> list.toList() }
@@ -680,16 +688,19 @@ class AppUsageReportService(private val context: Context) {
                     dataToReport.put(appData)
             }
             
-                Log.d(TAG, "⏰ 执行定时上报，日期: $dateInt，应用数量: ${appList.size}")
+                Log.d(TAG, "执行定时上报，日期: $dateInt，应用数量: ${appList.size}")
+                logInfo("执行定时上报，日期: $dateInt，应用数量: ${appList.size}", mapOf("date" to dateInt, "appCount" to appList.size))
             
                 val success = sendUsageDataToServer(token, dataToReport, dateInt)
             
                 synchronized(reportBufferByDate) {
                 if (success) {
                         reportBufferByDate.remove(dateInt)
-                        Log.d(TAG, "✅ 定时上报成功，日期: $dateInt 缓冲区已清空")
+                        Log.d(TAG, "定时上报成功，日期: $dateInt 缓冲区已清空")
+                        logInfo("定时上报成功，日期: $dateInt 缓冲区已清空", mapOf("date" to dateInt))
                 } else {
-                        Log.w(TAG, "❌ 定时上报失败，日期: $dateInt 缓冲区保留数据")
+                        Log.w(TAG, "定时上报失败，日期: $dateInt 缓冲区保留数据")
+                        logWarning("定时上报失败，日期: $dateInt 缓冲区保留数据", mapOf("date" to dateInt))
                 }
                 
                     if (reportBufferByDate.isEmpty()) {
@@ -709,7 +720,8 @@ class AppUsageReportService(private val context: Context) {
             
             synchronized(reportBufferByDate) {
                 if (reportBufferByDate.isEmpty()) {
-                    Log.d(TAG, "📦 缓冲区为空，跳过立即上报")
+                    Log.d(TAG, "缓冲区为空，跳过立即上报")
+                    logInfo("缓冲区为空，跳过立即上报", mapOf("bufferSize" to reportBufferByDate.size))
                     return@launch
                 }
                 bufferSnapshot = reportBufferByDate.mapValues { (_, list) -> list.toList() }
@@ -721,16 +733,19 @@ class AppUsageReportService(private val context: Context) {
                     dataToReport.put(appData)
             }
             
-                Log.d(TAG, "⚡ 执行立即上报，日期: $dateInt，应用数量: ${appList.size}")
+                Log.d(TAG, "执行立即上报，日期: $dateInt，应用数量: ${appList.size}")
+                logInfo("执行立即上报，日期: $dateInt，应用数量: ${appList.size}", mapOf("date" to dateInt, "appCount" to appList.size))
             
                 val success = sendUsageDataToServer(token, dataToReport, dateInt)
             
                 synchronized(reportBufferByDate) {
                 if (success) {
                         reportBufferByDate.remove(dateInt)
-                        Log.d(TAG, "✅ 立即上报成功，日期: $dateInt 缓冲区已清空")
+                        Log.d(TAG, "立即上报成功，日期: $dateInt 缓冲区已清空")
+                        logInfo("立即上报成功，日期: $dateInt 缓冲区已清空", mapOf("date" to dateInt))
                 } else {
-                        Log.w(TAG, "❌ 立即上报失败，日期: $dateInt 缓冲区保留数据")
+                        Log.w(TAG, "立即上报失败，日期: $dateInt 缓冲区保留数据")
+                        logWarning("立即上报失败，日期: $dateInt 缓冲区保留数据", mapOf("date" to dateInt))
                 }
                 
                     if (reportBufferByDate.isEmpty()) {
@@ -757,9 +772,11 @@ class AppUsageReportService(private val context: Context) {
                 val apiUrl = "$baseUrl/v4/report/app/use/record"
                 val userId = sharedPreferences.getString(KEY_USER_ID, "")
                 
-                Log.d(TAG, "🚀 开始上报App使用记录")
-                Log.d(TAG, "📡 API地址: $apiUrl")
-                Log.d(TAG, "📦 上报数据: ${appUsageArray.length()} 个应用")
+                Log.d(TAG, "开始上报App使用记录")
+                logInfo("开始上报App使用记录", mapOf("apiUrl" to apiUrl))
+                Log.d(TAG, "API地址: $apiUrl")
+                Log.d(TAG, "上报数据: ${appUsageArray.length()} 个应用")
+                logInfo("上报数据: ${appUsageArray.length()} 个应用", mapOf("appCount" to appUsageArray.length()))
                 
                 // 准备请求头
                 val headers = mutableMapOf(
@@ -796,7 +813,8 @@ class AppUsageReportService(private val context: Context) {
                 val sign = generateSign(headers, bodyParams)
                 headers["sign"] = sign
                 
-                Log.d(TAG, "🔐 签名已生成: $sign")
+                Log.d(TAG, "签名已生成: $sign")
+                logInfo("签名已生成: $sign", mapOf("sign" to sign))
                 
                 // 创建 HTTP 连接
                 val url = URL(apiUrl)
@@ -828,30 +846,36 @@ class AppUsageReportService(private val context: Context) {
                 
                 // 读取响应
                 val responseCode = connection.responseCode
-                Log.d(TAG, "📡 HTTP响应码: $responseCode")
+                Log.d(TAG, "HTTP响应码: $responseCode")
+                logInfo("HTTP响应码: $responseCode", mapOf("responseCode" to responseCode))
                 
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    Log.d(TAG, "📡 服务器响应: $response")
+                    Log.d(TAG, "服务器响应: $response")
+                    logInfo("服务器响应: $response", mapOf("response" to response))
                     
                     // 解析响应
                     val jsonResponse = JSONObject(response)
                     val code = jsonResponse.optInt("code", -1)
                     
                     if (code == 0) {
-                        Log.d(TAG, "✅ App使用记录上报成功")
+                        Log.d(TAG, "App使用记录上报成功")
+                        logInfo("App使用记录上报成功", mapOf("code" to code))
                         return@withContext true
                     } else {
-                        Log.w(TAG, "❌ App使用记录上报失败: ${jsonResponse.optString("msg")}")
+                        Log.w(TAG, "App使用记录上报失败: ${jsonResponse.optString("msg")}")
+                        logWarning("App使用记录上报失败: ${jsonResponse.optString("msg")}", mapOf("code" to code, "msg" to jsonResponse.optString("msg")))
                         return@withContext false
                     }
                 } else {
                     val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-                    Log.w(TAG, "❌ HTTP请求失败: $responseCode, $errorResponse")
+                    Log.w(TAG, "HTTP请求失败: $responseCode, $errorResponse")
+                    logWarning("HTTP请求失败: $responseCode, $errorResponse", mapOf("responseCode" to responseCode, "errorResponse" to errorResponse))
                     return@withContext false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "💥 发送App使用数据异常", e)
+                Log.e(TAG, "发送App使用数据异常", e)
+                logError("发送App使用数据异常", mapOf("error" to (e.message ?: "unknown")))
                 return@withContext false
             } finally {
                 connection?.disconnect()
@@ -886,12 +910,13 @@ class AppUsageReportService(private val context: Context) {
     
     /**
      * 获取设备 ID（使用 Android ID）
-     * 🔥 修复：在用户同意隐私政策前不获取 ANDROID ID，返回降级值
+     * 修复：在用户同意隐私政策前不获取 ANDROID ID，返回降级值
      */
     private fun getDeviceId(): String {
-        // 🔥 关键修复：检查隐私政策是否已同意
+        // 检查隐私政策是否已同意
         if (!isPrivacyPolicyAgreed()) {
             Log.d(TAG, "用户未同意隐私政策，返回降级设备ID")
+            logInfo("用户未同意隐私政策，返回降级设备ID", mapOf("privacyPolicyAgreed" to false))
             return "privacy_not_agreed_${System.currentTimeMillis()}"
         }
         
@@ -901,7 +926,7 @@ class AppUsageReportService(private val context: Context) {
                 android.provider.Settings.Secure.ANDROID_ID
             ) ?: "unknown"
         } catch (e: Exception) {
-            Log.e(TAG, "获取设备ID失败", e)
+            logError("获取设备ID失败", mapOf("error" to (e.message ?: "unknown")))
             "unknown"
         }
     }
@@ -950,7 +975,7 @@ class AppUsageReportService(private val context: Context) {
             }
             "none"
         } catch (e: Exception) {
-            Log.e(TAG, "获取网络头部信息失败: ${e.message}", e)
+            logError("获取网络头部信息失败", mapOf("error" to (e.message ?: "unknown")))
             "unknown"
         }
     }
@@ -964,7 +989,7 @@ class AppUsageReportService(private val context: Context) {
             val level = batteryManager.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
             if (level >= 0) level.toString() else "100"
         } catch (e: Exception) {
-            Log.e(TAG, "获取电量信息失败: ${e.message}", e)
+            logError("获取电量信息失败", mapOf("error" to (e.message ?: "unknown")))
             "100"
         }
     }
@@ -984,7 +1009,7 @@ class AppUsageReportService(private val context: Context) {
             ) == PackageManager.PERMISSION_GRANTED
             if (fineGranted || coarseGranted) "1" else "0"
         } catch (e: Exception) {
-            Log.e(TAG, "获取定位权限状态失败: ${e.message}", e)
+            logError("获取定位权限状态失败", mapOf("error" to (e.message ?: "unknown")))
             "0"
         }
     }
@@ -998,12 +1023,14 @@ class AppUsageReportService(private val context: Context) {
             putString(KEY_USER_ID, userId)
             apply()
         }
-        Log.d(TAG, "✅ 用户Token已保存: $userId")
+        Log.d(TAG, "用户Token已保存: $userId")
+        logInfo("用户Token已保存: $userId", mapOf("userId" to userId))
         
-        // 🔥 关键修复：保存token后，如果定时器正在运行，强制重启定时器以使用新token
+        // 关键修复：保存token后，如果定时器正在运行，强制重启定时器以使用新token
         // 这样切换账号后，定时器会立即使用新token
         if (isReportTimerRunning && reportTimer != null) {
-            Log.d(TAG, "🔄 Token已更新，重启定时器以使用新token")
+            Log.d(TAG, "Token已更新，重启定时器以使用新token")
+            logInfo("Token已更新，重启定时器以使用新token", mapOf("token" to token))
             // 取消旧定时器
             reportTimer?.cancel()
             reportTimer = null
@@ -1021,7 +1048,8 @@ class AppUsageReportService(private val context: Context) {
             putString(KEY_BASE_URL, baseUrl)
             apply()
         }
-        Log.d(TAG, "✅ API基础URL已保存: $baseUrl")
+        Log.d(TAG, "API基础URL已保存: $baseUrl")
+        logInfo("API基础URL已保存: $baseUrl", mapOf("baseUrl" to baseUrl))
     }
     
     /**
@@ -1047,7 +1075,8 @@ class AppUsageReportService(private val context: Context) {
             remove(KEY_NATIVE_REPORTING)
             apply()
         }
-        Log.d(TAG, "🗑️ 用户信息、定时器和缓冲区已清除")
+        Log.d(TAG, "用户信息、定时器和缓冲区已清除")
+        logInfo("用户信息、定时器和缓冲区已清除", mapOf("clearUserInfo" to true))
     }
     
     /**
@@ -1127,6 +1156,65 @@ class AppUsageReportService(private val context: Context) {
         coroutineScope.cancel()
         Log.d(TAG, "AppUsageReportService 已销毁")
     }
+    
+    // ================================
+    // 🔥 原生层文件日志功能
+    // ================================
+    
+    private fun writeNativeLog(
+        level: String,
+        message: String,
+        extra: Map<String, Any?>? = null
+    ) {
+        try {
+            // 使用与 Flutter 层相同的日志目录：filesDir/logs（对应 getApplicationSupportDirectory()/logs）
+            val logDir = File(context.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.US)
+            val now = Date()
+            val fileName = "${dateFormat.format(now)}_app.log"
+            val logFile = File(logDir, fileName)
+            
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
+            val timestamp = isoFormat.format(now)
+            
+            val logEntry = JSONObject().apply {
+                put("timestamp", timestamp)
+                put("level", level)
+                put("tag", NATIVE_LOG_TAG)
+                put("message", message)
+                extra?.let {
+                    val extraJson = JSONObject()
+                    it.forEach { (key, value) ->
+                        extraJson.put(key, value ?: JSONObject.NULL)
+                    }
+                    put("extra", extraJson)
+                }
+            }
+            
+            logFile.appendText(logEntry.toString() + "\n")
+        } catch (e: Exception) {
+            Log.e(TAG, "写入原生日志失败", e)
+        }
+    }
+    
+    private fun logInfo(message: String, extra: Map<String, Any?>? = null) {
+        Log.d(TAG, message)
+        writeNativeLog("INFO", message, extra)
+    }
+    
+    private fun logWarning(message: String, extra: Map<String, Any?>? = null) {
+        Log.w(TAG, message)
+        writeNativeLog("WARNING", message, extra)
+    }
+    
+    private fun logError(message: String, extra: Map<String, Any?>? = null) {
+        Log.e(TAG, message)
+        writeNativeLog("ERROR", message, extra)
+    }
 }
 
 /**
@@ -1173,7 +1261,7 @@ class AppLogoCacheManager(context: Context) {
                         cache[key] = value
                     }
                 }
-                Log.d("AppLogoCacheManager", "🖼️ 已加载logo缓存: ${cache.size}个")
+                Log.d("AppLogoCacheManager", "已加载logo缓存: ${cache.size}个")
             } catch (e: Exception) {
                 Log.e("AppLogoCacheManager", "加载logo缓存失败", e)
                 cache.clear()

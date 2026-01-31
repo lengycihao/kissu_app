@@ -145,7 +145,7 @@ class CheckIn188TodayTask extends StatelessWidget {
     final bool showDoneButton = myProgress >= 1 && myProgress < 2;
     
     return SizedBox(
-      height: 30,
+       height: 30,
       child: Row(
         children: [
           // 左侧按钮区域
@@ -155,7 +155,7 @@ class CheckIn188TodayTask extends StatelessWidget {
               children: [
                 // 点击发送按钮
                 if (showSendButton)
-                  AnimatedBuilder(
+                  Transform.translate(offset: Offset(-9, 0),child: AnimatedBuilder(
                     animation: controller.floatAnimationController,
                     builder: (context, child) {
                       return Transform.translate(
@@ -170,12 +170,12 @@ class CheckIn188TodayTask extends StatelessWidget {
                         ),
                       );
                     },
-                  )
+                  ),)
                 else
                   const SizedBox(width: 62),
                 // 去完成按钮
                 if (showDoneButton)
-                  AnimatedBuilder(
+                  Transform.translate(offset: const Offset(-6, 0),child: AnimatedBuilder(
                     animation: controller.floatAnimationController,
                     builder: (context, child) {
                       return Transform.translate(
@@ -190,7 +190,7 @@ class CheckIn188TodayTask extends StatelessWidget {
                         ),
                       );
                     },
-                  )
+                  ))
                 else
                   const SizedBox(width: 62),
               ],

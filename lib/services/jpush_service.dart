@@ -174,9 +174,16 @@ class JPushService extends GetxService {
   /// 设置别名
   Future<bool> setAlias(String alias) async {
     try {
-      _jpush.setAlias(alias);
+      if (!_isInitialized.value) {
+        debugPrint('JPush未初始化，跳过设置别名: $alias');
+        return false;
+      }
+      await _jpush.setAlias(alias);
       debugPrint('设置别名成功: $alias');
       return true;
+    } on PlatformException catch (e) {
+      debugPrint('设置别名失败(PlatformException): $e');
+      return false;
     } catch (e) {
       debugPrint('设置别名失败: $e');
       return false;

@@ -58,6 +58,13 @@ class DialogShowcasePage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _buildSection('188弹窗', [
+                          _buildDialogItem(
+                            '删除位置提醒弹窗',
+                            '确认删除位置提醒数据',
+                            () => _showILoveYouDialog(),
+                          ),
+                        ]),
                         _buildSection('通用确认弹窗', [
                           _buildDialogItem(
                             '退出登录确认',
@@ -259,24 +266,20 @@ class DialogShowcasePage extends StatelessWidget {
                         ]),
                         const SizedBox(height: 24),
                         _buildSection('业务特定弹窗', [
-                          _buildDialogItem(
-                            '绑定申请弹窗',
-                            '显示绑定申请弹窗',
-                            () async {
-                              final result = await DialogManager.showBindRequest(
-                                context: context,
-                                avatarImage: const AssetImage(
-                                  'assets/3.0/kissu3_avater_viewbg.webp',
-                                ),
-                                nickname: 'Kissu9236',
-                              );
-                              if (result == true) {
-                                _showToast('点击了同意');
-                              } else if (result == false) {
-                                _showToast('点击了拒绝');
-                              }
-                            },
-                          ),
+                          _buildDialogItem('绑定申请弹窗', '显示绑定申请弹窗', () async {
+                            final result = await DialogManager.showBindRequest(
+                              context: context,
+                              avatarImage: const AssetImage(
+                                'assets/3.0/kissu3_avater_viewbg.webp',
+                              ),
+                              nickname: 'Kissu9236',
+                            );
+                            if (result == true) {
+                              _showToast('点击了同意');
+                            } else if (result == false) {
+                              _showToast('点击了拒绝');
+                            }
+                          }),
                           _buildDialogItem(
                             '通话历史设置弹窗',
                             '显示通话历史设置弹窗',
@@ -484,6 +487,23 @@ class DialogShowcasePage extends StatelessWidget {
     LogoutCancelledDialogUtil.showLogoutCancelledDialog().then((result) {
       if (result == true) {
         _showToast('已确认');
+      }
+    });
+  }
+
+   void _showILoveYouDialog() {
+    DeleteLocationReminderDialogUtil.show(
+      title: '今日“我爱你”已发送 ',
+      content: '当前有1次未打卡，请及时补卡',
+      confirmText: '立即补卡',
+      cancelText: '知道了',
+      onConfirm: () => _showToast('已确认删除'),
+      onCancel: () => _showToast('已取消删除'),
+    ).then((result) {
+      if (result == true) {
+        _showToast('删除位置提醒');
+      } else if (result == false) {
+        _showToast('取消删除');
       }
     });
   }

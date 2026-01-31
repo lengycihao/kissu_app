@@ -8,6 +8,11 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import io.flutter.plugin.common.EventChannel
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import org.json.JSONObject
 
 /**
  * 手机锁屏/解锁状态监听器 (增强版)
@@ -33,6 +38,7 @@ class ScreenLockReceiver : BroadcastReceiver() {
     
     companion object {
         private const val TAG = "ScreenLockReceiver"
+        private const val NATIVE_LOG_TAG = "NativeScreenLock"
         
         // EventChannel相关
         private const val CHANNEL_NAME = "com.yuluo.kissu/screen_lock_events"
@@ -241,11 +247,71 @@ class ScreenLockReceiver : BroadcastReceiver() {
                 }
 
                 else -> {
-                    Log.w(TAG, "⚠️ 收到未知的Intent Action: ${intent.action}")
+                    logWarning(context, "⚠️ 收到未知的Intent Action: ${intent.action}")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ 处理屏幕事件时发生异常: ${e.message}", e)
+            logError(context, "❌ 处理屏幕事件时发生异常", mapOf("error" to (e.message ?: "unknown")))
         }
+    }
+    
+    // ================================
+    // 🔥 原生层文件日志功能
+    // ================================
+    
+    private fun writeNativeLog(
+        context: Context,
+        level: String,
+        message: String,
+        extra: Map<String, Any?>? = null
+    ) {
+        try {
+            // 使用与 Flutter 层相同的日志目录：filesDir/logs（对应 getApplicationSupportDirectory()/logs）
+            val logDir = File(context.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.US)
+            val now = Date()
+            val fileName = "${dateFormat.format(now)}_app.log"
+            val logFile = File(logDir, fileName)
+            
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
+            val timestamp = isoFormat.format(now)
+            
+            val logEntry = JSONObject().apply {
+                put("timestamp", timestamp)
+                put("level", level)
+                put("tag", NATIVE_LOG_TAG)
+                put("message", message)
+                extra?.let {
+                    val extraJson = JSONObject()
+                    it.forEach { (key, value) ->
+                        extraJson.put(key, value ?: JSONObject.NULL)
+                    }
+                    put("extra", extraJson)
+                }
+            }
+            
+            logFile.appendText(logEntry.toString() + "\n")
+        } catch (e: Exception) {
+            Log.e(TAG, "写入原生日志失败", e)
+        }
+    }
+    
+    private fun logInfo(context: Context, message: String, extra: Map<String, Any?>? = null) {
+        Log.d(TAG, message)
+        writeNativeLog(context, "INFO", message, extra)
+    }
+    
+    private fun logWarning(context: Context, message: String, extra: Map<String, Any?>? = null) {
+        Log.w(TAG, message)
+        writeNativeLog(context, "WARNING", message, extra)
+    }
+    
+    private fun logError(context: Context, message: String, extra: Map<String, Any?>? = null) {
+        Log.e(TAG, message)
+        writeNativeLog(context, "ERROR", message, extra)
     }
 }

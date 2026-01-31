@@ -5,6 +5,10 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/emoji_cache_manager.dart';
+import 'package:kissu_app/utils/track_cache_manager.dart';
+import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
+import 'package:kissu_app/utils/memory_manager.dart';
 
 /// 缓存管理工具类
 class CacheManager {
@@ -239,6 +243,50 @@ class CacheManager {
         }
       } catch (e) {
         logError('清除图片缓存失败: $e');
+      }
+      
+      // 5. 清除日志目录（getApplicationSupportDirectory/logs）
+      try {
+        final appSupportDir = await getApplicationSupportDirectory();
+        final logsDir = Directory('${appSupportDir.path}${Platform.pathSeparator}logs');
+        if (await logsDir.exists()) {
+          deletedCount += await _clearDirectory(logsDir);
+          logDebug('已清除日志目录');
+        }
+      } catch (e) {
+        logError('清除日志目录失败: $e');
+      }
+      
+      // 6. 清除表情缓存（SharedPreferences）
+      try {
+        await EmojiCacheManager.instance.clearAllCache();
+        logDebug('已清除表情缓存');
+      } catch (e) {
+        logError('清除表情缓存失败: $e');
+      }
+      
+      // 7. 清除轨迹缓存（SharedPreferences）
+      try {
+        await TrackCacheManager.instance.clearAllCache();
+        logDebug('已清除轨迹缓存');
+      } catch (e) {
+        logError('清除轨迹缓存失败: $e');
+      }
+      
+      // 8. 清除App Logo缓存（SharedPreferences）
+      try {
+        await AppLogoCacheService().clearCache();
+        logDebug('已清除App Logo缓存');
+      } catch (e) {
+        logError('清除App Logo缓存失败: $e');
+      }
+      
+      // 9. 清除内存图片缓存
+      try {
+        MemoryManager.clearAllCaches();
+        logDebug('已清除内存图片缓存');
+      } catch (e) {
+        logError('清除内存图片缓存失败: $e');
       }
 
       // 重新计算缓存大小

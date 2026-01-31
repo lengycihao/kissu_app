@@ -12,13 +12,78 @@ import android.content.ComponentName
 import androidx.core.app.NotificationCompat
 import cn.jpush.android.api.JPushInterface
 import org.json.JSONObject
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class JPushReceiver : BroadcastReceiver() {
     
     companion object {
         private const val TAG = "JPushReceiver"
+        private const val NATIVE_LOG_TAG = "NativeJPush"
         private const val CHANNEL_ID = "kissu_push_channel"
         private const val CHANNEL_NAME = "Kissu推送通知"
+        
+        // ================================
+        // 🔥 原生层文件日志功能
+        // ================================
+        
+        private fun writeNativeLog(
+            context: Context,
+            level: String,
+            message: String,
+            extra: Map<String, Any?>? = null
+        ) {
+            try {
+                // 使用与 Flutter 层相同的日志目录：filesDir/logs（对应 getApplicationSupportDirectory()/logs）
+                val logDir = File(context.filesDir, "logs")
+                if (!logDir.exists()) {
+                    logDir.mkdirs()
+                }
+                
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.US)
+                val now = Date()
+                val fileName = "${dateFormat.format(now)}_app.log"
+                val logFile = File(logDir, fileName)
+                
+                val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
+                val timestamp = isoFormat.format(now)
+                
+                val logEntry = JSONObject().apply {
+                    put("timestamp", timestamp)
+                    put("level", level)
+                    put("tag", NATIVE_LOG_TAG)
+                    put("message", message)
+                    extra?.let {
+                        val extraJson = JSONObject()
+                        it.forEach { (key, value) ->
+                            extraJson.put(key, value ?: JSONObject.NULL)
+                        }
+                        put("extra", extraJson)
+                    }
+                }
+                
+                logFile.appendText(logEntry.toString() + "\n")
+            } catch (e: Exception) {
+                Log.e(TAG, "写入原生日志失败", e)
+            }
+        }
+        
+        fun logInfo(context: Context, message: String, extra: Map<String, Any?>? = null) {
+            Log.d(TAG, message)
+            writeNativeLog(context, "INFO", message, extra)
+        }
+        
+        fun logWarning(context: Context, message: String, extra: Map<String, Any?>? = null) {
+            Log.w(TAG, message)
+            writeNativeLog(context, "WARNING", message, extra)
+        }
+        
+        fun logError(context: Context, message: String, extra: Map<String, Any?>? = null) {
+            Log.e(TAG, message)
+            writeNativeLog(context, "ERROR", message, extra)
+        }
     }
     
     override fun onReceive(context: Context, intent: Intent) {
@@ -77,7 +142,7 @@ class JPushReceiver : BroadcastReceiver() {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "处理JPush事件时出错", e)
+            logError(context, "处理JPush事件时出错", mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -284,9 +349,7 @@ class JPushReceiver : BroadcastReceiver() {
             Log.d(TAG, "渠道: $CHANNEL_ID")
             
         } catch (e: Exception) {
-            Log.e(TAG, "=== 创建通知失败 ===", e)
-            Log.e(TAG, "错误详情: ${e.message}")
-            e.printStackTrace()
+            logError(context, "创建通知失败", mapOf("error" to (e.message ?: "unknown")))
         }
     }
     
@@ -300,7 +363,7 @@ class JPushReceiver : BroadcastReceiver() {
                 processInfo.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
             }
         } catch (e: Exception) {
-            Log.e(TAG, "检查应用前台状态失败", e)
+            logError(context, "检查应用前台状态失败", mapOf("error" to (e.message ?: "unknown")))
             false
         }
     }

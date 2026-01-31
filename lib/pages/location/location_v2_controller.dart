@@ -145,6 +145,9 @@ class LocationV2Controller extends GetxController
   
   // 🔥 新增：定时刷新位置数据定时器（每30秒自动刷新）
   Timer? _locationRefreshTimer;
+  
+  // 🔥 新增：页面可见性标志，用于控制定时器是否执行
+  bool _isPageVisible = true;
 
   @override
   void onInit() {
@@ -213,6 +216,8 @@ class LocationV2Controller extends GetxController
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
     logDebug('📍 定位页面重新获得焦点，静默刷新用户信息');
+    // 🔥 恢复定时刷新
+    onPageVisible();
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
@@ -237,13 +242,25 @@ class LocationV2Controller extends GetxController
   void _startLocationRefreshTimer() {
     _locationRefreshTimer?.cancel();
     _locationRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      // 只有在页面活跃且未在加载中时才刷新
-      if (!isClosed && !isLoading.value) {
+      // 只有在页面可见、未关闭、未在加载中时才刷新
+      if (!isClosed && !isLoading.value && _isPageVisible) {
         logDebug('🔄 定位页面：定时刷新位置数据（30秒周期）');
         _silentRefreshLocationData();
       }
     });
     logDebug('⏰ 定位页面：定时刷新已启动（每30秒）');
+  }
+  
+  /// 🔥 新增：页面进入前台时调用
+  void onPageVisible() {
+    _isPageVisible = true;
+    logDebug('📍 定位页面：页面可见，恢复定时刷新');
+  }
+  
+  /// 🔥 新增：页面进入后台或被覆盖时调用
+  void onPageHidden() {
+    _isPageVisible = false;
+    logDebug('📍 定位页面：页面隐藏，暂停定时刷新');
   }
   
   /// 🔥 新增：静默刷新位置数据（不阻塞UI，不显示Loading）

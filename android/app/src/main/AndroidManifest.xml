@@ -62,7 +62,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <action android:name="com.yuluo.kissu.OpenClickActivity" />
             </intent-filter>
-            
+            <!-- <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter> -->
             <!-- Flutter requires MAIN/LAUNCHER intent-filter for launch activity detection -->
             
         </activity>

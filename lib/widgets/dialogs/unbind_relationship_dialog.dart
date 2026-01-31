@@ -14,10 +14,13 @@ class UnbindRelationshipDialog extends StatefulWidget {
 
 class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   final TextEditingController _textController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   final String _requiredText = '本人确认解除当前关系，出现任何问题由本人承担';//人确认解除当前关系，出现任何问题由本人承担
+  
   @override
   void dispose() {
     _textController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -58,25 +61,20 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: screenSize.height * 0.8, // 最大高度为屏幕高度的80%
-          maxWidth: dialogWidth,
-        ),
-        child: Container(
-          width: dialogWidth,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/3.0/kissu3_dialog_jiechu_bg.webp'),
-              fit: BoxFit.fill, // 改为fill以适应容器尺寸
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(20)),
+      // 🔥 关键：设置 insetPadding 避免键盘弹起时的布局抖动
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        width: dialogWidth,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/3.0/kissu3_dialog_jiechu_bg.webp'),
+            fit: BoxFit.fill, // 改为fill以适应容器尺寸
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SingleChildScrollView(
-              // 添加滚动支持
-              child: Column(
+          borderRadius: BorderRadius.all(Radius.circular(30)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -110,19 +108,19 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF666666),
-                        height: 1.6,
+                        height: 1.4,
                       ),
                       children: [
-                        const TextSpan(text: '点击确认后，双方 Kissu 账号将立即解除绑定关系。\n'),
-                        TextSpan(
-                          text:
-                              '解除后，双方相关数据将为您保留至 ${_getThreeDaysLaterDate()}（共 3 日）。在此期间，若双方重新绑定，数据可恢复。 在此期间，若双方中任意一方绑定其他用户，则双方数据将提前永久删除。 确认解除关系，请在下方输入框内输入以下文字。',
-                        ),
+                        const TextSpan(text: '点击确认后，双方 Kissu 账号将立即解除绑定关系。'),
+                        // TextSpan(
+                        //   text:
+                        //       '解除后，双方相关数据将为您保留至 ${_getThreeDaysLaterDate()}（共 3 日）。在此期间，若双方重新绑定，数据可恢复。 在此期间，若双方中任意一方绑定其他用户，则双方数据将提前永久删除。 确认解除关系，请在下方输入框内输入以下文字。',
+                        // ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
 
                   // 确认文字提示
                   RichText(
@@ -176,9 +174,12 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                     ),
                     child: TextField(
                       controller: _textController,
+                      focusNode: _focusNode,
                       maxLines: null,
                       expands: true,
                       textAlignVertical: TextAlignVertical.top,
+                      // 🔥 禁用输入法动画，加快键盘响应
+                      enableIMEPersonalizedLearning: false,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.all(12),
@@ -247,12 +248,10 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
-      ),
     );
   }
 }

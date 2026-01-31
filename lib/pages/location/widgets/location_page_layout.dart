@@ -42,6 +42,8 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
     // 埋点：注册页面离开回调到Controller
     widget.controller.onNavigateToNextPage = () {
       _trackPageExit(ExitTypeValue.nextPage);
+      // 🔥 导航到其他页面时暂停定时刷新
+      widget.controller.onPageHidden();
     };
 
     _sheetManager = LocationSheetManager(controller: widget.controller);
@@ -89,6 +91,8 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       // 埋点：切换到后台
       _trackPageExit(ExitTypeValue.toBackground);
+      // 🔥 通知Controller页面隐藏，暂停定时刷新
+      widget.controller.onPageHidden();
     } else if (state == AppLifecycleState.resumed) {
       // 从后台返回前台，重置埋点状态
       _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -96,6 +100,8 @@ class _LocationPageLayoutState extends State<LocationPageLayout>
       _exitType = ExitTypeValue.back;
       
       widget.controller.tipsManager.onAppResumed();
+      // 🔥 通知Controller页面可见，恢复定时刷新
+      widget.controller.onPageVisible();
     }
   }
 

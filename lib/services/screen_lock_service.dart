@@ -52,12 +52,18 @@ class ScreenLockService extends GetxService {
   /// 
   /// 注意：需要在隐私政策同意后调用
   void startListening() {
-    if (_isInitialized) {
+    // 🔥 修复：检查订阅是否有效，而不仅仅是 _isInitialized 标志
+    // 因为 EventChannel 可能在 App 后台时被系统断开，但 _isInitialized 仍为 true
+    if (_isInitialized && _eventSubscription != null) {
       DebugUtil.warning('锁屏监听服务已经启动，跳过重复初始化');
       return;
     }
     
     try {
+      // 🔥 修复：先清理旧的订阅（如果有的话）
+      _eventSubscription?.cancel();
+      _eventSubscription = null;
+      
       DebugUtil.info('开始启动锁屏监听服务...');
       
       _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
@@ -70,6 +76,9 @@ class ScreenLockService extends GetxService {
       DebugUtil.success('锁屏监听服务启动成功');
     } catch (e) {
       DebugUtil.error('启动锁屏监听服务失败: $e');
+      // 🔥 修复：启动失败时重置状态
+      _isInitialized = false;
+      _eventSubscription = null;
     }
   }
   
@@ -231,7 +240,17 @@ class ScreenLockService extends GetxService {
   /// 处理事件流结束
   void _handleDone() {
     DebugUtil.warning('锁屏监听事件流已结束');
+    // 🔥 修复：事件流结束时，同时清理订阅引用
     _isInitialized = false;
+    _eventSubscription = null;
+    
+    // 🔥 修复：尝试自动重新启动监听（延迟重试）
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!_isInitialized) {
+        DebugUtil.info('事件流结束后尝试重新启动锁屏监听服务...');
+        startListening();
+      }
+    });
   }
   
   /// 获取服务状态信息

@@ -7,14 +7,18 @@ class DeleteLocationReminderDialog extends StatelessWidget {
   final VoidCallback? onCancel;
   final String? title;
   final String? content;
+  final String? confirmText;
+  final String? cancelText;
 
   const DeleteLocationReminderDialog({
-    Key? key,
+    super.key,
     this.onConfirm,
     this.onCancel,
     this.title,
+    this.confirmText="确认",
+    this.cancelText="取消",
     this.content,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,8 +87,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                           ),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
-                          '取消',
+                        child: Text(
+                          cancelText! ,
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF999999),
@@ -110,8 +114,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                           borderRadius: BorderRadius.circular(18),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
-                          '确认',
+                        child:   Text(
+                          confirmText!,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white,
@@ -138,13 +142,16 @@ class DeleteLocationReminderDialogUtil {
     VoidCallback? onCancel,
     String title = "确定要删除吗？",
     String content = "删除数据后将无法恢复数据，请谨慎操作！",
+    String confirmText = "确定",
+    String cancelText = "取消",
   }) {
     return Get.dialog<bool>(
       DeleteLocationReminderDialog(
         onConfirm: onConfirm,
         onCancel: onCancel,
         title: title,
-        content: content,
+        content: content, 
+        confirmText:confirmText,cancelText:cancelText,
       ),
       barrierDismissible: false,
     );
