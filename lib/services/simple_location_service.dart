@@ -850,7 +850,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       logger.debug('高德定位服务已停止（全局监听器保持激活）', tag: 'Location');
       logger.debug('收集缓冲区和智能状态已清理', tag: 'Location');
     } catch (e) {
-      logger.debug('停止高德定位失败: $e', tag: 'Location');
+      logger.error('停止高德定位失败: $e', tag: 'Location');
     }
   }
 

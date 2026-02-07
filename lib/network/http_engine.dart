@@ -120,6 +120,7 @@ class HttpEngine {
             try {
               final file = File(value);
               if (!await file.exists()) {
+                debugPrint('[HttpEngine] 文件不存在: $value');
                 continue; // 文件不存在，跳过
               }
               
@@ -153,8 +154,11 @@ class HttpEngine {
                 }
               } else {
                 // 非图片文件：直接上传，不压缩
-                final bytes = await file.readAsBytes();
-                map[key] = MultipartFile.fromBytes(bytes, filename: fileName);
+                // 使用 fromFile 而不是 fromBytes，确保正确设置 Content-Type
+                map[key] = await MultipartFile.fromFile(
+                  value,
+                  filename: fileName,
+                );
               }
             } catch (e) {
               // 如果是图片且读取失败，尝试压缩
@@ -170,6 +174,9 @@ class HttpEngine {
                   final fileName = value.split(Platform.pathSeparator).last;
                   map[key] = MultipartFile.fromBytes(stream, filename: fileName);
                 }
+              } else {
+                // 非图片文件读取失败，记录错误并抛出异常
+                rethrow;
               }
             }
           }

@@ -17,6 +17,7 @@ class CustomFeedbackDialog extends StatefulWidget {
 class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
   final TextEditingController _textController = TextEditingController();
   UnbindReasonModel? _selectedReason; // 选中的原因
+  bool _showInputError = false; // 是否显示输入框错误状态
 
   @override
   void initState() {
@@ -42,7 +43,10 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
 
     // 如果选中的原因需要补充说明，输入框必须填写
     if (_selectedReason!.needSupplement && otherText.isEmpty) {
-      CustomToast.show(Get.context!, '${_selectedReason!.name}需要补充说明，请填写具体原因');
+      setState(() {
+        _showInputError = true;
+      });
+      CustomToast.show(Get.context!, '请输入原因');
       return;
     }
 
@@ -106,46 +110,20 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
 
                   // 内容描述
                   const Text(
-                    '我们尝努力让两颗心的信号同频。如今信号减弱，我们深感惋惜。若你愿意，可告诉我们，是哪个频率出现了杂音？',
+                    '我们曾努力让两颗心的信号同频。如今信号减弱，我们深感惋惜。若你愿意，可否告诉我们，是哪个频率出现了杂音？',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF666666),
+                      fontSize: 12,
+                      color: Color(0xFF333333),
                       height: 1.5,
+                      
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // 选项列表
+                  // 选项列表（输入框集成在选项内部）
                   ..._buildReasonOptions(),
-
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F0F0),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: TextField(
-                      controller: _textController,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(12),
-                        hintText: '若有其他原因，可在这里补充',
-                        hintStyle: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFCCCCCC),
-                        ),
-                      ),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                  ),
 
                   const SizedBox(height: 20),
 
@@ -219,13 +197,15 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
 
   /// 构建原因选项列表
   List<Widget> _buildReasonOptions() {
-    final List<Widget> rows = [];
+    final List<Widget> widgets = [];
     for (var i = 0; i < widget.reasons.length; i += 2) {
       final leftReason = widget.reasons[i];
       final rightReason = i + 1 < widget.reasons.length
           ? widget.reasons[i + 1]
           : null;
-      rows.add(
+      
+      // 添加选项行
+      widgets.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
@@ -249,8 +229,96 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
           ),
         ),
       );
+      
+      // 如果左侧选项被选中且需要补充说明，在其下方显示输入框（全宽）
+      if (_selectedReason?.id == leftReason.id && leftReason.needSupplement) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildInputField(isLeftColumn: true),
+            ),
+          ),
+        );
+      }
+      
+      // 如果右侧选项被选中且需要补充说明，在其下方显示输入框（全宽）
+      if (rightReason != null && _selectedReason?.id == rightReason.id && rightReason.needSupplement) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildInputField(isLeftColumn: false),
+            ),
+          ),
+        );
+      }
     }
-    return rows;
+    return widgets;
+  }
+
+  /// 构建输入框（带三角形指示器）
+  List<Widget> _buildInputField({required bool isLeftColumn}) {
+    return [
+      // 三角形指示器 - 根据选中的是左侧还是右侧选项来定位
+      LayoutBuilder(
+        builder: (context, constraints) {
+          // 计算三角形位置：左侧选项时靠左，右侧选项时靠右
+          final triangleLeft = isLeftColumn 
+              ? 40.0 
+              : (constraints.maxWidth / 2) + 40; // 右侧列起始位置 + 偏移
+          return Padding(
+            padding: EdgeInsets.only(left: triangleLeft),
+            child: CustomPaint(
+              size: const Size(12, 6),
+              painter: _TrianglePainter(
+                color: _showInputError ? const Color(0xFFFF1B02) : const Color(0xFFF0F0F0),
+              ),
+            ),
+          );
+        },
+      ),
+      // 输入框
+      Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F0F0),
+          borderRadius: BorderRadius.circular(8),
+          border: _showInputError
+              ? Border.all(color: const Color(0xFFFF1B02), width: 1)
+              : null,
+        ),
+        child: TextField(
+          controller: _textController,
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          onChanged: (value) {
+            // 输入时清除错误状态
+            if (_showInputError && value.trim().isNotEmpty) {
+              setState(() {
+                _showInputError = false;
+              });
+            }
+          },
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.all(10),
+            hintText: '请输入原因',
+            hintStyle: TextStyle(
+              fontSize: 12,
+              color: Color(0xFFCCCCCC),
+            ),
+          ),
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF333333),
+          ),
+        ),
+      ),
+    ];
   }
 
   /// 构建单个原因选项
@@ -259,6 +327,8 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
       onTap: () {
         setState(() {
           _selectedReason = reason;
+          _showInputError = false; // 重新选择时清除错误状态
+          _textController.clear(); // 清空输入框
         });
       },
       child: Row(
@@ -309,6 +379,33 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
         ],
       ),
     );
+  }
+}
+
+/// 三角形绘制器
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+
+  _TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path()
+      ..moveTo(0, size.height) // 左下角
+      ..lineTo(size.width / 2, 0) // 顶点
+      ..lineTo(size.width, size.height) // 右下角
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrianglePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 

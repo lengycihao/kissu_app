@@ -413,11 +413,19 @@ class PrivacyComplianceManager extends GetxService {
   /// 只有在用户同意隐私政策后才获取OAID
   Future<void> _enableOaidCollection() async {
     try {
-      if (Get.isRegistered<AnalyticsManager>()) {
+      final isRegistered = Get.isRegistered<AnalyticsManager>();
+      if (kDebugMode) {
+        DebugUtil.info('AnalyticsManager 是否注册: $isRegistered');
+      }
+      if (isRegistered) {
         final analyticsManager = Get.find<AnalyticsManager>();
         await analyticsManager.initMockUserIdAfterPrivacyAgreed();
         if (kDebugMode) {
           DebugUtil.success('OAID收集已启用（隐私政策同意后）');
+        }
+      } else {
+        if (kDebugMode) {
+          DebugUtil.warning('AnalyticsManager 未注册，跳过OAID收集');
         }
       }
     } catch (e) {

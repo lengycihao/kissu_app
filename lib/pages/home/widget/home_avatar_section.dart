@@ -10,6 +10,7 @@ import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 
 /// 首页右上角头像模块
 /// 包含：双头像、状态文本、通知图标、活动图标
@@ -52,6 +53,7 @@ class HomeAvatarSection extends StatelessWidget {
                           CustomBottomDialog.show(
                             context: context,
                             caller: SourcePageUtilsCaller.home,
+                            sourceEvent: HomeEvents.bindPartnerAvatar,
                           );
                         }
                       },
@@ -117,6 +119,7 @@ class HomeAvatarSection extends StatelessWidget {
                               CustomBottomDialog.show(
                                 context: context,
                                 caller: SourcePageUtilsCaller.home,
+                                sourceEvent: HomeEvents.bindPartnerAvatar,
                               );
                             },
                             child: Container(
@@ -188,6 +191,7 @@ class HomeAvatarSection extends StatelessWidget {
                         CustomBottomDialog.show(
                           context: context,
                           caller: SourcePageUtilsCaller.home,
+                          sourceEvent: HomeEvents.bindPartnerAvatar,
                         );
                       },
                       child: Container(
@@ -251,12 +255,13 @@ class HomeAvatarSection extends StatelessWidget {
                                     CustomBottomDialog.show(
                                       context: context,
                                       caller: SourcePageUtilsCaller.home,
+                                      sourceEvent: HomeEvents.vipAction,
                                     );
                                     return;
                                   }
                                   
                                   // 已绑定：跳转到会员页面
-                                  Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home,});
+                                  Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home, 'source_event': HomeEvents.vipAction});
                                 },
                                 child: Image.asset(
                                   "assets/gif/home_vip.gif",
@@ -339,6 +344,7 @@ class HomeAvatarSection extends StatelessWidget {
                                 CustomBottomDialog.show(
                                   context: context,
                                   caller: SourcePageUtilsCaller.home,
+                                  sourceEvent: HomeEvents.poopTogether,
                                 );
                                 return;
                               }
@@ -424,30 +430,31 @@ class HomeAvatarSection extends StatelessWidget {
                   
                   SizedBox(height: 6),
                   // 188打卡入口
-                  GestureDetector(
-                    onTap: () {
-                      // 埋点：首页离开（进入下一页）
-                      controller.trackHomePageExitFromWidget();
-                      Get.toNamed(KissuRoutePath.checkIn188);
-                    },
-                    child: Column(
-                      children: [
-                        Image.asset(
-                          "assets/188/kissu_188_notice_icon.webp",
-                          width: 44,
-                          height: 44,
-                        ),
-                        Text(
-                          "188打卡",
-                          style: TextStyle(
-                            color: Color(0xff333333),
-                            fontSize: 12,
-                            fontFamily: "LiuHuanKaTongShouShu",
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // GestureDetector(
+                  //   onTap: () {
+                  //     // 埋点：首页离开（进入下一页）
+                  //     controller.trackHomePageExitFromWidget();
+                  //     Get.toNamed(KissuRoutePath.checkIn188);
+                  //   },
+                  //   child: Column(
+                  //     children: [
+                  //       Image.asset(
+                  //         "assets/188/kissu_188_notice_icon.webp",
+                  //         width: 44,
+                  //         height: 44,
+                  //       ),
+                  //       Text(
+                  //         "188打卡",
+                  //         style: TextStyle(
+                  //           color: Color(0xff333333),
+                  //           fontSize: 12,
+                  //           fontFamily: "LiuHuanKaTongShouShu",
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
+              
                 ],
               ),
             ),

@@ -75,9 +75,12 @@ class TrackDataManager {
     // 缓存结果
     _trackPointsCache[cacheKey] = points;
     
-    // 更新轨迹线状态
-    hasValidTrackData.value = points.isNotEmpty;
-    logDebug('轨迹点数量: ${points.length}, hasValidTrackData: ${hasValidTrackData.value}');
+    // 更新轨迹线状态 - 延迟到下一帧执行，避免在build期间修改状态
+    final hasData = points.isNotEmpty;
+    Future.microtask(() {
+      hasValidTrackData.value = hasData;
+      logDebug('轨迹点数量: ${points.length}, hasValidTrackData: $hasData');
+    });
     
     return points;
   }

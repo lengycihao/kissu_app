@@ -79,14 +79,17 @@ class AnalyticsManager extends GetxService {
   /// 初始化虚拟用户ID（在用户同意隐私政策后调用）
   /// 🔒 隐私合规：只有在用户同意隐私政策后才获取OAID
   Future<void> initMockUserIdAfterPrivacyAgreed() async {
+    debugPrint('📊 开始初始化虚拟用户ID...');
     if (_mockUserId != null) {
-      debugPrint('📊 虚拟用户ID已存在，跳过获取');
+      debugPrint('📊 虚拟用户ID已存在: $_mockUserId，跳过获取');
       return;
     }
     try {
       _mockUserId = await OaidUtil.instance.getOaid();
       if (_mockUserId != null) {
-        debugPrint('📊 虚拟用户ID获取成功（隐私政策同意后）');
+        debugPrint('📊 虚拟用户ID获取成功: $_mockUserId');
+      } else {
+        debugPrint('⚠️ 虚拟用户ID获取返回null');
       }
     } catch (e) {
       debugPrint('❌ 获取虚拟用户ID失败: $e');
@@ -135,6 +138,7 @@ class AnalyticsManager extends GetxService {
   /// [enterTime] 进入时间
   /// [duration] 停留时长（格式：mm:ss）
   /// [sourcePage] 来源页
+  /// [sourceEvent] 来源事件（触发当前页面/弹窗的事件ID）
   /// [exitType] 离开方式
   /// [params] 其他自定义参数
   void trackPageView({
@@ -143,6 +147,7 @@ class AnalyticsManager extends GetxService {
     required int enterTime,
     required int duration,
     String? sourcePage,
+    String? sourceEvent,
     int? exitType,
     Map<String, dynamic>? params,
   }) {
@@ -150,6 +155,7 @@ class AnalyticsManager extends GetxService {
       AnalyticsParams.pageEnterTime: enterTime,
       AnalyticsParams.pageDuration: duration,
       if (sourcePage != null) AnalyticsParams.sourcePage: sourcePage,
+      if (sourceEvent != null) AnalyticsParams.sourceEvent: sourceEvent,
       if (exitType != null) AnalyticsParams.exitType: exitType,
       ...?params,
     };
@@ -191,6 +197,7 @@ class AnalyticsManager extends GetxService {
     final params = <String, dynamic>{};
 
     // 添加虚拟用户ID
+    debugPrint('📊 构建埋点参数，当前虚拟用户ID: $_mockUserId');
     if (_mockUserId != null) {
       params[AnalyticsParams.mockUserId] = _mockUserId;
     }

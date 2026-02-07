@@ -154,6 +154,33 @@ class KissuRoute {
       transition: Transition.rightToLeft,
     ),
     GetPage(
+      name: KissuRoutePath.systemPermissionLocationGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.location,
+        title: '开启实时定位',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermissionNotificationGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.notification,
+        title: '开启通知提醒',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermissionAppUsageGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.appUsage,
+        title: '允许获取应用使用权限',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
       name: KissuRoutePath.permissionSetting,
       page: () => const PermissionSettingPage(),
       transition: Transition.rightToLeft,

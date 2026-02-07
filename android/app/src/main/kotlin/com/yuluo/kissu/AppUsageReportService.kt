@@ -1174,12 +1174,18 @@ class AppUsageReportService(private val context: Context) {
             }
             
             val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.US)
-            val now = Date()
-            val fileName = "${dateFormat.format(now)}_app.log"
-            val logFile = File(logDir, fileName)
+            val todayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val today = todayFormat.format(Date())
+            
+            // 查找今天的日志文件，如果不存在则创建新的
+            val existingLogFile = logDir.listFiles()?.find { 
+                it.name.startsWith(today) && it.name.endsWith("_app.log") 
+            }
+            
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app.log")
             
             val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
-            val timestamp = isoFormat.format(now)
+            val timestamp = isoFormat.format(Date())
             
             val logEntry = JSONObject().apply {
                 put("timestamp", timestamp)

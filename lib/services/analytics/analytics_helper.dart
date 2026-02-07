@@ -17,18 +17,14 @@ class AnalyticsHelper {
       await AnalyticsManager.instance.trackEventImmediately(
         pageId: UserAgreementEvents.pageId,
         eventId: UserAgreementEvents.operation,
-        params: {
-          AnalyticsParams.operation: YesNoValue.no,
-        },
+        params: {AnalyticsParams.operation: YesNoValue.no},
       );
     } else {
       // 同意时正常上报即可
       AnalyticsManager.instance.trackClick(
         pageId: UserAgreementEvents.pageId,
         eventId: UserAgreementEvents.operation,
-        params: {
-          AnalyticsParams.operation: YesNoValue.yes,
-        },
+        params: {AnalyticsParams.operation: YesNoValue.yes},
       );
     }
   }
@@ -66,7 +62,9 @@ class AnalyticsHelper {
       pageId: LoginEvents.pageId,
       eventId: LoginEvents.getCode,
       params: {
-        AnalyticsParams.sendStatus: success ? SendStatusValue.success : SendStatusValue.failed,
+        AnalyticsParams.sendStatus: success
+            ? SendStatusValue.success
+            : SendStatusValue.failed,
       },
     );
   }
@@ -78,7 +76,9 @@ class AnalyticsHelper {
       pageId: LoginEvents.pageId,
       eventId: LoginEvents.loginButton,
       params: {
-        AnalyticsParams.loginStatus: success ? LoginStatusValue.success : LoginStatusValue.failed,
+        AnalyticsParams.loginStatus: success
+            ? LoginStatusValue.success
+            : LoginStatusValue.failed,
       },
     );
   }
@@ -90,9 +90,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: LoginInfoEvents.pageId,
       eventId: LoginInfoEvents.gender,
-      params: {
-        AnalyticsParams.sex: gender,
-      },
+      params: {AnalyticsParams.sex: gender},
     );
   }
 
@@ -101,9 +99,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: LoginInfoEvents.pageId,
       eventId: LoginInfoEvents.selectBirthday,
-      params: {
-        AnalyticsParams.selectDate: date,
-      },
+      params: {AnalyticsParams.selectDate: date},
     );
   }
 
@@ -116,8 +112,12 @@ class AnalyticsHelper {
       pageId: LoginInfoEvents.pageId,
       eventId: LoginInfoEvents.sureBtn,
       params: {
-        AnalyticsParams.changeAvatar: changeAvatar ? YesNoValue.yes : YesNoValue.no,
-        AnalyticsParams.changeNickname: changeNickname ? YesNoValue.yes : YesNoValue.no,
+        AnalyticsParams.changeAvatar: changeAvatar
+            ? YesNoValue.yes
+            : YesNoValue.no,
+        AnalyticsParams.changeNickname: changeNickname
+            ? YesNoValue.yes
+            : YesNoValue.no,
       },
     );
   }
@@ -133,12 +133,22 @@ class AnalyticsHelper {
   }
 
   /// 记录确认绑定
-  static void trackBindSure({required bool success}) {
+  static void trackBindSure({
+    required bool success,
+    required int bindType,
+    required String friendCode,
+    required String errorMsg,
+  }) {
     AnalyticsManager.instance.trackClick(
       pageId: BindEvents.pageId,
       eventId: BindEvents.sure,
       params: {
-        AnalyticsParams.bindStatus: success ? BindStatusValue.bound : BindStatusValue.notBound,
+        AnalyticsParams.bindStatus: success
+            ? BindStatusValue.bound
+            : BindStatusValue.notBound,
+        AnalyticsParams.bindType: bindType,
+        AnalyticsParams.friendCode: friendCode,
+        AnalyticsParams.errorMsg: errorMsg,
       },
     );
   }
@@ -157,9 +167,17 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: BindEvents.pageId,
       eventId: BindEvents.rebackDialog,
-      params: {
-        AnalyticsParams.btnStatus: btnStatus,
-      },
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 记录返回弹窗曝光
+  /// [pageEnterTime] 曝光时间（秒级时间戳）
+  static void trackBindRebackDialogExposure({required int pageEnterTime}) {
+    AnalyticsManager.instance.trackEvent(
+      pageId: BindEvents.pageId,
+      eventId: BindEvents.rebackDialogExposure,
+      params: {AnalyticsParams.pageEnterTime: pageEnterTime},
     );
   }
 
@@ -170,9 +188,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.bottomNavigation,
-      params: {
-        AnalyticsParams.navigationName: navigationName,
-      },
+      params: {AnalyticsParams.navigationName: navigationName},
     );
   }
 
@@ -198,9 +214,17 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.vipRechargeDialog,
-      params: {
-        AnalyticsParams.btnStatus: btnStatus,
-      },
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 记录VIP充值弹窗曝光
+  /// [pageEnterTime] 曝光时间（秒级时间戳）
+  static void trackVipRechargeDialogExposure({required int pageEnterTime}) {
+    AnalyticsManager.instance.trackEvent(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.vipRechargeDialogExposure,
+      params: {AnalyticsParams.pageEnterTime: pageEnterTime},
     );
   }
 
@@ -210,9 +234,17 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.renewalReminderDialog,
-      params: {
-        AnalyticsParams.btnStatus: btnStatus,
-      },
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 记录续费提醒弹窗曝光
+  /// [pageEnterTime] 曝光时间（秒级时间戳）
+  static void trackRenewalReminderDialogExposure({required int pageEnterTime}) {
+    AnalyticsManager.instance.trackEvent(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.renewalReminderDialogExposure,
+      params: {AnalyticsParams.pageEnterTime: pageEnterTime},
     );
   }
 
@@ -222,9 +254,17 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.expiryTipDialog,
-      params: {
-        AnalyticsParams.btnStatus: btnStatus,
-      },
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 记录到期提示弹窗曝光
+  /// [pageEnterTime] 曝光时间（秒级时间戳）
+  static void trackExpiryTipDialogExposure({required int pageEnterTime}) {
+    AnalyticsManager.instance.trackEvent(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.expiryTipDialogExposure,
+      params: {AnalyticsParams.pageEnterTime: pageEnterTime},
     );
   }
 
@@ -278,9 +318,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: LocationEvents.pageId,
       eventId: LocationEvents.toBind,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -291,9 +329,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: TrackEvents.pageId,
       eventId: TrackEvents.avatarChange,
-      params: {
-        AnalyticsParams.avatarName: avatarName,
-      },
+      params: {AnalyticsParams.avatarName: avatarName},
     );
   }
 
@@ -318,9 +354,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: TrackEvents.pageId,
       eventId: TrackEvents.toBind,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -347,9 +381,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: ChatEvents.pageId,
       eventId: ChatEvents.bgBtn,
-      params: {
-        AnalyticsParams.bgName: bgName,
-      },
+      params: {AnalyticsParams.bgName: bgName},
     );
   }
 
@@ -358,9 +390,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: ChatEvents.pageId,
       eventId: ChatEvents.buddleBtn,
-      params: {
-        AnalyticsParams.buddleName: buddleName,
-      },
+      params: {AnalyticsParams.buddleName: buddleName},
     );
   }
 
@@ -369,9 +399,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: ChatEvents.pageId,
       eventId: ChatEvents.themeBtn,
-      params: {
-        AnalyticsParams.themeName: themeName,
-      },
+      params: {AnalyticsParams.themeName: themeName},
     );
   }
 
@@ -406,9 +434,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: PhoneHistoryEvents.pageId,
       eventId: PhoneHistoryEvents.phoneUseModule,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -417,9 +443,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: PhoneHistoryEvents.pageId,
       eventId: PhoneHistoryEvents.appUseModule,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -428,9 +452,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: PhoneHistoryEvents.pageId,
       eventId: PhoneHistoryEvents.sensitiveOperationModule,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -467,9 +489,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.vipBtn,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -486,9 +506,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.functionsModule,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 
@@ -500,7 +518,8 @@ class AnalyticsHelper {
       eventId: MyPageEvents.changeLogoItemBtn,
       params: {
         AnalyticsParams.logoName: logoName,
-        AnalyticsParams.clickTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        AnalyticsParams.clickTime:
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
       },
     );
   }
@@ -543,9 +562,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.typeClick,
-      params: {
-        AnalyticsParams.clickStatus: clickStatus,
-      },
+      params: {AnalyticsParams.clickStatus: clickStatus},
     );
   }
 
@@ -560,7 +577,7 @@ class AnalyticsHelper {
     required int payType,
     required int payStatus,
     required String btnName,
-     required int payDuration,
+    required int payDuration,
   }) {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
@@ -570,7 +587,7 @@ class AnalyticsHelper {
         AnalyticsParams.payType: payType,
         AnalyticsParams.btnName: btnName,
         AnalyticsParams.payStatus: payStatus,
-         AnalyticsParams.payDuration: payDuration,
+        AnalyticsParams.payDuration: payDuration,
       },
     );
   }
@@ -581,9 +598,17 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.rebackPopup,
-      params: {
-        AnalyticsParams.btnStatus: btnStatus,
-      },
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 记录返回弹窗曝光
+  /// [pageEnterTime] 曝光时间（秒级时间戳）
+  static void trackMembershipRebackPopupExposure({required int pageEnterTime}) {
+    AnalyticsManager.instance.trackEvent(
+      pageId: MembershipEvents.pageId,
+      eventId: MembershipEvents.rebackPopupExposure,
+      params: {AnalyticsParams.pageEnterTime: pageEnterTime},
     );
   }
 
@@ -592,9 +617,17 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MembershipEvents.pageId,
       eventId: MembershipEvents.popup19Dialog,
-      params: {
-        AnalyticsParams.btnStatus: btnStatus,
-      },
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 记录19元弹窗曝光
+  /// [pageEnterTime] 曝光时间（秒级时间戳）
+  static void trackPopup19DialogExposure({required int pageEnterTime}) {
+    AnalyticsManager.instance.trackEvent(
+      pageId: MembershipEvents.pageId,
+      eventId: MembershipEvents.popup19DialogExposure,
+      params: {AnalyticsParams.pageEnterTime: pageEnterTime},
     );
   }
 
@@ -631,7 +664,50 @@ class AnalyticsHelper {
       },
     );
   }
- 
+
+  // ==================== 权限设置页面 ====================
+
+  /// 记录权限设置页面按钮点击
+  /// [permissionName] 权限名称（item的标题）
+  /// [btnName] 按钮名称（去设置/已开启）
+  static void trackPermissionSetBtnClick({
+    required String permissionName,
+    required String btnName,
+  }) {
+    AnalyticsManager.instance.trackClick(
+      pageId: PermissionSetEvents.pageId,
+      eventId: PermissionSetEvents.btnClick,
+      params: {
+        AnalyticsParams.permissionName: permissionName,
+        AnalyticsParams.btnName: btnName,
+      },
+    );
+  }
+
+  /// 记录权限设置二级页面浏览
+  /// [eventId] 事件ID
+  /// [enterTime] 进入页面时间（秒级时间戳）
+  /// [duration] 页面停留时长（秒）
+  /// [exitType] 离开方式
+  /// [status] 开启状态（0=未开启，1=已开启定位未开启始终，2=开启始终）
+  static void trackPermissionSetGuidePage({
+    required String eventId,
+    required int enterTime,
+    required int duration,
+    required int exitType,
+    required int status,
+  }) {
+    AnalyticsManager.instance.trackPageView(
+      pageId: PermissionSetEvents.pageId,
+      eventId: eventId,
+      enterTime: enterTime,
+      duration: duration,
+      exitType: exitType,
+      params: {
+        AnalyticsParams.status: status,
+      },
+    );
+  }
 
   // ==================== 解除关系相关 ====================
 
@@ -657,9 +733,7 @@ class AnalyticsHelper {
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.unbindStatement,
-      params: {
-        AnalyticsParams.btnName: btnName,
-      },
+      params: {AnalyticsParams.btnName: btnName},
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/widgets/dialogs/vip_outtime_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/vip_expire_reminder_dialog.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
@@ -157,6 +158,15 @@ class HomePopupService {
         return;
       }
 
+      // 🔥 修复：显示弹窗前再次检查最新的绑定状态（避免使用过期的本地缓存数据）
+      // 因为在延迟800ms期间，服务器可能已经返回了最新的用户信息
+      final latestBindStatus = UserManager.currentUser?.bindStatus.toString() == "1";
+      if (latestBindStatus) {
+        logDebug('🔗 延迟后再次检查：用户已绑定，取消显示绑定弹窗');
+        isBound.value = true; // 同步更新绑定状态
+        return;
+      }
+
       logDebug('💑 显示绑定弹窗');
       
       // 标记弹窗正在显示，隐藏引导图
@@ -173,6 +183,7 @@ class HomePopupService {
       final dialogFuture = CustomBottomDialog.show(
         context: currentContext,
         caller: SourcePageUtilsCaller.home,
+        sourceEvent: HomeEvents.page, // 首页自动弹出，传首页页面事件ID
         onClose: () {
           logDebug('💑 绑定弹窗已关闭');
         },
@@ -268,6 +279,7 @@ class HomePopupService {
             arguments: {
                 'defaultVipType': 4, // 永久会员 type = 4
               'source_page': SourcePageUtilsCaller.home,
+              'source_event': HomeEvents.vipRechargeDialog,
             },
           );
         },
@@ -451,6 +463,7 @@ class HomePopupService {
             KissuRoutePath.vip,
             arguments: {
               'source_page': SourcePageUtilsCaller.home,
+              'source_event': HomeEvents.renewalReminderDialog,
               },
           );
         },
@@ -535,6 +548,7 @@ class HomePopupService {
             KissuRoutePath.vip,
             arguments: {
               'source_page': SourcePageUtilsCaller.home,
+              'source_event': HomeEvents.expiryTipDialog,
             },
           );
         },

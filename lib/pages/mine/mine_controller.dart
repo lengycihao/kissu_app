@@ -516,11 +516,11 @@ class MineController extends GetxController {
         onTap: () => _onNotificationSettingsTap(),
       ),
 
-      // SettingItem(
-      //   icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
-      //   title: "弹窗展示",
-      //   onTap: () => Get.to(() => const DialogShowcasePage()),
-      // ),
+      SettingItem(
+        icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
+        title: "弹窗展示",
+        onTap: () => Get.to(() => const DialogShowcasePage()),
+      ),
 
       // SettingItem(
       //   icon: "assets/images/kissu_home_tab_history.webp",
@@ -718,6 +718,7 @@ class MineController extends GetxController {
         CustomBottomDialog.show(
           context: Get.context!,
           caller: SourcePageUtilsCaller.mine,
+          sourceEvent: MyPageEvents.avatar, // 头像点击事件
         );
       }
     } else {
@@ -794,6 +795,7 @@ class MineController extends GetxController {
         CustomBottomDialog.show(
           context: Get.context!,
           caller: SourcePageUtilsCaller.mine,
+          sourceEvent: MyPageEvents.vipBtn, // 立即绑定按钮事件
           isDismissible: false, // 禁用点击背景关闭
           enableDrag: false, // 禁用向下滑动关闭
           onCloseConfirm: () async {
@@ -828,7 +830,7 @@ class MineController extends GetxController {
       onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'source_page': SourcePageUtilsCaller.mine, },
+        arguments: {'source_page': SourcePageUtilsCaller.mine, 'source_event': MyPageEvents.vipBtn},
       );
     } else {
       // 非会员，跳转到VIP页面（开通会员）
@@ -839,7 +841,7 @@ class MineController extends GetxController {
       onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'source_page': SourcePageUtilsCaller.mine, },
+        arguments: {'source_page': SourcePageUtilsCaller.mine, 'source_event': MyPageEvents.vipBtn},
       );
     }
   }
@@ -973,6 +975,7 @@ class MineController extends GetxController {
         await CustomBottomDialog.show(
           context: Get.context!,
           caller: SourcePageUtilsCaller.mine,
+          sourceEvent: MyPageEvents.functionsModule, // 常用功能模块事件
           isDismissible: false, // 禁用点击背景关闭
           enableDrag: false, // 禁用向下滑动关闭
           onCloseConfirm: () async {
@@ -993,7 +996,7 @@ class MineController extends GetxController {
       onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
-       arguments: {'source_page': SourcePageUtilsCaller.mine, },
+       arguments: {'source_page': SourcePageUtilsCaller.mine, 'source_event': MyPageEvents.functionsModule},
       );
       return;
     }
@@ -1018,10 +1021,32 @@ class MineController extends GetxController {
   }
 
   /// 敏感操作记录页面
-  void _onMinganJiluTap() {
+  void _onMinganJiluTap() async {
     // 埋点：记录敏感操作记录功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.sensitiveRecord);
+     // 1. 未绑定：先引导绑定
+    if (!isBound.value) {
+      logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
+
     
+      if (Get.context != null) {
+        await CustomBottomDialog.show(
+          context: Get.context!,
+          caller: SourcePageUtilsCaller.mine,
+          sourceEvent: MyPageEvents.functionsModule, // 常用功能模块事件
+          isDismissible: false, // 禁用点击背景关闭
+          enableDrag: false, // 禁用向下滑动关闭
+          onCloseConfirm: () async {
+            // 复用 VIP 逻辑中的二次确认弹窗
+            return await _showBindingCloseConfirmDialog();
+          },
+        );
+
+        // 绑定弹窗关闭后，刷新页面数据（可能已经完成绑定）
+        onPageResumed();
+      }
+      return;
+    }
     onNavigateToNextPage?.call();
     Get.to(() => const UsageReportPage(), binding: UsageReportBinding());
   }

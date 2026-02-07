@@ -27,6 +27,7 @@ import 'services/marker_builder.dart';
 import 'services/location_data_helper.dart';
 import 'package:kissu_app/pages/location/location_detail_page.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 
 class LocationV2Controller extends GetxController
     with GetTickerProviderStateMixin {
@@ -1646,7 +1647,8 @@ class LocationV2Controller extends GetxController
     }
   }
 
-  /// 🎯 近距离模式下点击切换按钮：移动相机到我的坐标，缩放级别18，隐藏infowindow和圆圈
+  /// 🎯 近距离模式下点击切换按钮：循环切换底部信息（我 -> Ta -> 我）
+  /// 🔥 修复：近距离模式下也需要切换底部的设备信息、位置信息等
   void moveToMyLocationInCloseMode() {
     if (mapController == null) {
       logDebug('🎯 moveToMyLocationInCloseMode: mapController 为空');
@@ -1660,22 +1662,36 @@ class LocationV2Controller extends GetxController
       return;
     }
 
-    logDebug('🎯 近距离模式：移动相机到我的坐标 (${myPos.latitude}, ${myPos.longitude})，缩放级别18');
-
-    try {
-      // 移动相机到我的坐标，缩放级别18
-      mapController!.moveCamera(
-        CameraUpdate.newLatLngZoom(myPos, 18.0),
-        animated: true,
-        duration: 500,
-      );
-
-      // 隐藏infowindow和圆圈
-      clearMapHighlights();
-      logDebug('🎯 相机已移动到我的位置，缩放级别18');
-    } catch (e) {
-      logError('🎯 moveToMyLocationInCloseMode 执行失败: $e');
+    // 🔥 修复：切换isOneself状态，更新底部信息
+    // 近距离模式下，地图位置不变（始终显示两人合并的位置），但底部信息需要切换
+    final currentIsOneself = isOneself.value;
+    final newIsOneself = currentIsOneself == 1 ? 0 : 1; // 切换：我(1) <-> Ta(0)
+    
+    logDebug('🎯 近距离模式：切换底部信息 isOneself: $currentIsOneself -> $newIsOneself');
+    
+    // 更新isOneself状态
+    isOneself.value = newIsOneself;
+    
+    // 🔥 关键修复：根据新的isOneself状态更新底部显示的设备信息
+    final locationDataResult = locationData.value;
+    if (locationDataResult != null) {
+      UserLocationMobileDevice? currentUser;
+      if (newIsOneself == 1) {
+        currentUser = locationDataResult.userLocationMobileDevice;
+      } else {
+        currentUser = locationDataResult.halfLocationMobileDevice;
+      }
+      
+      if (currentUser != null) {
+        _updateCurrentUserDataWithoutLocation(currentUser);
+        _updateLocationRecords(currentUser);
+        logDebug('🎯 近距离模式：已更新底部信息为${newIsOneself == 1 ? "我" : "Ta"}的数据');
+      }
     }
+
+    // 隐藏infowindow和圆圈
+    clearMapHighlights();
+    logDebug('🎯 近距离模式：底部信息已切换');
   }
 
   /// 🎯 在指定位置显示高亮圆圈和InfoWindow（从聊天页面跳转时使用）
@@ -2094,7 +2110,11 @@ class LocationV2Controller extends GetxController
     AnalyticsHelper.trackLocationToBind(btnName: 'bind');
     
     if (Get.context != null) {
-      CustomBottomDialog.show(context: Get.context!, caller: SourcePageUtilsCaller.location).then((_) {
+      CustomBottomDialog.show(
+        context: Get.context!,
+        caller: SourcePageUtilsCaller.location,
+        sourceEvent: LocationEvents.toBind, // 定位页面绑定按钮事件
+      ).then((_) {
         refreshUserInfo();
       });
     }
@@ -2299,6 +2319,7 @@ class LocationV2Controller extends GetxController
       KissuRoutePath.vip,
       arguments: {
         'source_page': SourcePageUtilsCaller.location,
+        'source_event': LocationEvents.toBind,
        },
     )?.then((_) {
       refreshUserInfo();

@@ -22,6 +22,7 @@ import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoveInfoController extends GetxController {
@@ -92,6 +93,25 @@ class LoveInfoController extends GetxController {
   void refreshUserInfo() {
    logDebug('🔄 刷新恋爱信息页用户数据...');
     _loadUserInfo();
+  }
+  
+  /// 🔥 从服务器刷新用户信息（绑定成功后调用，确保获取最新数据）
+  Future<void> refreshFromServer() async {
+    logDebug('🔄 恋爱信息页：从服务器刷新用户信息');
+    try {
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        logDebug('✅ 恋爱信息页：服务器数据刷新成功');
+        _loadUserInfo();
+      } else {
+        logWarning('⚠️ 恋爱信息页：服务器数据刷新失败，使用本地缓存');
+        _loadUserInfo();
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 恋爱信息页：从服务器刷新用户信息失败: $e');
+      // 即使失败也尝试加载本地数据
+      _loadUserInfo();
+    }
   }
 
   void _loadUserInfo() {
@@ -201,6 +221,7 @@ class LoveInfoController extends GetxController {
     CustomBottomDialog.show(
       context: context,
       caller: SourcePageUtilsCaller.loveInfo,
+      sourceEvent: MyPageEvents.avatar, // 从我的页面头像进入恋爱信息页面
     );
   }
 

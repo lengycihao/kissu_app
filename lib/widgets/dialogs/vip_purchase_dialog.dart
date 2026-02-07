@@ -17,6 +17,11 @@ class VipPurchaseDialog extends StatefulWidget {
     VoidCallback? onConfirm,
     bool barrierDismissible = false, // 默认不允许点击背景关闭
   }) async {
+    // 埋点：VIP充值弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackVipRechargeDialogExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     // 标记是否已经上报过埋点（避免重复上报）
     bool hasTrackedClose = false;
     

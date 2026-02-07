@@ -142,6 +142,11 @@ class BindingCloseConfirmDialog extends BaseDialog {
     bool barrierDismissible = true,
     bool isFromHomePage = false, // 默认不是首页
   }) {
+    // 埋点：挽留弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackBindRebackDialogExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     return BaseDialog.show<bool>(
       context: context,
       barrierDismissible: barrierDismissible,

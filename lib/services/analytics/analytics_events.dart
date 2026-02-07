@@ -72,6 +72,9 @@ class BindEvents {
   
   /// 返回弹窗事件
   static const String rebackDialog = 'bind_page_reback_dialog_event';
+  
+  /// 返回弹窗曝光事件
+  static const String rebackDialogExposure = 'bind_page_exposure_reback_dialog_event';
 }
 
 /// 首页事件
@@ -99,11 +102,20 @@ class HomeEvents {
   /// VIP充值弹窗事件
   static const String vipRechargeDialog = 'home_page_vip_recharge_dialog_event';
   
+  /// VIP充值弹窗曝光事件
+  static const String vipRechargeDialogExposure = 'home_page_vip_recharge_exposure_dialog_event';
+  
   /// 续费提醒弹窗事件
   static const String renewalReminderDialog = 'home_page_renewal_reminder_dialog_event';
   
+  /// 续费提醒弹窗曝光事件
+  static const String renewalReminderDialogExposure = 'home_page_renewal_reminder_exposure_dialog_event';
+  
   /// 到期提示弹窗事件
   static const String expiryTipDialog = 'home_page_vip_expire_dialog_event';
+  
+  /// 到期提示弹窗曝光事件
+  static const String expiryTipDialogExposure = 'home_page_vip_expire_exposure_dialog_event';
 }
 
 /// 定位页面事件
@@ -236,6 +248,32 @@ class ChangeLogoEvents {
   static const String itemBtn = 'my_page_change_logo_item_btn_event';
 }
 
+/// 权限设置页面事件
+class PermissionSetEvents {
+  static const String pageId = 'permission_set_page';
+  
+  /// 按钮点击事件
+  static const String btnClick = 'permission_set_page_btn_click_event';
+  
+  /// 开启实时定位二级页面事件
+  static const String locationPage = 'permission_set_page_location_event';
+  
+  /// 允许后台运行二级页面事件
+  static const String backstagePage = 'permission_set_page_backstage_event';
+  
+  /// 开启通知提醒二级页面事件
+  static const String notificationPage = 'permission_set_page_notification_event';
+  
+  /// 允许获取应用使用权限二级页面事件
+  static const String screenPage = 'permission_set_page_screen_event';
+  
+  /// 防止程序休眠二级页面事件
+  static const String sleepPage = 'permission_set_page_sleep_event';
+  
+  /// 让程序锁在后台二级页面事件
+  static const String lockBackgroundPage = 'permission_set_page_lock_background_event';
+}
+
 /// 我的页面事件
 class MyPageEvents {
   static const String pageId = 'my_page';
@@ -302,8 +340,14 @@ class MembershipEvents {
   /// 返回弹窗事件
   static const String rebackPopup = 'vip_page_reback_popup_event';
   
+  /// 返回弹窗曝光事件
+  static const String rebackPopupExposure = 'vip_page_reback_exposure_popup_event';
+  
   /// 19元弹窗事件
   static const String popup19Dialog = 'vip_page_19_dialog_event';
+  
+  /// 19元弹窗曝光事件
+  static const String popup19DialogExposure = 'vip_page_19_exposure_dialog_event';
   
   /// 恢复购买事件
   static const String restorePurchases = 'vip_page_restore_purchases_event';

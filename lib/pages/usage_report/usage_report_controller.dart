@@ -372,7 +372,7 @@ class UsageReportController extends GetxController {
       
       // 需要VIP权限，跳转到VIP页面
       logDebug('🔒 需要VIP权限，跳转到VIP页面');
-      _navigateToVipPage();
+      _navigateToVipPageWithEvent(SensitiveEvents.itemVipBtn);
     } else if (record.showJumpButton) {
       // 有跳转按钮，处理跳转
       handleJumpPageClick(record.jumpPage);
@@ -422,15 +422,15 @@ class UsageReportController extends GetxController {
     }
   }
 
-  /// 跳转到VIP页面
-  Future<void> _navigateToVipPage() async {
-    logDebug('💎 跳转到VIP页面');
+  /// 跳转到VIP页面（带来源事件参数）
+  Future<void> _navigateToVipPageWithEvent(String sourceEvent) async {
+    logDebug('💎 跳转到VIP页面, sourceEvent: $sourceEvent');
     
     // 埋点：页面离开（进入下一页）
     onNavigateToNextPage?.call();
     
     // 跳转到VIP页面
-    final result = await Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.usageReport, },);
+    final result = await Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.usageReport, 'source_event': sourceEvent});
     
     // 如果开通成功，刷新数据
     if (result == true) {
@@ -539,7 +539,7 @@ class UsageReportController extends GetxController {
     // 跳转到VIP页面
     await Get.toNamed(
       KissuRoutePath.vip,
-     arguments: {'source_page': SourcePageUtilsCaller.usageReport, },
+     arguments: {'source_page': SourcePageUtilsCaller.usageReport, 'source_event': PhoneHistoryEvents.appUseModule},
     );
 
     // 从VIP页面返回后，刷新用户信息
@@ -566,6 +566,7 @@ class UsageReportController extends GetxController {
       CustomBottomDialog.show(
         context: currentContext,
         caller: SourcePageUtilsCaller.usageReport,
+        sourceEvent: PhoneHistoryEvents.pageId, // 用机记录页面统一传mobile_use_page
         onClose: () {
           logDebug('💑 绑定弹窗已关闭');
         },

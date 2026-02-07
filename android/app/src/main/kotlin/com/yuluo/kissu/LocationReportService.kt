@@ -374,7 +374,7 @@ class LocationReportService(private val context: Context) {
     private fun shouldCollectLocation(location: AMapLocation): Boolean {
         // 检查定位是否有效
         if (location.errorCode != 0) {
-            Log.d(TAG, "⚠️ 定位失败，错误码: ${location.errorCode}")
+            Log.w(TAG, "⚠️ 定位失败，错误码: ${location.errorCode}")
             return false
         }
         

@@ -1,10 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'system_permission_controller.dart';
-import '../../../services/permission_service.dart';
+import '../../../widgets/dialogs/permission_setting_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
-class SystemPermissionPage extends GetView<SystemPermissionController> {
+class SystemPermissionPage extends StatefulWidget {
   const SystemPermissionPage({super.key});
+
+  @override
+  State<SystemPermissionPage> createState() => _SystemPermissionPageState();
+}
+
+class _SystemPermissionPageState extends State<SystemPermissionPage> {
+  bool _hasCheckedPermissions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 监听权限加载完成后显示弹窗
+    final controller = Get.find<SystemPermissionController>();
+    ever(controller.isLoading, (isLoading) {
+      if (!isLoading && !_hasCheckedPermissions && mounted) {
+        _hasCheckedPermissions = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _checkAndShowPermissionDialog();
+          }
+        });
+      }
+    });
+  }
+
+  SystemPermissionController get controller => Get.find<SystemPermissionController>();
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +42,7 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
           // 背景图
           Positioned.fill(
             child: Image.asset(
-              "assets/4.0/kissu4_new_use_bg.webp",
+              "assets/images/quanxian_bg.webp",
               fit: BoxFit.fitWidth,
               alignment: Alignment.topCenter,
             ),
@@ -26,19 +53,40 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
                 // 顶部导航栏
                 _buildTopBar(),
                 const SizedBox(height: 10),
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 10),
-                  padding: EdgeInsets.symmetric(horizontal: 10,vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Color(0xffFFE1F4),
-                    border: Border.all(width: 1, color: Color(0xffffffff)),
-                    borderRadius: BorderRadius.circular(12)
-                    
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 16, bottom: 20),
+                    child: Stack(
+                      children: [
+                        Transform.translate(
+                          offset: Offset(0, 15),
+                          child: Image(
+                            image: AssetImage(
+                              "assets/images/quanxian_title.webp",
+                            ),
+                            width: 188,
+                            height: 28,
+                          ),
+                        ),
+                        Text(
+                          "设置重要权限",
+                          style: TextStyle(
+                            color: Color(0xff333333),
+                            fontSize: 26,
+                            fontFamily: 'AlimamaShuHeiTi',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Text("以保证你的实时位置，手机使用、轨迹停留、自动报备等数据正常显示",style: TextStyle(
-                    color: Color(0xff777777),
-                    fontSize: 12
-                  ),),
+                ),
+                Padding(
+                  padding: EdgeInsets.only(left: 16, right: 16,bottom: 16),
+                  child: Text(
+                    "双方都要开启权限，才能保证定位、足迹、用机记录等功能数据显示正常~",
+                    style: TextStyle(color: Color(0xff333333), fontSize: 14),
+                  ),
                 ),
                 // 权限列表
                 Expanded(child: _buildPermissionList()),
@@ -48,6 +96,14 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
         ],
       ),
     );
+  }
+
+  /// 检查权限并显示弹窗
+  void _checkAndShowPermissionDialog() {
+    // 等待权限检查完成后再判断
+    if (!controller.isLoading.value && !controller.areAllPermissionsEnabled()) {
+      PermissionSettingDialog.showPermissionSettingDialog(context);
+    }
   }
 
   /// 构建顶部导航栏
@@ -75,19 +131,6 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
               ),
             ),
           ),
-          // 标题 - 绝对居中
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: Text(
-                "请开启以下权限",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -107,10 +150,8 @@ class SystemPermissionPage extends GetView<SystemPermissionController> {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          final type = item["type"] as PermissionType?;
           return _PermissionItemCard(
             item: item,
-            type: type,
             index: index,
             controller: controller,
           );
@@ -147,13 +188,11 @@ class _PermissionLoadingView extends StatelessWidget {
 /// 权限项卡片组件 - 带动画效果
 class _PermissionItemCard extends StatefulWidget {
   final Map<String, dynamic> item;
-  final PermissionType? type;
   final int index;
   final SystemPermissionController controller;
 
   const _PermissionItemCard({
     required this.item,
-    required this.type,
     required this.index,
     required this.controller,
   });
@@ -196,96 +235,43 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
   @override
   Widget build(BuildContext context) {
     final guideType = widget.item["guideType"] as SystemPermissionGuideType?;
-    final bool isGuide = guideType != null;
 
-    // 教程类 item：按钮文案与背景颜色由是否"已完成"决定，但始终可点击进入二级页面
-    if (isGuide) {
-      // 防止程序休眠：特殊处理，直接申请权限
-      if (guideType == SystemPermissionGuideType.preventSleep) {
-        return FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Obx(() {
-              // 检查权限状态
-              final bool isGranted = widget.controller.isBatteryOptimized.value;
-              final String buttonText = isGranted ? "已开启" : "去设置";
-              final Color buttonColor = isGranted
-                  ? const Color(0xFF999999)
-                  : const Color(0xFFFFA9E0);
-              final VoidCallback? buttonAction = isGranted
-                  ? null
-                  : () => widget.controller.handlePreventSleepTap();
-
-              return GestureDetector(
-                onTap: buttonAction,
-                child: _buildCard(
-                  buttonText: buttonText,
-                  buttonColor: buttonColor,
-                  isEnabled: !isGranted,
-                  onTap: buttonAction,
-                ),
-              );
-            }),
-          ),
-        );
-      }
-
-      // 其他教程类 item：保持原有逻辑
-      return FadeTransition(
-        opacity: _fadeAnimation,
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: Obx(() {
-            final bool hasCompleted = widget.controller.isGuideCompleted(
-              guideType,
-            );
-            final String buttonText = hasCompleted ? "已开启" : "去设置";
-            final Color buttonColor = hasCompleted
-                ? const Color(0xFF999999)
-                : const Color(0xFFFFA9E0);
-            final VoidCallback buttonAction = () =>
-                widget.controller.openGuidePage(guideType);
-
-            return GestureDetector(
-              onTap: buttonAction,
-              child: _buildCard(
-                buttonText: buttonText,
-                buttonColor: buttonColor,
-                isEnabled: true,
-                onTap: buttonAction,
-              ),
-            );
-          }),
-        ),
-      );
+    // 所有项目都使用 guideType，统一处理
+    if (guideType == null) {
+      // 如果没有 guideType，返回空容器（不应该发生）
+      return const SizedBox.shrink();
     }
 
-    // 普通权限类 item 使用 Obx 监听权限状态变化
     return FadeTransition(
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Obx(() {
-          final permissionType = widget.type ?? PermissionType.usage;
-          final String buttonText = widget.controller.getButtonText(
-            permissionType,
-          );
-          final Color buttonColor = widget.controller.getButtonColor(
-            permissionType,
-          );
-          final bool isEnabled = widget.controller.isButtonEnabled(
-            permissionType,
-          );
-          final VoidCallback? buttonAction = isEnabled
-              ? () => widget.controller.onPermissionTap(permissionType)
-              : null;
+          // 检查权限是否已开启
+          final bool isGranted = widget.controller.isGuideCompleted(guideType);
+          final String buttonText = isGranted ? "已开启" : "去设置";
+          final Color buttonColor = isGranted
+              ? const Color(0xFF999999)
+              : const Color(0xFFFFA9E0);
+          
+          // 点击整个卡片进入二级页面
+          final VoidCallback buttonAction = () {
+            // 埋点：权限设置页面按钮点击
+            AnalyticsHelper.trackPermissionSetBtnClick(
+              permissionName: widget.item["title"],
+              btnName: buttonText,
+            );
+            widget.controller.openGuidePage(guideType);
+          };
 
-          return _buildCard(
-            buttonText: buttonText,
-            buttonColor: buttonColor,
-            isEnabled: isEnabled,
+          return GestureDetector(
             onTap: buttonAction,
+            child: _buildCard(
+              buttonText: buttonText,
+              buttonColor: buttonColor,
+              isGranted: isGranted,
+              onTap: buttonAction,
+            ),
           );
         }),
       ),
@@ -296,7 +282,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
   Widget _buildCard({
     required String buttonText,
     required Color buttonColor,
-    required bool isEnabled,
+    required bool isGranted,
     required VoidCallback? onTap,
   }) {
     return Container(
@@ -305,7 +291,9 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-       ),
+        // 权限已开启时没有边框，未开启时显示粉色边框
+        border: isGranted ? null : Border.all(color: const Color(0xFFFF97CE)),
+      ),
       child: Row(
         children: [
           // 权限图标

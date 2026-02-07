@@ -118,6 +118,11 @@ class VipCancelRetentionDialog extends BaseDialog {
     VoidCallback? onCancel,
     bool barrierDismissible = true,
   }) {
+    // 埋点：会员页挽留弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackMembershipRebackPopupExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     return BaseDialog.show<bool>(
       context: context,
       barrierDismissible: barrierDismissible,

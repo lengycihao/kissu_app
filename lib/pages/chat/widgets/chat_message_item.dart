@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
@@ -223,7 +224,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                                 controller.onNavigateToNextPage?.call();
                               } catch (_) {}
                               
-                              Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.chat});
+                              Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.chat, 'source_event': ChatEvents.pageId});
                             } catch (e) {
                               debugPrint('跳转 VIP 页面失败: $e');
                             }

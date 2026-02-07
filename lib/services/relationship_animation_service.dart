@@ -6,6 +6,7 @@ import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 
 /// 情侣关系动画服务
 /// 负责显示绑定/解绑关系时的GIF动画
@@ -135,6 +136,13 @@ class RelationshipAnimationService extends GetxService {
         final trackController = Get.find<TrackController>();
         trackController.refreshCurrentUserData();
         logger.info('✅ 足迹页面数据已刷新', tag: 'RelationshipAnimationService');
+      }
+      
+      // 🔥 修复：刷新恋爱信息页面
+      if (Get.isRegistered<LoveInfoController>()) {
+        final loveInfoController = Get.find<LoveInfoController>();
+        loveInfoController.refreshUserInfo();
+        logger.info('✅ 恋爱信息页面数据已刷新', tag: 'RelationshipAnimationService');
       }
       
       logger.info('✅ 页面刷新完成', tag: 'RelationshipAnimationService');

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
+import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/services/jpush_service.dart';
@@ -154,6 +155,14 @@ class AuthService {
       tag: 'AuthService',
       extra: {'userId': user.id, 'nickname': user.nickname},
     );
+
+    // 🔥 登录成功后初始化真实的设备ID（隐私政策已同意）
+    try {
+      await DeviceUtil.instance.initializeDeviceId();
+      logger.info('设备ID初始化完成', tag: 'AuthService');
+    } catch (e) {
+      logger.warning('设备ID初始化失败: $e', tag: 'AuthService');
+    }
 
     // 🔥 保存用户 Token 到 Native（供后台定位上报使用）
     try {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimSDKListener.dart';
 import 'package:tencent_cloud_chat_sdk/enum/log_level_enum.dart';
@@ -1370,11 +1371,22 @@ class TencentIMService extends GetxService {
         await Future.delayed(const Duration(milliseconds: 300));
       }
       
-      // 1. 先刷新用户信息
+      // 1. 先刷新用户信息（带重试机制，因为绑定API可能还没完成）
       logger.debug('📥 开始刷新用户信息...', tag: 'TencentIMService');
       final authService = getIt<AuthService>();
-      await authService.refreshUserInfoFromServer();
-      logger.debug('✅ 用户信息刷新成功', tag: 'TencentIMService');
+      bool refreshSuccess = false;
+      for (int i = 0; i < 3; i++) {
+        refreshSuccess = await authService.refreshUserInfoFromServer();
+        if (refreshSuccess) {
+          logger.debug('✅ 用户信息刷新成功', tag: 'TencentIMService');
+          break;
+        }
+        logger.warning('⚠️ 用户信息刷新失败，第${i + 1}次重试...', tag: 'TencentIMService');
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      if (!refreshSuccess) {
+        logger.warning('⚠️ 用户信息刷新失败，使用本地缓存', tag: 'TencentIMService');
+      }
       
       // 2. 刷新当前页面
       animationService.refreshCurrentPage();
@@ -1390,7 +1402,7 @@ class TencentIMService extends GetxService {
             logger.debug('📍 当前为非会员用户，准备跳转到VIP页面...', tag: 'TencentIMService');
             final result = Get.toNamed(
               KissuRoutePath.vip,
-              arguments: {'source_page': SourcePageUtilsCaller.home, },
+              arguments: {'source_page': SourcePageUtilsCaller.home, 'source_event': PageSourceIds.bind},
             );
             logger.debug('✅ VIP页面跳转已触发，返回值: $result', tag: 'TencentIMService');
           } else {
@@ -1471,7 +1483,7 @@ class TencentIMService extends GetxService {
               logger.debug('📍 当前为非会员用户，准备跳转到VIP页面...', tag: 'TencentIMService');
               final result = Get.toNamed(
                 KissuRoutePath.vip,
-              arguments: {'source_page': SourcePageUtilsCaller.home , },
+                arguments: {'source_page': SourcePageUtilsCaller.home, 'source_event': PageSourceIds.bind},
               );
               logger.debug('✅ VIP页面跳转已触发，返回值: $result', tag: 'TencentIMService');
             } else {

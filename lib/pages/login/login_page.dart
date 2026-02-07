@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
 import 'package:flutter/services.dart';
-import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/widgets/loading_dots_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
-import 'package:kissu_app/services/analytics/analytics_manager.dart';
-import 'package:kissu_app/services/analytics/analytics_events.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -18,19 +15,11 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _codeFocusNode = FocusNode();
-
-  // 埋点相关
-  int? _pageEnterTime; // 页面进入时间（十位时间戳）
-  int _exitType = ExitTypeValue.back; // 离开方式
-  bool _hasTrackedPageExit = false; // 是否已记录页面离开
  
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // 埋点：记录页面进入时间
-    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     // 添加焦点监听
     _phoneFocusNode.addListener(() {
@@ -44,25 +33,13 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
+    // 埋点逻辑统一在 LoginController 中处理，避免重复上报
     switch (state) {
       case AppLifecycleState.paused:
-        // App进入后台
-        _exitType = ExitTypeValue.toBackground;
-        _trackPageExit();
+        controller.onAppPaused();
         break;
       case AppLifecycleState.resumed:
-        // App从后台恢复，重新记录页面进入
-        if (_hasTrackedPageExit) {
-          _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          _hasTrackedPageExit = false;
-          _exitType = ExitTypeValue.back;
-        }
-        break;
-      case AppLifecycleState.detached:
-        // App被关闭
-        _exitType = ExitTypeValue.closeApp;
-        _trackPageExit();
+        controller.onAppResumed();
         break;
       default:
         break;
@@ -72,33 +49,11 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _trackPageExit();
+    // 埋点在 LoginController.onClose() 中处理
     _scrollController.dispose();
     _phoneFocusNode.dispose();
     _codeFocusNode.dispose();
     super.dispose();
-  }
-
-  /// 记录页面离开埋点
-  void _trackPageExit() {
-    if (_hasTrackedPageExit || _pageEnterTime == null) return;
-    _hasTrackedPageExit = true;
-
-    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final duration = currentTime - _pageEnterTime!;
-
-    AnalyticsManager.instance.trackPageView(
-      pageId: LoginEvents.pageId,
-      eventId: LoginEvents.page,
-      enterTime: _pageEnterTime!,
-      duration: duration,
-      exitType: _exitType,
-    );
-  }
-
-  /// 标记进入下一页（在跳转前调用）
-  void _markNavigateToNextPage() {
-    _exitType = ExitTypeValue.nextPage;
   }
 
   void _unfocusAll() {
@@ -186,8 +141,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                         onTap: () {
                           // 释放所有焦点并收起键盘
                           _unfocusAll();
-                          // 标记进入下一页（登录成功后会跳转）
-                          _markNavigateToNextPage();
+                          // 埋点：标记进入下一页（登录成功后会跳转）
+                          controller.onNavigateToNextPage?.call();
                           controller.login();
                         },
                         child: Container(
@@ -276,13 +231,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                         GestureDetector(
                           onTap: () {
                             // 埋点：页面离开（进入下一页）
-                            _markNavigateToNextPage();
-                            _trackPageExit();
-                            // 重置状态，为从协议页返回后的埋点做准备
-                            _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                            _hasTrackedPageExit = false;
-                            _exitType = ExitTypeValue.back;
-                            
+                            controller.onNavigateToNextPage?.call();
                             AgreementUtils.toPrivacyAgreement();
                           },
                           child: const Text(
@@ -298,13 +247,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                         GestureDetector(
                           onTap: () {
                             // 埋点：页面离开（进入下一页）
-                            _markNavigateToNextPage();
-                            _trackPageExit();
-                            // 重置状态，为从协议页返回后的埋点做准备
-                            _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                            _hasTrackedPageExit = false;
-                            _exitType = ExitTypeValue.back;
-                            
+                            controller.onNavigateToNextPage?.call();
                             AgreementUtils.toUserAgreement();
                           },
                           child: const Text(

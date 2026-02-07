@@ -163,6 +163,11 @@ class VipOuttimeDialog extends BaseDialog {
     VoidCallback? onLater,
     bool barrierDismissible = true,
   }) {
+    // 埋点：续费提醒弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackRenewalReminderDialogExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     return BaseDialog.show<bool>(
       context: context,
       barrierDismissible: barrierDismissible,

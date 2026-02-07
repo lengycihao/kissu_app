@@ -5,6 +5,7 @@ import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../track_controller.dart';
@@ -551,6 +552,7 @@ class TrackSheetManager {
                           CustomBottomDialog.show(
                             context: Get.context!,
                             caller: SourcePageUtilsCaller.track,
+                            sourceEvent: TrackEvents.toBind, // 足迹页面绑定按钮事件
                           ).then((_) {
                             controller.refreshCurrentUserData();
                           });
@@ -564,7 +566,7 @@ class TrackSheetManager {
                         
                         Get.toNamed(
                           KissuRoutePath.vip,
-                          arguments: {'source_page': SourcePageUtilsCaller.track, },
+                          arguments: {'source_page': SourcePageUtilsCaller.track, 'source_event': TrackEvents.toBind},
                         );
                       }
                     },

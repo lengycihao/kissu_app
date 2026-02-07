@@ -15,6 +15,12 @@ class KissuRoutePath {
       '/kisssu_app/system_permission/lock_guide';
   static const systemPermissionBackgroundGuide =
       '/kisssu_app/system_permission/background_guide';
+  static const systemPermissionLocationGuide =
+      '/kisssu_app/system_permission/location_guide';
+  static const systemPermissionNotificationGuide =
+      '/kisssu_app/system_permission/notification_guide';
+  static const systemPermissionAppUsageGuide =
+      '/kisssu_app/system_permission/app_usage_guide';
   static const permissionSetting = '/kisssu_app/permission_setting';
   static const agreementWebView = '/kisssu_app/agreement_webview';
   static const qrScanPage = '/kisssu_app/qr_scan';

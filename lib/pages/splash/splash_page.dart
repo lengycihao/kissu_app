@@ -555,41 +555,64 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
     // 🔥 修复：重置标记
     _isShowingPrivacyDialog = false;
 
-    // 记录页面浏览时长和操作埋点
-    if (_privacyDialogEnterTime != null) {
-      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final duration = currentTime - _privacyDialogEnterTime!;
-
-      // 记录页面浏览事件
-      AnalyticsManager.instance.trackPageView(
-        pageId: UserAgreementEvents.pageId,
-        eventId: UserAgreementEvents.page,
-        enterTime: _privacyDialogEnterTime!,
-        duration: duration,
-      );
-
-      // 如果用户有操作（同意或不同意），记录操作事件
-      if (result == true || result == false) {
-        // 埋点：用户协议操作（不同意时会立即上报）
-        await AnalyticsHelper.trackAgreementOperation(agree: result == true);
-      }
-
-      _privacyDialogEnterTime = null;
-    }
+    // 🔥 保存埋点所需的时间数据（用于SDK初始化后上报）
+    final int? savedEnterTime = _privacyDialogEnterTime;
+    final int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final int? duration = savedEnterTime != null ? currentTime - savedEnterTime : null;
+    _privacyDialogEnterTime = null;
 
     // 🔥 修复：只有当用户明确拒绝（false）时才退出，null表示Dialog被意外关闭，重新显示
     if (result == true) {
       // 用户同意，初始化SDK并继续
       try {
         await _initializeSDKsAfterAgreement();
+        
+        // 🔥 隐私合规优化：确保虚拟用户ID已获取后再上报埋点
+        // 如果SDK初始化时OAID获取失败或超时，这里再尝试一次
+        await AnalyticsManager.instance.initMockUserIdAfterPrivacyAgreed();
+        
+        // 在SDK初始化完成后再上报埋点（此时虚拟用户ID已获取）
+        if (savedEnterTime != null && duration != null) {
+          // 记录页面浏览事件
+          AnalyticsManager.instance.trackPageView(
+            pageId: UserAgreementEvents.pageId,
+            eventId: UserAgreementEvents.page,
+            enterTime: savedEnterTime,
+            duration: duration,
+          );
+          // 记录操作事件（同意）
+          await AnalyticsHelper.trackAgreementOperation(agree: true);
+        }
+        
         _navigateToNextPage();
       } catch (e) {
         DebugUtil.error('⚠️ 初始化SDK失败: $e，继续导航');
-        // 即使初始化失败，也继续导航，避免卡在启动页
+        // 即使初始化失败，也尝试获取OAID并上报埋点
+        try {
+          await AnalyticsManager.instance.initMockUserIdAfterPrivacyAgreed();
+        } catch (_) {}
+        if (savedEnterTime != null && duration != null) {
+          AnalyticsManager.instance.trackPageView(
+            pageId: UserAgreementEvents.pageId,
+            eventId: UserAgreementEvents.page,
+            enterTime: savedEnterTime,
+            duration: duration,
+          );
+          await AnalyticsHelper.trackAgreementOperation(agree: true);
+        }
         _navigateToNextPage();
       }
     } else if (result == false) {
-      // 用户明确拒绝，埋点已立即上报完成，直接退出应用
+      // 用户明确拒绝，需要立即上报埋点（因为会退出应用，此时没有虚拟用户ID）
+      if (savedEnterTime != null && duration != null) {
+        AnalyticsManager.instance.trackPageView(
+          pageId: UserAgreementEvents.pageId,
+          eventId: UserAgreementEvents.page,
+          enterTime: savedEnterTime,
+          duration: duration,
+        );
+        await AnalyticsHelper.trackAgreementOperation(agree: false);
+      }
       _exitApp();
     } else {
       // result == null，Dialog被意外关闭（可能是应用生命周期变化或系统原因），重新显示Dialog

@@ -101,52 +101,17 @@ class KissuApplication : TencentCloudChatPushApplication() {
                     
                     Log.d(TAG, "🔔 收到推送: title=$title, content=$content, ext=$ext")
                     
-                    // 🔥 判断App是否在前台
-                    if (!appInForeground) {
-                        Log.d(TAG, "🔔 App在后台，显示本地通知")
-                        showLocalNotification(title, content, ext)
-                    } else {
-                        Log.d(TAG, "🔔 App在前台，不显示通知")
-                    }
+                    // 🔥 修复：App在后台时，腾讯IM SDK会自动显示系统通知
+                    // 不需要在这里手动创建通知，否则会导致重复通知
+                    // Flutter层的TencentIMService也会处理消息，但只在前台显示Banner
+                    Log.d(TAG, "🔔 App状态: ${if (appInForeground) "前台" else "后台"}")
+                    Log.d(TAG, "🔔 腾讯IM SDK会自动处理后台通知，无需手动创建")
                 }
                 
             })
             Log.d(TAG, "✅ 自定义推送监听器已设置")
         } catch (e: Exception) {
             Log.e(TAG, "设置推送监听器失败", e)
-        }
-    }
-    
-    private fun showLocalNotification(title: String, content: String, ext: String) {
-        try {
-            val intent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("push_ext", ext)
-            }
-            
-            val pendingIntent = PendingIntent.getActivity(
-                this,
-                notificationId,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            
-            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title)
-                .setContentText(content)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .build()
-            
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(notificationId++, notification)
-            
-            Log.d(TAG, "✅ 本地通知已显示: $title - $content")
-        } catch (e: Exception) {
-            Log.e(TAG, "显示本地通知失败", e)
         }
     }
 }

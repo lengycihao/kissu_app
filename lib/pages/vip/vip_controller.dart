@@ -103,6 +103,7 @@ class VipController extends GetxController {
   int _pageScrollNum = 0;
   int? _payStartTime; // 支付开始时间（十位时间戳）
   SourcePageUtilsCaller? _sourcePage; // 来源页
+  String? _sourceEvent; // 来源事件ID
 
   @override
   void onInit() {
@@ -128,6 +129,7 @@ class VipController extends GetxController {
     // 获取传入的参数
     final arguments = Get.arguments as Map<String, dynamic>?;
     _sourcePage = arguments?['source_page'] as SourcePageUtilsCaller?;
+    _sourceEvent = arguments?['source_event'] as String?;
     final defaultVipType = arguments?['defaultVipType'] as int?;
     if (defaultVipType != null) {
       debugPrint('📦 VIP页面接收到参数: defaultVipType=$defaultVipType');
@@ -262,6 +264,7 @@ class VipController extends GetxController {
       enterTime: _pageEnterTime!,
       duration: duration,
       sourcePage: _getSourcePageFromCaller(),
+      sourceEvent: _sourceEvent,
       exitType: exitType,
       params: {AnalyticsParams.pageScrollNum: _pageScrollNum},
     );
@@ -744,6 +747,11 @@ class VipController extends GetxController {
 
   /// 显示折扣底部弹窗
   void _showDiscountDialog(VipPackageModel package) {
+    // 埋点：19元弹窗曝光（在显示弹窗时调用，确保只触发一次）
+    AnalyticsHelper.trackPopup19DialogExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     showModalBottomSheet(
       context: Get.context!,
       isScrollControlled: true,
@@ -1064,6 +1072,10 @@ class VipController extends GetxController {
           if (selectedPriceIndex.value >= 0 &&
               selectedPriceIndex.value < vipPackages.length) {
             final package = vipPackages[selectedPriceIndex.value];
+            
+            // 埋点：记录延迟检测到的支付成功
+            _trackPaymentResult(package, payStatus: 1);
+            
             OKToastUtil.show('支付成功');
             // 更新会员状态
             isVipStatus.value = UserManager.isVip;

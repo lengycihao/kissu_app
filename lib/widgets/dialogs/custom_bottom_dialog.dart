@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'transparent_banner_widget.dart';
 import 'gradient_content_widget.dart';
@@ -43,6 +44,7 @@ class CustomBottomDialog extends StatefulWidget {
     bool isDismissible = false, // 全局禁止点击背景关闭
     bool enableDrag = false, // 全局禁止滑动关闭
     SourcePageUtilsCaller? caller, // 调用者页面类型
+    String? sourceEvent, // 来源事件ID（触发绑定弹窗的事件ID）
     Future<bool> Function()? onCloseConfirm, // 关闭确认回调
   }) {
     // 删除旧的控制器实例（如果存在）
@@ -50,9 +52,10 @@ class CustomBottomDialog extends StatefulWidget {
       Get.delete<CustomBottomDialogController>();
     }
 
-    // 初始化新的控制器并设置调用者
+    // 初始化新的控制器并设置调用者和来源事件
     final controller = Get.put(CustomBottomDialogController());
     controller.caller = caller;
+    controller.sourceEvent = sourceEvent;
 
     // 使用默认轮播图图片（如果未提供）
     final defaultBannerImages = [
@@ -90,6 +93,15 @@ class CustomBottomDialog extends StatefulWidget {
 }
 
 class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBindingObserver {
+  /// 安全获取Controller，如果不存在返回null
+  CustomBottomDialogController? get _safeController {
+    if (Get.isRegistered<CustomBottomDialogController>()) {
+      return Get.find<CustomBottomDialogController>();
+    }
+    return null;
+  }
+  
+  /// 获取Controller（仅在确认存在时使用）
   CustomBottomDialogController get controller => Get.find<CustomBottomDialogController>();
 
   @override
@@ -106,14 +118,17 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final ctrl = _safeController;
+    if (ctrl == null) return;
+    
     switch (state) {
       case AppLifecycleState.paused:
         // App进入后台
-        controller.onAppPaused();
+        ctrl.onAppPaused();
         break;
       case AppLifecycleState.resumed:
         // App从后台恢复
-        controller.onAppResumed();
+        ctrl.onAppResumed();
         break;
       default:
         break;
@@ -140,18 +155,29 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
     }
     
     return Obx(() {
+      // 再次检查Controller是否存在，避免在Controller被删除后访问
+      if (!Get.isRegistered<CustomBottomDialogController>()) {
+        return const SizedBox.shrink();
+      }
+      
       // 检查是否应该关闭
       if (controller.shouldClose.value) {
         // 延迟一帧执行，确保在build完成后再关闭
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          // 再次检查Controller是否存在
+          if (!Get.isRegistered<CustomBottomDialogController>()) {
+            return;
+          }
           logDebug('💬 检测到shouldClose标志，准备关闭绑定弹窗');
           if (Navigator.of(context).canPop()) {
              // 调用onClose回调（如果存在）
             if (widget.onClose != null) {
               widget.onClose!();
             }
-            // 重置关闭标志
-            controller.shouldClose.value = false;
+            // 重置关闭标志（再次检查避免异常）
+            if (Get.isRegistered<CustomBottomDialogController>()) {
+              controller.shouldClose.value = false;
+            }
             // 关闭弹窗
             Navigator.of(context).pop();
             logDebug('✅ 绑定弹窗已自动关闭（通过Navigator）');
@@ -209,8 +235,12 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
                     right: 8,
                     child: GestureDetector(
                       onTap: () async {
+                        // 安全获取Controller
+                        final ctrl = _safeController;
+                        if (ctrl == null) return;
+                        
                         // 埋点：关闭按钮事件
-                        controller.trackBindCancel();
+                        ctrl.trackBindCancel();
                         
                         // 统一弹出挽回弹窗
                         final result = await BindingCloseConfirmDialog.show(
@@ -385,8 +415,15 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
 
   /// 显示输入对话框 - 底部弹窗形式
   void _showInputDialog() {
+    // 安全获取Controller
+    final ctrl = _safeController;
+    if (ctrl == null) {
+      logDebug('CustomBottomDialogController not found, skip showing input dialog', tag: 'CustomBottomDialog');
+      return;
+    }
+    
     // 埋点：输入匹配码事件
-    controller.trackBindInput();
+    ctrl.trackBindInput();
     
     final FocusNode focusNode = FocusNode();
     bool isDisposed = false; // 标记 FocusNode 是否已释放
@@ -414,7 +451,9 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
         onPopInvokedWithResult: (didPop, result) async {
           if (!didPop) return;
           // 用户手动关闭时，清空输入框
-          controller.matchCodeController.clear();
+          if (Get.isRegistered<CustomBottomDialogController>()) {
+            Get.find<CustomBottomDialogController>().matchCodeController.clear();
+          }
         },
         child: Container(
           padding: EdgeInsets.only(
@@ -439,7 +478,7 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
                     child: SizedBox(
                       height: 36,
                       child: TextField(
-                      controller: controller.matchCodeController,
+                      controller: ctrl.matchCodeController,
                       focusNode: focusNode,
                       autofocus: true,
                       keyboardType: TextInputType.number,
@@ -471,8 +510,13 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
                   SizedBox(width: 10),
                   // 确认按钮 - 使用 Obx 包裹以实现响应式更新
                   Obx(() {
+                    // 安全检查Controller是否存在
+                    if (!Get.isRegistered<CustomBottomDialogController>()) {
+                      return const SizedBox(width: 76, height: 36);
+                    }
+                    final currentCtrl = Get.find<CustomBottomDialogController>();
                     final bool isEnabled =
-                        controller.inputMatchCode.value.isNotEmpty;
+                        currentCtrl.inputMatchCode.value.isNotEmpty;
                     return SizedBox(
                       width: 76,
                       height: 36,
@@ -482,9 +526,9 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
                                 // 标记为手动关闭，防止监听器再次触发
                                 manualClose = true;
                                 // 执行绑定
-                                controller.bindPartner();
+                                currentCtrl.bindPartner(bindType: BindTypeValue.input);
                                 // 清空输入框
-                                controller.matchCodeController.clear();
+                                currentCtrl.matchCodeController.clear();
                                 // 关闭弹窗，让 .then() 回调自然清理 FocusNode
                                 Get.back();
                               }

@@ -4,14 +4,12 @@ import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_message_item.dart';
 import 'package:kissu_app/pages/chat/widgets/image_preview_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 
 /// 聊天消息列表区域，只负责列表渲染
 class ChatMessageListView extends StatefulWidget {
-  const ChatMessageListView({
-    super.key,
-    required this.controller,
-  });
+  const ChatMessageListView({super.key, required this.controller});
 
   final ChatController controller;
 
@@ -31,10 +29,10 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
       onTap: () => widget.controller.hideAllPanels(),
       child: Obx(() {
         final messages = widget.controller.messages;
-        
+
         // 每次都重新计算渲染项，确保折叠状态正确
         final renderItems = _buildRenderItems(messages);
-        
+
         return Align(
           alignment: Alignment.topCenter,
           child: ListView.builder(
@@ -48,7 +46,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
               // reverse:true时，index=0是列表底部（最新消息）
               final reverseIndex = renderItems.length - 1 - index;
               final item = renderItems[reverseIndex];
-              
+
               if (item is _CollapseGroupItem) {
                 return _buildCollapseGroup(context, item);
               } else if (item is _SingleMessageItem) {
@@ -66,61 +64,59 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
   List<_RenderItem> _buildRenderItems(List<ChatMessage> messages) {
     final List<_RenderItem> items = [];
     int i = 0;
-    
+
     // 检查是否开启了敏感消息折叠
     final isCollapseEnabled = widget.controller.sensitiveCollapseEnabled.value;
-    
+
     while (i < messages.length) {
       final message = messages[i];
-      
+
       // 检查是否是systemEvent类型，且开启了折叠功能
       if (message.type == MessageType.systemEvent && isCollapseEnabled) {
         // 查找连续的systemEvent消息
         int endIndex = i;
         while (endIndex + 1 < messages.length &&
-               messages[endIndex + 1].type == MessageType.systemEvent) {
+            messages[endIndex + 1].type == MessageType.systemEvent) {
           endIndex++;
         }
-        
+
         final consecutiveCount = endIndex - i + 1;
-        
+
         // 如果连续超过3条，创建折叠组
         if (consecutiveCount > 3) {
           final groupMessages = messages.sublist(i, endIndex + 1);
           final groupId = groupMessages.first.id;
-          items.add(_CollapseGroupItem(
-            groupId: groupId,
-            messages: groupMessages,
-            startIndex: i,
-          ));
+          items.add(
+            _CollapseGroupItem(
+              groupId: groupId,
+              messages: groupMessages,
+              startIndex: i,
+            ),
+          );
           i = endIndex + 1;
         } else {
           // 不足3条，逐条添加
           for (int j = i; j <= endIndex; j++) {
-            items.add(_SingleMessageItem(
-              message: messages[j],
-              originalIndex: j,
-            ));
+            items.add(
+              _SingleMessageItem(message: messages[j], originalIndex: j),
+            );
           }
           i = endIndex + 1;
         }
       } else {
         // 非systemEvent消息或未开启折叠，直接添加
-        items.add(_SingleMessageItem(
-          message: message,
-          originalIndex: i,
-        ));
+        items.add(_SingleMessageItem(message: message, originalIndex: i));
         i++;
       }
     }
-    
+
     return items;
   }
 
   /// 构建折叠组
   Widget _buildCollapseGroup(BuildContext context, _CollapseGroupItem item) {
     final isExpanded = _expandedGroups[item.groupId] ?? false;
-    
+
     if (isExpanded) {
       return _buildExpandedGroup(context, item);
     } else {
@@ -158,7 +154,11 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Image(image: AssetImage('assets/188/kissu_chat_show_down.webp'),width: 14,height: 14,),
+                  Image(
+                    image: AssetImage('assets/188/kissu_chat_show_down.webp'),
+                    width: 14,
+                    height: 14,
+                  ),
                 ],
               ),
             ),
@@ -175,7 +175,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-       ),
+      ),
       child: Column(
         children: [
           // 消息列表
@@ -194,23 +194,24 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                    
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
                 ),
+                decoration: BoxDecoration(color: Colors.transparent),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       '收起',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFFaaaaaa),
-                      ),
+                      style: TextStyle(fontSize: 13, color: Color(0xFFaaaaaa)),
                     ),
                     SizedBox(width: 4),
-                    Image(image: AssetImage('assets/188/kissu_chat_show_up.webp'),width: 14,height:   14,),
+                    Image(
+                      image: AssetImage('assets/188/kissu_chat_show_up.webp'),
+                      width: 14,
+                      height: 14,
+                    ),
                   ],
                 ),
               ),
@@ -223,9 +224,10 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
 
   /// 构建展开状态下的单条消息
   Widget _buildExpandedMessageItem(ChatMessage message, bool isFirst) {
-    final bool hasJump = message.jumpPage != null && message.jumpPage!.isNotEmpty;
+    final bool hasJump =
+        message.jumpPage != null && message.jumpPage!.isNotEmpty;
     final bool isVip = (message.isVip ?? 0) == 1;
-    
+
     return Padding(
       padding: EdgeInsets.only(
         left: 12,
@@ -256,10 +258,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
                     child: _buildTextWithColorOverrides(
                       message.content,
                       message.imFontColor,
-                      const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF333333),
-                      ),
+                      const TextStyle(fontSize: 13, color: Color(0xFF333333)),
                     ),
                   ),
                   // 优先级：is_vip == 1 显示 VIP 按钮，否则有 jumpPage 时显示蓝色小箭头
@@ -273,8 +272,14 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
                             final controller = Get.find<ChatController>();
                             controller.onNavigateToNextPage?.call();
                           } catch (_) {}
-                          
-                          Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.chat});
+
+                          Get.toNamed(
+                            KissuRoutePath.vip,
+                            arguments: {
+                              'source_page': SourcePageUtilsCaller.chat,
+                              'source_event': ChatEvents.pageId,
+                            },
+                          );
                         } catch (e) {
                           debugPrint('跳转 VIP 页面失败: $e');
                         }
@@ -346,12 +351,16 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
       final index = remaining.indexOf(item.changeText);
       if (index >= 0) {
         if (index > 0) {
-          spans.add(TextSpan(text: remaining.substring(0, index), style: baseStyle));
+          spans.add(
+            TextSpan(text: remaining.substring(0, index), style: baseStyle),
+          );
         }
-        spans.add(TextSpan(
-          text: item.changeText,
-          style: baseStyle.copyWith(color: _parseColor(item.colorHex)),
-        ));
+        spans.add(
+          TextSpan(
+            text: item.changeText,
+            style: baseStyle.copyWith(color: _parseColor(item.colorHex)),
+          ),
+        );
         remaining = remaining.substring(index + item.changeText.length);
       }
     }
@@ -389,7 +398,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
         final controller = Get.find<ChatController>();
         controller.onNavigateToNextPage?.call();
       } catch (_) {}
-      
+
       switch (jump) {
         case 'appUsePage':
           Get.toNamed(KissuRoutePath.appUsage);
@@ -421,9 +430,11 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
   Widget _buildSingleMessage(BuildContext context, _SingleMessageItem item) {
     final message = item.message;
     final reverseIndex = item.originalIndex;
-    
+
     // 通用时间显示规则由 ChatController 统一管理
-    bool showTimestamp = widget.controller.shouldShowTimestampForIndex(reverseIndex);
+    bool showTimestamp = widget.controller.shouldShowTimestampForIndex(
+      reverseIndex,
+    );
 
     // 对于 systemEvent 类型，再加一条去重规则
     if (message.type == MessageType.systemEvent && reverseIndex > 0) {
@@ -468,11 +479,8 @@ abstract class _RenderItem {}
 class _SingleMessageItem extends _RenderItem {
   final ChatMessage message;
   final int originalIndex;
-  
-  _SingleMessageItem({
-    required this.message,
-    required this.originalIndex,
-  });
+
+  _SingleMessageItem({required this.message, required this.originalIndex});
 }
 
 /// 折叠组渲染项
@@ -480,7 +488,7 @@ class _CollapseGroupItem extends _RenderItem {
   final String groupId;
   final List<ChatMessage> messages;
   final int startIndex;
-  
+
   _CollapseGroupItem({
     required this.groupId,
     required this.messages,
@@ -502,21 +510,18 @@ void _openImageGallery(
   if (imageMessages.isEmpty) return;
 
   // 找到当前点击图片在图片消息列表中的索引
-  final initialIndex =
-      imageMessages.indexWhere((m) => m.id == targetMessage.id);
+  final initialIndex = imageMessages.indexWhere(
+    (m) => m.id == targetMessage.id,
+  );
   if (initialIndex < 0) return;
 
   final imageUrls = imageMessages.map((m) => m.imageUrl!).toList();
 
   Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (context) => ImagePreviewPage(
-        imageUrls: imageUrls,
-        initialIndex: initialIndex,
-      ),
+      builder: (context) =>
+          ImagePreviewPage(imageUrls: imageUrls, initialIndex: initialIndex),
       fullscreenDialog: true,
     ),
   );
 }
-
-

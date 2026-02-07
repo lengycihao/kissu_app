@@ -1081,6 +1081,7 @@ class HomeController extends GetxController {
             CustomBottomDialog.show(
               context: currentContext,
               caller: SourcePageUtilsCaller.home,
+              sourceEvent: HomeEvents.bottomNavigation, // 底部导航点击
               onClose: () {
                 logDebug('💑 聊天入口绑定弹窗已关闭');
                 // 绑定弹窗关闭后刷新首页数据
@@ -1349,12 +1350,58 @@ class HomeController extends GetxController {
   /// 应用进入后台
   void _onAppEnteredBackground() {
     logDebug('📱 首页：应用进入后台');
-    // 🔥 优化：移除轮询，不再需要停止定时器
+    // 埋点：首页离开（切换到后台）
+    _trackHomePageExitToBackground();
+  }
+  
+  /// 埋点：首页离开（切换到后台）
+  void _trackHomePageExitToBackground() {
+    if (_hasTrackedHomePageExit || _homePageEnterTime == null) return;
+    _hasTrackedHomePageExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _homePageEnterTime!;
+    
+    // 计算会员状态
+    final userInfo = UserManager.currentUser;
+    int vipStatus = 0;
+    if (userInfo != null) {
+      final isVip = userInfo.isVip ?? 0;
+      final vipEndTime = userInfo.vipEndTime ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      if (isVip == 1) {
+        vipStatus = (vipEndTime > now) ? 1 : 2;
+      }
+    }
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: HomeEvents.pageId,
+      eventId: HomeEvents.page,
+      enterTime: _homePageEnterTime!,
+      duration: duration,
+      exitType: ExitTypeValue.toBackground,
+      params: {
+        AnalyticsParams.vipStatus: vipStatus,
+        AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
+        AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
+        AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,
+      },
+    );
+    
+    logDebug('� 首页离开埋点（切换到后台）：停留${duration}秒');
   }
   
   /// 应用返回前台
   void _onAppReturnedToForeground() {
     logDebug('📱 首页：应用返回前台，刷新首页数据');
+    
+    // 埋点：重新记录首页进入时间（从后台恢复）
+    if (_hasTrackedHomePageExit) {
+      _homePageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedHomePageExit = false;
+      logDebug('📊 首页从后台恢复，重新记录进入时间');
+    }
     
     // 🔥 优化：应用返回前台时刷新一次首页数据（带防重复调用保护）
     loadIndexData();

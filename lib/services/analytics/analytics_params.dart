@@ -23,6 +23,9 @@ class AnalyticsParams {
   /// 来源页
   static const String sourcePage = 'source_page';
   
+  /// 来源事件（触发当前页面/弹窗的事件ID）
+  static const String sourceEvent = 'source_event';
+  
   /// 离开方式
   static const String exitType = 'exit_type';
   
@@ -49,6 +52,15 @@ class AnalyticsParams {
   
   /// 绑定状态
   static const String bindStatus = 'bind_status';
+
+  ///绑定方式
+  static const String bindType = 'bind_type';
+
+  ///绑定码
+  static const String friendCode = 'friend_code';
+
+  ///绑定错误原因
+  static const String errorMsg = 'error_msg';
   
   /// 绑定次数
   static const String bindNum = 'bind_num';
@@ -137,6 +149,12 @@ class AnalyticsParams {
   /// App图标名称
   static const String logoName = 'logo_name';
   
+  /// 权限名称
+  static const String permissionName = 'permission_name';
+  
+  /// 权限开启状态
+  static const String status = 'status';
+  
   /// 导航名称
   static const String navigationName = 'navigation_name';
   
@@ -161,6 +179,12 @@ class BindStatusValue {
   static const int notBound = 0;//未绑定
   static const int bound = 1;//已绑定
   static const int unbound = 2;//已解绑
+}
+
+/// 绑定方式枚举值
+class BindTypeValue {
+  static const int input = 1;//输入绑定
+  static const int scan = 2;//扫码绑定
 }
 
 /// 188活动参与状态枚举值

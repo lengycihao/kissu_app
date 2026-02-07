@@ -78,6 +78,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         const val EXTRA_ENABLE_VIBRATION = "enable_vibration"
         const val EXTRA_ENABLE_SOUND = "enable_sound"
         
+        // 🔥 广播事件防抖间隔（毫秒）
+        private const val BROADCAST_DEBOUNCE_MS = 1000L // 1秒内相同广播只处理一次
+        
         @Volatile
         private var isServiceRunning = false
         
@@ -157,6 +160,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     private var lastNetworkState: NetworkState = NetworkState.NONE
     private var lastWifiName: String? = null
     private var lastChargingState: Boolean? = null
+    
+    // 🔥 广播事件防抖：防止短时间内重复处理相同广播
+    private var lastScreenOffTime: Long = 0L
+    private var lastScreenOnTime: Long = 0L
+    private var lastUnlockTime: Long = 0L
     
     override fun onCreate() {
         super.onCreate()
@@ -864,12 +872,18 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
     /**
      * 使用 WorkManager 兜底重启，防止 exact alarm 被省电策略拦截
+     * 
+     * 🔥 修复：Expedited jobs 不能设置 delay，需要二选一：
+     * - 需要立即执行：使用 setExpedited()，不设置 delay
+     * - 需要延迟执行：使用 setInitialDelay()，不设置 expedited
      */
     private fun scheduleWorkRestart(reason: String) {
         try {
+            // 🔥 修复：不再同时使用 setExpedited 和 setInitialDelay
+            // 对于重启任务，延迟执行更重要（避免立即重启导致的循环）
             val request = OneTimeWorkRequestBuilder<LocationServiceRestartWorker>()
                 .setInitialDelay(2, TimeUnit.SECONDS)
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                // 移除 setExpedited，因为 Expedited jobs cannot be delayed
                 .build()
 
             WorkManager.getInstance(applicationContext).enqueueUniqueWork(
@@ -1527,7 +1541,14 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 try {
                     when (action) {
                         Intent.ACTION_SCREEN_OFF -> {
-                             logInfo("🌙 收到锁屏广播")
+                            // 🔥 防抖：1秒内重复的锁屏广播只处理一次
+                            if (nowMillis - lastScreenOffTime < BROADCAST_DEBOUNCE_MS) {
+                                Log.d(TAG, "⚠️ 锁屏广播防抖：${nowMillis - lastScreenOffTime}ms 内重复，跳过")
+                                return
+                            }
+                            lastScreenOffTime = nowMillis
+                            
+                            logInfo("🌙 收到锁屏广播")
                             
                             // 🔥 息屏时加强保活：确保 WAKE_LOCK 持续持有
                             try {
@@ -1558,6 +1579,13 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                             )
                         }
                         Intent.ACTION_USER_PRESENT, Intent.ACTION_USER_UNLOCKED -> {
+                            // 🔥 防抖：1秒内重复的解锁广播只处理一次
+                            if (nowMillis - lastUnlockTime < BROADCAST_DEBOUNCE_MS) {
+                                Log.d(TAG, "⚠️ 解锁广播防抖：${nowMillis - lastUnlockTime}ms 内重复，跳过")
+                                return
+                            }
+                            lastUnlockTime = nowMillis
+                            
                             Log.d(TAG, "🔓 [Service] 收到解锁广播 $action")
                             logInfo("🔓 收到解锁广播", extra = mapOf("action" to action))
                             if (MainActivity.isFlutterEngineAlive) {
@@ -1570,7 +1598,14 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                             )
                         }
                         Intent.ACTION_SCREEN_ON -> {
-                             logInfo("💡 收到亮屏广播")
+                            // 🔥 防抖：1秒内重复的亮屏广播只处理一次
+                            if (nowMillis - lastScreenOnTime < BROADCAST_DEBOUNCE_MS) {
+                                Log.d(TAG, "⚠️ 亮屏广播防抖：${nowMillis - lastScreenOnTime}ms 内重复，跳过")
+                                return
+                            }
+                            lastScreenOnTime = nowMillis
+                            
+                            logInfo("💡 收到亮屏广播")
                             
                             // 🔥 亮屏时停止息屏保活机制（节省资源）
                             stopScreenOffKeepAlive()
