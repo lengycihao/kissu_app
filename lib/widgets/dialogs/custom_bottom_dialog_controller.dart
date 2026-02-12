@@ -191,8 +191,6 @@ class CustomBottomDialogController extends GetxController {
       final authApi = AuthApi();
       final result = await authApi.bindPartner(friendCode: inputCode);
 
-      
-
       if (result.isSuccess) {
         // 埋点：确认绑定事件
         trackBindSure(
@@ -362,6 +360,12 @@ class CustomBottomDialogController extends GetxController {
           // 聊天页面不需要刷新数据
           break;
         case SourcePageUtilsCaller.bind:
+          break;
+        case SourcePageUtilsCaller.changeLogo:
+          // 更换Logo页面不需要刷新数据
+          break;
+        case SourcePageUtilsCaller.unbindPage:
+          // 更换Logo页面不需要刷新数据
           break;
       }
 
@@ -578,6 +582,10 @@ class CustomBottomDialogController extends GetxController {
         return PageSourceIds.chat; // 聊天页面
       case SourcePageUtilsCaller.bind:
         return PageSourceIds.bind; // 绑定页面
+      case SourcePageUtilsCaller.changeLogo:
+        return PageSourceIds.changeLogo; // 更换Logo页面
+      case SourcePageUtilsCaller.unbindPage:
+        return PageSourceIds.unbindPage; // 更换Logo页面
     }
   }
 

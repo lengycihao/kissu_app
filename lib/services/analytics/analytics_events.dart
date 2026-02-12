@@ -182,6 +182,9 @@ class ChatEvents {
   
   /// 主题按钮事件
   static const String themeBtn = 'chat_page_theme_btn_event';
+  
+  /// 非会员点击消息跳转VIP事件
+  static const String imVip = 'chat_page_im_vip_event';
 }
 
 /// 用机记录页面事件
@@ -319,6 +322,17 @@ class MyPageEvents {
   
   /// 解除关系弹窗按钮事件
   static const String unbindStatement = 'my_page_unbind_statement_event';
+}
+
+/// 解绑页面事件
+class UnbindEvents {
+  static const String pageId = 'unbind_page';
+  
+  /// VIP挽留弹窗曝光事件
+  static const String couponDialogExposure = 'unbind_page_exposure_coupon_dialog_event';
+  
+  /// VIP挽留弹窗点击事件
+  static const String couponDialogClick = 'unbind_page_coupon_dialog_event';
 }
 
 /// 会员中心页面事件

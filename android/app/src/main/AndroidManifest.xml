@@ -460,7 +460,7 @@
             android:name="com.amap.api.v2.apikey"
             android:value="38edb925a25f22e3aae2f86ce7f2ff3b" />
             
-        <!-- 极光推送配置 -->
+        <!-- 🔥 已废弃：极光推送配置（推送现在走腾讯IM）
         <meta-data
             android:name="JPUSH_CHANNEL"
             android:value="developer-default"
@@ -469,17 +469,15 @@
             android:name="JPUSH_APPKEY"
             android:value="4ee497251fc479522e1e6b7d"
             tools:replace="android:value" />
+        -->
             
-        <!-- ================= 极光推送厂商通道配置 ================= -->
-        <!-- 小米推送配置 -->
+        <!-- 🔥 已废弃：极光推送厂商通道配置（推送现在走腾讯IM）
         <meta-data
             android:name="JPUSH_MI_APPID"
             android:value="${JPUSH_MI_APPID}" />
         <meta-data
             android:name="JPUSH_MI_APPKEY"
             android:value="${JPUSH_MI_APPKEY}" />
-            
-        <!-- OPPO推送配置 -->
         <meta-data
             android:name="JPUSH_OPPO_APPID"
             android:value="${JPUSH_OPPO_APPID}" />
@@ -489,8 +487,6 @@
         <meta-data
             android:name="JPUSH_OPPO_APPSECRET"
             android:value="${JPUSH_OPPO_APPSECRET}" />
-            
-        <!-- vivo推送配置 -->
         <meta-data
             android:name="JPUSH_VIVO_APPID"
             android:value="${JPUSH_VIVO_APPID}" />
@@ -500,15 +496,13 @@
         <meta-data
             android:name="JPUSH_VIVO_APPSECRET"
             android:value="${JPUSH_VIVO_APPSECRET}" />
-            
-        <!-- 魅族推送配置 -->
         <meta-data
             android:name="JPUSH_MEIZU_APPID"
             android:value="${JPUSH_MEIZU_APPID}" />
         <meta-data
             android:name="JPUSH_MEIZU_APPKEY"
             android:value="${JPUSH_MEIZU_APPKEY}" />
-        <!-- ================= 厂商通道配置结束 ================= -->
+        -->
         
         <!-- ================= 腾讯IM离线推送厂商配置 ================= -->
         <!-- vivo推送配置（腾讯IM离线推送） -->
@@ -542,15 +536,16 @@
             android:name="com.tencent.timpush.small_icon"
             android:resource="@drawable/ic_notification" />
             
-        <!-- 自定义通知样式配置 -->
+        <!-- 🔥 已废弃：极光推送通知样式配置（推送现在走腾讯IM）
         <meta-data
             android:name="JPUSH_NOTIFICATION_ICON"
             android:resource="@drawable/ic_notification" />
         <meta-data
             android:name="JPUSH_NOTIFICATION_COLOR"
             android:resource="@color/notification_color" />
+        -->
             
-        <!-- 极光推送核心接收器 - 重要的系统接收器 -->
+        <!-- 🔥 已废弃：极光推送核心接收器（推送现在走腾讯IM）
         <receiver
             android:name="cn.jpush.android.service.PushReceiver"
             android:enabled="true"
@@ -572,26 +567,18 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-        
-        <!-- 极光推送警报接收器 -->
         <receiver
             android:name="cn.jpush.android.service.AlarmReceiver"
             android:exported="false" />
-        
-        <!-- 自定义推送接收器 -->
-        <!-- Android 12+ 要求含 intent-filter 的广播接收器必须显式 exported。
-             将其设为 true 确保极光的系统进程能分发点击/到达事件，否则通知点击不会回调。 -->
         <receiver
             android:name="com.yuluo.kissu.JPushReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter android:priority="1001">
-                <!-- 同时兼容老的 *_ACTION 写法，避免厂商 ROM/SDK 差异 -->
                 <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED" />
                 <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED_ACTION" />
                 <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED" />
                 <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED_ACTION" />
-                <!-- 兼容部分 ROM 可能使用的 PROXY 广播 -->
                 <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED_PROXY" />
                 <action android:name="cn.jpush.android.intent.REGISTRATION_ID" />
                 <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED" />
@@ -601,6 +588,7 @@
                 <category android:name="com.yuluo.kissu" />
             </intent-filter>
         </receiver>
+        -->
         
         <!-- 🔥 开机自启动接收器 - 用于恢复定位服务 -->
         <receiver
@@ -624,7 +612,7 @@
         <!-- 高德定位服务 -->
         <service android:name="com.amap.api.location.APSService" />
         
-        <!-- 极光推送核心服务 - 这是关键的服务 -->
+        <!-- 🔥 已废弃：极光推送服务（推送现在走腾讯IM）
         <service
             android:name="cn.jpush.android.service.PushService"
             android:enabled="true"
@@ -636,8 +624,6 @@
                 <action android:name="cn.jpush.android.intent.PUSH_TIME" />
             </intent-filter>
         </service>
-        
-        <!-- 极光推送消息服务 -->
         <service
             android:name="cn.jpush.android.service.JPushMessageService"
             android:enabled="true"
@@ -646,8 +632,6 @@
                 <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_ACTION" />
             </intent-filter>
         </service>
-        
-        <!-- 自定义JPush后台服务 -->
         <service
             android:name="com.yuluo.kissu.JPushService"
             android:enabled="true"
@@ -655,6 +639,7 @@
             android:foregroundServiceType="dataSync"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:stopWithTask="false" />
+        -->
         
         <!-- WorkManager 前台服务（Android 14+ 必须声明类型，否则抛 InvalidForegroundServiceTypeException） -->
         <service
@@ -674,26 +659,19 @@
             android:foregroundServiceType="location|dataSync"
             android:stopWithTask="false" />
         
-        <!-- 极光推送Activity -->
+        <!-- 🔥 已废弃：极光推送Activity和Provider（推送现在走腾讯IM）
         <activity
             android:name="cn.jpush.android.ui.PushActivity"
             android:configChanges="orientation|keyboardHidden"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             tools:replace="android:exported,android:theme" />
-            
-        <!-- 极光推送通知点击Activity -->
         <activity
             android:name="cn.jpush.android.ui.PopWinActivity"
             android:configChanges="orientation|keyboardHidden"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             tools:replace="android:exported,android:theme" />
-            
-        <!-- 🔥 极光推送通知点击启动Activity - 关键配置 -->
-        <!-- 这是极光推送用于处理通知点击的关键Activity，必须配置 -->
-        <!-- 注意：极光推送要求必须使用 @style/JPushTheme 主题，否则服务无法正常工作 -->
-        <!-- 官方配置：taskAffinity必须为空字符串，否则离线通知无法打开app -->
         <activity
             android:name="cn.jpush.android.service.JNotifyActivity"
             android:exported="true"
@@ -705,20 +683,10 @@
                 <category android:name="${applicationId}" />
             </intent-filter>
         </activity>
-            
-        <!-- 极光推送数据提供者 -->
         <provider
             android:name="cn.jpush.android.service.DataProvider"
             android:authorities="com.yuluo.kissu.DataProvider"
             android:exported="false" />
-            
-        <!-- 极光推送初始化Provider - 隐私合规：禁用自动初始化 -->
-        <!-- 
-        <provider
-            android:name="cn.jpush.android.service.InitProvider"
-            android:authorities="${applicationId}.jpush.initprovider"
-            android:exported="false"
-            tools:replace="android:authorities" />
         -->
             
         <!-- 微信分享FileProvider配置 -->

@@ -168,7 +168,7 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
               ),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(40),
               child: NoPlaceholderImage(
                 imageUrl: _controller.myAvatar.value,
                 defaultAssetPath: "assets/3.0/kissu3_love_avater.webp",
@@ -212,13 +212,13 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
               child: Container(
                 width:_currentDisplayAvatar == _controller.myAvatar.value ? 82 : 68,
                 height:_currentDisplayAvatar == _controller.myAvatar.value ? 82 : 68,
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(1),
                 decoration: BoxDecoration(
-                    
-                  image: DecorationImage(
-                    image: AssetImage("assets/3.0/kissu3_avater_border.webp"),
-                    fit: BoxFit.fill,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
                   ),
+                  borderRadius: BorderRadius.circular(40)
                 ),
                 alignment: Alignment.center,
                 child: ClipRRect(
@@ -240,12 +240,12 @@ class _AvatarPreviewPageState extends State<AvatarPreviewPage> {
               child: Container(
                 width:_currentDisplayAvatar == _controller.partnerAvatar.value ? 82 : 68,
                 height:_currentDisplayAvatar == _controller.partnerAvatar.value ? 82 : 68,
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(1),
                 decoration: BoxDecoration(
-                    
-                  image: DecorationImage(
-                    image: AssetImage("assets/3.0/kissu3_avater_border.webp"),
-                    fit: BoxFit.fill,
+                    borderRadius: BorderRadius.circular(40),
+                  border: Border.all(
+                    color: Colors.white ,
+                    width: 2,
                   ),
                 ),
                 child: ClipRRect(

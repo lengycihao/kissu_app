@@ -72,12 +72,6 @@
 @import image_picker_ios;
 #endif
 
-#if __has_include(<jpush_flutter/JPushPlugin.h>)
-#import <jpush_flutter/JPushPlugin.h>
-#else
-@import jpush_flutter;
-#endif
-
 #if __has_include(<mobile_scanner/MobileScannerPlugin.h>)
 #import <mobile_scanner/MobileScannerPlugin.h>
 #else
@@ -188,7 +182,6 @@
   [FlutterSecureStoragePlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterSecureStoragePlugin"]];
   [FluwxPlugin registerWithRegistrar:[registry registrarForPlugin:@"FluwxPlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
-  [JPushPlugin registerWithRegistrar:[registry registrarForPlugin:@"JPushPlugin"]];
   [MobileScannerPlugin registerWithRegistrar:[registry registrarForPlugin:@"MobileScannerPlugin"]];
   [FPPNetworkInfoPlusPlugin registerWithRegistrar:[registry registrarForPlugin:@"FPPNetworkInfoPlusPlugin"]];
   [OpeninstallFlutterPlugin registerWithRegistrar:[registry registrarForPlugin:@"OpeninstallFlutterPlugin"]];

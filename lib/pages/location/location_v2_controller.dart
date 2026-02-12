@@ -2105,7 +2105,7 @@ class LocationV2Controller extends GetxController
     partnerOnlineStatus.value = null;
   }
 
-  void performBindAction() {
+  void performBindAction({String? sourceEvent}) {
     // 埋点：去绑定按钮点击
     AnalyticsHelper.trackLocationToBind(btnName: 'bind');
     
@@ -2113,7 +2113,7 @@ class LocationV2Controller extends GetxController
       CustomBottomDialog.show(
         context: Get.context!,
         caller: SourcePageUtilsCaller.location,
-        sourceEvent: LocationEvents.toBind, // 定位页面绑定按钮事件
+        sourceEvent: sourceEvent ?? LocationEvents.toBind, // 默认使用绑定按钮事件
       ).then((_) {
         refreshUserInfo();
       });
@@ -2129,7 +2129,7 @@ class LocationV2Controller extends GetxController
       // 未绑定 -> 弹出绑定弹窗
       logDebug('📍 位置提醒：未绑定，弹出绑定弹窗');
        
-      performBindAction();
+      performBindAction(sourceEvent: LocationEvents.locationKnock);
     } else if (!isVip.value) {
       // 已绑定但非会员 -> 跳转到开通会员页面
       logDebug('📍 位置提醒：已绑定但非会员，跳转到开通会员页面');

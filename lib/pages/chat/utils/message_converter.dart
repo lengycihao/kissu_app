@@ -166,6 +166,22 @@ class MessageConverter {
       isVip = null;
     }
 
+    // 解析 im_vip_content（VIP用户显示的内容）
+    String? imVipContent;
+    try {
+      imVipContent = decoded['im_vip_content'] as String?;
+    } catch (_) {
+      imVipContent = null;
+    }
+
+    // 解析 vip_icon（VIP用户显示的图标）
+    String? vipIcon;
+    try {
+      vipIcon = decoded['vip_icon'] as String?;
+    } catch (_) {
+      vipIcon = null;
+    }
+
     // 如果服务端把敏感事件标记为位置类型，则构建居中的位置通知（不走气泡）
     if (messageType == 'location') {
       final Map<String, dynamic>? ext =
@@ -204,9 +220,11 @@ class MessageConverter {
       time: msgTime,
       avatarUrl: null,
       iconUrl: icon,
+      vipIcon: vipIcon, // VIP用户显示的图标
       jumpPage: (jumpPage != null && jumpPage.isNotEmpty) ? jumpPage : null,
       imFontColor: fontItems,
       isVip: isVip,
+      imVipContent: imVipContent,
     );
   }
 

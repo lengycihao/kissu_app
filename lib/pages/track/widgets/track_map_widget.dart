@@ -57,9 +57,11 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       }
 
       // 检查轨迹线是否需要更新
-      // 只有当有有效数据且轨迹点数量 >= 2 时才计算版本号，否则为 0
-      final hasValidData = widget.controller.hasValidTrackData.value && widget.controller.trackPoints.length >= 2;
-      final currentPolylinesVersion = hasValidData ? widget.controller.trackPoints.length : 0;
+      // 🔥 修复：先访问 trackPoints 触发 hasValidTrackData 的同步更新，再读取状态
+      // 之前的顺序会导致 hasValidTrackData 读取到旧值，造成 marker 显示不稳定
+      final currentTrackPoints = widget.controller.trackPoints;
+      final hasValidData = widget.controller.hasValidTrackData.value && currentTrackPoints.length >= 2;
+      final currentPolylinesVersion = hasValidData ? currentTrackPoints.length : 0;
       final currentStopRecordsVersion = widget.controller.stopRecords.length;
 
       if (currentPolylinesVersion != _polylinesVersion ||

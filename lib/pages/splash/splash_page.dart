@@ -9,7 +9,8 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
-import 'package:kissu_app/services/jpush_service.dart';
+// 🔥 已废弃：极光推送（推送现在走腾讯IM）
+// import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/app_activation_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';
@@ -19,6 +20,8 @@ import 'package:kissu_app/pages/home/home_binding.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/guide_service.dart';
+import 'package:kissu_app/pages/guide/guide_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -259,8 +262,12 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         if (shouldShowPrivacyDialog) {
           DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
           await _showPrivacyDialog();
-          // 🔥 修复：隐私协议弹窗关闭后，启动超时保护（3-4秒内必须跳转）
-          _startNavigationTimeout();
+          // 🔥 隐私协议同意后，检查是否需要显示引导页
+          final navigatedToGuide = await _checkAndShowGuidePage();
+          if (navigatedToGuide) {
+            // 已导航到引导页，停止后续逻辑
+            return;
+          }
           return;
         }
 
@@ -291,7 +298,14 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         // 如果服务获取失败，直接进入登录状态检查
       }
 
-      // 隐私政策已同意，继续正常的登录状态检查
+      // 隐私政策已同意，检查是否需要显示引导页
+      final navigatedToGuide = await _checkAndShowGuidePage();
+      if (navigatedToGuide) {
+        // 已导航到引导页，停止后续逻辑（引导页会自己处理后续导航）
+        return;
+      }
+      
+      // 继续正常的登录状态检查
       // 🔥 修复：如果隐私政策已同意，启动超时保护（3-4秒内必须跳转）
       _startNavigationTimeout();
       await _continueLoginStatusCheck();
@@ -302,6 +316,30 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         Get.offAllNamed(KissuRoutePath.login);
       }
     }
+  }
+
+  /// 检查并显示引导页（如果需要）
+  /// 返回 true 表示已导航到引导页，调用者应停止后续导航逻辑
+  Future<bool> _checkAndShowGuidePage() async {
+    try {
+      final shouldShowGuide = await GuideService.instance.shouldShowGuide();
+      if (shouldShowGuide && mounted) {
+        DebugUtil.info('首次启动，导航到引导页');
+        // 标记引导页已显示（在导航前标记，避免重复显示）
+        await GuideService.instance.markGuideShown();
+        // 直接替换导航到引导页，不是弹出
+        Get.off(
+          () => const GuidePage(),
+          transition: Transition.fadeIn,
+          duration: const Duration(milliseconds: 300),
+        );
+        // 返回 true 表示已导航到引导页，调用者应停止后续导航逻辑
+        return true;
+      }
+    } catch (e) {
+      DebugUtil.error('检查引导页状态失败: $e，继续启动流程');
+    }
+    return false;
   }
 
   /// 继续登录状态检查（隐私政策同意后）
@@ -706,36 +744,18 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
     DebugUtil.info('🔐 开始申请关键权限（网络 + 通知）...');
 
     try {
-      // 先检查当前通知权限状态
-      final jpushService = Get.find<JPushService>();
-      bool currentStatus = await jpushService.isNotificationEnabled();
-      DebugUtil.info('📱 当前通知权限状态: $currentStatus');
+      // � 已废弃：极光推送（推送现在走腾讯IM）
+      // 直接使用 permission_handler 申请通知权限
+      final permissionStatus = await Permission.notification.request();
 
-      if (!currentStatus) {
-        // 如果通知权限未开启，使用 permission_handler 直接申请系统权限
-        DebugUtil.info('🔔 通知权限未开启，开始申请系统权限...');
-
-        // 导入 permission_handler 包中的 Permission
-        final permissionStatus = await Permission.notification.request();
-
-        if (permissionStatus.isGranted) {
-          DebugUtil.success('✅ 通知权限申请成功');
-
-          // 权限申请成功后，再调用极光推送的方法确保推送服务正常
-          await jpushService.requestNotificationPermission();
-        } else if (permissionStatus.isDenied) {
-          DebugUtil.warning('⚠️ 用户拒绝了通知权限');
-        } else if (permissionStatus.isPermanentlyDenied) {
-          DebugUtil.warning('⚠️ 用户永久拒绝了通知权限，需要手动到设置中开启');
-        } else {
-          DebugUtil.warning('⚠️ 通知权限申请状态: $permissionStatus');
-        }
-
-        // 再次检查权限状态
-        bool finalStatus = await jpushService.isNotificationEnabled();
-        DebugUtil.info('📱 最终通知权限状态: $finalStatus');
+      if (permissionStatus.isGranted) {
+        DebugUtil.success('✅ 通知权限申请成功');
+      } else if (permissionStatus.isDenied) {
+        DebugUtil.warning('⚠️ 用户拒绝了通知权限');
+      } else if (permissionStatus.isPermanentlyDenied) {
+        DebugUtil.warning('⚠️ 用户永久拒绝了通知权限，需要手动到设置中开启');
       } else {
-        DebugUtil.success('✅ 通知权限已经开启，无需申请');
+        DebugUtil.warning('⚠️ 通知权限申请状态: $permissionStatus');
       }
 
       // 注意：网络权限（INTERNET）在Android中是普通权限，不需要运行时申请

@@ -150,6 +150,7 @@ class ChatController extends GetxController {
         longitude: m.longitude,
         isRead: true,
         iconUrl: m.iconUrl,
+        vipIcon: m.vipIcon,
         crapDuration: m.crapDuration,
         jumpPage: m.jumpPage,
       );
@@ -523,6 +524,9 @@ class ChatController extends GetxController {
       _trackPageExit(ExitTypeValue.nextPage);
     };
     
+    // 初始化用户VIP状态
+    _initUserVipStatus();
+    
     // 使用真实IM聊天，关闭本地mock消息
     _initPartnerInfo();
     _setupIMMessageListener();
@@ -539,6 +543,18 @@ class ChatController extends GetxController {
       final im = TencentIMService.instance;
       im.clearC2CUnreadCount();
     } catch (_) {}
+  }
+  
+  /// 初始化用户VIP状态
+  void _initUserVipStatus() {
+    try {
+      final userVipStatus = UserManager.isVip;
+      isVip.value = userVipStatus;
+      logDebug('💬 用户VIP状态: $userVipStatus');
+    } catch (e) {
+      logError('获取用户VIP状态失败: $e');
+      isVip.value = false;
+    }
   }
   
   @override
@@ -678,8 +694,9 @@ class ChatController extends GetxController {
             longitude: old.longitude,
             isRead: old.isRead,
             iconUrl: old.iconUrl,
-                crapDuration: old.crapDuration,
-                jumpPage: old.jumpPage,
+            vipIcon: old.vipIcon,
+            crapDuration: old.crapDuration,
+            jumpPage: old.jumpPage,
           );
           messages.refresh();
         }
@@ -1036,6 +1053,7 @@ class ChatController extends GetxController {
                 longitude: old.longitude,
                 isRead: old.isRead,
                 iconUrl: old.iconUrl,
+                vipIcon: old.vipIcon,
                 crapDuration: old.crapDuration,
                 jumpPage: old.jumpPage,
               );
@@ -1134,6 +1152,22 @@ class ChatController extends GetxController {
               isVip = null;
             }
 
+            // 解析 im_vip_content（VIP用户显示的内容）
+            String? imVipContent;
+            try {
+              imVipContent = decoded['im_vip_content'] as String?;
+            } catch (_) {
+              imVipContent = null;
+            }
+
+            // 解析 vip_icon（VIP用户显示的图标）
+            String? vipIcon;
+            try {
+              vipIcon = decoded['vip_icon'] as String?;
+            } catch (_) {
+              vipIcon = null;
+            }
+
             // 如果服务端把敏感事件标记为位置类型，则构建居中的位置通知（不走气泡）
             if (messageType == 'location') {
               final Map<String, dynamic>? ext =
@@ -1172,9 +1206,11 @@ class ChatController extends GetxController {
               time: msgTime,
               avatarUrl: null,
               iconUrl: icon,
+              vipIcon: vipIcon, // VIP用户显示的图标
               jumpPage: (jumpPage != null && jumpPage.isNotEmpty) ? jumpPage : null,
               imFontColor: fontItems,
               isVip: isVip,
+              imVipContent: imVipContent,
             );
           }
 

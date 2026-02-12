@@ -16,8 +16,9 @@ import com.tencent.qcloud.tim.push.TIMPushManager
 class KissuApplication : TencentCloudChatPushApplication() {
     companion object {
         private const val TAG = "KissuApplication"
-        private const val CHANNEL_ID = "im_message_channel"
-        private const val CHANNEL_NAME = "IM消息通知"
+        // 🔥 通知渠道ID必须与 timpush-configs.json 中的 notificationChannelId 保持一致
+        private const val CHANNEL_ID = "im_push_channel"
+        private const val CHANNEL_NAME = "IM消息推送"
         private var notificationId = 1000
         
         /**
@@ -77,10 +78,15 @@ class KissuApplication : TencentCloudChatPushApplication() {
                 description = "IM聊天消息通知"
                 enableLights(true)
                 enableVibration(true)
+                setShowBadge(true)
+                // 🔥 确保通知在锁屏上完整显示
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                // 🔥 允许通知绕过勿扰模式（可选，根据需求决定是否启用）
+                // setBypassDnd(true)
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "✅ 通知渠道已创建: $CHANNEL_ID")
+            Log.d(TAG, "✅ 通知渠道已创建: $CHANNEL_ID, importance=HIGH")
         }
     }
     

@@ -6,7 +6,8 @@ import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
-import 'package:kissu_app/services/jpush_service.dart';
+// 🔥 已废弃：极光推送（推送现在走腾讯IM）
+// import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
@@ -248,7 +249,7 @@ class PrivacyComplianceManager extends GetxService {
       await _enableAmapPrivacy();
       
       // 2. 启用极光推送初始化
-      await _enableJPushService();
+      // await _enableJPushService();
       
       // 3. 启用腾讯IM SDK初始化（延迟初始化，等待隐私政策同意）
       await _enableTencentIMService();
@@ -257,7 +258,7 @@ class PrivacyComplianceManager extends GetxService {
       await _enableShareServicePrivacy();
       
       // 5. 启用友盟统计初始化
-      await _enableUmengAnalytics();
+      // await _enableUmengAnalytics();
       
       // 6. 启用OpenInstall的剪贴板功能（如果需要）
       await _enableOpenInstallClipboard();
@@ -297,22 +298,11 @@ class PrivacyComplianceManager extends GetxService {
     }
   }
   
-  /// 启用极光推送服务
+  /// 🔥 已废弃：启用极光推送服务（推送现在走腾讯IM）
   Future<void> _enableJPushService() async {
-    try {
-      if (Get.isRegistered<JPushService>()) {
-        final jpushService = Get.find<JPushService>();
-        if (!jpushService.isInitialized) {
-          await jpushService.initJPush();
-          if (kDebugMode) {
-            DebugUtil.success('极光推送服务已启用');
-          }
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        DebugUtil.error('启用极光推送服务失败: $e');
-      }
+    // 极光推送已废弃，推送功能现在统一走腾讯IM离线推送
+    if (kDebugMode) {
+      DebugUtil.info('极光推送已废弃，跳过初始化');
     }
   }
   

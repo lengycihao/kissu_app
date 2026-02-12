@@ -39,5 +39,10 @@ class PageSourceIds {
    
   /// 聊天
   static const String chat = "chat_page";
-   
+  
+  /// 更换Logo页面
+  static const String changeLogo = "change_logo_page";
+
+  /// 解绑页面
+  static const String unbindPage = "unbind_page";
 }

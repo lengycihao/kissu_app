@@ -18,7 +18,10 @@ export 'widgets/circular_progress_painters.dart';
 
 /// 新的用机记录页面
 class DeviceUsagePage extends StatefulWidget {
-  const DeviceUsagePage({super.key});
+  /// 来源事件（用于绑定弹窗埋点）
+  final String? sourceEvent;
+  
+  const DeviceUsagePage({super.key, this.sourceEvent});
 
   @override
   State<DeviceUsagePage> createState() => _DeviceUsagePageState();
@@ -28,6 +31,20 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     with WidgetsBindingObserver {
   late DeviceUsageController controller;
   bool _hasInitialized = false;
+  
+  /// 首次进入页面时的来源事件（优先使用构造函数参数，其次使用路由参数）
+  String? get _initialSourceEvent {
+    // 优先使用构造函数传入的参数
+    if (widget.sourceEvent != null) {
+      return widget.sourceEvent;
+    }
+    // 其次尝试从路由参数中获取
+    final args = Get.arguments;
+    if (args is Map && args['source_event'] != null) {
+      return args['source_event'] as String;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -87,12 +104,13 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   }
 
   /// 检查绑定状态并自动弹出绑定弹窗
-  void _checkAndShowBindingDialog() {
+  /// [sourceEvent] 来源事件，用于埋点
+  void _checkAndShowBindingDialog({String? sourceEvent}) {
     if (!controller.isUserBound.value && context.mounted) {
       CustomBottomDialog.show(
         context: context,
         caller: SourcePageUtilsCaller.deviceUsage,
-        sourceEvent: 'mobile_use_page', // 用机记录页面统一传mobile_use_page
+        sourceEvent: sourceEvent ?? _initialSourceEvent ?? PhoneHistoryEvents.page,
         onClose: () {
           // 绑定弹窗关闭后，刷新状态并重新加载数据
           controller.updateBindStatus();
@@ -148,14 +166,10 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                               AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
                               
                               _handleVipFeatureTap(
+                                sourceEvent: PhoneHistoryEvents.phoneUseModule,
                                 onVipUserNavigate: () {
                                   // 埋点：页面离开（进入下一页）
                                   controller.onNavigateToNextPage?.call();
-                                  // 埋点：手机使用记录模块点击（不管是否会员都记录）
-                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
-                              if (btnName.isNotEmpty) {
-                                AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
-                              }
                                   Get.toNamed(
                                     KissuRoutePath.appUsageInfo,
                                   );
@@ -186,6 +200,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                AnalyticsHelper.trackAppUseModule(btnName: btnName);
                               
                               _handleVipFeatureTap(
+                                sourceEvent: PhoneHistoryEvents.appUseModule,
                                 onVipUserNavigate: () {
                                   // 埋点：页面离开（进入下一页）
                                   controller.onNavigateToNextPage?.call();
@@ -205,7 +220,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                                 AnalyticsHelper.trackSensitiveOperationModule(btnName: btnName);
                               
                               if (!controller.isUserBound.value) {
-                                _checkAndShowBindingDialog();
+                                _checkAndShowBindingDialog(sourceEvent: PhoneHistoryEvents.sensitiveOperationModule);
                                 return;
                               }
                               // 埋点：页面离开（进入下一页）
@@ -318,12 +333,14 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
 
   /// 统一处理"需要绑定 + 需要会员"的模块点击逻辑
   /// [onVipUserNavigate] 在“已绑定且是会员”时执行的跳转逻辑
+  /// [sourceEvent] 来源事件，用于绑定弹窗和VIP页面埋点
   void _handleVipFeatureTap({
     required VoidCallback onVipUserNavigate,
+    required String sourceEvent,
   }) {
     // 未绑定时优先弹出绑定弹窗
     if (!controller.isUserBound.value) {
-      _checkAndShowBindingDialog();
+      _checkAndShowBindingDialog(sourceEvent: sourceEvent);
       return;
     }
 
@@ -334,7 +351,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
       
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, 'source_event': PhoneHistoryEvents.phoneUseModule},
+        arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, 'source_event': sourceEvent},
       )?.then((_) {
         // 从VIP页面返回后，刷新绑定状态
         controller.updateBindStatus();

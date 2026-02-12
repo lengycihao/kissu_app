@@ -6,10 +6,7 @@ import '../mine_controller.dart';
 class MineSettings extends StatefulWidget {
   final List<SettingItem> items;
 
-  const MineSettings({
-    super.key,
-    required this.items,
-  });
+  const MineSettings({super.key, required this.items});
 
   @override
   State<MineSettings> createState() => _MineSettingsState();
@@ -27,9 +24,10 @@ class _MineSettingsState extends State<MineSettings>
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
     // 延迟启动，在常用功能之后
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -110,13 +108,15 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
       vsync: this,
     );
 
-    _slideAnimation = Tween<double>(begin: 20.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _slideAnimation = Tween<double>(
+      begin: 20.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     // 延迟启动动画，每个项目延迟80ms
     Future.delayed(Duration(milliseconds: 500 + (widget.index * 80)), () {
@@ -157,24 +157,38 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                 Image.asset(widget.item.icon, width: 20, height: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    widget.item.title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF000000),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    children: [
+                      Text(
+                        widget.item.title,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF000000),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(width: 8,),
+                      if (widget.item.subIcon != null)
+                        Image(
+                          image: AssetImage(widget.item.subIcon!),
+                          width: 114,
+                          height: 18,
+                        ),
+                    ],
                   ),
                 ),
+
                 // 显示副标题（如缓存大小）
                 if (widget.item.subtitle != null)
-                  Obx(() => Text(
-                    widget.item.subtitle!.value,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF999999),
+                  Obx(
+                    () => Text(
+                      widget.item.subtitle!.value,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF999999),
+                      ),
                     ),
-                  )),
+                  ),
                 const SizedBox(width: 8),
                 Image.asset(
                   "assets/4.0/kissu4_arrow_right.webp",
@@ -189,4 +203,3 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
     );
   }
 }
-

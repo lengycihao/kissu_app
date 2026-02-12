@@ -12,30 +12,22 @@ class SystemPermissionPage extends StatefulWidget {
 }
 
 class _SystemPermissionPageState extends State<SystemPermissionPage> {
-  bool _hasCheckedPermissions = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // 监听权限加载完成后显示弹窗
-    final controller = Get.find<SystemPermissionController>();
-    ever(controller.isLoading, (isLoading) {
-      if (!isLoading && !_hasCheckedPermissions && mounted) {
-        _hasCheckedPermissions = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _checkAndShowPermissionDialog();
-          }
-        });
-      }
-    });
-  }
-
   SystemPermissionController get controller => Get.find<SystemPermissionController>();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        
+        // 返回时检查权限并显示挽留弹窗
+        final shouldPop = await _checkAndShowPermissionDialog();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       body: Stack(
         children: [
@@ -95,15 +87,22 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
           ),
         ],
       ),
+      ),
     );
   }
 
-  /// 检查权限并显示弹窗
-  void _checkAndShowPermissionDialog() {
-    // 等待权限检查完成后再判断
-    if (!controller.isLoading.value && !controller.areAllPermissionsEnabled()) {
-      PermissionSettingDialog.showPermissionSettingDialog(context);
+  /// 检查权限并显示挽留弹窗
+  /// 返回 true 表示允许返回，false 表示留在当前页面
+  Future<bool> _checkAndShowPermissionDialog() async {
+    // 如果权限检查中或所有权限已开启，直接返回
+    if (controller.isLoading.value || controller.areAllPermissionsEnabled()) {
+      return true;
     }
+    
+    // 显示挽留弹窗
+    await PermissionSettingDialog.showPermissionSettingDialog(context);
+    // 无论用户点击"知道了"还是"稍后开启"，都允许返回
+    return true;
   }
 
   /// 构建顶部导航栏
@@ -118,7 +117,13 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
             top: 0,
             bottom: 0,
             child: GestureDetector(
-              onTap: () => Get.back(),
+              onTap: () async {
+                // 检查权限并显示挽留弹窗
+                final shouldPop = await _checkAndShowPermissionDialog();
+                if (shouldPop && context.mounted) {
+                  Get.back();
+                }
+              },
               child: Container(
                 width: 44,
                 height: 44,

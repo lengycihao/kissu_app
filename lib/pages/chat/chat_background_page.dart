@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/chat/chat_background_controller.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 
 class ChatBackgroundPage extends GetView<ChatBackgroundController> {
   const ChatBackgroundPage({super.key});
@@ -8,18 +11,9 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // 顶部预览区域
-          Expanded(
-            child: _buildPreviewArea(),
-          ),
-          // 底部背景选择区域
-          _buildBackgroundSelector(),
-        ],
-      ),
+      body: _buildBackgroundGrid(),
     );
   }
 
@@ -56,7 +50,7 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
               right: 0,
               top: MediaQuery.of(Get.context!).padding.top,
               bottom: 0,
-              child: Center(
+              child: const Center(
                 child: Text(
                   '聊天背景',
                   style: TextStyle(
@@ -67,129 +61,351 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
                 ),
               ),
             ),
-            // 右侧使用按钮
-            Positioned(
-              right: 16,
-              // top: MediaQuery.of(Get.context!).padding.top,
-              bottom: 10,
-              child: GestureDetector(
-                onTap: controller.applyBackground,
-                child: Container(
-                  width: 70,
-                  height: 33,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: const Color(0xffFF90CA),
-                    borderRadius: BorderRadius.circular(16.5),
-                  ),
-                  child: const Text(
-                    '使用',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPreviewArea() {
-    return Obx(() => Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: controller.getBackgroundImageProvider(controller.previewBackground.value),
-              fit: BoxFit.cover,
-            ),
-          ),
-        ));
-  }
+  Widget _buildBackgroundGrid() {
+    return Obx(() {
+      final backgrounds = controller.allBackgrounds;
+      // 背景数量 + 1个添加按钮
+      final itemCount = backgrounds.length + 1;
 
-  Widget _buildBackgroundSelector() {
-    return Container(
-      height: 160,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-         
-      ),
-      child: Obx(() => ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: controller.allBackgrounds.length + 1, // +1 for add button
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                // 添加按钮
-                return _buildAddButton();
-              } else {
-                // 背景缩略图
-                final backgroundPath = controller.allBackgrounds[index - 1];
-                return _buildBackgroundThumbnail(backgroundPath, index - 1);
-              }
-            },
-          )),
-    );
+      return GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.56, // 接近手机屏幕比例
+        ),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (index == backgrounds.length) {
+            // 最后一个是添加按钮
+            return _buildAddButton();
+          } else {
+            // 背景缩略图
+            final bgItem = backgrounds[index];
+            return _buildBackgroundThumbnail(bgItem, index);
+          }
+        },
+      );
+    });
   }
 
   Widget _buildAddButton() {
     return GestureDetector(
       onTap: controller.addBackgroundFromGallery,
       child: Container(
-        width: 80,
-        height: 80,
-        margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-           
         ),
         alignment: Alignment.center,
-        child: Image(image: AssetImage('assets/chat/kissu_add_picture.webp'),width: 32,height: 32,)
+        child: Image.asset(
+          'assets/chat/kissu_add_picture.webp',
+          width: 40,
+          height: 40,
+        ),
       ),
     );
   }
 
-  Widget _buildBackgroundThumbnail(String backgroundPath, int index) {
+  Widget _buildBackgroundThumbnail(ChatBackgroundItem bgItem, int index) {
     return Obx(() {
-      final isSelected = controller.selectedBackground.value == backgroundPath;
+      final isSelected = controller.selectedBackground.value == bgItem.path;
 
       return GestureDetector(
-        onTap: () => controller.selectBackground(backgroundPath),
+        onTap: () => _showPreviewBottomSheet(bgItem),
         child: Container(
-          width: 80,
-          height: 80,
-          margin: const EdgeInsets.only(right: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: isSelected
                 ? Border.all(color: const Color(0xFFFF90CA), width: 2)
-                : Border.all(color: const Color(0xFFFBF0F0), width: 1),
+                : null,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(7),
-            child: Image(
-              image: controller.getBackgroundImageProvider(backgroundPath),
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: const Color(0xFFF5F5F5),
-                  child: const Icon(
-                    Icons.broken_image,
-                    color: Color(0xFF999999),
+          child: Stack(
+            children: [
+              // 背景图片
+              ClipRRect(
+                borderRadius: BorderRadius.circular(isSelected ? 6 : 8),
+                child: Image(
+                  image: controller.getBackgroundImageProvider(bgItem.path),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: const Color(0xFFF5F5F5),
+                      child: const Icon(
+                        Icons.broken_image,
+                        color: Color(0xFF999999),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // VIP标识
+              if (bgItem.requiresVip)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Image.asset(
+                    'assets/images/logo_vip.webp',
+                    width: 24,
+                    height: 24,
                   ),
-                );
-              },
-            ),
+                ),
+              // 选中标识
+              if (isSelected)
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFF90CA),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       );
     });
+  }
+
+  void _showPreviewBottomSheet(ChatBackgroundItem bgItem) {
+    Get.bottomSheet(
+      _PreviewBottomSheet(
+        bgItem: bgItem,
+        controller: controller,
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+}
+
+/// 预览底部弹窗
+class _PreviewBottomSheet extends StatelessWidget {
+  final ChatBackgroundItem bgItem;
+  final ChatBackgroundController controller;
+
+  const _PreviewBottomSheet({
+    required this.bgItem,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+
+    return Container(
+      height: screenHeight * 0.8,
+      decoration: const BoxDecoration(
+        color: Color(0xFFffffff),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Container(
+              padding: const EdgeInsets.only(top: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                image: DecorationImage(
+                  image: controller.getBackgroundImageProvider(bgItem.path),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: _buildMockChatUI(),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildMockChatUI() {
+    final bottomPadding = MediaQuery.of(Get.context!).padding.bottom;
+    return Column(
+      children: [
+        // 顶部信息栏
+        _buildMockHeader(),
+        // 设备信息栏
+        _buildMockDeviceInfo(),_buildMockMessages(),
+        // 聊天消息区域
+        // Expanded(
+        //   child: _buildMockMessages(),
+        // ),
+        Spacer(),
+        // 底部按钮
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 16),
+            child: _buildBottomButton(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMockHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        
+      ),
+      child: Row(
+        children: [
+          // 返回按钮
+          const Icon(Icons.arrow_back_ios, size: 18, color: Color(0xff333333)),
+          const SizedBox(width: 8),
+          // 头像
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: Image(image: AssetImage('assets/chat/kissu_chat_bg_header.webp')),
+          ),
+          const SizedBox(width: 12),
+          // 对方输入中...
+          const Expanded(
+            child: Text(
+              '对方输入中...',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xff333333),
+              ),
+            ),
+          ),
+          // 设置按钮
+          const Icon(Icons.more_vert, size: 20, color: Colors.black54),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMockDeviceInfo() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.transparent,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildDeviceInfoItem('Iphone 1...', 'assets/phone_history/kissu_phone_type.webp'),
+          _buildDeviceInfoItem('相距120km', 'assets/phone_history/kissu_phone_distance.webp'),
+          _buildDeviceInfoItem('85%', 'assets/phone_history/kissu_phone_barry.webp'),
+          _buildDeviceInfoItem('WIFI', 'assets/phone_history/kissu_phone_wifi.webp'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceInfoItem(String text, String? iconPath) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (iconPath != null) ...[
+          Image.asset(iconPath, width: 16, height: 16),
+          const SizedBox(height: 2),
+        ],
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMockMessages() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Image(image: AssetImage('assets/chat/kissu_chat_bg_message.webp')),
+    );
+  }
+
+  Widget _buildBottomButton() {
+    if (bgItem.requiresVip) {
+      // 需要VIP - 显示开通会员按钮
+      return GestureDetector(
+        onTap: () {
+          Get.back();
+          Get.toNamed(
+            KissuRoutePath.vip,
+            arguments: {
+              'source_event': ChatEvents.bgBtn,
+              'source_page':SourcePageUtilsCaller.chat,
+            },
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo_vip.webp',
+                width: 24,
+                height: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '开通会员',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      // 免费 - 显示立即更换按钮
+      return GestureDetector(
+        onTap: () {
+          controller.selectBackground(bgItem.path);
+          controller.applyBackground();
+          Get.back();
+        },
+        child: Container(
+          width: double.infinity,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: const Center(
+            child: Text(
+              '立即更换',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
   }
 }
 

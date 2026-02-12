@@ -626,8 +626,9 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
     // 立即清理地图
     _markerManager.clearMapImmediately();
 
-    // 清空轨迹线状态
-    hasValidTrackData.value = false;
+    // 🔥 修复：不再单独设置 hasValidTrackData = false
+    // switchUser() 已经清空了缓存，下次访问 trackPoints 时会自动更新状态
+    // 之前单独设置会导致UI在状态更新前读取到false值，造成marker显示不稳定
 
     logDebug('✅ [ClearAvatar] 清空完成');
   }

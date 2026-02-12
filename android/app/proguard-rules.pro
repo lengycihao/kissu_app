@@ -238,6 +238,29 @@
 -dontwarn com.tencent.imsdk.**
 -dontwarn com.tencent.qcloud.**
 
+# ============ 华为HMS推送SDK混淆规则 ============
+-ignorewarnings
+-keepattributes *Annotation*
+-keepattributes Exceptions
+-keepattributes InnerClasses
+-keepattributes Signature
+-keepattributes SourceFile,LineNumberTable
+
+# HMS Core SDK
+-keep class com.huawei.hianalytics.**{*;}
+-keep class com.huawei.updatesdk.**{*;}
+-keep class com.huawei.hms.**{*;}
+-dontwarn com.huawei.hms.**
+
+# HMS Push SDK
+-keep class com.huawei.hms.push.**{*;}
+-keep class com.huawei.agconnect.**{*;}
+-dontwarn com.huawei.agconnect.**
+
+# 腾讯IM华为推送通道
+-keep class com.tencent.qcloud.tim.push.huawei.**{*;}
+-keep class com.tencent.timpush.huawei.**{*;}
+
 # ============ OpenInstall SDK混淆规则 ============
 -keep class com.openinstall.** { *; }
 -dontwarn com.openinstall.**

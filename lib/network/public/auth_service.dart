@@ -6,7 +6,8 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
-import 'package:kissu_app/services/jpush_service.dart';
+// 🔥 已废弃：极光推送（推送现在走腾讯IM）
+// import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/native_location_report_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
@@ -176,8 +177,8 @@ class AuthService {
       logger.error('同步Token到Native失败: $e', tag: 'AuthService');
     }
 
-    // 设置极光推送别名
-    _setJPushAlias(user);
+    // 🔥 已废弃：极光推送（推送现在走腾讯IM）
+    // _setJPushAlias(user);
 
     // 🔥 修复：等待IM登录完成，避免进入聊天页面时IM还未登录
     await _loginTencentIM(user);
@@ -187,102 +188,80 @@ class AuthService {
     // Get.offAll(() => ScreenNavPage());
   }
   
-  /// 设置极光推送别名并恢复推送服务
-  void _setJPushAlias(LoginModel user) {
-    try {
-      // 检查极光推送服务是否已注册
-      if (Get.isRegistered<JPushService>()) {
-        final jpushService = Get.find<JPushService>();
-        // 使用用户的unique_id作为别名
-        String alias = user.uniqueId ?? 'user_${user.id}';
-        
-        // 在后台设置别名并恢复推送服务，不阻塞登录流程
-        Future.microtask(() async {
-          // 1. 恢复推送服务（确保能接收推送）
-          await jpushService.resumePush();
-          logger.info('极光推送服务已恢复');
-          
-          // 2. 设置别名（用于精准推送）
-          bool success = await jpushService.setAlias(alias);
-          if (success) {
-            logger.info('极光推送别名设置成功: $alias');
-          } else {
-            logger.w('极光推送别名设置失败: $alias');
-          }
-        });
-        
-        logger.info('开始恢复推送服务并设置别名: $alias');
-      } else {
-        logger.w('极光推送服务未注册，跳过别名设置');
-      }
-    } catch (e) {
-      logger.e('设置极光推送配置失败: $e');
-    }
-  }
+  /// 🔥 已废弃：设置极光推送别名（推送现在走腾讯IM）
+  // void _setJPushAlias(LoginModel user) {
+  //   // 极光推送已废弃，推送功能现在统一走腾讯IM离线推送
+  // }
 
   /// 登录腾讯IM
   /// 🔥 修复：改为异步方法，确保IM登录完成后再继续
+  /// 🔥 增强：添加重试机制，最多重试2次
   Future<void> _loginTencentIM(LoginModel user) async {
     logger.info('🔄 准备登录腾讯IM...', tag: 'AuthService');
-    try {
-      // 检查IM服务是否已注册
-      final isRegistered = Get.isRegistered<TencentIMService>();
-      logger.info('IM服务注册状态: $isRegistered', tag: 'AuthService');
-      
-      if (isRegistered) {
+    
+    const int maxRetries = 2;
+    int retryCount = 0;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // 检查IM服务是否已注册
+        final isRegistered = Get.isRegistered<TencentIMService>();
+        if (!isRegistered) {
+          logger.warning('腾讯IM服务未注册，跳过IM登录', tag: 'AuthService');
+          return;
+        }
+        
         final imService = Get.find<TencentIMService>();
         
         // 🔥 检查用户IM登录所需参数
-        logger.info('IM登录参数检查 - uniqueId: ${user.uniqueId != null ? "有值" : "空"}, imSign: ${user.imSign != null ? "有值" : "空"}', tag: 'AuthService');
+        logger.info(
+          'IM登录参数检查 - uniqueId: ${user.uniqueId != null ? "有值" : "空"}, hasImSign: ${user.imSign != null && user.imSign!.isNotEmpty}',
+          tag: 'AuthService',
+        );
         
-        logger.info('开始登录腾讯IM', tag: 'AuthService');
+        // 检查必要参数
+        if (user.uniqueId == null || user.uniqueId!.isEmpty) {
+          logger.error('IM登录失败: uniqueId为空', tag: 'AuthService');
+          return;
+        }
+        
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.error('IM登录失败: imSign为空', tag: 'AuthService');
+          return;
+        }
+        
+        logger.info('开始登录腾讯IM (第${retryCount + 1}次尝试)', tag: 'AuthService');
         
         // 🔥 等待IM登录完成，避免状态不一致
         bool success = await imService.loginIM(user);
         if (success) {
           logger.info('腾讯IM登录成功', tag: 'AuthService');
+          return; // 成功则退出
         } else {
-          logger.warning('腾讯IM登录失败', tag: 'AuthService');
+          logger.warning('腾讯IM登录失败 (第${retryCount + 1}次尝试)', tag: 'AuthService');
+          retryCount++;
+          if (retryCount <= maxRetries) {
+            // 等待1秒后重试
+            await Future.delayed(const Duration(seconds: 1));
+          }
         }
-      } else {
-        logger.warning('腾讯IM服务未注册，跳过IM登录', tag: 'AuthService');
+      } catch (e, stackTrace) {
+        logger.error('登录腾讯IM异常: $e', tag: 'AuthService', error: e, stackTrace: stackTrace);
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          // 等待1秒后重试
+          await Future.delayed(const Duration(seconds: 1));
+        }
       }
-    } catch (e, stackTrace) {
-      logger.error('登录腾讯IM失败: $e', tag: 'AuthService', error: e, stackTrace: stackTrace);
     }
+    
+    logger.error('腾讯IM登录最终失败，已重试$maxRetries次', tag: 'AuthService');
   }
 
-  /// 清除极光推送别名（仅清除定向推送，保留广播推送能力）
+  /// 🔥 已废弃：清除极光推送别名（推送现在走腾讯IM）
   void _clearJPushAlias() {
-    try {
-      // 检查极光推送服务是否已注册
-      if (Get.isRegistered<JPushService>()) {
-        final jpushService = Get.find<JPushService>();
-        
-        // 在后台清除别名，不阻塞退出流程
-        Future.microtask(() async {
-          // 只删除别名（清除针对该用户的定向推送）
-          // ✅ 删除别名：不再收到通过别名发送的定向推送
-          // ✅ 保留 RegistrationId：设备ID不变
-          // ✅ 保留推送服务：仍可接收广播推送
-          bool aliasSuccess = await jpushService.deleteAlias();
-          if (aliasSuccess) {
-            logger.info('极光推送别名清除成功（保留广播推送能力）');
-          } else {
-            logger.w('极光推送别名清除失败');
-          }
-          
-          // ❌ 不调用 stopPush()
-          // 原因：退出登录后仍需要接收广播推送（如系统公告等）
-        });
-        
-        logger.info('开始清除极光推送别名（保留 RegistrationId 和广播推送）');
-      } else {
-        logger.w('极光推送服务未注册，跳过别名清除');
-      }
-    } catch (e) {
-      logger.e('清除极光推送配置失败: $e');
-    }
+    // 极光推送已废弃，推送功能现在统一走腾讯IM离线推送
+    logger.info('极光推送已废弃，跳过别名清除');
   }
 
   /// 退出腾讯IM
@@ -512,6 +491,7 @@ class AuthService {
 
   /// 刷新用户信息（从服务器获取最新数据并缓存）
   /// 只在用户信息更新后调用，不要频繁调用
+  /// 🔥 修复：保留本地的 token 和 imSign，因为 getUserInfo API 可能不返回这些字段
   Future<bool> refreshUserInfoFromServer() async {
     try {
       final authApi = AuthApi();
@@ -526,13 +506,33 @@ class AuthService {
       if (result.isSuccess && result.data != null) {
         // 检查用户数据是否有效（至少要有ID）
         if (result.data!.id != null && result.data!.id! > 0) {
-          // 直接使用服务器返回的用户对象更新缓存
-          await updateCurrentUser(result.data!);
+          final newUser = result.data!;
+          
+          // 🔥 关键修复：如果服务器没有返回 token 或 imSign，保留本地缓存的值
+          // 因为 getUserInfo API 通常不返回这些敏感字段，只有登录时才返回
+          if (_currentUser != null) {
+            if (newUser.token == null || newUser.token!.isEmpty) {
+              newUser.token = _currentUser!.token;
+              logger.debug('保留本地缓存的token', tag: 'AuthService');
+            }
+            if (newUser.imSign == null || newUser.imSign!.isEmpty) {
+              newUser.imSign = _currentUser!.imSign;
+              logger.debug('保留本地缓存的imSign', tag: 'AuthService');
+            }
+          }
+          
+          // 使用合并后的用户对象更新缓存
+          await updateCurrentUser(newUser);
 
           logger.info(
             '用户信息已从服务器刷新',
             tag: 'AuthService',
-            extra: {'userId': result.data!.id, 'nickname': result.data!.nickname},
+            extra: {
+              'userId': newUser.id, 
+              'nickname': newUser.nickname,
+              'hasToken': newUser.token != null && newUser.token!.isNotEmpty,
+              'hasImSign': newUser.imSign != null && newUser.imSign!.isNotEmpty,
+            },
           );
 
           return true;

@@ -114,6 +114,8 @@ class _SystemPermissionGuidePageState extends State<SystemPermissionGuidePage> w
         return PermissionSetEvents.sleepPage;
       case SystemPermissionGuideType.lockInBackground:
         return PermissionSetEvents.lockBackgroundPage;
+      case SystemPermissionGuideType.battery:
+        return PermissionSetEvents.sleepPage; // 电池权限复用防休眠事件ID
     }
   }
 
@@ -140,6 +142,8 @@ class _SystemPermissionGuidePageState extends State<SystemPermissionGuidePage> w
         return controller.isGuideCompleted(guideType) ? 1 : 0;
       case SystemPermissionGuideType.lockInBackground:
         return controller.isGuideCompleted(guideType) ? 1 : 0;
+      case SystemPermissionGuideType.battery:
+        return controller.isBatteryOptimized.value ? 1 : 0;
     }
   }
 

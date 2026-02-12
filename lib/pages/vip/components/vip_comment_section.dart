@@ -42,7 +42,7 @@ class VipCommentSection extends StatelessWidget {
     );
   }
 
-  /// 用户评价轮播图
+  /// 用户评价轮播图（无限循环）
   Widget _buildCommentCarousel() {
     return Obx(() {
       final List<CommentItem> commentList =
@@ -50,6 +50,9 @@ class VipCommentSection extends StatelessWidget {
       if (commentList.isEmpty) {
         return const SizedBox();
       }
+
+      // 使用一个很大的数字模拟无限列表
+      const int infiniteCount = 10000;
 
       return SizedBox(
         height: 115,
@@ -61,14 +64,14 @@ class VipCommentSection extends StatelessWidget {
           child: ListView.builder(
             controller: controller.commentScrollController,
             scrollDirection: Axis.horizontal,
-            itemCount: commentList.length,
+            itemCount: infiniteCount,
             itemBuilder: (context, index) {
-              final comment = commentList[index];
+              // 通过取模运算映射到实际的评论索引
+              final actualIndex = index % commentList.length;
+              final comment = commentList[actualIndex];
               return Container(
                 width: 266,
-                margin: EdgeInsets.only(
-                  left: index == 0 ? 0 : 13,
-                ),
+                margin:   EdgeInsets.only(left:index == 0 ?0: 13),
                 child: VipCommentItem(comment: comment),
               );
             },

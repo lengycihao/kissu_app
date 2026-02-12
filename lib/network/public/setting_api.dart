@@ -56,4 +56,24 @@ class SettingApi {
       return result.convert();
     }
   }
+
+  /// 获取App图标列表
+  Future<HttpResultN<List<Map<String, dynamic>>>> getLogoList() async {
+    try {
+      final result = await HttpManagerN.instance.executeGet(
+        '/get/logo/list',
+      );
+      
+      if (result.isSuccess && result.listJson != null) {
+        final List<Map<String, dynamic>> list = (result.listJson as List)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
+        return result.convert(data: list);
+      } else {
+        return result.convert();
+      }
+    } catch (e) {
+      return HttpResultN(isSuccess: false, code: -1, msg: '获取图标列表失败: $e');
+    }
+  }
 }

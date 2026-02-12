@@ -148,7 +148,7 @@ class KissuRoute {
       name: KissuRoutePath.systemPermissionBackgroundGuide,
       page: () => const SystemPermissionGuidePage(
         guideType: SystemPermissionGuideType.allowBackgroundRun,
-        title: '允许后台运行',
+        title: '重启后恢复运行',
       ),
       binding: SystemPermissionBinding(),
       transition: Transition.rightToLeft,
@@ -176,6 +176,15 @@ class KissuRoute {
       page: () => const SystemPermissionGuidePage(
         guideType: SystemPermissionGuideType.appUsage,
         title: '允许获取应用使用权限',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.systemPermissionBatteryGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.battery,
+        title: '电池权限设置',
       ),
       binding: SystemPermissionBinding(),
       transition: Transition.rightToLeft,

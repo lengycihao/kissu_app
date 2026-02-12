@@ -1,6 +1,12 @@
 package com.yuluo.kissu
 
- 
+/**
+ * 🔥 已废弃：极光推送服务
+ * 推送功能现在统一走腾讯IM离线推送，此服务不再使用
+ * 保留代码以备后续参考
+ */
+
+/*
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -112,3 +118,4 @@ class JPushService : Service() {
         }
     }
 }
+*/

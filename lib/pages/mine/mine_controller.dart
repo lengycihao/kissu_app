@@ -9,8 +9,9 @@ import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/personal_info_collection_page.dart';
 import 'package:kissu_app/pages/mine/third_party_sharing_page.dart';
- // import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
+// import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
@@ -26,7 +27,7 @@ import 'package:kissu_app/widgets/share_bottom_sheet.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart'; 
+import 'package:kissu_app/widgets/dialogs/binding_close_confirm_dialog.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_page.dart';
 import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 import 'package:kissu_app/services/permission_service.dart';
@@ -65,8 +66,10 @@ class MineController extends GetxController {
   // 点击事件
   void onLocationTap() {
     // 埋点：记录实时定位功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.realTimeLocation);
-    
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.realTimeLocation,
+    );
+
     onNavigateToNextPage?.call();
     // 添加会员检查
     VipNavigationHelper.navigateToLocationWithVipCheck();
@@ -74,8 +77,10 @@ class MineController extends GetxController {
 
   void onTrackTap() {
     // 埋点：记录足迹功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.track);
-    
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.track,
+    );
+
     onNavigateToNextPage?.call();
     Get.to(
       () => TrackPage(),
@@ -86,25 +91,29 @@ class MineController extends GetxController {
 
   void onHisstoryTap() {
     // 埋点：记录用机记录功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.phoneHistory);
-    
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.phoneHistory,
+    );
+
     onNavigateToNextPage?.call();
-    // 跳转到新的用机记录页面
-    Get.toNamed(KissuRoutePath.deviceUsage);
+    // 跳转到新的用机记录页面，传递来源事件
+    Get.toNamed(
+      KissuRoutePath.deviceUsage,
+      arguments: {'source_event': MyPageEvents.functionsModule},
+    );
   }
 
   // 设置项
   late final List<SettingItem> settingItems;
 
   // 常用功能项
-  late final List<CommonFunctionItem> commonFunctionItems;
+  var commonFunctionItems = <CommonFunctionItem>[].obs;
+  
+  // 是否已进入过更换app图标模块
+  static const String _hasEnteredChangeLogoKey = 'has_entered_change_logo';
 
   // 下拉刷新相关
   var isRefreshing = false.obs;
-
- 
-
- 
 
   // 权限状态
   /// 是否已经完成「系统权限」页面中所有需要开启的权限 / 教程项
@@ -117,7 +126,7 @@ class MineController extends GetxController {
   int? _pageEnterTime;
   int _exitType = ExitTypeValue.back;
   bool _hasTrackedExit = false; // 是否已上报离开埋点
-  
+
   // 页面离开回调（由Widget或其他组件注册）
   VoidCallback? onNavigateToNextPage;
 
@@ -147,7 +156,8 @@ class MineController extends GetxController {
     try {
       final androidInfo = await _deviceInfoPlugin.androidInfo;
       final brand = (androidInfo.brand).toLowerCase();
-      _isXiaomiDevice = brand.contains('xiaomi') ||
+      _isXiaomiDevice =
+          brand.contains('xiaomi') ||
           brand.contains('mi') ||
           brand.contains('redmi');
     } catch (e) {
@@ -159,19 +169,17 @@ class MineController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    
+
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    
+
     // 注册页面离开回调
     onNavigateToNextPage = () {
       _trackPageExit(ExitTypeValue.nextPage);
     };
-    
+
     _initSettingItems();
     _initCommonFunctionItems();
-
- 
 
     // 先加载本地用户信息（立即显示）
     loadUserInfo();
@@ -182,10 +190,6 @@ class MineController extends GetxController {
     // 加载红点状态
     _loadRedDotStatus();
   }
-
- 
- 
- 
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
@@ -244,18 +248,25 @@ class MineController extends GetxController {
       final lockBackgroundCompleted =
           prefs.getBool(_guideLockBackgroundKey) ?? false;
 
-      // 3. 初始化机型信息，用于处理“小米机型只有 5 项”的情况
+      // 3. 初始化机型信息，用于处理"小米机型只有 5 项"的情况
       await _initDeviceBrandIfNeeded();
 
-      // 系统权限页总体有 6 项开关（部分小米机型隐藏“让程序锁在后台”，变为 5 项）
+      // 系统权限页总体有 6 项开关（部分小米机型隐藏"让程序锁在后台"，变为 5 项）
       // 这里的「全部开启」含义完全对齐系统权限页：
-      // - 所有权限型 item 的按钮文案为“已开启”
-      // - 所有教程型 item 已被标记为完成（按钮文案为“已开启”）
-      final allGuidesCompleted = preventSleepCompleted &&
+      // - 所有权限型 item 的按钮文案为"已开启"
+      // - 所有教程型 item 已被标记为完成（按钮文案为"已开启"）
+      //
+      // 检查指引完成状态：
+      // 小米设备：只需检查防休眠和后台运行两个指引（共5项权限）
+      // 其他设备：需要检查防休眠、后台运行、锁定后台三个指引（共6项权限）
+      final allGuidesCompleted =
+          preventSleepCompleted &&
           backgroundRunCompleted &&
           (_isXiaomiDevice ? true : lockBackgroundCompleted);
 
-      areAllPermissionsGranted.value = isLocationGranted &&
+      // 4个基础权限 + 指引完成状态 = 全部权限已开启
+      areAllPermissionsGranted.value =
+          isLocationGranted &&
           isNotificationGranted &&
           isBatteryOptimized &&
           isUsageAccessGranted &&
@@ -452,8 +463,17 @@ class MineController extends GetxController {
     return "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}";
   }
 
-  void _initCommonFunctionItems() {
-    commonFunctionItems = [
+  Future<void> _initCommonFunctionItems() async {
+    // 读取是否已进入过更换app图标模块
+    final prefs = await SharedPreferences.getInstance();
+    final hasEnteredChangeLogo = prefs.getBool(_hasEnteredChangeLogoKey) ?? false;
+    
+    commonFunctionItems.value = [
+      CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_newhome.webp",
+        title: "一键锁机",
+        onTap: () => _onPersonalizedHomeTap(),
+      ),
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_location.webp",
         title: "实时定位",
@@ -479,11 +499,7 @@ class MineController extends GetxController {
         title: "酒店防偷拍",
         onTap: () => _onAntiSpyTap(),
       ),
-      CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_newhome.webp",
-        title: "个性化首页",
-        onTap: () => _onPersonalizedHomeTap(),
-      ),
+      
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_minganjilu.webp",
         title: "敏感操作记录",
@@ -492,6 +508,7 @@ class MineController extends GetxController {
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_change_logo.webp",
         title: "更换app图标",
+        subIcon: hasEnteredChangeLogo ? null : "assets/4.0/kissu_change_logo_new.webp",
         onTap: () => _onChangeAppIconTap(),
       ),
       // CommonFunctionItem(
@@ -504,7 +521,15 @@ class MineController extends GetxController {
 
   void _initSettingItems() {
     settingItems = [
-     
+      SettingItem(
+        icon: "assets/4.0/kissu_mine_item_ysaq.webp",
+        title: "数据安全",
+        subIcon: "assets/4.0/kissu_mine_item_ysaq_sub.webp",
+        onTap: () async {
+          onNavigateToNextPage?.call();
+          AgreementUtils.toPrivacySecurity();
+        },
+      ),
       SettingItem(
         icon: "assets/4.0/kissu4_share.webp",
         title: "分享APP",
@@ -516,11 +541,11 @@ class MineController extends GetxController {
         onTap: () => _onNotificationSettingsTap(),
       ),
 
-      SettingItem(
-        icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
-        title: "弹窗展示",
-        onTap: () => Get.to(() => const DialogShowcasePage()),
-      ),
+      // SettingItem(
+      //   icon: "assets/images/kissu_home_tab_history.webp", // 使用系统权限图标作为弹窗展示图标
+      //   title: "弹窗展示",
+      //   onTap: () => Get.to(() => const DialogShowcasePage()),
+      // ),
 
       // SettingItem(
       //   icon: "assets/images/kissu_home_tab_history.webp",
@@ -553,7 +578,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/4.0/kissu4_mine_question.webp",
         title: "常见问题",
-        onTap: () async { 
+        onTap: () async {
           onNavigateToNextPage?.call();
           Get.to(QuestionPage(), transition: Transition.rightToLeft);
         },
@@ -562,7 +587,7 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/4.0/kissu4_feedback.webp",
         title: "投诉与反馈",
-        onTap: () async { 
+        onTap: () async {
           onNavigateToNextPage?.call();
           Get.toNamed(KissuRoutePath.feedback);
         },
@@ -570,23 +595,31 @@ class MineController extends GetxController {
       SettingItem(
         icon: "assets/4.0/kissu4_mine_aboutus.webp",
         title: "关于我们",
-        onTap: () async { 
+        onTap: () async {
           onNavigateToNextPage?.call();
           Get.to(AboutUsPage(), transition: Transition.rightToLeft);
         },
-      ),SettingItem(
+      ),
+      SettingItem(
         icon: "assets/4.0/kissu4_mine_info_collect.webp",
         title: "个人信息收集清单",
         onTap: () async {
           onNavigateToNextPage?.call();
-          Get.to(() => const PersonalInfoCollectionPage(), transition: Transition.rightToLeft);
+          Get.to(
+            () => const PersonalInfoCollectionPage(),
+            transition: Transition.rightToLeft,
+          );
         },
-      ),SettingItem(
+      ),
+      SettingItem(
         icon: "assets/4.0/kissu4_mine_info_share.webp",
         title: "第三方信息共享清单",
         onTap: () async {
           onNavigateToNextPage?.call();
-          Get.to(() => const ThirdPartySharingPage(), transition: Transition.rightToLeft);
+          Get.to(
+            () => const ThirdPartySharingPage(),
+            transition: Transition.rightToLeft,
+          );
         },
       ),
       // SettingItem(
@@ -656,7 +689,6 @@ class MineController extends GetxController {
   //   _showScreenUsageData();
   // }
 
-
   /// 打开联系渠道（企业微信客服）
   Future<void> openContact() async {
     // 企业微信配置信息
@@ -678,7 +710,7 @@ class MineController extends GetxController {
   void onBackTap() {
     // 埋点：记录返回按钮点击
     AnalyticsHelper.trackMyPageBack();
-    
+
     Get.back();
   }
 
@@ -713,7 +745,6 @@ class MineController extends GetxController {
     AnalyticsHelper.trackMyPageAvatar();
     // 如果未绑定，显示绑定弹窗
     if (!isBound.value) {
-    
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
@@ -722,8 +753,6 @@ class MineController extends GetxController {
         );
       }
     } else {
-    
-
       // 如果已绑定，跳转到恋爱信息页面
       onNavigateToNextPage?.call();
       await Get.to(LoveInfoPage(), transition: Transition.rightToLeft);
@@ -790,7 +819,7 @@ class MineController extends GetxController {
 
       // 埋点：记录会员模块点击（立即绑定）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.bindNow);
-      
+
       if (Get.context != null) {
         CustomBottomDialog.show(
           context: Get.context!,
@@ -817,10 +846,7 @@ class MineController extends GetxController {
       // 埋点：记录会员模块点击（会员中心）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.vipCenter);
       onNavigateToNextPage?.call();
-      Get.toNamed(
-        KissuRoutePath.foreverVip,
-        arguments: { },
-      );
+      Get.toNamed(KissuRoutePath.foreverVip, arguments: {});
     } else if (isVip.value) {
       // 普通会员，跳转到VIP页面（续费）
       logDebug('💫 普通会员，跳转到VIP页面（续费）', tag: 'Mine');
@@ -830,7 +856,10 @@ class MineController extends GetxController {
       onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'source_page': SourcePageUtilsCaller.mine, 'source_event': MyPageEvents.vipBtn},
+        arguments: {
+          'source_page': SourcePageUtilsCaller.mine,
+          'source_event': MyPageEvents.vipBtn,
+        },
       );
     } else {
       // 非会员，跳转到VIP页面（开通会员）
@@ -841,7 +870,10 @@ class MineController extends GetxController {
       onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'source_page': SourcePageUtilsCaller.mine, 'source_event': MyPageEvents.vipBtn},
+        arguments: {
+          'source_page': SourcePageUtilsCaller.mine,
+          'source_event': MyPageEvents.vipBtn,
+        },
       );
     }
   }
@@ -882,7 +914,6 @@ class MineController extends GetxController {
     }
   }
 
-
   /// 执行退出登录
   Future<void> performLogout() async {
     Get.back(); // 关闭对话框
@@ -899,7 +930,7 @@ class MineController extends GetxController {
         logDebug('⏸️ 正在导航到登录页，跳过重复操作', tag: 'Mine');
         return;
       }
-      
+
       // 然后在后台调用退出登录API（不阻塞UI）
       UserManager.logout().catchError((e) {
         // 退出登录API失败不影响UI，因为已经跳转到登录页了
@@ -937,7 +968,7 @@ class MineController extends GetxController {
   void _onShareAppTap() async {
     // 埋点：记录分享APP点击
     AnalyticsHelper.trackMyPageShareBtn();
-    
+
     ShareBottomSheet.showShareApp(Get.context!);
   }
 
@@ -947,12 +978,13 @@ class MineController extends GetxController {
     Get.toNamed(KissuRoutePath.notificationSettings);
   }
 
- 
   /// 酒店防偷拍点击事件
   void _onAntiSpyTap() async {
     // 埋点：记录酒店防偷拍功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.hotelAntiSpy);
-    
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.hotelAntiSpy,
+    );
+
     onNavigateToNextPage?.call();
     Get.toNamed(KissuRoutePath.antiSpy);
   }
@@ -965,12 +997,13 @@ class MineController extends GetxController {
   /// App使用记录点击事件
   Future<void> _onAppUsageRecordTap() async {
     // 埋点：记录App使用记录功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.appUsageRecord);
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.appUsageRecord,
+    );
     // 1. 未绑定：先引导绑定
     if (!isBound.value) {
       logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
 
-    
       if (Get.context != null) {
         await CustomBottomDialog.show(
           context: Get.context!,
@@ -996,7 +1029,10 @@ class MineController extends GetxController {
       onNavigateToNextPage?.call();
       Get.toNamed(
         KissuRoutePath.vip,
-       arguments: {'source_page': SourcePageUtilsCaller.mine, 'source_event': MyPageEvents.functionsModule},
+        arguments: {
+          'source_page': SourcePageUtilsCaller.mine,
+          'source_event': MyPageEvents.functionsModule,
+        },
       );
       return;
     }
@@ -1014,8 +1050,10 @@ class MineController extends GetxController {
   /// 个性化首页点击事件
   void _onPersonalizedHomeTap() {
     // 埋点：记录个性化首页功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.personalizedHome);
-    
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.personalizedHome,
+    );
+
     // 改为简单的 Toast 提示，而不是弹窗
     OKToastUtil.show('敬请期待！');
   }
@@ -1023,12 +1061,13 @@ class MineController extends GetxController {
   /// 敏感操作记录页面
   void _onMinganJiluTap() async {
     // 埋点：记录敏感操作记录功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.sensitiveRecord);
-     // 1. 未绑定：先引导绑定
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.sensitiveRecord,
+    );
+    // 1. 未绑定：先引导绑定
     if (!isBound.value) {
       logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
 
-    
       if (Get.context != null) {
         await CustomBottomDialog.show(
           context: Get.context!,
@@ -1052,10 +1091,19 @@ class MineController extends GetxController {
   }
 
   /// 更换app图标点击事件
-  void _onChangeAppIconTap() {
+  void _onChangeAppIconTap() async {
     // 埋点：记录更换app图标功能点击
-    AnalyticsHelper.trackMyPageFunctionsModule(btnName: FunctionModuleValue.changeAppIcon);
+    AnalyticsHelper.trackMyPageFunctionsModule(
+      btnName: FunctionModuleValue.changeAppIcon,
+    );
     
+    // 标记已进入过更换app图标模块
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hasEnteredChangeLogoKey, true);
+    
+    // 刷新列表以隐藏new图标
+    _initCommonFunctionItems();
+
     onNavigateToNextPage?.call();
     Get.toNamed(KissuRoutePath.appIconSelector);
   }
@@ -1077,10 +1125,10 @@ class MineController extends GetxController {
   void _trackPageExit(int exitType) {
     if (_hasTrackedExit || _pageEnterTime == null) return;
     _hasTrackedExit = true;
-    
+
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final duration = currentTime - _pageEnterTime!;
-    
+
     AnalyticsManager.instance.trackPageView(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.page,
@@ -1088,7 +1136,7 @@ class MineController extends GetxController {
       duration: duration,
       exitType: exitType,
     );
-    
+
     // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
     if (exitType == ExitTypeValue.nextPage) {
       _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -1096,33 +1144,33 @@ class MineController extends GetxController {
       _exitType = ExitTypeValue.back;
     }
   }
-  
+
   /// 应用切换到后台
   void onAppPaused() {
     _exitType = ExitTypeValue.toBackground;
     _trackPageExit(ExitTypeValue.toBackground);
   }
-  
+
   /// 应用从后台返回
   void onAppResumed() {
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _hasTrackedExit = false;
     _exitType = ExitTypeValue.back;
   }
-  
+
   @override
   void onClose() {
     // 埋点：记录页面离开事件（返回）
     _trackPageExit(_exitType);
-    
+
     super.onClose();
   }
-
 }
 
 class SettingItem {
   final String icon;
   final String title;
+  final String? subIcon;
   final RxString? subtitle; // 用于显示额外信息（如缓存大小）
   final void Function()? onTap;
 
@@ -1130,14 +1178,15 @@ class SettingItem {
     required this.icon,
     required this.title,
     this.subtitle,
+    this.subIcon,
     this.onTap,
   });
 }
 
 class CommonFunctionItem {
   final String icon;
-  final String title;
-  final void Function()? onTap;
+  final String title;final String? subIcon;
+   final void Function()? onTap;
 
-  CommonFunctionItem({required this.icon, required this.title, this.onTap});
+  CommonFunctionItem({required this.icon, required this.title,this.subIcon, this.onTap});
 }

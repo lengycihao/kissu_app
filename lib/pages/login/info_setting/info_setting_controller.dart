@@ -668,6 +668,8 @@ class InfoSettingController extends GetxController {
         }
 
         // 注册完成后直接跳转到首页
+        // 注意：埋点已在点击按钮时通过onNavigateToNextPage上报，标记已上报避免onClose中重复上报
+        _hasTrackedExit = true;
         Get.offAllNamed(KissuRoutePath.home);
       } else {
         logError('❌ 更新失败: ${result.msg}', tag: 'InfoSetting', error: result.msg);

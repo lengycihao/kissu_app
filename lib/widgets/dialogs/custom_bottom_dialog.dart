@@ -62,7 +62,7 @@ class CustomBottomDialog extends StatefulWidget {
       'assets/3.0/kissu3_banner_1.webp',
       'assets/3.0/kissu3_banner_2.webp',
       'assets/3.0/kissu3_banner_3.webp',
-      'assets/3.0/kissu3_banner_4.webp',
+      'assets/3.0/kissu3_banner_4.webp','assets/3.0/kissu3_banner_5.webp',
     ];
 
     return showModalBottomSheet<T>(
@@ -304,7 +304,7 @@ class _CustomBottomDialogState extends State<CustomBottomDialog> with WidgetsBin
           Image.asset("assets/home/bind_dialog_title.webp", width: 154, height: 36,),
           const SizedBox(height: 8),
           const Text(
-            '一起在kissu开启亲密体验吧!',
+            '我们的爱 有迹可循，开启体验吧!',
             style: TextStyle(fontSize: 14, color: Color(0x99333333)),
           ),
           const SizedBox(height: 15),

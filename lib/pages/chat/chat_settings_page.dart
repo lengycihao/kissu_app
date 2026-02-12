@@ -108,7 +108,7 @@ class ChatSettingsPage extends GetView<ChatSettingsController> {
           Obx(() => _buildSettingItem(
             title: '收起敏感消息',
             onTap: () {},
-            subtitle: '连续超3条已读敏感信息，将自动收起',
+            subtitle: '连续3条敏感信息，将自动收起',
             switchOnTap: controller.toggleSensitiveCollapse,
             showSwitch: true,
             isEnabled: controller.isSensitiveCollapseEnabled.value,

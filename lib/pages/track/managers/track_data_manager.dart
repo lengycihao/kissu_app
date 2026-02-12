@@ -27,6 +27,9 @@ class TrackDataManager {
   /// 轨迹点缓存池 - 用于避免重复计算
   final Map<String, List<LatLng>> _trackPointsCache = {};
   
+  /// 停留点缓存池 - 用于避免重复计算
+  final Map<String, List<StayPoint>> _stopPointsCache = {};
+  
   /// 轨迹线状态管理 - 用于解决高德地图轨迹线更新问题
   final RxBool hasValidTrackData = false.obs;
   
@@ -75,51 +78,60 @@ class TrackDataManager {
     // 缓存结果
     _trackPointsCache[cacheKey] = points;
     
-    // 更新轨迹线状态 - 延迟到下一帧执行，避免在build期间修改状态
+    // 🔥 修复：同步更新轨迹线状态，避免异步更新导致的时序问题
+    // 之前使用 Future.microtask() 会导致 hasValidTrackData 状态更新滞后，
+    // 在头像切换时 UI 可能在状态更新前就读取了旧值，导致 marker 显示不稳定
     final hasData = points.isNotEmpty;
-    Future.microtask(() {
+    if (hasValidTrackData.value != hasData) {
       hasValidTrackData.value = hasData;
-      logDebug('轨迹点数量: ${points.length}, hasValidTrackData: $hasData');
-    });
+    }
+    logDebug('轨迹点数量: ${points.length}, hasValidTrackData: $hasData');
     
     return points;
   }
   
-  /// 停留点列表（从当前数据实时计算）
+  /// 停留点列表（从当前数据实时计算，带缓存）
   /// 🎯 只返回 trace.stops 中 point_type="stop" 的数据，序号使用 serial_number
+  /// 🚀 性能优化：添加缓存机制，避免重复计算
   List<StayPoint> get stopPoints {
     if (currentData == null || currentData!.trace?.stops == null) {
-      logDebug('📍 [StopPoints] currentData或trace.stops为null');
       return [];
     }
     
-    final allStops = currentData!.trace!.stops;
-    logDebug('📍 [StopPoints] 总停留点数: ${allStops.length}');
+    // 根据当前查看的用户和日期生成缓存键
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+    final cacheKey = 'stopPoints_user${currentUserType.value}_$dateStr';
     
-    // 🎯 只筛选 point_type="stop" 的停留点
+    // 检查缓存
+    if (_stopPointsCache.containsKey(cacheKey)) {
+      return _stopPointsCache[cacheKey]!;
+    }
+    
+    final allStops = currentData!.trace!.stops;
+    
+    // 🎯 只筛选 point_type="stop" 的停留点（不打印每个点的日志）
     final stopTypeStops = allStops.where((stop) {
       final isValid = stop.lat != 0.0 && stop.lng != 0.0;
       final isStopType = stop.pointType == "stop";
-      logDebug('📍 [StopPoints] 检查停留点: lat=${stop.lat}, lng=${stop.lng}, pointType=${stop.pointType}, serialNumber=${stop.serialNumber}, isValid=$isValid, isStopType=$isStopType');
       return isValid && isStopType;
     }).toList();
     
-    logDebug('📍 [StopPoints] point_type="stop"的停留点数: ${stopTypeStops.length}');
-    
     int index = 0;
     final result = stopTypeStops.map((stop) {
-      final stayPoint = StayPoint(
+      return StayPoint(
         position: LatLng(stop.lat, stop.lng),
         title: stop.locationName ?? '未知位置',
         duration: stop.duration ?? '',
         index: index++,
-        serialNumber: stop.serialNumber ?? '', // 🎯 使用 serial_number 作为序号
+        serialNumber: stop.serialNumber ?? '',
       );
-      logDebug('📍 [StopPoints] 创建StayPoint: serialNumber=${stayPoint.serialNumber}, position=${stayPoint.position}');
-      return stayPoint;
     }).toList();
     
-    logDebug('📍 [StopPoints] 最终返回停留点数: ${result.length}');
+    // 缓存结果
+    _stopPointsCache[cacheKey] = result;
+    
+    // 🚀 只打印摘要日志
+    logDebug('📍 [StopPoints] 计算完成: 总数=${allStops.length}, 有效停留点=${result.length} (已缓存)');
     return result;
   }
   
@@ -175,8 +187,9 @@ class TrackDataManager {
     logDebug('🔄 切换用户: ${userType == 1 ? "自己" : "另一半"}');
     currentUserType.value = userType;
     
-    // 清空缓存，强制重新计算轨迹点
+    // 清空缓存，强制重新计算轨迹点和停留点
     _trackPointsCache.clear();
+    _stopPointsCache.clear();
     
     // 更新统计数据
     updateStatistics();
@@ -228,6 +241,7 @@ class TrackDataManager {
     myselfData.value = null;
     partnerData.value = null;
     _trackPointsCache.clear();
+    _stopPointsCache.clear();
     hasValidTrackData.value = false;
     _clearStatistics();
   }
@@ -235,7 +249,8 @@ class TrackDataManager {
   /// 清空缓存
   void clearCache() {
     _trackPointsCache.clear();
-    logDebug('轨迹点缓存已清空');
+    _stopPointsCache.clear();
+    logDebug('轨迹点和停留点缓存已清空');
   }
   
   /// 获取起点坐标

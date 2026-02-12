@@ -24,11 +24,13 @@ class ChatMessage {
   final double? longitude; // 经度
   final bool isRead; // 是否已读（仅用于自己发送的消息）
   final String? iconUrl; // 图标URL（用于systemEvent类型，支持网络图片）
+  final String? vipIcon; // VIP用户显示的图标URL（非VIP用户显示iconUrl）
   final String? crapDuration; // 拉屎时长（用于endDefecate类型，如"0分30秒"）
   final String? jumpPage; // 跳转页面标识（用于敏感事件systemEvent）
   final List<FontColorItem>? imFontColor; // 文本需要变色的配置项
   final Map<String, dynamic>? defaultExt; // 原始扩展字段（用于位置等）
   final int? isVip; // 服务端字段 is_vip: 1 表示 VIP 优先展示
+  final String? imVipContent; // VIP用户显示的内容（非VIP用户显示content）
 
   ChatMessage({
     required this.id,
@@ -45,11 +47,13 @@ class ChatMessage {
     this.longitude,
     this.isRead = false, // 默认为未读
     this.iconUrl, // 图标URL（用于systemEvent类型）
+    this.vipIcon, // VIP用户显示的图标URL
     this.crapDuration, // 拉屎时长（用于endDefecate类型）
     this.jumpPage, // 跳转页面标识
     this.imFontColor,
     this.defaultExt,
     this.isVip,
+    this.imVipContent,
   });
 
   /// 创建一个带有更新字段的新消息副本
@@ -68,11 +72,13 @@ class ChatMessage {
     double? longitude,
     bool? isRead,
     String? iconUrl,
+    String? vipIcon,
     String? crapDuration,
     String? jumpPage,
     List<FontColorItem>? imFontColor,
     Map<String, dynamic>? defaultExt,
     int? isVip,
+    String? imVipContent,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -89,11 +95,13 @@ class ChatMessage {
       longitude: longitude ?? this.longitude,
       isRead: isRead ?? this.isRead,
       iconUrl: iconUrl ?? this.iconUrl,
+      vipIcon: vipIcon ?? this.vipIcon,
       crapDuration: crapDuration ?? this.crapDuration,
       jumpPage: jumpPage ?? this.jumpPage,
       imFontColor: imFontColor ?? this.imFontColor,
       defaultExt: defaultExt ?? this.defaultExt,
       isVip: isVip ?? this.isVip,
+      imVipContent: imVipContent ?? this.imVipContent,
     );
   }
 }

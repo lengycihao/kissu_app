@@ -21,6 +21,8 @@ class KissuRoutePath {
       '/kisssu_app/system_permission/notification_guide';
   static const systemPermissionAppUsageGuide =
       '/kisssu_app/system_permission/app_usage_guide';
+  static const systemPermissionBatteryGuide =
+      '/kisssu_app/system_permission/battery_guide';
   static const permissionSetting = '/kisssu_app/permission_setting';
   static const agreementWebView = '/kisssu_app/agreement_webview';
   static const qrScanPage = '/kisssu_app/qr_scan';

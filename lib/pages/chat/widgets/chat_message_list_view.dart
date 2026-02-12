@@ -5,6 +5,7 @@ import 'package:kissu_app/pages/chat/widgets/chat_message_item.dart';
 import 'package:kissu_app/pages/chat/widgets/image_preview_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 
 /// 聊天消息列表区域，只负责列表渲染
@@ -73,17 +74,24 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
 
       // 检查是否是systemEvent类型，且开启了折叠功能
       if (message.type == MessageType.systemEvent && isCollapseEnabled) {
-        // 查找连续的systemEvent消息
+        // 查找连续的systemEvent消息，允许中间有时间消息
         int endIndex = i;
-        while (endIndex + 1 < messages.length &&
-            messages[endIndex + 1].type == MessageType.systemEvent) {
-          endIndex++;
+        int systemEventCount = 1; // 计算systemEvent消息数量
+        
+        // 继续向后查找，直到遇到非systemEvent且非时间消息
+        while (endIndex + 1 < messages.length) {
+          final nextMessage = messages[endIndex + 1];
+          if (nextMessage.type == MessageType.systemEvent) {
+            systemEventCount++;
+            endIndex++;
+          } else {
+            // 遇到非systemEvent消息，停止查找
+            break;
+          }
         }
 
-        final consecutiveCount = endIndex - i + 1;
-
-        // 如果连续超过3条，创建折叠组
-        if (consecutiveCount > 3) {
+        // 如果systemEvent消息超过3条，创建折叠组
+        if (systemEventCount > 3) {
           final groupMessages = messages.sublist(i, endIndex + 1);
           final groupId = groupMessages.first.id;
           items.add(
@@ -178,11 +186,13 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
       ),
       child: Column(
         children: [
-          // 消息列表
+          // 消息列表（包括所有消息，不仅仅是systemEvent）
           ...item.messages.asMap().entries.map((entry) {
             final index = entry.key;
             final message = entry.value;
-            return _buildExpandedMessageItem(message, index == 0);
+            // 传入上一条消息用于判断是否显示时间戳
+            final prevMessage = index > 0 ? item.messages[index - 1] : null;
+            return _buildExpandedMessageItem(message, index == 0, prevMessage);
           }),
           // 收起按钮
           GestureDetector(
@@ -223,46 +233,72 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
   }
 
   /// 构建展开状态下的单条消息
-  Widget _buildExpandedMessageItem(ChatMessage message, bool isFirst) {
+  Widget _buildExpandedMessageItem(ChatMessage message, bool isFirst, ChatMessage? prevMessage) {
     final bool hasJump =
         message.jumpPage != null && message.jumpPage!.isNotEmpty;
-    final bool isVip = (message.isVip ?? 0) == 1;
+    final bool messageIsVip = (message.isVip ?? 0) == 1;
+    final bool isUserVip = widget.controller.isVip.value;
+    
+    // 根据用户VIP状态获取显示内容
+    final String displayContent = _getDisplayContent(message, isUserVip);
+    // 根据用户VIP状态获取显示图标（VIP用户显示vipIcon，非VIP用户显示iconUrl）
+    final String? displayIcon = _getDisplayIcon(message, isUserVip);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
-        top: isFirst ? 12 : 8,
-        bottom: 4,
-      ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: hasJump ? () => _handleMessageTap(message) : null,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 图标
-            if (message.iconUrl != null) ...[
-              _buildEventIcon(message.iconUrl!),
-              const SizedBox(width: 4),
-            ],
-            // 文字内容
-            Flexible(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: _buildTextWithColorOverrides(
-                      message.content,
-                      message.imFontColor,
-                      const TextStyle(fontSize: 13, color: Color(0xFF333333)),
-                    ),
-                  ),
-                  // 优先级：is_vip == 1 显示 VIP 按钮，否则有 jumpPage 时显示蓝色小箭头
-                  if (isVip) ...[
+    return Column(
+      children: [
+        // 时间戳（根据需要显示）
+        if (_shouldShowTimestampInGroup(message, isFirst, prevMessage))
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: EdgeInsets.only(bottom: 8, top: isFirst ? 12 : 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF6F6F6),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Text(
+              _formatTime(message.time),
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0x99000000),
+              ),
+            ),
+          ),
+        // 消息内容
+        Padding(
+          padding: EdgeInsets.only(
+            left: 12,
+            right: 12,
+            top: _shouldShowTimestampInGroup(message, isFirst, prevMessage) ? 0 : (isFirst ? 12 : 8),
+            bottom: 4,
+          ),
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: hasJump ? () => _handleMessageTap(message) : null,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 图标（VIP用户显示vipIcon，非VIP用户显示iconUrl）
+                if (displayIcon != null) ...[
+                  _buildEventIcon(displayIcon),
+                  const SizedBox(width: 4),
+                ],
+                // 文字内容
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: _buildTextWithColorOverrides(
+                          displayContent,
+                          message.imFontColor,
+                          const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+                        ),
+                      ),
+                  // 仅当消息标记is_vip=1且用户非VIP时显示VIP按钮
+                  if (messageIsVip && !isUserVip) ...[
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () {
@@ -273,11 +309,16 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
                             controller.onNavigateToNextPage?.call();
                           } catch (_) {}
 
+                          // 埋点：非会员点击消息跳转VIP
+                          AnalyticsManager.instance.trackClick(
+                            pageId: ChatEvents.pageId,
+                            eventId: ChatEvents.imVip,
+                          );
                           Get.toNamed(
                             KissuRoutePath.vip,
                             arguments: {
                               'source_page': SourcePageUtilsCaller.chat,
-                              'source_event': ChatEvents.pageId,
+                              'source_event': ChatEvents.imVip,
                             },
                           );
                         } catch (e) {
@@ -300,13 +341,73 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
                       color: const Color(0xff009BFE),
                     ),
                   ],
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
+  }
+
+  /// 根据用户VIP状态获取消息显示内容
+  String _getDisplayContent(ChatMessage message, bool isUserVip) {
+    // 如果消息标记了is_vip=1，根据用户VIP状态显示不同内容
+    if ((message.isVip ?? 0) == 1) {
+      if (isUserVip) {
+        // VIP用户：优先显示imVipContent，如果没有则显示content
+        return message.imVipContent ?? message.content;
+      } else {
+        // 非VIP用户：显示content
+        return message.content;
+      }
+    }
+    // 普通消息直接显示content
+    return message.content;
+  }
+
+  /// 根据用户VIP状态获取消息显示图标（VIP用户显示vipIcon，非VIP用户显示iconUrl）
+  String? _getDisplayIcon(ChatMessage message, bool isUserVip) {
+    if (isUserVip) {
+      // VIP用户：优先显示vipIcon，如果没有则显示iconUrl
+      return message.vipIcon ?? message.iconUrl;
+    } else {
+      // 非VIP用户：显示iconUrl
+      return message.iconUrl;
+    }
+  }
+
+  /// 判断在折叠组中是否显示时间戳
+  bool _shouldShowTimestampInGroup(ChatMessage message, bool isFirst, ChatMessage? prevMessage) {
+    // 第一条消息总是显示时间
+    if (isFirst) return true;
+    
+    // 如果没有上一条消息，不显示
+    if (prevMessage == null) return false;
+    
+    // 根据时间间隔决定：距离上一条消息超过5分钟则显示时间戳
+    final timeDiff = message.time.difference(prevMessage.time);
+    return timeDiff.inMinutes >= 5;
+  }
+
+  /// 格式化时间显示
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(time.year, time.month, time.day);
+
+    if (messageDate == today) {
+      // 今天：只显示时间
+      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    } else if (messageDate == today.subtract(const Duration(days: 1))) {
+      // 昨天
+      return '昨天 ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    } else {
+      // 其他日期
+      return '${time.month}月${time.day}日 ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   /// 构建事件图标
@@ -410,7 +511,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
           Get.toNamed(KissuRoutePath.appUsageInfo);
           break;
         case 'mobileUse':
-          Get.toNamed(KissuRoutePath.deviceUsage);
+          Get.toNamed(KissuRoutePath.deviceUsage, arguments: {'source_event': ChatEvents.page});
           break;
         case 'locationPage':
           Get.toNamed(KissuRoutePath.location);

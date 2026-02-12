@@ -135,9 +135,9 @@ class _MinePageState extends State<MinePage> with WidgetsBindingObserver {
                             _buildVipCard(),
                             const SizedBox(height: 16),
                             // 常用功能模块
-                            MineCommonFunctions(
-                              items: controller.commonFunctionItems,
-                            ),
+                            Obx(() => MineCommonFunctions(
+                              items: controller.commonFunctionItems.toList(),
+                            )),
                             const SizedBox(height: 16),
                             MineSettings(
                               items: controller.settingItems,

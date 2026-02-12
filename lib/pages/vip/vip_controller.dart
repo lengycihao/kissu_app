@@ -87,10 +87,13 @@ class VipController extends GetxController {
   Timer? _lifetimeCountdownTimer;
   final lifetimeActivityDesc = ''.obs;
   final lifetimeActivitySeconds = 0.obs;
+  
+  // 评论轮播初始化标志，防止jumpTo触发无限递归
+  bool _isInitializingCommentCarousel = false;
 
   // 自动轮播配置
-  static const Duration _topCarouselInterval = Duration(seconds: 3);
-  static const Duration _commentCarouselInterval = Duration(seconds: 4);
+  static const Duration _topCarouselInterval = Duration(seconds: 2);
+  static const Duration _commentCarouselInterval = Duration(seconds: 3);
 
   // 支付结果监听器
   StreamSubscription<Map<String, dynamic>>? _paymentResultSubscription;
@@ -104,6 +107,7 @@ class VipController extends GetxController {
   int? _payStartTime; // 支付开始时间（十位时间戳）
   SourcePageUtilsCaller? _sourcePage; // 来源页
   String? _sourceEvent; // 来源事件ID
+  int? _isDiscount; // 是否获取折扣套餐（1=是）
 
   @override
   void onInit() {
@@ -130,9 +134,13 @@ class VipController extends GetxController {
     final arguments = Get.arguments as Map<String, dynamic>?;
     _sourcePage = arguments?['source_page'] as SourcePageUtilsCaller?;
     _sourceEvent = arguments?['source_event'] as String?;
+    _isDiscount = arguments?['is_discount'] as int?;
     final defaultVipType = arguments?['defaultVipType'] as int?;
     if (defaultVipType != null) {
       debugPrint('📦 VIP页面接收到参数: defaultVipType=$defaultVipType');
+    }
+    if (_isDiscount != null) {
+      debugPrint('📦 VIP页面接收到参数: is_discount=$_isDiscount');
     }
 
     // 设置支付结果监听
@@ -162,6 +170,10 @@ class VipController extends GetxController {
         return PageSourceIds.chat; // 聊天页面
       case SourcePageUtilsCaller.bind:
         return PageSourceIds.bind; // 绑定页面
+      case SourcePageUtilsCaller.changeLogo:
+        return PageSourceIds.changeLogo; // 更换Logo页面
+        case SourcePageUtilsCaller.unbindPage:
+        return PageSourceIds.unbindPage; // 更换Logo页面
     }
   }
 
@@ -348,6 +360,12 @@ class VipController extends GetxController {
   /// 显示挽留弹窗
   Future<bool> _showRetentionDialog() async {
     try {
+      // 如果用户已经是VIP，直接返回，不展示挽留弹窗
+      if (UserManager.isVip) {
+        debugPrint('✅ 用户已是VIP，跳过挽留弹窗');
+        return true;
+      }
+
       final context = Get.context;
       if (context == null) {
         debugPrint('❌ 无法获取Context，直接返回');
@@ -632,14 +650,20 @@ class VipController extends GetxController {
 
   /// 评价轮播图滚动监听
   void onCommentScroll() {
+    // 如果正在初始化，跳过处理，防止无限递归
+    if (_isInitializingCommentCarousel) {
+      return;
+    }
+    
     if (commentScrollController.hasClients) {
       final scrollOffset = commentScrollController.offset;
       final itemWidth = 266.0 + 13.0; // 每个item宽度 + 间距
-      final currentIndex = (scrollOffset / itemWidth).round();
-      commentCurrentIndex.value = currentIndex.clamp(
-        0,
-        (bannerData.value?.commentList.length ?? 1) - 1,
-      );
+      final commentList = bannerData.value?.commentList ?? [];
+      if (commentList.isEmpty) return;
+      
+      // 计算当前显示的评论索引（通过取模运算映射到实际索引）
+      final virtualIndex = (scrollOffset / itemWidth).round();
+      commentCurrentIndex.value = virtualIndex % commentList.length;
 
       // 重置评论轮播图自动轮播定时器
       _resetCommentCarouselTimer();
@@ -776,7 +800,7 @@ class VipController extends GetxController {
   Future<void> _loadVipPackages() async {
     try {
       isLoadingPackages.value = true;
-      final result = await _vipService.getVipPackageList();
+      final result = await _vipService.getVipPackageList(isDiscount: _isDiscount);
       if (result.isSuccess && result.data != null) {
         vipPackages.value = result.data!;
         VipPackageModel? lifetimePlan;
@@ -1369,6 +1393,16 @@ class VipController extends GetxController {
       return; // 只有一个或没有项目时不需要自动轮播
     }
 
+    // 初始化时将滚动位置设置到中间，避免边界问题
+    if (commentScrollController.hasClients && commentScrollController.offset == 0) {
+      _isInitializingCommentCarousel = true; // 设置初始化标志
+      final itemWidth = 266.0 + 13.0;
+      // 使用更小的初始位置，避免性能问题
+      final middlePosition = itemWidth * (commentList.length * 50); // 50个循环的位置
+      commentScrollController.jumpTo(middlePosition);
+      _isInitializingCommentCarousel = false; // 清除初始化标志
+    }
+
     _commentCarouselTimer = Timer.periodic(_commentCarouselInterval, (timer) {
       if (_isDisposed || !isPageVisible.value) {
         timer.cancel();
@@ -1376,9 +1410,21 @@ class VipController extends GetxController {
       }
 
       if (commentScrollController.hasClients) {
-        final nextIndex = (commentCurrentIndex.value + 1) % commentList.length;
         final itemWidth = 266.0 + 13.0; // 每个item宽度 + 间距
-        final targetOffset = itemWidth * nextIndex;
+        final currentOffset = commentScrollController.offset;
+        final targetOffset = currentOffset + itemWidth; // 直接递增滚动位置
+        
+        // 检查是否接近边界，如果是则重置到中间位置
+        const int infiniteCount = 10000;
+        final maxOffset = itemWidth * (infiniteCount - 10); // 留一10个的缓冲
+        if (targetOffset >= maxOffset) {
+          // 重置到中间位置
+          _isInitializingCommentCarousel = true;
+          final middlePosition = itemWidth * (commentList.length * 50);
+          commentScrollController.jumpTo(middlePosition);
+          _isInitializingCommentCarousel = false;
+          return;
+        }
 
         commentScrollController.animateTo(
           targetOffset,

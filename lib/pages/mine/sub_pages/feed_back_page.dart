@@ -24,7 +24,7 @@ class FeedbackController extends GetxController {
   // 日志上传相关
   var isUploadingLog = false.obs; // 是否正在上传日志
   var logUploadProgress = 0.0.obs; // 日志上传进度
-  var isSelectingLog = false.obs; // 是否正在选择日志
+  var isSelectingLog = true.obs; // 是否正在选择日志
   // var logFilesSize = ''.obs; // 日志文件大小
 
   // 联系方式输入相关
@@ -677,15 +677,18 @@ class FeedbackPage extends StatelessWidget {
                         ),
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
 
-                      Row(
+                    GestureDetector(
+                      onTap: (){
+                         controller.isSelectingLog.value = !controller.isSelectingLog.value;
+                      },
+                      child:   Container(
+                        padding: EdgeInsets.symmetric(horizontal: 5,vertical: 8),
+                        color: Colors.transparent,
+                        child: Row(
                         children: [
-                          GestureDetector(
-                            onTap: () {
-                              controller.isSelectingLog.value = !controller.isSelectingLog.value;
-                            },
-                            child: Obx(
+                          Obx(
                             () => Image(
                               image: AssetImage(
                                 controller.isSelectingLog.value
@@ -695,7 +698,6 @@ class FeedbackPage extends StatelessWidget {
                               width: 16,
                               height: 16,
                             ),
-                          ),
                           ),
                           SizedBox(width: 5,),
                           const Text(
@@ -707,7 +709,10 @@ class FeedbackPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 100), // 增加底部间距，为底部按钮留空间
+                      
+                      )
+                    ),
+                    const SizedBox(height: 100), // 增加底部间距，为底部按钮留空间
                     ],
                   ),
                 ),
@@ -764,7 +769,7 @@ class FeedbackPage extends StatelessWidget {
                           children: [
                             const CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFFFEA39C),
+                                Color(0xFFFF9AD9),
                               ),
                             ),
                             const SizedBox(height: 16),

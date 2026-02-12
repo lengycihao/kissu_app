@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
@@ -153,6 +155,12 @@ class TencentIMService extends GetxService {
   /// 
   /// [user] 登录用户信息，需要包含uniqueId和imSign
   Future<bool> loginIM(LoginModel user) async {
+    // 🔥 增强日志：记录登录参数状态
+    logger.info(
+      'IM登录请求 - uniqueId: ${user.uniqueId ?? "null"}, hasImSign: ${user.imSign != null && user.imSign!.isNotEmpty}, userId: ${user.id}',
+      tag: 'TencentIMService',
+    );
+    
     if (!_isInitialized) {
       logger.warning('IM SDK未初始化，尝试先初始化', tag: 'TencentIMService');
       final initSuccess = await initIM();
@@ -164,12 +172,12 @@ class TencentIMService extends GetxService {
 
     // 检查必要参数
     if (user.uniqueId == null || user.uniqueId!.isEmpty) {
-      logger.error('IM登录失败: uniqueId为空', tag: 'TencentIMService');
+      logger.error('IM登录失败: uniqueId为空, userId=${user.id}', tag: 'TencentIMService');
       return false;
     }
 
     if (user.imSign == null || user.imSign!.isEmpty) {
-      logger.error('IM登录失败: imSign为空', tag: 'TencentIMService');
+      logger.error('IM登录失败: imSign为空, uniqueId=${user.uniqueId}, userId=${user.id}', tag: 'TencentIMService');
       return false;
     }
 
@@ -349,52 +357,103 @@ class TencentIMService extends GetxService {
     }
   }
 
-  /// 🔥 新增：尝试重新连接 IM
+  // 🔥 重连控制变量
+  bool _isReconnecting = false;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 3;
+  static const Duration _reconnectDelay = Duration(seconds: 2);
+
+  /// 🔥 新增：尝试重新连接 IM（带重试机制）
   Future<void> _attemptReconnect() async {
+    // 防止重复重连
+    if (_isReconnecting) {
+      logger.debug('IM正在重连中，跳过重复调用', tag: 'TencentIMService');
+      return;
+    }
+    
+    _isReconnecting = true;
+    _reconnectAttempts = 0;
+    
     try {
-      logger.info('开始尝试重新连接IM...', tag: 'TencentIMService');
-      
-      // 🔥 修复：AuthService 是通过 GetIt 注册的，不是 GetX
-      if (!getIt.isRegistered<AuthService>()) {
-        logger.warning('AuthService未注册，无法重新登录IM', tag: 'TencentIMService');
-        return;
+      while (_reconnectAttempts < _maxReconnectAttempts) {
+        _reconnectAttempts++;
+        logger.info('开始尝试重新连接IM (第$_reconnectAttempts次)...', tag: 'TencentIMService');
+        
+        // 🔥 修复：AuthService 是通过 GetIt 注册的，不是 GetX
+        if (!getIt.isRegistered<AuthService>()) {
+          logger.warning('AuthService未注册，无法重新登录IM', tag: 'TencentIMService');
+          break;
+        }
+        
+        final authService = getIt<AuthService>();
+        if (!authService.isLoggedIn || authService.currentUser == null) {
+          logger.info('无已登录用户，跳过IM自动重新登录', tag: 'TencentIMService');
+          break;
+        }
+        
+        // 检查本地缓存的 imSign 是否存在
+        final user = authService.currentUser!;
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.warning('本地缓存的imSign为空，尝试刷新用户信息', tag: 'TencentIMService');
+          final refreshSuccess = await authService.refreshUserInfoFromServer();
+          if (!refreshSuccess) {
+            logger.error('刷新用户信息失败', tag: 'TencentIMService');
+            // 等待后重试
+            if (_reconnectAttempts < _maxReconnectAttempts) {
+              await Future.delayed(_reconnectDelay);
+              continue;
+            }
+            break;
+          }
+        }
+        
+        // 使用最新的用户信息重新登录
+        final latestUser = authService.currentUser!;
+        
+        // 再次检查 imSign
+        if (latestUser.imSign == null || latestUser.imSign!.isEmpty) {
+          logger.error('imSign仍然为空，无法登录IM', tag: 'TencentIMService');
+          if (_reconnectAttempts < _maxReconnectAttempts) {
+            await Future.delayed(_reconnectDelay);
+            continue;
+          }
+          break;
+        }
+        
+        logger.info('尝试重新登录IM: ${latestUser.uniqueId}', tag: 'TencentIMService');
+        
+        // 重新登录
+        final success = await loginIM(latestUser);
+        if (success) {
+          logger.info('IM自动重新登录成功 (第$_reconnectAttempts次尝试)', tag: 'TencentIMService');
+          break;
+        } else {
+          logger.warning('IM自动重新登录失败 (第$_reconnectAttempts次尝试)', tag: 'TencentIMService');
+          if (_reconnectAttempts < _maxReconnectAttempts) {
+            await Future.delayed(_reconnectDelay);
+          }
+        }
       }
       
-      final authService = getIt<AuthService>();
-      if (!authService.isLoggedIn || authService.currentUser == null) {
-        logger.info('无已登录用户，跳过IM自动重新登录', tag: 'TencentIMService');
-        return;
-      }
-      
-      logger.info('检测到已登录用户，先刷新用户信息获取新的imSign', tag: 'TencentIMService');
-      
-      // 🔥 关键修复：先从服务器刷新用户信息，获取新的 imSign
-      // 因为被踢下线后，旧的 imSign 可能已经失效
-      final refreshSuccess = await authService.refreshUserInfoFromServer();
-      if (!refreshSuccess) {
-        logger.error('刷新用户信息失败，无法重新登录IM', tag: 'TencentIMService');
-        return;
-      }
-      
-      // 使用刷新后的用户信息重新登录
-      final user = authService.currentUser!;
-      logger.info('用户信息已刷新，尝试重新登录IM: ${user.uniqueId}', tag: 'TencentIMService');
-      
-      // 重新登录
-      final success = await loginIM(user);
-      if (success) {
-        logger.info('IM自动重新登录成功', tag: 'TencentIMService');
-      } else {
-        logger.error('IM自动重新登录失败', tag: 'TencentIMService');
+      if (_reconnectAttempts >= _maxReconnectAttempts && !_isLoggedIn) {
+        logger.error('IM重连已达最大尝试次数($_maxReconnectAttempts)，放弃重连', tag: 'TencentIMService');
       }
     } catch (e) {
       logger.error('IM自动重新登录异常: $e', tag: 'TencentIMService');
+    } finally {
+      _isReconnecting = false;
     }
   }
 
   /// 🔥 新增：确保 IM 登录状态（App 恢复前台时调用）
   /// 检查当前 IM 状态，如果未登录则尝试重新登录
   Future<void> ensureIMLoginStatus() async {
+    // 防止重复调用
+    if (_isReconnecting) {
+      logger.debug('IM正在重连中，跳过ensureIMLoginStatus', tag: 'TencentIMService');
+      return;
+    }
+    
     try {
       // 如果已经登录，不需要处理
       if (_isLoggedIn && _currentUserID != null) {
@@ -416,14 +475,26 @@ class TencentIMService extends GetxService {
       
       logger.info('检测到IM未登录，尝试重新连接...', tag: 'TencentIMService');
       
-      // 先刷新用户信息获取新的 imSign
-      final refreshSuccess = await authService.refreshUserInfoFromServer();
-      if (!refreshSuccess) {
-        logger.warning('刷新用户信息失败，使用本地缓存尝试登录', tag: 'TencentIMService');
+      // 检查本地缓存的 imSign 是否存在
+      var user = authService.currentUser!;
+      if (user.imSign == null || user.imSign!.isEmpty) {
+        logger.warning('本地imSign为空，尝试刷新用户信息', tag: 'TencentIMService');
+        // 先刷新用户信息获取新的 imSign
+        final refreshSuccess = await authService.refreshUserInfoFromServer();
+        if (!refreshSuccess) {
+          logger.warning('刷新用户信息失败，使用本地缓存尝试登录', tag: 'TencentIMService');
+        }
+        // 重新获取用户信息
+        user = authService.currentUser!;
+      }
+      
+      // 再次检查 imSign
+      if (user.imSign == null || user.imSign!.isEmpty) {
+        logger.error('imSign为空，无法登录IM', tag: 'TencentIMService');
+        return;
       }
       
       // 使用最新的用户信息登录
-      final user = authService.currentUser!;
       final success = await loginIM(user);
       if (success) {
         logger.info('IM重新连接成功', tag: 'TencentIMService');
@@ -503,7 +574,11 @@ class TencentIMService extends GetxService {
         disablePush: false,
         iOSSound: 'default',
         ignoreIOSBadge: false,
+        // 🔥 各厂商通道配置，确保通知能正确弹出
         androidOPPOChannelID: 'im_push_channel',
+        androidVIVOClassification: 1, // 1=即时消息（会弹出通知），0=运营消息（静默）
+        androidSound: 'default',
+        androidHuaWeiCategory: 'IM', // 华为消息分类：IM类消息优先级更高
         ext: jsonEncode(extData),
       );
       
@@ -588,7 +663,11 @@ class TencentIMService extends GetxService {
         disablePush: false,
         iOSSound: 'default',
         ignoreIOSBadge: false,
+        // 🔥 各厂商通道配置，确保通知能正确弹出
         androidOPPOChannelID: 'im_push_channel',
+        androidVIVOClassification: 1, // 1=即时消息（会弹出通知），0=运营消息（静默）
+        androidSound: 'default',
+        androidHuaWeiCategory: 'IM', // 华为消息分类：IM类消息优先级更高
         ext: jsonEncode(extData),
       );
       
@@ -748,7 +827,11 @@ class TencentIMService extends GetxService {
         disablePush: false,
         iOSSound: 'default',
         ignoreIOSBadge: false,
+        // 🔥 各厂商通道配置，确保通知能正确弹出
         androidOPPOChannelID: 'im_push_channel',
+        androidVIVOClassification: 1, // 1=即时消息（会弹出通知），0=运营消息（静默）
+        androidSound: 'default',
+        androidHuaWeiCategory: 'IM', // 华为消息分类：IM类消息优先级更高
         ext: jsonEncode(extData),
       );
       
@@ -1371,21 +1454,37 @@ class TencentIMService extends GetxService {
         await Future.delayed(const Duration(milliseconds: 300));
       }
       
-      // 1. 先刷新用户信息（带重试机制，因为绑定API可能还没完成）
+      // 1. 先刷新用户信息（带重试机制，验证绑定状态是否已更新）
       logger.debug('📥 开始刷新用户信息...', tag: 'TencentIMService');
       final authService = getIt<AuthService>();
       bool refreshSuccess = false;
-      for (int i = 0; i < 3; i++) {
+      bool bindStatusUpdated = false;
+      
+      // 🔥 修复：刷新用户信息后验证绑定状态是否已更新为"已绑定"
+      // 服务器可能在发送绑定消息后还没有完成数据更新，需要重试直到绑定状态正确
+      for (int i = 0; i < 5; i++) {
         refreshSuccess = await authService.refreshUserInfoFromServer();
         if (refreshSuccess) {
-          logger.debug('✅ 用户信息刷新成功', tag: 'TencentIMService');
-          break;
+          // 验证绑定状态是否已更新
+          final user = authService.currentUser;
+          final bindStatus = user?.bindStatus?.toString();
+          bindStatusUpdated = bindStatus == "1";
+          
+          if (bindStatusUpdated) {
+            logger.debug('✅ 用户信息刷新成功，绑定状态已更新: bindStatus=$bindStatus', tag: 'TencentIMService');
+            break;
+          } else {
+            logger.warning('⚠️ 用户信息刷新成功但绑定状态未更新: bindStatus=$bindStatus，第${i + 1}次重试...', tag: 'TencentIMService');
+          }
+        } else {
+          logger.warning('⚠️ 用户信息刷新失败，第${i + 1}次重试...', tag: 'TencentIMService');
         }
-        logger.warning('⚠️ 用户信息刷新失败，第${i + 1}次重试...', tag: 'TencentIMService');
+        // 等待服务器数据同步
         await Future.delayed(const Duration(milliseconds: 500));
       }
-      if (!refreshSuccess) {
-        logger.warning('⚠️ 用户信息刷新失败，使用本地缓存', tag: 'TencentIMService');
+      
+      if (!bindStatusUpdated) {
+        logger.warning('⚠️ 绑定状态未能更新，使用当前缓存数据', tag: 'TencentIMService');
       }
       
       // 2. 刷新当前页面
@@ -1463,11 +1562,34 @@ class TencentIMService extends GetxService {
           await Future.delayed(const Duration(milliseconds: 300));
         }
 
-        // 1. 先刷新用户信息
+        // 1. 先刷新用户信息（带重试机制，验证绑定状态是否已更新）
         logger.debug('📥 开始刷新用户信息...', tag: 'TencentIMService');
         final authService = getIt<AuthService>();
-        await authService.refreshUserInfoFromServer();
-        logger.debug('✅ 用户信息刷新成功', tag: 'TencentIMService');
+        bool bindStatusUpdated = false;
+        
+        // 🔥 修复：刷新用户信息后验证绑定状态是否已更新为"已绑定"
+        for (int i = 0; i < 5; i++) {
+          final refreshSuccess = await authService.refreshUserInfoFromServer();
+          if (refreshSuccess) {
+            final user = authService.currentUser;
+            final bindStatus = user?.bindStatus?.toString();
+            bindStatusUpdated = bindStatus == "1";
+            
+            if (bindStatusUpdated) {
+              logger.debug('✅ 用户信息刷新成功，绑定状态已更新: bindStatus=$bindStatus', tag: 'TencentIMService');
+              break;
+            } else {
+              logger.warning('⚠️ 用户信息刷新成功但绑定状态未更新: bindStatus=$bindStatus，第${i + 1}次重试...', tag: 'TencentIMService');
+            }
+          } else {
+            logger.warning('⚠️ 用户信息刷新失败，第${i + 1}次重试...', tag: 'TencentIMService');
+          }
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+        
+        if (!bindStatusUpdated) {
+          logger.warning('⚠️ 绑定状态未能更新，使用当前缓存数据', tag: 'TencentIMService');
+        }
 
         // 2. 刷新当前页面
         animationService.refreshCurrentPage();
@@ -1991,6 +2113,7 @@ class TencentIMService extends GetxService {
       logger.debug('     * vivo推送 (businessId: 45162)', tag: 'TencentIMService');
       logger.debug('     * OPPO推送 (businessId: 45163)', tag: 'TencentIMService');
       logger.debug('     * 荣耀推送 (businessId: 45164)', tag: 'TencentIMService');
+      logger.debug('     * 鸿蒙推送 (businessId: 305)', tag: 'TencentIMService');
       logger.debug('5. ❓ 设备厂商推送服务检查：', tag: 'TencentIMService');
       logger.debug('   - 华为设备：设置 > 应用 > 应用启动 > 允许自启动', tag: 'TencentIMService');
       logger.debug('   - 小米设备：设置 > 应用设置 > 权限管理 > 允许后台运行', tag: 'TencentIMService');
@@ -2007,8 +2130,17 @@ class TencentIMService extends GetxService {
   /// 获取设备厂商信息（用于调试）
   Future<String> _getDeviceBrand() async {
     try {
-      // 这里可以调用设备信息插件获取厂商信息
-      return '请查看AndroidManifest.xml中的厂商配置';
+      if (Platform.isAndroid) {
+        final deviceInfo = DeviceInfoPlugin();
+        final androidInfo = await deviceInfo.androidInfo;
+        // 返回详细的设备信息，帮助调试推送问题
+        return 'brand=${androidInfo.brand}, manufacturer=${androidInfo.manufacturer}, model=${androidInfo.model}, SDK=${androidInfo.version.sdkInt}, release=${androidInfo.version.release}';
+      } else if (Platform.isIOS) {
+        final deviceInfo = DeviceInfoPlugin();
+        final iosInfo = await deviceInfo.iosInfo;
+        return 'model=${iosInfo.model}, systemVersion=${iosInfo.systemVersion}';
+      }
+      return 'Unknown platform';
     } catch (e) {
       return 'Error: $e';
     }

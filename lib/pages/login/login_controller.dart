@@ -435,12 +435,6 @@ class LoginController extends GetxController {
       duration: duration,
       exitType: exitType,
     );
-
-    if (exitType == ExitTypeValue.nextPage) {
-      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      _hasTrackedExit = false;
-      _exitType = ExitTypeValue.back;
-    }
   }
 
   void onAppPaused() {

@@ -15,7 +15,7 @@ class UnbindRelationshipDialog extends StatefulWidget {
 class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final String _requiredText = '1';//本人确认解除当前关系，出现任何问题由本人承担
+  final String _requiredText = '本人确认解除当前关系，出现任何问题由本人承担';//本人确认解除当前关系，出现任何问题由本人承担
   
   @override
   void dispose() {

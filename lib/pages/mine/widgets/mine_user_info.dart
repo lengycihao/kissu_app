@@ -96,10 +96,13 @@ class MineUserInfo extends StatelessWidget {
                   "未绑定另一半",
                   style: TextStyle(fontSize: 12, color: Color(0x99333333)),
                 ),
-              SizedBox(height: 5),
+              // SizedBox(height: 5),
               GestureDetector(
                 onTap: onLabelTap,
-                child: Row(
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 5),
+                  color: Colors.transparent,
+                  child: Row(
                   children: [
                     Text(
                       "恋爱信息",
@@ -114,6 +117,7 @@ class MineUserInfo extends StatelessWidget {
                       height: 10,
                     ),
                   ],
+                ),
                 ),
               ),
             ],

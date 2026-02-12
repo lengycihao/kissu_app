@@ -410,7 +410,7 @@ class UsageReportController extends GetxController {
       case 'mobileUse':
         // 跳转到设备使用页面
         logDebug('📱 跳转到设备使用页面');
-        Get.toNamed(KissuRoutePath.deviceUsage);
+        Get.toNamed(KissuRoutePath.deviceUsage, arguments: {'source_event': SensitiveEvents.page});
         break;
       case 'locationReminder':
         // 跳转到定位提醒页面

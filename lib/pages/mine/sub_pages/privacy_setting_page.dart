@@ -96,14 +96,14 @@ class _PrivacySettingPageState extends State<PrivacySettingPage> {
               ),
               const SizedBox(height: 30),
 
-              // Item 列表 - 带动画
-              _AnimatedSettingItem(
-                delay: 0,
-                iconPath: "assets/images/kissu_setting_account_ysaq.webp",
-                title: "隐私安全",
-                onTap: () => AgreementUtils.toPrivacySecurity(),
-              ),
-              const SizedBox(height: 14),
+              // // Item 列表 - 带动画
+              // _AnimatedSettingItem(
+              //   delay: 0,
+              //   iconPath: "assets/images/kissu_setting_account_ysaq.webp",
+              //   title: "隐私安全",
+              //   onTap: () => AgreementUtils.toPrivacySecurity(),
+              // ),
+              // const SizedBox(height: 14),
               _AnimatedCacheItem(
                 delay: 50,
                 iconPath: "assets/images/kissu_setting_account_qchc.webp",

@@ -5,10 +5,7 @@ import '../mine_controller.dart';
 class MineCommonFunctions extends StatefulWidget {
   final List<CommonFunctionItem> items;
 
-  const MineCommonFunctions({
-    super.key,
-    required this.items,
-  });
+  const MineCommonFunctions({super.key, required this.items});
 
   @override
   State<MineCommonFunctions> createState() => _MineCommonFunctionsState();
@@ -26,9 +23,10 @@ class _MineCommonFunctionsState extends State<MineCommonFunctions>
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
     _controller.forward();
   }
 
@@ -119,10 +117,7 @@ class _AnimatedFunctionItem extends StatefulWidget {
   final CommonFunctionItem item;
   final int delay;
 
-  const _AnimatedFunctionItem({
-    required this.item,
-    required this.delay,
-  });
+  const _AnimatedFunctionItem({required this.item, required this.delay});
 
   @override
   State<_AnimatedFunctionItem> createState() => _AnimatedFunctionItemState();
@@ -142,13 +137,15 @@ class _AnimatedFunctionItemState extends State<_AnimatedFunctionItem>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     // 延迟启动动画
     Future.delayed(Duration(milliseconds: widget.delay), () {
@@ -173,49 +170,62 @@ class _AnimatedFunctionItemState extends State<_AnimatedFunctionItem>
         child: GestureDetector(
           onTap: widget.item.onTap,
           behavior: HitTestBehavior.opaque,
-          child: SizedBox(
-            width: 80,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  widget.item.icon,
-                  width: 44,
-                  height: 44,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
+          child: Stack(
+            children: [
+              SizedBox(
+                width: 80,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      widget.item.icon,
                       width: 44,
                       height: 44,
-                      decoration: BoxDecoration(
-                        color: Color(0xFFE8E8E8),
-                        borderRadius: BorderRadius.circular(8),
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Color(0xFFE8E8E8),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: 44,
+                            color: Color(0xFF999999),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.item.title,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xff000000),
+                        fontWeight: FontWeight.w500,
                       ),
-                      child: Icon(
-                        Icons.image_not_supported,
-                        size: 44,
-                        color: Color(0xFF999999),
-                      ),
-                    );
-                  },
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.item.title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xff000000),
-                    fontWeight: FontWeight.w500,
+              ),
+              ///新logo标志位
+              if (widget.item.subIcon != null)
+                Transform.translate(
+                  offset: Offset(30, -10),
+                  child: Image(
+                    image: AssetImage(widget.item.subIcon!),
+                    width: 28,
+                    height: 20,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 }
-

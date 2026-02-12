@@ -8,7 +8,6 @@ import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
 import 'package:kissu_app/pages/location/services/marker_builder.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
@@ -547,40 +546,33 @@ class TrackMarkerManager {
   }
   
   /// 创建停留点标记
+  /// 🚀 性能优化：减少循环内日志输出，只在关键节点打印摘要
   Future<List<Marker>> createStopMarkers({
     required List<dynamic> stopPoints,
     required Function(dynamic) onStopPointTap,
     LatLng? startPoint,
     LatLng? endPoint,
   }) async {
-    logDebug('🎯 [CreateStopMarkers] 开始创建停留点标记，输入数量: ${stopPoints.length}');
-    logDebug('🎯 [CreateStopMarkers] 起点: $startPoint, 终点: $endPoint');
-    
     if (stopPoints.isEmpty) {
-      logInfo('⚠️ [CreateStopMarkers] stopPoints为空，不创建标记');
       return [];
     }
     
     final markers = <Marker>[];
+    int skippedCount = 0;
+    final startTime = DateTime.now();
     
     try {
       for (int i = 0; i < stopPoints.length; i++) {
         final point = stopPoints[i];
         
-        logDebug('🎯 [CreateStopMarkers] 处理停留点[$i]: position=${point.position}, serialNumber=${point.serialNumber}');
-        
         try {
-          // 🎯 移除距离过滤逻辑，所有 point_type="stop" 的点都应该显示
-          
           // 🎯 使用停留点的 serialNumber 作为显示编号（与列表保持一致）
           final displayNumber = point.serialNumber;
           
           if (displayNumber == null || displayNumber.isEmpty) {
-            logInfo('⚠️ [CreateStopMarkers] 停留点[$i]的serialNumber为空，跳过创建');
+            skippedCount++;
             continue;
           }
-          
-          logDebug('🎯 [CreateStopMarkers] 停留点[$i] serialNumber=$displayNumber，开始创建marker');
           
           // 创建自定义停留点图标（粉色圆形/椭圆形，带数字）
           final customIcon = await _createCustomStopPointIcon(displayNumber);
@@ -588,18 +580,14 @@ class TrackMarkerManager {
           // 解析停留点信息
           final stopInfo = _parseStopInfo(point);
 
-           
           final marker = Marker(
-            position: point.position, // StayPoint 的 position 字段已经是 LatLng 类型
+            position: point.position,
             icon: customIcon,
             onTap: (_) => onStopPointTap(point),
-            // 设置InfoWindow数据（点击时自动显示自定义 InfoWindow）
             infoWindowEnable: true,
-            // 移除 isTrackStyle，使用 Flutter 的 customInfoWindowBuilder，与位置提醒页面保持一致 
-            stayDuration:  stopInfo['stayDuration'] , // 停留时长
-            stayTime:  stopInfo['stayTime'] , // 停留时间
-            zIndex: 1.0, // 🎯 设置较低的层级，确保播放头像marker在停留点之上显示
-            // 修改为只显示地址信息，与位置提醒页面保持一致
+            stayDuration: stopInfo['stayDuration'],
+            stayTime: stopInfo['stayTime'],
+            zIndex: 1.0,
             infoWindow: InfoWindow(
               title: stopInfo['locationName']!.contains('\n')
                   ? stopInfo['locationName']!.split('\n').first
@@ -608,22 +596,23 @@ class TrackMarkerManager {
                   ? stopInfo['locationName']!.split('\n').skip(1).join('\n')
                   : '',
             ), 
-            customInfoWindowBuilder:  (context) => _buildTrackInfoWindow(
-                      locationName: stopInfo['locationName']!,
-                      stayDuration: stopInfo['stayDuration']!,
-                      stayTime: stopInfo['stayTime']!,
-                    ) ,
+            customInfoWindowBuilder: (context) => _buildTrackInfoWindow(
+              locationName: stopInfo['locationName']!,
+              stayDuration: stopInfo['stayDuration']!,
+              stayTime: stopInfo['stayTime']!,
+            ),
           );
           markers.add(marker);
-          
-          logDebug('创建停留点标记 [$displayNumber]: ${point.position.latitude}, ${point.position.longitude}');
         } catch (e) {
           logError('创建停留点标记失败 [${i + 1}]: $e');
         }
       }
       
       stopMarkers.value = markers;
-      logDebug('停留点标记创建完成，成功数量: ${markers.length}');
+      
+      // 🚀 只打印摘要日志
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      logDebug('🎯 [CreateStopMarkers] 完成: 输入=${stopPoints.length}, 成功=${markers.length}, 跳过=$skippedCount, 耗时=${duration}ms');
     } catch (e) {
       logError('创建停留点标记过程出错: $e');
     }
@@ -1089,42 +1078,24 @@ class TrackMarkerManager {
   }
   
   /// 更新停留记录列表（从原始API数据创建）
+  /// 🚀 性能优化：减少循环内日志输出
   void updateStopRecordsFromApiData(dynamic locationData) {
-    logDebug('🔍 [StopRecords] 开始更新停留记录列表');
-    logDebug('🔍 [StopRecords] locationData类型: ${locationData?.runtimeType}');
-    
-    if (locationData == null) {
-      logInfo('⚠️ [StopRecords] locationData为null，清空stopRecords');
-      stopRecords.clear();
-      return;
-    }
-    
-    if (locationData.trace == null) {
-      logInfo('⚠️ [StopRecords] trace为null，清空stopRecords');
-      stopRecords.clear();
-      return;
-    }
-    
-    if (locationData.trace!.stops == null) {
-      logInfo('⚠️ [StopRecords] stops为null，清空stopRecords');
+    if (locationData == null || locationData.trace == null || locationData.trace!.stops == null) {
       stopRecords.clear();
       return;
     }
     
     final apiStops = locationData.trace!.stops;
-    DebugUtil.info('📊 [StopRecords] stops数量: ${apiStops.length}');
     
     if (apiStops.isEmpty) {
-      logInfo('⚠️ [StopRecords] stops为空列表，清空stopRecords');
       stopRecords.clear();
       return;
     }
     
-    // 处理停留记录数据转换
+    // 处理停留记录数据转换（不打印每个点的日志）
     try {
       final processedRecords = <StopRecord>[];
       for (final stop in apiStops) {
-        logDebug('📍 [StopRecords] 处理stop: ${stop.locationName}, lat=${stop.lat}, lng=${stop.lng}');
         processedRecords.add(StopRecord(
           latitude: stop.lat,
           longitude: stop.lng,
@@ -1138,17 +1109,12 @@ class TrackMarkerManager {
         ));
       }
       
-      logDebug('📝 [StopRecords] 处理完成，准备更新stopRecords，当前stopRecords.length=${stopRecords.length}');
       stopRecords.value = processedRecords;
-      logDebug('✅ [StopRecords] 停留记录更新完成，新stopRecords.length=${stopRecords.length}');
       
-      // 再次确认数据
-      if (stopRecords.isEmpty) {
-        logWarning('⚠️ [StopRecords] 更新后stopRecords仍为空！');
-      }
-    } catch (e, stackTrace) {
+      // 🚀 只打印摘要日志
+      logDebug('📊 [StopRecords] 更新完成: ${processedRecords.length}条记录');
+    } catch (e) {
       logError('❌ [StopRecords] 处理停留记录失败: $e');
-      logError('❌ [StopRecords] 堆栈: $stackTrace');
       stopRecords.clear();
     }
   }

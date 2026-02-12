@@ -7,7 +7,8 @@ enum SourcePageUtilsCaller {
   location,    // 定位页面
   usageReport, // 用机记录页面（敏感操作记录）
   deviceUsage, // 用机记录页面（新的用机记录页面）
-
-  chat, //聊天
-  bind, //绑定页面
+  chat,        // 聊天
+  bind,        // 绑定页面
+  changeLogo,  // 更换Logo页面
+  unbindPage, //解绑页面
 }

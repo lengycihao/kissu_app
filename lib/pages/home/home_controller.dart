@@ -285,11 +285,7 @@ class HomeController extends GetxController {
       },
     );
     
-    logDebug('📊 首页离开埋点：停留${duration}秒');
-    
-    // 立即重置状态，为从下一页返回后的埋点做准备
-    _homePageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    _hasTrackedHomePageExit = false;
+    logDebug('📊 首页离开埋点：停留${duration}秒，进入时间=${_homePageEnterTime}');
   }
   
   /// 供Widget调用的首页离开埋点方法（公开方法）
@@ -1105,7 +1101,7 @@ class HomeController extends GetxController {
       case 3:
         // 用机记录 - 返回时刷新首页数据
         await Get.to(
-          () => const DeviceUsagePage(),
+          () => const DeviceUsagePage(sourceEvent: HomeEvents.bottomNavigation),
           binding: DeviceUsageBinding(),
           transition: Transition.downToUp,
         );
@@ -1408,18 +1404,18 @@ class HomeController extends GetxController {
   }
   
   /// 跳转到H5页面
-  void navigateToH5(
+  Future<void> navigateToH5(
     String url, {
     bool showAppBar = true,
     String? title,
     Color? backgroundColor,
     bool showLoadingIndicator = true, // 是否显示加载动画，默认显示
-  }) {
+  }) async {
     if (url.isNotEmpty) {
       // 埋点：首页离开（进入下一页）
       _trackHomePageExit();
       
-      Get.to(
+      await Get.to(
         () => AgreementWebViewPage(
           title: title ??
               (activityTitle.value.isNotEmpty
@@ -1432,7 +1428,11 @@ class HomeController extends GetxController {
         ),
         transition: Transition.rightToLeft,
       );
-      logDebug('跳转到H5页面: $url');
+      
+      // 从H5页面返回后，重置埋点状态
+      _homePageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedHomePageExit = false;
+      logDebug('🔙 从H5页面返回首页，重置埋点状态，新进入时间=${_homePageEnterTime}');
     } else {
       logDebug('H5链接为空，无法跳转');
     }

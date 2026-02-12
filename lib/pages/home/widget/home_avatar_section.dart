@@ -44,9 +44,7 @@ class HomeAvatarSection extends StatelessWidget {
                         AnalyticsHelper.trackBindPartnerAvatar();
                         
                         if (controller.isBound.value) {
-                          // 埋点：首页离开（进入下一页）
-                          controller.trackHomePageExitFromWidget();
-                          // 已绑定状态下点击头像跳转到恋爱信息页
+                          // navigateToLoveInfoPage内部会调用埋点
                           controller.navigateToLoveInfoPage();
                         } else {
                           // 未绑定状态下显示绑定弹窗
@@ -88,9 +86,7 @@ class HomeAvatarSection extends StatelessWidget {
                               // 埋点：右上角头像点击
                               AnalyticsHelper.trackBindPartnerAvatar();
                               
-                              // 埋点：首页离开（进入下一页）
-                              controller.trackHomePageExitFromWidget();
-                              // 已绑定状态下点击头像跳转到恋爱信息页
+                              // navigateToLoveInfoPage内部会调用埋点
                               controller.navigateToLoveInfoPage();
                             },
                             child: Container(
@@ -243,12 +239,9 @@ class HomeAvatarSection extends StatelessWidget {
                             clipBehavior: Clip.none,
                             children: [
                               GestureDetector(
-                                onTap: () {
+                                onTap: () async {
                                   // 埋点：会员福利按钮点击
                                   AnalyticsHelper.trackVipAction();
-                                  
-                                  // 埋点：首页离开（进入下一页）
-                                  controller.trackHomePageExitFromWidget();
                                   
                                   // 🔥 未绑定时先弹出绑定弹窗
                                   if (!controller.isBound.value) {
@@ -260,8 +253,14 @@ class HomeAvatarSection extends StatelessWidget {
                                     return;
                                   }
                                   
+                                  // 埋点：首页离开（进入下一页）
+                                  controller.trackHomePageExitFromWidget();
+                                  
                                   // 已绑定：跳转到会员页面
-                                  Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home, 'source_event': HomeEvents.vipAction});
+                                  await Get.toNamed(KissuRoutePath.vip,arguments: {'source_page': SourcePageUtilsCaller.home, 'source_event': HomeEvents.vipAction});
+                                  
+                                  // 从会员页面返回后，重置埋点状态
+                                  controller.onPageResumed();
                                 },
                                 child: Image.asset(
                                   "assets/gif/home_vip.gif",
@@ -296,10 +295,8 @@ class HomeAvatarSection extends StatelessWidget {
                               // 埋点：VIP活动点击
                               AnalyticsHelper.trackVipAction();
                               
-                              // 埋点：首页离开（进入下一页）
-                              controller.trackHomePageExitFromWidget();
-
-                              controller.navigateToH5(
+                              // navigateToH5内部会调用埋点，这里不需要重复调用
+                              await controller.navigateToH5(
                                 controller.activityLink.value,
                               );
                             },
@@ -333,12 +330,10 @@ class HomeAvatarSection extends StatelessWidget {
                         children: [
                           // 拉屎图标（固定位置）
                           GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               // 埋点：一起便便按钮点击
                               AnalyticsHelper.trackPoopTogether();
                               
-                              // 埋点：首页离开（进入下一页）
-                              controller.trackHomePageExitFromWidget();
                               // 未绑定时先弹出绑定弹窗
                               if (!controller.isBound.value) {
                                 CustomBottomDialog.show(
@@ -378,7 +373,8 @@ class HomeAvatarSection extends StatelessWidget {
                                 url = baseUrl;
                               }
 
-                              controller.navigateToH5(
+                              // navigateToH5内部会调用埋点，这里不需要重复调用
+                              await controller.navigateToH5(
                                 url,
                                 showAppBar: false,
                                 title: '',

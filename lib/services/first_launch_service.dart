@@ -25,39 +25,46 @@ class FirstLaunchService extends GetxService {
       return shouldShow;
     }
     
-    try {
-      // 🔥 修复：为 SharedPreferences 操作添加超时保护，避免阻塞
-      final prefs = await SharedPreferences.getInstance()
-          .timeout(
-            const Duration(seconds: 2),
-            onTimeout: () {
-              logger.warning('获取SharedPreferences超时（2秒）', tag: 'FirstLaunchService');
-              throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 2));
-            },
-          );
-      
-      final hasAgreed = prefs.getBool(_hasAgreedKey) ?? false;
-      
-      // 🔥 成功读取后缓存结果
-      _cachedHasAgreed = hasAgreed;
-      
-      final shouldShow = !hasAgreed;
-      logger.info('检查首次协议弹窗状态: hasAgreed=$hasAgreed, shouldShow=$shouldShow', tag: 'FirstLaunchService');
-      return shouldShow;
-    } catch (e) {
-      logger.error('检查首次协议弹窗状态失败: $e', tag: 'FirstLaunchService', error: e);
-      
-      // 🔥 修复：如果有缓存，使用缓存；否则默认不显示（避免重复弹窗）
-      if (_cachedHasAgreed != null) {
-        final shouldShow = !_cachedHasAgreed!;
-        logger.warning('读取失败，使用缓存: hasAgreed=$_cachedHasAgreed, shouldShow=$shouldShow', tag: 'FirstLaunchService');
+    // 🔥 尝试读取（带重试机制）
+    for (int retry = 0; retry < 2; retry++) {
+      try {
+        // 🔥 增加超时时间到3秒，冷启动时SharedPreferences初始化可能较慢
+        final prefs = await SharedPreferences.getInstance()
+            .timeout(
+              const Duration(seconds: 3),
+              onTimeout: () {
+                logger.warning('获取SharedPreferences超时（3秒），重试次数: $retry', tag: 'FirstLaunchService');
+                throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 3));
+              },
+            );
+        
+        final hasAgreed = prefs.getBool(_hasAgreedKey) ?? false;
+        
+        // 🔥 成功读取后缓存结果
+        _cachedHasAgreed = hasAgreed;
+        
+        final shouldShow = !hasAgreed;
+        logger.info('检查首次协议弹窗状态: hasAgreed=$hasAgreed, shouldShow=$shouldShow', tag: 'FirstLaunchService');
         return shouldShow;
+      } catch (e) {
+        logger.error('检查首次协议弹窗状态失败（重试次数: $retry）: $e', tag: 'FirstLaunchService', error: e);
+        // 短暂延迟后重试
+        if (retry < 1) {
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
       }
-      
-      // 🔥 没有缓存时，默认不显示弹窗（保守策略，避免骚扰用户）
-      logger.warning('读取失败且无缓存，默认不显示弹窗（避免重复弹窗）', tag: 'FirstLaunchService');
-      return false;
     }
+    
+    // 🔥 多次重试失败后，检查缓存
+    if (_cachedHasAgreed != null) {
+      final shouldShow = !_cachedHasAgreed!;
+      logger.warning('读取失败，使用缓存: hasAgreed=$_cachedHasAgreed, shouldShow=$shouldShow', tag: 'FirstLaunchService');
+      return shouldShow;
+    }
+    
+    // 🔥 没有缓存时，默认不显示弹窗（保守策略，避免骚扰用户）
+    logger.warning('读取失败且无缓存，默认不显示弹窗（避免重复弹窗）', tag: 'FirstLaunchService');
+    return false;
   }
   
   /// 标记已显示首次协议弹窗（已废弃，保留兼容性）
@@ -67,32 +74,47 @@ class FirstLaunchService extends GetxService {
   }
   
   /// 标记用户已同意首次协议
+  /// 🔥 修复：确保保存成功后才更新缓存，增加重试机制
   Future<void> markFirstAgreementAgreed() async {
-    try {
-      // 🔥 修复：为 SharedPreferences 操作添加超时保护
-      final prefs = await SharedPreferences.getInstance()
-          .timeout(
-            const Duration(seconds: 1),
-            onTimeout: () {
-              logger.warning('获取SharedPreferences超时（1秒）', tag: 'FirstLaunchService');
-              throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 1));
-            },
-          );
-      await prefs.setBool(_hasAgreedKey, true)
-          .timeout(
-            const Duration(seconds: 1),
-            onTimeout: () {
-              logger.warning('保存首次协议同意状态超时（1秒）', tag: 'FirstLaunchService');
-              return false; // 超时返回false，但不影响流程
-            },
-          );
-      
-      // 🔥 更新内存缓存：用户已同意，下次不再显示弹窗
-      _cachedHasAgreed = true;
-      
-      logger.info('已标记用户同意首次协议', tag: 'FirstLaunchService');
-    } catch (e) {
-      logger.error('标记首次协议同意状态失败: $e', tag: 'FirstLaunchService', error: e);
+    // 🔥 先更新内存缓存，确保当前会话不会重复弹窗
+    _cachedHasAgreed = true;
+    
+    // 🔥 尝试保存到磁盘（带重试机制）
+    bool saved = false;
+    for (int retry = 0; retry < 3 && !saved; retry++) {
+      try {
+        // 🔥 增加超时时间到3秒，冷启动时SharedPreferences初始化可能较慢
+        final prefs = await SharedPreferences.getInstance()
+            .timeout(
+              const Duration(seconds: 3),
+              onTimeout: () {
+                logger.warning('获取SharedPreferences超时（3秒），重试次数: $retry', tag: 'FirstLaunchService');
+                throw TimeoutException('获取SharedPreferences超时', const Duration(seconds: 3));
+              },
+            );
+        
+        // 🔥 保存并验证
+        await prefs.setBool(_hasAgreedKey, true);
+        
+        // 🔥 验证保存是否成功
+        final verified = prefs.getBool(_hasAgreedKey) ?? false;
+        if (verified) {
+          saved = true;
+          logger.info('已标记用户同意首次协议（重试次数: $retry）', tag: 'FirstLaunchService');
+        } else {
+          logger.warning('保存首次协议同意状态验证失败，重试次数: $retry', tag: 'FirstLaunchService');
+        }
+      } catch (e) {
+        logger.error('标记首次协议同意状态失败（重试次数: $retry）: $e', tag: 'FirstLaunchService', error: e);
+        // 短暂延迟后重试
+        if (retry < 2) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+    }
+    
+    if (!saved) {
+      logger.error('❌ 保存首次协议同意状态最终失败，下次冷启动可能重复弹窗', tag: 'FirstLaunchService');
     }
   }
   

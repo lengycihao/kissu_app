@@ -18,6 +18,7 @@ enum SystemPermissionGuideType {
   location,
   notification,
   appUsage,
+  battery, // 电池权限设置
 }
 
 enum SupportedBrand { huawei, oppo, vivo, xiaomi, other }
@@ -73,11 +74,23 @@ class SystemPermissionController extends GetxController
       "guideType": SystemPermissionGuideType.location,
     },
     {
+      "icon": "assets/images/kissu_setting_sleep.webp",
+      "title": "防止程序休眠",
+      "subtitle": "程序休眠会导致数据不准确",
+      "guideType": SystemPermissionGuideType.preventSleep,
+    },
+    {
       "icon": "assets/images/kissu_setting_htyx.webp",
-      "title": "允许后台运行",
-      "subtitle": "应用后台常驻，确保数据同步",
+      "title": "重启后恢复运行",
+      "subtitle": "系统唤醒时持续更新",
       "guideType": SystemPermissionGuideType.allowBackgroundRun,
     },
+    // {
+    //   "icon": "assets/images/kissu_setting_power.webp",
+    //   "title": "电池权限设置",
+    //   "subtitle": "低电量模式下,系统不会关闭Kissu",
+    //   "guideType": SystemPermissionGuideType.battery,
+    // },
     {
       "icon": "assets/images/kissu_setting_tztx.webp",
       "title": "开启通知提醒",
@@ -90,18 +103,12 @@ class SystemPermissionController extends GetxController
       "subtitle": "和ta分享手机使用报告",
       "guideType": SystemPermissionGuideType.appUsage,
     },
-    {
-      "icon": "assets/images/kissu_setting_sleep.webp",
-      "title": "防止程序休眠",
-      "subtitle": "程序休眠会导致数据不准确",
-      "guideType": SystemPermissionGuideType.preventSleep,
-    },
+
     {
       "icon": "assets/images/kissu_setting_lock.webp",
       "title": "让程序锁在后台",
       "subtitle": "后台一直运行才能更新数据",
       "guideType": SystemPermissionGuideType.lockInBackground,
-      "hideOnXiaomi": true,
     },
   ];
 
@@ -118,7 +125,16 @@ class SystemPermissionController extends GetxController
       SupportedBrand.huawei: 'assets/setting/kissu_lock_huawei.webp',
       SupportedBrand.oppo: 'assets/setting/kissu_lock_oppo.webp',
       SupportedBrand.vivo: 'assets/setting/kissu_lock_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_lock_xiaomi.webp',
       SupportedBrand.other: 'assets/setting/kissu_lock_huawei.webp',
+    },
+    // 电池权限设置
+    SystemPermissionGuideType.battery: {
+      SupportedBrand.huawei: 'assets/setting/kissu_power_huawei.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_power_oppo.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_power_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_power_xiaomi.webp',
+      SupportedBrand.other: 'assets/setting/kissu_power_huawei.webp',
     },
     SystemPermissionGuideType.allowBackgroundRun: {
       SupportedBrand.huawei: 'assets/setting/kissu_back_huawei.webp',
@@ -257,6 +273,8 @@ class SystemPermissionController extends GetxController
         return isNotificationGranted.value;
       case SystemPermissionGuideType.appUsage:
         return isUsageAccessGranted.value;
+      case SystemPermissionGuideType.battery:
+        return isBatteryOptimized.value; // 电池权限以电池优化状态为准
     }
   }
 
@@ -275,6 +293,7 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.location:
       case SystemPermissionGuideType.notification:
       case SystemPermissionGuideType.appUsage:
+      case SystemPermissionGuideType.battery:
         // 权限类型的指引不需要记录会话状态，因为权限状态是实时检查的
         break;
     }
@@ -291,6 +310,7 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.location:
       case SystemPermissionGuideType.notification:
       case SystemPermissionGuideType.appUsage:
+      case SystemPermissionGuideType.battery:
         return false; // 权限类型的指引不需要记录会话状态
     }
   }
@@ -315,6 +335,7 @@ class SystemPermissionController extends GetxController
         case SystemPermissionGuideType.location:
         case SystemPermissionGuideType.notification:
         case SystemPermissionGuideType.appUsage:
+        case SystemPermissionGuideType.battery:
           // 权限类型的指引不需要持久化保存，因为权限状态是实时检查的
           break;
       }
@@ -482,15 +503,30 @@ class SystemPermissionController extends GetxController
     SupportedBrand.other: 'assets/setting/kissu_location_all_huawei.webp',
   };
 
+  // 始终定位权限已完成的图片资源（已开启始终定位时使用）
+  static const Map<SupportedBrand, String> _locationDoneAssets = {
+    SupportedBrand.huawei: 'assets/setting/kissu_location_done_huawei.webp',
+    SupportedBrand.oppo: 'assets/setting/kissu_location_done_oppo.webp',
+    SupportedBrand.vivo: 'assets/setting/kissu_location_done_vivo.webp',
+    SupportedBrand.xiaomi: 'assets/setting/kissu_location_done_xiaomi.webp',
+    SupportedBrand.other: 'assets/setting/kissu_location_done_huawei.webp',
+  };
+
   String getGuideAsset(SystemPermissionGuideType type) {
     // 定位权限特殊处理：根据权限状态返回不同图片
     if (type == SystemPermissionGuideType.location) {
-      // 已开启基础定位（无论是否开启始终定位）：显示始终定位指引图片
+      // 已开启始终定位：显示完成状态图片
+      if (isLocationAlwaysGranted.value) {
+        return _locationDoneAssets[currentBrand] ??
+            _locationDoneAssets[SupportedBrand.huawei]!;
+      }
+      // 已开启基础定位但未开启始终定位：显示始终定位指引图片
       if (isLocationGranted.value) {
-        return _locationAlwaysAssets[currentBrand] ?? _locationAlwaysAssets[SupportedBrand.huawei]!;
+        return _locationAlwaysAssets[currentBrand] ??
+            _locationAlwaysAssets[SupportedBrand.huawei]!;
       }
     }
-    
+
     final assets = _guideAssets[type];
     if (assets == null) {
       return '';
@@ -518,6 +554,9 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.appUsage:
         Get.toNamed(KissuRoutePath.systemPermissionAppUsageGuide);
         break;
+      case SystemPermissionGuideType.battery:
+        Get.toNamed(KissuRoutePath.systemPermissionBatteryGuide);
+        break;
     }
   }
 
@@ -540,8 +579,9 @@ class SystemPermissionController extends GetxController
 
     try {
       // 直接申请权限
-      final granted = await _permissionService.requestBatteryOptimizationPermission();
-      
+      final granted = await _permissionService
+          .requestBatteryOptimizationPermission();
+
       if (granted) {
         // 申请成功，标记为已完成
         await markGuideCompleted(SystemPermissionGuideType.preventSleep);
@@ -563,28 +603,34 @@ class SystemPermissionController extends GetxController
       // 不同指引跳转到不同的系统页面
       switch (type) {
         case SystemPermissionGuideType.preventSleep:
-          // 防止程序休眠：
-          // 先检查权限是否已开启
-          final isAlreadyGranted = await _permissionService.isBatteryOptimizationDisabled();
+          // 防止程序休眠：直接跳转到系统设置页面，不主动申请权限
+          await _permissionService.openBatteryOptimizationSettings();
+          await checkAllPermissions();
+          break;
+        case SystemPermissionGuideType.battery:
+          // 电池权限设置：主动申请电池优化权限
+          final isAlreadyGranted = await _permissionService
+              .isBatteryOptimizationDisabled();
           if (isAlreadyGranted) {
             // 权限已开启，跳转到系统电池优化设置页面
             await _permissionService.openBatteryOptimizationSettings();
           } else {
             // 权限未开启，申请权限
-            final granted = await _permissionService.requestBatteryOptimizationPermission();
+            final granted = await _permissionService
+                .requestBatteryOptimizationPermission();
             if (granted) {
-              // 申请成功，标记为已完成并刷新权限状态
-              await markGuideCompleted(SystemPermissionGuideType.preventSleep);
+              // 申请成功，刷新权限状态
               await checkAllPermissions();
             } else {
               // 如果用户拒绝，引导到通用电池优化设置页
               await _permissionService.openBatteryOptimizationSettings();
             }
           }
+          await checkAllPermissions();
           break;
         case SystemPermissionGuideType.allowBackgroundRun:
-          // 统一跳转到应用详情页，避免各品牌回退到系统首页
-          await _permissionService.openSystemSettingsPage();
+          // 跳转到手机设置中的App详情页面
+          await _permissionService.openAppSettingsPage();
           break;
         case SystemPermissionGuideType.lockInBackground:
           // 其他指引：保持原有行为，跳转到应用详情页
@@ -593,13 +639,15 @@ class SystemPermissionController extends GetxController
         case SystemPermissionGuideType.location:
           // 定位权限：分步骤申请
           // 1. 先检查是否有"始终允许"权限
-          final hasAlwaysLocation = await _permissionService.isLocationAlwaysPermissionGranted();
+          final hasAlwaysLocation = await _permissionService
+              .isLocationAlwaysPermissionGranted();
           if (hasAlwaysLocation) {
             // 已有"始终允许"权限，跳转到系统定位权限设置页面
             await _permissionService.openLocationSettings();
           } else {
             // 2. 检查是否有基本定位权限
-            final hasBasicLocation = await _permissionService.isLocationPermissionGranted();
+            final hasBasicLocation = await _permissionService
+                .isLocationPermissionGranted();
             if (!hasBasicLocation) {
               // 没有基本定位权限，先申请基本定位权限
               await _permissionService.requestLocationPermission();
@@ -612,7 +660,8 @@ class SystemPermissionController extends GetxController
           break;
         case SystemPermissionGuideType.notification:
           // 通知权限：先检查是否已开启
-          final hasNotification = await _permissionService.isNotificationPermissionGranted();
+          final hasNotification = await _permissionService
+              .isNotificationPermissionGranted();
           if (hasNotification) {
             // 权限已开启，跳转到系统通知权限设置页面
             await _permissionService.openNotificationSettings();
@@ -635,17 +684,22 @@ class SystemPermissionController extends GetxController
   }
 
   /// 检查是否所有权限都已开启
+  /// 根据实际显示的权限项数量动态判断（小米设备只有5项，其他设备6项）
   bool areAllPermissionsEnabled() {
     // 检查基础权限（定位权限以"始终允许"为准）
-    final basicPermissionsEnabled = isLocationAlwaysGranted.value &&
+    final basicPermissionsEnabled =
+        isLocationAlwaysGranted.value &&
         isNotificationGranted.value &&
         isBatteryOptimized.value &&
         isUsageAccessGranted.value;
 
     // 检查指引完成状态
-    final guidesCompleted = _preventSleepCompleted.value &&
+    // 小米设备：只需检查防休眠和后台运行两个指引（共5项权限）
+    // 其他设备：需要检查防休眠、后台运行、锁定后台三个指引（共6项权限）
+    final guidesCompleted =
+        _preventSleepCompleted.value &&
         _backgroundRunCompleted.value &&
-        (isXiaomiDevice || _lockBackgroundCompleted.value); // 小米设备不需要检查锁定后台
+        (isXiaomiDevice || _lockBackgroundCompleted.value);
 
     return basicPermissionsEnabled && guidesCompleted;
   }

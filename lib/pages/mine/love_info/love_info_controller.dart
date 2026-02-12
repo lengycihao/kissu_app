@@ -14,6 +14,7 @@ import 'package:kissu_app/pages/mine/sub_pages/break_relationship_controller.dar
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
+import 'dart:math';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1227,7 +1228,13 @@ class LoveInfoController extends GetxController {
   }
 
   /// 构建自定义日期选择器（显示阿拉伯数字月份）
+  /// 🔥 修复：限制只能选择今天及之前的日期，不能选择未来时间
   Widget _buildCustomDatePicker(DateTime selectedDate, Function(DateTime) onDateChanged) {
+    final now = DateTime.now();
+    const int startYear = 1980;
+    final int endYear = now.year; // 最大只能选择当前年份
+    final int yearCount = endYear - startYear + 1;
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -1236,15 +1243,36 @@ class LoveInfoController extends GetxController {
           child: CupertinoPicker.builder(
             itemExtent: 32.0,
             scrollController: FixedExtentScrollController(
-              initialItem: selectedDate.year - 1900,
+              initialItem: selectedDate.year - startYear,
             ),
             onSelectedItemChanged: (int index) {
-              final newYear = 1900 + index;
-              onDateChanged(DateTime(newYear, selectedDate.month, selectedDate.day));
+              final newYear = startYear + index;
+              // 如果选择的年份是当前年份，需要限制月份和日期
+              var newMonth = selectedDate.month;
+              var newDay = selectedDate.day;
+              
+              if (newYear == now.year) {
+                // 当前年份：月份不能超过当前月份
+                if (newMonth > now.month) {
+                  newMonth = now.month;
+                }
+                // 如果是当前年月，日期不能超过今天
+                if (newMonth == now.month && newDay > now.day) {
+                  newDay = now.day;
+                }
+              }
+              
+              // 确保日期在该月份有效
+              final daysInMonth = DateTime(newYear, newMonth + 1, 0).day;
+              if (newDay > daysInMonth) {
+                newDay = daysInMonth;
+              }
+              
+              onDateChanged(DateTime(newYear, newMonth, newDay));
             },
-            childCount: 200, // 1900-2099
+            childCount: yearCount,
             itemBuilder: (context, index) {
-              final year = 1900 + index;
+              final year = startYear + index;
               return Center(
                 child: Text(
                   '${year}年',
@@ -1263,17 +1291,38 @@ class LoveInfoController extends GetxController {
             ),
             onSelectedItemChanged: (int index) {
               final newMonth = index + 1;
+              var newDay = selectedDate.day;
+              
+              // 如果是当前年份，检查月份是否超过当前月份
+              if (selectedDate.year == now.year && newMonth > now.month) {
+                // 不允许选择未来月份，回调时使用当前月份
+                onDateChanged(DateTime(selectedDate.year, now.month, min(newDay, now.day)));
+                return;
+              }
+              
+              // 如果是当前年月，日期不能超过今天
+              if (selectedDate.year == now.year && newMonth == now.month && newDay > now.day) {
+                newDay = now.day;
+              }
+              
               final daysInMonth = DateTime(selectedDate.year, newMonth + 1, 0).day;
-              final newDay = selectedDate.day > daysInMonth ? daysInMonth : selectedDate.day;
+              if (newDay > daysInMonth) {
+                newDay = daysInMonth;
+              }
               onDateChanged(DateTime(selectedDate.year, newMonth, newDay));
             },
             childCount: 12,
             itemBuilder: (context, index) {
               final month = index + 1;
+              // 如果是当前年份且月份超过当前月份，显示灰色
+              final isDisabled = selectedDate.year == now.year && month > now.month;
               return Center(
                 child: Text(
                   '${month}月',
-                  style: const TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDisabled ? const Color(0xFFCCCCCC) : Colors.black,
+                  ),
                 ),
               );
             },
@@ -1288,15 +1337,30 @@ class LoveInfoController extends GetxController {
             ),
             onSelectedItemChanged: (int index) {
               final newDay = index + 1;
+              
+              // 如果是当前年月，日期不能超过今天
+              if (selectedDate.year == now.year && selectedDate.month == now.month && newDay > now.day) {
+                // 不允许选择未来日期，回调时使用今天
+                onDateChanged(DateTime(selectedDate.year, selectedDate.month, now.day));
+                return;
+              }
+              
               onDateChanged(DateTime(selectedDate.year, selectedDate.month, newDay));
             },
             childCount: DateTime(selectedDate.year, selectedDate.month + 1, 0).day,
             itemBuilder: (context, index) {
               final day = index + 1;
+              // 如果是当前年月且日期超过今天，显示灰色
+              final isDisabled = selectedDate.year == now.year && 
+                                 selectedDate.month == now.month && 
+                                 day > now.day;
               return Center(
                 child: Text(
                   '${day}日',
-                  style: const TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDisabled ? const Color(0xFFCCCCCC) : Colors.black,
+                  ),
                 ),
               );
             },

@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/pages/agreement/agreement_webview_page.dart';
@@ -83,7 +85,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         Padding(
           // 消息间垂直间距设为12px
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: (imageSize != null && (isSelfImageMessage || isOtherImageMessage)) ||
+          child:
+              (imageSize != null &&
+                      (isSelfImageMessage || isOtherImageMessage)) ||
                   (isSelfDefecateMessage || isOtherDefecateMessage)
               ? Row(
                   mainAxisAlignment: widget.message.isSent
@@ -127,7 +131,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                     ],
                   ],
                 )
-                : Row(
+              : Row(
                   mainAxisAlignment: widget.message.isSent
                       ? MainAxisAlignment.end
                       : MainAxisAlignment.start,
@@ -164,17 +168,14 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           if (widget.showTimestamp) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              margin: const EdgeInsets.only(bottom: 12,top: 6),
+              margin: const EdgeInsets.only(bottom: 12, top: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFF6F6F6),
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Text(
                 _formatTime(widget.message.time),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0x99000000),
-                ),
+                style: const TextStyle(fontSize: 11, color: Color(0x99000000)),
               ),
             ),
             const SizedBox(height: 8),
@@ -194,26 +195,23 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 图标
-                  if (widget.message.iconUrl != null)
-                    _buildEventIcon(widget.message.iconUrl!),
-                  if (widget.message.iconUrl != null) const SizedBox(width: 4),
+                  // 图标（VIP用户显示vipIcon，非VIP用户显示iconUrl）
+                  if (_getSystemEventDisplayIcon() != null)
+                    _buildEventIcon(_getSystemEventDisplayIcon()!),
+                  if (_getSystemEventDisplayIcon() != null) const SizedBox(width: 4),
                   // 文字 + 可选右箭头
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 支持服务端通过 im_font_color 指定文案部分变色
+                      // 根据用户VIP状态显示不同内容：VIP用户显示imVipContent，非VIP用户显示content
                       _buildTextWithColorOverrides(
-                        widget.message.content,
+                        _getSystemEventDisplayContent(),
                         widget.message.imFontColor,
-                        const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF333333),
-                        ),
+                        const TextStyle(fontSize: 13, color: Color(0xFF333333)),
                       ),
-                      // 优先级：is_vip == 1 显示 VIP 按钮（跳转开通 VIP），否则有 jumpPage 时显示蓝色小箭头
-                      if ((widget.message.isVip ?? 0) == 1) ...[
+                      // 仅当消息标记is_vip=1且用户非VIP时显示VIP按钮
+                      if ((widget.message.isVip ?? 0) == 1 && !_isCurrentUserVip()) ...[
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () {
@@ -223,8 +221,19 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                                 final controller = Get.find<ChatController>();
                                 controller.onNavigateToNextPage?.call();
                               } catch (_) {}
-                              
-                              Get.toNamed(KissuRoutePath.vip, arguments: {'source_page': SourcePageUtilsCaller.chat, 'source_event': ChatEvents.pageId});
+
+                              // 埋点：非会员点击消息跳转VIP
+                              AnalyticsManager.instance.trackClick(
+                                pageId: ChatEvents.pageId,
+                                eventId: ChatEvents.imVip,
+                              );
+                              Get.toNamed(
+                                KissuRoutePath.vip,
+                                arguments: {
+                                  'source_page': SourcePageUtilsCaller.chat,
+                                  'source_event': ChatEvents.imVip,
+                                },
+                              );
                             } catch (e) {
                               debugPrint('跳转 VIP 页面失败: $e');
                             }
@@ -260,9 +269,29 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   }
 
   /// 居中显示的位置通知（不使用气泡，白色背景，展示地图快照）
+  /// VIP用户正常展示，非VIP用户显示会员查看按钮和蒙版
   Widget _buildLocationNoticeMessage() {
+    // 获取用户VIP状态
+    bool isUserVip = false;
+    try {
+      final chatController = Get.find<ChatController>();
+      isUserVip = chatController.isVip.value;
+    } catch (_) {
+      isUserVip = false;
+    }
+
+    // 处理非VIP用户的位置名称（保留前6位+*****）
+    String displayLocationName = widget.message.locationName ?? '位置信息';
+    if (!isUserVip) {
+      if (displayLocationName.length > 6) {
+        displayLocationName = '${displayLocationName.substring(0, 6)}*****';
+      } else if (displayLocationName.isNotEmpty) {
+        displayLocationName = '$displayLocationName*****';
+      }
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 7),
       child: Column(
         children: [
           if (widget.showTimestamp) ...[
@@ -275,74 +304,96 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
               ),
               child: Text(
                 _formatTime(widget.message.time),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0x99000000),
-                ),
+                style: const TextStyle(fontSize: 11, color: Color(0x99000000)),
               ),
             ),
             const SizedBox(height: 8),
           ],
           GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onTap: widget.message.latitude != null && widget.message.longitude != null
-                ? () => _showLocationDetail(context, widget.message)
-                : null,
+            onTap: isUserVip
+                ? (widget.message.latitude != null &&
+                        widget.message.longitude != null
+                    ? () => _showLocationDetail(context, widget.message)
+                    : null)
+                : () => _navigateToVipPage(),
             child: Container(
+              width: 240,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Color(0xffE8E8E8), width: 1),
+                borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
                     color: Color(0x0f000000),
-                            blurRadius: 7.3,
-                            offset: const Offset(0, 0),
-                  )
-                ]
+                    blurRadius: 7.3,
+                    offset: const Offset(0, 0),
+                  ),
+                ],
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // 位置名称 + 地图快照
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.message.content,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xe6000000),
-                          fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 标题行：图标 + 内容 + (非VIP时显示会员查看按钮)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Image(
+                              image: AssetImage(
+                                widget.message.content.contains("到达")
+                                    ? 'assets/chat/chat_location_come.webp'
+                                    : widget.message.content.contains("离开")
+                                    ? 'assets/chat/chat_location_away.webp'
+                                    : 'assets/chat/chat_location_stay.webp',
+                              ),
+                              width: 18,
+                            ),
+                            Expanded(
+                              child: Text(
+                                widget.message.content,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xe6000000),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            // 非VIP用户显示会员查看按钮
+                            if (!isUserVip)
+                              Image.asset(
+                                'assets/chat/kissu_chat_vip.webp',
+                                width: 56,
+                                height: 21,
+                                fit: BoxFit.contain,
+                              ),
+                          ],
                         ),
-                      ),
-                      SizedBox(height: 5,),
-                      Text(
-                        widget.message.locationName ?? '位置信息',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0x66000000),
-                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (widget.message.latitude != null && widget.message.longitude != null)
-                        LocationPreviewWidget(
-                          latitude: widget.message.latitude!,
-                          longitude: widget.message.longitude!,
-                          locationName: widget.message.locationName ?? '位置信息',
-                          width: 230,
-                          height: 48,
-                          avatarUrl: widget.message.avatarUrl,
-                          onTap: () => _showLocationDetail(context, widget.message),
-                        )
-                      else
-                        SimpleLocationPreviewWidget(
-                          locationName: widget.message.locationName ?? '位置信息',
-                          width: 230,
-                          height: 48,
-                          onTap: () => _showLocationDetail(context, widget.message),
+                        SizedBox(height: 5),
+                        // 副标题：VIP显示完整地址，非VIP显示缩略地址
+                        Text(
+                          displayLocationName,
+                          maxLines: null,
+                          softWrap: true,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0x66000000),
+                          ),
                         ),
-                    ],
+                        const SizedBox(height: 8),
+                        // 地图快照部分
+                        if (widget.message.latitude != null &&
+                            widget.message.longitude != null)
+                          _buildLocationPreviewWithMask(isUserVip)
+                        else
+                          _buildSimpleLocationPreviewWithMask(isUserVip),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -353,13 +404,176 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     );
   }
 
+  /// 构建带蒙版的地图快照（非VIP用户显示蒙版）
+  Widget _buildLocationPreviewWithMask(bool isUserVip) {
+    final locationPreview = LocationPreviewWidget(
+      latitude: widget.message.latitude!,
+      longitude: widget.message.longitude!,
+      locationName: widget.message.locationName ?? '位置信息',
+      width: 206,
+      height: 48,
+      avatarUrl: widget.message.avatarUrl,
+      onTap: isUserVip
+          ? () => _showLocationDetail(context, widget.message)
+          : () => _navigateToVipPage(),
+    );
+
+    if (isUserVip) {
+      return locationPreview;
+    }
+
+    // 非VIP用户：添加毛玻璃蒙版和按钮
+    return Stack(
+      children: [
+        locationPreview,
+        // 毛玻璃蒙版
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0x52000000), // 000000 32%透明度
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/chat/chat_location_vip_show.webp',
+                    fit: BoxFit.contain,
+                    width: 63,
+                    height: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 构建带蒙版的简单位置预览（非VIP用户显示蒙版）
+  Widget _buildSimpleLocationPreviewWithMask(bool isUserVip) {
+    final simplePreview = SimpleLocationPreviewWidget(
+      locationName: widget.message.locationName ?? '位置信息',
+      width: 206,
+      height: 48,
+      onTap: isUserVip
+          ? () => _showLocationDetail(context, widget.message)
+          : () => _navigateToVipPage(),
+    );
+
+    if (isUserVip) {
+      return simplePreview;
+    }
+
+    // 非VIP用户：添加毛玻璃蒙版和按钮
+    return Stack(
+      children: [
+        simplePreview,
+        // 毛玻璃蒙版
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0x52000000), // 000000 32%透明度
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/chat/chat_location_vip_show.webp',
+                    fit: BoxFit.contain,
+                    width: 63,
+                    height: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 获取当前用户是否为VIP
+  bool _isCurrentUserVip() {
+    try {
+      final chatController = Get.find<ChatController>();
+      return chatController.isVip.value;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 获取系统事件消息的显示内容（VIP用户显示imVipContent，非VIP用户显示content）
+  String _getSystemEventDisplayContent() {
+    // 如果消息标记了is_vip=1，根据用户VIP状态显示不同内容
+    if ((widget.message.isVip ?? 0) == 1) {
+      if (_isCurrentUserVip()) {
+        // VIP用户：优先显示imVipContent，如果没有则显示content
+        return widget.message.imVipContent ?? widget.message.content;
+      } else {
+        // 非VIP用户：显示content
+        return widget.message.content;
+      }
+    }
+    // 普通消息直接显示content
+    return widget.message.content;
+  }
+
+  /// 获取系统事件消息的显示图标（VIP用户显示vipIcon，非VIP用户显示iconUrl）
+  String? _getSystemEventDisplayIcon() {
+    if (_isCurrentUserVip()) {
+      // VIP用户：优先显示vipIcon，如果没有则显示iconUrl
+      return widget.message.vipIcon ?? widget.message.iconUrl;
+    } else {
+      // 非VIP用户：显示iconUrl
+      return widget.message.iconUrl;
+    }
+  }
+
+  /// 跳转到VIP开通页面
+  void _navigateToVipPage() {
+    try {
+      // 通知ChatController即将跳转到下一页
+      try {
+        final controller = Get.find<ChatController>();
+        controller.onNavigateToNextPage?.call();
+      } catch (_) {}
+
+      // 埋点：非会员点击消息跳转VIP
+      AnalyticsManager.instance.trackClick(
+        pageId: ChatEvents.pageId,
+        eventId: ChatEvents.imVip,
+      );
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {
+          'source_page': SourcePageUtilsCaller.chat,
+          'source_event': ChatEvents.imVip,
+        },
+      );
+    } catch (e) {
+      debugPrint('跳转VIP页面失败: $e');
+    }
+  }
+
   /// 处理系统事件（敏感操作）点击跳转
   /// 统一的 jump_page -> 路由 映射函数（供多个点击入口复用）
-  Future<void> _navigateByJumpPage(String? jump, {Map<String, dynamic>? args}) async {
+  Future<void> _navigateByJumpPage(
+    String? jump, {
+    Map<String, dynamic>? args,
+  }) async {
     try {
       if (jump == null || jump.isEmpty) {
         // 没有 jump，若有经纬度则默认定位页
-        if (args != null && args['latitude'] != null && args['longitude'] != null) {
+        if (args != null &&
+            args['latitude'] != null &&
+            args['longitude'] != null) {
           Get.toNamed(KissuRoutePath.location, arguments: args);
         }
         return;
@@ -370,14 +584,16 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         final controller = Get.find<ChatController>();
         controller.onNavigateToNextPage?.call();
       } catch (_) {}
-      
+
       switch (jump) {
         case 'appUsePage':
           Get.toNamed(KissuRoutePath.appUsage);
           break;
         case 'tracePage':
           // 跳转到轨迹页面，如果有坐标则显示infowindow和圆圈
-          if (args != null && args['latitude'] != null && args['longitude'] != null) {
+          if (args != null &&
+              args['latitude'] != null &&
+              args['longitude'] != null) {
             Get.to(
               () => TrackPage(
                 initialLatitude: double.tryParse(args['latitude'].toString()),
@@ -396,7 +612,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           Get.toNamed(KissuRoutePath.appUsageInfo);
           break;
         case 'mobileUse':
-          Get.toNamed(KissuRoutePath.deviceUsage);
+          Get.toNamed(KissuRoutePath.deviceUsage, arguments: {'source_event': ChatEvents.page});
           break;
         case 'locationPage':
           Get.toNamed(KissuRoutePath.location, arguments: args ?? {});
@@ -406,7 +622,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           break;
         default:
           // 未知 jump，降级到定位页（若有坐标）
-          if (args != null && args['latitude'] != null && args['longitude'] != null) {
+          if (args != null &&
+              args['latitude'] != null &&
+              args['longitude'] != null) {
             Get.toNamed(KissuRoutePath.location, arguments: args);
           }
           break;
@@ -415,7 +633,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       debugPrint('导航失败: $e');
       // 兜底：若有坐标则打开详情页
       try {
-        if (args != null && args['latitude'] != null && args['longitude'] != null) {
+        if (args != null &&
+            args['latitude'] != null &&
+            args['longitude'] != null) {
           Navigator.of(Get.context!).push(
             MaterialPageRoute(
               builder: (context) => LocationDetailPage(
@@ -529,10 +749,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
             ),
             child: Text(
               _formatTime(widget.message.time),
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0x99000000),
-              ),
+              style: const TextStyle(fontSize: 11, color: Color(0x99000000)),
             ),
           ),
         ],
@@ -563,10 +780,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   // 构建带偏移的头像（只用于有气泡的消息）
   Widget _buildAvatarWithOffset() {
     // 所有消息类型都统一顶部对齐，不再向下偏移
-    return Align(
-      alignment: Alignment.topCenter,
-      child: _buildAvatar(),
-    );
+    return Align(alignment: Alignment.topCenter, child: _buildAvatar());
   }
 
   /// 构建消息气泡
@@ -605,8 +819,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
             ),
             // 消息内容
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
-                  .copyWith(bottom: 8, top: 20),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ).copyWith(bottom: 8, top: 20),
               child: _buildMessageContent(context),
             ),
           ],
@@ -656,11 +872,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     int maxLines = 1000,
   }) {
     if (items == null || items.isEmpty) {
-      return Text(
-        content,
-        style: defaultStyle,
-        maxLines: maxLines,
-      );
+      return Text(content, style: defaultStyle, maxLines: maxLines);
     }
 
     // 构建一个按位置切分的 TextSpan 列表，优先匹配最近的下一处替换文本
@@ -680,13 +892,20 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
       if (nextItem == null) {
         // 剩余全部普通文本
-        spans.add(TextSpan(text: content.substring(cursor), style: defaultStyle));
+        spans.add(
+          TextSpan(text: content.substring(cursor), style: defaultStyle),
+        );
         break;
       }
 
       // 普通文本片段
       if (nextStart > cursor) {
-        spans.add(TextSpan(text: content.substring(cursor, nextStart), style: defaultStyle));
+        spans.add(
+          TextSpan(
+            text: content.substring(cursor, nextStart),
+            style: defaultStyle,
+          ),
+        );
       }
 
       // 匹配片段（高亮）
@@ -698,7 +917,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       } catch (_) {
         color = const Color(0xFF4E90FF);
       }
-      spans.add(TextSpan(text: matchText, style: defaultStyle.copyWith(color: color)));
+      spans.add(
+        TextSpan(
+          text: matchText,
+          style: defaultStyle.copyWith(color: color),
+        ),
+      );
 
       cursor = nextStart + matchText.length;
     }
@@ -792,7 +1016,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   Widget _buildDefecateMessage() {
     // 判断是开始还是结束拉屎（通过crapDuration字段）
     final bool isEndDefecate = widget.message.crapDuration != null;
-    
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _handleDefecateMessageTap,
@@ -826,7 +1050,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
               Expanded(
                 child: Text(
                   isEndDefecate
-                      ? widget.message.content // 结束拉屎：使用content（已包含时长）
+                      ? widget
+                            .message
+                            .content // 结束拉屎：使用content（已包含时长）
                       : '亲爱的，我们开始拉屎吧～', // 开始拉屎：固定文案
                   style: const TextStyle(
                     fontSize: 13,
@@ -881,7 +1107,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         final controller = Get.find<ChatController>();
         controller.onNavigateToNextPage?.call();
       } catch (_) {}
-      
+
       // 跳转到H5页面
       Get.to(
         () => AgreementWebViewPage(
@@ -945,10 +1171,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         fit: StackFit.expand,
         children: [
           // 底层占位图
-          Image.asset(
-            placeholderAsset,
-            fit: BoxFit.cover,
-          ),
+          Image.asset(placeholderAsset, fit: BoxFit.cover),
           // 顶层真实图片
           Image.file(
             File(imagePath),
@@ -1047,10 +1270,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     return SizedBox(
       width: size.width,
       height: size.height,
-      child: Image.asset(
-        placeholder,
-        fit: BoxFit.cover,
-      ),
+      child: Image.asset(placeholder, fit: BoxFit.cover),
     );
   }
 
@@ -1068,12 +1288,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       ),
     );
   }
-
 }
 
 /// 图片展示比例枚举：正方形 / 16:9 / 9:16
-enum _ImageRatioType {
-  square,
-  landscape16_9,
-  portrait9_16,
-}
+enum _ImageRatioType { square, landscape16_9, portrait9_16 }
