@@ -419,8 +419,8 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.all(13).copyWith(
-        top: ScreenAdaptation.screenHeight / 2 - 190,
-        bottom: ScreenAdaptation.screenHeight / 2 - 190,
+        // top:0,
+        bottom:150,
       ),
       child: Stack(
         children: [

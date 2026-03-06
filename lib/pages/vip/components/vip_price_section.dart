@@ -429,12 +429,12 @@ Widget _buildLifetimePlanCard(
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          height: 105,
+          height: 115,
           width: double.infinity,
           decoration: BoxDecoration(
             image: DecorationImage(
               image: AssetImage(backgroundAsset),
-              fit: BoxFit.fitWidth,
+              fit: BoxFit.fill,
             ),
           ),
           child: Row(

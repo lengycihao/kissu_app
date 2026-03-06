@@ -11,6 +11,7 @@ import 'package:kissu_app/pages/chat/widgets/chat_more_menu.dart';
 // import 'package:kissu_app/pages/chat/widgets/location_picker_page.dart';
 // import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/utils/media_picker_util.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -123,9 +124,9 @@ class ChatController extends GetxController {
       return true;
     }
 
-    // 同一天：间隔超过 5 分钟才显示
+    // 同一天：间隔超过 1 分钟才显示
     final diff = currentTime.difference(prevTime);
-    return diff > const Duration(minutes: 5);
+    return diff > const Duration(minutes: 1);
   }
 
   /// 将当前列表中自己发送且未读的消息全部标记为已读，返回是否有更新
@@ -280,8 +281,14 @@ class ChatController extends GetxController {
       return;
     }
     if (!im.isInitialized || !im.isLoggedIn) {
-      logDebug('💬 IM未初始化或未登录，无法拉取历史消息');
-      return;
+      logDebug('💬 IM未初始化或未登录，尝试重新登录后拉取历史消息');
+      // 🔥 修复：尝试确保IM登录状态，而不是直接返回
+      await im.ensureIMLoginStatus();
+      // 再次检查状态
+      if (!im.isInitialized || !im.isLoggedIn) {
+        logDebug('💬 IM重新登录失败，无法拉取历史消息');
+        return;
+      }
     }
     if (_isLoadingHistory || !_hasMoreHistory) {
       return;
@@ -658,8 +665,13 @@ class ChatController extends GetxController {
 
     final im = TencentIMService.instance;
     if (!im.isInitialized || !im.isLoggedIn) {
-      logDebug('💬 IM未初始化或未登录，暂时只本地显示消息: $text');
-      return;
+      logDebug('💬 IM未初始化或未登录，尝试重新登录后发送消息');
+      // 🔥 修复：尝试确保IM登录状态
+      await im.ensureIMLoginStatus();
+      if (!im.isInitialized || !im.isLoggedIn) {
+        logDebug('💬 IM重新登录失败，暂时只本地显示消息: $text');
+        return;
+      }
     }
 
     final res =
@@ -917,10 +929,10 @@ class ChatController extends GetxController {
     clearSelectedDeviceInfo();
   }
 
-  /// 功能区：相册
+  /// 功能区：相册（使用自定义图片选择器）
   Future<void> onAlbumTap() async {
     hideAllPanels();
-    await _pickImageFromGallery();
+    await _pickImagesFromGallery();
   }
 
   /// 功能区：拍照
@@ -939,23 +951,23 @@ class ChatController extends GetxController {
     Get.toNamed(KissuRoutePath.location);
   }
 
-  // 从相册选择图片
-  Future<void> _pickImageFromGallery() async {
-    final imageFile = await MediaPickerUtil.pickImageFromGallery(
-      imageQuality: 85,
-      maxWidth: 1920,
-      maxHeight: 1920,
-    );
+  // 从相册选择图片（自定义图片选择器，支持多选）
+  Future<void> _pickImagesFromGallery() async {
+    final context = Get.context;
+    if (context == null) return;
 
-    if (imageFile != null) {
-      await _sendImageMessage(imageFile);
+    final files = await ChatImagePickerPage.open(context, maxCount: 9);
+    if (files != null && files.isNotEmpty) {
+      for (final file in files) {
+        await _sendImageMessage(file);
+      }
     }
   }
 
   // 拍照
   Future<void> _takePhoto() async {
     final imageFile = await MediaPickerUtil.takePhoto(
-      imageQuality: 85,
+      imageQuality: 92,
     );
 
     if (imageFile != null) {
@@ -1239,6 +1251,31 @@ class ChatController extends GetxController {
               time: msgTime,
               avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
               crapDuration: duration,
+            );
+          }
+
+          // 处理锁机提醒消息（type: "lock_phone"）
+          final String? customType = decoded['type'] as String?;
+          if (customType == 'lock_phone') {
+            return ChatMessage(
+              id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              content: '开启悬浮窗权限',
+              type: MessageType.lockPhone,
+              isSent: isSelf,
+              time: msgTime,
+              avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
+            );
+          }
+
+          // 处理关联app消息（type: "connect_app"）
+          if (customType == 'connect_app') {
+            return ChatMessage(
+              id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              content: '关联app',
+              type: MessageType.connectApp,
+              isSent: isSelf,
+              time: msgTime,
+              avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
             );
           }
         }

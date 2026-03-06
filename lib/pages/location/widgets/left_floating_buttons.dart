@@ -80,8 +80,9 @@ class LeftFloatingButtons extends StatelessWidget {
                   ), const SizedBox(height: 12),
                   // 刷新按钮
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () async {
-                      await controller.refreshLocationData();
+                      await controller.refreshLocationDataWithToast();
                     },
                     child: Container(
                       width: 24,

@@ -63,4 +63,6 @@ class KissuRoutePath {
   static const checkIn188RecoveryCard = '/kisssu_app/check_in_188_recovery_card';
   static const checkIn188CardLog = '/kisssu_app/check_in_188_card_log';
   static const checkIn188Activity = '/kisssu_app/check_in_188_activity';
+  static const lockScreen = '/kisssu_app/lock_screen';
+  static const lockScreenQuestion = '/kisssu_app/lock_screen_question';
 }

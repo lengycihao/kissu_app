@@ -159,6 +159,9 @@ class TrackEvents {
   
   /// 去绑定点击事件
   static const String toBind = 'track_page_vip_bind_event';
+  
+  /// 非会员点击地图事件
+  static const String mapClick = 'track_page_map_click_event';
 }
 
 /// 聊天页面事件

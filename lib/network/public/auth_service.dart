@@ -232,10 +232,14 @@ class AuthService {
         
         logger.info('开始登录腾讯IM (第${retryCount + 1}次尝试)', tag: 'AuthService');
         
-        // 🔥 等待IM登录完成，避免状态不一致
+        // 🔥 等待IM登录完成
         bool success = await imService.loginIM(user);
         if (success) {
-          logger.info('腾讯IM登录成功', tag: 'AuthService');
+          // 🔥 修复：登录成功后不在这里阻塞等待稳定性验证
+          // 因为多设备登录场景下，另一台设备的自动重连可能在200ms内踢掉本机
+          // 如果在这里等待会延长登录流程，且无法根本解决问题
+          // 改为：先返回让用户看到主页，聊天页面的ensureIMLoginStatus会处理踢下线重连
+          logger.info('腾讯IM登录成功（稳定性将由聊天页面ensureIMLoginStatus保证）', tag: 'AuthService');
           return; // 成功则退出
         } else {
           logger.warning('腾讯IM登录失败 (第${retryCount + 1}次尝试)', tag: 'AuthService');
@@ -266,16 +270,18 @@ class AuthService {
 
   /// 退出腾讯IM
   /// 🔥 修复：改为异步方法，确保IM退出完成后再继续
-  Future<void> _logoutTencentIM() async {
+  /// [isUserSwitching] 是否是用户切换账号，如果是则设置标志位防止自动重连
+  Future<void> _logoutTencentIM({bool isUserSwitching = false}) async {
     try {
       // 检查IM服务是否已注册
       if (Get.isRegistered<TencentIMService>()) {
         final imService = Get.find<TencentIMService>();
         
-        logger.info('开始退出腾讯IM', tag: 'AuthService');
+        logger.info('开始退出腾讯IM${isUserSwitching ? "（用户切换账号）" : ""}', tag: 'AuthService');
         
         // 🔥 等待IM退出完成，避免账号切换时状态混乱
-        bool success = await imService.logoutIM();
+        // 传入isUserSwitching参数，防止被踢下线时自动重连干扰新用户登录
+        bool success = await imService.logoutIM(isUserSwitching: isUserSwitching);
         if (success) {
           logger.info('腾讯IM退出成功', tag: 'AuthService');
         } else {
@@ -397,8 +403,8 @@ class AuthService {
       // 清除极光推送别名
       _clearJPushAlias();
 
-      // 🔥 修复：等待IM退出完成
-      await _logoutTencentIM();
+      // 🔥 修复：等待IM退出完成，传入isUserSwitching=true防止自动重连
+      await _logoutTencentIM(isUserSwitching: true);
 
       // 调用退出登录API
       try {
@@ -441,8 +447,8 @@ class AuthService {
       // 清除极光推送别名（保留广播推送能力）
       _clearJPushAlias();
 
-      // 🔥 修复：等待IM退出完成
-      await _logoutTencentIM();
+      // 🔥 修复：等待IM退出完成，传入isUserSwitching=true防止自动重连
+      await _logoutTencentIM(isUserSwitching: true);
     }
 
     // 只清除本地数据

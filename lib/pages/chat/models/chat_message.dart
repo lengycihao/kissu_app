@@ -6,6 +6,8 @@ enum MessageType {
   locationNotice, // 位置通知（居中显示，不带气泡，用地图快照展示）
   systemEvent, // 系统事件消息（图标+文字，居中显示）
   defecate, // 一起便便消息（特殊气泡样式）
+  lockPhone, // 锁机提醒卡片消息（开启悬浮窗权限）
+  connectApp, // 关联app卡片消息
 }
 
 /// 消息模型

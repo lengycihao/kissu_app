@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -33,6 +34,8 @@ import 'package:kissu_app/widgets/chat_new_message_banner.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:tencent_cloud_chat_push/tencent_cloud_chat_push.dart';
+import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 腾讯IM服务
 /// 
@@ -61,6 +64,9 @@ class TencentIMService extends GetxService {
   // 当前登录的用户ID
   String? _currentUserID;
   String? get currentUserID => _currentUserID;
+  
+  // 🔥 修复：用户切换标志位，防止切换账号时自动重连干扰新用户登录
+  bool _isUserSwitching = false;
 
   // 消息接收回调
   final Rx<Function(List<V2TimMessage>)?> onReceiveNewMessage =
@@ -88,6 +94,15 @@ class TencentIMService extends GetxService {
     // IM SDK 将在用户同意隐私政策后，由 PrivacyComplianceManager 调用初始化
   }
 
+  // 🔥 用于等待SDK初始化完成的Completer
+  Completer<bool>? _initCompleter;
+
+  // 🔥 用于防止并发调用 ensureIMLoginStatus 的Completer
+  Completer<void>? _ensureLoginCompleter;
+
+  // 🔥 记录SDK Listener是否已注册，避免重复注册导致回调触发多次
+  bool _sdkListenerRegistered = false;
+  
   /// 初始化IM SDK
   /// 🔥 修复：公开此方法，供 PrivacyComplianceManager 在用户同意隐私政策后调用
   Future<bool> initIM() async {
@@ -95,15 +110,33 @@ class TencentIMService extends GetxService {
       logger.info('IM SDK 已经初始化', tag: 'TencentIMService');
       return true;
     }
+    
+    // 🔥 如果正在初始化中，等待初始化完成
+    if (_initCompleter != null && !_initCompleter!.isCompleted) {
+      logger.info('IM SDK正在初始化中，等待完成...', tag: 'TencentIMService');
+      return await _initCompleter!.future;
+    }
+    
+    _initCompleter = Completer<bool>();
 
     try {
       logger.info('开始初始化腾讯IM SDK...', tag: 'TencentIMService');
       
-      // 初始化SDK
-      V2TimValueCallback<bool> initResult = await TencentImSDKPlugin.v2TIMManager.initSDK(
-        sdkAppID: sdkAppID,
-        loglevel: LogLevelEnum.V2TIM_LOG_DEBUG,
-        listener: V2TimSDKListener(
+      // 🔥 修复：先调用unInitSDK重置Flutter插件内部缓存状态
+      // 否则Flutter插件认为已初始化，initSDK会返回成功但不会真正调用native层
+      try {
+        await TencentImSDKPlugin.v2TIMManager.unInitSDK();
+        logger.debug('已重置Flutter插件SDK状态', tag: 'TencentIMService');
+      } catch (e) {
+        logger.debug('重置Flutter插件SDK状态(忽略错误): $e', tag: 'TencentIMService');
+      }
+      
+      // 🔥 修复：只在首次注册SDK Listener，避免重复注册导致回调触发多次
+      // 每次initIM都会被调用（因为被踢下线后_isInitialized=false），
+      // 如果每次都传新的listener，会导致onKickedOffline被调用N次
+      V2TimSDKListener? sdkListener;
+      if (!_sdkListenerRegistered) {
+        sdkListener = V2TimSDKListener(
           onConnecting: () {
             logger.info('IM正在连接...', tag: 'TencentIMService');
           },
@@ -117,9 +150,17 @@ class TencentIMService extends GetxService {
             logger.warning('IM账号被踢下线', tag: 'TencentIMService');
             _isLoggedIn = false;
             _currentUserID = null;
-            // 🔥 修复：被踢下线后尝试自动重新登录
-            // 使用 Future.microtask 确保在下一个事件循环中执行，避免阻塞回调
-            Future.microtask(() => _attemptReconnect());
+            // 🔥 重要：被踢下线时SDK会被内部卸载，需要重置初始化状态
+            _isInitialized = false;
+            // 🔥 修复：如果是用户主动切换账号，不要自动重连，避免干扰新用户登录
+            if (_isUserSwitching) {
+              logger.info('用户正在切换账号，跳过自动重连', tag: 'TencentIMService');
+              return;
+            }
+            // 🔥 修复：被踢下线（多设备登录）时不自动重连
+            // 因为同一账号在多设备登录会导致互相踢下线形成死循环
+            // 用户需要手动刷新或重新进入聊天页面来触发重新登录
+            logger.info('账号在其他设备登录，不自动重连', tag: 'TencentIMService');
           },
           onUserSigExpired: () {
             logger.warning('IM UserSig已过期', tag: 'TencentIMService');
@@ -131,22 +172,39 @@ class TencentIMService extends GetxService {
           onSelfInfoUpdated: (info) {
             logger.debug('IM个人资料更新', tag: 'TencentIMService');
           },
-        ),
+        );
+        _sdkListenerRegistered = true;
+      }
+
+      // 初始化SDK
+      V2TimValueCallback<bool> initResult = await TencentImSDKPlugin.v2TIMManager.initSDK(
+        sdkAppID: sdkAppID,
+        loglevel: LogLevelEnum.V2TIM_LOG_DEBUG,
+        listener: sdkListener,
       );
 
       if (initResult.code == 0) {
         _isInitialized = true;
         logger.info('腾讯IM SDK初始化成功', tag: 'TencentIMService');
+        
+        // 🔥 修复：等待SDK内部初始化完成
+        // initSDK返回成功只是表示调用成功，需要等待一小段时间让SDK内部完成初始化
+        await Future.delayed(const Duration(milliseconds: 500));
+        logger.info('IM SDK初始化等待完成', tag: 'TencentIMService');
+        
+        _initCompleter?.complete(true);
         return true;
       } else {
         logger.error(
           'IM SDK初始化失败: ${initResult.desc}',
           tag: 'TencentIMService',
         );
+        _initCompleter?.complete(false);
         return false;
       }
     } catch (e) {
       logger.error('IM SDK初始化异常: $e', tag: 'TencentIMService');
+      _initCompleter?.complete(false);
       return false;
     }
   }
@@ -161,6 +219,8 @@ class TencentIMService extends GetxService {
       tag: 'TencentIMService',
     );
     
+    // 🔥 修复：强制重新初始化SDK，确保SDK状态正确
+    // 因为SDK可能被内部卸载（如被踢下线后），但_isInitialized变量没有更新
     if (!_isInitialized) {
       logger.warning('IM SDK未初始化，尝试先初始化', tag: 'TencentIMService');
       final initSuccess = await initIM();
@@ -168,6 +228,11 @@ class TencentIMService extends GetxService {
         logger.error('IM SDK初始化失败，无法登录', tag: 'TencentIMService');
         return false;
       }
+    } else {
+      // 🔥 即使_isInitialized为true，也尝试重新初始化以确保SDK状态正确
+      // initIM内部会检查是否已初始化，如果已初始化会直接返回true
+      // 但如果SDK被内部卸载了，重新初始化可以修复状态
+      logger.debug('IM SDK标记为已初始化，验证SDK状态...', tag: 'TencentIMService');
     }
 
     // 检查必要参数
@@ -210,29 +275,56 @@ class TencentIMService extends GetxService {
       if (loginResult.code == 0) {
         _isLoggedIn = true;
         _currentUserID = user.uniqueId;
+        // 🔥 修复：登录成功后重置用户切换标志位
+        _isUserSwitching = false;
         logger.info(
           'IM登录成功: userID=${user.uniqueId}',
           tag: 'TencentIMService',
         );
         
-        // 设置用户资料
-        if (user.nickname != null || user.headPortrait != null) {
-          await _updateUserProfile(
-            nickname: user.nickname,
-            avatarUrl: user.headPortrait,
-          );
-        }
-
-        // 设置消息监听器
+        // 设置消息监听器（同步操作，立即完成）
         _setupMessageListener();
 
-        // 设置好友关系监听器
+        // 设置好友关系监听器（同步操作，立即完成）
         _setupFriendshipListener();
 
-        // 🔥 注册推送服务（IM登录成功后）
-        await _registerPushService();
+        // 🔥 修复：推送注册和用户资料更新改为异步不等待
+        // 避免在await期间被其他设备踢下线导致登录状态丢失
+        _postLoginAsyncTasks(user);
         
         return true;
+      } else if (loginResult.code == 6013) {
+        // 🔥 修复：SDK未初始化错误，强制重新初始化后重试
+        logger.warning('IM登录失败(6013: not initialized)，强制重新初始化SDK', tag: 'TencentIMService');
+        _isInitialized = false; // 重置初始化状态
+        final reinitSuccess = await initIM();
+        if (reinitSuccess) {
+          // 重新初始化成功，再次尝试登录
+          logger.info('SDK重新初始化成功，再次尝试登录', tag: 'TencentIMService');
+          V2TimCallback retryResult = await TencentImSDKPlugin.v2TIMManager.login(
+            userID: user.uniqueId!,
+            userSig: user.imSign!,
+          );
+          if (retryResult.code == 0) {
+            _isLoggedIn = true;
+            _currentUserID = user.uniqueId;
+            // 🔥 修复：登录成功后重置用户切换标志位
+            _isUserSwitching = false;
+            logger.info('IM重新登录成功: userID=${user.uniqueId}', tag: 'TencentIMService');
+            
+            _setupMessageListener();
+            _setupFriendshipListener();
+            // 🔥 修复：推送注册和用户资料更新改为异步不等待
+            _postLoginAsyncTasks(user);
+            return true;
+          } else {
+            logger.error('IM重新登录失败: code=${retryResult.code}, desc=${retryResult.desc}', tag: 'TencentIMService');
+            return false;
+          }
+        } else {
+          logger.error('SDK重新初始化失败', tag: 'TencentIMService');
+          return false;
+        }
       } else {
         logger.error(
           'IM登录失败: code=${loginResult.code}, desc=${loginResult.desc}',
@@ -244,6 +336,27 @@ class TencentIMService extends GetxService {
       logger.error('IM登录异常: $e', tag: 'TencentIMService');
       return false;
     }
+  }
+
+  /// 🔥 修复：登录成功后的异步任务（不阻塞loginIM返回）
+  /// 包括用户资料更新和推送服务注册，这些操作耗时较长
+  /// 如果在这些操作期间被踢下线，不影响loginIM已经返回true的结果
+  void _postLoginAsyncTasks(LoginModel user) {
+    Future(() async {
+      try {
+        // 更新用户资料
+        if (user.nickname != null || user.headPortrait != null) {
+          await _updateUserProfile(
+            nickname: user.nickname,
+            avatarUrl: user.headPortrait,
+          );
+        }
+        // 注册推送服务
+        await _registerPushService();
+      } catch (e) {
+        logger.error('登录后异步任务异常: $e', tag: 'TencentIMService');
+      }
+    });
   }
 
   /// 更新用户资料
@@ -316,7 +429,14 @@ class TencentIMService extends GetxService {
   }
 
   /// 退出登录IM
-  Future<bool> logoutIM() async {
+  /// [isUserSwitching] 是否是用户主动切换账号，如果是则设置标志位防止自动重连
+  Future<bool> logoutIM({bool isUserSwitching = false}) async {
+    // 🔥 修复：设置用户切换标志位，防止被踢下线时自动重连干扰新用户登录
+    if (isUserSwitching) {
+      _isUserSwitching = true;
+      logger.info('用户切换账号，设置切换标志位', tag: 'TencentIMService');
+    }
+    
     if (!_isLoggedIn) {
       logger.info('IM未登录，无需退出', tag: 'TencentIMService');
       return true;
@@ -342,6 +462,8 @@ class TencentIMService extends GetxService {
       if (result.code == 0) {
         _isLoggedIn = false;
         _currentUserID = null;
+        // 🔥 修复：logout后SDK会自动InternalUninit，必须重置初始化状态
+        _isInitialized = false;
         logger.info('IM退出登录成功', tag: 'TencentIMService');
         return true;
       } else {
@@ -365,6 +487,12 @@ class TencentIMService extends GetxService {
 
   /// 🔥 新增：尝试重新连接 IM（带重试机制）
   Future<void> _attemptReconnect() async {
+    // 🔥 修复：如果用户正在切换账号，跳过自动重连
+    if (_isUserSwitching) {
+      logger.info('用户正在切换账号，跳过自动重连', tag: 'TencentIMService');
+      return;
+    }
+    
     // 防止重复重连
     if (_isReconnecting) {
       logger.debug('IM正在重连中，跳过重复调用', tag: 'TencentIMService');
@@ -375,6 +503,16 @@ class TencentIMService extends GetxService {
     _reconnectAttempts = 0;
     
     try {
+      // 🔥 修复：如果SDK未初始化，先初始化
+      if (!_isInitialized) {
+        logger.info('IM SDK未初始化，尝试重新初始化', tag: 'TencentIMService');
+        final initSuccess = await initIM();
+        if (!initSuccess) {
+          logger.error('IM SDK重新初始化失败，放弃重连', tag: 'TencentIMService');
+          return;
+        }
+      }
+      
       while (_reconnectAttempts < _maxReconnectAttempts) {
         _reconnectAttempts++;
         logger.info('开始尝试重新连接IM (第$_reconnectAttempts次)...', tag: 'TencentIMService');
@@ -445,22 +583,33 @@ class TencentIMService extends GetxService {
     }
   }
 
-  /// 🔥 新增：确保 IM 登录状态（App 恢复前台时调用）
+  /// 🔥 新增：确保 IM 登录状态（App 恢复前台时 / 聊天页面调用）
   /// 检查当前 IM 状态，如果未登录则尝试重新登录
+  /// 包含重试机制：如果登录后被其他设备踢下线，等待后重试
+  /// 🔥 使用 Completer 防止多个调用方并发执行，避免重复登录
   Future<void> ensureIMLoginStatus() async {
-    // 防止重复调用
+    // 防止重复调用（_attemptReconnect正在执行）
     if (_isReconnecting) {
       logger.debug('IM正在重连中，跳过ensureIMLoginStatus', tag: 'TencentIMService');
       return;
     }
     
+    // 🔥 修复：如果已有ensureLogin正在执行，等待它完成而不是重复执行
+    if (_ensureLoginCompleter != null && !_ensureLoginCompleter!.isCompleted) {
+      logger.debug('ensureIMLoginStatus已在执行中，等待完成...', tag: 'TencentIMService');
+      await _ensureLoginCompleter!.future;
+      return;
+    }
+    
+    // 如果已经登录，不需要处理
+    if (_isLoggedIn && _currentUserID != null) {
+      logger.debug('IM已登录，无需重新连接: $_currentUserID', tag: 'TencentIMService');
+      return;
+    }
+    
+    _ensureLoginCompleter = Completer<void>();
+    
     try {
-      // 如果已经登录，不需要处理
-      if (_isLoggedIn && _currentUserID != null) {
-        logger.debug('IM已登录，无需重新连接: $_currentUserID', tag: 'TencentIMService');
-        return;
-      }
-      
       // 🔥 修复：AuthService 是通过 GetIt 注册的，不是 GetX
       if (!getIt.isRegistered<AuthService>()) {
         logger.debug('AuthService未注册，跳过IM状态检查', tag: 'TencentIMService');
@@ -473,36 +622,77 @@ class TencentIMService extends GetxService {
         return;
       }
       
-      logger.info('检测到IM未登录，尝试重新连接...', tag: 'TencentIMService');
-      
-      // 检查本地缓存的 imSign 是否存在
-      var user = authService.currentUser!;
-      if (user.imSign == null || user.imSign!.isEmpty) {
-        logger.warning('本地imSign为空，尝试刷新用户信息', tag: 'TencentIMService');
-        // 先刷新用户信息获取新的 imSign
-        final refreshSuccess = await authService.refreshUserInfoFromServer();
-        if (!refreshSuccess) {
-          logger.warning('刷新用户信息失败，使用本地缓存尝试登录', tag: 'TencentIMService');
+      // 🔥 修复：增加重试次数和等待时间
+      // 场景：A手机运行旧代码会在被踢后自动重连，导致互踢循环
+      // 旧代码_attemptReconnect最多重试3次，每次间隔约3秒，总计~9秒
+      // 所以B手机需要更持久：5次重试，每次间隔3秒，总计~15秒
+      const int maxRetries = 4;
+      for (int attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          // 🔥 递增等待时间：第2次3秒，第3次3秒，第4次4秒，第5次5秒
+          final waitSeconds = attempt <= 2 ? 3 : attempt + 1;
+          logger.info('IM登录被踢下线，等待$waitSeconds秒后第${attempt + 1}次尝试...', tag: 'TencentIMService');
+          await Future.delayed(Duration(seconds: waitSeconds));
+          
+          // 等待后再次检查是否已登录（可能其他流程已经登录成功）
+          if (_isLoggedIn && _currentUserID != null) {
+            logger.info('等待期间IM已恢复登录: $_currentUserID', tag: 'TencentIMService');
+            return;
+          }
         }
-        // 重新获取用户信息
-        user = authService.currentUser!;
+        
+        // 如果SDK未初始化，先初始化
+        if (!_isInitialized) {
+          logger.info('IM SDK未初始化，尝试重新初始化', tag: 'TencentIMService');
+          final initSuccess = await initIM();
+          if (!initSuccess) {
+            logger.error('IM SDK重新初始化失败', tag: 'TencentIMService');
+            return;
+          }
+        }
+        
+        logger.info('检测到IM未登录，尝试重新连接（第${attempt + 1}次）...', tag: 'TencentIMService');
+        
+        // 获取最新用户信息
+        var user = authService.currentUser!;
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.warning('本地imSign为空，尝试刷新用户信息', tag: 'TencentIMService');
+          await authService.refreshUserInfoFromServer();
+          user = authService.currentUser!;
+        }
+        
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.error('imSign为空，无法登录IM', tag: 'TencentIMService');
+          return;
+        }
+        
+        // 使用最新的用户信息登录
+        final success = await loginIM(user);
+        if (!success) {
+          logger.error('IM重新连接失败', tag: 'TencentIMService');
+          return;
+        }
+        
+        // 🔥 关键：登录成功后等待一小段时间，检查是否被其他设备踢下线
+        // 因为loginIM现在不等待推送注册，所以很快返回
+        // 但其他设备的自动重连可能在几百毫秒内把我们踢下线
+        await Future.delayed(const Duration(milliseconds: 800));
+        
+        if (_isLoggedIn && _currentUserID != null) {
+          logger.info('IM重新连接成功，状态稳定: $_currentUserID', tag: 'TencentIMService');
+          return;
+        }
+        
+        // 被踢下线了，继续重试
+        logger.warning('IM登录后被踢下线，将重试（第${attempt + 1}/${maxRetries + 1}次）', tag: 'TencentIMService');
       }
       
-      // 再次检查 imSign
-      if (user.imSign == null || user.imSign!.isEmpty) {
-        logger.error('imSign为空，无法登录IM', tag: 'TencentIMService');
-        return;
-      }
-      
-      // 使用最新的用户信息登录
-      final success = await loginIM(user);
-      if (success) {
-        logger.info('IM重新连接成功', tag: 'TencentIMService');
-      } else {
-        logger.error('IM重新连接失败', tag: 'TencentIMService');
-      }
+      logger.error('IM重新连接最终失败，已重试${maxRetries + 1}次', tag: 'TencentIMService');
     } catch (e) {
       logger.error('确保IM登录状态异常: $e', tag: 'TencentIMService');
+    } finally {
+      _ensureLoginCompleter?.complete();
+      _ensureLoginCompleter = null;
     }
   }
 
@@ -521,6 +711,28 @@ class TencentIMService extends GetxService {
     }
   }
 
+  /// 🔥 兜底：IM未登录时尝试重新初始化和登录
+  /// 不直接退出到登录页，而是尝试重新连接
+  void _handleIMNotLoggedIn() {
+    logger.warning('🔥 IM未登录，尝试重新初始化和登录', tag: 'TencentIMService');
+    
+    // 尝试重新连接IM（异步执行，不阻塞当前操作）
+    Future.microtask(() async {
+      // 如果SDK未初始化，先初始化
+      if (!_isInitialized) {
+        logger.info('IM SDK未初始化，尝试重新初始化', tag: 'TencentIMService');
+        final initSuccess = await initIM();
+        if (!initSuccess) {
+          logger.error('IM SDK重新初始化失败', tag: 'TencentIMService');
+          return;
+        }
+      }
+      
+      // 尝试重新登录
+      await _attemptReconnect();
+    });
+  }
+
   /// 发送文本消息
   /// 
   /// [receiverID] 接收者ID
@@ -533,6 +745,7 @@ class TencentIMService extends GetxService {
   }) async {
     if (!_isLoggedIn) {
       logger.warning('IM未登录，无法发送消息', tag: 'TencentIMService');
+      _handleIMNotLoggedIn();
       return null;
     }
 
@@ -575,8 +788,10 @@ class TencentIMService extends GetxService {
         iOSSound: 'default',
         ignoreIOSBadge: false,
         // 🔥 各厂商通道配置，确保通知能正确弹出
-        androidOPPOChannelID: 'im_push_channel',
+        androidOPPOChannelID: 'push_oplus_category_service',
+        androidOPPOCategory: 'IM',
         androidVIVOClassification: 1, // 1=即时消息（会弹出通知），0=运营消息（静默）
+        androidVIVOCategory: 'IM',
         androidSound: 'default',
         androidHuaWeiCategory: 'IM', // 华为消息分类：IM类消息优先级更高
         ext: jsonEncode(extData),
@@ -623,6 +838,7 @@ class TencentIMService extends GetxService {
   }) async {
     if (!_isLoggedIn) {
       logger.warning('IM未登录，无法发送图片消息', tag: 'TencentIMService');
+      _handleIMNotLoggedIn();
       return null;
     }
 
@@ -664,8 +880,10 @@ class TencentIMService extends GetxService {
         iOSSound: 'default',
         ignoreIOSBadge: false,
         // 🔥 各厂商通道配置，确保通知能正确弹出
-        androidOPPOChannelID: 'im_push_channel',
+        androidOPPOChannelID: 'push_oplus_category_service',
+        androidOPPOCategory: 'IM',
         androidVIVOClassification: 1, // 1=即时消息（会弹出通知），0=运营消息（静默）
+        androidVIVOCategory: 'IM',
         androidSound: 'default',
         androidHuaWeiCategory: 'IM', // 华为消息分类：IM类消息优先级更高
         ext: jsonEncode(extData),
@@ -788,6 +1006,7 @@ class TencentIMService extends GetxService {
   }) async {
     if (!_isLoggedIn) {
       logger.warning('IM未登录，无法发送自定义消息', tag: 'TencentIMService');
+      _handleIMNotLoggedIn();
       return null;
     }
 
@@ -828,8 +1047,11 @@ class TencentIMService extends GetxService {
         iOSSound: 'default',
         ignoreIOSBadge: false,
         // 🔥 各厂商通道配置，确保通知能正确弹出
-        androidOPPOChannelID: 'im_push_channel',
+        androidOPPOChannelID: 'push_oplus_category_service',
+        androidOPPOCategory: 'IM',
+        androidOPPONotifyLevel: 2,
         androidVIVOClassification: 1, // 1=即时消息（会弹出通知），0=运营消息（静默）
+        androidVIVOCategory: 'IM',
         androidSound: 'default',
         androidHuaWeiCategory: 'IM', // 华为消息分类：IM类消息优先级更高
         ext: jsonEncode(extData),
@@ -913,6 +1135,7 @@ class TencentIMService extends GetxService {
   }) async {
     if (!_isLoggedIn) {
       logger.warning('IM未登录，无法拉取历史消息', tag: 'TencentIMService');
+      _handleIMNotLoggedIn();
       return null;
     }
 
@@ -1025,6 +1248,11 @@ class TencentIMService extends GetxService {
                   
                   // 处理绑定/解绑关系消息
               _handleRelationshipMessage(custom.data);
+              
+              // 处理锁机指令（对方发来的lock_screen_command）
+              if (!(message.isSelf ?? false)) {
+                _handleLockScreenCommand(custom.data);
+              }
             }
             
             // 收到对方的聊天消息时，显示顶部全局新消息 Banner（不在聊天页时才弹）
@@ -1360,6 +1588,53 @@ class TencentIMService extends GetxService {
       }
     } catch (e) {
       logger.error('同步未读数异常: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 处理锁机指令：收到lock_screen_command自定义消息时存储问题数据并启动锁屏
+  void _handleLockScreenCommand(String? data) async {
+    if (data == null || data.isEmpty) return;
+    try {
+      final Map<String, dynamic> decoded = jsonDecode(data);
+      final String? type = decoded['type'] as String?;
+      if (type != 'lock_screen_command') return;
+
+      logger.info('🔒 收到锁机指令，准备锁屏', tag: 'TencentIMService');
+
+      // 存储问题数据到SharedPreferences供答题页面使用
+      final question = decoded['question'] as String? ?? '';
+      final answers = (decoded['answers'] as List?)?.cast<String>() ?? [];
+      final correctIndex = decoded['correctIndex'] as int? ?? 0;
+      final minutes = decoded['minutes'] as int? ?? 5;
+      
+      // 锁屏界面显示信息
+      final lockText = decoded['lockText'] as String? ?? '';
+      final bgImageIndex = decoded['bgImageIndex'] as int? ?? 0;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('lock_question', question);
+      await prefs.setString('lock_answers', jsonEncode(answers));
+      await prefs.setInt('lock_correct_index', correctIndex);
+      // 存储锁屏界面显示信息
+      await prefs.setString('lock_text', lockText);
+      await prefs.setInt('lock_bg_image_index', bgImageIndex);
+      
+      // 存储另一半的头像和昵称（供原生锁屏界面使用）
+      final user = UserManager.currentUser;
+      final half = user?.halfUserInfo;
+      final partnerNickname = half?.nickname ?? 'Ta';
+      final partnerAvatar = half?.headPortrait ?? '';
+      await prefs.setString('lock_partner_nickname', partnerNickname);
+      await prefs.setString('lock_partner_avatar', partnerAvatar);
+
+      final result = await LockScreenOverlayService.lockScreen(minutes: minutes);
+      if (result) {
+        logger.info('🔒 锁屏启动成功', tag: 'TencentIMService');
+      } else {
+        logger.warning('🔒 锁屏启动失败（可能缺少悬浮窗权限）', tag: 'TencentIMService');
+      }
+    } catch (e) {
+      logger.error('🔒 锁屏指令处理异常: $e', tag: 'TencentIMService');
     }
   }
 

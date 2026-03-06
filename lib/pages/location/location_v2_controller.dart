@@ -1871,6 +1871,17 @@ class LocationV2Controller extends GetxController
     await loadLocationData();
   }
 
+  /// 刷新位置数据并显示Toast提示
+  Future<void> refreshLocationDataWithToast() async {
+    try {
+      await loadLocationData();
+      OKToastUtil.show('位置信息已更新');
+    } catch (e) {
+      logError('刷新位置数据失败: $e');
+      OKToastUtil.show('刷新失败，请重试');
+    }
+  }
+
   Future<void> loadLocationData({int retryCount = 0}) async { 
     
     if (isLoading.value && retryCount == 0) return;

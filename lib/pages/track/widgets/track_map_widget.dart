@@ -4,6 +4,10 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import '../../../widgets/safe_amap_widget.dart';
 import '../../../utils/user_manager.dart';
 import '../track_controller.dart';
@@ -83,17 +87,52 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       final isBindPartner = widget.controller.isBindPartner.value;
       final isVip = UserManager.isVip;
       
-      // 🔥 修复：未绑定或未开通会员时，始终启用地图手势
-      // 因为此时面板固定在底部，用户应该可以操作地图
+      // 🔥 非会员时：禁用地图缩放和滚动手势，点击地图跳转VIP页面
+      // 会员时：根据面板展开程度控制手势
       final bool enableMapGestures;
-      if (!isBindPartner || !isVip) {
-        // 未绑定或未开通会员：始终启用地图手势
+      if (!isVip) {
+        // 非会员：禁用地图手势（缩放、滚动等）
+        enableMapGestures = false;
+      } else if (!isBindPartner) {
+        // 会员但未绑定：始终启用地图手势
         enableMapGestures = true;
       } else {
-        // 已绑定且是会员：根据面板展开程度控制
+        // 会员且已绑定：根据面板展开程度控制
         enableMapGestures = sheetPercent <= TrackPageConfig.mapEnableThreshold;
       }
 
+      // 非会员时使用GestureDetector包裹地图，拦截所有手势并跳转VIP页面
+      if (!isVip) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _navigateToVipPage(),
+          onScaleStart: (_) => _navigateToVipPage(),
+          child: AbsorbPointer(
+            absorbing: true, // 非会员时完全吸收地图手势
+            child: SafeAMapWidget(
+              initialCameraPosition: widget.controller.initialCameraPosition,
+              onMapCreated: widget.controller.onMapCreated,
+              onMapDisposed: widget.controller.onMapDisposed,
+              markers: _cachedMarkers,
+              polylines: _cachedPolylines,
+              circles: widget.controller.highlightCircles.toSet(),
+              mapType: widget.controller.mapType.value == 1
+                  ? MapType.normal
+                  : MapType.satellite,
+              buildingsEnabled: false,
+              compassEnabled: false,
+              scaleEnabled: false,
+              zoomGesturesEnabled: false,
+              scrollGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              onTap: null,
+              onInfoWindowClose: null,
+            ),
+          ),
+        );
+      }
+
+      // 会员时使用原有逻辑
       return AbsorbPointer(
         absorbing: !enableMapGestures,
         child: SafeAMapWidget(
@@ -121,6 +160,23 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
         ),
       );
     });
+  }
+
+  /// 非会员点击地图时跳转VIP页面
+  void _navigateToVipPage() {
+    // 埋点：非会员点击地图
+    AnalyticsHelper.trackTrackMapClick();
+    
+    // 埋点：页面离开（进入下一页）
+    widget.controller.onNavigateToNextPage?.call();
+    
+    Get.toNamed(
+      KissuRoutePath.vip,
+      arguments: {
+        'source_page': SourcePageUtilsCaller.track,
+        'source_event': TrackEvents.page,
+      },
+    );
   }
 
   /// 更新标记缓存

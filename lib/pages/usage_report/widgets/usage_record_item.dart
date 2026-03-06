@@ -22,7 +22,7 @@ class UsageRecordItem extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -75,6 +75,7 @@ class UsageRecordItem extends StatelessWidget {
 
   Widget _buildSingleRowItem() {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
           child: NetworkImageHelper.loadImage(
@@ -110,14 +111,14 @@ class UsageRecordItem extends StatelessWidget {
 
   Widget _buildDoubleRowItem() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
           child: NetworkImageHelper.loadImage(
             imageUrl: record.icon,
             width: 18,
             height: 18,
-            fit: BoxFit.cover,
+            fit: BoxFit.fill,
             errorWidget: Container(
               width: 18,
               height: 18,
@@ -166,12 +167,15 @@ class UsageRecordItem extends StatelessWidget {
 
   Widget _buildContentWithHighlight() {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          record.content,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF333333),
+        Expanded(
+          child: Text(
+            record.content,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF333333),
+            ),
           ),
         ),
         if (record.showJumpButton)
@@ -180,6 +184,7 @@ class UsageRecordItem extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.only(left: 8),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: const [
                   Text(
                     '查看',

@@ -41,6 +41,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         private const val APP_USAGE_CHANNEL = "app_usage_channel"
         private const val APP_ICON_CHANNEL = "app_icon_channel"
         private const val PUSH_BRING_FRONT_CHANNEL = "app.push/bring_to_front"
+        private const val LOCK_SCREEN_OVERLAY_CHANNEL = "kissu_app/lock_screen_overlay"
     }
     
     // 各功能处理器
@@ -51,6 +52,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     // private lateinit var appInfoHandler: AppInfoHandler
     private lateinit var systemHandler: SystemHandler 
     private lateinit var foregroundServiceHandler: ForegroundServiceHandler
+    private lateinit var lockScreenHandler: LockScreenHandler
     
     // 微信 API 实例（用于企业微信客服）
     private var wxApi: com.tencent.mm.opensdk.openapi.IWXAPI? = null
@@ -76,6 +78,29 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         // 🔥 修复：移除立即启动定位服务的代码，等待用户同意隐私政策后再启动
         // 定位服务将在用户同意隐私政策后，由 Flutter 层通过 ForegroundServiceHandler 启动
         // 这样可以避免在用户同意前获取位置信息和 ANDROID ID
+        
+        // 处理锁屏答题页面跳转
+        handleLockScreenRoute(intent)
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleLockScreenRoute(intent)
+    }
+    
+    private fun handleLockScreenRoute(intent: Intent?) {
+        val route = intent?.getStringExtra("route")
+        Log.d(TAG, "handleLockScreenRoute: route=$route, intent=$intent")
+        if (route == "/lock_question") {
+            // 通知Flutter跳转到答题页面
+            intent.removeExtra("route")
+            Log.d(TAG, "handleLockScreenRoute: 准备调用 Flutter navigateToQuestionPage")
+            flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
+                Log.d(TAG, "handleLockScreenRoute: flutterEngine 存在，调用 MethodChannel")
+                io.flutter.plugin.common.MethodChannel(messenger, LOCK_SCREEN_OVERLAY_CHANNEL)
+                    .invokeMethod("navigateToQuestionPage", null)
+            } ?: Log.e(TAG, "handleLockScreenRoute: flutterEngine 或 binaryMessenger 为 null")
+        }
     }
     
     /**
@@ -228,6 +253,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         // appInfoHandler = AppInfoHandler(this)
         systemHandler = SystemHandler(this) 
         foregroundServiceHandler = ForegroundServiceHandler(this)
+        lockScreenHandler = LockScreenHandler(this)
         
         // 初始化需要初始化的处理器
         paymentHandler.initialize()
@@ -381,6 +407,11 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 result.notImplemented()
             }
         }
+        
+        // 锁机功能通道
+        MethodChannel(messenger, LOCK_SCREEN_OVERLAY_CHANNEL).setMethodCallHandler { call, result ->
+            lockScreenHandler.handleMethodCall(call, result)
+        }
     }
     
     /**
@@ -481,7 +512,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
      * 打开企业微信客服（通过微信SDK）
      */
     private fun openWeComKfWithParams(corpId: String, agentId: String?, kfId: String) {
-        Log.d(TAG, "📞 拉起企业微信客服 - 企业ID: $corpId, 客服ID: $kfId")
+        Log.d(TAG, " 拉起企业微信客服 - 企业ID: $corpId, 客服ID: $kfId")
 
         // 初始化微信 API
         if (wxApi == null) {
@@ -492,7 +523,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         // 检查微信是否安装
         if (wxApi?.isWXAppInstalled != true) {
-            Log.e(TAG, "❌ 微信未安装，无法拉起客服")
+            Log.e(TAG, " 微信未安装，无法拉起客服")
             throw Exception("请先安装微信")
         }
 
@@ -502,27 +533,27 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         Log.d(TAG, "微信 API 版本: $supportApi (需要 >= $minVersion)")
 
         if (supportApi < minVersion) {
-            Log.e(TAG, "❌ 微信版本过低 (当前: $supportApi, 需要: >= $minVersion)")
+            Log.e(TAG, " 微信版本过低 (当前: $supportApi, 需要: >= $minVersion)")
             throw Exception("请升级微信到 6.5.2 或更高版本")
         }
 
-        // 🚀 直接使用微信 SDK 拉起客服（不走浏览器！）
+        // 直接使用微信 SDK 拉起客服（不走浏览器！）
         try {
             val req = com.tencent.mm.opensdk.modelbiz.WXOpenCustomerServiceChat.Req()
             req.corpId = corpId  // 企业微信ID: ww5c345e5aa1a2a697
             req.url = "https://work.weixin.qq.com/kfid/$kfId"  // 客服链接
             
-            Log.d(TAG, "🚀 发送微信客服请求: corpId=$corpId, url=${req.url}")
+            Log.d(TAG, " 发送微信客服请求: corpId=$corpId, url=${req.url}")
             val success = wxApi?.sendReq(req) ?: false
             
             if (success) {
-                Log.d(TAG, "✅ 成功拉起微信客服！")
+                Log.d(TAG, " 成功拉起微信客服！")
             } else {
-                Log.e(TAG, "❌ 微信 SDK sendReq 返回 false")
+                Log.e(TAG, " 微信 SDK sendReq 返回 false")
                 throw Exception("拉起客服失败")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ 拉起客服异常: ${e.message}", e)
+            Log.e(TAG, " 拉起客服异常: ${e.message}", e)
             throw e
         }
     }
@@ -552,6 +583,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         
         // 处理分享回调
         shareHandler.onActivityResult(requestCode, resultCode, data)
+        
+        // 处理锁屏悬浮窗权限回调
+        lockScreenHandler.onActivityResult(requestCode, resultCode, data)
         
         // 处理微信支付回调
         paymentHandler.wxApi?.handleIntent(data, this)

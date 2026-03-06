@@ -8,6 +8,7 @@ import '../../../services/app_usage_auto_report_service.dart';
 import '../../../services/permission_service.dart';
 import '../../../utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/lock_screen_overlay_service.dart';
 
 /// 系统权限页面控制器
 enum SystemPermissionGuideType {
@@ -19,6 +20,7 @@ enum SystemPermissionGuideType {
   notification,
   appUsage,
   battery, // 电池权限设置
+  overlayWindow, // 悬浮窗权限
 }
 
 enum SupportedBrand { huawei, oppo, vivo, xiaomi, other }
@@ -33,6 +35,7 @@ class SystemPermissionController extends GetxController
   final RxBool isNotificationGranted = false.obs;
   final RxBool isBatteryOptimized = false.obs;
   final RxBool isUsageAccessGranted = false.obs;
+  final RxBool isOverlayGranted = false.obs;
 
   // 加载状态
   final RxBool isLoading = false.obs;
@@ -109,6 +112,12 @@ class SystemPermissionController extends GetxController
       "title": "让程序锁在后台",
       "subtitle": "后台一直运行才能更新数据",
       "guideType": SystemPermissionGuideType.lockInBackground,
+    },
+    {
+      "icon": "assets/images/kissu_setting_cc.webp",
+      "title": "开启悬浮窗权限",
+      "subtitle": "锁机功能需要悬浮窗权限",
+      "guideType": SystemPermissionGuideType.overlayWindow,
     },
   ];
 
@@ -275,6 +284,8 @@ class SystemPermissionController extends GetxController
         return isUsageAccessGranted.value;
       case SystemPermissionGuideType.battery:
         return isBatteryOptimized.value; // 电池权限以电池优化状态为准
+      case SystemPermissionGuideType.overlayWindow:
+        return isOverlayGranted.value;
     }
   }
 
@@ -294,6 +305,7 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.notification:
       case SystemPermissionGuideType.appUsage:
       case SystemPermissionGuideType.battery:
+      case SystemPermissionGuideType.overlayWindow:
         // 权限类型的指引不需要记录会话状态，因为权限状态是实时检查的
         break;
     }
@@ -311,6 +323,7 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.notification:
       case SystemPermissionGuideType.appUsage:
       case SystemPermissionGuideType.battery:
+      case SystemPermissionGuideType.overlayWindow:
         return false; // 权限类型的指引不需要记录会话状态
     }
   }
@@ -336,6 +349,7 @@ class SystemPermissionController extends GetxController
         case SystemPermissionGuideType.notification:
         case SystemPermissionGuideType.appUsage:
         case SystemPermissionGuideType.battery:
+      case SystemPermissionGuideType.overlayWindow:
           // 权限类型的指引不需要持久化保存，因为权限状态是实时检查的
           break;
       }
@@ -376,6 +390,12 @@ class SystemPermissionController extends GetxController
           permissions[PermissionType.notification] ?? false;
       final newBatteryOptimized = permissions[PermissionType.battery] ?? false;
       final newUsageAccessGranted = permissions[PermissionType.usage] ?? false;
+
+      // 检查悬浮窗权限
+      final newOverlayGranted = await LockScreenOverlayService.checkOverlayPermission();
+      if (isOverlayGranted.value != newOverlayGranted) {
+        isOverlayGranted.value = newOverlayGranted;
+      }
 
       // 只在状态真正改变时才更新
       if (isLocationGranted.value != newLocationGranted) {
@@ -557,6 +577,10 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.battery:
         Get.toNamed(KissuRoutePath.systemPermissionBatteryGuide);
         break;
+      case SystemPermissionGuideType.overlayWindow:
+        // 悬浮窗权限直接请求，不跳转指引页
+        _handleOverlayPermissionTap();
+        break;
     }
   }
 
@@ -676,11 +700,24 @@ class SystemPermissionController extends GetxController
           await _permissionService.openUsageAccessSettings();
           await checkAllPermissions();
           break;
+        case SystemPermissionGuideType.overlayWindow:
+          // 悬浮窗权限：直接请求
+          await _handleOverlayPermissionTap();
+          break;
       }
     } catch (e) {
       logError('打开教程关联设置失败: $e', tag: 'SystemPermission', error: e);
       OKToastUtil.showError('无法打开设置页面，请手动前往系统设置');
     }
+  }
+
+  /// 处理悬浮窗权限点击
+  Future<void> _handleOverlayPermissionTap() async {
+    final granted = await LockScreenOverlayService.requestOverlayPermission();
+    if (granted) {
+      isOverlayGranted.value = true;
+    }
+    await checkAllPermissions();
   }
 
   /// 检查是否所有权限都已开启

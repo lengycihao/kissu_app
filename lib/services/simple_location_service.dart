@@ -19,6 +19,7 @@ import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 // 枚举定义已简化
 
@@ -306,12 +307,16 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 🔑 关键修复：从隐私合规管理器获取当前隐私同意状态
       final privacyManager = Get.find<PrivacyComplianceManager>();
       final isPrivacyAgreed = privacyManager.isPrivacyAgreed;
+      
+      // 🔥 优化：如果用户已登录（已进入首页），视为已同意隐私协议
+      final isUserLoggedIn = UserManager.isLoggedIn;
+      final shouldAgreePrivacy = isPrivacyAgreed || isUserLoggedIn;
 
       // 重新设置隐私合规（确保在定位前生效）
       AMapFlutterLocation.updatePrivacyShow(true, true);
 
       // 🔒 隐私合规：根据用户同意状态设置隐私授权
-      AMapFlutterLocation.updatePrivacyAgree(isPrivacyAgreed);
+      AMapFlutterLocation.updatePrivacyAgree(shouldAgreePrivacy);
 
       // 重新设置API Key（确保在定位前生效）
       AMapFlutterLocation.setApiKey('38edb925a25f22e3aae2f86ce7f2ff3b', '');
@@ -455,10 +460,19 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // logger.info('SimpleLocationService.startLocation() 开始执行', tag: 'Location');
 
       // 🔑 关键修复：检查隐私政策同意状态
+      // 🔥 优化：如果用户已登录（已进入首页），则跳过隐私协议检查
+      // 因为用户能进入首页说明已经完成了必要的流程
       final privacyManager = Get.find<PrivacyComplianceManager>();
-      if (!privacyManager.isPrivacyAgreed) {
-        logger.error('用户尚未同意隐私政策，无法启动定位服务', tag: 'Location');
+      final isUserLoggedIn = UserManager.isLoggedIn;
+      if (!privacyManager.isPrivacyAgreed && !isUserLoggedIn) {
+        logger.error('用户尚未同意隐私政策且未登录，无法启动定位服务', tag: 'Location');
         return false;
+      }
+      
+      // 如果用户已登录但未同意隐私协议，自动设置高德地图隐私授权
+      if (isUserLoggedIn && !privacyManager.isPrivacyAgreed) {
+        logger.info('用户已登录但隐私协议状态异常，自动启用高德地图隐私授权', tag: 'Location');
+        AMapFlutterLocation.updatePrivacyAgree(true);
       }
 
       // 确保先初始化（这很关键！）

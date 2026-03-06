@@ -19,6 +19,9 @@ class KissuApplication : TencentCloudChatPushApplication() {
         // 🔥 通知渠道ID必须与 timpush-configs.json 中的 notificationChannelId 保持一致
         private const val CHANNEL_ID = "im_push_channel"
         private const val CHANNEL_NAME = "IM消息推送"
+        // 🔥 OPPO私信通道ID（需要在OPPO开放平台申请）
+        private const val OPPO_CHANNEL_ID = "push_oplus_category_service"
+        private const val OPPO_CHANNEL_NAME = "私信消息"
         private var notificationId = 1000
         
         /**

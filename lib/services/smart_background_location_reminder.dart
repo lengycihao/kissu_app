@@ -141,6 +141,7 @@ class SmartBackgroundLocationReminder extends GetxService {
   /// 检查并显示后台定位权限提醒
   Future<void> _checkAndShowBackgroundLocationReminder() async {
     try {
+     
       // 1. 检查基础条件
       if (!_shouldShowReminder()) {
         logInfo('📱 不满足提醒条件，跳过');
@@ -273,14 +274,18 @@ class SmartBackgroundLocationReminder extends GetxService {
         elevation: 10,
         child: Container(
           padding: EdgeInsets.all(24),
-          constraints: BoxConstraints(maxWidth: 340),
+          constraints: BoxConstraints(maxWidth: 280),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.white, Colors.grey[50]!],
+            image: DecorationImage(
+              image: AssetImage('assets/dialog/kissu_bind_dialog.webp'),
+              fit: BoxFit.cover,
             ),
+            // gradient: LinearGradient(
+            //   begin: Alignment.topLeft,
+            //   end: Alignment.bottomRight,
+            //   colors: [Colors.white, Colors.grey[50]!],
+            // ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -291,12 +296,12 @@ class SmartBackgroundLocationReminder extends GetxService {
                 height: 50,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.orange[300]!, Colors.orange[500]!],
+                    colors: [Color(0xffFFA9E0).withValues(alpha: 0.7), Color(0xffFFA9E0)],
                   ),
                   borderRadius: BorderRadius.circular(40),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.orange.withOpacity(0.3),
+                      color: Color(0xffFFA9E0).withOpacity(0.3),
                       blurRadius: 15,
                       offset: Offset(0, 8),
                     ),
@@ -308,19 +313,19 @@ class SmartBackgroundLocationReminder extends GetxService {
                   size: 40,
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 12),
               
               // 标题
               Text(
-                '位置权限提醒',
+                '定位权限',
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey[800],
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 12),
               
               // 主要消息
               Text(
@@ -349,10 +354,10 @@ class SmartBackgroundLocationReminder extends GetxService {
                         await _handleReminderAction(permissionStatus);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange[500],
+                        backgroundColor: Color(0xffFFA9E0),
                         foregroundColor: Colors.white,
                         elevation: 2,
-                        shadowColor: Colors.orange.withOpacity(0.3),
+                        shadowColor: Color(0xffFFA9E0),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -437,7 +442,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     switch (status) {
       case BackgroundLocationPermissionStatus.denied:
         return ReminderContent(
-          message: '为了让您的足迹记录更完整，建议开启后台定位权限，即使切换到其他应用也能继续记录轨迹。',
+          message: '为了随时查看位置信息建议您把位置权限修改为「始终允许」',
           actionText: '立即开启',
         );
       case BackgroundLocationPermissionStatus.permanentlyDenied:

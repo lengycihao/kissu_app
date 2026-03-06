@@ -9,7 +9,6 @@ import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
-import 'package:kissu_app/pages/location/services/marker_builder.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
 
 /// 初始坐标信息类
@@ -801,51 +800,25 @@ class TrackMarkerManager {
         }
       }
       
-      // 创建终点标记（只要endPoint不为null就显示，locations字段里只要数据大于1就肯定有起点和终点）
+      // 🔥 修复：终点使用图标而非头像marker
       if (endPoint != null) {
-        // 🎯 移除距离限制，只要locations数量大于1就显示终点
         try {
-          // 终点使用头像标记（无动画），参考定位页头像样式
-          final avatarUrl = getCurrentUserAvatar?.call() ?? '';
+          // 使用终点图标（不使用头像）
           final dpr = ui.window.devicePixelRatio;
           final screenWidth = ui.window.physicalSize.width / dpr;
           const designWidth = 375.0;
-          const designAvatarSize = 50.0;
           final screenScale = screenWidth / designWidth;
-          final avatarSize = designAvatarSize * screenScale * dpr;
-
-          final avatarIcon = await MapMarkerUtil.createCircleAvatarMarker(
-            avatarUrl,
-            size: avatarSize,
+          final adaptedWidth = 44.0 * screenScale;  // 逻辑像素
+          final adaptedHeight = 46.0 * screenScale; // 逻辑像素
+          final endIcon = await BitmapDescriptor.fromAssetImage(
+            ImageConfiguration(size: Size(adaptedWidth, adaptedHeight), devicePixelRatio: dpr),
+            'assets/images/kissu_location_end.webp',
           );
-
-          // 添加伴侣底座（参考定位页面：使用伴侣底座样式）
-          try {
-            final markerBuilder = MarkerBuilder();
-            // 计算设计稿级的底座尺寸，基于头像设计稿尺寸按比例缩放
-            const designSmallPedestal = 21.0;
-            const designAvatarSizeBase = 60.0;
-            final designPedestalSize = designSmallPedestal * (designAvatarSizeBase / designAvatarSizeBase);
-            final partnerPedestalIcon = await markerBuilder.createPedestalMarker(
-              pedestalAsset: 'assets/3.0/kissu3_location_she.webp',
-              designSize: designPedestalSize,
-            );
-            markers.add(Marker(
-              position: endPoint,
-              icon: partnerPedestalIcon,
-              anchor: const Offset(0.5, 0.5),
-              rotation: 0.0,
-              zIndex: 1.0,
-              clickable: false,
-            ));
-          } catch (pedestalError) {
-            logWarning('创建伴侣底座失败: $pedestalError');
-          }
-
+          
           markers.add(Marker(
             position: endPoint,
-            icon: avatarIcon,
-            anchor: const Offset(0.5, 1.0), // 底部中心对齐
+            icon: endIcon,
+            anchor: const Offset(0.59, 0.83),
             infoWindow: const InfoWindow(title: '', snippet: ''),
             zIndex: 2.0,
             onTap: (_) {
@@ -853,50 +826,22 @@ class TrackMarkerManager {
               _moveMapToLocation(endPoint);
             },
           ));
-          logDebug('✅ 轨迹终点头像标记创建成功');
+          logDebug('✅ 轨迹终点图标创建成功');
         } catch (e) {
-          logError('❌ 创建终点头像标记失败: $e，使用降级方案');
-          // 降级方案：使用原有终点图标
-          try {
-            // 注意：BitmapDescriptor.fromAssetImage 的 ImageConfiguration.size 期望的是逻辑像素
-            final dpr = ui.window.devicePixelRatio;
-            final screenWidth = ui.window.physicalSize.width / dpr;
-            const designWidth = 375.0;
-            final screenScale = screenWidth / designWidth;
-            final adaptedWidth = 44.0 * screenScale;  // 逻辑像素，不乘dpr
-            final adaptedHeight = 46.0 * screenScale; // 逻辑像素，不乘dpr
-            final endIcon = await BitmapDescriptor.fromAssetImage(
-              ImageConfiguration(size: Size(adaptedWidth, adaptedHeight), devicePixelRatio: dpr),
-              'assets/images/kissu_location_end.webp',
-            );
-            
-            markers.add(Marker(
-              position: endPoint,
-              icon: endIcon,
-              anchor: const Offset(0.59, 0.83),
-              infoWindow: const InfoWindow(title: '', snippet: ''),
-              zIndex: 2.0,
-              onTap: (_) {
-                logDebug('点击了轨迹终点');
-                _moveMapToLocation(endPoint);
-              },
-            ));
-            logDebug('✅ 终点降级标记创建成功');
-          } catch (_) {
-            // 再兜底：使用红色圆点
-            final fallbackSize = _calculateAdaptedSize(24.0);
-            final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
-            markers.add(Marker(
-              position: endPoint,
-              icon: fallbackIcon,
-              infoWindow: const InfoWindow(title: '', snippet: ''),
-              zIndex: 2.0,
-              onTap: (_) {
-                logDebug('点击了轨迹终点');
-                _moveMapToLocation(endPoint);
-              },
-            ));
-          }
+          logError('❌ 创建终点图标失败: $e');
+          // 兜底：使用红色圆点
+          final fallbackSize = _calculateAdaptedSize(24.0);
+          final fallbackIcon = await _createColoredCircleIcon(Colors.red, fallbackSize);
+          markers.add(Marker(
+            position: endPoint,
+            icon: fallbackIcon,
+            infoWindow: const InfoWindow(title: '', snippet: ''),
+            zIndex: 2.0,
+            onTap: (_) {
+              logDebug('点击了轨迹终点');
+              _moveMapToLocation(endPoint);
+            },
+          ));
         }
       }
       

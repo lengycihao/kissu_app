@@ -66,6 +66,9 @@ import 'package:kissu_app/pages/check_in_188/views/check_in_188_card_log_page.da
 import 'package:kissu_app/pages/check_in_188/views/check_in_188_card_log_binding.dart';
 import 'package:kissu_app/pages/check_in_188/views/check_in_188_activity_page.dart';
 import 'package:kissu_app/pages/check_in_188/views/check_in_188_activity_binding.dart';
+import 'package:kissu_app/pages/mine/lock_screen/lock_screen_page.dart';
+import 'package:kissu_app/pages/mine/lock_screen/lock_screen_binding.dart';
+import 'package:kissu_app/pages/mine/lock_screen/lock_screen_question_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -388,6 +391,17 @@ class KissuRoute {
       name: KissuRoutePath.checkIn188Activity,
       page: () => const CheckIn188ActivityPage(),
       binding: CheckIn188ActivityBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.lockScreen,
+      page: () => const LockScreenPage(),
+      binding: LockScreenBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.lockScreenQuestion,
+      page: () => const LockScreenQuestionPage(),
       transition: Transition.rightToLeft,
     ),
   ];

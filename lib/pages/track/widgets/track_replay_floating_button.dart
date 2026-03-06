@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import '../track_controller.dart';
 import '../track_replay_page/track_replay_controller.dart';
@@ -84,6 +88,22 @@ class TrackReplayFloatingButton extends StatelessWidget {
   void _onPlayButtonTap(BuildContext context) {
     // 埋点：轨迹回放按钮点击
     AnalyticsHelper.trackTrackHistoryReplay();
+    
+    // 🔥 非会员点击轨迹回放按钮时跳转VIP页面
+    final isVip = UserManager.isVip;
+    if (!isVip) {
+      // 埋点：页面离开（进入下一页）
+      controller.onNavigateToNextPage?.call();
+      
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {
+          'source_page': SourcePageUtilsCaller.track,
+          'source_event': TrackEvents.page,
+        },
+      );
+      return;
+    }
     
     // 检查是否有有效的轨迹数据
     if (controller.trackPoints.length < 3) {

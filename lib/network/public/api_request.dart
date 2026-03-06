@@ -21,7 +21,7 @@ class ApiRequest {
   static const reportLocation = '/location/report';
 
   // VIP 相关 API
-  static const vipPackageList = '/get/vipPackageList?os=1';
+  static const vipPackageList = '/get/vip/package?os=1';
   static const wxPay = '/pay/wxPay';
   static const aliPay = '/pay/aliPay';
   static const vipIconBanner = '/v4/pay/iconBanner';

@@ -240,23 +240,23 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
       // 🔑 现在可以安全访问服务了（带异常保护和超时保护）
       try {
         // 🔥 修复：统一使用FirstLaunchService检查，避免双重检查逻辑冲突
-        bool shouldShowPrivacyDialog = false;
+        bool shouldShowPrivacyDialog = true; // 🔥 修复：默认显示弹窗，确保首次下载必弹
         try {
           final firstLaunchService = FirstLaunchService.instance;
-          // 🔥 修复：增加超时时间到3秒，让FirstLaunchService内部有足够时间读取
-          // FirstLaunchService内部已经有缓存和智能判断逻辑，超时时会根据情况返回正确值
+          // 🔥 修复：增加超时时间到8秒，让FirstLaunchService内部有足够时间读取（含3次重试）
+          // FirstLaunchService内部已经有缓存和智能判断逻辑
           shouldShowPrivacyDialog = await firstLaunchService
               .shouldShowFirstAgreement()
               .timeout(
-                const Duration(seconds: 3),
+                const Duration(seconds: 8),
                 onTimeout: () {
-                  DebugUtil.warning('⚠️ 检查首次协议状态超时，不显示弹窗（避免重复弹窗）');
-                  return false; // 🔥 修复：超时时不显示弹窗，避免二次打开app时重复弹窗
+                  DebugUtil.warning('⚠️ 检查首次协议状态超时（8秒），默认显示弹窗（首次下载合规要求）');
+                  return true; // 🔥 修复：超时时显示弹窗，确保首次下载必弹（合规要求）
                 },
               );
         } catch (e) {
-          DebugUtil.error('⚠️ 检查首次协议状态失败: $e，不显示弹窗（避免重复弹窗）');
-          shouldShowPrivacyDialog = false; // 🔥 修复：出错时不显示弹窗，避免重复弹窗
+          DebugUtil.error('⚠️ 检查首次协议状态失败: $e，默认显示弹窗（首次下载合规要求）');
+          shouldShowPrivacyDialog = true; // 🔥 修复：出错时显示弹窗，确保首次下载必弹
         }
 
         if (shouldShowPrivacyDialog) {
@@ -525,7 +525,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
                           GestureDetector(
                             child: Container(
                               child: Text(
-                                '不同意',
+                                '拒绝',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Color(0xff999999),

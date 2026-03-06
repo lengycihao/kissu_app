@@ -166,9 +166,9 @@ class FeedbackController extends GetxController {
 
   /// 选择图片
   Future<void> pickImage() async {
-    // 检查是否已达到最大数量
-    if (selectedImages.length >= 3) {
-      CustomToast.show(Get.context!, "最多只能上传3张图片");
+    // 检查是否已达到最大数量（限制1张）
+    if (selectedImages.length >= 1) {
+      CustomToast.show(Get.context!, "最多只能上传1张图片");
       return;
     }
 
@@ -579,8 +579,8 @@ class FeedbackPage extends StatelessWidget {
                                           controller.removeImage(index),
                                     ),
                                   ),
-                                  // 添加图片按钮，最多3张
-                                  if (controller.selectedImages.length < 3)
+                                  // 添加图片按钮，最多1张
+                                  if (controller.selectedImages.isEmpty)
                                     GestureDetector(
                                       onTap: controller.pickImage,
                                       child: Container(

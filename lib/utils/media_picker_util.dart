@@ -35,18 +35,16 @@ class MediaPickerUtil {
       }
 
       // 选择图片
+      // 🔥 修复：image_picker不压缩，避免双重压缩导致图片模糊
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: imageQuality,
-        maxWidth: maxWidth?.toDouble(),
-        maxHeight: maxHeight?.toDouble(),
       );
 
       if (pickedFile == null) {
         return null;
       }
 
-      // 如果需要压缩
+      // 统一用FlutterImageCompress压缩一次
       if (maxWidth != null || maxHeight != null || imageQuality < 100) {
         return await _compressImage(
           File(pickedFile.path),
@@ -84,16 +82,16 @@ class MediaPickerUtil {
       }
 
       // 拍照
+      // 🔥 修复：image_picker不压缩，避免双重压缩导致图片模糊
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: imageQuality,
       );
 
       if (pickedFile == null) {
         return null;
       }
 
-      // 如果需要压缩
+      // 统一用FlutterImageCompress压缩一次
       if (imageQuality < 100) {
         return await _compressImage(
           File(pickedFile.path),
@@ -132,14 +130,16 @@ class MediaPickerUtil {
       final outPath = '${splitted}_compressed.jpg';
 
       // 压缩图片
+      // 🔥 修复：minWidth/minHeight 是目标尺寸，不是最小限制
+      // 使用原始 maxWidth/maxHeight 而不是除以2，避免图片过度缩小
       XFile? compressedFile;
       if (maxWidth != null || maxHeight != null) {
         compressedFile = await FlutterImageCompress.compressAndGetFile(
           filePath,
           outPath,
           quality: quality,
-          minWidth: maxWidth != null ? (maxWidth ~/ 2) : 1920,
-          minHeight: maxHeight != null ? (maxHeight ~/ 2) : 1920,
+          minWidth: maxWidth ?? 1920,
+          minHeight: maxHeight ?? 1920,
         );
       } else {
         compressedFile = await FlutterImageCompress.compressAndGetFile(

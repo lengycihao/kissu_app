@@ -1111,7 +1111,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         // 确保心跳闹钟已设置
                         ensureHeartbeatAlarm()
                         
-                        // 🔥 息屏时确保 WAKE_LOCK 持续持有（防止被系统回收）
+                        // � 检查锁屏状态，如果有锁屏数据且锁屏服务未运行，则启动锁屏服务
+                        checkAndStartLockScreenService()
+                        
+                        // � 息屏时确保 WAKE_LOCK 持续持有（防止被系统回收）
                         try {
                             wakeLock?.let {
                                 if (!it.isHeld) {
@@ -1345,13 +1348,6 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         }
         
         Log.d(TAG, "📍 原生定位成功: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
-        logInfo("📍 原生定位成功", extra = mapOf(
-            "latitude" to location.latitude,
-            "longitude" to location.longitude,
-            "accuracy" to location.accuracy,
-            "provider" to (location.provider ?: "unknown"),
-            "address" to (location.address ?: "")
-        ))
         
         // 统一走原生上报通道（前台/后台/被杀）
         locationReportService?.reportLocation(location)
@@ -2013,6 +2009,72 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     private fun logError(message: String, tag: String = NATIVE_LOG_TAG, extra: Map<String, Any>? = null) {
         Log.e(TAG, "[$tag] $message")
         writeNativeLog("ERROR", message, tag, extra)
+    }
+    
+    /**
+     * 🔒 检查锁屏状态，如果有锁屏数据且锁屏服务未运行，则启动锁屏服务
+     * 用于 app 被杀后，保活服务恢复时检查是否需要显示锁屏
+     */
+    private fun checkAndStartLockScreenService() {
+        try {
+            val lockPrefs = getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
+            val screenLockJson = lockPrefs.getString(LockScreenOverlayService.KEY_SCREEN_LOCK, null)
+            
+            if (screenLockJson != null) {
+                // 检查锁屏是否过期
+                val obj = org.json.JSONObject(screenLockJson)
+                val endTime = obj.optLong("endTime", 0)
+                
+                if (endTime > System.currentTimeMillis()) {
+                    // 锁屏未过期，检查锁屏服务是否在运行
+                    if (!isLockScreenServiceRunning()) {
+                        logInfo("🔒 保活检查：检测到锁屏数据，启动锁屏服务")
+                        startLockScreenService()
+                    }
+                } else {
+                    // 锁屏已过期，清除数据
+                    lockPrefs.edit().remove(LockScreenOverlayService.KEY_SCREEN_LOCK).apply()
+                    logInfo("🔓 保活检查：锁屏已过期，清除锁屏数据")
+                }
+            }
+        } catch (e: Exception) {
+            logError("检查锁屏状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
+        }
+    }
+    
+    /**
+     * 检查锁屏服务是否在运行
+     */
+    private fun isLockScreenServiceRunning(): Boolean {
+        try {
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            for (service in activityManager.getRunningServices(Int.MAX_VALUE)) {
+                if (LockScreenOverlayService::class.java.name == service.service.className) {
+                    return true
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "检查锁屏服务状态失败", e)
+        }
+        return false
+    }
+    
+    /**
+     * 启动锁屏服务
+     */
+    private fun startLockScreenService() {
+        try {
+            val intent = Intent(this, LockScreenOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            Log.d(TAG, "🔒 锁屏服务已启动")
+        } catch (e: Exception) {
+            logError("启动锁屏服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
+        }
     }
 }
 

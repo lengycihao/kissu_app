@@ -276,9 +276,17 @@ class TrackController extends GetxController with GetTickerProviderStateMixin {
   }
 
   /// 地图初始相机位置
+  /// 非会员时固定缩放等级为3，会员时自动计算最佳位置
   CameraPosition get initialCameraPosition {
+    // 🔥 非会员时：固定缩放等级为3，显示中国地图概览
+    if (!UserManager.isVip) {
+      return CameraPosition(
+        target: LatLng(35.86166, 104.195397), // 中国地理中心
+        zoom: 3.0,
+      );
+    }
     
-    // 如果已有轨迹数据，使用计算的最佳位置
+    // 会员时：如果已有轨迹数据，使用计算的最佳位置
     if (trackPoints.isNotEmpty) {
       final optimalPosition = _mapManager.calculateOptimalCameraPosition(
         trackPoints,

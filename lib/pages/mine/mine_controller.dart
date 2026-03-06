@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/index_api.dart';
+import 'package:kissu_app/pages/mine/lock_screen/lock_screen_binding.dart';
+import 'package:kissu_app/pages/mine/lock_screen/lock_screen_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/privacy_setting_page.dart';
@@ -1055,7 +1057,13 @@ class MineController extends GetxController {
     );
 
     // 改为简单的 Toast 提示，而不是弹窗
-    OKToastUtil.show('敬请期待！');
+    // OKToastUtil.show('敬请期待！');
+     Get.to(
+      () => const LockScreenPage(),
+      binding: LockScreenBinding(),
+      transition: Transition.rightToLeft,
+    );
+
   }
 
   /// 敏感操作记录页面

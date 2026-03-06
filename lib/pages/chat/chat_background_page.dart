@@ -337,8 +337,8 @@ class _PreviewBottomSheet extends StatelessWidget {
   }
 
   Widget _buildBottomButton() {
-    if (bgItem.requiresVip) {
-      // 需要VIP - 显示开通会员按钮
+    if (bgItem.requiresVip && !controller.chatController.isVip.value) {
+      // 需要VIP且用户非VIP - 显示开通会员按钮
       return GestureDetector(
         onTap: () {
           Get.back();
@@ -362,8 +362,8 @@ class _PreviewBottomSheet extends StatelessWidget {
             children: [
               Image.asset(
                 'assets/images/logo_vip.webp',
-                width: 24,
-                height: 24,
+                width: 34,
+                height: 34,
               ),
               const SizedBox(width: 8),
               const Text(

@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
-import 'package:kissu_app/utils/debug_util.dart';  
+import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/user_manager.dart';  
 
 /// 轨迹页面地图管理器
 /// 负责地图的初始化、相机控制、地图类型切换等功能
@@ -186,6 +187,7 @@ class TrackMapManager {
   }
 
   /// 🚀 优化：使用原生 newLatLngBounds 自动调整地图视图
+  /// 非会员时固定缩放等级为3，会员时自动计算最佳缩放等级
   Future<void> fitMapToTrackPoints({
     required List<LatLng> trackPoints,
     required List<dynamic> stopPoints,
@@ -196,8 +198,26 @@ class TrackMapManager {
       return;
     }
 
-     
-    // 🚀 收集所有需要显示的点：locations + trace 中的所有点
+    // 🔥 非会员时：固定缩放等级为3，只显示中国地图概览
+    final isVip = UserManager.isVip;
+    if (!isVip) {
+      logDebug('� 非会员：固定地图缩放等级为3');
+      try {
+        await mapController!.moveCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: LatLng(35.86166, 104.195397), // 中国地理中心
+              zoom: 3.0,
+            ),
+          ),
+        );
+      } catch (e) {
+        logError('非会员设置地图缩放等级失败: $e');
+      }
+      return;
+    }
+
+    // 🚀 会员时：收集所有需要显示的点，自动计算最佳缩放等级
     final List<LatLng> allPoints = [];
 
     // 1. 从 locations 列表中添加所有轨迹点

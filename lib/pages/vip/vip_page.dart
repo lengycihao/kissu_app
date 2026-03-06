@@ -284,8 +284,7 @@ class _VipPageState extends State<VipPage> with WidgetsBindingObserver {
     // 根据渠道判断是否显示定位提示
     // 这里可以根据具体需求调整哪些渠道不显示定位功能
     switch (channel.toLowerCase()) {
-      case 'kissu_huawei': // 华为渠道
-      case '3': // 华为渠道代码
+     
       case 'kissu_xiaomi': // 小米渠道
       case '2': // 小米渠道代码
       case 'kissu_vivo': // VIVO渠道

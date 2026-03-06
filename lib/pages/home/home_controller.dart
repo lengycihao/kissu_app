@@ -216,9 +216,12 @@ class HomeController extends GetxController {
     // 检查版本更新（在引导图和其他弹窗之前检查）
     _checkVersionUpdate();
     
-    // 立即检查定位权限并开始弹窗流程（不等待数据加载完成）
-    // 弹窗流程优先级：定位权限 -> 绑定弹窗 -> VIP购买弹窗 -> VIP推广 -> 引导图
-    _checkLocationPermissionAndShowBindingDialog();
+    // 🔥 注释掉首页定位权限申请（应用市场要求：不在首页主动申请定位权限）
+    // 定位权限将在用户进入定位页面或轨迹页面时申请
+    // _checkLocationPermissionAndShowBindingDialog();
+    
+    // 直接启动弹窗流程（不再检查定位权限）
+    _popupService.startPopupFlow();
     
     // 启动App使用记录自动上报服务
     _startAppUsageAutoReport();
@@ -258,18 +261,7 @@ class HomeController extends GetxController {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final duration = currentTime - _homePageEnterTime!;
     
-    // 计算会员状态
     final userInfo = UserManager.currentUser;
-    int vipStatus = 0;
-    if (userInfo != null) {
-      final isVip = userInfo.isVip ?? 0;
-      final vipEndTime = userInfo.vipEndTime ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      
-      if (isVip == 1) {
-        vipStatus = (vipEndTime > now) ? 1 : 2;
-      }
-    }
     
     AnalyticsManager.instance.trackPageView(
       pageId: HomeEvents.pageId,
@@ -278,7 +270,7 @@ class HomeController extends GetxController {
       duration: duration,
       exitType: ExitTypeValue.nextPage,
       params: {
-        AnalyticsParams.vipStatus: vipStatus,
+        AnalyticsParams.vipStatus: UserManager.getVipStatus(),
         AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
         AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
         AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,
@@ -1358,18 +1350,7 @@ class HomeController extends GetxController {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final duration = currentTime - _homePageEnterTime!;
     
-    // 计算会员状态
     final userInfo = UserManager.currentUser;
-    int vipStatus = 0;
-    if (userInfo != null) {
-      final isVip = userInfo.isVip ?? 0;
-      final vipEndTime = userInfo.vipEndTime ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      
-      if (isVip == 1) {
-        vipStatus = (vipEndTime > now) ? 1 : 2;
-      }
-    }
     
     AnalyticsManager.instance.trackPageView(
       pageId: HomeEvents.pageId,
@@ -1378,7 +1359,7 @@ class HomeController extends GetxController {
       duration: duration,
       exitType: ExitTypeValue.toBackground,
       params: {
-        AnalyticsParams.vipStatus: vipStatus,
+        AnalyticsParams.vipStatus: UserManager.getVipStatus(),
         AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
         AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
         AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,
@@ -1650,24 +1631,12 @@ class HomeController extends GetxController {
   void _trackSeedingButtonClick({required int btnStatus}) {
     final userInfo = UserManager.currentUser;
     
-    // 计算会员状态
-    int vipStatus = 0;
-    if (userInfo != null) {
-      final isVip = userInfo.isVip ?? 0;
-      final vipEndTime = userInfo.vipEndTime ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      
-      if (isVip == 1) {
-        vipStatus = (vipEndTime > now) ? 1 : 2;
-      }
-    }
-    
     AnalyticsManager.instance.trackClick(
       pageId: HomeEvents.pageId,
       eventId: HomeEvents.seedingEvent,
       params: {
         AnalyticsParams.clickTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        AnalyticsParams.vipStatus: vipStatus,
+        AnalyticsParams.vipStatus: UserManager.getVipStatus(),
         AnalyticsParams.bindStatus: userInfo?.bindStatus ?? 0,
         AnalyticsParams.action188: userInfo?.isCheckIn ?? 0,
         AnalyticsParams.bindNum: userInfo?.bindNum ?? 0,

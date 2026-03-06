@@ -105,6 +105,31 @@ class MessageConverter {
             crapDuration: duration,
           );
         }
+
+        // 处理锁机提醒消息（type: "lock_phone"）
+        final String? customType = decoded['type'] as String?;
+        if (customType == 'lock_phone') {
+          return ChatMessage(
+            id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            content: '开启悬浮窗权限',
+            type: MessageType.lockPhone,
+            isSent: isSelf,
+            time: msgTime,
+            avatarUrl: isSelf ? UserManager.userAvatar : partnerAvatarUrl,
+          );
+        }
+
+        // 处理关联app消息（type: "connect_app"）
+        if (customType == 'connect_app') {
+          return ChatMessage(
+            id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            content: '关联app',
+            type: MessageType.connectApp,
+            isSent: isSelf,
+            time: msgTime,
+            avatarUrl: isSelf ? UserManager.userAvatar : partnerAvatarUrl,
+          );
+        }
       }
     } catch (_) {
       // 自定义消息解析异常时忽略，继续按其他类型处理

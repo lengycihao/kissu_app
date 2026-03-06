@@ -15,9 +15,9 @@ import 'location_preview_widget.dart';
 import 'image_preview_page.dart';
 import '../models/chat_message.dart';
 import '../chat_controller.dart';
-import 'package:kissu_app/pages/location/location_detail_page.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
+import 'chat_permission_card.dart';
 
 // 导出模型类，保持向后兼容
 export '../models/chat_message.dart';
@@ -570,11 +570,20 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
   }) async {
     try {
       if (jump == null || jump.isEmpty) {
-        // 没有 jump，若有经纬度则默认定位页
+        // 🔥 修复：没有 jump，若有经纬度则默认跳转轨迹页面（而非定位页面）
         if (args != null &&
             args['latitude'] != null &&
             args['longitude'] != null) {
-          Get.toNamed(KissuRoutePath.location, arguments: args);
+          Get.to(
+            () => TrackPage(
+              initialLatitude: double.tryParse(args['latitude'].toString()),
+              initialLongitude: double.tryParse(args['longitude'].toString()),
+              initialLocationName: args['locationName'] as String?,
+              autoShowInfoWindow: true,
+            ),
+            binding: TrackBinding(),
+            transition: Transition.rightToLeft,
+          );
         }
         return;
       }
@@ -621,31 +630,39 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           Get.toNamed(KissuRoutePath.locationReminder);
           break;
         default:
-          // 未知 jump，降级到定位页（若有坐标）
+          // 🔥 修复：未知 jump，降级到轨迹页面（若有坐标）
           if (args != null &&
               args['latitude'] != null &&
               args['longitude'] != null) {
-            Get.toNamed(KissuRoutePath.location, arguments: args);
+            Get.to(
+              () => TrackPage(
+                initialLatitude: double.tryParse(args['latitude'].toString()),
+                initialLongitude: double.tryParse(args['longitude'].toString()),
+                initialLocationName: args['locationName'] as String?,
+                autoShowInfoWindow: true,
+              ),
+              binding: TrackBinding(),
+              transition: Transition.rightToLeft,
+            );
           }
           break;
       }
     } catch (e) {
       debugPrint('导航失败: $e');
-      // 兜底：若有坐标则打开详情页
+      // 🔥 修复：兜底跳转到轨迹页面（若有坐标）
       try {
         if (args != null &&
             args['latitude'] != null &&
             args['longitude'] != null) {
-          Navigator.of(Get.context!).push(
-            MaterialPageRoute(
-              builder: (context) => LocationDetailPage(
-                latitude: double.tryParse(args['latitude'].toString()) ?? 0.0,
-                longitude: double.tryParse(args['longitude'].toString()) ?? 0.0,
-                locationName: args['locationName'] ?? '',
-                avatarUrl: args['avatarUrl'],
-                isMyself: args['isMyself'] ?? false,
-              ),
+          Get.to(
+            () => TrackPage(
+              initialLatitude: double.tryParse(args['latitude'].toString()),
+              initialLongitude: double.tryParse(args['longitude'].toString()),
+              initialLocationName: args['locationName'] as String?,
+              autoShowInfoWindow: true,
             ),
+            binding: TrackBinding(),
+            transition: Transition.rightToLeft,
           );
         }
       } catch (_) {}
@@ -793,6 +810,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         ),
         child: _buildMessageContent(context),
       );
+    }
+
+    // 权限卡片消息不需要气泡背景，自带容器样式
+    if (widget.message.type == MessageType.lockPhone ||
+        widget.message.type == MessageType.connectApp) {
+      return _buildMessageContent(context);
     }
 
     // 使用 Obx 包裹，响应气泡样式变化
@@ -1009,6 +1032,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       case MessageType.defecate:
         // 一起便便消息：标题+图标+内容
         return _buildDefecateMessage();
+
+      case MessageType.lockPhone:
+      case MessageType.connectApp:
+        return ChatPermissionCard(message: widget.message);
     }
   }
 

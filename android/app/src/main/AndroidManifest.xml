@@ -659,6 +659,24 @@
             android:foregroundServiceType="location|dataSync"
             android:stopWithTask="false" />
         
+        <!-- 锁机悬浮窗服务 -->
+        <service
+            android:name="com.yuluo.kissu.LockScreenOverlayService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+        
+        <!-- 锁机服务重启广播接收器 -->
+        <receiver
+            android:name="com.yuluo.kissu.LockServiceRestartReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.yuluo.kissu.RESTART_LOCK_SERVICE" />
+            </intent-filter>
+        </receiver>
+        
         <!-- 🔥 已废弃：极光推送Activity和Provider（推送现在走腾讯IM）
         <activity
             android:name="cn.jpush.android.ui.PushActivity"

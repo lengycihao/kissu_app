@@ -228,26 +228,9 @@ class AnalyticsManager extends GetxService {
     return params;
   }
 
-  /// 获取会员状态
+  /// 获取会员状态（统一使用 UserManager.getVipStatus()）
   int _getVipStatus() {
-    if (!UserManager.isLoggedIn) return VipStatusValue.notPaid;
-    
-    if (UserManager.isVip) {
-      return VipStatusValue.active;
-    }
-    
-    // 检查是否曾经是会员（已过期）
-    final vipEndDate = UserManager.vipEndDate;
-    if (vipEndDate != null && vipEndDate.isNotEmpty) {
-      try {
-        final endDate = DateTime.parse(vipEndDate);
-        if (endDate.isBefore(DateTime.now())) {
-          return VipStatusValue.expired;
-        }
-      } catch (_) {}
-    }
-    
-    return VipStatusValue.notPaid;
+    return UserManager.getVipStatus();
   }
 
   /// 获取绑定状态

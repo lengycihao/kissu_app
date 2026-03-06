@@ -358,6 +358,14 @@ class AnalyticsHelper {
     );
   }
 
+  /// 记录非会员点击地图事件
+  static void trackTrackMapClick() {
+    AnalyticsManager.instance.trackClick(
+      pageId: TrackEvents.pageId,
+      eventId: TrackEvents.mapClick,
+    );
+  }
+
   // ==================== 聊天页面 ====================
 
   /// 记录返回按钮点击

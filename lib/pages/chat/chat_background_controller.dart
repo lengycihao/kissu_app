@@ -159,14 +159,13 @@ class ChatBackgroundController extends GetxController {
     );
 
     if (imageFile != null) {
-      // 只设置为当前选中的背景，不添加到列表中
-      // 直接保存到缓存，替换之前添加的本地图片
-      await SpUtil.putString(_backgroundCacheKey, imageFile.path);
-
       // 自动选中新添加的背景
       selectBackground(imageFile.path);
 
-      logDebug('💬 添加本地背景（不显示在列表中）: ${imageFile.path}');
+      logDebug('💬 添加本地背景: ${imageFile.path}');
+      
+      // 应用背景并返回聊天页面
+      await applyBackground();
     }
   }
 

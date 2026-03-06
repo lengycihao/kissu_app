@@ -174,10 +174,10 @@ class NicknameInputDialog {
     return InputDialog.show(
       context: context,
       title: '请输入您的昵称',
-      hintText: '最多8个字',
+      hintText: '最多10个字',
       initialValue: currentNickname,
       confirmText: '确定',
-      maxLength: 8,
+      maxLength: 10,
       keyboardType: TextInputType.text,
     );
   }

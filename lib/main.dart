@@ -14,11 +14,15 @@ import 'package:openinstall_flutter_plugin/openinstall_flutter_plugin.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/tools/logging/log_config.dart';
 import 'package:kissu_app/network/tools/logging/log_level.dart';
+import 'package:kissu_app/services/lock_screen_overlay_service.dart';
 
 void main() async {
   // 🔥 全局异常捕获：捕获所有未处理的异常并记录到日志
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized(); // 确保Flutter绑定初始化
+    
+    // 初始化锁屏服务MethodChannel监听（接收原生跳转请求）
+    LockScreenOverlayService.setupMethodCallHandler();
     
     // 📝 初始化日志系统（尽早初始化，确保能捕获启动阶段的日志）
     await _initializeLogger();

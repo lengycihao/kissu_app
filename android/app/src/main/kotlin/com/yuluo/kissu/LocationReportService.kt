@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -72,6 +73,8 @@ class LocationReportService(private val context: Context) {
         // 定时器相关 - 静态确保全局唯一
         private var reportTimer: Timer? = null
         private var isReportTimerRunning = false
+        @Volatile
+        private var lastTimerFireTime: Long = 0L
         // 保存最后收到的位置信息（无论是否收集到缓冲区）
         @Volatile
         private var lastReceivedLocation: AMapLocation? = null
@@ -187,6 +190,7 @@ class LocationReportService(private val context: Context) {
         reportTimer = Timer().apply {
             schedule(object : TimerTask() {
                 override fun run() {
+                    lastTimerFireTime = System.currentTimeMillis()
                     // 每次都从SharedPreferences读取最新token，确保切换账号后使用新token
                     val currentToken = serviceInstance.sharedPreferences.getString(KEY_USER_TOKEN, null)
                     if (currentToken.isNullOrEmpty()) {
@@ -218,14 +222,22 @@ class LocationReportService(private val context: Context) {
         // 检查定时器是否真的在运行
         val timerRunning = reportTimer != null && isReportTimerRunning
         
-        if (!timerRunning) {
-            Log.w(TAG, "⚠️ 保活检查：定时器未运行，重新启动")
-            // 强制重启定时器（即使 isReportTimerRunning 为 true，也可能定时器已被系统回收）
+        // 🔥 关键修复：即使定时器标记为运行中，也检查是否真的在正常触发
+        // Android Doze 模式下 java.util.Timer 线程可能被系统冻结，导致定时器停滞
+        val timerStale = timerRunning && lastTimerFireTime > 0 && 
+            (System.currentTimeMillis() - lastTimerFireTime) > REPORT_INTERVAL_SECONDS * 2 * 1000L
+        
+        if (!timerRunning || timerStale) {
+            Log.w(TAG, "⚠️ 保活检查：定时器${if (timerStale) "已停滞（可能被Doze冻结）" else "未运行"}，重新启动")
+            // 强制重启定时器
             reportTimer?.cancel()
             reportTimer = null
             isReportTimerRunning = false
             startReportTimer(token)
             scheduleOneTimeRestartWork()
+            
+            // 🔥 定时器重启后立即尝试上报，避免数据长时间滞留在缓冲区
+            performScheduledReport(token)
         } else {
             Log.d(TAG, "✅ 保活检查：定时器运行正常")
         }
@@ -313,6 +325,11 @@ class LocationReportService(private val context: Context) {
                         Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
                     }
                 }
+                
+                // 🔥 上报成功时写入文件日志（附带上报的点位信息）
+                if (success) {
+                    logReportSuccess(locationsToReport, usedLastReceivedLocation)
+                }
             } finally {
                 isReporting.set(false)
             }
@@ -356,6 +373,11 @@ class LocationReportService(private val context: Context) {
                     } else {
                         Log.w(TAG, "❌ 立即上报失败，缓冲区保留数据")
                     }
+                }
+                
+                // 🔥 上报成功时写入文件日志（附带上报的点位信息）
+                if (success) {
+                    logReportSuccess(locationsToReport, false)
                 }
             } finally {
                 isReporting.set(false)
@@ -909,6 +931,69 @@ class LocationReportService(private val context: Context) {
         val md = MessageDigest.getInstance("MD5")
         val digest = md.digest(input.toByteArray())
         return digest.joinToString("") { "%02x".format(it) }
+    }
+    
+    /**
+     * 上报成功后写入文件日志（附带上报的点位信息）
+     */
+    private fun logReportSuccess(locationsToReport: JSONArray, usedLastLocation: Boolean) {
+        try {
+            val locationsSummary = StringBuilder()
+            for (i in 0 until locationsToReport.length()) {
+                val loc = locationsToReport.getJSONObject(i)
+                if (i > 0) locationsSummary.append("; ")
+                locationsSummary.append("${loc.optString("latitude")},${loc.optString("longitude")},精度:${loc.optString("accuracy")}")
+            }
+            writeNativeLog("INFO", "📤 定位上报成功", "LocationReport", mapOf(
+                "count" to locationsToReport.length(),
+                "usedLastLocation" to usedLastLocation,
+                "locations" to locationsSummary.toString()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "记录上报成功日志失败", e)
+        }
+    }
+    
+    /**
+     * 写入原生层日志到文件（与 Flutter 层日志目录一致）
+     */
+    private fun writeNativeLog(level: String, message: String, tag: String = TAG, extra: Map<String, Any>? = null) {
+        try {
+            val logDir = File(context.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            val todayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val today = todayFormat.format(Date())
+            
+            val existingLogFile = logDir.listFiles()?.find { 
+                it.name.startsWith(today) && it.name.endsWith("_app.log") 
+            }
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.getDefault())
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app.log")
+            
+            val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault()).format(Date())
+            val logJson = JSONObject().apply {
+                put("level", level)
+                put("message", message)
+                put("tag", tag)
+                put("timestamp", timestamp)
+                put("error", JSONObject.NULL)
+                put("stackTrace", JSONObject.NULL)
+                if (extra != null) {
+                    put("extra", JSONObject(extra))
+                } else {
+                    put("extra", JSONObject.NULL)
+                }
+            }
+            
+            logFile.appendText(logJson.toString() + "\n")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "写入日志文件失败", e)
+        }
     }
     
     /**

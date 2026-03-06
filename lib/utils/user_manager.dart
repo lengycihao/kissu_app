@@ -4,6 +4,7 @@ import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/login/login_controller.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/services/app_usage_auto_report_service.dart';
@@ -74,6 +75,29 @@ class UserManager {
 
   /// 获取VIP到期时间
   static String? get vipEndDate => _authService.vipEndDate;
+
+  /// 获取埋点用会员状态
+  /// 0: 非会员  1: 会员中  2: 会员已到期
+  /// 根据 is_for_ever_vip、is_vip、vip_end_time 三个字段判断
+  static int getVipStatus() {
+    final user = currentUser;
+    if (user == null) return 0;
+
+    final isForEverVip = user.isForEverVip ?? 0;
+    final isVipVal = user.isVip ?? 0;
+    final vipEndTime = user.vipEndTime ?? 0;
+
+    // 永久会员
+    if (isForEverVip == 1) return VipStatusValue.active;
+    // 普通会员
+    if (isVipVal == 1) return VipStatusValue.active;
+    // 非会员：检查是否曾经是会员（已到期）
+    if (vipEndTime > 0) {
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      if (vipEndTime < now) return VipStatusValue.expired;
+    }
+    return VipStatusValue.notPaid;
+  }
 
   /// 获取省份名称
   static String? get provinceName => _authService.provinceName;
