@@ -48,8 +48,7 @@ class LockScreenPage extends StatelessWidget {
               children: [
                 // 固定的顶部导航栏（透明，覆盖在背景图上）
                 const LockScreenTopBar(),
-                // 权限提示横幅
-                const LockScreenPermissionBanners(),
+                
                 // 可滚动的内容区域
                 Expanded(
                   child: SingleChildScrollView(
@@ -73,6 +72,13 @@ class LockScreenPage extends StatelessWidget {
                 const LockScreenBottomButton(),
               ],
             ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: MediaQuery.of(context).padding.top + 44,
+            child: // 权限提示横幅
+                const LockScreenPermissionBanners(),
           ),
         ],
       ),

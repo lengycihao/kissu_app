@@ -54,6 +54,10 @@ class LockScreenHandler(private val activity: Activity) {
                 stopLockService()
                 result.success(true)
             }
+            "ensureLockServiceRunning" -> {
+                ensureLockServiceRunning()
+                result.success(true)
+            }
             else -> {
                 result.notImplemented()
             }
@@ -116,5 +120,35 @@ class LockScreenHandler(private val activity: Activity) {
             action = "STOP_SERVICE"
         }
         activity.startService(intent)
+    }
+
+    /**
+     * 🔥 确保锁屏服务正在运行（app打开时调用，重启后快速恢复锁屏）
+     */
+    private fun ensureLockServiceRunning() {
+        val prefs = activity.getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
+        val screenLockJson = prefs.getString(LockScreenOverlayService.KEY_SCREEN_LOCK, null)
+        
+        if (screenLockJson.isNullOrEmpty()) return
+        
+        try {
+            val obj = JSONObject(screenLockJson)
+            val endTime = obj.optLong("endTime", 0)
+            if (System.currentTimeMillis() >= endTime) {
+                // 已过期，清除
+                prefs.edit().remove(LockScreenOverlayService.KEY_SCREEN_LOCK).apply()
+                return
+            }
+            
+            if (!Settings.canDrawOverlays(activity)) {
+                Log.w(TAG, "🔒 缺少悬浮窗权限，无法恢复锁屏")
+                return
+            }
+            
+            Log.d(TAG, "🔒 确保锁屏服务运行中，剩余: ${(endTime - System.currentTimeMillis()) / 1000}秒")
+            startLockService()
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 检查锁屏服务失败", e)
+        }
     }
 }

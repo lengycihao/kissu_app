@@ -13,12 +13,15 @@ class LockScreenPermissionBanners extends StatelessWidget {
     return Obx(() {
       return Column(
         children: [
-          // 横幅1：自己的锁机权限未开启
-          if (!controller.isOverlayGranted.value)
+          // 横幅1：自己的锁机权限未开启（悬浮窗或app使用记录任一未开启都显示）
+          if (!controller.isMyPermissionGranted)
             _buildBanner(
               text: '我的锁机权限未开启，还不支持Ta锁机哦',
               actionText: '去设置',
-              onTap: () => controller.goToPermissionSettings(),
+              onTap: () => controller.goToPermissionSettings(
+                flashOverlay: !controller.isOverlayGranted.value,
+                flashUsage: !controller.isUsageAccessGranted.value,
+              ),
             ),
           // 横幅2：对方权限未开启
           if (!controller.isPartnerPermissionGranted.value)
@@ -39,20 +42,16 @@ class LockScreenPermissionBanners extends StatelessWidget {
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFFFD6E8), width: 0.5),
+        color: const Color(0xFFFFF1FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFffffff), width: 0.5),
       ),
       child: Row(
         children: [
           // 警告图标
-          const Icon(
-            Icons.error_outline,
-            size: 16,
-            color: Color(0xFFFF6B9D),
-          ),
+          const Image(image: AssetImage('assets/lock/kissu_lock_warning.webp'),width: 16,),
           const SizedBox(width: 6),
           // 提示文字
           Expanded(
@@ -60,7 +59,7 @@ class LockScreenPermissionBanners extends StatelessWidget {
               text,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFFFF6B9D),
+                color: Color(0xFF333333),
               ),
             ),
           ),
@@ -74,7 +73,7 @@ class LockScreenPermissionBanners extends StatelessWidget {
                   actionText,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFFFF6B9D),
+                    color: Color(0xFFFF7ECE),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -82,7 +81,7 @@ class LockScreenPermissionBanners extends StatelessWidget {
                 const Icon(
                   Icons.chevron_right,
                   size: 14,
-                  color: Color(0xFFFF6B9D),
+                  color: Color(0xFFFF7ECE),
                 ),
               ],
             ),

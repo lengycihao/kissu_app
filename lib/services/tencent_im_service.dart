@@ -86,6 +86,9 @@ class TencentIMService extends GetxService {
   // 绑定消息接收回调（当收到绑定消息时触发，用于自动关闭绑定弹窗等操作）
   final Rx<Function()?> onBindMessageReceived = Rx<Function()?>(null);
 
+  // 🔥 被锁方解锁通知回调（锁机方收到后重置锁机页面，参数为答题次数）
+  final Rx<Function(int)?> onUnlockPhoneReceived = Rx<Function(int)?>(null);
+
   @override
   void onInit() {
     super.onInit();
@@ -282,6 +285,9 @@ class TencentIMService extends GetxService {
           tag: 'TencentIMService',
         );
         
+        // 🔥 保存IM凭证到SharedPreferences供原生层保活锁屏使用
+        _saveImCredentialsForNative(user.uniqueId!, user.imSign!);
+        
         // 设置消息监听器（同步操作，立即完成）
         _setupMessageListener();
 
@@ -312,6 +318,9 @@ class TencentIMService extends GetxService {
             _isUserSwitching = false;
             logger.info('IM重新登录成功: userID=${user.uniqueId}', tag: 'TencentIMService');
             
+            // 🔥 保存IM凭证到SharedPreferences供原生层保活锁屏使用
+            _saveImCredentialsForNative(user.uniqueId!, user.imSign!);
+            
             _setupMessageListener();
             _setupFriendshipListener();
             // 🔥 修复：推送注册和用户资料更新改为异步不等待
@@ -336,6 +345,20 @@ class TencentIMService extends GetxService {
       logger.error('IM登录异常: $e', tag: 'TencentIMService');
       return false;
     }
+  }
+
+  /// 🔥 保存IM凭证到SharedPreferences供原生层使用（保活状态下原生IM登录）
+  void _saveImCredentialsForNative(String userId, String userSig) {
+    Future(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('im_user_id', userId);
+        await prefs.setString('im_user_sig', userSig);
+        logger.debug('IM凭证已保存供原生层使用', tag: 'TencentIMService');
+      } catch (e) {
+        logger.warning('保存IM凭证失败: $e', tag: 'TencentIMService');
+      }
+    });
   }
 
   /// 🔥 修复：登录成功后的异步任务（不阻塞loginIM返回）
@@ -1033,12 +1056,22 @@ class TencentIMService extends GetxService {
 
       // 发送自定义消息
       // 🔥 添加离线推送配置（自定义消息也需要离线推送）
-      final extData = {
+      // 🔥 关键：将customData解析后合并到extData中，确保离线推送时原生层能获取到完整数据
+      Map<String, dynamic> extData = {
         'scene': 'im_chat',
         'conversation_id': 'c2c_$receiverID',
         'sender_id': _currentUserID ?? '',
         'user_id': receiverID,
       };
+      
+      // 🔥 尝试解析customData并合并到extData中
+      try {
+        final customDataMap = jsonDecode(customData) as Map<String, dynamic>;
+        extData.addAll(customDataMap);
+        logger.debug('🔔 离线推送ext已合并customData: type=${customDataMap['type']}', tag: 'TencentIMService');
+      } catch (e) {
+        logger.warning('🔔 customData不是有效JSON，无法合并到ext: $e', tag: 'TencentIMService');
+      }
       
       final offlinePushInfo = OfflinePushInfo(
         title: '你有一条新消息',
@@ -1249,9 +1282,11 @@ class TencentIMService extends GetxService {
                   // 处理绑定/解绑关系消息
               _handleRelationshipMessage(custom.data);
               
-              // 处理锁机指令（对方发来的lock_screen_command）
+              // 处理锁机相关指令（对方发来的消息）
               if (!(message.isSelf ?? false)) {
                 _handleLockScreenCommand(custom.data);
+                _handleUnlockPhoneSend(custom.data);
+                _handleUnlockPhoneReceive(custom.data);
               }
             }
             
@@ -1601,6 +1636,13 @@ class TencentIMService extends GetxService {
 
       logger.info('🔒 收到锁机指令，准备锁屏', tag: 'TencentIMService');
 
+      // 存储锁机发送者ID（用于解锁后发送unlock_phone_receive）
+      final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+      if (partnerId != null && partnerId.isNotEmpty) {
+        final prefs2 = await SharedPreferences.getInstance();
+        await prefs2.setString('lock_sender_id', partnerId);
+      }
+
       // 存储问题数据到SharedPreferences供答题页面使用
       final question = decoded['question'] as String? ?? '';
       final answers = (decoded['answers'] as List?)?.cast<String>() ?? [];
@@ -1635,6 +1677,49 @@ class TencentIMService extends GetxService {
       }
     } catch (e) {
       logger.error('🔒 锁屏指令处理异常: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 处理对方发来的解锁指令（锁机方主动解锁被锁方）
+  void _handleUnlockPhoneSend(String? data) async {
+    if (data == null || data.isEmpty) return;
+    try {
+      final Map<String, dynamic> decoded = jsonDecode(data);
+      final String? type = decoded['type'] as String?;
+      if (type != 'unlock_phone_send') return;
+
+      logger.info('🔓 收到对方发来的解锁指令，立即解锁', tag: 'TencentIMService');
+
+      // 清除锁屏状态
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('lock_sender_id');
+
+      // 调用原生解锁
+      await LockScreenOverlayService.unlockScreen();
+      await LockScreenOverlayService.stopService();
+      logger.info('🔓 已执行解锁操作', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('🔓 处理解锁指令异常: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 处理被锁方答题解锁后的通知（被锁方解锁成功，通知锁机方重置页面）
+  void _handleUnlockPhoneReceive(String? data) async {
+    if (data == null || data.isEmpty) return;
+    try {
+      final Map<String, dynamic> decoded = jsonDecode(data);
+      final String? type = decoded['type'] as String?;
+      if (type != 'unlock_phone_receive') return;
+
+      final int attempts = decoded['attempts'] as int? ?? 0;
+      logger.info('🔓 收到被锁方解锁通知，答题次数: $attempts', tag: 'TencentIMService');
+
+      // 触发回调通知锁机方页面重置
+      if (onUnlockPhoneReceived.value != null) {
+        onUnlockPhoneReceived.value!(attempts);
+      }
+    } catch (e) {
+      logger.error('🔓 处理解锁通知异常: $e', tag: 'TencentIMService');
     }
   }
 

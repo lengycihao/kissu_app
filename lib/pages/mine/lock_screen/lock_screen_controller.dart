@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 
@@ -44,7 +45,10 @@ class LockScreenController extends GetxController {
 
   // ==================== 权限状态 ====================
   final isOverlayGranted = false.obs;
+  final isUsageAccessGranted = false.obs; // app使用记录权限
   final isPartnerPermissionGranted = false.obs; // 后期通过接口判断，现在默认未开启
+  
+  final PermissionService _permissionService = PermissionService();
 
   // ==================== 锁定状态 ====================
   final lockStartTime = DateTime.now().obs;
@@ -136,7 +140,8 @@ class LockScreenController extends GetxController {
     randomQuestion();
     _loadLockRecords();
     _checkLockState();
-    _checkOverlayPermission();
+    _checkPermissions();
+    _listenForUnlockNotification();
   }
 
   @override
@@ -208,13 +213,27 @@ class LockScreenController extends GetxController {
   }
 
   // ==================== 权限相关 ====================
-  Future<void> _checkOverlayPermission() async {
-    final granted = await LockScreenOverlayService.checkOverlayPermission();
-    isOverlayGranted.value = granted;
+  Future<void> _checkPermissions() async {
+    // 检查悬浮窗权限
+    final overlayGranted = await LockScreenOverlayService.checkOverlayPermission();
+    isOverlayGranted.value = overlayGranted;
+    
+    // 检查app使用记录权限
+    final usageGranted = await _permissionService.isUsageAccessGranted();
+    isUsageAccessGranted.value = usageGranted;
   }
 
-  void goToPermissionSettings() {
-    Get.toNamed(KissuRoutePath.systemPermission);
+  /// 检查自己的锁机权限是否全部开启（悬浮窗 + app使用记录）
+  bool get isMyPermissionGranted => isOverlayGranted.value && isUsageAccessGranted.value;
+
+  void goToPermissionSettings({bool flashOverlay = false, bool flashUsage = false}) {
+    Get.toNamed(
+      KissuRoutePath.systemPermission,
+      arguments: {
+        'flashOverlay': flashOverlay,
+        'flashUsage': flashUsage,
+      },
+    );
   }
 
   void showRemindDialog(BuildContext context) {
@@ -222,51 +241,79 @@ class LockScreenController extends GetxController {
       context: context,
       barrierDismissible: true,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 关闭按钮
-              Align(
-                alignment: Alignment.topRight,
+        // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Stack(
+          children: [
+            Container(
+              height: 160,
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+              decoration: BoxDecoration(
+                // borderRadius: BorderRadius.circular(20),
+                image: DecorationImage(
+                  image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
+                  fit: BoxFit.fill,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                 
+                   const Text(
+                    'Ta还未开启相关权限\n还不能锁机哦～',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+              
+                  const SizedBox(height: 20),
+                  // 去提醒按钮
+                  SizedBox(
+                    width: double.infinity,
+                    height: 36,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _sendLockPhoneReminder();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF9AD9),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        '去提醒',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 关闭按钮
+              Positioned(
+                top: 0,
+                right: 10,
                 child: GestureDetector(
                   onTap: () => Navigator.of(ctx).pop(),
-                  child: const Icon(Icons.close, size: 20, color: Color(0xFF999999)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Ta还未开启相关权限',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                '还不能锁机哦～',
-                style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
-              ),
-              const SizedBox(height: 24),
-              // 去提醒按钮
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    _sendLockPhoneReminder();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF7ECE),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                    elevation: 0,
+                  child: Container(
+                    padding: EdgeInsets.all(10),
+                    child: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: Color(0xFFaaaaaa),
+                    ),
                   ),
-                  child: const Text('去提醒', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -276,11 +323,20 @@ class LockScreenController extends GetxController {
     final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
     if (partnerId == null || partnerId.isEmpty) return;
     final im = TencentIMService.instance;
+    
+    // 发送悬浮窗权限提醒消息
     await im.sendCustomMessage(
       receiverID: partnerId,
       customData: jsonEncode({'type': 'lock_phone'}),
     );
-    debugPrint('已发送锁机提醒消息给对方');
+    debugPrint('已发送悬浮窗权限提醒消息给对方');
+    
+    // 发送app使用记录权限提醒消息
+    await im.sendCustomMessage(
+      receiverID: partnerId,
+      customData: jsonEncode({'type': 'phone_use'}),
+    );
+    debugPrint('已发送app使用记录权限提醒消息给对方');
   }
 
   // ==================== 锁机操作 ====================
@@ -319,11 +375,7 @@ class LockScreenController extends GetxController {
     final recordIndex = lockRecords.length + 1;
     lockRecords.insert(
       0,
-      LockRecord(
-        index: recordIndex,
-        duration: '00:00:00',
-        dateTime: now,
-      ),
+      LockRecord(index: recordIndex, duration: '00:00:00', dateTime: now),
     );
     _saveLockRecords();
     _saveLockState(true);
@@ -353,6 +405,9 @@ class LockScreenController extends GetxController {
   }
 
   void unlockDevice() {
+    // 🔥 发送解锁指令给对方（对方收到后自动解锁，包括保活状态）
+    _sendUnlockCommand();
+
     _lockTimer?.cancel();
     pageState.value = 'setup';
     currentStep.value = 1;
@@ -372,6 +427,33 @@ class LockScreenController extends GetxController {
     _saveLockState(false);
   }
 
+  /// 🔥 发送解锁指令给被锁方
+  void _sendUnlockCommand() async {
+    final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+    if (partnerId == null || partnerId.isEmpty) return;
+    final im = TencentIMService.instance;
+    await im.sendCustomMessage(
+      receiverID: partnerId,
+      customData: jsonEncode({'type': 'unlock_phone_send'}),
+    );
+    debugPrint('🔓 已发送解锁指令给对方: $partnerId');
+  }
+
+  /// 🔥 监听被锁方答题解锁通知，自动重置锁机页面
+  void _listenForUnlockNotification() {
+    final im = TencentIMService.instance;
+    im.onUnlockPhoneReceived.value = (int attempts) {
+      debugPrint('🔓 收到被锁方解锁通知，答题次数: $attempts');
+      // 重置锁机页面状态
+      _lockTimer?.cancel();
+      pageState.value = 'setup';
+      currentStep.value = 1;
+      lockDuration.value = '00:00:00';
+      _saveLockState(false);
+      // TODO: 后期可以在这里记录attempts到锁定记录中
+    };
+  }
+
   // ==================== 持久化 ====================
   Future<void> _loadLockRecords() async {
     try {
@@ -389,8 +471,7 @@ class LockScreenController extends GetxController {
   Future<void> _saveLockRecords() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr =
-          jsonEncode(lockRecords.map((e) => e.toJson()).toList());
+      final jsonStr = jsonEncode(lockRecords.map((e) => e.toJson()).toList());
       await prefs.setString('lock_records', jsonStr);
     } catch (e) {
       debugPrint('保存锁定记录失败: $e');
@@ -420,7 +501,9 @@ class LockScreenController extends GetxController {
       await prefs.setBool('is_locked', isLocked);
       if (isLocked) {
         await prefs.setString(
-            'lock_start_time', lockStartTime.value.toIso8601String());
+          'lock_start_time',
+          lockStartTime.value.toIso8601String(),
+        );
       } else {
         await prefs.remove('lock_start_time');
       }

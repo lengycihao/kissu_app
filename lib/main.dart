@@ -24,7 +24,10 @@ void main() async {
     // 初始化锁屏服务MethodChannel监听（接收原生跳转请求）
     LockScreenOverlayService.setupMethodCallHandler();
     
-    // 📝 初始化日志系统（尽早初始化，确保能捕获启动阶段的日志）
+    // � 检查并恢复锁屏（重启后快速恢复锁屏）
+    LockScreenOverlayService.checkAndRestoreLockScreen();
+    
+    // �📝 初始化日志系统（尽早初始化，确保能捕获启动阶段的日志）
     await _initializeLogger();
     
     // 🔥 捕获 Flutter 框架异常

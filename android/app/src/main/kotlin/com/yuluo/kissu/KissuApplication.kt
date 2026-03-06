@@ -2,9 +2,7 @@ package com.yuluo.kissu
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -116,7 +114,6 @@ class KissuApplication : TencentCloudChatPushApplication() {
                     Log.d(TAG, "🔔 App状态: ${if (appInForeground) "前台" else "后台"}")
                     Log.d(TAG, "🔔 腾讯IM SDK会自动处理后台通知，无需手动创建")
                 }
-                
             })
             Log.d(TAG, "✅ 自定义推送监听器已设置")
         } catch (e: Exception) {
@@ -124,5 +121,3 @@ class KissuApplication : TencentCloudChatPushApplication() {
         }
     }
 }
-
-

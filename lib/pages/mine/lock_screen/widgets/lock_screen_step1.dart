@@ -38,9 +38,9 @@ class LockScreenStep1 extends StatelessWidget {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6,vertical: 1 ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
           decoration: BoxDecoration(
-            color: const Color(0xFFFF7ECE) ,
+            color: const Color(0xFFFF7ECE),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -61,17 +61,14 @@ class LockScreenStep1 extends StatelessWidget {
             color: Color(0xff333333),
           ),
         ),
-        const Text(
-          '*',
-          style: TextStyle(fontSize: 16, color: Colors.red),
-        ),
+        const Text('*', style: TextStyle(fontSize: 16, color: Colors.red)),
       ],
     );
   }
 
   Widget _buildTextInput(LockScreenController controller) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16 ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: const Color(0xffF7F7F7),
         borderRadius: BorderRadius.circular(15),
@@ -93,10 +90,12 @@ class LockScreenStep1 extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: Color(0xff333333)),
             ),
           ),
-          Obx(() => Text(
-                '${controller.lockText.value.length}/20',
-                style: TextStyle(fontSize: 12, color: Color(0xffaaaaaa)),
-              )),
+          Obx(
+            () => Text(
+              '${controller.lockText.value.length}/20',
+              style: TextStyle(fontSize: 12, color: Color(0xffaaaaaa)),
+            ),
+          ),
         ],
       ),
     );
@@ -112,17 +111,19 @@ class LockScreenStep1 extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
           if (index < 3) {
-            return Obx(() => _buildImageItem(
-                  controller,
-                  index: index,
-                  isSelected: controller.selectedImageIndex.value == index,
-                  child: Image.asset(
-                    controller.presetImages[index],
-                    width: 80,
-                    height: 146,
-                    fit: BoxFit.fitWidth,
-                  ),
-                ));
+            return Obx(
+              () => _buildImageItem(
+                controller,
+                index: index,
+                isSelected: controller.selectedImageIndex.value == index,
+                child: Image.asset(
+                  controller.presetImages[index],
+                  width: 80,
+                  height: 146,
+                  fit: BoxFit.fitWidth,
+                ),
+              ),
+            );
           } else {
             return Obx(() => _buildCustomImageItem(controller));
           }
@@ -149,10 +150,7 @@ class LockScreenStep1 extends StatelessWidget {
             width: 1.5,
           ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: child,
-        ),
+        child: ClipRRect(borderRadius: BorderRadius.circular(8), child: child),
       ),
     );
   }
@@ -168,7 +166,7 @@ class LockScreenStep1 extends StatelessWidget {
         height: 146,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          
+
           color: Color(0xffF2F2F2),
         ),
         child: hasCustomImage
@@ -183,16 +181,16 @@ class LockScreenStep1 extends StatelessWidget {
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add, size: 28, color: Color(0xffc8c8c8)),
-                ],
+                children: [Icon(Icons.add, size: 28, color: Color(0xffc8c8c8))],
               ),
       ),
     );
   }
 
   Widget _buildPreviewButton(
-      BuildContext context, LockScreenController controller) {
+    BuildContext context,
+    LockScreenController controller,
+  ) {
     return Center(
       child: Obx(() {
         final canPreview = controller.selectedImageIndex.value >= 0;
@@ -203,12 +201,9 @@ class LockScreenStep1 extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.remove_red_eye_outlined,
-                size: 18,
-                color: canPreview
-                    ? const Color(0xFF009BFE)
-                    : Colors.grey[400],
+              Image(
+                image: AssetImage('assets/lock/kissu_lock_eye.webp'),
+                width: 18,
               ),
               const SizedBox(width: 4),
               Text(

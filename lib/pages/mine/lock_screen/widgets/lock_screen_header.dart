@@ -259,8 +259,8 @@ class LockScreenHeader extends StatelessWidget {
     return Text(
       label,
       style: TextStyle(
-        fontSize: 11,
-        color: isActive ? const Color(0xFFFF7ECE) : Color(0xffaaaaaa),
+        fontSize: 12,
+        color: Color(0xffaaaaaa),
       ),
     );
   }

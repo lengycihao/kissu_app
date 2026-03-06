@@ -207,10 +207,15 @@ class _PermissionItemCard extends StatefulWidget {
 }
 
 class _PermissionItemCardState extends State<_PermissionItemCard>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  
+  // 闪烁动画控制器
+  AnimationController? _flashController;
+  Animation<double>? _scaleFlashAnimation; // 手指图片缩放动画
+  bool _showFinger = false; // 控制手指图片显示/隐藏
 
   @override
   void initState() {
@@ -229,11 +234,61 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
     );
 
     _animationController.forward();
+    
+    // 检查是否需要闪烁
+    final guideType = widget.item["guideType"] as SystemPermissionGuideType?;
+    if (guideType != null && widget.controller.shouldFlash(guideType)) {
+      _startFlashAnimation();
+    }
+  }
+  
+  void _startFlashAnimation() {
+    _flashController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    // 手指图片缩放动画：从0.8到1.2
+    _scaleFlashAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _flashController!, curve: Curves.easeInOut),
+    );
+    
+    // 闪烁3次后停止
+    int flashCount = 0;
+    _flashController!.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _flashController!.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        flashCount++;
+        if (flashCount < 3) {
+          _flashController!.forward();
+        } else {
+          // 闪烁结束，隐藏手指并清除闪烁状态
+          if (mounted) {
+            setState(() {
+              _showFinger = false;
+            });
+          }
+          widget.controller.clearFlashState();
+        }
+      }
+    });
+    
+    // 延迟启动闪烁，等待入场动画完成
+    Future.delayed(Duration(milliseconds: 500 + (widget.index * 80)), () {
+      if (mounted) {
+        setState(() {
+          _showFinger = true;
+        });
+        _flashController?.forward();
+      }
+    });
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _flashController?.dispose();
     super.dispose();
   }
 
@@ -247,7 +302,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
       return const SizedBox.shrink();
     }
 
-    return FadeTransition(
+    Widget cardWidget = FadeTransition(
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
@@ -281,6 +336,36 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
         }),
       ),
     );
+    
+    // 如果有闪烁动画且显示手指，在卡片中间显示手指图片
+    if (_flashController != null && _scaleFlashAnimation != null && _showFinger) {
+      return Stack(
+        children: [
+          cardWidget,
+          // 手指图片居中显示
+          Positioned.fill(
+            child: Transform.translate(offset: Offset(80, 0),child: Center(
+              child: AnimatedBuilder(
+                animation: _scaleFlashAnimation!,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleFlashAnimation!.value,
+                    child: Image.asset(
+                      'assets/lock/kissu_touch.png',
+                      width: 60,
+                      height: 60,
+                      color: Colors.blue,
+                    ),
+                  );
+                },
+              ),
+            ),),
+          ),
+        ],
+      );
+    }
+    
+    return cardWidget;
   }
 
   /// 复用的卡片 UI 构建

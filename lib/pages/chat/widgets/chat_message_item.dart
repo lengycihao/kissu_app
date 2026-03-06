@@ -813,10 +813,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     }
 
     // 权限卡片消息不需要气泡背景，自带容器样式
-    if (widget.message.type == MessageType.lockPhone ||
-        widget.message.type == MessageType.connectApp) {
-      return _buildMessageContent(context);
-    }
+    // if (widget.message.type == MessageType.lockPhone ||
+    //     widget.message.type == MessageType.connectApp) {
+    //   return _buildMessageContent(context);
+    // }
 
     // 使用 Obx 包裹，响应气泡样式变化
     return Obx(() {
@@ -1034,6 +1034,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         return _buildDefecateMessage();
 
       case MessageType.lockPhone:
+      case MessageType.phoneUse:
       case MessageType.connectApp:
         return ChatPermissionCard(message: widget.message);
     }

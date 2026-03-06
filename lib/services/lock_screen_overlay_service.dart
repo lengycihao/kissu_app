@@ -106,6 +106,21 @@ class LockScreenOverlayService {
     }
   }
 
+  /// 🔥 检查并恢复锁屏（app打开时调用，确保重启后锁屏不丢失）
+  static Future<void> checkAndRestoreLockScreen() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final lockState = await getScreenLock();
+      if (lockState.isEmpty) return;
+
+      // 有锁屏数据，确保锁屏服务正在运行
+      logger.info('🔒 检测到活跃锁屏数据，确保锁屏服务运行中', tag: _tag);
+      await _channel.invokeMethod<bool>('ensureLockServiceRunning');
+    } catch (e) {
+      logger.error('🔒 检查锁屏恢复失败: $e', tag: _tag);
+    }
+  }
+
   /// 恢复悬浮窗显示（答题页面退出但未解锁时调用）
   static Future<bool> showOverlayAgain() async {
     if (!Platform.isAndroid) return false;

@@ -4,7 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import io.flutter.Log
+import org.json.JSONObject
 
 /**
  * 开机自启动广播接收器
@@ -104,6 +106,9 @@ class BootCompletedReceiver : BroadcastReceiver() {
             // 🔥 启动前台定位服务
             startForegroundLocationService(context)
             
+            // 🔥 检查是否有未过期的锁屏，立即恢复锁屏
+            checkAndRestoreLockScreen(context)
+            
         } catch (e: Exception) {
             Log.e(TAG, "❌ 处理开机启动失败", e)
         }
@@ -124,6 +129,54 @@ class BootCompletedReceiver : BroadcastReceiver() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "处理用户解锁失败", e)
+        }
+    }
+    
+    /**
+     * 🔥 检查是否有未过期的锁屏，立即恢复锁屏服务
+     * 防止被锁方通过重启手机逃避锁定
+     */
+    private fun checkAndRestoreLockScreen(context: Context) {
+        try {
+            val lockPrefs = context.getSharedPreferences(
+                LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE
+            )
+            val screenLockJson = lockPrefs.getString(LockScreenOverlayService.KEY_SCREEN_LOCK, null)
+            
+            if (screenLockJson.isNullOrEmpty()) {
+                Log.d(TAG, "🔒 没有锁屏数据，跳过锁屏恢复")
+                return
+            }
+            
+            val obj = JSONObject(screenLockJson)
+            val endTime = obj.optLong("endTime", 0)
+            val currentTime = System.currentTimeMillis()
+            
+            if (currentTime >= endTime) {
+                Log.d(TAG, "🔒 锁屏已过期，清除锁屏数据")
+                lockPrefs.edit().remove(LockScreenOverlayService.KEY_SCREEN_LOCK).apply()
+                return
+            }
+            
+            // 检查悬浮窗权限
+            if (!Settings.canDrawOverlays(context)) {
+                Log.w(TAG, "🔒 缺少悬浮窗权限，无法恢复锁屏")
+                return
+            }
+            
+            Log.d(TAG, "🔒 发现未过期的锁屏，立即恢复！剩余: ${(endTime - currentTime) / 1000}秒")
+            
+            // 立即启动锁屏服务
+            val serviceIntent = Intent(context, LockScreenOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+            
+            Log.d(TAG, "🔒 锁屏服务已在开机后快速恢复")
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 检查锁屏恢复失败", e)
         }
     }
     

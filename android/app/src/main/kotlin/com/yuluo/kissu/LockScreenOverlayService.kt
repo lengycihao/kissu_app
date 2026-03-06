@@ -1,8 +1,12 @@
 package com.yuluo.kissu
 
 import android.app.*
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
@@ -15,6 +19,9 @@ import android.widget.*
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
+import com.tencent.imsdk.v2.V2TIMManager
+import com.tencent.imsdk.v2.V2TIMMessage
+import com.tencent.imsdk.v2.V2TIMSendCallback
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,10 +34,18 @@ class LockScreenOverlayService : Service() {
     private var prefs: SharedPreferences? = null
 
     private var isScreenLockMode = false
-    private var screenLockEndTime: Long = 0
-    private var remainingSeconds: Long = 0
     private var isOverlayShowing = false
     private var isAnsweringQuestion = false // 是否正在答题页面
+    
+    // 电话/信息应用检测
+    private val phoneAndMessagePackages = setOf(
+        "com.android.dialer", "com.google.android.dialer", "com.samsung.android.dialer",
+        "com.miui.contacts", "com.huawei.contacts", "com.oppo.dialer", "com.vivo.contacts",
+        "com.oneplus.dialer", "com.android.contacts", "com.android.phone",
+        "com.android.mms", "com.google.android.apps.messaging", "com.samsung.android.messaging",
+        "com.miui.mms", "com.huawei.message", "com.oppo.mms", "com.vivo.mms",
+        "com.oneplus.mms", "com.coloros.mms"
+    )
 
     // 锁屏UI
     private var timeTextView: TextView? = null
@@ -38,10 +53,13 @@ class LockScreenOverlayService : Service() {
     
     // 答题页面相关
     private var lockScreenContainer: FrameLayout? = null  // 锁屏主视图容器
+    private var lockScreenContainerTop: FrameLayout? = null  // 锁屏主视图容器上方灰色背景
     private var questionContainer: FrameLayout? = null    // 答题视图容器
     private var questionText: String = "什么马不能骑？"
     private var answerOptions: List<String> = listOf("海马", "河马", "斑马", "木马")
     private var correctAnswerIndex: Int = 0
+    private var answerAttempts: Int = 0  // 🔥 答题次数计数器
+    private var shutdownReceiver: BroadcastReceiver? = null  // 🔥 关机/重启广播接收器
     
     // 锁屏界面显示信息
     private var lockText: String = ""           // 锁屏文案
@@ -49,6 +67,9 @@ class LockScreenOverlayService : Service() {
 
     // 保活
     private var wakeLock: PowerManager.WakeLock? = null
+    
+    // 自定义字体
+    private var customTypeface: Typeface? = null
 
     companion object {
         const val CHANNEL_ID = "kissu_lock_overlay_channel"
@@ -64,11 +85,21 @@ class LockScreenOverlayService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         handler = Handler(Looper.getMainLooper())
+        
+        // 加载自定义字体
+        loadCustomTypeface()
 
+        // 🔥 恢复关机前保存的答题次数
+        answerAttempts = prefs?.getInt("lock_answer_attempts", 0) ?: 0
+        if (answerAttempts > 0) {
+            android.util.Log.d("LockScreenOverlay", "🔥 恢复答题次数: $answerAttempts")
+        }
+        
         acquireWakeLock()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         scheduleRestartAlarm()
+        registerShutdownReceiver()
         startMonitoring()
     }
 
@@ -147,6 +178,9 @@ class LockScreenOverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        // 🔥 注销关机广播接收器
+        unregisterShutdownReceiver()
+        
         val screenLock = prefs?.getString(KEY_SCREEN_LOCK, null)
         if (screenLock != null) {
             scheduleImmediateRestart()
@@ -198,13 +232,14 @@ class LockScreenOverlayService : Service() {
     }
 
     private fun createNotification(): Notification {
-        // 创建一个静默的、最小化的通知（用户几乎看不到）
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setPriority(NotificationCompat.PRIORITY_MIN)  // 最低优先级
-            .setVisibility(NotificationCompat.VISIBILITY_SECRET)  // 锁屏不显示
+            .setContentTitle("Kissu锁机服务")
+            .setContentText("对方正在锁定您的手机")
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .setSilent(true)
-            .setOngoing(true)
+            .setOngoing(false)
             .build()
     }
 
@@ -218,39 +253,123 @@ class LockScreenOverlayService : Service() {
         handler?.post(checkRunnable!!)
     }
 
+    private var checkCounter = 0
+    
     private fun checkScreenLock() {
+        checkCounter++
+        val shouldLog = checkCounter % 50 == 1
+        
         val screenLockJson = prefs?.getString(KEY_SCREEN_LOCK, null)
-        if (screenLockJson != null) {
-            try {
-                val obj = JSONObject(screenLockJson)
-                val endTime = obj.optLong("endTime", 0)
-                val currentTime = System.currentTimeMillis()
-                if (currentTime < endTime) {
-                    screenLockEndTime = endTime
-                    remainingSeconds = (endTime - currentTime) / 1000
-                    // 如果正在答题，不要重新显示悬浮窗
-                    if (!isScreenLockMode || (!isOverlayShowing && !isAnsweringQuestion)) {
-                        isScreenLockMode = true
-                        showOverlay()
+        if (screenLockJson == null) {
+            if (isScreenLockMode) {
+                android.util.Log.d("LockScreenOverlay", "checkScreenLock: screenLockJson为null，隐藏悬浮窗")
+                isScreenLockMode = false
+                hideOverlayOnly()
+            }
+            return
+        }
+        
+        try {
+            val obj = JSONObject(screenLockJson)
+            val endTime = obj.optLong("endTime", 0)
+            val currentTime = System.currentTimeMillis()
+            
+            if (currentTime >= endTime) {
+                if (isScreenLockMode) {
+                    android.util.Log.d("LockScreenOverlay", "checkScreenLock: 锁屏时间已过，发送解锁通知并停止服务")
+                    // 🔥 时间到期，发送解锁通知给锁机方
+                    answerAttempts++
+                    sendUnlockPhoneReceive(answerAttempts)
+                    removeScreenLock()
+                    // 清除答题次数
+                    prefs?.edit()?.remove("lock_answer_attempts")?.apply()
+                    hideOverlay()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+                return
+            }
+            
+            // 锁屏仍有效
+            isScreenLockMode = true
+            
+            // 检测前台应用，如果是电话/信息应用则隐藏悬浮窗
+            val foregroundPkg = getForegroundPackage()
+            val isInPhoneOrMessage = foregroundPkg != null && phoneAndMessagePackages.contains(foregroundPkg)
+            
+            if (shouldLog) {
+                android.util.Log.d("LockScreenOverlay", "checkScreenLock[周期$checkCounter]: foreground=$foregroundPkg isInPhoneOrMessage=$isInPhoneOrMessage isOverlayShowing=$isOverlayShowing")
+            }
+            
+            if (isInPhoneOrMessage) {
+                // 用户在电话/信息应用中，隐藏悬浮窗
+                if (isOverlayShowing) {
+                    android.util.Log.d("LockScreenOverlay", "用户在电话/信息应用($foregroundPkg)，隐藏悬浮窗")
+                    hideOverlayOnly()
+                }
+            } else {
+                // 用户不在电话/信息应用，显示悬浮窗
+                if (!isOverlayShowing && !isAnsweringQuestion) {
+                    android.util.Log.d("LockScreenOverlay", "用户离开电话/信息应用，恢复悬浮窗")
+                    showOverlay()
+                }
+            }
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+    
+    private fun getForegroundPackage(): String? {
+        try {
+            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return null
+            val endTime = System.currentTimeMillis()
+            val beginTime = endTime - 5000
+            val usageEvents = usageStatsManager.queryEvents(beginTime, endTime) ?: return null
+            
+            val foregroundEvents = mutableListOf<Pair<String, Long>>()
+            val backgroundEvents = mutableMapOf<String, Long>()
+            
+            while (usageEvents.hasNextEvent()) {
+                val event = UsageEvents.Event()
+                usageEvents.getNextEvent(event)
+                when (event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED, UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        foregroundEvents.add(Pair(event.packageName, event.timeStamp))
                     }
-                } else {
-                    if (isScreenLockMode) {
-                        removeScreenLock()
-                        hideOverlay()
+                    UsageEvents.Event.ACTIVITY_PAUSED, UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        backgroundEvents[event.packageName] = event.timeStamp
                     }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
-        } else {
-            if (isScreenLockMode) {
-                isScreenLockMode = false
-                hideOverlay()
             }
+            
+            foregroundEvents.sortByDescending { it.second }
+            for ((pkg, foregroundTime) in foregroundEvents) {
+                val backgroundTime = backgroundEvents[pkg] ?: 0L
+                if (foregroundTime > backgroundTime) {
+                    return pkg
+                }
+            }
+            return foregroundEvents.firstOrNull()?.first
+        } catch (e: Exception) {
+            return null
         }
+    }
+    
+    // 只隐藏悬浮窗，不清除锁屏状态
+    private fun hideOverlayOnly() {
+        timeUpdateRunnable?.let { handler?.removeCallbacks(it) }
+        overlayView?.let {
+            try { windowManager?.removeView(it) } catch (e: Exception) { e.printStackTrace() }
+        }
+        overlayView = null
+        isOverlayShowing = false
+        timeTextView = null
+        lockScreenContainer = null
+        lockScreenContainerTop = null
+        questionContainer = null
     }
 
     private fun removeScreenLock() {
         isScreenLockMode = false
-        screenLockEndTime = 0
         prefs?.edit()?.remove(KEY_SCREEN_LOCK)?.apply()
     }
 
@@ -320,6 +439,14 @@ class LockScreenOverlayService : Service() {
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         }
+
+        // 锁屏主视图容器
+        lockScreenContainerTop = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
         
         // 答题视图容器（初始隐藏）
         questionContainer = FrameLayout(context).apply {
@@ -338,15 +465,28 @@ class LockScreenOverlayService : Service() {
                 2 -> R.drawable.kissu_lock_bg_3
                 else -> R.drawable.kissu_lock_bg_1
             }
+            val bgResIdTop = R.drawable.kissu_lock_gray_bg
             val bgDrawable = ContextCompat.getDrawable(context, bgResId)
+            val bgDrawableTop = ContextCompat.getDrawable(context, bgResIdTop)
             lockScreenContainer?.background = bgDrawable
+            lockScreenContainerTop?.background = bgDrawableTop
         } catch (e: Exception) {
             // 如果加载失败，使用默认背景
             try {
                 val bgDrawable = ContextCompat.getDrawable(context, R.drawable.kissu_lock_bg)
                 lockScreenContainer?.background = bgDrawable
+                 val bgDrawableTop = ContextCompat.getDrawable(context, R.drawable.kissu_lock_gray_bg)
+                  lockScreenContainerTop?.background = bgDrawableTop
             } catch (e2: Exception) {
                 lockScreenContainer?.background = GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(
+                        Color.parseColor("#c4a574"),
+                        Color.parseColor("#b8956a"),
+                        Color.parseColor("#a88560")
+                    )
+                )
+                lockScreenContainerTop?.background = GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
                     intArrayOf(
                         Color.parseColor("#c4a574"),
@@ -369,14 +509,14 @@ class LockScreenOverlayService : Service() {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             topMargin = dp(80)
         }
-        lockScreenContainer?.addView(timeLayout, timeParams)
+        lockScreenContainerTop?.addView(timeLayout, timeParams)
 
         timeTextView = TextView(context).apply {
             text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             textSize = 72f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = customTypeface ?: Typeface.DEFAULT_BOLD
             setShadowLayer(8f, 2f, 2f, Color.parseColor("#40000000"))
         }
         timeLayout.addView(timeTextView)
@@ -388,13 +528,17 @@ class LockScreenOverlayService : Service() {
             textSize = 28f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
+            typeface = customTypeface ?: Typeface.DEFAULT_BOLD
             setPadding(dp(20), dp(8), dp(20), dp(8))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#40000000"))
-                cornerRadius = dp(20).toFloat()
-            }
         }
-        timeLayout.addView(hintText)
+        val hintTextParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            topMargin = dp(40) // 让文字往下移动，更靠近用户信息模块
+        }
+        timeLayout.addView(hintText, hintTextParams)
         
         // 用户信息模块（头像、昵称、锁屏文案）- 只有当有锁屏文案时才显示
         if (lockText.isNotEmpty()) {
@@ -404,7 +548,7 @@ class LockScreenOverlayService : Service() {
                 setPadding(dp(16), dp(12), dp(16), dp(12))
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#4D000000"))
-                    cornerRadius = dp(12).toFloat()
+                    cornerRadius = dp(25).toFloat()
                 }
             }
             
@@ -450,7 +594,7 @@ class LockScreenOverlayService : Service() {
             // 第二行：锁屏文案
             val lockTextView = TextView(context).apply {
                 text = lockText
-                textSize = 14f
+                textSize = 20f
                 setTextColor(Color.parseColor("#ffffff"))
                 typeface = Typeface.DEFAULT_BOLD
                 maxLines = 2
@@ -463,6 +607,7 @@ class LockScreenOverlayService : Service() {
             }
             userInfoCard.addView(lockTextView)
             
+            // 用户信息模块保持原位置不变
             val userInfoParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
@@ -472,32 +617,115 @@ class LockScreenOverlayService : Service() {
                 leftMargin = dp(24)
                 rightMargin = dp(24)
             }
-            lockScreenContainer?.addView(userInfoCard, userInfoParams)
+            lockScreenContainerTop?.addView(userInfoCard, userInfoParams)
+        }
+        // 滑动解锁控件
+        val sliderHeight = dp(64)
+        val thumbSize = dp(52)
+        val sliderContainer = FrameLayout(context).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#4DFFFFFF"))
+                cornerRadius = (sliderHeight / 2).toFloat()
+            }
         }
 
-        // 答对问题解锁按钮
-        val unlockButton = TextView(context).apply {
+        // 提示文字（在按钮右边10dp）
+        val sliderHintText = TextView(context).apply {
             text = "答对问题，解锁手机"
             textSize = 16f
             setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(dp(24), dp(14), dp(24), dp(14))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#4DFFFFFF"))
-                cornerRadius = dp(28).toFloat()
-            }
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { openQuestionPage() }
+            typeface = customTypeface ?: Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
         }
-        val unlockParams = FrameLayout.LayoutParams(
+        sliderContainer.addView(sliderHintText, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
-            dp(56)
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ).apply { 
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            leftMargin = dp(4) + thumbSize + dp(10) // 按钮左边距 + 按钮大小 + 间距10dp
+        })
+
+        // 滑块（圆形，左侧）
+        val thumb = FrameLayout(context).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+            elevation = dp(4).toFloat()
+        }
+        val lockIcon = ImageView(context).apply {
+            try {
+                setImageResource(R.drawable.kissu_lock_page_icon)
+            } catch (e: Exception) {
+                setImageResource(android.R.drawable.ic_lock_lock)
+            }
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+//            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }
+        thumb.addView(lockIcon, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        val thumbParams = FrameLayout.LayoutParams(thumbSize, thumbSize).apply {
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            leftMargin = dp(4)
+        }
+        sliderContainer.addView(thumb, thumbParams)
+
+        // 触摸监听
+        var initialRawX = 0f
+        var initialLeftMargin = dp(4)
+        thumb.setOnTouchListener { _, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    initialRawX = event.rawX
+                    initialLeftMargin = (thumb.layoutParams as FrameLayout.LayoutParams).leftMargin
+                    true
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val containerW = sliderContainer.width
+                    val maxMargin = containerW - thumbSize - dp(4)
+                    val dx = (event.rawX - initialRawX).toInt()
+                    val newMargin = (initialLeftMargin + dx).coerceIn(dp(4), maxMargin)
+                    (thumb.layoutParams as FrameLayout.LayoutParams).leftMargin = newMargin
+                    thumb.requestLayout()
+                    val progress = if (maxMargin > dp(4)) (newMargin - dp(4)).toFloat() / (maxMargin - dp(4)) else 0f
+                    sliderHintText.alpha = 1f - progress * 0.8f
+                    // 图标顺时针旋转（最多旋转360度）
+                    lockIcon.rotation = progress * 360f
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    val containerW = sliderContainer.width
+                    val maxMargin = containerW - thumbSize - dp(4)
+                    val currentMargin = (thumb.layoutParams as FrameLayout.LayoutParams).leftMargin
+                    if (containerW > 0 && currentMargin >= maxMargin * 0.85f) {
+                        // 滑到底后重置位置再跳转（防止返回时位置不对）
+                        (thumb.layoutParams as FrameLayout.LayoutParams).leftMargin = dp(4)
+                        thumb.requestLayout()
+                        lockIcon.rotation = 0f
+                        sliderHintText.alpha = 1f
+                        openQuestionPage()
+                    } else {
+                        (thumb.layoutParams as FrameLayout.LayoutParams).leftMargin = dp(4)
+                        thumb.requestLayout()
+                        lockIcon.rotation = 0f
+                        sliderHintText.alpha = 1f
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+
+        val sliderParams = FrameLayout.LayoutParams(
+            dp(240),
+            sliderHeight
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             bottomMargin = dp(120)
         }
-        lockScreenContainer?.addView(unlockButton, unlockParams)
+        lockScreenContainerTop?.addView(sliderContainer, sliderParams)
 
         // 底部图标
         val bottomLayout = LinearLayout(context).apply {
@@ -510,46 +738,44 @@ class LockScreenOverlayService : Service() {
         ).apply {
             gravity = Gravity.BOTTOM
             bottomMargin = dp(40)
-            leftMargin = dp(24)
-            rightMargin = dp(24)
+            leftMargin = dp(40)
+            rightMargin = dp(40)
         }
-        lockScreenContainer?.addView(bottomLayout, bottomParams)
+        lockScreenContainerTop?.addView(bottomLayout, bottomParams)
 
-        val messageButton = TextView(context).apply {
-            text = "💬"
-            textSize = 28f
-            gravity = Gravity.CENTER
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#4dffffff"))
-                cornerRadius = dp(25).toFloat()
-            }
+        val messageButton = ImageView(context).apply {
+            setImageResource(R.drawable.kissu_lock_message)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+
             isClickable = true
             isFocusable = true
             setOnClickListener { openMessagingApp() }
         }
-        bottomLayout.addView(messageButton)
+
+        bottomLayout.addView(messageButton,
+            LinearLayout.LayoutParams(dp(50), dp(50))
+        )
 
         val spacer = View(context)
         bottomLayout.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
 
-        val phoneButton = TextView(context).apply {
-            text = "📞"
-            textSize = 28f
-            gravity = Gravity.CENTER
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#4dffffff"))
-                cornerRadius = dp(25).toFloat()
-            }
+        val phoneButton = ImageView(context).apply {
+            setImageResource(R.drawable.kissu_lock_phone)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+
+
             isClickable = true
             isFocusable = true
             setOnClickListener { openPhoneApp() }
         }
-        bottomLayout.addView(phoneButton)
+
+        bottomLayout.addView(phoneButton,
+            LinearLayout.LayoutParams(dp(50), dp(50))
+        )
 
         // 将两个容器添加到根容器
         rootContainer.addView(lockScreenContainer)
+        rootContainer.addView(lockScreenContainerTop)
         rootContainer.addView(questionContainer)
 
         rootContainer.systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -584,9 +810,11 @@ class LockScreenOverlayService : Service() {
     
     private fun loadQuestionData() {
         try {
-            questionText = prefs?.getString("lock_question", "什么马不能骑？") ?: "什么马不能骑？"
-            val answersJson = prefs?.getString("lock_answers", "[\"海马\",\"河马\",\"斑马\",\"木马\"]") ?: "[\"海马\",\"河马\",\"斑马\",\"木马\"]"
-            correctAnswerIndex = prefs?.getInt("lock_correct_index", 0) ?: 0
+            // Flutter的SharedPreferences存储在FlutterSharedPreferences，key带flutter.前缀
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            questionText = flutterPrefs.getString("flutter.lock_question", "什么马不能骑？") ?: "什么马不能骑？"
+            val answersJson = flutterPrefs.getString("flutter.lock_answers", "[\"海马\",\"河马\",\"斑马\",\"木马\"]") ?: "[\"海马\",\"河马\",\"斑马\",\"木马\"]"
+            correctAnswerIndex = flutterPrefs.getLong("flutter.lock_correct_index", 0L).toInt()
             
             // 解析答案JSON
             val jsonArray = org.json.JSONArray(answersJson)
@@ -621,6 +849,7 @@ class LockScreenOverlayService : Service() {
     
     private fun showQuestionView() {
         lockScreenContainer?.visibility = View.GONE
+        lockScreenContainerTop?.visibility = View.GONE
         questionContainer?.visibility = View.VISIBLE
         // 重新创建答题视图内容
         questionContainer?.removeAllViews()
@@ -631,6 +860,7 @@ class LockScreenOverlayService : Service() {
         isAnsweringQuestion = false
         questionContainer?.visibility = View.GONE
         lockScreenContainer?.visibility = View.VISIBLE
+        lockScreenContainerTop?.visibility = View.VISIBLE
     }
     
     private fun createQuestionContent(): View {
@@ -673,7 +903,7 @@ class LockScreenOverlayService : Service() {
             textSize = 16f
             setTextColor(Color.parseColor("#333333"))
             gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = customTypeface ?: Typeface.DEFAULT_BOLD
         }
         val titleParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -689,41 +919,47 @@ class LockScreenOverlayService : Service() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(20))
         })
         
-        // 黑板区域（问题显示）
-        val blackboard = FrameLayout(context).apply {
+        // 问题背景区域（使用图片背景，宽度固定高度自适应）
+        val questionBgContainer = FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#D4903C"))
-                cornerRadius = dp(16).toFloat()
-            }
-            setPadding(dp(4), dp(4), dp(4), dp(4))
         }
         
-        val innerBoard = FrameLayout(context).apply {
+        // 背景图片（宽度固定，高度自适应，保持比例不变形）
+        val bgImageView = ImageView(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#2D7D4F"))
-                cornerRadius = dp(12).toFloat()
+            adjustViewBounds = true // 保持图片宽高比
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            try {
+                setImageResource(R.drawable.kissu_lock_question_bg)
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "加载问题背景图片失败: ${e.message}")
             }
-            setPadding(dp(24), dp(40), dp(24), dp(40))
         }
+        questionBgContainer.addView(bgImageView)
         
+        // 问题文字（居中显示）
         val questionTextView = TextView(context).apply {
             text = questionText
             textSize = 22f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = customTypeface ?: Typeface.DEFAULT_BOLD
+            setPadding(dp(24), dp(40), dp(24), dp(40))
         }
-        innerBoard.addView(questionTextView)
-        blackboard.addView(innerBoard)
-        container.addView(blackboard)
+        val questionTextParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+        questionBgContainer.addView(questionTextView, questionTextParams)
+        container.addView(questionBgContainer)
         
         // 间距
         container.addView(View(context).apply {
@@ -737,11 +973,17 @@ class LockScreenOverlayService : Service() {
                 textSize = 16f
                 setTextColor(Color.parseColor("#333333"))
                 gravity = Gravity.CENTER
+                typeface = customTypeface ?: Typeface.DEFAULT_BOLD
                 setPadding(dp(16), dp(16), dp(16), dp(16))
-                background = GradientDrawable().apply {
-                    setColor(Color.WHITE)
-                    cornerRadius = dp(12).toFloat()
-                    setStroke(dp(1), Color.parseColor("#EEEEEE"))
+                // 使用背景图片替代边框
+                try {
+                    background = resources.getDrawable(R.drawable.kissu_lock_answer_bg, null)
+                } catch (e: Exception) {
+                    android.util.Log.e("LockScreenOverlay", "加载答案背景图片失败: ${e.message}")
+                    background = GradientDrawable().apply {
+                        setColor(Color.WHITE)
+                        cornerRadius = dp(12).toFloat()
+                    }
                 }
                 isClickable = true
                 isFocusable = true
@@ -749,7 +991,7 @@ class LockScreenOverlayService : Service() {
             }
             val optionParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                dp(56)
             ).apply {
                 bottomMargin = dp(12)
             }
@@ -761,45 +1003,191 @@ class LockScreenOverlayService : Service() {
     
     private fun onAnswerSelected(index: Int, button: TextView) {
         android.util.Log.d("LockScreenOverlay", "选择答案: $index, 正确答案: $correctAnswerIndex")
+        
         if (index == correctAnswerIndex) {
-            // 答对了，解锁
-            button.background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(12).toFloat()
-                setStroke(dp(2), Color.parseColor("#FF7ECE"))
+            // 答对了，使用正确答案背景图片
+            try {
+                button.background = resources.getDrawable(R.drawable.kissu_lock_right_bg, null)
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "加载正确答案背景图片失败: ${e.message}")
             }
-            handler?.postDelayed({
-                unlockScreen()
-            }, 300)
+            showSuccessDialog()
         } else {
-            // 答错了，显示错误状态
-            button.background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FFF0F0"))
-                cornerRadius = dp(12).toFloat()
-                setStroke(dp(2), Color.parseColor("#FF6B6B"))
+            // 答错了，使用错误答案背景图片
+            try {
+                button.background = resources.getDrawable(R.drawable.kissu_lock_wrong_bg, null)
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "加载错误答案背景图片失败: ${e.message}")
             }
             button.setTextColor(Color.parseColor("#FF6B6B"))
+            answerAttempts++  // 🔥 答错计数
             // 短暂延迟后重置
             handler?.postDelayed({
-                button.background = GradientDrawable().apply {
-                    setColor(Color.WHITE)
-                    cornerRadius = dp(12).toFloat()
-                    setStroke(dp(1), Color.parseColor("#EEEEEE"))
+                try {
+                    button.background = resources.getDrawable(R.drawable.kissu_lock_answer_bg, null)
+                } catch (e: Exception) {
+                    android.util.Log.e("LockScreenOverlay", "重置答案背景图片失败: ${e.message}")
                 }
                 button.setTextColor(Color.parseColor("#333333"))
             }, 800)
         }
     }
     
+    private fun showSuccessDialog() {
+        android.util.Log.d("LockScreenOverlay", "显示成功弹窗")
+        
+        // 创建半透明黑色背景遮罩
+        val dimBackground = View(this).apply {
+            setBackgroundColor(Color.parseColor("#80000000")) // 50%透明度黑色
+        }
+        val dimParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        questionContainer?.addView(dimBackground, dimParams)
+        
+        // 创建成功弹窗图片 (313x233)
+        val dialogImageView = ImageView(this).apply {
+            try {
+                setImageResource(R.drawable.kissu_lock_dialog)
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "加载成功弹窗图片失败: ${e.message}")
+            }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        
+        val dialogParams = FrameLayout.LayoutParams(
+            dp(313),
+            dp(233)
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+        
+        // 添加到问题容器中
+        questionContainer?.addView(dialogImageView, dialogParams)
+        
+        // 1.5秒后移除弹窗和遮罩并解锁
+        handler?.postDelayed({
+            questionContainer?.removeView(dialogImageView)
+            questionContainer?.removeView(dimBackground)
+            unlockScreen()
+        }, 1500)
+    }
+    
+    /**
+     * 🔥 注册关机/重启广播接收器
+     * 被锁方关机或重启时，持久化答题次数，锁屏数据保留（重启后快速恢复锁屏）
+     */
+    private fun registerShutdownReceiver() {
+        try {
+            shutdownReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val action = intent?.action
+                    if (action == Intent.ACTION_SHUTDOWN || action == "android.intent.action.QUICKBOOT_POWEROFF") {
+                        android.util.Log.d("LockScreenOverlay", "🔥 检测到关机/重启，当前锁屏模式: $isScreenLockMode")
+                        if (isScreenLockMode) {
+                            // 🔥 持久化答题次数（重启后恢复）
+                            val lockPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            lockPrefs.edit()
+                                .putInt("lock_answer_attempts", answerAttempts)
+                                .commit()  // commit()同步写入，确保关机前写入磁盘
+                            android.util.Log.d("LockScreenOverlay", "🔥 关机前已保存答题次数: $answerAttempts，锁屏数据保留")
+                            // 🔥 不清除锁屏数据，不发送解锁通知，重启后继续锁屏
+                        }
+                    }
+                }
+            }
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_SHUTDOWN)
+                addAction("android.intent.action.QUICKBOOT_POWEROFF")
+            }
+            registerReceiver(shutdownReceiver, filter)
+            android.util.Log.d("LockScreenOverlay", "🔥 关机/重启广播接收器已注册")
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "🔥 注册关机广播接收器失败: ${e.message}")
+        }
+    }
+    
+    /**
+     * 🔥 注销关机/重启广播接收器
+     */
+    private fun unregisterShutdownReceiver() {
+        try {
+            shutdownReceiver?.let {
+                unregisterReceiver(it)
+                android.util.Log.d("LockScreenOverlay", "🔥 关机/重启广播接收器已注销")
+            }
+            shutdownReceiver = null
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "🔥 注销关机广播接收器失败: ${e.message}")
+        }
+    }
+    
     private fun unlockScreen() {
-        android.util.Log.d("LockScreenOverlay", "答对问题，解锁屏幕")
-        // 清除锁屏数据
-        prefs?.edit()?.remove(KEY_SCREEN_LOCK)?.apply()
+        answerAttempts++  // 🔥 最后一次正确的也算一次
+        android.util.Log.d("LockScreenOverlay", "答对问题，解锁屏幕，共答题${answerAttempts}次")
+        
+        // 🔥 发送解锁通知给锁机方
+        sendUnlockPhoneReceive(answerAttempts)
+        
+        // 清除锁屏数据和答题次数
+        prefs?.edit()
+            ?.remove(KEY_SCREEN_LOCK)
+            ?.remove("lock_answer_attempts")
+            ?.apply()
         isScreenLockMode = false
         isAnsweringQuestion = false
         hideOverlay()
+        // 停止前台服务并清除通知
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
+    /**
+     * 🔥 发送解锁通知给锁机方（原生V2TIM发送自定义消息）
+     */
+    private fun sendUnlockPhoneReceive(attempts: Int) {
+        try {
+            // 从SharedPreferences读取锁机发送者ID
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val senderId = flutterPrefs.getString("flutter.lock_sender_id", null)
+            
+            if (senderId.isNullOrEmpty()) {
+                android.util.Log.w("LockScreenOverlay", "🔓 未找到锁机发送者ID，无法发送解锁通知")
+                return
+            }
+            
+            // 构造unlock_phone_receive消息
+            val msgData = JSONObject().apply {
+                put("type", "unlock_phone_receive")
+                put("attempts", attempts)
+            }
+            val msgBytes = msgData.toString().toByteArray()
+            
+            // 使用V2TIM SDK发送自定义消息
+            val msg = V2TIMManager.getMessageManager().createCustomMessage(msgBytes)
+            V2TIMManager.getMessageManager().sendMessage(
+                msg, senderId, null,
+                V2TIMMessage.V2TIM_PRIORITY_HIGH,
+                false, null,
+                object : V2TIMSendCallback<V2TIMMessage> {
+                    override fun onSuccess(message: V2TIMMessage?) {
+                        android.util.Log.d("LockScreenOverlay", "🔓 解锁通知已发送给锁机方: $senderId, 答题次数: $attempts")
+                    }
+                    override fun onError(code: Int, desc: String?) {
+                        android.util.Log.e("LockScreenOverlay", "🔓 发送解锁通知失败: code=$code, desc=$desc")
+                    }
+                    override fun onProgress(progress: Int) {}
+                }
+            )
+            
+            // 清除发送者ID
+            flutterPrefs.edit().remove("flutter.lock_sender_id").apply()
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "🔓 发送解锁通知异常: ${e.message}")
+        }
+    }
+    
     private fun openMessagingApp() {
         android.util.Log.d("LockScreenOverlay", "openMessagingApp 被点击")
         try {
@@ -808,7 +1196,6 @@ class LockScreenOverlayService : Service() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
-            android.util.Log.d("LockScreenOverlay", "短信应用已启动")
         } catch (e: Exception) {
             android.util.Log.e("LockScreenOverlay", "启动短信应用失败: ${e.message}")
             try {
@@ -830,7 +1217,6 @@ class LockScreenOverlayService : Service() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
-            android.util.Log.d("LockScreenOverlay", "电话应用已启动")
         } catch (e: Exception) { 
             android.util.Log.e("LockScreenOverlay", "启动电话应用失败: ${e.message}")
         }
@@ -843,19 +1229,22 @@ class LockScreenOverlayService : Service() {
             resources.displayMetrics
         ).toInt()
     }
+    
+    private fun loadCustomTypeface() {
+        try {
+            // Flutter assets 路径是 flutter_assets/...
+            customTypeface = Typeface.createFromAsset(assets, "flutter_assets/assets/font/AlimamaShuHeiTi-Bold.ttf")
+            android.util.Log.d("LockScreenOverlay", "自定义字体加载成功")
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "自定义字体加载失败: ${e.message}")
+            customTypeface = Typeface.DEFAULT_BOLD
+        }
+    }
 
     private fun hideOverlay() {
-        timeUpdateRunnable?.let { handler?.removeCallbacks(it) }
-        overlayView?.let {
-            try { windowManager?.removeView(it) } catch (e: Exception) { e.printStackTrace() }
-        }
-        overlayView = null
-        isOverlayShowing = false
+        hideOverlayOnly()
         isScreenLockMode = false
         isAnsweringQuestion = false
-        timeTextView = null
-        lockScreenContainer = null
-        questionContainer = null
     }
     
     private fun getPartnerNickname(): String {

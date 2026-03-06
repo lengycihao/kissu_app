@@ -118,6 +118,18 @@ class MessageConverter {
             avatarUrl: isSelf ? UserManager.userAvatar : partnerAvatarUrl,
           );
         }
+        
+        // 处理应用使用记录权限提醒消息（type: "phone_use"）
+        if (customType == 'phone_use') {
+          return ChatMessage(
+            id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            content: '开启应用使用记录权限',
+            type: MessageType.phoneUse,
+            isSent: isSelf,
+            time: msgTime,
+            avatarUrl: isSelf ? UserManager.userAvatar : partnerAvatarUrl,
+          );
+        }
 
         // 处理关联app消息（type: "connect_app"）
         if (customType == 'connect_app') {

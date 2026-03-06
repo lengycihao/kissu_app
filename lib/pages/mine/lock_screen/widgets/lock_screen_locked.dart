@@ -62,7 +62,7 @@ class LockScreenLockedView extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 44,
                   child: ElevatedButton(
                     onPressed: () => controller.unlockDevice(),
                     style: ElevatedButton.styleFrom(

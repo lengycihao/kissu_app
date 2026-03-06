@@ -39,6 +39,28 @@ class SystemPermissionController extends GetxController
 
   // 加载状态
   final RxBool isLoading = false.obs;
+  
+  // 闪烁提示状态（从锁机页面跳转时传入）
+  final RxBool flashOverlay = false.obs;
+  final RxBool flashUsage = false.obs;
+  
+  /// 检查某个权限类型是否需要闪烁提示
+  bool shouldFlash(SystemPermissionGuideType type) {
+    switch (type) {
+      case SystemPermissionGuideType.overlayWindow:
+        return flashOverlay.value;
+      case SystemPermissionGuideType.appUsage:
+        return flashUsage.value;
+      default:
+        return false;
+    }
+  }
+  
+  /// 清除闪烁状态
+  void clearFlashState() {
+    flashOverlay.value = false;
+    flashUsage.value = false;
+  }
 
   // 指引完成状态持久化 key
   static const _guidePreventSleepKey =
@@ -187,6 +209,13 @@ class SystemPermissionController extends GetxController
     _loadGuideCompletedStatus();
     // 初始化时检查权限状态
     checkAllPermissions();
+    
+    // 读取闪烁参数（从锁机页面跳转时传入）
+    final args = Get.arguments;
+    if (args is Map<String, dynamic>) {
+      flashOverlay.value = args['flashOverlay'] == true;
+      flashUsage.value = args['flashUsage'] == true;
+    }
 
     // 监听App使用记录权限变化
     ever(isUsageAccessGranted, (bool hasPermission) async {

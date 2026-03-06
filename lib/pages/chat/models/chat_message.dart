@@ -7,6 +7,7 @@ enum MessageType {
   systemEvent, // 系统事件消息（图标+文字，居中显示）
   defecate, // 一起便便消息（特殊气泡样式）
   lockPhone, // 锁机提醒卡片消息（开启悬浮窗权限）
+  phoneUse, // 应用使用记录权限提醒卡片消息
   connectApp, // 关联app卡片消息
 }
 

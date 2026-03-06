@@ -40,7 +40,16 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONArray
 import org.json.JSONObject
+import android.provider.Settings
+import com.tencent.imsdk.v2.V2TIMManager
+import com.tencent.imsdk.v2.V2TIMAdvancedMsgListener
+import com.tencent.imsdk.v2.V2TIMMessage
+import com.tencent.imsdk.v2.V2TIMSDKConfig
+import com.tencent.imsdk.v2.V2TIMCallback
+import com.tencent.imsdk.v2.V2TIMSDKListener
+import com.tencent.imsdk.v2.V2TIMSendCallback
 
 /**
  * 前台定位服务
@@ -80,6 +89,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         
         // 🔥 广播事件防抖间隔（毫秒）
         private const val BROADCAST_DEBOUNCE_MS = 1000L // 1秒内相同广播只处理一次
+        
+        // 🔥 IM SDK AppID（与Flutter侧TencentIMService.sdkAppID一致）
+        private const val IM_SDK_APP_ID = 1600095370
         
         @Volatile
         private var isServiceRunning = false
@@ -165,6 +177,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     private var lastScreenOffTime: Long = 0L
     private var lastScreenOnTime: Long = 0L
     private var lastUnlockTime: Long = 0L
+    
+    // 🔥 原生IM消息监听器（用于保活状态下接收锁屏指令）
+    private var imMsgListener: V2TIMAdvancedMsgListener? = null
     
     override fun onCreate() {
         super.onCreate()
@@ -364,6 +379,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         } catch (e: Exception) {
             logError("检查屏幕状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
+        
+        // 🔥 注册原生IM消息监听器（保活状态下接收锁屏指令）
+        registerImMessageListener()
     }
     
     override fun onBind(intent: Intent?): IBinder? {
@@ -374,6 +392,9 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         super.onDestroy()
         
          logWarning("⚠️ 原生前台定位服务被销毁，尝试自恢复")
+        
+        // 🔥 移除原生IM消息监听器
+        unregisterImMessageListener()
         
         // 🔥 停止定位监听（会释放 locationClient）
         stopLocationTracking()
@@ -439,6 +460,349 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         
         scheduleRestart(reason = "onTaskRemoved")
         scheduleWorkRestart(reason = "onTaskRemoved")
+    }
+    
+    // ==================== 🔥 原生IM消息监听（保活锁屏） ====================
+    
+    /**
+     * 注册原生V2TIM消息监听器
+     * 当前台服务保活进程时，通过IM长连接实时接收锁屏指令
+     * 无需用户操作，收到消息立即锁屏
+     * 
+     * 🔥 关键：app杀死后前台服务重启时，IM SDK未初始化，
+     * 需要先原生初始化SDK并登录，才能接收消息
+     */
+    private fun registerImMessageListener() {
+        try {
+            // 检查IM SDK是否已登录
+            val loginUser = V2TIMManager.getInstance().loginUser
+            if (!loginUser.isNullOrEmpty()) {
+                Log.d(TAG, "🔒 IM SDK已登录: $loginUser，直接注册消息监听器")
+                addImMsgListenerIfNeeded()
+                return
+            }
+            
+            // IM SDK未登录，需要原生初始化并登录
+            Log.d(TAG, "🔒 IM SDK未登录，尝试原生初始化并登录...")
+            initNativeIMAndLogin()
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 注册原生IM消息监听器失败", e)
+        }
+    }
+    
+    /**
+     * 原生初始化V2TIM SDK并登录
+     * 从SharedPreferences读取缓存的IM凭证进行登录
+     */
+    private fun initNativeIMAndLogin() {
+        try {
+            // 读取IM凭证
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val imUserId = flutterPrefs.getString("flutter.im_user_id", null)
+            val imUserSig = flutterPrefs.getString("flutter.im_user_sig", null)
+            
+            if (imUserId.isNullOrEmpty() || imUserSig.isNullOrEmpty()) {
+                Log.w(TAG, "🔒 IM凭证未找到(userId=${imUserId != null}, userSig=${imUserSig != null})，无法原生登录IM")
+                return
+            }
+            
+            Log.d(TAG, "🔒 找到IM凭证: userId=$imUserId，开始原生初始化SDK...")
+            
+            // 初始化V2TIM SDK
+            val config = V2TIMSDKConfig()
+            config.logLevel = V2TIMSDKConfig.V2TIM_LOG_WARN
+            val initResult = V2TIMManager.getInstance().initSDK(applicationContext, IM_SDK_APP_ID, config, object : V2TIMSDKListener() {
+                override fun onConnecting() {
+                    Log.d(TAG, "🔒 [原生IM] 正在连接...")
+                }
+                override fun onConnectSuccess() {
+                    Log.d(TAG, "🔒 [原生IM] 连接成功")
+                }
+                override fun onConnectFailed(code: Int, error: String?) {
+                    Log.e(TAG, "🔒 [原生IM] 连接失败: code=$code, error=$error")
+                }
+                override fun onKickedOffline() {
+                    Log.w(TAG, "🔒 [原生IM] 被踢下线")
+                }
+                override fun onUserSigExpired() {
+                    Log.w(TAG, "🔒 [原生IM] UserSig过期")
+                }
+            })
+            
+            if (!initResult) {
+                Log.e(TAG, "🔒 V2TIM SDK原生初始化失败")
+                return
+            }
+            
+            Log.d(TAG, "🔒 V2TIM SDK原生初始化成功，开始登录...")
+            
+            // 登录
+            V2TIMManager.getInstance().login(imUserId, imUserSig, object : V2TIMCallback {
+                override fun onSuccess() {
+                    Log.d(TAG, "🔒 V2TIM原生登录成功: $imUserId")
+                    // 登录成功后注册消息监听器
+                    addImMsgListenerIfNeeded()
+                    // 🔥 重启后检查锁屏状态，快速恢复锁屏
+                    checkAndRestoreLockScreen()
+                }
+                
+                override fun onError(code: Int, desc: String?) {
+                    Log.e(TAG, "🔒 V2TIM原生登录失败: code=$code, desc=$desc")
+                }
+            })
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 初始化原生IM SDK失败", e)
+        }
+    }
+    
+    /**
+     * 添加IM消息监听器（如果尚未添加）
+     */
+    private fun addImMsgListenerIfNeeded() {
+        if (imMsgListener != null) {
+            Log.d(TAG, "🔒 IM消息监听器已存在，跳过注册")
+            return
+        }
+        
+        imMsgListener = object : V2TIMAdvancedMsgListener() {
+            override fun onRecvNewMessage(msg: V2TIMMessage?) {
+                if (msg == null) return
+                
+                // 只处理非自己发送的消息
+                if (msg.isSelf) return
+                
+                // 只处理自定义消息
+                val customElem = msg.customElem ?: return
+                val data = customElem.data ?: return
+                
+                try {
+                    val dataStr = String(data)
+                    val json = JSONObject(dataStr)
+                    val type = json.optString("type", "")
+                    
+                    when (type) {
+                        "lock_screen_command" -> {
+                            Log.d(TAG, "🔒 [原生IM监听] 收到锁屏指令，立即启动锁屏！")
+                            // 存储发送者ID（用于答题解锁后发送unlock_phone_receive）
+                            val senderId = msg.sender
+                            if (!senderId.isNullOrEmpty()) {
+                                val flPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                                flPrefs.edit().putString("flutter.lock_sender_id", senderId).apply()
+                                Log.d(TAG, "🔒 已存储锁机发送者ID: $senderId")
+                            }
+                            handleNativeLockScreenCommand(json)
+                        }
+                        "unlock_phone_send" -> {
+                            Log.d(TAG, "🔓 [原生IM监听] 收到解锁指令，立即解锁！")
+                            handleNativeUnlockCommand()
+                        }
+                    }
+                } catch (e: Exception) {
+                    // 非JSON格式的自定义消息，忽略
+                }
+            }
+        }
+        
+        V2TIMManager.getMessageManager().addAdvancedMsgListener(imMsgListener)
+        Log.d(TAG, "🔒 原生IM消息监听器注册成功，可接收锁屏指令")
+    }
+    
+    /**
+     * 移除原生IM消息监听器
+     */
+    private fun unregisterImMessageListener() {
+        try {
+            imMsgListener?.let {
+                V2TIMManager.getMessageManager().removeAdvancedMsgListener(it)
+                Log.d(TAG, "🔒 原生IM消息监听器已移除")
+            }
+            imMsgListener = null
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 移除原生IM消息监听器失败", e)
+        }
+    }
+    
+    /**
+     * 处理锁屏指令（原生层直接处理，不依赖Flutter）
+     */
+    private fun handleNativeLockScreenCommand(json: JSONObject) {
+        try {
+            // 检查悬浮窗权限
+            if (!Settings.canDrawOverlays(this)) {
+                Log.w(TAG, "🔒 缺少悬浮窗权限，无法启动锁屏")
+                return
+            }
+            
+            // 解析锁屏数据
+            val question = json.optString("question", "什么马不能骑？")
+            val answersArray = json.optJSONArray("answers")
+            val answers = mutableListOf<String>()
+            if (answersArray != null) {
+                for (i in 0 until answersArray.length()) {
+                    answers.add(answersArray.getString(i))
+                }
+            } else {
+                answers.addAll(listOf("海马", "河马", "斑马", "木马"))
+            }
+            val correctIndex = json.optInt("correctIndex", 0)
+            val minutes = json.optInt("minutes", 5)
+            val lockText = json.optString("lockText", "")
+            val bgImageIndex = json.optInt("bgImageIndex", 0)
+            
+            // 存储问题数据到SharedPreferences供答题页面使用
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            flutterPrefs.edit().apply {
+                putString("flutter.lock_question", question)
+                putString("flutter.lock_answers", JSONArray(answers).toString())
+                putLong("flutter.lock_correct_index", correctIndex.toLong())
+                putString("flutter.lock_text", lockText)
+                putLong("flutter.lock_bg_image_index", bgImageIndex.toLong())
+                apply()
+            }
+            
+            Log.d(TAG, "🔒 锁屏数据已存储: question=$question, correctIndex=$correctIndex, minutes=$minutes")
+            
+            // 存储锁屏状态
+            val lockPrefs = getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
+            val endTime = System.currentTimeMillis() + minutes * 60 * 1000L
+            val lockInfo = JSONObject().apply {
+                put("endTime", endTime)
+                put("minutes", minutes)
+            }
+            lockPrefs.edit().putString(LockScreenOverlayService.KEY_SCREEN_LOCK, lockInfo.toString()).apply()
+            
+            // 启动锁屏服务
+            val serviceIntent = Intent(this, LockScreenOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            
+            Log.d(TAG, "🔒 锁屏服务已从前台服务中启动: ${minutes}分钟")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 处理锁屏指令失败", e)
+        }
+    }
+    
+    /**
+     * 🔥 重启后检查锁屏状态，快速恢复锁屏
+     * 防止被锁方通过重启手机逃避锁定
+     */
+    private fun checkAndRestoreLockScreen() {
+        try {
+            val lockPrefs = getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
+            val screenLockJson = lockPrefs.getString(LockScreenOverlayService.KEY_SCREEN_LOCK, null)
+            
+            if (screenLockJson.isNullOrEmpty()) {
+                Log.d(TAG, "🔒 没有锁屏数据，跳过锁屏恢复")
+                return
+            }
+            
+            val obj = JSONObject(screenLockJson)
+            val endTime = obj.optLong("endTime", 0)
+            val currentTime = System.currentTimeMillis()
+            
+            if (currentTime >= endTime) {
+                Log.d(TAG, "🔒 锁屏已过期，清除数据并发送解锁通知给锁机方")
+                lockPrefs.edit().remove(LockScreenOverlayService.KEY_SCREEN_LOCK).apply()
+                // 锁屏过期，发送解锁通知给A
+                sendExpiredUnlockNotification()
+                return
+            }
+            
+            // 检查悬浮窗权限
+            if (!Settings.canDrawOverlays(this)) {
+                Log.w(TAG, "🔒 缺少悬浮窗权限，无法恢复锁屏")
+                return
+            }
+            
+            Log.d(TAG, "🔒 发现未过期的锁屏，立即恢复！剩余: ${(endTime - currentTime) / 1000}秒")
+            
+            // 立即启动锁屏服务
+            val serviceIntent = Intent(this, LockScreenOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            
+            Log.d(TAG, "🔒 锁屏服务已快速恢复")
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 检查锁屏恢复失败", e)
+        }
+    }
+    
+    /**
+     * � 锁屏时间过期后发送解锁通知给锁机方
+     */
+    private fun sendExpiredUnlockNotification() {
+        try {
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val senderId = flutterPrefs.getString("flutter.lock_sender_id", null)
+            
+            if (senderId.isNullOrEmpty()) {
+                Log.w(TAG, "🔓 未找到锁机发送者ID，无法发送过期解锁通知")
+                return
+            }
+            
+            // 读取保存的答题次数
+            val lockPrefs = getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
+            val attempts = lockPrefs.getInt("lock_answer_attempts", 0)
+            
+            val msgData = JSONObject().apply {
+                put("type", "unlock_phone_receive")
+                put("attempts", attempts)
+            }
+            val msgBytes = msgData.toString().toByteArray()
+            
+            val msg = V2TIMManager.getMessageManager().createCustomMessage(msgBytes)
+            V2TIMManager.getMessageManager().sendMessage(
+                msg, senderId, null,
+                V2TIMMessage.V2TIM_PRIORITY_HIGH,
+                false, null,
+                object : V2TIMSendCallback<V2TIMMessage> {
+                    override fun onSuccess(message: V2TIMMessage?) {
+                        Log.d(TAG, "🔓 过期解锁通知已发送: sender=$senderId, attempts=$attempts")
+                        // 清理
+                        flutterPrefs.edit().remove("flutter.lock_sender_id").apply()
+                        lockPrefs.edit().remove("lock_answer_attempts").apply()
+                    }
+                    override fun onError(code: Int, desc: String?) {
+                        Log.e(TAG, "🔓 发送过期解锁通知失败: code=$code, desc=$desc")
+                    }
+                    override fun onProgress(progress: Int) {}
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "🔓 发送过期解锁通知失败", e)
+        }
+    }
+    
+    /**
+     * �� 处理解锁指令（原生层直接处理，不依赖Flutter）
+     */
+    private fun handleNativeUnlockCommand() {
+        try {
+            // 清除锁屏状态
+            val lockPrefs = getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
+            lockPrefs.edit().remove(LockScreenOverlayService.KEY_SCREEN_LOCK).apply()
+            
+            // 清除发送者ID
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            flutterPrefs.edit().remove("flutter.lock_sender_id").apply()
+            
+            // 停止锁屏服务
+            val serviceIntent = Intent(this, LockScreenOverlayService::class.java).apply {
+                action = "STOP_SERVICE"
+            }
+            startService(serviceIntent)
+            
+            Log.d(TAG, "🔓 已执行原生解锁操作")
+        } catch (e: Exception) {
+            Log.e(TAG, "🔓 处理解锁指令失败", e)
+        }
     }
     
     /**
