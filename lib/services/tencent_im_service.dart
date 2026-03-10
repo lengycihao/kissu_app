@@ -1064,18 +1064,26 @@ class TencentIMService extends GetxService {
         'user_id': receiverID,
       };
       
-      // 🔥 尝试解析customData并合并到extData中
+      // 🔥 尝试解析customData并合并到extData中，同时获取消息类型用于自定义推送文案
+      String pushDesc = '[消息]';
       try {
         final customDataMap = jsonDecode(customData) as Map<String, dynamic>;
         extData.addAll(customDataMap);
-        logger.debug('🔔 离线推送ext已合并customData: type=${customDataMap['type']}', tag: 'TencentIMService');
+        final msgType = customDataMap['type'] as String?;
+        // 🔥 根据消息类型自定义推送文案
+        if (msgType == 'lock_screen_command') {
+          pushDesc = '[锁机指令来啦~]';
+        } else if (msgType == 'unlock_phone_send') {
+          pushDesc = '[解锁指令来啦~]';
+        }
+        logger.debug('🔔 离线推送ext已合并customData: type=$msgType, desc=$pushDesc', tag: 'TencentIMService');
       } catch (e) {
         logger.warning('🔔 customData不是有效JSON，无法合并到ext: $e', tag: 'TencentIMService');
       }
       
       final offlinePushInfo = OfflinePushInfo(
         title: '你有一条新消息',
-        desc: '[消息]',
+        desc: pushDesc,
         disablePush: false,
         iOSSound: 'default',
         ignoreIOSBadge: false,

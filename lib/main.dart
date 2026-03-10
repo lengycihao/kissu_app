@@ -9,7 +9,7 @@ import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
-import 'package:oktoast/oktoast.dart';
+import 'package:oktoast/oktoast.dart'; 
 import 'package:openinstall_flutter_plugin/openinstall_flutter_plugin.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/tools/logging/log_config.dart';

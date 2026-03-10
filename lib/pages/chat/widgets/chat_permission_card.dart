@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart' as toast_util;
 import '../models/chat_message.dart';
 
 /// 权限提醒卡片消息组件（lock_phone / connect_app）
@@ -34,8 +37,22 @@ class ChatPermissionCard extends StatelessWidget {
     }
     
     return GestureDetector(
-      onTap: () {
-        // 点击卡片跳转到权限设置页面
+      onTap: () async {
+        // 点击卡片前先检查权限是否已开启
+        if (isLockPhone) {
+          final granted = await LockScreenOverlayService.checkOverlayPermission();
+          if (granted) {
+            toast_util.OKToastUtil.show('悬浮窗权限已开启');
+            return;
+          }
+        } else if (isPhoneUse) {
+          final granted = await PermissionService().isUsageAccessGranted();
+          if (granted) {
+            toast_util.OKToastUtil.show('应用使用记录权限已开启');
+            return;
+          }
+        }
+        // 权限未开启，跳转到权限设置页面
         if (isLockPhone || isPhoneUse) {
           Get.toNamed(
             KissuRoutePath.systemPermission,

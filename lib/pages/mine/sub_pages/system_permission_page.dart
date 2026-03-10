@@ -249,7 +249,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
     );
     
     // 手指图片缩放动画：从0.8到1.2
-    _scaleFlashAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+    _scaleFlashAnimation = Tween<double>(begin: 0.8, end: 1.1).animate(
       CurvedAnimation(parent: _flashController!, curve: Curves.easeInOut),
     );
     
@@ -344,7 +344,8 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
           cardWidget,
           // 手指图片居中显示
           Positioned.fill(
-            child: Transform.translate(offset: Offset(80, 0),child: Center(
+            child: Transform.translate(offset: Offset(-10, 0),child: Align (
+              alignment: AlignmentGeometry.centerRight,
               child: AnimatedBuilder(
                 animation: _scaleFlashAnimation!,
                 builder: (context, child) {
@@ -354,8 +355,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
                       'assets/lock/kissu_touch.png',
                       width: 60,
                       height: 60,
-                      color: Colors.blue,
-                    ),
+                     ),
                   );
                 },
               ),

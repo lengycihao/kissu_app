@@ -802,6 +802,7 @@ class LockScreenOverlayService : Service() {
     private fun openQuestionPage() {
         android.util.Log.d("LockScreenOverlay", "openQuestionPage 被点击，在悬浮窗内切换到答题页面")
         isAnsweringQuestion = true
+        isAnswerLocked = false  // 🔥 重置答案锁定状态
         // 加载问题数据
         loadQuestionData()
         // 在悬浮窗内切换到答题视图
@@ -1001,10 +1002,18 @@ class LockScreenOverlayService : Service() {
         return container
     }
     
+    private var isAnswerLocked = false  // 🔥 选对答案后锁定，防止弹窗期间重复选择
+    
     private fun onAnswerSelected(index: Int, button: TextView) {
+        if (isAnswerLocked) return  // 🔥 已选对答案，弹窗期间不允许再选
+        
+        // 🔥 轻微震动反馈
+        vibrateLight()
+        
         android.util.Log.d("LockScreenOverlay", "选择答案: $index, 正确答案: $correctAnswerIndex")
         
         if (index == correctAnswerIndex) {
+            isAnswerLocked = true  // 🔥 锁定答案选择
             // 答对了，使用正确答案背景图片
             try {
                 button.background = resources.getDrawable(R.drawable.kissu_lock_right_bg, null)
@@ -1219,6 +1228,23 @@ class LockScreenOverlayService : Service() {
             startActivity(intent)
         } catch (e: Exception) { 
             android.util.Log.e("LockScreenOverlay", "启动电话应用失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 🔥 轻微震动反馈（选择答案时）
+     */
+    private fun vibrateLight() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(30)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "震动失败: ${e.message}")
         }
     }
 

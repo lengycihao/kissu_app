@@ -72,6 +72,9 @@ class ChatController extends GetxController {
   // 是否已经执行过初始化滚动
   bool _hasScrolledOnInit = false;
 
+  // 🔥 对方是否被锁机中
+  final RxBool isPartnerLocked = false.obs;
+
   // 对方IM唯一ID（用于腾讯IM单聊会话）
   String? _partnerImId;
   String? get partnerImId => _partnerImId;
@@ -545,11 +548,25 @@ class ChatController extends GetxController {
     _loadBubbleStyleFromCache();
     _loadThemeFromCache();
     _loadSensitiveCollapseFromCache();
+    _checkPartnerLockState();
     // 进入聊天页面时，将未读消息数清零
     try {
       final im = TencentIMService.instance;
       im.clearC2CUnreadCount();
     } catch (_) {}
+  }
+
+  /// 🔥 检查对方是否被锁机中
+  Future<void> _checkPartnerLockState() async {
+    try {
+      final isLocked = await SpUtil.getBool('is_locked', false);
+      isPartnerLocked.value = isLocked;
+    } catch (_) {}
+  }
+
+  /// 🔥 刷新对方锁机状态（从锁机页面返回时调用）
+  void refreshPartnerLockState() {
+    _checkPartnerLockState();
   }
   
   /// 初始化用户VIP状态
@@ -1254,8 +1271,8 @@ class ChatController extends GetxController {
             );
           }
 
-          // 处理锁机提醒消息（type: "lock_phone"）
-          final String? customType = decoded['type'] as String?;
+          // 处理锁机提醒消息（msg_lock: "lock_phone"）
+          final String? customType = decoded['msg_lock'] as String?;
           if (customType == 'lock_phone') {
             return ChatMessage(
               id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -1267,7 +1284,7 @@ class ChatController extends GetxController {
             );
           }
           
-          // 处理应用使用记录权限提醒消息（type: "phone_use"）
+          // 处理应用使用记录权限提醒消息（msg_lock: "phone_use"）
           if (customType == 'phone_use') {
             return ChatMessage(
               id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -1279,7 +1296,7 @@ class ChatController extends GetxController {
             );
           }
 
-          // 处理关联app消息（type: "connect_app"）
+          // 处理关联app消息（msg_lock: "connect_app"）
           if (customType == 'connect_app') {
             return ChatMessage(
               id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),

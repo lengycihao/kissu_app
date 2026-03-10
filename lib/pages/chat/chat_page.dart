@@ -106,6 +106,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
               ),
 
+              // 🔥 一键锁机按钮
+              _buildLockButton(),
+
               // 输入栏
               Obx(() => ChatInputBar(
                     key: _inputBarKey,
@@ -141,6 +144,63 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  // 🔥 一键锁机按钮
+  Widget _buildLockButton() {
+    return Obx(() {
+      final isLocked = controller.isPartnerLocked.value;
+      return GestureDetector(
+        onTap: () async {
+          await Get.toNamed(KissuRoutePath.lockScreen);
+          // 从锁机页面返回后刷新状态
+          controller.refreshPartnerLockState();
+        },
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 锁机图标
+              Image.asset(
+                'assets/lock/kissu_lock_icon.webp',
+                width: 20,
+                height: 20,
+              ),
+              const SizedBox(width: 4),
+              // 一键锁机文字
+              const Text(
+                '一键锁机',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF666666),
+                ),
+              ),
+              // 锁机中标签
+              if (isLocked) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFFDDDDDD), width: 0.5),
+                  ),
+                  child: const Text(
+                    '锁机中',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF999999),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   // 顶部导航栏

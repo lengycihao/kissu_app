@@ -327,14 +327,14 @@ class LockScreenController extends GetxController {
     // 发送悬浮窗权限提醒消息
     await im.sendCustomMessage(
       receiverID: partnerId,
-      customData: jsonEncode({'type': 'lock_phone'}),
+      customData: jsonEncode({'msg_lock': 'lock_phone'}),
     );
     debugPrint('已发送悬浮窗权限提醒消息给对方');
     
     // 发送app使用记录权限提醒消息
     await im.sendCustomMessage(
       receiverID: partnerId,
-      customData: jsonEncode({'type': 'phone_use'}),
+      customData: jsonEncode({'msg_lock': 'phone_use'}),
     );
     debugPrint('已发送app使用记录权限提醒消息给对方');
   }

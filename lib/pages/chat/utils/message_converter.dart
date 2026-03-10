@@ -106,8 +106,8 @@ class MessageConverter {
           );
         }
 
-        // 处理锁机提醒消息（type: "lock_phone"）
-        final String? customType = decoded['type'] as String?;
+        // 处理锁机提醒消息（msg_lock: "lock_phone"）
+        final String? customType = decoded['msg_lock'] as String?;
         if (customType == 'lock_phone') {
           return ChatMessage(
             id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -119,7 +119,7 @@ class MessageConverter {
           );
         }
         
-        // 处理应用使用记录权限提醒消息（type: "phone_use"）
+        // 处理应用使用记录权限提醒消息（msg_lock: "phone_use"）
         if (customType == 'phone_use') {
           return ChatMessage(
             id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -131,7 +131,7 @@ class MessageConverter {
           );
         }
 
-        // 处理关联app消息（type: "connect_app"）
+        // 处理关联app消息（msg_lock: "connect_app"）
         if (customType == 'connect_app') {
           return ChatMessage(
             id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
