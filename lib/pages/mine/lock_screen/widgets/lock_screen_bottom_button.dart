@@ -68,7 +68,7 @@ class _LockScreenBottomButtonState extends State<LockScreenBottomButton>
         width: double.infinity,
         height: 44,
         child: ElevatedButton(
-          onPressed: canProceed ? () => controller.goToStep2() : null,
+          onPressed: canProceed ? () => controller.onStep1NextTap(context) : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: canProceed ? Colors.black87 : Colors.grey[300],
             foregroundColor: Colors.white,

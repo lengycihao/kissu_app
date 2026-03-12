@@ -633,21 +633,52 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 return
             }
             
-            // 解析锁屏数据
+            // 解析锁屏数据（IM消息字段: question, answers, lock_prompt, lock_bg_image, default_bg_image_index）
             val question = json.optString("question", "什么马不能骑？")
-            val answersArray = json.optJSONArray("answers")
+            val minutes = json.optInt("minutes", 2000)
+            val lockText = json.optString("lock_prompt", json.optString("lockText", ""))
+            val bgImageUrl = json.optString("lock_bg_image", "")
+            
+            // 解析 default_bg_image_index（"kissu_lock_1"/"kissu_lock_2"/"kissu_lock_3" → 0/1/2）
+            val defaultBgImageIndexStr = json.optString("default_bg_image_index", "")
+            val bgImageIndex = when (defaultBgImageIndexStr) {
+                "kissu_lock_2" -> 1
+                "kissu_lock_3" -> 2
+                else -> 0
+            }
+            
+            // 解析 answers 字段（含 is_answer 字段的JSON数组），提取答案文本和正确答案索引
             val answers = mutableListOf<String>()
-            if (answersArray != null) {
-                for (i in 0 until answersArray.length()) {
-                    answers.add(answersArray.getString(i))
+            var correctIndex = -1
+            try {
+                val answersRaw = json.opt("answers")
+                val answerArray: JSONArray? = when (answersRaw) {
+                    is String -> JSONArray(answersRaw)
+                    is JSONArray -> answersRaw
+                    else -> null
                 }
-            } else {
+                if (answerArray != null) {
+                    for (i in 0 until answerArray.length()) {
+                        val item = answerArray.opt(i)
+                        if (item is JSONObject) {
+                            answers.add(item.optString("answer", ""))
+                            if (item.optInt("is_answer", 0) == 1 && correctIndex < 0) {
+                                correctIndex = i
+                            }
+                        } else {
+                            answers.add(item.toString())
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "🔒 解析answers失败: ${e.message}")
+            }
+            if (answers.isEmpty()) {
                 answers.addAll(listOf("海马", "河马", "斑马", "木马"))
             }
-            val correctIndex = json.optInt("correctIndex", 0)
-            val minutes = json.optInt("minutes", 5)
-            val lockText = json.optString("lockText", "")
-            val bgImageIndex = json.optInt("bgImageIndex", 0)
+            if (correctIndex < 0) correctIndex = 0
+            
+            Log.d(TAG, "🔒 解析IM锁屏数据: question=$question, answers=$answers, correctIndex=$correctIndex, bgImageIndex=$bgImageIndex, defaultBgImageIndex=$defaultBgImageIndexStr")
             
             // 存储问题数据到SharedPreferences供答题页面使用
             val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
@@ -657,10 +688,20 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 putLong("flutter.lock_correct_index", correctIndex.toLong())
                 putString("flutter.lock_text", lockText)
                 putLong("flutter.lock_bg_image_index", bgImageIndex.toLong())
+                putString("flutter.lock_default_bg_image_index", defaultBgImageIndexStr)
+                if (bgImageUrl.isNotEmpty()) {
+                    putString("flutter.lock_bg_image_url", bgImageUrl)
+                    // 自定义图片时清除预设索引
+                    putString("flutter.lock_bg_image_local_path", "") // 原生端会异步下载
+                } else {
+                    // 预设图片时清除自定义图片路径，防止残留
+                    putString("flutter.lock_bg_image_url", "")
+                    putString("flutter.lock_bg_image_local_path", "")
+                }
                 apply()
             }
             
-            Log.d(TAG, "🔒 锁屏数据已存储: question=$question, correctIndex=$correctIndex, minutes=$minutes")
+            Log.d(TAG, "🔒 锁屏数据已存储: question=$question, correctIndex=$correctIndex, minutes=$minutes, lockText=$lockText")
             
             // 存储锁屏状态
             val lockPrefs = getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
@@ -671,15 +712,21 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
             lockPrefs.edit().putString(LockScreenOverlayService.KEY_SCREEN_LOCK, lockInfo.toString()).apply()
             
-            // 启动锁屏服务
+            // 启动锁屏服务，传递lockText和bgImageUrl通过Intent extras
             val serviceIntent = Intent(this, LockScreenOverlayService::class.java)
+            if (lockText.isNotEmpty()) {
+                serviceIntent.putExtra("lock_text", lockText)
+            }
+            if (bgImageUrl.isNotEmpty()) {
+                serviceIntent.putExtra("bg_image_path", bgImageUrl)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
             } else {
                 startService(serviceIntent)
             }
             
-            Log.d(TAG, "🔒 锁屏服务已从前台服务中启动: ${minutes}分钟")
+            Log.d(TAG, "🔒 锁屏服务已从前台服务中启动: ${minutes}分钟, lockText=$lockText")
             
         } catch (e: Exception) {
             Log.e(TAG, "🔒 处理锁屏指令失败", e)

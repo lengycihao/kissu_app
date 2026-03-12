@@ -22,6 +22,7 @@ import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
 
 class ChatController extends GetxController {
   // 滚动控制器
@@ -549,6 +550,8 @@ class ChatController extends GetxController {
     _loadThemeFromCache();
     _loadSensitiveCollapseFromCache();
     _checkPartnerLockState();
+    // 预拉取对方锁机权限（供一键锁机页面使用，避免UI闪动）
+    LockPermissionApi.prefetchPartnerPermission();
     // 进入聊天页面时，将未读消息数清零
     try {
       final im = TencentIMService.instance;
@@ -556,11 +559,13 @@ class ChatController extends GetxController {
     } catch (_) {}
   }
 
-  /// 🔥 检查对方是否被锁机中
-  Future<void> _checkPartnerLockState() async {
+  /// 🔥 检查对方是否被锁机中（从用户信息接口的 half_lock_status 字段获取）
+  /// half_lock_status: 0=无状态, 1=锁机中, 2=已解锁
+  void _checkPartnerLockState() {
     try {
-      final isLocked = await SpUtil.getBool('is_locked', false);
-      isPartnerLocked.value = isLocked;
+      final user = UserManager.currentUser;
+      final lockStatus = user?.halfLockStatus ?? 0;
+      isPartnerLocked.value = lockStatus == 1;
     } catch (_) {}
   }
 

@@ -39,6 +39,8 @@ import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
+import 'package:kissu_app/widgets/dialogs/lock_screen_vip_dialog.dart';
 
 class MineController extends GetxController {
   // 用户信息
@@ -110,9 +112,11 @@ class MineController extends GetxController {
 
   // 常用功能项
   var commonFunctionItems = <CommonFunctionItem>[].obs;
-  
-  // 是否已进入过更换app图标模块
-  static const String _hasEnteredChangeLogoKey = 'has_entered_change_logo';
+
+  // 是否已进入过一键锁机模块（用于控制new角标）
+  static const String _hasEnteredLockScreenKey = 'has_entered_lock_screen';
+  // 对方是否被锁机中
+  final isPartnerLocked = false.obs;
 
   // 下拉刷新相关
   var isRefreshing = false.obs;
@@ -191,6 +195,10 @@ class MineController extends GetxController {
     checkAllPermissions();
     // 加载红点状态
     _loadRedDotStatus();
+    // 预拉取对方锁机权限（供一键锁机页面使用，避免UI闪动）
+    LockPermissionApi.prefetchPartnerPermission();
+    // 检查对方锁机状态
+    _checkPartnerLockState();
   }
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
@@ -203,6 +211,8 @@ class MineController extends GetxController {
     checkAllPermissions();
     // 刷新红点状态
     _loadRedDotStatus();
+    // 刷新锁机状态（从锁机页面返回时）
+    _checkPartnerLockState();
   }
 
   /// 加载红点状态
@@ -465,15 +475,38 @@ class MineController extends GetxController {
     return "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}";
   }
 
+  /// 检查对方是否被锁机中（从用户信息接口的 half_lock_status 字段获取）
+  /// half_lock_status: 0=无状态, 1=锁机中, 2=已解锁
+  void _checkPartnerLockState() {
+    try {
+      final user = UserManager.currentUser;
+      final lockStatus = user?.halfLockStatus ?? 0;
+      isPartnerLocked.value = lockStatus == 1;
+      // 刷新常用功能列表以更新角标状态
+      _initCommonFunctionItems();
+    } catch (_) {}
+  }
+
   Future<void> _initCommonFunctionItems() async {
-    // 读取是否已进入过更换app图标模块
+    // 读取是否已进入过各模块
     final prefs = await SharedPreferences.getInstance();
-    final hasEnteredChangeLogo = prefs.getBool(_hasEnteredChangeLogoKey) ?? false;
-    
+    final hasEnteredLockScreen =
+        prefs.getBool(_hasEnteredLockScreenKey) ?? false;
+
+    // 一键锁机角标逻辑：锁机中显示kissu_locking，未进入过且未锁机显示new角标
+    String? lockSubIcon;
+    if (isPartnerLocked.value) {
+      lockSubIcon = 'assets/lock/kissu_locking.webp';
+    } else if (!hasEnteredLockScreen) {
+      lockSubIcon = 'assets/4.0/kissu_change_logo_new.webp';
+    }
+
     commonFunctionItems.value = [
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_newhome.webp",
         title: "一键锁机",
+        isLocked: isPartnerLocked.value,
+        subIcon: lockSubIcon,
         onTap: () => _onPersonalizedHomeTap(),
       ),
       CommonFunctionItem(
@@ -501,7 +534,7 @@ class MineController extends GetxController {
         title: "酒店防偷拍",
         onTap: () => _onAntiSpyTap(),
       ),
-      
+
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_minganjilu.webp",
         title: "敏感操作记录",
@@ -510,7 +543,6 @@ class MineController extends GetxController {
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_change_logo.webp",
         title: "更换app图标",
-        subIcon: hasEnteredChangeLogo ? null : "assets/4.0/kissu_change_logo_new.webp",
         onTap: () => _onChangeAppIconTap(),
       ),
       // CommonFunctionItem(
@@ -1049,21 +1081,55 @@ class MineController extends GetxController {
     );
   }
 
-  /// 个性化首页点击事件
-  void _onPersonalizedHomeTap() {
+  ///  一键锁机
+  void _onPersonalizedHomeTap() async {
     // 埋点：记录个性化首页功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(
-      btnName: FunctionModuleValue.personalizedHome,
+      btnName: FunctionModuleValue.oneKeyLock,
     );
 
-    // 改为简单的 Toast 提示，而不是弹窗
-    // OKToastUtil.show('敬请期待！');
-     Get.to(
+    // 1. 未绑定：弹出绑定弹窗
+    if (!isBound.value) {
+      logDebug('一键锁机：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
+      if (Get.context != null) {
+        await CustomBottomDialog.show(
+          context: Get.context!,
+          caller: SourcePageUtilsCaller.mine,
+          sourceEvent: MyPageEvents.functionsModule,
+          isDismissible: false,
+          enableDrag: false,
+          onCloseConfirm: () async {
+            return await _showBindingCloseConfirmDialog();
+          },
+        );
+        // 绑定弹窗关闭后，刷新页面数据
+        onPageResumed();
+      }
+      return;
+    }
+
+    // 2. 已绑定但非会员：弹出VIP弹窗
+    if (!UserManager.isVip) {
+      logDebug('一键锁机：已绑定但非会员，弹出VIP弹窗', tag: 'Mine');
+      if (Get.context != null) {
+        await LockScreenVipDialog.show(Get.context!);
+      }
+      return;
+    }
+
+    // 3. 已绑定且是会员：进入一键锁机页面
+    // 标记已进入过一键锁机模块（隐藏new角标）
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hasEnteredLockScreenKey, true);
+
+    onNavigateToNextPage?.call();
+    await Get.to(
       () => const LockScreenPage(),
       binding: LockScreenBinding(),
       transition: Transition.rightToLeft,
     );
-
+    // 从锁机页面返回后刷新锁机状态和图标
+    _checkPartnerLockState();
   }
 
   /// 敏感操作记录页面
@@ -1099,18 +1165,11 @@ class MineController extends GetxController {
   }
 
   /// 更换app图标点击事件
-  void _onChangeAppIconTap() async {
+  void _onChangeAppIconTap() {
     // 埋点：记录更换app图标功能点击
     AnalyticsHelper.trackMyPageFunctionsModule(
       btnName: FunctionModuleValue.changeAppIcon,
     );
-    
-    // 标记已进入过更换app图标模块
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_hasEnteredChangeLogoKey, true);
-    
-    // 刷新列表以隐藏new图标
-    _initCommonFunctionItems();
 
     onNavigateToNextPage?.call();
     Get.toNamed(KissuRoutePath.appIconSelector);
@@ -1193,8 +1252,16 @@ class SettingItem {
 
 class CommonFunctionItem {
   final String icon;
-  final String title;final String? subIcon;
-   final void Function()? onTap;
+  final String title;
+  final bool? isLocked;
+  final String? subIcon;
+  final void Function()? onTap;
 
-  CommonFunctionItem({required this.icon, required this.title,this.subIcon, this.onTap});
+  CommonFunctionItem({
+    required this.icon,
+    required this.title,
+    this.isLocked,
+    this.subIcon,
+    this.onTap,
+  });
 }

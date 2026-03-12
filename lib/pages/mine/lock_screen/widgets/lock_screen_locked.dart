@@ -101,12 +101,36 @@ class LockScreenLockedView extends StatelessWidget {
       if (controller.lockRecords.isEmpty) {
         return const SizedBox.shrink();
       }
-      return ListView.builder(
-        padding: EdgeInsets.only(left: 20, right: 20, bottom: bottomPadding + 20),
-        itemCount: controller.lockRecords.length,
-        itemBuilder: (context, index) {
-          return _buildRecordItem(controller.lockRecords[index]);
+      return NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollEndNotification &&
+              notification.metrics.pixels >= notification.metrics.maxScrollExtent - 50) {
+            controller.loadMoreLockRecords();
+          }
+          return false;
         },
+        child: ListView.builder(
+          padding: EdgeInsets.only(left: 20, right: 20, bottom: bottomPadding + 20),
+          itemCount: controller.lockRecords.length + (controller.lockRecordHasMore.value ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= controller.lockRecords.length) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFFF7ECE),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return _buildRecordItem(controller.lockRecords[index]);
+          },
+        ),
       );
     });
   }

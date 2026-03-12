@@ -1651,23 +1651,102 @@ class TencentIMService extends GetxService {
         await prefs2.setString('lock_sender_id', partnerId);
       }
 
-      // 存储问题数据到SharedPreferences供答题页面使用
-      final question = decoded['question'] as String? ?? '';
-      final answers = (decoded['answers'] as List?)?.cast<String>() ?? [];
-      final correctIndex = decoded['correctIndex'] as int? ?? 0;
-      final minutes = decoded['minutes'] as int? ?? 5;
-      
-      // 锁屏界面显示信息
-      final lockText = decoded['lockText'] as String? ?? '';
-      final bgImageIndex = decoded['bgImageIndex'] as int? ?? 0;
+      // 兼容新旧字段：lock_question/question, lock_answer/answers, lock_prompt/lockText/lock_text
+      final question = (decoded['lock_question'] ?? decoded['question']) as String? ?? '';
+      final lockAnswerRaw = decoded['lock_answer'] ?? decoded['answers'];
+      final minutes = 2000;
+      final lockPrompt = (decoded['lock_prompt'] ?? decoded['lock_text'] ?? decoded['lockText']) as String? ?? '';
+      final lockBgImage = (decoded['lock_bg_image'] ?? decoded['lock_bg_image_url']) as String? ?? '';
+      final defaultBgImageIndex = (decoded['default_bg_image_index']) as String? ?? '';
+
+      logger.info('🔒 IM原始数据: ${decoded.keys.toList()}', tag: 'TencentIMService');
+      logger.info('🔒 lock_prompt=$lockPrompt, lock_bg_image=$lockBgImage, default_bg_image_index=$defaultBgImageIndex', tag: 'TencentIMService');
+
+      // 解析答案列表并找出正确答案索引
+      List<String> answers = [];
+      int correctIndex = decoded['correctIndex'] as int? ?? decoded['answer_index'] as int? ?? -1;
+      try {
+        List<dynamic> answerList;
+        if (lockAnswerRaw is String) {
+          answerList = jsonDecode(lockAnswerRaw) as List;
+        } else if (lockAnswerRaw is List) {
+          answerList = lockAnswerRaw;
+        } else {
+          answerList = [];
+        }
+        for (int i = 0; i < answerList.length; i++) {
+          final item = answerList[i];
+          if (item is Map) {
+            answers.add(item['answer'] as String? ?? '');
+            // 从 is_answer 字段确定正确答案索引
+            if ((item['is_answer'] as int? ?? 0) == 1 && correctIndex < 0) {
+              correctIndex = i;
+            }
+          } else {
+            answers.add(item.toString());
+          }
+        }
+      } catch (e) {
+        logger.warning('🔒 解析answers失败: $e', tag: 'TencentIMService');
+      }
+      if (correctIndex < 0) correctIndex = 0; // 兜底
+
+      logger.info('🔒 解析锁机数据: question=$question, answers=$answers, correctIndex=$correctIndex', tag: 'TencentIMService');
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('lock_question', question);
       await prefs.setString('lock_answers', jsonEncode(answers));
       await prefs.setInt('lock_correct_index', correctIndex);
-      // 存储锁屏界面显示信息
-      await prefs.setString('lock_text', lockText);
-      await prefs.setInt('lock_bg_image_index', bgImageIndex);
+      // 存储锁屏界面显示信息（新字段 + 旧字段兼容原生端）
+      await prefs.setString('lock_text', lockPrompt);
+      await prefs.setString('lockText', lockPrompt); // 原生端旧key
+      // 背景图逻辑：
+      // - default_bg_image_index 有值(kissu_lock_1/2/3) → 本地预设图片，转换为索引 0/1/2
+      // - lock_bg_image 有值 → 自定义图片URL，需要下载
+      int bgImageIdx = 0;
+      if (defaultBgImageIndex.isNotEmpty) {
+        if (defaultBgImageIndex == 'kissu_lock_2') {
+          bgImageIdx = 1;
+        } else if (defaultBgImageIndex == 'kissu_lock_3') {
+          bgImageIdx = 2;
+        }
+      }
+      await prefs.setInt('lock_bg_image_index', bgImageIdx);
+      // 存储 default_bg_image_index 原始值供原生端读取
+      await prefs.setString('lock_default_bg_image_index', defaultBgImageIndex);
+      logger.info('🔒 背景图: defaultBgImageIndex=$defaultBgImageIndex -> bgImageIdx=$bgImageIdx, lockBgImage=$lockBgImage', tag: 'TencentIMService');
+
+      // 背景图：在Flutter侧先下载到本地文件，再让原生读取本地文件（避免原生下载延迟）
+      String localBgPath = '';
+      if (lockBgImage.isNotEmpty) {
+        try {
+          logger.info('🔒 开始下载背景图到本地: $lockBgImage', tag: 'TencentIMService');
+          final httpClient = HttpClient();
+          final request = await httpClient.getUrl(Uri.parse(lockBgImage));
+          final response = await request.close();
+          if (response.statusCode == 200) {
+            final bytesList = <List<int>>[];
+            await for (final chunk in response) {
+              bytesList.add(chunk);
+            }
+            final bytes = bytesList.expand((x) => x).toList();
+            // 保存到应用缓存目录
+            final dir = Directory('/data/data/${const String.fromEnvironment('APP_ID', defaultValue: 'com.yuluo.kissu')}/cache');
+            if (!await dir.exists()) await dir.create(recursive: true);
+            final file = File('${dir.path}/lock_bg_image.jpg');
+            await file.writeAsBytes(bytes);
+            localBgPath = file.path;
+            logger.info('🔒 背景图下载成功, 大小=${bytes.length}B, 路径=$localBgPath', tag: 'TencentIMService');
+          } else {
+            logger.warning('🔒 背景图下载失败: HTTP ${response.statusCode}', tag: 'TencentIMService');
+          }
+          httpClient.close();
+        } catch (e) {
+          logger.warning('🔒 背景图下载异常: $e', tag: 'TencentIMService');
+        }
+      }
+      await prefs.setString('lock_bg_image_local_path', localBgPath);
+      logger.info('🔒 已存储锁屏数据: lockPrompt=${lockPrompt}, bgLocalPath=$localBgPath', tag: 'TencentIMService');
       
       // 存储另一半的头像和昵称（供原生锁屏界面使用）
       final user = UserManager.currentUser;
@@ -1677,7 +1756,11 @@ class TencentIMService extends GetxService {
       await prefs.setString('lock_partner_nickname', partnerNickname);
       await prefs.setString('lock_partner_avatar', partnerAvatar);
 
-      final result = await LockScreenOverlayService.lockScreen(minutes: minutes);
+      final result = await LockScreenOverlayService.lockScreen(
+        minutes: minutes,
+        lockText: lockPrompt,
+        bgImagePath: localBgPath,
+      );
       if (result) {
         logger.info('🔒 锁屏启动成功', tag: 'TencentIMService');
       } else {

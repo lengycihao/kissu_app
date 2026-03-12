@@ -29,6 +29,7 @@ import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/version_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
 import 'package:kissu_app/services/app_activation_service.dart';
+import 'package:kissu_app/services/permission_upload_service.dart';
 import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/lottie_preload_service.dart';
 import 'package:kissu_app/utils/map_style_loader.dart';
@@ -253,6 +254,10 @@ class AppInitializer {
       // 步骤26.5: 初始化App激活服务
       Get.put(AppActivationService(), permanent: true);
       DebugUtil.success('App激活服务初始化完成');
+      
+      // 步骤26.6: 初始化权限状态上传服务
+      Get.put(PermissionUploadService(), permanent: true);
+      DebugUtil.success('权限状态上传服务初始化完成');
       
       // 步骤27: 预加载VIP页面Lottie动画（非阻塞，后台执行）
       LottiePreloadService().preloadVipLottieAnimations().then((_) {

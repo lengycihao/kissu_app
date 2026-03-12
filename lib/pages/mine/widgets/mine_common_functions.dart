@@ -193,7 +193,7 @@ class _AnimatedFunctionItemState extends State<_AnimatedFunctionItem>
                             Icons.image_not_supported,
                             size: 44,
                             color: Color(0xFF999999),
-                          ),
+                          ), 
                         );
                       },
                     ),
@@ -214,7 +214,14 @@ class _AnimatedFunctionItemState extends State<_AnimatedFunctionItem>
               ),
               ///新logo标志位
               if (widget.item.subIcon != null)
-                Transform.translate(
+                widget.item.isLocked != null && widget.item.isLocked! ?Transform.translate(
+                  offset: Offset(40, -10),
+                  child: Image(
+                    image: AssetImage(widget.item.subIcon!),
+                    width: 42,
+                    height: 18,
+                  ),
+                ):Transform.translate(
                   offset: Offset(30, -10),
                   child: Image(
                     image: AssetImage(widget.item.subIcon!),

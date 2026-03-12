@@ -5,6 +5,7 @@ import 'package:kissu_app/model/location_model/location_model.dart';
 import 'package:kissu_app/network/public/ltrack_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/track/stay_point.dart';
+import 'package:kissu_app/pages/track/utils/track_point_filter.dart';
  import 'package:intl/intl.dart';
 
 /// 轨迹页面数据管理器
@@ -61,10 +62,14 @@ class TrackDataManager {
     final points = <LatLng>[];
     // 优先使用 locations 数组
     if (currentData!.locations?.isNotEmpty == true) {
-      for (final location in currentData!.locations!) {
-        if (location.lat != 0.0 && location.lng != 0.0) {
-          points.add(LatLng(location.lat, location.lng));
-        }
+      // 先过滤零值点
+      final validLocations = currentData!.locations!
+          .where((loc) => loc.lat != 0.0 && loc.lng != 0.0)
+          .toList();
+      // 飘点过滤：基于速度和尖刺模式检测，过滤掉GPS漂移点
+      final filteredLocations = TrackPointFilter.filterLocations(validLocations);
+      for (final location in filteredLocations) {
+        points.add(LatLng(location.lat, location.lng));
       }
     } else if (currentData!.trace?.stops.isNotEmpty == true) {
       // 如果没有locations，从stops生成轨迹点

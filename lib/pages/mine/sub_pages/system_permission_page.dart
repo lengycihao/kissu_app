@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'system_permission_controller.dart';
 import '../../../widgets/dialogs/permission_setting_dialog.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/permission_upload_service.dart';
+
 
 class SystemPermissionPage extends StatefulWidget {
   const SystemPermissionPage({super.key});
@@ -24,6 +26,8 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
         // 返回时检查权限并显示挽留弹窗
         final shouldPop = await _checkAndShowPermissionDialog();
         if (shouldPop && context.mounted) {
+          // 🔥 返回时上传权限状态到后端
+          PermissionUploadService.instance.markDirtyAndUpload();
           Navigator.of(context).pop();
         }
       },
@@ -140,6 +144,7 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
       ),
     );
   }
+
 
   /// 构建权限列表
   Widget _buildPermissionList() {
@@ -342,24 +347,26 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
       return Stack(
         children: [
           cardWidget,
-          // 手指图片居中显示
-          Positioned.fill(
-            child: Transform.translate(offset: Offset(-10, 0),child: Align (
-              alignment: AlignmentGeometry.centerRight,
-              child: AnimatedBuilder(
-                animation: _scaleFlashAnimation!,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleFlashAnimation!.value,
-                    child: Image.asset(
-                      'assets/lock/kissu_touch.png',
-                      width: 60,
-                      height: 60,
-                     ),
-                  );
-                },
-              ),
-            ),),
+          // 手指图片居中显示，使用 IgnorePointer 让点击事件穿透
+          IgnorePointer(
+            child: Positioned.fill(
+              child: Transform.translate(offset: Offset(-10, 0),child: Align (
+                alignment: AlignmentGeometry.centerRight,
+                child: AnimatedBuilder(
+                  animation: _scaleFlashAnimation!,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleFlashAnimation!.value,
+                      child: Image.asset(
+                        'assets/lock/kissu_touch.png',
+                        width: 60,
+                        height: 60,
+                       ),
+                    );
+                  },
+                ),
+              ),),
+            ),
           ),
         ],
       );

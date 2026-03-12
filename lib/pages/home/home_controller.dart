@@ -38,6 +38,7 @@ import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/permission_upload_service.dart';
 
 
 class HomeController extends GetxController {
@@ -226,6 +227,9 @@ class HomeController extends GetxController {
     // 启动App使用记录自动上报服务
     _startAppUsageAutoReport();
     
+    // 上传本机权限状态（每次冷启动只上传一次）
+    _uploadPermissionStatus();
+    
     // 延迟检查VIP到期弹窗（等待数据加载完成，且整个会话期间只检查一次）
     Future.delayed(const Duration(milliseconds: 500), () {
       _popupService.checkVipOuttimeDialogOnce();
@@ -252,6 +256,18 @@ class HomeController extends GetxController {
     }
   }
   
+  /// 上传本机权限状态到服务器（每次冷启动只上传一次）
+  void _uploadPermissionStatus() {
+    try {
+      if (Get.isRegistered<PermissionUploadService>()) {
+        Get.find<PermissionUploadService>().uploadIfNeeded();
+        logDebug('📤 触发权限状态上传', tag: 'HomeController');
+      }
+    } catch (e) {
+      logError('❌ 触发权限状态上传失败', error: e);
+    }
+  }
+
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   /// 埋点：上报首页离开事件
   void _trackHomePageExit() {

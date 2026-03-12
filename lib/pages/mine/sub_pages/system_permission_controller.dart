@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -83,10 +84,20 @@ class SystemPermissionController extends GetxController
   SupportedBrand get currentBrand => _currentBrand.value;
   bool get isXiaomiDevice => currentBrand == SupportedBrand.xiaomi;
 
+  /// 是否为鸿蒙5.0+系统（HarmonyOS Next）
+  /// 鸿蒙5.0+的 version.release 为 "5.x.x"，不同于Android版本号（12/13/14）
+  final RxBool isHarmonyOS5Plus = false.obs;
+
   List<Map<String, dynamic>> get permissionItems {
     final items = List<Map<String, dynamic>>.from(_permissionItems);
     if (isXiaomiDevice) {
       items.removeWhere((item) => item['hideOnXiaomi'] == true);
+    }
+    // 鸿蒙5.0+：隐藏"防止程序休眠"和"重启后恢复运行"——这两项在鸿蒙5.0+上无意义
+    if (isHarmonyOS5Plus.value) {
+      items.removeWhere((item) =>
+          item['guideType'] == SystemPermissionGuideType.preventSleep ||
+          item['guideType'] == SystemPermissionGuideType.allowBackgroundRun);
     }
     return items;
   }
@@ -249,7 +260,69 @@ class SystemPermissionController extends GetxController
         final androidInfo = await deviceInfo.androidInfo;
         final brand = androidInfo.brand.toLowerCase();
         _currentBrand.value = _mapBrand(brand);
-        logDebug('检测到设备品牌: $brand', tag: 'SystemPermission');
+        
+        // 详细日志：输出所有关键设备信息字段，便于调试鸿蒙检测
+        final display = androidInfo.display;
+        final fingerprint = androidInfo.fingerprint;
+        final host = androidInfo.host;
+        final versionRelease = androidInfo.version.release;
+        final sdkInt = androidInfo.version.sdkInt;
+        final manufacturer = androidInfo.manufacturer;
+        
+        logDebug('===== 设备信息详情 =====', tag: 'HarmonyOS');
+        logDebug('brand: $brand', tag: 'HarmonyOS');
+        logDebug('manufacturer: $manufacturer', tag: 'HarmonyOS');
+        logDebug('display: $display', tag: 'HarmonyOS');
+        logDebug('fingerprint: $fingerprint', tag: 'HarmonyOS');
+        logDebug('host: $host', tag: 'HarmonyOS');
+        logDebug('version.release: $versionRelease', tag: 'HarmonyOS');
+        logDebug('version.sdkInt: $sdkInt', tag: 'HarmonyOS');
+        logDebug('===== 设备信息结束 =====', tag: 'HarmonyOS');
+
+        // 鸿蒙系统检测：多种方式综合判断
+        final displayLower = display.toLowerCase();
+        final fingerprintLower = fingerprint.toLowerCase();
+        final hostLower = host.toLowerCase();
+        final osVersion = Platform.operatingSystemVersion.toLowerCase();
+        
+        logDebug('Platform.operatingSystemVersion: ${Platform.operatingSystemVersion}', tag: 'HarmonyOS');
+        
+        // 方式1：检查是否包含 "harmony" / "ohos" 关键字
+        final containsHarmony = displayLower.contains('harmony') ||
+            fingerprintLower.contains('harmony') ||
+            hostLower.contains('harmony') ||
+            displayLower.contains('ohos') ||
+            fingerprintLower.contains('ohos') ||
+            osVersion.contains('harmony') ||
+            osVersion.contains('ohos');
+        
+        // 方式2：鸿蒙系统的 display / osVersion 以 "system" 开头
+        // 例如 "System 104.5.0.001(61DR)"，普通Android不会有这种格式
+        final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+        final displayStartsWithSystem = displayLower.startsWith('system') || osVersion.startsWith('system');
+        
+        // 方式3：华为/荣耀设备 version.release 为 "5.x.x" 格式
+        bool versionIs5Plus = false;
+        if (isHuaweiOrHonor) {
+          final parts = versionRelease.split('.');
+          final majorVersion = int.tryParse(parts[0]) ?? 0;
+          versionIs5Plus = majorVersion >= 5 && parts.length > 1;
+        }
+        
+        if (containsHarmony) {
+          isHarmonyOS5Plus.value = true;
+          logDebug('✅ 检测到鸿蒙系统 (通过harmony/ohos关键字)', tag: 'HarmonyOS');
+        } else if (isHuaweiOrHonor && displayStartsWithSystem) {
+          isHarmonyOS5Plus.value = true;
+          logDebug('✅ 检测到鸿蒙系统 (华为/荣耀设备 + display以System开头: $display)', tag: 'HarmonyOS');
+        } else if (versionIs5Plus) {
+          isHarmonyOS5Plus.value = true;
+          logDebug('✅ 检测到鸿蒙5.0+系统 (通过版本号$versionRelease)', tag: 'HarmonyOS');
+        } else {
+          logDebug('❌ 未检测到鸿蒙系统 (brand=$brand, display=$display, osVersion=${Platform.operatingSystemVersion})', tag: 'HarmonyOS');
+        }
+        
+        logDebug('最终鸿蒙检测结果: isHarmonyOS5Plus=${isHarmonyOS5Plus.value}', tag: 'HarmonyOS');
       } else {
         _currentBrand.value = SupportedBrand.huawei;
       }

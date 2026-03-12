@@ -50,7 +50,11 @@ class LockScreenOverlayService {
 
   /// 锁定屏幕
   /// [minutes] 锁定时长（分钟）
-  static Future<bool> lockScreen({required int minutes}) async {
+  static Future<bool> lockScreen({
+    required int minutes,
+    String lockText = '',
+    String bgImagePath = '',
+  }) async {
     if (!Platform.isAndroid) return false;
     try {
       final hasPermission = await checkOverlayPermission();
@@ -60,8 +64,10 @@ class LockScreenOverlayService {
       }
       final result = await _channel.invokeMethod<bool>('lockScreen', {
         'minutes': minutes,
+        'lockText': lockText,
+        'bgImagePath': bgImagePath,
       });
-      logger.info('锁屏请求已发送: ${minutes}分钟', tag: _tag);
+      logger.info('锁屏请求已发送: ${minutes}分钟, lockText=$lockText, bgImagePath=$bgImagePath', tag: _tag);
       return result ?? false;
     } catch (e) {
       logger.error('锁屏失败: $e', tag: _tag);

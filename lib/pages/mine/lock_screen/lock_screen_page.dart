@@ -49,23 +49,29 @@ class LockScreenPage extends StatelessWidget {
                 // 固定的顶部导航栏（透明，覆盖在背景图上）
                 const LockScreenTopBar(),
                 
-                // 可滚动的内容区域
+                // 可滚动的内容区域（支持下拉刷新）
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const LockScreenHeader(),
-                        Obx(() {
-                          if (controller.currentStep.value == 1) {
-                            return const LockScreenStep1();
-                          } else {
-                            return const LockScreenStep2();
-                          }
-                        }),
-                        const SizedBox(height: 100),
-                      ],
+                  child: RefreshIndicator(
+                    onRefresh: () => controller.refreshPermissions(),
+                    color: const Color(0xFFFF7ECE),
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const LockScreenHeader(),
+                          Obx(() {
+                            if (controller.currentStep.value == 1) {
+                              return const LockScreenStep1();
+                            } else {
+                              return const LockScreenStep2();
+                            }
+                          }),
+                          const SizedBox(height: 100),
+                        ],
+                      ),
                     ),
                   ),
                 ),

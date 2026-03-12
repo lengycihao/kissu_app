@@ -22,6 +22,10 @@ import org.json.JSONObject
 import com.tencent.imsdk.v2.V2TIMManager
 import com.tencent.imsdk.v2.V2TIMMessage
 import com.tencent.imsdk.v2.V2TIMSendCallback
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -59,11 +63,17 @@ class LockScreenOverlayService : Service() {
     private var answerOptions: List<String> = listOf("海马", "河马", "斑马", "木马")
     private var correctAnswerIndex: Int = 0
     private var answerAttempts: Int = 0  // 🔥 答题次数计数器
+    private val triedAnswerIndices = mutableSetOf<Int>()  // 🔥 已尝试的答案索引集合
     private var shutdownReceiver: BroadcastReceiver? = null  // 🔥 关机/重启广播接收器
     
     // 锁屏界面显示信息
     private var lockText: String = ""           // 锁屏文案
     private var bgImageIndex: Int = 0           // 背景图片索引
+    private var bgImageUrl: String = ""         // 网络背景图片URL
+    
+    // Intent传递的数据（优先级高于SharedPreferences）
+    private var intentLockText: String = ""
+    private var intentBgImagePath: String = ""
 
     // 保活
     private var wakeLock: PowerManager.WakeLock? = null
@@ -145,11 +155,32 @@ class LockScreenOverlayService : Service() {
                 return START_NOT_STICKY
             }
         }
+        // 从Intent extras读取lockText和bgImagePath（优先级高于SharedPreferences）
+        var hasNewData = false
+        intent?.getStringExtra("lock_text")?.let {
+            if (it.isNotEmpty()) {
+                intentLockText = it
+                hasNewData = true
+                android.util.Log.d("LockScreenOverlay", "从Intent读取lockText: $it")
+            }
+        }
+        intent?.getStringExtra("bg_image_path")?.let {
+            if (it.isNotEmpty()) {
+                intentBgImagePath = it
+                hasNewData = true
+                android.util.Log.d("LockScreenOverlay", "从Intent读取bgImagePath: $it")
+            }
+        }
         acquireWakeLock()
         scheduleRestartAlarm()
         if (checkRunnable == null || handler == null) {
             handler = Handler(Looper.getMainLooper())
             startMonitoring()
+        }
+        // 如果overlay已经在显示且收到了新数据，刷新overlay以使用最新的lockText/bgImage
+        if (hasNewData && isOverlayShowing) {
+            android.util.Log.d("LockScreenOverlay", "收到新数据，刷新overlay: lockText=$intentLockText, bgImagePath=$intentBgImagePath")
+            handler?.post { showOverlay() }
         }
         return START_STICKY
     }
@@ -457,19 +488,60 @@ class LockScreenOverlayService : Service() {
             visibility = View.GONE
         }
 
-        // 背景图片 - 根据bgImageIndex选择对应的背景图片
+        // 背景图片 - 优先使用本地文件路径/URL，否则根据bgImageIndex选择本地图片
         try {
-            val bgResId = when (bgImageIndex) {
-                0 -> R.drawable.kissu_lock_bg_1
-                1 -> R.drawable.kissu_lock_bg_2
-                2 -> R.drawable.kissu_lock_bg_3
-                else -> R.drawable.kissu_lock_bg_1
-            }
             val bgResIdTop = R.drawable.kissu_lock_gray_bg
-            val bgDrawable = ContextCompat.getDrawable(context, bgResId)
             val bgDrawableTop = ContextCompat.getDrawable(context, bgResIdTop)
-            lockScreenContainer?.background = bgDrawable
             lockScreenContainerTop?.background = bgDrawableTop
+
+            if (bgImageUrl.isNotEmpty()) {
+                val file = java.io.File(bgImageUrl)
+                if (file.exists()) {
+                    // 本地文件路径（Flutter已预下载）
+                    try {
+                        val bitmap = BitmapFactory.decodeFile(bgImageUrl)
+                        if (bitmap != null) {
+                            val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+                            lockScreenContainer?.background = drawable
+                            android.util.Log.d("LockScreenOverlay", "本地背景图片加载成功: ${bitmap.width}x${bitmap.height}")
+                        } else {
+                            setFallbackBackground(context)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("LockScreenOverlay", "本地背景图片加载失败: ${e.message}")
+                        setFallbackBackground(context)
+                    }
+                } else if (bgImageUrl.startsWith("http")) {
+                    // 网络URL兜底：异步下载
+                    Thread {
+                        try {
+                            val url = java.net.URL(bgImageUrl)
+                            val connection = url.openConnection() as java.net.HttpURLConnection
+                            connection.connectTimeout = 5000
+                            connection.readTimeout = 5000
+                            connection.doInput = true
+                            connection.connect()
+                            val inputStream = connection.inputStream
+                            val bitmap = BitmapFactory.decodeStream(inputStream)
+                            inputStream.close()
+                            if (bitmap != null) {
+                                handler?.post {
+                                    val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+                                    lockScreenContainer?.background = drawable
+                                    android.util.Log.d("LockScreenOverlay", "网络背景图片加载成功")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("LockScreenOverlay", "网络背景图片加载失败: ${e.message}")
+                            handler?.post { setFallbackBackground(context) }
+                        }
+                    }.start()
+                } else {
+                    setFallbackBackground(context)
+                }
+            } else {
+                setFallbackBackground(context)
+            }
         } catch (e: Exception) {
             // 如果加载失败，使用默认背景
             try {
@@ -803,6 +875,7 @@ class LockScreenOverlayService : Service() {
         android.util.Log.d("LockScreenOverlay", "openQuestionPage 被点击，在悬浮窗内切换到答题页面")
         isAnsweringQuestion = true
         isAnswerLocked = false  // 🔥 重置答案锁定状态
+        triedAnswerIndices.clear()  // 🔥 重置已尝试的答案集合
         // 加载问题数据
         loadQuestionData()
         // 在悬浮窗内切换到答题视图
@@ -833,6 +906,18 @@ class LockScreenOverlayService : Service() {
         }
     }
     
+    private fun setFallbackBackground(context: Context) {
+        try {
+            val bgResId = when (bgImageIndex) {
+                0 -> R.drawable.kissu_lock_bg_1
+                1 -> R.drawable.kissu_lock_bg_2
+                2 -> R.drawable.kissu_lock_bg_3
+                else -> R.drawable.kissu_lock_bg_1
+            }
+            lockScreenContainer?.background = ContextCompat.getDrawable(context, bgResId)
+        } catch (_: Exception) {}
+    }
+
     private fun loadLockScreenDisplayData() {
         try {
             // 从Flutter SharedPreferences加载锁屏界面显示信息
@@ -840,11 +925,26 @@ class LockScreenOverlayService : Service() {
             val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             lockText = flutterPrefs.getString("flutter.lock_text", "") ?: ""
             bgImageIndex = flutterPrefs.getLong("flutter.lock_bg_image_index", 0L).toInt()
-            android.util.Log.d("LockScreenOverlay", "加载锁屏显示数据: lockText=$lockText, bgIndex=$bgImageIndex")
+            // 优先读取本地文件路径（Flutter侧已预下载），兜底读URL
+            bgImageUrl = flutterPrefs.getString("flutter.lock_bg_image_local_path", "") ?: ""
+            if (bgImageUrl.isEmpty()) {
+                bgImageUrl = flutterPrefs.getString("flutter.lock_bg_image_url", "") ?: ""
+            }
+            // Intent传递的数据优先级最高，覆盖SharedPreferences的值
+            if (intentLockText.isNotEmpty()) {
+                lockText = intentLockText
+                android.util.Log.d("LockScreenOverlay", "使用Intent传递的lockText: $lockText")
+            }
+            if (intentBgImagePath.isNotEmpty()) {
+                bgImageUrl = intentBgImagePath
+                android.util.Log.d("LockScreenOverlay", "使用Intent传递的bgImagePath: $bgImageUrl")
+            }
+            android.util.Log.d("LockScreenOverlay", "加载锁屏显示数据: lockText=$lockText, bgIndex=$bgImageIndex, bgImageUrl=$bgImageUrl")
         } catch (e: Exception) {
             android.util.Log.e("LockScreenOverlay", "加载锁屏显示数据失败: ${e.message}")
             lockText = ""
             bgImageIndex = 0
+            bgImageUrl = ""
         }
     }
     
@@ -951,7 +1051,8 @@ class LockScreenOverlayService : Service() {
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = customTypeface ?: Typeface.DEFAULT_BOLD
-            setPadding(dp(24), dp(40), dp(24), dp(40))
+            setPadding(dp(40), dp(40), dp(40), dp(40))
+            setLineSpacing(0f, 1.6f)   // 行高 = 1.4倍
         }
         val questionTextParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -1006,39 +1107,59 @@ class LockScreenOverlayService : Service() {
     
     private fun onAnswerSelected(index: Int, button: TextView) {
         if (isAnswerLocked) return  // 🔥 已选对答案，弹窗期间不允许再选
+        isAnswerLocked = true  // 🔥 锁定，等API返回后再解锁
         
         // 🔥 轻微震动反馈
         vibrateLight()
         
-        android.util.Log.d("LockScreenOverlay", "选择答案: $index, 正确答案: $correctAnswerIndex")
+        android.util.Log.d("LockScreenOverlay", "选择答案: $index, 调用解锁API unlock_answer_index=$index")
         
-        if (index == correctAnswerIndex) {
-            isAnswerLocked = true  // 🔥 锁定答案选择
-            // 答对了，使用正确答案背景图片
-            try {
-                button.background = resources.getDrawable(R.drawable.kissu_lock_right_bg, null)
-            } catch (e: Exception) {
-                android.util.Log.e("LockScreenOverlay", "加载正确答案背景图片失败: ${e.message}")
-            }
-            showSuccessDialog()
-        } else {
-            // 答错了，使用错误答案背景图片
-            try {
-                button.background = resources.getDrawable(R.drawable.kissu_lock_wrong_bg, null)
-            } catch (e: Exception) {
-                android.util.Log.e("LockScreenOverlay", "加载错误答案背景图片失败: ${e.message}")
-            }
-            button.setTextColor(Color.parseColor("#FF6B6B"))
-            answerAttempts++  // 🔥 答错计数
-            // 短暂延迟后重置
-            handler?.postDelayed({
-                try {
-                    button.background = resources.getDrawable(R.drawable.kissu_lock_answer_bg, null)
-                } catch (e: Exception) {
-                    android.util.Log.e("LockScreenOverlay", "重置答案背景图片失败: ${e.message}")
+        // 记录已尝试的答案索引
+        triedAnswerIndices.add(index)
+        
+        // 每次选择答案都调用解锁接口，由API判断对错
+        callUnlockApiWithAnswer(index) { isCorrect ->
+            handler?.post {
+                if (isCorrect) {
+                    // 答对了，使用正确答案背景图片
+                    try {
+                        button.background = resources.getDrawable(R.drawable.kissu_lock_right_bg, null)
+                    } catch (e: Exception) {
+                        android.util.Log.e("LockScreenOverlay", "加载正确答案背景图片失败: ${e.message}")
+                    }
+                    showSuccessDialog()
+                } else {
+                    // 答错了，使用错误答案背景图片
+                    try {
+                        button.background = resources.getDrawable(R.drawable.kissu_lock_wrong_bg, null)
+                    } catch (e: Exception) {
+                        android.util.Log.e("LockScreenOverlay", "加载错误答案背景图片失败: ${e.message}")
+                    }
+                    button.setTextColor(Color.parseColor("#FF6B6B"))
+                    answerAttempts++  // 🔥 答错计数
+                    
+                    // 🔥 检查是否4个答案都尝试过且都错误，自动解锁
+                    if (triedAnswerIndices.size >= 4) {
+                        android.util.Log.d("LockScreenOverlay", "4个答案都尝试错误，自动解锁")
+                        handler?.postDelayed({
+                            // 自动解锁：显示成功弹窗并解锁
+                            showSuccessDialog()
+                        }, 800)
+                        return@post
+                    }
+                    
+                    // 短暂延迟后重置
+                    handler?.postDelayed({
+                        try {
+                            button.background = resources.getDrawable(R.drawable.kissu_lock_answer_bg, null)
+                        } catch (e: Exception) {
+                            android.util.Log.e("LockScreenOverlay", "重置答案背景图片失败: ${e.message}")
+                        }
+                        button.setTextColor(Color.parseColor("#333333"))
+                        isAnswerLocked = false  // 🔥 答错后解锁，允许重新选择
+                    }, 800)
                 }
-                button.setTextColor(Color.parseColor("#333333"))
-            }, 800)
+            }
         }
     }
     
@@ -1133,10 +1254,9 @@ class LockScreenOverlayService : Service() {
     }
     
     private fun unlockScreen() {
-        answerAttempts++  // 🔥 最后一次正确的也算一次
-        android.util.Log.d("LockScreenOverlay", "答对问题，解锁屏幕，共答题${answerAttempts}次")
+        android.util.Log.d("LockScreenOverlay", "答对问题，解锁屏幕（API已在选择答案时调用）")
         
-        // 🔥 发送解锁通知给锁机方
+        // 🔥 发送解锁通知给锁机方（IM兜底，确保锁机方收到通知）
         sendUnlockPhoneReceive(answerAttempts)
         
         // 清除锁屏数据和答题次数
@@ -1150,6 +1270,126 @@ class LockScreenOverlayService : Service() {
         // 停止前台服务并清除通知
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    /**
+     * 🔥 调用解锁API: POST /unlock/user/phone
+     * 被动解锁 unlock_type=2, unlock_answer_index=选择的答案索引(0-based: 0,1,2,3)
+     * @param answerIndex 选择的答案索引，从0开始
+     * @param callback 回调，true=答对（API成功），false=答错（API失败）
+     */
+    private fun callUnlockApiWithAnswer(answerIndex: Int, callback: (Boolean) -> Unit) {
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val kissuPrefs = getSharedPreferences("kissu_preferences", Context.MODE_PRIVATE)
+                val token = kissuPrefs.getString("user_token", null)
+                val baseUrl = kissuPrefs.getString("base_api_url", "https://service-api.ikissu.cn")
+                
+                if (token.isNullOrEmpty()) {
+                    android.util.Log.w("LockScreenOverlay", "🔓 无用户token，跳过解锁API调用")
+                    callback(false)
+                    return@Thread
+                }
+                
+                val apiUrl = "$baseUrl/unlock/user/phone"
+                android.util.Log.d("LockScreenOverlay", "🔓 调用解锁API: $apiUrl, answer_index=$answerIndex")
+                
+                // 准备请求头
+                val headers = mutableMapOf(
+                    "Content-Type" to "application/json; charset=UTF-8",
+                    "Accept" to "application/json",
+                    "token" to token,
+                    "version" to getAppVersionForApi(),
+                    "pkg" to packageName,
+                    "deviceid" to getDeviceIdForApi(),
+                    "channel" to "kissu_android",
+                    "os" to "1"
+                )
+                
+                // 准备请求体
+                val bodyParams = mapOf(
+                    "unlock_type" to "2",
+                    "unlock_answer_index" to answerIndex.toString()
+                )
+                
+                // 生成签名
+                val sign = generateSignForApi(headers, bodyParams)
+                headers["sign"] = sign
+                
+                // 创建连接
+                val url = URL(apiUrl)
+                connection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    doInput = true
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    headers.forEach { (key, value) -> setRequestProperty(key, value) }
+                }
+                
+                // 发送请求体
+                val requestBody = JSONObject().apply {
+                    put("unlock_type", 2)
+                    put("unlock_answer_index", answerIndex)
+                }
+                OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { writer ->
+                    writer.write(requestBody.toString())
+                    writer.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    android.util.Log.d("LockScreenOverlay", "🔓 解锁API成功（答对）: $response")
+                    // 解析响应判断是否成功
+                    val jsonResponse = JSONObject(response)
+                    val code = jsonResponse.optInt("code", -1)
+                    callback(code == 200 || code == 0)
+                } else {
+                    val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    android.util.Log.d("LockScreenOverlay", "🔓 解锁API返回非200（答错）: $responseCode, $errorResponse")
+                    callback(false)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "🔓 解锁API异常: ${e.message}")
+                callback(false)
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    private fun getAppVersionForApi(): String {
+        return try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            pInfo.versionName ?: "1.0.0"
+        } catch (e: Exception) { "1.0.0" }
+    }
+
+    private fun getDeviceIdForApi(): String {
+        return try {
+            android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "unknown"
+        } catch (e: Exception) { "unknown" }
+    }
+
+    private fun generateSignForApi(headers: Map<String, String>, bodyParams: Map<String, String>): String {
+        val secretKey = "TYXHTRrGeP8xy095q0iY"
+        val allParams = mutableMapOf<String, String>()
+        val businessHeaders = setOf("channel", "version", "deviceid", "pkg", "token", "userid")
+        headers.forEach { (key, value) ->
+            if (businessHeaders.contains(key.lowercase())) {
+                allParams[key.lowercase()] = value
+            }
+        }
+        allParams.putAll(bodyParams)
+        val sortedKeys = allParams.keys.sorted()
+        val signBuilder = StringBuilder()
+        sortedKeys.forEach { key -> signBuilder.append(allParams[key]) }
+        signBuilder.append(secretKey)
+        val md = MessageDigest.getInstance("MD5")
+        val digest = md.digest(signBuilder.toString().toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }.uppercase()
     }
 
     /**

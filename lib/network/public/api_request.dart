@@ -86,4 +86,12 @@ class ApiRequest {
   
   // 埋点上传 API
   static const uploadPoint = '/upload/point';
+
+  //一键锁机
+  static const oneKeyLock = '/lock/user/phone';
+  static const oneKeyLockRecord = '/get/lock/phone/record';
+  static const oneKeyUnlock = '/unlock/user/phone';
+  static const oneKeyLockQuestion = '/get/lock/phone/question';
+  static const oneKeyLockPermission = '/get/lock/permission';
+  static const setPermission = '/set/permission';
   }

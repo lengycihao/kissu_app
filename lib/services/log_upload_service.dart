@@ -101,13 +101,56 @@ class LogUploadService {
         final androidInfo = await deviceInfo.androidInfo;
         info['deviceModel'] = androidInfo.model;
         info['deviceBrand'] = androidInfo.brand;
+        info['manufacturer'] = androidInfo.manufacturer;
         info['androidVersion'] = androidInfo.version.release;
         info['sdkInt'] = androidInfo.version.sdkInt;
+        info['display'] = androidInfo.display;
+        info['fingerprint'] = androidInfo.fingerprint;
+        info['host'] = androidInfo.host;
+        
+        // 鸿蒙系统检测：多种方式综合判断
+        final brand = androidInfo.brand.toLowerCase();
+        final displayLower = androidInfo.display.toLowerCase();
+        final fingerprintLower = androidInfo.fingerprint.toLowerCase();
+        final hostLower = androidInfo.host.toLowerCase();
+        final osVersion = Platform.operatingSystemVersion.toLowerCase();
+        final versionRelease = androidInfo.version.release;
+        
+        // 方式1：包含 harmony / ohos 关键字
+        final containsHarmony = displayLower.contains('harmony') ||
+            fingerprintLower.contains('harmony') ||
+            hostLower.contains('harmony') ||
+            displayLower.contains('ohos') ||
+            fingerprintLower.contains('ohos') ||
+            osVersion.contains('harmony') ||
+            osVersion.contains('ohos');
+        
+        // 方式2：华为/荣耀设备 display/osVersion 以 "system" 开头
+        final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+        final displayStartsWithSystem = displayLower.startsWith('system') || osVersion.startsWith('system');
+        
+        bool isHarmonyOS = false;
+        
+        if (containsHarmony) {
+          isHarmonyOS = true;
+        } else if (isHuaweiOrHonor && displayStartsWithSystem) {
+          isHarmonyOS = true;
+        } else if (isHuaweiOrHonor) {
+          final parts = versionRelease.split('.');
+          final majorVersion = int.tryParse(parts[0]) ?? 0;
+          if (majorVersion >= 5 && parts.length > 1) {
+            isHarmonyOS = true;
+          }
+        }
+        
+        info['isHarmonyOS'] = isHarmonyOS;
+        info['osType'] = isHarmonyOS ? 'HarmonyOS' : 'Android';
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         info['deviceModel'] = iosInfo.model;
         info['deviceName'] = iosInfo.name;
         info['systemVersion'] = iosInfo.systemVersion;
+        info['osType'] = 'iOS';
       }
     } catch (e) {
       logWarning('获取设备详细信息失败', tag: 'LogUpload', error: e);

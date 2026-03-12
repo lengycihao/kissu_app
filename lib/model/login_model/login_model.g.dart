@@ -65,6 +65,7 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
   shareConfig: json['share_config'] == null
       ? null
       : ShareConfig.fromJson(json['share_config'] as Map<String, dynamic>),
+  halfLockStatus: const StringToIntConverter().fromJson(json['half_lock_status']),
 );
 
 Map<String, dynamic> _$LoginModelToJson(
@@ -124,4 +125,5 @@ Map<String, dynamic> _$LoginModelToJson(
   'half_user_info': instance.halfUserInfo,
   'lover_info': instance.loverInfo,
   'share_config': instance.shareConfig,
+  'half_lock_status': const StringToIntConverter().toJson(instance.halfLockStatus),
 };

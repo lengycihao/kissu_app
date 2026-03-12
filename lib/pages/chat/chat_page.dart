@@ -8,6 +8,10 @@ import 'package:kissu_app/pages/chat/widgets/chat_device_info_bar.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_message_list_view.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/utils/user_manager.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
+import 'package:kissu_app/widgets/dialogs/lock_screen_vip_dialog.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -152,51 +156,73 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       final isLocked = controller.isPartnerLocked.value;
       return GestureDetector(
         onTap: () async {
+          // 1. 未绑定：弹出绑定弹窗
+          final isBound = UserManager.currentUser?.bindStatus?.toString() == "1";
+          if (!isBound) {
+            await CustomBottomDialog.show(
+              context: context,
+              caller: SourcePageUtilsCaller.chat,
+              isDismissible: false,
+              enableDrag: false,
+            );
+            return;
+          }
+          // 2. 已绑定但非会员：弹出VIP弹窗
+          if (!UserManager.isVip) {
+            await LockScreenVipDialog.show(context);
+            return;
+          }
+          // 3. 已绑定且是会员：进入一键锁机页面
           await Get.toNamed(KissuRoutePath.lockScreen);
           // 从锁机页面返回后刷新状态
           controller.refreshPartnerLockState();
         },
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+           
+          
           alignment: Alignment.centerLeft,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 锁机图标
-              Image.asset(
-                'assets/lock/kissu_lock_icon.webp',
-                width: 20,
-                height: 20,
-              ),
-              const SizedBox(width: 4),
-              // 一键锁机文字
-              const Text(
-                '一键锁机',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF666666),
-                ),
-              ),
-              // 锁机中标签
-              if (isLocked) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: const Color(0xFFDDDDDD), width: 0.5),
-                  ),
-                  child: const Text(
-                    '锁机中',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF999999),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+            decoration: BoxDecoration(
+              color: Color(0xffF2F2F2),
+              borderRadius: BorderRadius.circular(28)
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min, 
+              children: [
+                // 锁机图标（带锁机中状态角标）
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Image.asset(
+                      'assets/lock/kissu_lock_icon.webp',
+                      width: 16,
+                      height: 16,
                     ),
+                    if (isLocked)
+                      Positioned(
+                        top: -12,
+                        left: 50,
+                        child: Image.asset(
+                          'assets/lock/kissu_locking.webp',
+                          width: 40,
+                          height: 15,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                // 一键锁机文字
+                const Text(
+                  '一键锁机',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF503F3F),
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ),
       );

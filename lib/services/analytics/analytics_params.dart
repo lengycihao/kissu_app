@@ -290,7 +290,7 @@ class FunctionModuleValue {
   static const String phoneHistory = '用机记录';//用机记录
   static const String track = '足迹';//足迹
   static const String hotelAntiSpy = '酒店防偷拍';//酒店防偷拍
-  static const String personalizedHome = '个性化首页';//个性化首页
+  static const String oneKeyLock = '一键锁机';//个性化首页
   static const String sensitiveRecord = '敏感操作记录';//敏感操作记录
   static const String changeAppIcon = '更换app图标';//更换app图标
 }

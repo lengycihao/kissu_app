@@ -37,7 +37,9 @@ class LockScreenHandler(private val activity: Activity) {
             "lockScreen" -> {
                 val minutes = call.argument<Int>("minutes")
                 if (minutes != null) {
-                    lockScreen(minutes)
+                    val lockText = call.argument<String>("lockText") ?: ""
+                    val bgImagePath = call.argument<String>("bgImagePath") ?: ""
+                    lockScreen(minutes, lockText, bgImagePath)
                     result.success(true)
                 } else {
                     result.error("INVALID_ARGS", "缺少minutes参数", null)
@@ -81,7 +83,10 @@ class LockScreenHandler(private val activity: Activity) {
         activity.startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST)
     }
 
-    private fun lockScreen(minutes: Int) {
+    private var pendingLockText: String = ""
+    private var pendingBgImagePath: String = ""
+
+    private fun lockScreen(minutes: Int, lockText: String = "", bgImagePath: String = "") {
         val prefs = activity.getSharedPreferences(LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE)
         val endTime = System.currentTimeMillis() + minutes * 60 * 1000L
 
@@ -91,8 +96,10 @@ class LockScreenHandler(private val activity: Activity) {
         }
 
         prefs.edit().putString(LockScreenOverlayService.KEY_SCREEN_LOCK, lockInfo.toString()).apply()
+        pendingLockText = lockText
+        pendingBgImagePath = bgImagePath
         startLockService()
-        Log.d(TAG, "锁屏已启动: ${minutes}分钟, endTime=$endTime")
+        Log.d(TAG, "锁屏已启动: ${minutes}分钟, endTime=$endTime, lockText=$lockText, bgImagePath=$bgImagePath")
     }
 
     private fun unlockScreen() {
@@ -108,11 +115,21 @@ class LockScreenHandler(private val activity: Activity) {
 
     private fun startLockService() {
         val intent = Intent(activity, LockScreenOverlayService::class.java)
+        // 传递lockText和bgImagePath通过Intent extras，避免SharedPreferences缓存问题
+        if (pendingLockText.isNotEmpty()) {
+            intent.putExtra("lock_text", pendingLockText)
+        }
+        if (pendingBgImagePath.isNotEmpty()) {
+            intent.putExtra("bg_image_path", pendingBgImagePath)
+        }
+        Log.d(TAG, "启动锁屏服务: lockText=${pendingLockText}, bgImagePath=${pendingBgImagePath}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             activity.startForegroundService(intent)
         } else {
             activity.startService(intent)
         }
+        pendingLockText = ""
+        pendingBgImagePath = ""
     }
 
     private fun stopLockService() {

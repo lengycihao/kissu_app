@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:kissu_app/services/tencent_im_service.dart';
@@ -10,6 +12,8 @@ import 'package:kissu_app/services/lock_screen_overlay_service.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
+import 'package:kissu_app/network/public/file_upload_api.dart';
 
 class LockScreenController extends GetxController {
   // ==================== 步骤管理 ====================
@@ -46,9 +50,34 @@ class LockScreenController extends GetxController {
   // ==================== 权限状态 ====================
   final isOverlayGranted = false.obs;
   final isUsageAccessGranted = false.obs; // app使用记录权限
-  final isPartnerPermissionGranted = false.obs; // 后期通过接口判断，现在默认未开启
-  
+  final isPartnerPermissionGranted = false.obs;
+  final isLoadingPartnerPermission = true.obs; // 正在拉取对方权限
+
+  /// 对方权限原始数据，来自 /get/lock/permission
+  final Rxn<Map<String, dynamic>> halfUserPermission = Rxn();
+
   final PermissionService _permissionService = PermissionService();
+  final _lockPermissionApi = LockPermissionApi();
+
+  // ==================== 对方OS相关 ====================
+  /// 对方系统："ios" | "android"（默认android）
+  String get partnerOs =>
+      (halfUserPermission.value?['os'] as String? ?? 'android').toLowerCase();
+
+  bool get isPartnerIos => partnerOs == 'ios';
+
+  /// 对方版本是否支持锁机功能（1=支持，0=不支持）
+  bool get isPartnerVersionConform =>
+      (halfUserPermission.value?['is_conform_version'] as int? ?? 0) == 1;
+
+  /// 对方已关联的 App 列表（iOS 专用）
+  List<Map<String, dynamic>> get partnerRelevanceApps {
+    final raw = halfUserPermission.value?['relevance_app'];
+    if (raw is List) {
+      return raw.whereType<Map<String, dynamic>>().toList();
+    }
+    return [];
+  }
 
   // ==================== 锁定状态 ====================
   final lockStartTime = DateTime.now().obs;
@@ -56,63 +85,33 @@ class LockScreenController extends GetxController {
   Timer? _lockTimer;
   final lockRecords = <LockRecord>[].obs;
 
-  // ==================== 系统随机问题库 ====================
-  final List<Map<String, dynamic>> questionBank = [
-    {
-      'question': '什么马不能骑？',
-      'answers': ['海马', '河马', '斑马', '木马'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么水不能喝？',
-      'answers': ['薪水', '泉水', '矿泉水', '纯净水'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么门不能关？',
-      'answers': ['澳门', '厦门', '房门', '大门'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么路不能走？',
-      'answers': ['电路', '公路', '马路', '小路'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么桥不能过？',
-      'answers': ['鹊桥', '石桥', '木桥', '铁桥'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么鱼不能吃？',
-      'answers': ['木鱼', '鲫鱼', '鲤鱼', '草鱼'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么花不能摘？',
-      'answers': ['浪花', '玫瑰', '百合', '菊花'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么锁最难开？',
-      'answers': ['心锁', '门锁', '密码锁', '挂锁'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么房不能住？',
-      'answers': ['牢房', '卧房', '书房', '客房'],
-      'correctIndex': 0,
-    },
-    {
-      'question': '什么球不能打？',
-      'answers': ['地球', '篮球', '足球', '乒乓球'],
-      'correctIndex': 0,
-    },
-  ];
+  // ==================== API缓存的随机问题库 ====================
+  /// 从 /get/lock/phone/question 接口获取并缓存的问题列表
+  /// 每项: {"question": "...", "answer": [{"answer": "...", "is_answer": 0/1}, ...]}
+  List<Map<String, dynamic>> _cachedQuestions = [];
+  final isLoadingQuestions = false.obs;
+
+  // ==================== 锁机记录（API） ====================
+  final lockRecordPage = 1.obs;
+  final lockRecordHasMore = false.obs;
+  final isLoadingRecords = false.obs;
+  int lockRecordTotal = 0; // API返回的total字段，用于计算锁机次数编号
+  /// latest_lock_data 中的 lock_status（1=锁定中）
+  final latestLockStatus = 0.obs;
+  /// latest_lock_data 中的 lock_time（锁机开始时间戳）
+  final latestLockTime = 0.obs;
+
+  final _fileUploadApi = FileUploadApi();
+  final isLocking = false.obs; // 防止重复点击
+  bool _justUnlocked = false; // 防止解锁后fetchLockRecords再次锁定（API延迟更新）
 
   // ==================== 计算属性 ====================
-  bool get isStep1Complete =>
-      lockText.value.isNotEmpty && selectedImageIndex.value >= 0;
+  /// iOS 对方不需要选背景图，Android 对方需要
+  bool get isStep1Complete {
+    if (lockText.value.isEmpty) return false;
+    if (isPartnerIos) return true; // iOS 无锁屏背景，只需文案
+    return selectedImageIndex.value >= 0; // Android 需要选图片
+  }
 
   bool get isStep2Complete {
     if (question.value.isEmpty) return false;
@@ -137,10 +136,11 @@ class LockScreenController extends GetxController {
         answers[i].value = answerControllers[i].text;
       });
     }
-    randomQuestion();
-    _loadLockRecords();
+    _fetchQuestions(); // 进入页面时拉取并缓存随机问题
+    _fetchLockRecords(); // 从API拉取锁机记录
     _checkLockState();
     _checkPermissions();
+    _fetchPartnerPermission();
     _listenForUnlockNotification();
   }
 
@@ -181,6 +181,30 @@ class LockScreenController extends GetxController {
   void goToStep2() {
     if (isStep1Complete) {
       currentStep.value = 2;
+      // 进入Step2时自动填充一道随机问题
+      if (question.value.isEmpty) {
+        randomQuestion();
+      }
+    }
+  }
+
+  /// Step1 "下一步" 按钮点击：校验对方版本、iOS关联App、权限，再进入 Step2
+  void onStep1NextTap(BuildContext context) {
+    if (!isStep1Complete) return;
+    // 先检查对方版本是否支持锁机
+    if (!isPartnerVersionConform) {
+      OKToastUtil.showError('对方版本过低，一键锁机无法使用');
+      return;
+    }
+    // iOS对方且关联App为空时，弹出提示
+    if (isPartnerIos && partnerRelevanceApps.isEmpty) {
+      _showIosNoAppsWarningDialog(context);
+      return;
+    }
+    if (!isPartnerPermissionGranted.value) {
+      _showPartnerPermissionWarningDialog(context);
+    } else {
+      goToStep2();
     }
   }
 
@@ -193,15 +217,43 @@ class LockScreenController extends GetxController {
     selectedAnswerIndex.value = index;
   }
 
+  /// 从缓存的API问题列表中随机选一题填充到Step2
   void randomQuestion() {
-    final random = DateTime.now().millisecondsSinceEpoch % questionBank.length;
-    final q = questionBank[random];
-    questionController.text = q['question'] as String;
-    final answerList = q['answers'] as List<String>;
-    for (int i = 0; i < 4; i++) {
-      answerControllers[i].text = answerList[i];
+    if (_cachedQuestions.isEmpty) {
+      debugPrint('随机问题缓存为空，跳过');
+      return;
     }
-    selectedAnswerIndex.value = q['correctIndex'] as int;
+    final random = DateTime.now().millisecondsSinceEpoch % _cachedQuestions.length;
+    final q = _cachedQuestions[random];
+    questionController.text = q['question'] as String? ?? '';
+    final answerList = q['answer'] as List? ?? [];
+    for (int i = 0; i < 4 && i < answerList.length; i++) {
+      final item = answerList[i];
+      if (item is Map) {
+        answerControllers[i].text = item['answer'] as String? ?? '';
+        if ((item['is_answer'] as int? ?? 0) == 1) {
+          selectedAnswerIndex.value = i;
+        }
+      }
+    }
+  }
+
+  /// 进入页面时从API获取随机问题并缓存
+  Future<void> _fetchQuestions() async {
+    isLoadingQuestions.value = true;
+    try {
+      final result = await _lockPermissionApi.getLockPhoneQuestion();
+      if (result.isSuccess && result.data != null && result.data!.isNotEmpty) {
+        _cachedQuestions = result.data!
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        debugPrint('✅ 缓存了 ${_cachedQuestions.length} 道随机问题');
+      }
+    } catch (e) {
+      debugPrint('获取随机问题失败: $e');
+    } finally {
+      isLoadingQuestions.value = false;
+    }
   }
 
   void clearAll() {
@@ -210,6 +262,58 @@ class LockScreenController extends GetxController {
       c.clear();
     }
     selectedAnswerIndex.value = -1;
+  }
+
+  // ==================== 对方权限获取 ====================
+  /// 下拉刷新：重新获取对方权限 + 自己的权限状态
+  Future<void> refreshPermissions() async {
+    await Future.wait([
+      _fetchPartnerPermission(),
+      _checkPermissions(),
+    ]);
+  }
+
+  Future<void> _fetchPartnerPermission() async {
+    // 优先使用 Mine/Chat 页面已预拉取的缓存数据（避免UI闪动）
+    final cached = LockPermissionApi.cachedPartnerPermission;
+    if (cached != null) {
+      halfUserPermission.value = cached;
+      isPartnerPermissionGranted.value = _computePartnerPermissionGranted();
+      isLoadingPartnerPermission.value = false;
+      debugPrint('✅ 使用缓存的对方权限数据');
+    } else {
+      isLoadingPartnerPermission.value = true;
+    }
+    // 后台静默刷新
+    try {
+      final result = await _lockPermissionApi.getLockPermission();
+      if (result.isSuccess && result.data != null) {
+        halfUserPermission.value = result.data;
+        isPartnerPermissionGranted.value = _computePartnerPermissionGranted();
+        // 同步更新全局缓存
+        LockPermissionApi.cachedPartnerPermission = result.data;
+      }
+    } catch (e) {
+      debugPrint('获取对方权限状态失败: $e');
+    } finally {
+      isLoadingPartnerPermission.value = false;
+    }
+  }
+
+  bool _computePartnerPermissionGranted() {
+    final data = halfUserPermission.value;
+    if (data == null) return false;
+    final screenUse = data['is_open_screen_use'] as int? ?? 0;
+    final suspendWindow = data['is_open_suspend_window'] as int? ?? 0;
+    final relevanceApps = data['relevance_app'];
+    final hasRelevanceApp =
+        relevanceApps is List && relevanceApps.isNotEmpty;
+
+    if (isPartnerIos) {
+      return screenUse == 1;
+    } else {
+      return screenUse == 1 && suspendWindow == 1;
+    }
   }
 
   // ==================== 权限相关 ====================
@@ -226,29 +330,57 @@ class LockScreenController extends GetxController {
   /// 检查自己的锁机权限是否全部开启（悬浮窗 + app使用记录）
   bool get isMyPermissionGranted => isOverlayGranted.value && isUsageAccessGranted.value;
 
-  void goToPermissionSettings({bool flashOverlay = false, bool flashUsage = false}) {
-    Get.toNamed(
+  /// 上报自己的权限状态到 /set/permission
+  Future<void> _uploadMyPermissions() async {
+    try {
+      final locationGranted = await _permissionService.isLocationPermissionGranted();
+      final notificationGranted = await _permissionService.isNotificationPermissionGranted();
+      final result = await _lockPermissionApi.setPermission(
+        isOpenLocation: locationGranted ? 1 : 0,
+        isOpenNoticeRemind: notificationGranted ? 1 : 0,
+        isOpenScreenUse: isUsageAccessGranted.value ? 1 : 0,
+        isOpenBackRun: 0,
+        isOpenPreventProgramSleep: 0,
+        isOpenSelfStarting: 0,
+        isOpenProgramLock: 0,
+        isOpenSuspendWindow: isOverlayGranted.value ? 1 : 0,
+      );
+      debugPrint('上报权限状态: ${result.isSuccess ? '成功' : '失败: ${result.msg}'}');
+    } catch (e) {
+      debugPrint('上报权限状态异常: $e');
+    }
+  }
+
+  Future<void> goToPermissionSettings({bool flashOverlay = false, bool flashUsage = false}) async {
+    await Get.toNamed(
       KissuRoutePath.systemPermission,
       arguments: {
         'flashOverlay': flashOverlay,
         'flashUsage': flashUsage,
       },
     );
+    // 从权限设置页面返回后，刷新权限状态并上报
+    await _checkPermissions();
+    _uploadMyPermissions();
   }
 
-  void showRemindDialog(BuildContext context) {
+  /// 「去提醒」直接发送消息，无需弹确认框
+  void sendRemindDirectly() {
+    _sendLockPhoneReminder();
+  }
+
+  /// "下一步" 被点击但对方权限不满足时，显示二次确认弹窗
+  void _showPartnerPermissionWarningDialog(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => Dialog(
-        // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Stack(
           children: [
             Container(
               height: 160,
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-              decoration: BoxDecoration(
-                // borderRadius: BorderRadius.circular(20),
+              decoration: const BoxDecoration(
                 image: DecorationImage(
                   image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
                   fit: BoxFit.fill,
@@ -259,8 +391,7 @@ class LockScreenController extends GetxController {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                 
-                   const Text(
+                  const Text(
                     'Ta还未开启相关权限\n还不能锁机哦～',
                     style: TextStyle(
                       fontSize: 16,
@@ -269,9 +400,7 @@ class LockScreenController extends GetxController {
                     ),
                     textAlign: TextAlign.center,
                   ),
-              
                   const SizedBox(height: 20),
-                  // 去提醒按钮
                   SizedBox(
                     width: double.infinity,
                     height: 36,
@@ -297,91 +426,251 @@ class LockScreenController extends GetxController {
                 ],
               ),
             ),
-            // 关闭按钮
-              Positioned(
-                top: 0,
-                right: 10,
-                child: GestureDetector(
-                  onTap: () => Navigator.of(ctx).pop(),
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    child: const Icon(
-                      Icons.close,
-                      size: 20,
-                      color: Color(0xFFaaaaaa),
-                    ),
-                  ),
+            Positioned(
+              top: 0,
+              right: 10,
+              child: GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  child: const Icon(Icons.close, size: 20, color: Color(0xFFaaaaaa)),
                 ),
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
+  /// iOS对方关联App为空时，显示提示弹窗
+  void _showIosNoAppsWarningDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        child: Stack(
+          children: [
+            Container(
+              height: 160,
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
+                  fit: BoxFit.fill,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Ta还未关联任何APP\n还不能锁机哦~',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 36,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _sendConnectAppReminder();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF9AD9),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        '去提醒',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 10,
+              child: GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  child: const Icon(Icons.close, size: 20, color: Color(0xFFaaaaaa)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 发送关联App提醒（iOS对方专用）
+  void _sendConnectAppReminder() async {
+    final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+    if (partnerId == null || partnerId.isEmpty) return;
+    final im = TencentIMService.instance;
+    await im.sendCustomMessage(
+      receiverID: partnerId,
+      customData: jsonEncode({'msg_lock': 'connect_app'}),
+    );
+    debugPrint('已发送关联App提醒给iOS对方');
+    OKToastUtil.showSuccess('已通过聊天通知Ta');
+  }
+
   void _sendLockPhoneReminder() async {
     final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
     if (partnerId == null || partnerId.isEmpty) return;
     final im = TencentIMService.instance;
-    
-    // 发送悬浮窗权限提醒消息
-    await im.sendCustomMessage(
-      receiverID: partnerId,
-      customData: jsonEncode({'msg_lock': 'lock_phone'}),
-    );
-    debugPrint('已发送悬浮窗权限提醒消息给对方');
-    
-    // 发送app使用记录权限提醒消息
-    await im.sendCustomMessage(
-      receiverID: partnerId,
-      customData: jsonEncode({'msg_lock': 'phone_use'}),
-    );
-    debugPrint('已发送app使用记录权限提醒消息给对方');
+    final data = halfUserPermission.value;
+
+    if (isPartnerIos) {
+      // iOS：关联App为空时发 connect_app；screen_use 未开启时发 phone_use
+      final relevanceApps = data?['relevance_app'];
+      final hasApps = relevanceApps is List && relevanceApps.isNotEmpty;
+      final screenUse = data?['is_open_screen_use'] as int? ?? 0;
+      if (!hasApps) {
+        await im.sendCustomMessage(
+          receiverID: partnerId,
+          customData: jsonEncode({'msg_lock': 'connect_app'}),
+        );
+        debugPrint('已发送关联App提醒给iOS对方');
+       }
+      if (screenUse == 0) {
+        await im.sendCustomMessage(
+          receiverID: partnerId,
+          customData: jsonEncode({'msg_lock': 'phone_use'}),
+        );
+         debugPrint('已发送screen_use权限提醒给iOS对方');
+      }
+        OKToastUtil.showSuccess('已通过聊天通知Ta');
+
+    } else {
+      // Android：悬浮窗和app使用记录权限各自判断
+      final suspendWindow = data?['is_open_suspend_window'] as int? ?? 0;
+      final screenUse = data?['is_open_screen_use'] as int? ?? 0;
+      if (suspendWindow == 0) {
+        await im.sendCustomMessage(
+          receiverID: partnerId,
+          customData: jsonEncode({'msg_lock': 'lock_phone'}),
+        );
+         debugPrint('已发送悬浮窗权限提醒给对方');
+      }
+      if (screenUse == 0) {
+        await im.sendCustomMessage(
+          receiverID: partnerId,
+          customData: jsonEncode({'msg_lock': 'phone_use'}),
+        );
+         debugPrint('已发送app使用记录权限提醒给对方');
+      }
+        OKToastUtil.showSuccess('已通过聊天通知Ta');
+
+    }
   }
 
-  // ==================== 锁机操作 ====================
+  // ==================== 锁机操作（走接口） ====================
   void confirmLock() async {
     if (!isStep2Complete) return;
+    if (isLocking.value) return; // 防止重复点击
+    isLocking.value = true;
 
-    // 通过IM发送锁机指令给对方（自定义消息携带问题数据）
-    final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
-    if (partnerId != null && partnerId.isNotEmpty) {
-      final im = TencentIMService.instance;
-      final lockData = {
-        'type': 'lock_screen_command',
-        'question': question.value,
-        'answers': answers.map((a) => a.value).toList(),
-        'correctIndex': selectedAnswerIndex.value,
-        'lockText': lockText.value,
-        'minutes': 5,
-        // 背景图片索引（0,1,2为预设图片）
-        'bgImageIndex': selectedImageIndex.value,
-      };
-      await im.sendCustomMessage(
-        receiverID: partnerId,
-        customData: jsonEncode(lockData),
+    try {
+      // 1) 构建答案JSON: [{"answer":"xxx","is_answer":0/1}, ...]
+      final answerList = <Map<String, dynamic>>[];
+      for (int i = 0; i < 4; i++) {
+        answerList.add({
+          'answer': answers[i].value,
+          'is_answer': (i == selectedAnswerIndex.value) ? 1 : 0,
+        });
+      }
+      final lockAnswerJson = jsonEncode(answerList);
+
+      // 2) 处理锁机背景图
+      // 预设图片：传 default_bg_image_index（kissu_lock_1/2/3）
+      // 自定义图片：上传后传 lock_bg_image URL
+      String bgImageUrl = '';
+      String defaultBgImageIndex = '';
+      
+      if (selectedImageIndex.value >= 0 && selectedImageIndex.value < 3) {
+        // 预设图片，使用 default_bg_image_index
+        final presetNames = ['kissu_lock_1', 'kissu_lock_2', 'kissu_lock_3'];
+        defaultBgImageIndex = presetNames[selectedImageIndex.value];
+      } else if (selectedImageIndex.value == 3 && !isPartnerIos) {
+        // 自定义图片，上传获取URL（仅Android对方需要）
+        bgImageUrl = await _uploadLockBgImage();
+      }
+
+      // 3) 调用锁机API（后端自动发送IM消息）
+      final result = await _lockPermissionApi.lockUserPhone(
+        lockQuestion: question.value,
+        lockAnswer: lockAnswerJson,
+        lockPrompt: lockText.value,
+        lockBgImage: bgImageUrl,
+        defaultBgImageIndex: defaultBgImageIndex,
       );
-      debugPrint('已发送锁机指令给对方: $partnerId');
-    } else {
-      debugPrint('无法发送锁机指令：未找到对方IM ID');
+
+      if (result.isSuccess) {
+        debugPrint('✅ 锁机接口调用成功（后端自动发送IM）');
+        // 更新本地状态
+        final now = DateTime.now();
+        lockStartTime.value = now;
+        pageState.value = 'locked';
+        _saveLockState(true);
+        _startLockTimer();
+        // 刷新用户信息（更新 half_lock_status）
+        UserManager.refreshUserInfo();
+        // 刷新锁机记录
+        await _fetchLockRecords();
+      } else {
+        OKToastUtil.showError(result.msg ?? '锁机失败');
+      }
+    } catch (e) {
+      debugPrint('锁机操作异常: $e');
+      OKToastUtil.showError('锁机失败，请重试');
+    } finally {
+      isLocking.value = false;
     }
+  }
 
-    // 记录锁定
-    final now = DateTime.now();
-    lockStartTime.value = now;
-    pageState.value = 'locked';
-
-    // 添加锁定记录
-    final recordIndex = lockRecords.length + 1;
-    lockRecords.insert(
-      0,
-      LockRecord(index: recordIndex, duration: '00:00:00', dateTime: now),
-    );
-    _saveLockRecords();
-    _saveLockState(true);
-
-    // 启动计时器
-    _startLockTimer();
+  /// 上传锁机背景图并返回URL
+  Future<String> _uploadLockBgImage() async {
+    try {
+      File? imageFile;
+      if (selectedImageIndex.value >= 0 && selectedImageIndex.value < 3) {
+        // 预设图片：从asset复制到临时目录后上传
+        final assetPath = presetImages[selectedImageIndex.value];
+        final byteData = await rootBundle.load(assetPath);
+        final tempDir = await Directory.systemTemp.createTemp('lock_bg_');
+        final tempFile = File('${tempDir.path}/lock_bg.png');
+        await tempFile.writeAsBytes(byteData.buffer.asUint8List());
+        imageFile = tempFile;
+      } else if (selectedImageIndex.value == 3 && customImagePath.value.isNotEmpty) {
+        imageFile = File(customImagePath.value);
+      }
+      if (imageFile != null && await imageFile.exists()) {
+        final uploadResult = await _fileUploadApi.uploadFile(imageFile);
+        if (uploadResult.isSuccess && uploadResult.data != null) {
+          debugPrint('✅ 锁机背景图上传成功: ${uploadResult.data}');
+          return uploadResult.data!;
+        }
+        debugPrint('⚠️ 锁机背景图上传失败: ${uploadResult.msg}');
+      }
+    } catch (e) {
+      debugPrint('上传锁机背景图异常: $e');
+    }
+    return '';
   }
 
   void _startLockTimer() {
@@ -404,39 +693,33 @@ class LockScreenController extends GetxController {
     });
   }
 
-  void unlockDevice() {
-    // 🔥 发送解锁指令给对方（对方收到后自动解锁，包括保活状态）
-    _sendUnlockCommand();
+  /// 主动解锁（A锁B，A主动解锁，unlock_type=1）
+  void unlockDevice() async {
+    try {
+      // 调用解锁API（后端自动发IM消息 unlock_phone_send）
+      final result = await _lockPermissionApi.unlockUserPhone(unlockType: 1);
+      if (result.isSuccess) {
+        debugPrint('🔓 主动解锁接口调用成功');
+      } else {
+        debugPrint('🔓 主动解锁接口失败: ${result.msg}');
+      }
+    } catch (e) {
+      debugPrint('🔓 主动解锁异常: $e');
+    }
 
+    // 不管接口是否成功都重置本地状态
     _lockTimer?.cancel();
     pageState.value = 'setup';
     currentStep.value = 1;
-
-    // 重置所有状态
-    lockTextController.clear();
-    selectedImageIndex.value = 0;
-    customImagePath.value = '';
-    questionController.clear();
-    for (var c in answerControllers) {
-      c.clear();
-    }
-    selectedAnswerIndex.value = -1;
     lockDuration.value = '00:00:00';
-
-    _saveLockRecords();
+    _justUnlocked = true; // 防止fetchLockRecords再次锁定
     _saveLockState(false);
-  }
-
-  /// 🔥 发送解锁指令给被锁方
-  void _sendUnlockCommand() async {
-    final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
-    if (partnerId == null || partnerId.isEmpty) return;
-    final im = TencentIMService.instance;
-    await im.sendCustomMessage(
-      receiverID: partnerId,
-      customData: jsonEncode({'type': 'unlock_phone_send'}),
-    );
-    debugPrint('🔓 已发送解锁指令给对方: $partnerId');
+    // 刷新用户信息（更新 half_lock_status）
+    UserManager.refreshUserInfo();
+    // 刷新锁机记录
+    await _fetchLockRecords();
+    // 解锁成功后返回上一页（我的页面）
+    Get.back();
   }
 
   /// 🔥 监听被锁方答题解锁通知，自动重置锁机页面
@@ -449,33 +732,83 @@ class LockScreenController extends GetxController {
       pageState.value = 'setup';
       currentStep.value = 1;
       lockDuration.value = '00:00:00';
+      _justUnlocked = true; // 防止fetchLockRecords再次锁定
       _saveLockState(false);
-      // TODO: 后期可以在这里记录attempts到锁定记录中
+      // 刷新用户信息（更新 half_lock_status）
+      UserManager.refreshUserInfo();
+      // 刷新锁机记录
+      _fetchLockRecords();
     };
   }
 
-  // ==================== 持久化 ====================
-  Future<void> _loadLockRecords() async {
+  // ==================== 锁机记录（API） ====================
+  Future<void> _fetchLockRecords({int page = 1}) async {
+    isLoadingRecords.value = true;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('lock_records');
-      if (jsonStr != null) {
-        final list = jsonDecode(jsonStr) as List;
-        lockRecords.value = list.map((e) => LockRecord.fromJson(e)).toList();
+      final result = await _lockPermissionApi.getLockPhoneRecord(
+        page: page,
+        pageSize: 10,
+      );
+      if (result.isSuccess && result.data != null) {
+        final data = result.data!;
+        final total = data['total'] as int? ?? 0;
+        if (page == 1) {
+          lockRecordTotal = total;
+        }
+        final list = data['data'] as List? ?? [];
+        final pageSize = 10;
+        final records = <LockRecord>[];
+        final rawList = list.whereType<Map<String, dynamic>>().toList();
+        for (int i = 0; i < rawList.length; i++) {
+          final record = LockRecord.fromApiJson(rawList[i]);
+          // 第一条数据 = 第total次锁机，依次减1
+          final lockNumber = lockRecordTotal - ((page - 1) * pageSize) - i;
+          records.add(LockRecord(
+            index: lockNumber > 0 ? lockNumber : 0,
+            duration: record.duration,
+            dateTime: record.dateTime,
+            id: record.id,
+            lockStatus: record.lockStatus,
+            unlockType: record.unlockType,
+            lockTime: record.lockTime,
+            unlockTime: record.unlockTime,
+          ));
+        }
+        if (page == 1) {
+          lockRecords.value = records;
+        } else {
+          lockRecords.addAll(records);
+        }
+        lockRecordPage.value = page;
+        lockRecordHasMore.value = data['has_more'] == true;
+
+        // 最新锁机数据（用于倒计时）
+        final latest = data['latest_lock_data'] as Map<String, dynamic>?;
+        if (latest != null) {
+          latestLockStatus.value = latest['lock_status'] as int? ?? 0;
+          latestLockTime.value = latest['lock_time'] as int? ?? 0;
+          // 如果当前正在锁定中，恢复锁定状态（但刚解锁时跳过，防止API延迟导致再次锁定）
+          if (latestLockStatus.value == 1 && latestLockTime.value > 0 && !_justUnlocked) {
+            lockStartTime.value = DateTime.fromMillisecondsSinceEpoch(
+              latestLockTime.value * 1000,
+            );
+            pageState.value = 'locked';
+            _startLockTimer();
+          }
+        }
+        _justUnlocked = false;
       }
     } catch (e) {
-      debugPrint('加载锁定记录失败: $e');
+      debugPrint('获取锁机记录失败: $e');
+    } finally {
+      isLoadingRecords.value = false;
     }
   }
 
-  Future<void> _saveLockRecords() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = jsonEncode(lockRecords.map((e) => e.toJson()).toList());
-      await prefs.setString('lock_records', jsonStr);
-    } catch (e) {
-      debugPrint('保存锁定记录失败: $e');
-    }
+  /// 加载更多锁机记录
+  Future<void> loadMoreLockRecords() async {
+    if (!lockRecordHasMore.value || isLoadingRecords.value) return;
+    await _fetchLockRecords(page: lockRecordPage.value + 1);
   }
 
   Future<void> _checkLockState() async {
@@ -550,17 +883,61 @@ class LockRecord {
   final int index;
   final String duration;
   final DateTime dateTime;
+  final String? id;
+  final int lockStatus; // 1=锁定中 0=已解锁
+  final int unlockType; // 0=未解锁 1=主动 2=被动
+  final int lockTime; // 锁机开始时间戳
+  final int unlockTime; // 解锁时间戳
 
   LockRecord({
     required this.index,
     required this.duration,
     required this.dateTime,
+    this.id,
+    this.lockStatus = 0,
+    this.unlockType = 0,
+    this.lockTime = 0,
+    this.unlockTime = 0,
   });
+
+  /// 从API返回的JSON构造
+  factory LockRecord.fromApiJson(Map<String, dynamic> json) {
+    final lockTimestamp = json['lock_time'] as int? ?? 0;
+    final unlockTimestamp = json['unlock_time'] as int? ?? 0;
+    final status = json['lock_status'] as int? ?? 0;
+
+    // 计算持续时长
+    String dur = '00:00:00';
+    if (lockTimestamp > 0) {
+      final lockDt = DateTime.fromMillisecondsSinceEpoch(lockTimestamp * 1000);
+      final endDt = unlockTimestamp > 0
+          ? DateTime.fromMillisecondsSinceEpoch(unlockTimestamp * 1000)
+          : (status == 1 ? DateTime.now() : lockDt);
+      final diff = endDt.difference(lockDt);
+      final h = diff.inHours.toString().padLeft(2, '0');
+      final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
+      final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+      dur = '$h:$m:$s';
+    }
+
+    return LockRecord(
+      index: 0,
+      duration: dur,
+      dateTime: lockTimestamp > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lockTimestamp * 1000)
+          : DateTime.now(),
+      id: json['_id'] as String?,
+      lockStatus: status,
+      unlockType: json['unlock_type'] as int? ?? 0,
+      lockTime: lockTimestamp,
+      unlockTime: unlockTimestamp,
+    );
+  }
 
   factory LockRecord.fromJson(Map<String, dynamic> json) {
     return LockRecord(
-      index: json['index'] as int,
-      duration: json['duration'] as String,
+      index: json['index'] as int? ?? 0,
+      duration: json['duration'] as String? ?? '00:00:00',
       dateTime: DateTime.parse(json['dateTime'] as String),
     );
   }

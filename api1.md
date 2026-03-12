@@ -1,39 +1,212 @@
-{"level":"INFO","message":"日志系统初始化完成","tag":"Logger","timestamp":"2026-03-06T23:08:17.812111","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"Service locator setup completed","tag":"ServiceLocator","timestamp":"2026-03-06T23:08:17.868243","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"友盟分享服务已注册（等待隐私政策同意后初始化）","tag":"ShareService","timestamp":"2026-03-06T23:08:17.876592","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"检查隐私协议状态: hasAgreed=true, shouldShow=false","tag":"FirstLaunchService","timestamp":"2026-03-06T23:08:18.274429","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"腾讯IM SDK初始化成功","tag":"TencentIMService","timestamp":"2026-03-06T23:08:18.289548","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"IM正在连接...","tag":"TencentIMService","timestamp":"2026-03-06T23:08:18.295313","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"IM连接成功","tag":"TencentIMService","timestamp":"2026-03-06T23:08:18.342213","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"IM SDK初始化等待完成","tag":"TencentIMService","timestamp":"2026-03-06T23:08:18.790841","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"友盟隐私政策授权状态已设置: true","tag":"ShareService","timestamp":"2026-03-06T23:08:18.791851","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"设置真实应用生命周期监听（优化版本）","tag":"Location","timestamp":"2026-03-06T23:08:18.797472","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"初始化GPS状态: 开启","tag":"Location","timestamp":"2026-03-06T23:08:18.805062","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"OAID 获取成功: 079ee26b...","tag":"OaidUtil","timestamp":"2026-03-06T23:08:18.832195","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:18.833761","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"友盟分享SDK初始化成功","tag":"ShareService","timestamp":"2026-03-06T23:08:18.834906","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"IM登录成功: userID=b480ab72d32141eeac55378fb035c697","tag":"TencentIMService","timestamp":"2026-03-06T23:08:18.872033","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 POST https://service-api.ikissu.cn/v4/reporting/sensitive/record (336ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:19.197846","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"🔄 首页：静默刷新用户信息","tag":"App","timestamp":"2026-03-06T23:08:19.208963","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:19.855347","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"🔒 收到锁机指令，准备锁屏","tag":"TencentIMService","timestamp":"2026-03-06T23:08:20.154152","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:20.169743","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 POST https://service-api.ikissu.cn/sync/auth/app (361ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:20.532181","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"锁屏请求已发送: 5分钟","tag":"LockScreenOverlay","timestamp":"2026-03-06T23:08:20.538268","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 GET https://service-api.ikissu.cn/version/checkVersion (425ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:20.598056","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 GET https://service-api.ikissu.cn/get/user (428ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:20.598918","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"用户信息已更新","tag":"AuthService","timestamp":"2026-03-06T23:08:20.602939","error":null,"stackTrace":null,"extra":{"userId":15699,"nickname":"kissu4994"}}
-{"level":"INFO","message":"200 GET https://service-api.ikissu.cn/index (545ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:20.715728","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"📤 启动App使用记录上报服务（全量+定时增量）","tag":"AppUsageAutoReportService","timestamp":"2026-03-06T23:08:22.873673","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:22.881408","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 POST https://service-api.ikissu.cn/upload/point (76ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:22.958869","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:24.363303","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 GET https://service-api.ikissu.cn/index (131ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:24.533347","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:25.677155","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 GET https://service-api.ikissu.cn/get/user (78ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:25.756282","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"用户信息已更新","tag":"AuthService","timestamp":"2026-03-06T23:08:25.761211","error":null,"stackTrace":null,"extra":{"userId":15699,"nickname":"kissu4994"}}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:25.831136","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"📱 后台时间不足，跳过提醒","tag":"App","timestamp":"2026-03-06T23:08:26.360089","error":null,"stackTrace":null,"extra":null}
-{"level":"WARNING","message":"DeviceUtil not initialized, using fallback deviceId","tag":"DeviceUtil","timestamp":"2026-03-06T23:08:27.882199","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"200 POST https://service-api.ikissu.cn/upload/point (64ms)","tag":"HTTP","timestamp":"2026-03-06T23:08:27.948470","error":null,"stackTrace":null,"extra":null}
-{"level":"INFO","message":"开始上传日志...","tag":"LogUpload","timestamp":"2026-03-06T23:08:32.848056","error":null,"stackTrace":null,"extra":null}
+[
+        {
+            "question": "摸不着却时刻相伴，分开就消失的是什么？",
+            "answer": [
+                {
+                    "answer": "回忆",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "二人世界",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "执念",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "过往",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "光用眼睛，两个人就能做的事是啥？",
+            "answer": [
+                {
+                    "answer": "示意",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "对视",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "眨眼",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "挑眉",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "只容两人走，永远不会塌的桥是？",
+            "answer": [
+                {
+                    "answer": "石桥",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "木桥",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "鹊桥",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "浮桥",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "只能两人分食，比奶糖更甜的糖？",
+            "answer": [
+                {
+                    "answer": "酥糖",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "喜糖",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "软糖",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "奶糖",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "一伸手就能收到，装着温柔的专属快递？",
+            "answer": [
+                {
+                    "answer": "鲜花",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "拥抱",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "信件",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "礼物",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "越走越暖，想一起走一辈子的路是？",
+            "answer": [
+                {
+                    "answer": "陌路",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "坦途",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "爱情路",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "归途",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "对着彼此说，才最动听的话是？",
+            "answer": [
+                {
+                    "answer": "真话",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "情话",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "客套话",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "悄悄话",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "两人共用，越用越亲密的东西是？",
+            "answer": [
+                {
+                    "answer": "耳机",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "杯子",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "心",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "雨伞",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "藏在眼底，只给彼此看的星星是？",
+            "answer": [
+                {
+                    "answer": "流星",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "眼里的星星",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "星星灯",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "星光",
+                    "is_answer": 0
+                }
+            ]
+        },
+        {
+            "question": "两个人在一起，自然而然的感觉是？",
+            "answer": [
+                {
+                    "answer": "甜蜜",
+                    "is_answer": 1
+                },
+                {
+                    "answer": "热闹",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "平淡",
+                    "is_answer": 0
+                },
+                {
+                    "answer": "匆忙",
+                    "is_answer": 0
+                }
+            ]
+        }
+    ]

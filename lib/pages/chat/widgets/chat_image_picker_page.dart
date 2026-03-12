@@ -33,7 +33,7 @@ const Map<String, String> _albumNameZhMap = {
   'WhatsApp Images': 'WhatsApp 图片',
   'WeChat': '微信',
   'WeiXin': '微信',
-  'WeixinWork': '微信工作空间',
+  'WeixinWork': '企业微信',
   'QQ Images': 'QQ 图片',
   'Telegram': 'Telegram',
 };

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
 
 /// 答题解锁页面
 /// 从SharedPreferences读取锁机时设置的问题和答案
@@ -16,11 +17,11 @@ class LockScreenQuestionPage extends StatefulWidget {
 class _LockScreenQuestionPageState extends State<LockScreenQuestionPage> {
   String _question = '';
   List<String> _answers = [];
-  int _correctIndex = 0;
   int _selectedIndex = -1;
   bool _isWrong = false;
   bool _isLoading = true;
   bool _hasUnlocked = false; // 是否已成功解锁
+  final _lockApi = LockPermissionApi();
 
   @override
   void initState() {
@@ -41,8 +42,6 @@ class _LockScreenQuestionPageState extends State<LockScreenQuestionPage> {
     final prefs = await SharedPreferences.getInstance();
     final question = prefs.getString('lock_question') ?? '什么马不能骑？';
     final answersJson = prefs.getString('lock_answers') ?? '["海马","河马","斑马","木马"]';
-    final correctIndex = prefs.getInt('lock_correct_index') ?? 0;
-
     List<String> answers;
     try {
       answers = (jsonDecode(answersJson) as List).cast<String>();
@@ -53,7 +52,6 @@ class _LockScreenQuestionPageState extends State<LockScreenQuestionPage> {
     setState(() {
       _question = question;
       _answers = answers;
-      _correctIndex = correctIndex;
       _isLoading = false;
     });
   }
@@ -64,19 +62,32 @@ class _LockScreenQuestionPageState extends State<LockScreenQuestionPage> {
       _isWrong = false;
     });
 
-    if (index == _correctIndex) {
-      // 答对了，解锁手机
-      _hasUnlocked = true; // 标记已解锁，dispose时不恢复悬浮窗
-      await LockScreenOverlayService.unlockScreen();
-      if (mounted) {
-        Navigator.of(context).pop();
+    // 每次选择答案都调用解锁接口，unlock_answer_index 从0开始
+    try {
+      final result = await _lockApi.unlockUserPhone(
+        unlockType: 2,
+        unlockAnswerIndex: index,
+      );
+      debugPrint('🔓 答题解锁API调用: index=$index, success=${result.isSuccess}');
+
+      if (result.isSuccess) {
+        // 答对了，解锁成功
+        _hasUnlocked = true;
+        await LockScreenOverlayService.unlockScreen();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        return;
       }
-    } else {
-      // 答错了，提示可以重新选择
+    } catch (e) {
+      debugPrint('🔓 答题解锁API异常: $e');
+    }
+
+    // 答错了，提示可以重新选择
+    if (mounted) {
       setState(() {
         _isWrong = true;
       });
-      // 短暂延迟后重置选择状态，允许重新选
       await Future.delayed(const Duration(milliseconds: 800));
       if (mounted) {
         setState(() {

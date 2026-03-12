@@ -146,7 +146,9 @@ class LoginModel {
   LoverInfo? loverInfo;
   @JsonKey(name: 'share_config')
   ShareConfig? shareConfig;
-  
+  @JsonKey(name: 'half_lock_status')
+  @StringToIntConverter()
+  int? halfLockStatus;
 
   LoginModel({
     this.id,
@@ -191,6 +193,7 @@ class LoginModel {
     this.halfUserInfo,
     this.loverInfo,
     this.shareConfig,
+    this.halfLockStatus,
   });
 
   factory LoginModel.fromJson(Map<String, dynamic> json) {

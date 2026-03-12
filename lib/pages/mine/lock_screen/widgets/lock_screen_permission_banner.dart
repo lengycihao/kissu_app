@@ -23,12 +23,13 @@ class LockScreenPermissionBanners extends StatelessWidget {
                 flashUsage: !controller.isUsageAccessGranted.value,
               ),
             ),
-          // 横幅2：对方权限未开启
-          if (!controller.isPartnerPermissionGranted.value)
+          // 横幅2：对方权限未开启（加载完成后才判断，避免加载中误显示）
+          if (!controller.isLoadingPartnerPermission.value &&
+              !controller.isPartnerPermissionGranted.value)
             _buildBanner(
               text: 'Ta还未开启相关权限，还不能锁机哦',
               actionText: '去提醒',
-              onTap: () => controller.showRemindDialog(context),
+              onTap: () => controller.sendRemindDirectly(),
             ),
         ],
       );
