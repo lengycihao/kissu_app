@@ -1083,9 +1083,11 @@ class MineController extends GetxController {
 
   ///  一键锁机
   void _onPersonalizedHomeTap() async {
-    // 埋点：记录个性化首页功能点击
+    // 埋点3: 记录一键锁机功能点击（带lock_status）
+    final lockStatusValue = UserManager.currentUser?.halfLockStatus ?? 0;
     AnalyticsHelper.trackMyPageFunctionsModule(
       btnName: FunctionModuleValue.oneKeyLock,
+      lockStatus: lockStatusValue,
     );
 
     // 1. 未绑定：弹出绑定弹窗

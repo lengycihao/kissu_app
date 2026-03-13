@@ -348,10 +348,10 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
         children: [
           cardWidget,
           // 手指图片居中显示，使用 IgnorePointer 让点击事件穿透
-          IgnorePointer(
-            child: Positioned.fill(
-              child: Transform.translate(offset: Offset(-10, 0),child: Align (
-                alignment: AlignmentGeometry.centerRight,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Transform.translate(offset: Offset(-10, 0), child: Align(
+                alignment: Alignment.centerRight,
                 child: AnimatedBuilder(
                   animation: _scaleFlashAnimation!,
                   builder: (context, child) {
@@ -361,11 +361,11 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
                         'assets/lock/kissu_touch.png',
                         width: 60,
                         height: 60,
-                       ),
+                      ),
                     );
                   },
                 ),
-              ),),
+              )),
             ),
           ),
         ],

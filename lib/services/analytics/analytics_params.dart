@@ -161,6 +161,17 @@ class AnalyticsParams {
   /// 按钮状态（用于弹窗等）
   static const String btnStatus = 'btn_status';
   
+  // ==================== 锁机相关参数 ====================
+  
+  /// 锁机状态（0=无状态 1=锁机中 2=已解锁）
+  static const String lockStatus = 'lock_status';
+  
+  /// 解锁状态（1=解锁成功 0=解锁失败）
+  static const String unlockStatus = 'unlock_status';
+  
+  /// 来源页面位置（chat/mine）
+  static const String previousPage = 'previous_page';
+  
   /// 头像身份（足迹页面）
   // static const String isOneself = 'is_oneself';
   

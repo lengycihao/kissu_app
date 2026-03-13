@@ -98,10 +98,10 @@ class ChatInputBarState extends State<ChatInputBar> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(20),
-        topRight: Radius.circular(20),
-      ),
+      // borderRadius: const BorderRadius.only(
+      //   topLeft: Radius.circular(20),
+      //   topRight: Radius.circular(20),
+      // ),
       child: Container(
         decoration: const BoxDecoration(
           color: Color(0xffffffff), // 纯白色背景

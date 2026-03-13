@@ -149,7 +149,7 @@ class ChatPermissionCard extends StatelessWidget {
               decoration: BoxDecoration(color: Colors.transparent),
               padding: EdgeInsets.fromLTRB(5, 5, 5, 5),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,

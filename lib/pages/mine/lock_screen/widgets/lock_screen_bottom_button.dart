@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import '../lock_screen_controller.dart';
 
 class LockScreenBottomButton extends StatefulWidget {
@@ -28,6 +29,8 @@ class _LockScreenBottomButtonState extends State<LockScreenBottomButton>
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.linear));
     _animController.addStatusListener((status) {
       if (status == AnimationStatus.completed && _isLongPressing) {
+        // 埋点4: 长按锁机按钮事件
+        AnalyticsHelper.trackLockPhoneLongPress();
         final controller = Get.find<LockScreenController>();
         controller.confirmLock();
         _animController.reset();

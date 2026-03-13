@@ -193,6 +193,15 @@ class KissuRoute {
       transition: Transition.rightToLeft,
     ),
     GetPage(
+      name: KissuRoutePath.systemPermissionOverlayGuide,
+      page: () => const SystemPermissionGuidePage(
+        guideType: SystemPermissionGuideType.overlayWindow,
+        title: '悬浮窗权限设置',
+      ),
+      binding: SystemPermissionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
       name: KissuRoutePath.permissionSetting,
       page: () => const PermissionSettingPage(),
       transition: Transition.rightToLeft,

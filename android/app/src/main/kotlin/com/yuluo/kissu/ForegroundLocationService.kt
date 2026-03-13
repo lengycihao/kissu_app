@@ -627,6 +627,14 @@ class ForegroundLocationService : Service(), AMapLocationListener {
      */
     private fun handleNativeLockScreenCommand(json: JSONObject) {
         try {
+            // 用户未登录时不处理锁机指令
+            val kissuPrefs = getSharedPreferences("kissu_preferences", Context.MODE_PRIVATE)
+            val userToken = kissuPrefs.getString("user_token", null)
+            if (userToken.isNullOrEmpty()) {
+                Log.w(TAG, "🔒 用户未登录（无token），忽略锁机指令")
+                return
+            }
+
             // 检查悬浮窗权限
             if (!Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "🔒 缺少悬浮窗权限，无法启动锁屏")

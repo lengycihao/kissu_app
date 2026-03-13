@@ -20,6 +20,7 @@ import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/app_usage_auto_report_service.dart';
+import 'package:kissu_app/services/permission_upload_service.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoginController extends GetxController {
@@ -319,6 +320,9 @@ class LoginController extends GetxController {
         // 启动App使用记录自动上报服务（登录成功后）
         _startAppUsageAutoReport();
 
+        // 重置权限上传会话标记，确保重新登录后重新上报权限
+        _resetPermissionUploadSession();
+
         // 清理恋爱信息控制器，避免跨账号复用旧的本地数据
         _clearLoveInfoController();
 
@@ -417,6 +421,17 @@ class LoginController extends GetxController {
       }
     } catch (e) {
       logError('❌ 启动App使用记录自动上报服务失败: $e', tag: 'Login', error: e);
+    }
+  }
+
+  /// 重置权限上传会话标记（登录成功后调用，确保重新上报权限状态）
+  void _resetPermissionUploadSession() {
+    try {
+      if (Get.isRegistered<PermissionUploadService>()) {
+        Get.find<PermissionUploadService>().resetSession();
+      }
+    } catch (e) {
+      logError('重置权限上传会话失败: $e', tag: 'Login', error: e);
     }
   }
 

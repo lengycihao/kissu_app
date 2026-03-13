@@ -56,7 +56,7 @@ class LockScreenOverlayService : Service() {
     private var timeUpdateRunnable: Runnable? = null
     
     // 答题页面相关
-    private var lockScreenContainer: FrameLayout? = null  // 锁屏主视图容器
+    private var bgImageView: ImageView? = null  // 锁屏背景图ImageView
     private var lockScreenContainerTop: FrameLayout? = null  // 锁屏主视图容器上方灰色背景
     private var questionContainer: FrameLayout? = null    // 答题视图容器
     private var questionText: String = "什么马不能骑？"
@@ -394,7 +394,7 @@ class LockScreenOverlayService : Service() {
         overlayView = null
         isOverlayShowing = false
         timeTextView = null
-        lockScreenContainer = null
+        bgImageView = null
         lockScreenContainerTop = null
         questionContainer = null
     }
@@ -463,12 +463,13 @@ class LockScreenOverlayService : Service() {
             )
         }
         
-        // 锁屏主视图容器
-        lockScreenContainer = FrameLayout(context).apply {
+        // 锁屏背景图（ImageView，支持 CENTER_CROP 全屏铺满）
+        bgImageView = ImageView(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            scaleType = ImageView.ScaleType.CENTER_CROP
         }
 
         // 锁屏主视图容器
@@ -488,54 +489,19 @@ class LockScreenOverlayService : Service() {
             visibility = View.GONE
         }
 
-        // 背景图片 - 优先使用本地文件路径/URL，否则根据bgImageIndex选择本地图片
+        // 灰色遮罩层
         try {
-            val bgResIdTop = R.drawable.kissu_lock_gray_bg
-            val bgDrawableTop = ContextCompat.getDrawable(context, bgResIdTop)
-            lockScreenContainerTop?.background = bgDrawableTop
+            lockScreenContainerTop?.background = ContextCompat.getDrawable(context, R.drawable.kissu_lock_gray_bg)
+        } catch (_: Exception) {}
 
+        // 背景图片 - 优先本地文件，其次网络URL，最后预设图
+        try {
             if (bgImageUrl.isNotEmpty()) {
                 val file = java.io.File(bgImageUrl)
                 if (file.exists()) {
-                    // 本地文件路径（Flutter已预下载）
-                    try {
-                        val bitmap = BitmapFactory.decodeFile(bgImageUrl)
-                        if (bitmap != null) {
-                            val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
-                            lockScreenContainer?.background = drawable
-                            android.util.Log.d("LockScreenOverlay", "本地背景图片加载成功: ${bitmap.width}x${bitmap.height}")
-                        } else {
-                            setFallbackBackground(context)
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("LockScreenOverlay", "本地背景图片加载失败: ${e.message}")
-                        setFallbackBackground(context)
-                    }
+                    loadLocalBgImage(file.absolutePath, screenWidth, screenHeight)
                 } else if (bgImageUrl.startsWith("http")) {
-                    // 网络URL兜底：异步下载
-                    Thread {
-                        try {
-                            val url = java.net.URL(bgImageUrl)
-                            val connection = url.openConnection() as java.net.HttpURLConnection
-                            connection.connectTimeout = 5000
-                            connection.readTimeout = 5000
-                            connection.doInput = true
-                            connection.connect()
-                            val inputStream = connection.inputStream
-                            val bitmap = BitmapFactory.decodeStream(inputStream)
-                            inputStream.close()
-                            if (bitmap != null) {
-                                handler?.post {
-                                    val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
-                                    lockScreenContainer?.background = drawable
-                                    android.util.Log.d("LockScreenOverlay", "网络背景图片加载成功")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("LockScreenOverlay", "网络背景图片加载失败: ${e.message}")
-                            handler?.post { setFallbackBackground(context) }
-                        }
-                    }.start()
+                    loadNetworkBgImage(bgImageUrl, screenWidth, screenHeight)
                 } else {
                     setFallbackBackground(context)
                 }
@@ -543,30 +509,8 @@ class LockScreenOverlayService : Service() {
                 setFallbackBackground(context)
             }
         } catch (e: Exception) {
-            // 如果加载失败，使用默认背景
-            try {
-                val bgDrawable = ContextCompat.getDrawable(context, R.drawable.kissu_lock_bg)
-                lockScreenContainer?.background = bgDrawable
-                 val bgDrawableTop = ContextCompat.getDrawable(context, R.drawable.kissu_lock_gray_bg)
-                  lockScreenContainerTop?.background = bgDrawableTop
-            } catch (e2: Exception) {
-                lockScreenContainer?.background = GradientDrawable(
-                    GradientDrawable.Orientation.TOP_BOTTOM,
-                    intArrayOf(
-                        Color.parseColor("#c4a574"),
-                        Color.parseColor("#b8956a"),
-                        Color.parseColor("#a88560")
-                    )
-                )
-                lockScreenContainerTop?.background = GradientDrawable(
-                    GradientDrawable.Orientation.TOP_BOTTOM,
-                    intArrayOf(
-                        Color.parseColor("#c4a574"),
-                        Color.parseColor("#b8956a"),
-                        Color.parseColor("#a88560")
-                    )
-                )
-            }
+            android.util.Log.e("LockScreenOverlay", "背景图加载异常: ${e.message}")
+            setFallbackBackground(context)
         }
 
         // 时间模块
@@ -846,7 +790,7 @@ class LockScreenOverlayService : Service() {
         )
 
         // 将两个容器添加到根容器
-        rootContainer.addView(lockScreenContainer)
+        rootContainer.addView(bgImageView)
         rootContainer.addView(lockScreenContainerTop)
         rootContainer.addView(questionContainer)
 
@@ -914,8 +858,88 @@ class LockScreenOverlayService : Service() {
                 2 -> R.drawable.kissu_lock_bg_3
                 else -> R.drawable.kissu_lock_bg_1
             }
-            lockScreenContainer?.background = ContextCompat.getDrawable(context, bgResId)
+            bgImageView?.setImageResource(bgResId)
         } catch (_: Exception) {}
+    }
+
+    /** OOM安全：根据目标尺寸计算 inSampleSize 后再解码本地图片 */
+    private fun loadLocalBgImage(filePath: String, reqWidth: Int, reqHeight: Int) {
+        try {
+            val bitmap = decodeSampledBitmap(filePath, reqWidth, reqHeight)
+            if (bitmap != null) {
+                bgImageView?.setImageBitmap(bitmap)
+                android.util.Log.d("LockScreenOverlay", "本地背景图加载成功: ${bitmap.width}x${bitmap.height}")
+            } else {
+                setFallbackBackground(this)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "本地背景图加载失败: ${e.message}")
+            setFallbackBackground(this)
+        }
+    }
+
+    /** 异步下载网络图片，解码后设置到 ImageView */
+    private fun loadNetworkBgImage(url: String, reqWidth: Int, reqHeight: Int) {
+        // 先显示预设图兜底，网络图加载成功后替换
+        setFallbackBackground(this)
+        Thread {
+            var connection: java.net.HttpURLConnection? = null
+            try {
+                connection = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 8000
+                    readTimeout = 8000
+                    doInput = true
+                }
+                connection.connect()
+                // 读到字节数组以便两次解码（先取尺寸再采样）
+                val bytes = connection.inputStream.use { it.readBytes() }
+                val bitmap = decodeSampledBitmapFromBytes(bytes, reqWidth, reqHeight)
+                if (bitmap != null) {
+                    handler?.post {
+                        bgImageView?.setImageBitmap(bitmap)
+                        android.util.Log.d("LockScreenOverlay", "网络背景图加载成功: ${bitmap.width}x${bitmap.height}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "网络背景图加载失败: ${e.message}")
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    /** 从本地文件路径 OOM安全解码 */
+    private fun decodeSampledBitmap(filePath: String, reqWidth: Int, reqHeight: Int): Bitmap? {
+        val options = BitmapFactory.Options()
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(filePath, options)
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+        options.inJustDecodeBounds = false
+        return BitmapFactory.decodeFile(filePath, options)
+    }
+
+    /** 从字节数组 OOM安全解码 */
+    private fun decodeSampledBitmapFromBytes(bytes: ByteArray, reqWidth: Int, reqHeight: Int): Bitmap? {
+        val options = BitmapFactory.Options()
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+        options.inJustDecodeBounds = false
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    }
+
+    /** 计算合适的 inSampleSize，保证解码后尺寸 >= 目标尺寸 */
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (rawW, rawH) = options.outWidth to options.outHeight
+        var inSampleSize = 1
+        if (rawW > reqWidth || rawH > reqHeight) {
+            val halfW = rawW / 2
+            val halfH = rawH / 2
+            while (halfW / inSampleSize >= reqWidth && halfH / inSampleSize >= reqHeight) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
     }
 
     private fun loadLockScreenDisplayData() {
@@ -949,7 +973,7 @@ class LockScreenOverlayService : Service() {
     }
     
     private fun showQuestionView() {
-        lockScreenContainer?.visibility = View.GONE
+        bgImageView?.visibility = View.GONE
         lockScreenContainerTop?.visibility = View.GONE
         questionContainer?.visibility = View.VISIBLE
         // 重新创建答题视图内容
@@ -960,7 +984,7 @@ class LockScreenOverlayService : Service() {
     private fun showLockScreenView() {
         isAnsweringQuestion = false
         questionContainer?.visibility = View.GONE
-        lockScreenContainer?.visibility = View.VISIBLE
+        bgImageView?.visibility = View.VISIBLE
         lockScreenContainerTop?.visibility = View.VISIBLE
     }
     
@@ -1120,6 +1144,9 @@ class LockScreenOverlayService : Service() {
         // 每次选择答案都调用解锁接口，由API判断对错
         callUnlockApiWithAnswer(index) { isCorrect ->
             handler?.post {
+                // 埋点6: 保存答题事件到FlutterSharedPreferences供Flutter上报
+                saveAnswerAnalyticsEvent(if (isCorrect) 1 else 0)
+
                 if (isCorrect) {
                     // 答对了，使用正确答案背景图片
                     try {
@@ -1163,6 +1190,28 @@ class LockScreenOverlayService : Service() {
         }
     }
     
+    /**
+     * 埋点6: 保存答题选择事件到FlutterSharedPreferences
+     * Flutter侧会在锁屏解除后读取并上报这些事件
+     * @param unlockStatus 1=解锁成功(答对) 0=解锁失败(答错)
+     */
+    private fun saveAnswerAnalyticsEvent(unlockStatus: Int) {
+        try {
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val existingJson = flutterPrefs.getString("flutter.lock_answer_analytics_events", "[]") ?: "[]"
+            val arr = org.json.JSONArray(existingJson)
+            val event = org.json.JSONObject().apply {
+                put("unlock_status", unlockStatus)
+                put("click_time", System.currentTimeMillis() / 1000)
+            }
+            arr.put(event)
+            flutterPrefs.edit().putString("flutter.lock_answer_analytics_events", arr.toString()).apply()
+            android.util.Log.d("LockScreenOverlay", "埋点6: 保存答题事件 unlockStatus=$unlockStatus, 总计${arr.length()}条")
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "保存答题埋点事件失败: ${e.message}")
+        }
+    }
+
     private fun showSuccessDialog() {
         android.util.Log.d("LockScreenOverlay", "显示成功弹窗")
         

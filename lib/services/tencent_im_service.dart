@@ -35,6 +35,8 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:tencent_cloud_chat_push/tencent_cloud_chat_push.dart';
 import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/pages/chat/chat_controller.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 腾讯IM服务
@@ -1642,6 +1644,12 @@ class TencentIMService extends GetxService {
       final String? type = decoded['type'] as String?;
       if (type != 'lock_screen_command') return;
 
+      // 用户未登录时不处理锁机指令
+      if (!UserManager.isLoggedIn) {
+        logger.info('🔒 收到锁机指令但用户未登录，忽略', tag: 'TencentIMService');
+        return;
+      }
+
       logger.info('🔒 收到锁机指令，准备锁屏', tag: 'TencentIMService');
 
       // 存储锁机发送者ID（用于解锁后发送unlock_phone_receive）
@@ -1809,8 +1817,32 @@ class TencentIMService extends GetxService {
       if (onUnlockPhoneReceived.value != null) {
         onUnlockPhoneReceived.value!(attempts);
       }
+
+      // 刷新用户信息并更新聊天页/我的页面的锁机状态图标
+      await UserManager.refreshUserInfo();
+      _refreshPartnerLockStateOnPages();
     } catch (e) {
       logger.error('🔓 处理解锁通知异常: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 刷新聊天页和我的页面的对方锁机状态
+  void _refreshPartnerLockStateOnPages() {
+    try {
+      // 更新聊天页面
+      if (Get.isRegistered<ChatController>()) {
+        final chatController = Get.find<ChatController>();
+        chatController.refreshPartnerLockState();
+        logger.info('🔓 已刷新聊天页锁机状态', tag: 'TencentIMService');
+      }
+      // 更新我的页面
+      if (Get.isRegistered<MineController>()) {
+        final mineController = Get.find<MineController>();
+        mineController.onPageResumed();
+        logger.info('🔓 已刷新我的页面锁机状态', tag: 'TencentIMService');
+      }
+    } catch (e) {
+      logger.error('🔓 刷新锁机状态异常: $e', tag: 'TencentIMService');
     }
   }
 

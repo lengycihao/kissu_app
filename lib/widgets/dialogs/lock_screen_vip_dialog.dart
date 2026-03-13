@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 
 /// 一键锁机VIP弹窗
 /// 当非会员点击一键锁机功能时显示
 class LockScreenVipDialog {
-  static Future<void> show(BuildContext context) async {
+  static Future<void> show(BuildContext context, {bool isFromChat = false}) async {
+    // 埋点2.1: VIP锁机弹窗曝光事件
+    AnalyticsHelper.trackVipLockPhoneExposure(isFromChat: isFromChat);
     await showDialog(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black54,
-      builder: (ctx) => const _LockScreenVipDialogContent(),
+      builder: (ctx) => _LockScreenVipDialogContent(isFromChat: isFromChat),
     );
   }
 }
 
 class _LockScreenVipDialogContent extends StatelessWidget {
-  const _LockScreenVipDialogContent();
+  final bool isFromChat;
+  const _LockScreenVipDialogContent({this.isFromChat = false});
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +72,11 @@ class _LockScreenVipDialogContent extends StatelessWidget {
               top: 8,
               right: 8,
               child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: () {
+                  // 埋点2.2: VIP锁机弹窗点击关闭
+                  AnalyticsHelper.trackVipLockPhoneClick(isFromChat: isFromChat, btnStatus: 0);
+                  Navigator.of(context).pop();
+                },
                 child: Container(
                   width: 32,
                   height: 32,
@@ -87,9 +97,19 @@ class _LockScreenVipDialogContent extends StatelessWidget {
               child: Center(
                 child: GestureDetector(
                   onTap: () {
+                    // 埋点2.2: VIP锁机弹窗点击进入
+                    AnalyticsHelper.trackVipLockPhoneClick(isFromChat: isFromChat, btnStatus: 1);
                     Navigator.of(context).pop();
-                    // 跳转到VIP开通页面
-                    Get.toNamed(KissuRoutePath.vip);
+                    // 埋点7: 跳转到VIP开通页面，带上来源页和来源事件
+                    Get.toNamed(
+                      KissuRoutePath.vip,
+                      arguments: {
+                        'source_page': isFromChat ? SourcePageUtilsCaller.chat : SourcePageUtilsCaller.mine,
+                        'source_event': isFromChat
+                            ? ChatEvents.vipLockPhoneClick
+                            : MyPageEvents.vipLockPhoneClick,
+                      },
+                    );
                   },
                   child: Image.asset(
                     'assets/lock/kissu_lock_vip_btn.webp',

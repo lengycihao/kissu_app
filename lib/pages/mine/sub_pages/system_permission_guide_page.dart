@@ -30,7 +30,8 @@ class _SystemPermissionGuidePageState extends State<SystemPermissionGuidePage> w
   bool get _isPermissionType =>
       guideType == SystemPermissionGuideType.location ||
       guideType == SystemPermissionGuideType.notification ||
-      guideType == SystemPermissionGuideType.appUsage;
+      guideType == SystemPermissionGuideType.appUsage ||
+      guideType == SystemPermissionGuideType.overlayWindow;
 
   // 埋点相关
   int? _pageEnterTime;
@@ -262,7 +263,8 @@ class _SystemPermissionGuidePageState extends State<SystemPermissionGuidePage> w
     // 权限类型的指引：根据权限状态显示不同按钮
     final bool isPermissionType = guideType == SystemPermissionGuideType.location ||
         guideType == SystemPermissionGuideType.notification ||
-        guideType == SystemPermissionGuideType.appUsage;
+        guideType == SystemPermissionGuideType.appUsage ||
+        guideType == SystemPermissionGuideType.overlayWindow;
     
     if (isPermissionType) {
       // 检查权限是否已开启

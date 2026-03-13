@@ -510,11 +510,16 @@ class AnalyticsHelper {
   }
 
   /// 记录功能模块点击
-  static void trackMyPageFunctionsModule({required String btnName}) {
+  /// [lockStatus] 仅一键锁机功能传入（0=无状态 1=锁机中 2=已解锁）
+  static void trackMyPageFunctionsModule({required String btnName, int? lockStatus}) {
+    final params = <String, dynamic>{AnalyticsParams.btnName: btnName};
+    if (lockStatus != null) {
+      params[AnalyticsParams.lockStatus] = lockStatus;
+    }
     AnalyticsManager.instance.trackClick(
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.functionsModule,
-      params: {AnalyticsParams.btnName: btnName},
+      params: params,
     );
   }
 
@@ -742,6 +747,76 @@ class AnalyticsHelper {
       pageId: MyPageEvents.pageId,
       eventId: MyPageEvents.unbindStatement,
       params: {AnalyticsParams.btnName: btnName},
+    );
+  }
+
+  // ==================== 一键锁机相关 ====================
+
+  /// 埋点1: 聊天页面一键锁机点击事件
+  /// [lockStatus] 0=无状态 1=锁机中 2=已解锁
+  static void trackChatLockPhoneClick({required int lockStatus}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: ChatEvents.pageId,
+      eventId: ChatEvents.lockPhoneClick,
+      params: {AnalyticsParams.lockStatus: lockStatus},
+    );
+  }
+
+  /// 埋点2.1: VIP锁机弹窗曝光事件
+  /// [isFromChat] true=聊天页面触发, false=我的页面触发
+  static void trackVipLockPhoneExposure({required bool isFromChat}) {
+    final pageId = isFromChat ? ChatEvents.pageId : MyPageEvents.pageId;
+    final eventId = isFromChat
+        ? ChatEvents.vipLockPhoneExposure
+        : MyPageEvents.vipLockPhoneExposure;
+    AnalyticsManager.instance.trackEvent(
+      pageId: pageId,
+      eventId: eventId,
+      params: {
+        AnalyticsParams.pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        AnalyticsParams.previousPage: isFromChat ? 'chat' : 'mine',
+      },
+    );
+  }
+
+  /// 埋点2.2: VIP锁机弹窗点击事件
+  /// [isFromChat] true=聊天页面触发, false=我的页面触发
+  /// [btnStatus] 1=进入(开通会员) 0=关闭
+  static void trackVipLockPhoneClick({required bool isFromChat, required int btnStatus}) {
+    final pageId = isFromChat ? ChatEvents.pageId : MyPageEvents.pageId;
+    final eventId = isFromChat
+        ? ChatEvents.vipLockPhoneClick
+        : MyPageEvents.vipLockPhoneClick;
+    AnalyticsManager.instance.trackClick(
+      pageId: pageId,
+      eventId: eventId,
+      params: {AnalyticsParams.btnStatus: btnStatus},
+    );
+  }
+
+  /// 埋点4: 一键锁机页面长按锁机按钮事件
+  static void trackLockPhoneLongPress() {
+    AnalyticsManager.instance.trackClick(
+      pageId: LockPhoneEvents.pageId,
+      eventId: LockPhoneEvents.longPress,
+    );
+  }
+
+  /// 埋点5: 锁定成功后主动解锁按钮点击事件
+  static void trackLockPhoneInitiativeUnlock() {
+    AnalyticsManager.instance.trackClick(
+      pageId: LockPhoneEvents.pageId,
+      eventId: LockPhoneEvents.initiativeUnlock,
+    );
+  }
+
+  /// 埋点6: 被锁定方答题选择答案事件
+  /// [unlockStatus] 1=解锁成功 0=解锁失败
+  static void trackLockPhoneAnswerUnlock({required int unlockStatus}) {
+    AnalyticsManager.instance.trackClick(
+      pageId: LockPhoneEvents.pageId,
+      eventId: LockPhoneEvents.answerUnlock,
+      params: {AnalyticsParams.unlockStatus: unlockStatus},
     );
   }
 }

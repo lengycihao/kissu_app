@@ -14,6 +14,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/network/public/lock_permission_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 class LockScreenController extends GetxController {
   // ==================== 步骤管理 ====================
@@ -142,6 +143,7 @@ class LockScreenController extends GetxController {
     _checkPermissions();
     _fetchPartnerPermission();
     _listenForUnlockNotification();
+    _reportPendingAnswerAnalytics();
   }
 
   @override
@@ -189,8 +191,21 @@ class LockScreenController extends GetxController {
   }
 
   /// Step1 "下一步" 按钮点击：校验对方版本、iOS关联App、权限，再进入 Step2
-  void onStep1NextTap(BuildContext context) {
+  Future<void> onStep1NextTap(BuildContext context) async {
     if (!isStep1Complete) return;
+
+    // 再次调用 /get/lock/permission 实时检查对方权限
+    try {
+      final result = await _lockPermissionApi.getLockPermission();
+      if (result.isSuccess && result.data != null) {
+        halfUserPermission.value = result.data;
+        isPartnerPermissionGranted.value = _computePartnerPermissionGranted();
+        LockPermissionApi.cachedPartnerPermission = result.data;
+      }
+    } catch (e) {
+      debugPrint('下一步：获取对方权限失败: $e');
+    }
+
     // 先检查对方版本是否支持锁机
     if (!isPartnerVersionConform) {
       OKToastUtil.showError('对方版本过低，一键锁机无法使用');
@@ -202,6 +217,7 @@ class LockScreenController extends GetxController {
       return;
     }
     if (!isPartnerPermissionGranted.value) {
+      OKToastUtil.showError('对方还未开启相关权限，暂时无法锁机');
       _showPartnerPermissionWarningDialog(context);
     } else {
       goToStep2();
@@ -623,6 +639,7 @@ class LockScreenController extends GetxController {
 
       if (result.isSuccess) {
         debugPrint('✅ 锁机接口调用成功（后端自动发送IM）');
+        OKToastUtil.showSuccess('锁机成功');
         // 更新本地状态
         final now = DateTime.now();
         lockStartTime.value = now;
@@ -718,6 +735,8 @@ class LockScreenController extends GetxController {
     UserManager.refreshUserInfo();
     // 刷新锁机记录
     await _fetchLockRecords();
+    // 解锁成功提示
+    OKToastUtil.showSuccess('解锁成功');
     // 解锁成功后返回上一页（我的页面）
     Get.back();
   }
@@ -794,6 +813,8 @@ class LockScreenController extends GetxController {
             );
             pageState.value = 'locked';
             _startLockTimer();
+          }else{
+             pageState.value = 'setup';
           }
         }
         _justUnlocked = false;
@@ -819,6 +840,12 @@ class LockScreenController extends GetxController {
         final startTimeStr = prefs.getString('lock_start_time');
         if (startTimeStr != null) {
           lockStartTime.value = DateTime.parse(startTimeStr);
+          // 立即计算并显示当前倒计时，避免等待1秒后才更新
+          final diff = DateTime.now().difference(lockStartTime.value);
+          final hours = diff.inHours.toString().padLeft(2, '0');
+          final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+          final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+          lockDuration.value = '$hours:$minutes:$seconds';
           pageState.value = 'locked';
           _startLockTimer();
         }
@@ -842,6 +869,28 @@ class LockScreenController extends GetxController {
       }
     } catch (e) {
       debugPrint('保存锁定状态失败: $e');
+    }
+  }
+
+  /// 埋点6: 读取原生锁屏答题事件并上报
+  /// 原生LockScreenOverlayService在用户每次选择答案时会将事件保存到FlutterSharedPreferences
+  /// 此方法在进入锁机页面时读取并上报这些事件，然后清除
+  Future<void> _reportPendingAnswerAnalytics() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final eventsJson = prefs.getString('lock_answer_analytics_events');
+      if (eventsJson == null || eventsJson.isEmpty || eventsJson == '[]') return;
+
+      final List<dynamic> events = jsonDecode(eventsJson);
+      for (final event in events) {
+        final unlockStatus = event['unlock_status'] as int? ?? 0;
+        AnalyticsHelper.trackLockPhoneAnswerUnlock(unlockStatus: unlockStatus);
+      }
+      // 上报完毕后清除
+      await prefs.remove('lock_answer_analytics_events');
+      debugPrint('📊 埋点6: 已上报${events.length}条答题事件');
+    } catch (e) {
+      debugPrint('📊 读取答题埋点事件失败: $e');
     }
   }
 

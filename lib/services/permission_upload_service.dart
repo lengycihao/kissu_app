@@ -41,6 +41,12 @@ class PermissionUploadService extends GetxService {
     }
   }
 
+  /// 重新登录时调用：重置会话标记，确保重新上报权限
+  void resetSession() {
+    _uploadedThisSession = false;
+    logDebug('🔄 权限上传会话标记已重置（重新登录）', tag: 'PermissionUpload');
+  }
+
   /// 权限设置页面保存后调用：标记需要重传，并立即触发一次上传
   Future<void> markDirtyAndUpload() async {
     try {

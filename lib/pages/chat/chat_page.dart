@@ -8,6 +8,7 @@ import 'package:kissu_app/pages/chat/widgets/chat_device_info_bar.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_message_list_view.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/lock_screen_vip_dialog.dart';
@@ -156,12 +157,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       final isLocked = controller.isPartnerLocked.value;
       return GestureDetector(
         onTap: () async {
+          // 埋点1: 聊天页面一键锁机点击事件
+          final lockStatus = UserManager.currentUser?.halfLockStatus ?? 0;
+          AnalyticsHelper.trackChatLockPhoneClick(lockStatus: lockStatus);
+
           // 1. 未绑定：弹出绑定弹窗
           final isBound = UserManager.currentUser?.bindStatus?.toString() == "1";
           if (!isBound) {
             await CustomBottomDialog.show(
               context: context,
               caller: SourcePageUtilsCaller.chat,
+              sourceEvent: ChatEvents.lockPhoneClick,
               isDismissible: false,
               enableDrag: false,
             );
@@ -169,7 +175,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
           // 2. 已绑定但非会员：弹出VIP弹窗
           if (!UserManager.isVip) {
-            await LockScreenVipDialog.show(context);
+            await LockScreenVipDialog.show(context, isFromChat: true);
             return;
           }
           // 3. 已绑定且是会员：进入一键锁机页面
@@ -178,8 +184,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           controller.refreshPartnerLockState();
         },
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
-           
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+           decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))
+           ),
           
           alignment: Alignment.centerLeft,
           child: Container(
@@ -191,7 +200,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             child: Row(
               mainAxisSize: MainAxisSize.min, 
               children: [
-                // 锁机图标（带锁机中状态角标）
+                // 锁机图标（带锁机中/new状态角标）
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -208,6 +217,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           'assets/lock/kissu_locking.webp',
                           width: 40,
                           height: 15,
+                        ),
+                      )
+                    else if (!controller.hasEnteredLockScreen.value)
+                      Positioned(
+                        top: -15,
+                        left: 44,
+                        child: Image.asset(
+                          'assets/4.0/kissu_change_logo_new.webp',
+                          width: 28,
+                          height: 20,
                         ),
                       ),
                   ],

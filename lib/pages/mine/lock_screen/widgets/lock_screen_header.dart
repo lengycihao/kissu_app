@@ -57,133 +57,140 @@ class LockScreenTopBar extends StatelessWidget {
               onTap: () {
                 showModalBottomSheet(
                   context: context,
-                  builder: (context) => Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                          ),
-                        ),
-                        padding: EdgeInsets.all(20),
-                        width: double.infinity,
-                        child: Column(
+                  builder: (context) => Container(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        Column(
                           children: [
-                            const Text(
-                              'iPhone手机功能说明',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xff333333),
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+                              child: const Text(
+                                'iPhone手机功能说明',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xff333333),
+                                ),
                               ),
                             ),
-                            SizedBox(height: 20),
-                            Text.rich(
-                              TextSpan(
-                                children: [
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                physics: BouncingScrollPhysics(),
+                                child: Text.rich(
                                   TextSpan(
-                                    text: '如何锁定iPhone手机\n',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xff333333),
-                                      fontWeight: FontWeight.w500,
-                                      height: 2.5,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        '由于系统特性，iPhone手机不支持直接锁定手机，只能锁定Ta的App，点击被锁定的App会展示锁定界面。\n\n',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xff777777),
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.5,
-                                    ),
-                                  ),
+                                    children: [
+                                      TextSpan(
+                                        text: '如何锁定iPhone手机\n',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xff333333),
+                                          fontWeight: FontWeight.w500,
+                                          height: 2.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            '由于系统特性，iPhone手机不支持直接锁定手机，只能锁定Ta的App，点击被锁定的App会展示锁定界面。\n\n',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xff777777),
+                                          fontWeight: FontWeight.w400,
+                                          height: 1.5,
+                                        ),
+                                      ),
 
-                                  TextSpan(
-                                    text: '可以锁定哪些App\n',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xff333333),
-                                      fontWeight: FontWeight.w500,
-                                      height: 2.5,
-                                    ),
+                                      TextSpan(
+                                        text: '可以锁定哪些App\n',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xff333333),
+                                          fontWeight: FontWeight.w500,
+                                          height: 2.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: '仅支持Ta在Kissu App内预先关联的App\n\n',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xff777777),
+                                          fontWeight: FontWeight.w400,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: '如何让设置关联App\n',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xff333333),
+                                          fontWeight: FontWeight.w500,
+                                          height: 2.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            '需要Ta在自己的手机中操作:打开 Kissu→我的→权限设置 → 关联 App\n\n',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xff777777),
+                                          fontWeight: FontWeight.w400,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: '如何自定义锁屏界面图片\n',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xff333333),
+                                          fontWeight: FontWeight.w500,
+                                          height: 2.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            'iPhone 锁定时仅显示系统默认界面，不支持自定义图片;仅 Android 设备支持该功能。后续苹果官方开放支持后，我们会第一时间更新。\n\n',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xff777777),
+                                          fontWeight: FontWeight.w400,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  TextSpan(
-                                    text: '仅支持Ta在Kissu App内预先关联的App\n\n',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xff777777),
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: '如何让设置关联App\n',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xff333333),
-                                      fontWeight: FontWeight.w500,
-                                      height: 2.5,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        '需要Ta在自己的手机中操作:打开 Kissu→我的→权限设置 → 关联 App\n\n',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xff777777),
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: '如何自定义锁屏界面图片\n',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xff333333),
-                                      fontWeight: FontWeight.w500,
-                                      height: 2.5,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        'iPhone 锁定时仅显示系统默认界面，不支持自定义图片;仅 Android 设备支持该功能。后续苹果官方开放支持后，我们会第一时间更新。\n\n',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xff777777),
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            color: Colors.white,
-                            padding: EdgeInsets.all(6),
-                            child: Image.asset(
-                              'assets/lock/kissu_lock_close.webp',
-                              width: 16,
-                              height: 16,
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              color: Colors.white,
+                              padding: EdgeInsets.all(6),
+                              child: Image.asset(
+                                'assets/lock/kissu_lock_close.webp',
+                                width: 16,
+                                height: 16,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },

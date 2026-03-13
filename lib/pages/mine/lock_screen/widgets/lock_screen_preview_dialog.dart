@@ -82,10 +82,34 @@ Widget _buildPreviewImage(LockScreenController controller) {
       fit: BoxFit.cover,
     );
   } else if (index == 3 && controller.customImagePath.value.isNotEmpty) {
-    return Image.file(
-      File(controller.customImagePath.value),
-      fit: BoxFit.contain,
-    );
+    return Stack(
+  children: [
+    Positioned.fill(
+      left: 10,
+      right: 10,
+      bottom: 15,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30), // 圆角大小
+        child: Image.file(
+          File(controller.customImagePath.value),
+          fit: BoxFit.contain,
+        ),
+      ),
+    ),
+    Positioned.fill(
+      left: 10,
+      right: 10,
+      bottom: 15,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30), // 圆角大小
+        child: Image.asset(
+          'assets/lock/kissu_lock_gray_comment.webp',
+          fit: BoxFit.contain,
+        ),
+      ),
+    ),
+  ],
+);
   }
   return Image.asset(
     controller.previewImages[0],

@@ -188,6 +188,15 @@ class ChatEvents {
   
   /// 非会员点击消息跳转VIP事件
   static const String imVip = 'chat_page_im_vip_event';
+
+  /// 一键锁机点击事件
+  static const String lockPhoneClick = 'chat_page_click_lock_phone_event';
+
+  /// VIP锁机弹窗曝光事件
+  static const String vipLockPhoneExposure = 'chat_page_vip_lock_phone_exposure_dialog_event';
+
+  /// VIP锁机弹窗点击事件
+  static const String vipLockPhoneClick = 'chat_page_vip_lock_phone_click_dialog_event';
 }
 
 /// 用机记录页面事件
@@ -280,6 +289,20 @@ class PermissionSetEvents {
   static const String lockBackgroundPage = 'permission_set_page_lock_background_event';
 }
 
+/// 一键锁机页面事件
+class LockPhoneEvents {
+  static const String pageId = 'lock_phone_page';
+
+  /// 长按锁机按钮事件
+  static const String longPress = 'lock_phone_page_long_press_levent';
+
+  /// 主动解锁按钮事件
+  static const String initiativeUnlock = 'lock_phone_page_initiative_unlock_phone_event';
+
+  /// 答题选择答案事件
+  static const String answerUnlock = 'lock_phone_page_answer_unlock_phone_event';
+}
+
 /// 我的页面事件
 class MyPageEvents {
   static const String pageId = 'my_page';
@@ -301,6 +324,12 @@ class MyPageEvents {
   
   /// 功能模块点击事件
   static const String functionsModule = 'my_page_functions_moudle_event';
+
+  /// VIP锁机弹窗曝光事件
+  static const String vipLockPhoneExposure = 'my_page_vip_lock_phone_exposure_dialog_event';
+
+  /// VIP锁机弹窗点击事件
+  static const String vipLockPhoneClick = 'my_page_vip_lock_phone_click_dialog_event';
   
   /// 更换Logo页面事件
   static const String changeLogoPage = 'my_page_change_logo_page_event';

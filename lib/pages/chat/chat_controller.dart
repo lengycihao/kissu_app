@@ -23,6 +23,7 @@ import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/network/public/lock_permission_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatController extends GetxController {
   // 滚动控制器
@@ -75,6 +76,9 @@ class ChatController extends GetxController {
 
   // 🔥 对方是否被锁机中
   final RxBool isPartnerLocked = false.obs;
+
+  // 是否已进入过一键锁机模块（用于控制new角标）
+  final RxBool hasEnteredLockScreen = false.obs;
 
   // 对方IM唯一ID（用于腾讯IM单聊会话）
   String? _partnerImId;
@@ -550,6 +554,7 @@ class ChatController extends GetxController {
     _loadThemeFromCache();
     _loadSensitiveCollapseFromCache();
     _checkPartnerLockState();
+    _loadHasEnteredLockScreen();
     // 预拉取对方锁机权限（供一键锁机页面使用，避免UI闪动）
     LockPermissionApi.prefetchPartnerPermission();
     // 进入聊天页面时，将未读消息数清零
@@ -572,6 +577,15 @@ class ChatController extends GetxController {
   /// 🔥 刷新对方锁机状态（从锁机页面返回时调用）
   void refreshPartnerLockState() {
     _checkPartnerLockState();
+    _loadHasEnteredLockScreen();
+  }
+
+  /// 加载是否已进入过一键锁机模块
+  void _loadHasEnteredLockScreen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      hasEnteredLockScreen.value = prefs.getBool('has_entered_lock_screen') ?? false;
+    } catch (_) {}
   }
   
   /// 初始化用户VIP状态

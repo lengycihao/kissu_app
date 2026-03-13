@@ -124,7 +124,7 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: isSelected
-                ? Border.all(color: const Color(0xFFFF90CA), width: 2)
+                ? Border.all(color: const Color(0xFF000000), width: 1.5)
                 : null,
           ),
           child: Stack(
@@ -151,12 +151,12 @@ class ChatBackgroundPage extends GetView<ChatBackgroundController> {
               // VIP标识
               if (bgItem.requiresVip)
                 Positioned(
-                  top: 4,
+                  bottom: 4,
                   right: 4,
                   child: Image.asset(
                     'assets/images/logo_vip.webp',
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 16,
                   ),
                 ),
               // 选中标识
@@ -361,7 +361,7 @@ class _PreviewBottomSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
-                'assets/images/logo_vip.webp',
+                'assets/images/logo_vip_bottom.webp',
                 width: 34,
                 height: 34,
               ),

@@ -147,7 +147,7 @@ class SystemPermissionController extends GetxController
       "guideType": SystemPermissionGuideType.lockInBackground,
     },
     {
-      "icon": "assets/images/kissu_setting_cc.webp",
+      "icon": "assets/images/kissu_setting_window.webp",
       "title": "开启悬浮窗权限",
       "subtitle": "锁机功能需要悬浮窗权限",
       "guideType": SystemPermissionGuideType.overlayWindow,
@@ -208,6 +208,14 @@ class SystemPermissionController extends GetxController
       SupportedBrand.vivo: 'assets/setting/kissu_appuse_vivo.webp',
       SupportedBrand.xiaomi: 'assets/setting/kissu_appuse_xiaomi.webp',
       SupportedBrand.other: 'assets/setting/kissu_appuse_huawei.webp',
+    },
+    // 悬浮窗权限设置（所有品牌使用同一张图）
+    SystemPermissionGuideType.overlayWindow: {
+      SupportedBrand.huawei: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.other: 'assets/setting/kissu_xuanfuchuang.webp',
     },
   };
 
@@ -680,8 +688,7 @@ class SystemPermissionController extends GetxController
         Get.toNamed(KissuRoutePath.systemPermissionBatteryGuide);
         break;
       case SystemPermissionGuideType.overlayWindow:
-        // 悬浮窗权限直接请求，不跳转指引页
-        _handleOverlayPermissionTap();
+        Get.toNamed(KissuRoutePath.systemPermissionOverlayGuide);
         break;
     }
   }

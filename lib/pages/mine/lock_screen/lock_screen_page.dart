@@ -17,6 +17,7 @@ class LockScreenPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: false,
       body: Obx(() {
         if (controller.pageState.value == 'locked') {
           return const LockScreenLockedView();

@@ -66,12 +66,13 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
                 child: Obx(
                   () => GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3, // 一行3个
-                      crossAxisSpacing: 20,
-                      mainAxisSpacing: 24,
-                      childAspectRatio: 0.68, // 宽高比，为文字预留空间
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, // 一行3个
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 24,
+                          childAspectRatio: 0.68, // 宽高比，为文字预留空间
+                        ),
                     itemCount: controller.iconItems.length,
                     itemBuilder: (context, index) {
                       final item = controller.iconItems[index];
@@ -147,8 +148,6 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
               ),
             ),
           ),
-
-           
         ],
       ),
     );
@@ -228,7 +227,12 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
   }
 
   /// 构建操作按钮
-  Widget _buildActionButton(bool isCurrentUsed, bool isUserVip, bool needVip, AppIconItem item) {
+  Widget _buildActionButton(
+    bool isCurrentUsed,
+    bool isUserVip,
+    bool needVip,
+    AppIconItem item,
+  ) {
     if (isCurrentUsed) {
       // 正在使用
       return Container(
@@ -239,10 +243,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
         ),
         child: const Text(
           "正在使用",
-          style: TextStyle(
-            fontSize: 12,
-            color: Color(0xff333333),
-          ),
+          style: TextStyle(fontSize: 12, color: Color(0xff333333)),
         ),
       );
     } else if (!needVip || isUserVip) {
@@ -257,10 +258,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
           ),
           child: const Text(
             "更换",
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.white),
           ),
         ),
       );
@@ -278,28 +276,13 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          // padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          width: 78,
+          height: 32,
           decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/logo_vip.webp',
-                width: 16,
-                height: 16,
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                "开通会员",
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ],
+            image: DecorationImage(
+              image: AssetImage('assets/images/logo_vip_open.webp'),fit: BoxFit.fill
+            ),
           ),
         ),
       );
@@ -317,7 +300,7 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(
-              color: isSelected ? const Color(0xffff9ad9) : Colors.transparent,
+              color: isSelected ? const Color(0xff000000) : Colors.transparent,
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(12),
@@ -339,24 +322,24 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
                         height: double.infinity,
                       ),
                     ),
-                    // 选中指示器
-                    if (isSelected)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFA1DB),
-                            shape: BoxShape.circle,
-                          ),
-                          padding: const EdgeInsets.all(2),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
+                    // // 选中指示器
+                    // if (isSelected)
+                    //   Positioned(
+                    //     top: 0,
+                    //     right: 0,
+                    //     child: Container(
+                    //       decoration: const BoxDecoration(
+                    //         color: Color(0xFFFFA1DB),
+                    //         shape: BoxShape.circle,
+                    //       ),
+                    //       padding: const EdgeInsets.all(2),
+                    //       child: const Icon(
+                    //         Icons.check,
+                    //         color: Colors.white,
+                    //         size: 16,
+                    //       ),
+                    //     ),
+                    //   ),
                   ],
                 ),
               ),
@@ -374,25 +357,37 @@ class _AppIconSelectorPageState extends State<AppIconSelectorPage>
                     textAlign: TextAlign.center,
                   ),
                   item.needVip == 1
-                      ? Image.asset(
-                          'assets/images/logo_vip.webp',
-                          width: 20,
-                        )
+                      ? SizedBox.shrink()
                       : const Text(
                           '免费',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFFaaaaaa),
+                            color: Color(0xFFFFBAE4),
                           ),
                           textAlign: TextAlign.center,
                         ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                item.numStr,
-                style: const TextStyle(fontSize: 10, color: Color(0xFF777777)),
-                textAlign: TextAlign.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SizedBox(
+                    width: item.needVip == 1 ? 50 : 70,
+                    child: Text(
+                      item.numStr,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF777777),
+                      ),
+                      textAlign: TextAlign.left,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  item.needVip == 1
+                      ? Image.asset('assets/images/logo_vip.webp', width: 28)
+                      : SizedBox.shrink(),
+                ],
               ),
             ],
           ),

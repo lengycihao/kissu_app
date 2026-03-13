@@ -27,12 +27,12 @@ class LockScreenStep1 extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          _buildSectionTitle('#2', '锁屏界面展示文案'),
+          _buildSectionTitle('#1', '锁屏界面展示文案'),
           const SizedBox(height: 12),
           _buildTextInput(controller),
           const SizedBox(height: 24),
           
-          _buildSectionTitle('#1', '设置锁屏界面'),
+          _buildSectionTitle('#2', '设置锁屏界面'),
           const SizedBox(height: 12),
           _buildImageSelector(controller),
           const SizedBox(height: 16),
@@ -272,7 +272,7 @@ class LockScreenStep1 extends StatelessWidget {
         width: 80,
         height: 146,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? const Color(0xFFFF7ECE) : Colors.transparent,
             width: 1.5,
