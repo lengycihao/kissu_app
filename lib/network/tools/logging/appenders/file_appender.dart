@@ -14,6 +14,8 @@ class FileAppender extends LogAppender {
   IOSink? _sink;
   int _currentFileSize = 0;
   final Completer<void> _initCompleter = Completer<void>();
+  Completer<void>? _writeLock; // 🔥 使用 Completer 作为异步锁
+  final List<LogEvent> _pendingEvents = []; // 🔥 待写入队列
 
   FileAppender({
     required this.config,
@@ -46,6 +48,30 @@ class FileAppender extends LogAppender {
   Future<void> append(LogEvent event) async {
     await _initCompleter.future;
 
+    // 🔥 如果正在写入，等待当前写入完成
+    while (_writeLock != null) {
+      await _writeLock!.future;
+    }
+
+    // 🔥 获取写入锁
+    _writeLock = Completer<void>();
+    try {
+      await _writeEvent(event);
+      
+      // 🔥 处理队列中的待写入事件
+      while (_pendingEvents.isNotEmpty) {
+        final pendingEvent = _pendingEvents.removeAt(0);
+        await _writeEvent(pendingEvent);
+      }
+    } finally {
+      // 🔥 释放写入锁
+      final lock = _writeLock;
+      _writeLock = null;
+      lock?.complete();
+    }
+  }
+
+  Future<void> _writeEvent(LogEvent event) async {
     if (_sink == null) {
       await _openCurrentFile();
     }
@@ -54,16 +80,23 @@ class FileAppender extends LogAppender {
     final bytes = utf8.encode(jsonLine);
 
     _sink?.add(bytes);
-    await _sink?.flush();
+    // 🔥 不要每次都flush，改为批量写入后flush
+    // await _sink?.flush();
 
     _currentFileSize += bytes.length;
 
     if (_currentFileSize >= config.maxFileSize) {
+      await _sink?.flush();
       await _rotateLogIfNeeded();
     }
   }
 
   Future<void> _openCurrentFile() async {
+    // 🔥 如果 sink 已经存在，不要重复打开
+    if (_sink != null) {
+      return;
+    }
+    
     if (_currentLogFile == null) {
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
       final fileName = '${timestamp}_${config.logFileName}';

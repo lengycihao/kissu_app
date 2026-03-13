@@ -4,6 +4,7 @@ import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/hourly_app_record_data.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'app_usage_controller.dart';
 
@@ -200,7 +201,83 @@ class _AppUsagePageState extends State<AppUsagePage> {
               ),
             ),
           ),
+          // 右上角提示按钮（仅当对方是华为渠道时显示）
+          if (UserManager.currentUser?.halfUserInfo?.currentChannel ==
+              'kissu_huawei')
+            Positioned(
+              right: 5,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: () => _showHuaweiTipDialog(context),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 22,
+                    color: Color(0xFF888888),
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  /// 显示华为鸿蒙系统提示弹窗
+  void _showHuaweiTipDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
+              fit: BoxFit.fill,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '若对方是华为设备搭载鸿蒙5.0及以上系统，从「华为应用商店」下载的 App 受系统权限限制，暂无法获取App使用信息，仅从「卓易通」下载的可正常显示。',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF333333),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  width: double.infinity,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Color(0xffFF90CA),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '知道了',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

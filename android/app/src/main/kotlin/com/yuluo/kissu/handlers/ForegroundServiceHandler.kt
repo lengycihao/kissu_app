@@ -51,6 +51,7 @@ class ForegroundServiceHandler(private val activity: Activity) {
                 val token = call.argument<String>("token") ?: ""
                 val userId = call.argument<String>("userId") ?: ""
                 val baseUrl = call.argument<String>("baseUrl") ?: "https://service-api.ikissu.cn"
+                val channel = call.argument<String>("channel") ?: ""
                 
                 Log.d(TAG, "📝 Token参数: token=${token.take(20)}..., userId=$userId, baseUrl=$baseUrl")
                 
@@ -70,6 +71,13 @@ class ForegroundServiceHandler(private val activity: Activity) {
                     val appUsageReportService = AppUsageReportService(activity)
                     appUsageReportService.saveUserToken(token, userId)
                     appUsageReportService.saveBaseUrl(baseUrl)
+                    
+                    // 保存渠道到 kissu_preferences（供所有 Native 服务使用）
+                    if (channel.isNotEmpty()) {
+                        val kissuPrefs = activity.getSharedPreferences("kissu_preferences", android.content.Context.MODE_PRIVATE)
+                        kissuPrefs.edit().putString("app_channel", channel).apply()
+                        Log.d(TAG, "✅ 渠道已保存: channel=$channel")
+                    }
                     
                     Log.d(TAG, "✅ 用户Token和API配置已保存: userId=$userId, baseUrl=$baseUrl")
                     result.success(mapOf("success" to true, "message" to "Token saved successfully"))

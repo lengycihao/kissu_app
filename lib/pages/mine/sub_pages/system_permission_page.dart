@@ -249,7 +249,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
   
   void _startFlashAnimation() {
     _flashController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
     
@@ -290,6 +290,21 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
     });
   }
 
+  /// 立即停止闪烁动画并隐藏手指
+  void _stopFlashAnimation() {
+    if (_flashController != null) {
+      _flashController!.stop();
+      _flashController!.dispose();
+      _flashController = null;
+      _scaleFlashAnimation = null;
+    }
+    if (_showFinger && mounted) {
+      setState(() {
+        _showFinger = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -326,6 +341,8 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
               permissionName: widget.item["title"],
               btnName: buttonText,
             );
+            // 点击去设置时立即销毁手指动画
+            _stopFlashAnimation();
             widget.controller.openGuidePage(guideType);
           };
 

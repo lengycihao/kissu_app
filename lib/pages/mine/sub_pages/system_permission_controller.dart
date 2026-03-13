@@ -10,6 +10,7 @@ import '../../../services/permission_service.dart';
 import '../../../utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
 
 /// 系统权限页面控制器
 enum SystemPermissionGuideType {
@@ -29,6 +30,7 @@ enum SupportedBrand { huawei, oppo, vivo, xiaomi, other }
 class SystemPermissionController extends GetxController
     with WidgetsBindingObserver {
   final PermissionService _permissionService = PermissionService();
+  final LockPermissionApi _lockPermissionApi = LockPermissionApi();
 
   // 权限状态响应式变量
   final RxBool isLocationGranted = false.obs;
@@ -664,32 +666,54 @@ class SystemPermissionController extends GetxController
     return assets[currentBrand] ?? assets[SupportedBrand.huawei]!;
   }
 
-  void openGuidePage(SystemPermissionGuideType type) {
+  Future<void> openGuidePage(SystemPermissionGuideType type) async {
     switch (type) {
       case SystemPermissionGuideType.preventSleep:
-        Get.toNamed(KissuRoutePath.systemPermissionPreventSleepGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionPreventSleepGuide);
         break;
       case SystemPermissionGuideType.lockInBackground:
-        Get.toNamed(KissuRoutePath.systemPermissionLockGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionLockGuide);
         break;
       case SystemPermissionGuideType.allowBackgroundRun:
-        Get.toNamed(KissuRoutePath.systemPermissionBackgroundGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionBackgroundGuide);
         break;
       case SystemPermissionGuideType.location:
-        Get.toNamed(KissuRoutePath.systemPermissionLocationGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionLocationGuide);
         break;
       case SystemPermissionGuideType.notification:
-        Get.toNamed(KissuRoutePath.systemPermissionNotificationGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionNotificationGuide);
         break;
       case SystemPermissionGuideType.appUsage:
-        Get.toNamed(KissuRoutePath.systemPermissionAppUsageGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionAppUsageGuide);
         break;
       case SystemPermissionGuideType.battery:
-        Get.toNamed(KissuRoutePath.systemPermissionBatteryGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionBatteryGuide);
         break;
       case SystemPermissionGuideType.overlayWindow:
-        Get.toNamed(KissuRoutePath.systemPermissionOverlayGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionOverlayGuide);
         break;
+    }
+    // 从单个权限设置页返回后，增量检查权限状态并上传到服务器
+    await checkAllPermissions();
+    _uploadPermissionStatus();
+  }
+
+  /// 上传当前权限状态到服务器（增量更新，从单个权限设置页返回时调用）
+  Future<void> _uploadPermissionStatus() async {
+    try {
+      final result = await _lockPermissionApi.setPermission(
+        isOpenLocation: isLocationGranted.value ? 1 : 0,
+        isOpenNoticeRemind: isNotificationGranted.value ? 1 : 0,
+        isOpenScreenUse: isUsageAccessGranted.value ? 1 : 0,
+        isOpenBackRun: 0,
+        isOpenPreventProgramSleep: isBatteryOptimized.value ? 1 : 0,
+        isOpenSelfStarting: 0,
+        isOpenProgramLock: 0,
+        isOpenSuspendWindow: isOverlayGranted.value ? 1 : 0,
+      );
+      logDebug('增量上报权限状态: ${result.isSuccess ? "成功" : "失败: ${result.msg}"}', tag: 'SystemPermission');
+    } catch (e) {
+      logError('增量上报权限状态异常: $e', tag: 'SystemPermission', error: e);
     }
   }
 

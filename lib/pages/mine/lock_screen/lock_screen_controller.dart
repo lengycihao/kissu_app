@@ -47,6 +47,7 @@ class LockScreenController extends GetxController {
   final answerControllers = List.generate(4, (_) => TextEditingController());
   final answers = List.generate(4, (_) => ''.obs);
   final selectedAnswerIndex = (-1).obs; // 选中的正确答案索引
+  final isQuestionEditable = false.obs; // 系统随机问题时不可编辑，清空后可编辑
 
   // ==================== 权限状态 ====================
   final isOverlayGranted = false.obs;
@@ -252,6 +253,7 @@ class LockScreenController extends GetxController {
         }
       }
     }
+    isQuestionEditable.value = false; // 系统随机问题不可编辑
   }
 
   /// 进入页面时从API获取随机问题并缓存
@@ -278,6 +280,7 @@ class LockScreenController extends GetxController {
       c.clear();
     }
     selectedAnswerIndex.value = -1;
+    isQuestionEditable.value = true; // 清空后可编辑
   }
 
   // ==================== 对方权限获取 ====================

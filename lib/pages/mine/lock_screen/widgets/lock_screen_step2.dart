@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import '../lock_screen_controller.dart';
 
 class LockScreenStep2 extends StatelessWidget {
-  const LockScreenStep2({super.key});
+  final void Function(BuildContext)? onFieldFocused;
+  const LockScreenStep2({super.key, this.onFieldFocused});
 
   @override
   Widget build(BuildContext context) {
@@ -107,35 +108,42 @@ class LockScreenStep2 extends StatelessWidget {
   }
 
   Widget _buildQuestionInput(LockScreenController controller) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, ),
-      decoration: BoxDecoration(
-        color: Color(0xfff7f7f7),
-        borderRadius: BorderRadius.circular(12),
-       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller.questionController,
-              maxLength: 20,
-              cursorColor: const Color(0xFFFF7ECE),
-              decoration: const InputDecoration(
-                hintText: '请输入问题',
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                border: InputBorder.none,
-                counterText: '',
+    return Obx(() {
+      final editable = controller.isQuestionEditable.value;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, ),
+        decoration: BoxDecoration(
+          color: Color(0xfff7f7f7),
+          borderRadius: BorderRadius.circular(12),
+         ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Builder(
+                builder: (fieldContext) => TextField(
+                  controller: controller.questionController,
+                  maxLength: 20,
+                  readOnly: !editable,
+                  onTap: editable ? () => onFieldFocused?.call(fieldContext) : null,
+                  cursorColor: const Color(0xFFFF7ECE),
+                  decoration: const InputDecoration(
+                    hintText: '请输入问题',
+                    hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                    border: InputBorder.none,
+                    counterText: '',
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black),
+                ),
               ),
-              style: const TextStyle(fontSize: 12, color: Colors.black),
             ),
-          ),
-          Obx(() => Text(
-                '${controller.question.value.length}/20',
-                style: TextStyle(fontSize: 12, color: Color(0xffaaaaaa)),
-              )),
-        ],
-      ),
-    );
+            Obx(() => Text(
+                  '${controller.question.value.length}/20',
+                  style: TextStyle(fontSize: 12, color: Color(0xffaaaaaa)),
+                )),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildAnswerOptions(LockScreenController controller) {
@@ -179,20 +187,27 @@ class LockScreenStep2 extends StatelessWidget {
                     const SizedBox(width: 4),
                     // 答案输入框
                     Expanded(
-                      child: TextField(
-                        controller: controller.answerControllers[index],
-                        maxLength: 10,
-                        cursorColor: const Color(0xFFFF7ECE),
-                        decoration: const InputDecoration(
-                          hintText: '',
-                          hintStyle:
-                              TextStyle(color: Colors.grey, fontSize: 15),
-                          border: InputBorder.none,
-                          counterText: '',
-                        ),
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.black),
-                      ),
+                      child: Obx(() {
+                        final editable = controller.isQuestionEditable.value;
+                        return Builder(
+                          builder: (fieldContext) => TextField(
+                            controller: controller.answerControllers[index],
+                            maxLength: 10,
+                            readOnly: !editable,
+                            onTap: editable ? () => onFieldFocused?.call(fieldContext) : null,
+                            cursorColor: const Color(0xFFFF7ECE),
+                            decoration: const InputDecoration(
+                              hintText: '',
+                              hintStyle:
+                                  TextStyle(color: Colors.grey, fontSize: 15),
+                              border: InputBorder.none,
+                              counterText: '',
+                            ),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.black),
+                          ),
+                        );
+                      }),
                     ),
                     Obx(() => Text(
                           '${controller.answers[index].value.length}/10',

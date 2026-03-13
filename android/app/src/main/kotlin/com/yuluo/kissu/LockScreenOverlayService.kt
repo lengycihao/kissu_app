@@ -1131,62 +1131,65 @@ class LockScreenOverlayService : Service() {
     
     private fun onAnswerSelected(index: Int, button: TextView) {
         if (isAnswerLocked) return  // 🔥 已选对答案，弹窗期间不允许再选
-        isAnswerLocked = true  // 🔥 锁定，等API返回后再解锁
+        isAnswerLocked = true  // 🔥 锁定
         
         // 🔥 轻微震动反馈
         vibrateLight()
         
-        android.util.Log.d("LockScreenOverlay", "选择答案: $index, 调用解锁API unlock_answer_index=$index")
-        
         // 记录已尝试的答案索引
         triedAnswerIndices.add(index)
         
-        // 每次选择答案都调用解锁接口，由API判断对错
-        callUnlockApiWithAnswer(index) { isCorrect ->
-            handler?.post {
-                // 埋点6: 保存答题事件到FlutterSharedPreferences供Flutter上报
-                saveAnswerAnalyticsEvent(if (isCorrect) 1 else 0)
-
-                if (isCorrect) {
-                    // 答对了，使用正确答案背景图片
-                    try {
-                        button.background = resources.getDrawable(R.drawable.kissu_lock_right_bg, null)
-                    } catch (e: Exception) {
-                        android.util.Log.e("LockScreenOverlay", "加载正确答案背景图片失败: ${e.message}")
-                    }
-                    showSuccessDialog()
-                } else {
-                    // 答错了，使用错误答案背景图片
-                    try {
-                        button.background = resources.getDrawable(R.drawable.kissu_lock_wrong_bg, null)
-                    } catch (e: Exception) {
-                        android.util.Log.e("LockScreenOverlay", "加载错误答案背景图片失败: ${e.message}")
-                    }
-                    button.setTextColor(Color.parseColor("#FF6B6B"))
-                    answerAttempts++  // 🔥 答错计数
-                    
-                    // 🔥 检查是否4个答案都尝试过且都错误，自动解锁
-                    if (triedAnswerIndices.size >= 4) {
-                        android.util.Log.d("LockScreenOverlay", "4个答案都尝试错误，自动解锁")
-                        handler?.postDelayed({
-                            // 自动解锁：显示成功弹窗并解锁
-                            showSuccessDialog()
-                        }, 800)
-                        return@post
-                    }
-                    
-                    // 短暂延迟后重置
-                    handler?.postDelayed({
-                        try {
-                            button.background = resources.getDrawable(R.drawable.kissu_lock_answer_bg, null)
-                        } catch (e: Exception) {
-                            android.util.Log.e("LockScreenOverlay", "重置答案背景图片失败: ${e.message}")
-                        }
-                        button.setTextColor(Color.parseColor("#333333"))
-                        isAnswerLocked = false  // 🔥 答错后解锁，允许重新选择
-                    }, 800)
-                }
+        // 🔥 使用本地答案立即判断正误，不等待API返回
+        val isCorrect = (index == correctAnswerIndex)
+        android.util.Log.d("LockScreenOverlay", "选择答案: $index, 本地正确答案: $correctAnswerIndex, 结果: ${if (isCorrect) "正确" else "错误"}")
+        
+        // 埋点6: 保存答题事件到FlutterSharedPreferences供Flutter上报
+        saveAnswerAnalyticsEvent(if (isCorrect) 1 else 0)
+        
+        if (isCorrect) {
+            // 答对了，立即显示正确状态
+            try {
+                button.background = resources.getDrawable(R.drawable.kissu_lock_right_bg, null)
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "加载正确答案背景图片失败: ${e.message}")
             }
+            // 异步调用API（不阻塞UI）
+            callUnlockApiWithAnswer(index) { _ -> }
+            // 立即显示成功弹窗
+            showSuccessDialog()
+        } else {
+            // 答错了，立即显示错误状态
+            try {
+                button.background = resources.getDrawable(R.drawable.kissu_lock_wrong_bg, null)
+            } catch (e: Exception) {
+                android.util.Log.e("LockScreenOverlay", "加载错误答案背景图片失败: ${e.message}")
+            }
+            button.setTextColor(Color.parseColor("#FF6B6B"))
+            answerAttempts++  // 🔥 答错计数
+            
+            // 异步调用API（不阻塞UI）
+            callUnlockApiWithAnswer(index) { _ -> }
+            
+            // 🔥 检查是否4个答案都尝试过且都错误，自动解锁
+            if (triedAnswerIndices.size >= 4) {
+                android.util.Log.d("LockScreenOverlay", "4个答案都尝试错误，自动解锁")
+                handler?.postDelayed({
+                    // 自动解锁：显示成功弹窗并解锁
+                    showSuccessDialog()
+                }, 800)
+                return
+            }
+            
+            // 短暂延迟后重置
+            handler?.postDelayed({
+                try {
+                    button.background = resources.getDrawable(R.drawable.kissu_lock_answer_bg, null)
+                } catch (e: Exception) {
+                    android.util.Log.e("LockScreenOverlay", "重置答案背景图片失败: ${e.message}")
+                }
+                button.setTextColor(Color.parseColor("#333333"))
+                isAnswerLocked = false  // 🔥 答错后解锁，允许重新选择
+            }, 800)
         }
     }
     
@@ -1352,7 +1355,7 @@ class LockScreenOverlayService : Service() {
                     "version" to getAppVersionForApi(),
                     "pkg" to packageName,
                     "deviceid" to getDeviceIdForApi(),
-                    "channel" to "kissu_android",
+                    "channel" to (getSharedPreferences("kissu_preferences", android.content.Context.MODE_PRIVATE).getString("app_channel", null) ?: "kissu_android"),
                     "os" to "1"
                 )
                 

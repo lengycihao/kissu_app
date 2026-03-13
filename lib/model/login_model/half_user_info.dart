@@ -28,6 +28,8 @@ class HalfUserInfo {
   @JsonKey(name: 'vip_end_time')
   int? vipEndTime;
   String? channel;
+  @JsonKey(name: 'current_channel')
+  String? currentChannel;
   @JsonKey(name: 'mobile_model')
   String? mobileModel;
   @JsonKey(name: 'device_id')
@@ -89,6 +91,7 @@ class HalfUserInfo {
     this.isForEverVip,
     this.vipEndTime,
     this.channel,
+    this.currentChannel,
     this.mobileModel,
     this.deviceId,
     this.uniqueId,

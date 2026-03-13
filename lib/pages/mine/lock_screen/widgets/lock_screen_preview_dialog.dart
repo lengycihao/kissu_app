@@ -85,26 +85,23 @@ Widget _buildPreviewImage(LockScreenController controller) {
     return Stack(
   children: [
     Positioned.fill(
-      left: 10,
-      right: 10,
-      bottom: 15,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30), // 圆角大小
+       
+       child: ClipRRect(
+        borderRadius: BorderRadius.circular(0), // 圆角大小
         child: Image.file(
           File(controller.customImagePath.value),
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
         ),
       ),
     ),
     Positioned.fill(
-      left: 10,
-      right: 10,
-      bottom: 15,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30), // 圆角大小
+      // left: 5,
+      // right: 5,
+       child: ClipRRect(
+        borderRadius: BorderRadius.circular(0), // 圆角大小
         child: Image.asset(
           'assets/lock/kissu_lock_gray_comment.webp',
-          fit: BoxFit.contain,
+          fit: BoxFit.fill,
         ),
       ),
     ),

@@ -193,12 +193,13 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 图标（VIP用户显示vipIcon，非VIP用户显示iconUrl）
                   if (_getSystemEventDisplayIcon() != null)
                     _buildEventIcon(_getSystemEventDisplayIcon()!),
-                  if (_getSystemEventDisplayIcon() != null) const SizedBox(width: 4),
+                  if (_getSystemEventDisplayIcon() != null)
+                    const SizedBox(width: 4),
                   // 文字 + 可选右箭头
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -211,7 +212,8 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                         const TextStyle(fontSize: 13, color: Color(0xFF333333)),
                       ),
                       // 仅当消息标记is_vip=1且用户非VIP时显示VIP按钮
-                      if ((widget.message.isVip ?? 0) == 1 && !_isCurrentUserVip()) ...[
+                      if ((widget.message.isVip ?? 0) == 1 &&
+                          !_isCurrentUserVip()) ...[
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () {
@@ -313,9 +315,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
             behavior: HitTestBehavior.translucent,
             onTap: isUserVip
                 ? (widget.message.latitude != null &&
-                        widget.message.longitude != null
-                    ? () => _showLocationDetail(context, widget.message)
-                    : null)
+                          widget.message.longitude != null
+                      ? () => _showLocationDetail(context, widget.message)
+                      : null)
                 : () => _navigateToVipPage(),
             child: Container(
               width: 240,
@@ -621,7 +623,10 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           Get.toNamed(KissuRoutePath.appUsageInfo);
           break;
         case 'mobileUse':
-          Get.toNamed(KissuRoutePath.deviceUsage, arguments: {'source_event': ChatEvents.page});
+          Get.toNamed(
+            KissuRoutePath.deviceUsage,
+            arguments: {'source_event': ChatEvents.page},
+          );
           break;
         case 'locationPage':
           Get.toNamed(KissuRoutePath.location, arguments: args ?? {});
@@ -681,25 +686,25 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       // 网络图片
       return Image.network(
         iconUrl,
-        width: 18,
-        height: 18,
+        width: 16,
+        height: 16,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return const SizedBox(
-            width: 18,
-            height: 18,
-            child: Icon(Icons.info_outline, size: 18, color: Colors.grey),
+            width: 16,
+            height: 16,
+            child: Icon(Icons.info_outline, size: 16, color: Colors.grey),
           );
         },
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return const SizedBox(
-            width: 18,
-            height: 18,
+            width: 16,
+            height: 16,
             child: Center(
               child: SizedBox(
-                width: 14,
-                height: 14,
+                width: 16,
+                height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
@@ -710,14 +715,14 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       // 本地资源（assets）
       return Image.asset(
         iconUrl,
-        width: 18,
-        height: 18,
+        width: 16,
+        height: 16,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return const SizedBox(
-            width: 18,
-            height: 18,
-            child: Icon(Icons.info_outline, size: 20, color: Colors.grey),
+            width: 16,
+            height: 16,
+            child: Icon(Icons.info_outline, size: 16, color: Colors.grey),
           );
         },
       );
@@ -950,10 +955,15 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       cursor = nextStart + matchText.length;
     }
 
-    return RichText(
-      text: TextSpan(children: spans),
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width - 80,
+      ),
+      child: RichText(
+        text: TextSpan(children: spans),
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 

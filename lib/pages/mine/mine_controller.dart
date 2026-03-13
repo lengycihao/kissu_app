@@ -202,11 +202,11 @@ class MineController extends GetxController {
   }
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
-  void onPageResumed() {
+  void onPageResumed() async {
     debugPrint('👤 我的页面重新获得焦点，静默刷新用户信息');
     // 先用本地数据（已经在onInit中加载）
-    // 然后静默刷新用户信息
-    _silentRefreshUserInfo();
+    // 然后静默刷新用户信息，await确保数据更新后再检查锁机状态
+    await _silentRefreshUserInfo();
     // 重新检查权限状态（从权限设置页面返回时）
     checkAllPermissions();
     // 刷新红点状态
@@ -497,7 +497,10 @@ class MineController extends GetxController {
     String? lockSubIcon;
     if (isPartnerLocked.value) {
       lockSubIcon = 'assets/lock/kissu_locking.webp';
-    } else if (!hasEnteredLockScreen) {
+    } 
+    // else if (!hasEnteredLockScreen)
+    else
+     {
       lockSubIcon = 'assets/4.0/kissu_change_logo_new.webp';
     }
 
@@ -1130,7 +1133,8 @@ class MineController extends GetxController {
       binding: LockScreenBinding(),
       transition: Transition.rightToLeft,
     );
-    // 从锁机页面返回后刷新锁机状态和图标
+    // 从锁机页面返回后，先刷新用户信息再检查锁机状态（解锁时refreshUserInfo可能尚未完成）
+    await _silentRefreshUserInfo();
     _checkPartnerLockState();
   }
 

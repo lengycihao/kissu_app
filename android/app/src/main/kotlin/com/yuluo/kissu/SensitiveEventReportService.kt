@@ -191,7 +191,7 @@ class SensitiveEventReportService(private val context: Context) {
                 "version" to getAppVersion(),
                 "pkg" to context.packageName,
                 "deviceid" to getDeviceId(),
-                "channel" to "kissu_android",
+                "channel" to (sharedPreferences.getString("app_channel", null) ?: "kissu_android"),
                 "os" to "1", // 1 = Android
                 "model" to Build.MODEL,
                 "osversion" to Build.VERSION.RELEASE,

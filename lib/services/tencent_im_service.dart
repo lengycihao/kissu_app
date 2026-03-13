@@ -1077,6 +1077,12 @@ class TencentIMService extends GetxService {
           pushDesc = '[锁机指令来啦~]';
         } else if (msgType == 'unlock_phone_send') {
           pushDesc = '[解锁指令来啦~]';
+        }else if(msgType == 'lock_phone'){
+          pushDesc = '[对方提醒您开启悬浮窗权限啦~]';
+        }else if(msgType == 'phone_use'){
+          pushDesc = '[对方提醒您应用使用权限啦~]';
+        }else if(msgType == 'connect_app'){
+          pushDesc = '[对方提醒您去关联app啦~]';
         }
         logger.debug('🔔 离线推送ext已合并customData: type=$msgType, desc=$pushDesc', tag: 'TencentIMService');
       } catch (e) {
@@ -1370,12 +1376,16 @@ class TencentIMService extends GetxService {
       } else if (message.customElem != null &&
           message.customElem!.data != null &&
           message.customElem!.data!.isNotEmpty) {
-        // 处理自定义消息，如“一起便便”
+        // 处理自定义消息，如"一起便便"、锁机提醒等
         try {
           final dynamic decoded = jsonDecode(message.customElem!.data!);
           if (decoded is Map<String, dynamic>) {
             final String? msgBubble = decoded['msg_bubble'] as String?;
+            final String? msgLock = decoded['msg_lock'] as String?;
             if (msgBubble == 'defecate' || msgBubble == 'endDefecate') {
+              preview = '对方发来一条新消息，点击查看';
+            } else if (msgLock == 'lock_phone' || msgLock == 'phone_use' || msgLock == 'connect_app') {
+              // 🔥 锁机提醒消息也要增加未读数和显示Banner
               preview = '对方发来一条新消息，点击查看';
             } else {
               return; // 其它自定义消息暂不展示

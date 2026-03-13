@@ -2,7 +2,13 @@ class AppConfigN {
   /// 服务环境
   /// 测试环境:true
   /// 生产环境:false
-  static const serverEnvironmentTest = true;
+  static const serverEnvironmentTest = false;
+
+  /// 🔥 打包渠道（打包时在这里统一修改）
+  /// kissu_xiaomi <小米>  kissu_huawei <华为>  kissu_rongyao <荣耀>
+  /// kissu_vivo <vivo>  kissu_oppo <oppo>  kissu_meizu <魅族>
+  /// kissu_yyb <应用宝>  kissu_wdj <豌豆荚>  kissu_douyin <抖音>
+  static const String appChannel = 'kissu_douyin';
 
 
   // 生产环境加密，测试环境不加密

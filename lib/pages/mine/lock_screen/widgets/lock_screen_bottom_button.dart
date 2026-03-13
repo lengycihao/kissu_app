@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import '../lock_screen_controller.dart';
@@ -21,7 +22,7 @@ class _LockScreenBottomButtonState extends State<LockScreenBottomButton>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1500),
     );
     _progressAnim = Tween<double>(
       begin: 0.0,
@@ -71,7 +72,10 @@ class _LockScreenBottomButtonState extends State<LockScreenBottomButton>
         width: double.infinity,
         height: 44,
         child: ElevatedButton(
-          onPressed: canProceed ? () => controller.onStep1NextTap(context) : null,
+          onPressed: canProceed ? () {
+            HapticFeedback.mediumImpact();
+            controller.onStep1NextTap(context);
+          } : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: canProceed ? Colors.black87 : Colors.grey[300],
             foregroundColor: Colors.white,
@@ -141,6 +145,7 @@ class _LockScreenBottomButtonState extends State<LockScreenBottomButton>
           GestureDetector(
             onLongPressStart: (_) {
               _isLongPressing = true;
+              HapticFeedback.mediumImpact();
               _animController.forward(from: 0.0);
             },
             onLongPressEnd: (_) {

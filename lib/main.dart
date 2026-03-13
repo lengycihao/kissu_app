@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +9,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kissu_app/routers/kissu_route.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:oktoast/oktoast.dart'; 
-import 'package:openinstall_flutter_plugin/openinstall_flutter_plugin.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/network/tools/logging/log_config.dart';
 import 'package:kissu_app/network/tools/logging/log_level.dart';
@@ -52,17 +50,9 @@ void main() async {
       return true;
     };
     
-    // 🔒 隐私合规：在应用启动时立即禁用OpenInstall剪贴板读取
-    // 必须在任何其他初始化之前执行，确保插件不会读取剪贴板
-    if (Platform.isAndroid) {
-      try {
-        final openinstallPlugin = OpeninstallFlutterPlugin();
-        openinstallPlugin.clipBoardEnabled(false);
-        logInfo('OpenInstall剪贴板读取已禁用（隐私合规）', tag: 'App');
-      } catch (e) {
-        logWarning('禁用OpenInstall剪贴板失败: $e', tag: 'App');
-      }
-    }
+    // 🔒 隐私合规：OpenInstall 初始化移至用户同意隐私协议后执行
+    // 在用户同意前不能创建插件实例，否则会触发 SDK 初始化并读取剪切板
+    // 详见 PrivacyComplianceManager._enableOpenInstallClipboard()
     
     // 🚀 优化：只做最基础的同步初始化，让启动页快速显示
     // 屏幕方向锁定（同步操作，不耗时）

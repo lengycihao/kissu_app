@@ -36,6 +36,7 @@ class NativeLocationReportService {
         'token': token,
         'userId': userId,
         'baseUrl': baseUrl,
+        'channel': AppConfigN.appChannel,
       });
       
       if (result is Map) {

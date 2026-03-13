@@ -219,7 +219,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           height: 15,
                         ),
                       )
-                    else if (!controller.hasEnteredLockScreen.value)
+                    // else if (!controller.hasEnteredLockScreen.value)
+                    else 
                       Positioned(
                         top: -15,
                         left: 44,

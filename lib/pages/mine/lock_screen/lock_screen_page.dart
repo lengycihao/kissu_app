@@ -8,12 +8,43 @@ import 'widgets/lock_screen_locked.dart';
 import 'widgets/lock_screen_bottom_button.dart';
 import 'widgets/lock_screen_permission_banner.dart';
 
-class LockScreenPage extends StatelessWidget {
+class LockScreenPage extends StatefulWidget {
   const LockScreenPage({super.key});
+
+  @override
+  State<LockScreenPage> createState() => _LockScreenPageState();
+}
+
+class _LockScreenPageState extends State<LockScreenPage> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// 当输入框获得焦点时，延迟滚动使其可见（避免被键盘遮挡）
+  void _scrollToFocusedWidget(BuildContext widgetContext) {
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+      if (keyboardHeight > 0) {
+        Scrollable.ensureVisible(
+          widgetContext,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LockScreenController>();
+    // 获取键盘高度
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = keyboardHeight > 0;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -22,12 +53,12 @@ class LockScreenPage extends StatelessWidget {
         if (controller.pageState.value == 'locked') {
           return const LockScreenLockedView();
         }
-        return _buildSetupView(context, controller);
+        return _buildSetupView(context, controller, keyboardHeight, isKeyboardVisible);
       }),
     );
   }
 
-  Widget _buildSetupView(BuildContext context, LockScreenController controller) {
+  Widget _buildSetupView(BuildContext context, LockScreenController controller, double keyboardHeight, bool isKeyboardVisible) {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Stack(
@@ -56,6 +87,7 @@ class LockScreenPage extends StatelessWidget {
                     onRefresh: () => controller.refreshPermissions(),
                     color: const Color(0xFFFF7ECE),
                     child: SingleChildScrollView(
+                      controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
@@ -67,16 +99,20 @@ class LockScreenPage extends StatelessWidget {
                             if (controller.currentStep.value == 1) {
                               return const LockScreenStep1();
                             } else {
-                              return const LockScreenStep2();
+                              return LockScreenStep2(
+                                onFieldFocused: _scrollToFocusedWidget,
+                              );
                             }
                           }),
-                          const SizedBox(height: 100),
+                          // 键盘弹出时增加底部空间，确保输入框可滚动到可见区域
+                          SizedBox(height: isKeyboardVisible ? keyboardHeight : 100),
                         ],
                       ),
                     ),
                   ),
                 ),
-                const LockScreenBottomButton(),
+                // 键盘弹出时隐藏底部按钮，避免遮挡
+                if (!isKeyboardVisible) const LockScreenBottomButton(),
               ],
             ),
           ),

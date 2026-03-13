@@ -12,6 +12,7 @@ import 'package:kissu_app/network/utils/signature_utils.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oaid_util.dart';
@@ -238,7 +239,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     // 设置默认渠道（可以根据实际需求修改）
     // 打包时请修改这里的渠道值：
     // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝> kissu_wdj  <豌豆荚> kissu_douyin <抖音>
-    _cachedChannel ??= Platform.isAndroid ? 'kissu_huawei' : 'kissu_default';
+    _cachedChannel ??= AppConfigN.appChannel;
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
 

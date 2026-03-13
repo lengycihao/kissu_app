@@ -222,7 +222,7 @@ class _AnimatedFunctionItemState extends State<_AnimatedFunctionItem>
                     height: 18,
                   ),
                 ):Transform.translate(
-                  offset: Offset(30, -10),
+                  offset: Offset(40, -10),
                   child: Image(
                     image: AssetImage(widget.item.subIcon!),
                     width: 28,

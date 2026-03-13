@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/pages/mine/lock_screen/widgets/lock_screen_header.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
@@ -66,6 +67,7 @@ class LockScreenLockedView extends StatelessWidget {
                   height: 44,
                   child: ElevatedButton(
                     onPressed: () {
+                      HapticFeedback.mediumImpact();
                       // 埋点5: 主动解锁按钮点击事件
                       AnalyticsHelper.trackLockPhoneInitiativeUnlock();
                       controller.unlockDevice();
