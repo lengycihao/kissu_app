@@ -93,7 +93,7 @@ class PhoneChangeController extends GetxController {
         type: 'change_phone',
       );
       if (result.isSuccess) {
-        logDebug('验证码已发送');
+        // logDebug('验证码已发送');
         CustomToast.show(Get.context!, '验证码已发送');
       } else {
         logError('发送验证码失败：${result.msg ?? '未知错误'}');

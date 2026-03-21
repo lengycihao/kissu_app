@@ -367,7 +367,7 @@ class IndexApi {
   /// 包含红点信息、活动信息、位置信息、用户信息、照片信息、天气信息
   Future<HttpResultN<IndexResponseModel>> getIndexData() async {
     try {
-      DebugUtil.info('🏠 开始请求首页数据...');
+      // DebugUtil.info('🏠 开始请求首页数据...');
 
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.index,
@@ -378,8 +378,8 @@ class IndexApi {
 
       if (result.isSuccess) {
         final rawJson = result.getDataJson();
-        DebugUtil.success('🏠 首页数据请求成功');
-        DebugUtil.info('首页数据结构: ${rawJson.keys.toList()}');
+        // DebugUtil.success('🏠 首页数据请求成功');
+        // DebugUtil.info('首页数据结构: ${rawJson.keys.toList()}');
 
         return result.convert(data: IndexResponseModel.fromJson(rawJson));
       } else {

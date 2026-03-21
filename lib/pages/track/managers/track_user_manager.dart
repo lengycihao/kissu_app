@@ -22,13 +22,13 @@ class TrackUserManager {
       // bindStatus是dynamic类型，需要安全处理
       bool isBound = false;
       if (user.bindStatus != null) {
-        logDebug('bindStatus原始值: ${user.bindStatus} (类型: ${user.bindStatus.runtimeType})');
+        // logDebug('bindStatus原始值: ${user.bindStatus} (类型: ${user.bindStatus.runtimeType})');
         if (user.bindStatus is int) {
           isBound = user.bindStatus == 1;
         } else if (user.bindStatus is String) {
           isBound = user.bindStatus == "1";
         }
-        logDebug('解析后的绑定状态: $isBound');
+        // logDebug('解析后的绑定状态: $isBound');
       } else {
         logWarning('bindStatus为null，默认为未绑定');
       }
@@ -48,7 +48,7 @@ class TrackUserManager {
   
   /// 从API数据中更新头像信息
   void updateAvatarsFromApiData(LocationResponse data) {
-    logDebug('从API数据更新头像信息');
+    // logDebug('从API数据更新头像信息');
     
     // 从user字段中获取头像和绑定状态
     if (data.user != null) {
@@ -57,23 +57,23 @@ class TrackUserManager {
       // 更新我的头像
       if (userInfo.headPortrait?.isNotEmpty == true) {
         myAvatar.value = userInfo.headPortrait!;
-        logDebug('更新我的头像: ${myAvatar.value}');
+        // logDebug('更新我的头像: ${myAvatar.value}');
       }
       
       // 更新伴侣头像
       if (userInfo.halfHeadPortrait?.isNotEmpty == true) {
         partnerAvatar.value = userInfo.halfHeadPortrait!;
-        logDebug('更新伴侣头像: ${partnerAvatar.value}');
+        // logDebug('更新伴侣头像: ${partnerAvatar.value}');
       }
       
       // 更新绑定状态
       isBindPartner.value = userInfo.isBind == 1;
-      logDebug('更新绑定状态: ${isBindPartner.value}');
-
+      // logDebug('更新绑定状态: ${isBindPartner.value}');
+// 
      
     }
     
-    logDebug('头像更新完成 - 我的头像: ${myAvatar.value}, 伴侣头像: ${partnerAvatar.value}');
+    // logDebug('头像更新完/成 - 我的头像: ${myAvatar.value}, 伴侣头像: ${partnerAvatar.value}');
   }
   
   /// 获取用户头像

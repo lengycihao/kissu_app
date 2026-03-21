@@ -46,10 +46,10 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
     
     if (state == AppLifecycleState.paused) {
       // 应用进入后台，暂停地图更新（释放资源）
-      logDebug('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新', tag: 'GeofenceMapView');
+      // logDebug('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新', tag: 'GeofenceMapView');
     } else if (state == AppLifecycleState.resumed) {
       // 应用恢复前台，恢复地图更新
-      logDebug('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新', tag: 'GeofenceMapView');
+      // logDebug('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新', tag: 'GeofenceMapView');
     }
   }
 

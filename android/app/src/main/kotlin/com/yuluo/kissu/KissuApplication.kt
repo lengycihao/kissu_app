@@ -18,7 +18,7 @@ class KissuApplication : TencentCloudChatPushApplication() {
         private const val CHANNEL_ID = "im_push_channel"
         private const val CHANNEL_NAME = "IM消息推送"
         // 🔥 OPPO私信通道ID（需要在OPPO开放平台申请）
-        private const val OPPO_CHANNEL_ID = "push_oplus_category_service"
+        private const val OPPO_CHANNEL_ID = "kissu_im_message"
         private const val OPPO_CHANNEL_NAME = "私信消息"
         private var notificationId = 1000
         
@@ -55,7 +55,7 @@ class KissuApplication : TencentCloudChatPushApplication() {
         // 🔥 隐私合规修复：添加友盟SDK的preInit调用
         // preInit不会收集敏感信息，只是预初始化SDK框架
         // 真正的init会在用户同意隐私政策后调用
-        try {
+        try { 
             UMConfigure.preInit(
                 applicationContext,
                 "6879fba679267e0210b67bde",
@@ -71,6 +71,9 @@ class KissuApplication : TencentCloudChatPushApplication() {
     
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // 默认 IM 消息通道
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
@@ -85,9 +88,25 @@ class KissuApplication : TencentCloudChatPushApplication() {
                 // 🔥 允许通知绕过勿扰模式（可选，根据需求决定是否启用）
                 // setBypassDnd(true)
             }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
             Log.d(TAG, "✅ 通知渠道已创建: $CHANNEL_ID, importance=HIGH")
+
+            // // 🔥 OPPO 私信通道（channel_id 必须与 androidOPPOChannelID 一致）
+            // // 当 App 进程被杀死时，OPPO 系统直接使用此 channel_id 创建通知
+            // // 如果该 NotificationChannel 不存在，通知会被 Android 8+ 静默丢弃
+            // val oppoChannel = NotificationChannel(
+            //     OPPO_CHANNEL_ID,
+            //     OPPO_CHANNEL_NAME,
+            //     NotificationManager.IMPORTANCE_HIGH
+            // ).apply {
+            //     description = "OPPO私信消息推送通道"
+            //     enableLights(true)
+            //     enableVibration(true)
+            //     setShowBadge(true)
+            //     lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            // }
+            // notificationManager.createNotificationChannel(oppoChannel)
+            // Log.d(TAG, "✅ OPPO私信通知渠道已创建: $OPPO_CHANNEL_ID, importance=HIGH")
         }
     }
     
@@ -107,17 +126,58 @@ class KissuApplication : TencentCloudChatPushApplication() {
                     val ext = pushMessage.ext ?: ""
                     
                     Log.d(TAG, "🔔 收到推送: title=$title, content=$content, ext=$ext")
-                    
-                    // 🔥 修复：App在后台时，腾讯IM SDK会自动显示系统通知
-                    // 不需要在这里手动创建通知，否则会导致重复通知
-                    // Flutter层的TencentIMService也会处理消息，但只在前台显示Banner
                     Log.d(TAG, "🔔 App状态: ${if (appInForeground) "前台" else "后台"}")
-                    Log.d(TAG, "🔔 腾讯IM SDK会自动处理后台通知，无需手动创建")
+
+                    // 🔥 App在后台时，手动创建通知确保用户能看到
+                    // SDK 的 disablePostNotificationInForeground(true) 只禁用了前台通知
+                    // 后台场景需要在此回调中手动创建通知
+                    if (!appInForeground) {
+                        showBackgroundNotification(title, content, ext)
+                    } else {
+                        Log.d(TAG, "🔔 App在前台，由Flutter层处理消息展示")
+                    }
                 }
             })
             Log.d(TAG, "✅ 自定义推送监听器已设置")
         } catch (e: Exception) {
             Log.e(TAG, "设置推送监听器失败", e)
+        }
+    }
+
+    /**
+     * App在后台时手动创建系统通知
+     * 确保即使SDK不自动弹出通知，用户也能收到提醒
+     */
+    private fun showBackgroundNotification(title: String, content: String, ext: String) {
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // 使用 PendingIntent 点击通知时打开App
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            val pendingIntent = if (launchIntent != null) {
+                android.app.PendingIntent.getActivity(
+                    this, 0, launchIntent,
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+            } else null
+
+            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .apply {
+                    if (pendingIntent != null) setContentIntent(pendingIntent)
+                }
+                .build()
+
+            notificationManager.notify(notificationId++, notification)
+            Log.d(TAG, "🔔 后台通知已创建: title=$title, content=$content")
+        } catch (e: Exception) {
+            Log.e(TAG, "创建后台通知失败", e)
         }
     }
 }

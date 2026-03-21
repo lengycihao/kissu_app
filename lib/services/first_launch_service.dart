@@ -23,7 +23,7 @@ class FirstLaunchService extends GetxService {
   Future<void> _initPrefs() async {
     try {
       _prefs = await SharedPreferences.getInstance();
-      logger.info('SharedPreferences预加载完成', tag: 'FirstLaunchService');
+      logger.debug('SharedPreferences预加载完成', tag: 'FirstLaunchService');
     } catch (e) {
       logger.error('SharedPreferences预加载失败: $e', tag: 'FirstLaunchService');
     }
@@ -39,7 +39,7 @@ class FirstLaunchService extends GetxService {
       final hasAgreed = _prefs!.getBool(_hasAgreedKey) ?? false;
       final shouldShow = !hasAgreed;
       
-      logger.info('检查隐私协议状态: hasAgreed=$hasAgreed, shouldShow=$shouldShow', tag: 'FirstLaunchService');
+      logger.debug('检查隐私协议状态: hasAgreed=$hasAgreed, shouldShow=$shouldShow', tag: 'FirstLaunchService');
       return shouldShow;
     } catch (e) {
       logger.error('读取隐私协议状态失败: $e，默认显示弹窗', tag: 'FirstLaunchService');
@@ -54,7 +54,7 @@ class FirstLaunchService extends GetxService {
     try {
       _prefs ??= await SharedPreferences.getInstance();
       await _prefs!.setBool(_hasAgreedKey, true);
-      logger.info('已保存用户同意隐私协议', tag: 'FirstLaunchService');
+      logger.debug('已保存用户同意隐私协议', tag: 'FirstLaunchService');
     } catch (e) {
       logger.error('保存隐私协议同意状态失败: $e', tag: 'FirstLaunchService');
     }
@@ -65,7 +65,7 @@ class FirstLaunchService extends GetxService {
     try {
       // 🔥 修复：用户拒绝时不标记任何状态，下次启动仍需同意
       // 这符合隐私合规要求：必须每次启动都征得用户同意
-      logger.info('用户拒绝隐私协议，退出应用', tag: 'FirstLaunchService');
+      logger.debug('用户拒绝隐私协议，退出应用', tag: 'FirstLaunchService');
       
       // 退出应用
       await SystemNavigator.pop();

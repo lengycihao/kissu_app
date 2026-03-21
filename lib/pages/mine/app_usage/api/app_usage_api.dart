@@ -26,8 +26,8 @@ class AppUsageApi {
         'date': date,
       };
       
-      logger.info('准备上报应用使用记录: ${appUseRecordData.length}个应用, 日期: $date', tag: 'AppUsageApi');
-      logger.debug('上报数据: ${jsonEncode(requestData)}', tag: 'AppUsageApi');
+      // logger.info('准备上报应用使用记录: ${appUseRecordData.length}个应用, 日期: $date', tag: 'AppUsageApi');
+      // logger.debug('上报数据: ${jsonEncode(requestData)}', tag: 'AppUsageApi');
       
       // 根据api.md说明，接口需要json格式，直接传递整个json对象
       // http_engine会自动将jsonParam转换为json字符串作为body
@@ -39,7 +39,7 @@ class AppUsageApi {
       );
       
       if (result.isSuccess) {
-        logger.info('应用使用记录上报成功', tag: 'AppUsageApi');
+        // logger.info('应用使用记录上报成功', tag: 'AppUsageApi');
       } else {
         logger.error('应用使用记录上报失败: ${result.msg}', tag: 'AppUsageApi');
       }
@@ -112,7 +112,7 @@ class AppUsageApi {
     required String date,
   }) async {
     try {
-      logger.info('获取App使用统计数据: $date', tag: 'AppUsageApi');
+      // logger.info('获取App使用统计数据: $date', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.appUsageStat,
@@ -125,7 +125,7 @@ class AppUsageApi {
         final data = result.getDataJson();
         final statResponse = AppUsageStatResponse.fromJson(data);
         
-        logger.info('获取App使用统计数据成功: ${statResponse.appUseStatData.length}个App', tag: 'AppUsageApi');
+        // logger.info('获取App使用统计数据成功: ${statResponse.appUseStatData.length}个App', tag: 'AppUsageApi');
         
         return HttpResultN<AppUsageStatResponse>(
           isSuccess: true,
@@ -155,7 +155,7 @@ class AppUsageApi {
     String? appPkg,
   }) async {
     try {
-      logger.info('获取App打开记录详情: date=$date, appPkg=$appPkg', tag: 'AppUsageApi');
+      // logger.info('获取App打开记录详情: date=$date, appPkg=$appPkg', tag: 'AppUsageApi');
       
       final queryParam = <String, dynamic>{
         'date': date,
@@ -175,7 +175,7 @@ class AppUsageApi {
         final data = result.getDataJson();
         
         // 调试：打印原始数据
-        logger.debug('API返回的原始数据: ${data.toString()}', tag: 'AppUsageApi');
+        // logger.debug('API返回的原始数据: ${data.toString()}', tag: 'AppUsageApi');
         
         final detailResponse = AppOpenRecordDetailResponse.fromJson(data);
         
@@ -206,7 +206,7 @@ class AppUsageApi {
   /// 获取Ta当前授权过的App列表
   static Future<HttpResultN<List<HalfAuthApp>>> getHalfAuthorizedApps() async {
     try {
-      logger.info('获取Ta当前授权过的App列表', tag: 'AppUsageApi');
+      // logger.info('获取Ta当前授权过的App列表', tag: 'AppUsageApi');
 
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.getHalfAuthApp,
@@ -230,7 +230,7 @@ class AppUsageApi {
             )
             .toList();
 
-        logger.info('获取Ta当前授权过的App成功: ${apps.length}个', tag: 'AppUsageApi');
+        // logger.info('获取Ta当前授权过的App成功: ${apps.length}个', tag: 'AppUsageApi');
 
         return HttpResultN<List<HalfAuthApp>>(
           isSuccess: true,
@@ -267,7 +267,7 @@ class AppUsageApi {
     required String date,
   }) async {
     try {
-      logger.info('获取App使用记录统计: date=$date', tag: 'AppUsageApi');
+      // logger.info('获取App使用记录统计: date=$date', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.appOpenRecordStat,
@@ -290,17 +290,17 @@ class AppUsageApi {
         }
         
         // 调试：打印原始数据
-        logger.debug('API返回的原始数据: ${recordsList.toString()}', tag: 'AppUsageApi');
-        logger.debug('API返回的数据类型: ${recordsList.runtimeType}', tag: 'AppUsageApi');
-        logger.debug('API返回的数据长度: ${recordsList.length}', tag: 'AppUsageApi');
+        // logger.debug('API返回的原始数据: ${recordsList.toString()}', tag: 'AppUsageApi');
+        // logger.debug('API返回的数据类型: ${recordsList.runtimeType}', tag: 'AppUsageApi');
+        // logger.debug('API返回的数据长度: ${recordsList.length}', tag: 'AppUsageApi');
         
         // 解析数据
         final statResponse = HourlyAppRecordResponse.fromJson(recordsList);
         
-        logger.info(
-          '获取App使用记录统计成功: ${statResponse.hourlyRecords.length}个小时的记录',
-          tag: 'AppUsageApi',
-        );
+        // logger.info(
+        //   '获取App使用记录统计成功: ${statResponse.hourlyRecords.length}个小时的记录',
+        //   tag: 'AppUsageApi',
+        // );
         
         return HttpResultN<HourlyAppRecordResponse>(
           isSuccess: true,

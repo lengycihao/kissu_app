@@ -11,7 +11,7 @@ import 'package:kissu_app/utils/toast_toalog.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
-import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
+// import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
@@ -103,7 +103,7 @@ class LoginController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('has_agreed_privacy_terms');
-      logDebug('协议状态已清除', tag: 'Login');
+      // logDebug('协议状态已清除', tag: 'Login');
     } catch (e) {
       logWarning('清除协议状态失败: $e', tag: 'Login', error: e);
     }
@@ -125,11 +125,11 @@ class LoginController extends GetxController {
       // 统一通过 OpenInstallService 的解析逻辑获取（兼容 bindData 为字符串或其他字段名）
       final inviteCode = await OpenInstallService.getInviteCode();
       if (inviteCode != null && inviteCode.isNotEmpty) {
-        logDebug('获取到OpenInstall邀请码: $inviteCode', tag: 'Login');
+        // logDebug('获取到OpenInstall邀请码: $inviteCode', tag: 'Login');
         return inviteCode;
       }
 
-      logDebug('未获取到OpenInstall邀请码', tag: 'Login');
+      // logDebug('未获取到OpenInstall邀请码', tag: 'Login');
       return "";
     } catch (e) {
       logWarning('获取OpenInstall邀请码失败: $e', tag: 'Login', error: e);
@@ -236,13 +236,13 @@ class LoginController extends GetxController {
     final now = DateTime.now();
     if (_lastLoginTime != null &&
         now.difference(_lastLoginTime!) < _loginDebounceDelay) {
-      logDebug('⏱️ 登录按钮防抖：距离上次点击时间过短，忽略本次点击');
+      // logDebug('⏱️ 登录按钮防抖：距离上次点击时间过短，忽略本次点击');
       return;
     }
 
     // 如果正在登录，防止重复点击
     if (isLoading.value) {
-      logDebug('⏱️ 登录按钮防抖：正在登录中，忽略本次点击');
+      // logDebug('⏱️ 登录按钮防抖：正在登录中，忽略本次点击');
       return;
     }
 
@@ -371,7 +371,7 @@ class LoginController extends GetxController {
   void _clearLoveInfoController() {
     if (Get.isRegistered<LoveInfoController>()) {
       Get.delete<LoveInfoController>(force: true);
-      logDebug('🧹 登录成功，恋爱信息控制器已重置', tag: 'Login');
+      // logDebug('🧹 登录成功，恋爱信息控制器已重置', tag: 'Login');
     }
   }
 
@@ -384,11 +384,11 @@ class LoginController extends GetxController {
   void _handleLinkTap(String linkName) {
     switch (linkName) {
       case '用户协议':
-        logDebug('跳转到用户协议页面', tag: 'Login');
+        // logDebug('跳转到用户协议页面', tag: 'Login');
         AgreementUtils.toUserAgreement();
         break;
       case '隐私协议':
-        logDebug('跳转到隐私协议页面', tag: 'Login');
+        // logDebug('跳转到隐私协议页面', tag: 'Login');
         AgreementUtils.toPrivacyAgreement();
         break;
       default:
@@ -402,7 +402,7 @@ class LoginController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('should_show_vip_promo', shouldShow);
-      logDebug('VIP推广标识已保存: $shouldShow');
+      // logDebug('VIP推广标识已保存: $shouldShow');
     } catch (e) {
       logError('保存VIP推广标识失败: $e');
     }
@@ -415,7 +415,7 @@ class LoginController extends GetxController {
         final service = Get.find<AppUsageAutoReportService>();
         // 登录时强制全量上报，确保换账号后也能正确上报
         service.restart(forceFullReport: true);
-        logInfo('✅ App使用记录自动上报服务已重启（登录后，强制全量上报）', tag: 'Login');
+        // logInfo('✅ App使用记录自动上报服务已重启（登录后，强制全量上报）', tag: 'Login');
       } else {
         logWarning('⚠️ App使用记录自动上报服务未注册', tag: 'Login');
       }

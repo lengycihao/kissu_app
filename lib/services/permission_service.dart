@@ -187,7 +187,7 @@ class PermissionService {
     if (Platform.isAndroid) {
       final status = await Permission.locationAlways.request();
       if (status.isGranted) {
-        logger.info("后台定位权限已获取", tag: 'PermissionService');
+        logger.debug("后台定位权限已获取", tag: 'PermissionService');
         return true;
       } else if (status.isPermanentlyDenied) {
         await openAppSettings();
@@ -196,7 +196,7 @@ class PermissionService {
     } else if (Platform.isIOS) {
       final status = await Permission.locationAlways.request();
       if (status.isGranted) {
-        logger.info("后台定位权限已获取", tag: 'PermissionService');
+        logger.debug("后台定位权限已获取", tag: 'PermissionService');
         return true;
       } else if (status.isPermanentlyDenied) {
         await openAppSettings();
@@ -210,7 +210,7 @@ class PermissionService {
   Future<bool> requestNotificationPermission() async {
     final status = await Permission.notification.request();
     if (status.isGranted) {
-      logger.info("通知权限已获取", tag: 'PermissionService');
+      logger.debug("通知权限已获取", tag: 'PermissionService');
       return true;
     } else if (status.isPermanentlyDenied) {
       await openAppSettings();
@@ -236,12 +236,12 @@ class PermissionService {
         // 先检查是否已授权
         final bool isGranted = await isUsageAccessGranted();
         if (isGranted) {
-          logger.info("使用情况访问权限已授权", tag: 'PermissionService');
+          logger.debug("使用情况访问权限已授权", tag: 'PermissionService');
           return true;
         }
 
         // 未授权，跳转到系统设置页面
-        logger.info("跳转到使用情况访问设置页面", tag: 'PermissionService');
+        logger.debug("跳转到使用情况访问设置页面", tag: 'PermissionService');
         await openUsageAccessSettings();
 
         // 等待一段时间后再次检查权限状态
@@ -268,11 +268,11 @@ class PermissionService {
           final storageResult = await storagePermission.request();
 
           if (storageResult.isGranted) {
-            logger.info("存储权限已获取（适用于Android 12及以下）", tag: 'PermissionService');
+            logger.debug("存储权限已获取（适用于Android 12及以下）", tag: 'PermissionService');
             return true;
           }
         } else if (storageStatus.isGranted) {
-          logger.info("存储权限已经获得（Android 12及以下）", tag: 'PermissionService');
+          logger.debug("存储权限已经获得（Android 12及以下）", tag: 'PermissionService');
           return true;
         }
       }
@@ -287,7 +287,7 @@ class PermissionService {
       logger.debug("相册权限当前状态: $currentStatus", tag: 'PermissionService');
 
       if (currentStatus.isGranted) {
-        logger.info("相册权限已经获得", tag: 'PermissionService');
+        logger.debug("相册权限已经获得", tag: 'PermissionService');
         return true;
       }
 
@@ -303,7 +303,7 @@ class PermissionService {
       logger.debug("权限申请结果: $status", tag: 'PermissionService');
 
       if (status.isGranted) {
-        logger.info("相册权限已获取", tag: 'PermissionService');
+        logger.debug("相册权限已获取", tag: 'PermissionService');
         return true;
       } else if (status.isPermanentlyDenied) {
         logger.warning("相册权限被永久拒绝", tag: 'PermissionService');
@@ -323,7 +323,7 @@ class PermissionService {
   Future<bool> requestCameraPermission() async {
     final status = await Permission.camera.request();
     if (status.isGranted) {
-      logger.info("相机权限已获取", tag: 'PermissionService');
+      logger.debug("相机权限已获取", tag: 'PermissionService');
       return true;
     } else if (status.isPermanentlyDenied) {
       // 权限被永久拒绝，需要跳转到设置页面

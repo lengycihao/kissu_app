@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/version_api.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/version_service.dart';
 
 /// 版本更新弹窗
 class VersionUpdateDialog extends StatelessWidget {
@@ -170,7 +171,11 @@ class VersionUpdateDialog extends StatelessWidget {
           Expanded(
             child: _buildCancelButton(
               text: '稍后更新',
-              onTap: () => Get.back(),
+              onTap: () async {
+                final versionService = Get.find<VersionService>();
+                await versionService.dismissUpdateToday();
+                Get.back();
+              },
             ),
           ),
           
@@ -248,33 +253,18 @@ class VersionUpdateDialog extends StatelessWidget {
     );
   }
 
-  /// 打开下载链接
+  /// 跳转到对应渠道的应用市场
   Future<void> _openDownloadUrl(BuildContext context) async {
     try {
-      final uri = Uri.parse(versionInfo.url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        
-        // 如果不是强更新，打开链接后关闭弹窗
-        if (!versionInfo.isForced) {
-          Get.back();
-        }
-      } else {
-        Get.snackbar(
-          '提示',
-          '无法打开下载链接',
-          snackPosition: SnackPosition.BOTTOM,
-          duration: Duration(seconds: 2),
-        );
+      await VersionService.openAppStore();
+      
+      // 如果不是强更新，跳转后关闭弹窗
+      if (!versionInfo.isForced) {
+        Get.back();
       }
     } catch (e) {
-      logError('打开下载链接失败: $e', tag: 'VersionUpdateDialog', error: e);
-      Get.snackbar(
-        '提示',
-        '打开下载链接失败',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: Duration(seconds: 2),
-      );
+      logError('跳转应用市场失败: $e', tag: 'VersionUpdateDialog', error: e);
+      OKToastUtil.show('无法打开应用市场');
     }
   }
 }

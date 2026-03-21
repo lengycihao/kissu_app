@@ -62,7 +62,7 @@ class TrackPointFilter {
 
     final totalRemoved = spikeRemoved + clusterRemoved;
     if (totalRemoved > 0) {
-      logDebug('📍 [飘点过滤] 原始: $totalCount, '
+      logWarning('📍 [飘点过滤] 原始: $totalCount, '
           '飘点移除: $spikeRemoved, 静止压缩: $clusterRemoved, '
           '最终: ${clusterCompressed.length}');
     }

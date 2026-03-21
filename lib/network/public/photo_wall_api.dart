@@ -8,7 +8,7 @@ class PhotoWallApi {
   /// [photoWallUrl] 照片墙图片URL
   Future<HttpResultN<void>> savePhotoWall(String photoWallUrl) async {
     try {
-      DebugUtil.info('📸 开始保存照片墙: $photoWallUrl');
+      // DebugUtil.info('📸 开始保存照片墙: $photoWallUrl');
       
       final result = await HttpManagerN.instance.executePost(
         '/save/photo/wall',
@@ -20,7 +20,7 @@ class PhotoWallApi {
       );
 
       if (result.isSuccess) {
-        DebugUtil.success('📸 照片墙保存成功');
+        // DebugUtil.success('📸 照片墙保存成功');
         return result.convert();
       } else {
         DebugUtil.error('📸 照片墙保存失败: ${result.msg}');

@@ -66,7 +66,7 @@ class LocationStateController extends GetxController {
       // 2. 如果有缓存，立即显示并关闭加载状态
       if (hasCache) {
         isLoading.value = false;
-        logDebug('✅ 缓存数据加载完成，页面可交互');
+        // logDebug('✅ 缓存数据加载完成，页面可交互');
       }
       
       // 3. 在后台请求接口获取最新数据
@@ -94,14 +94,14 @@ class LocationStateController extends GetxController {
       if (cachedCategories != null && cachedCategories.isNotEmpty) {
         emojiCategories.value = cachedCategories;
         hasData = true;
-        logDebug('✅ 从缓存加载表情分类数据成功，共 ${cachedCategories.length} 个分类');
+        // logDebug('✅ 从缓存加载表情分类数据成功，共 ${cachedCategories.length} 个分类');
       }
       
       // 加载缓存的当前状态数据
       final cachedStatus = await _cacheManager.getCachedCurrentStatus();
       if (cachedStatus != null) {
         _applyStatusData(cachedStatus);
-        logDebug('✅ 从缓存加载当前状态数据成功');
+        // logDebug('✅ 从缓存加载当前状态数据成功');
       }
       
       return hasData;
@@ -164,7 +164,7 @@ class LocationStateController extends GetxController {
           selectedExpireHours.value = nowFace.faceExpire; // 设置当前有效期
           topExpireHours.value = nowFace.faceExpire; // 同步到顶部有效期
           
-          logDebug('✅ 当前状态: ${nowFace.faceText}, 有效期: ${nowFace.faceExpire}小时');
+          // logDebug('✅ 当前状态: ${nowFace.faceText}, 有效期: ${nowFace.faceExpire}小时');
         } else {
           // 没有状态时，清空所有状态相关字段
           hasStatus.value = false;
@@ -174,7 +174,7 @@ class LocationStateController extends GetxController {
           statusExpireTime.value = null;
           selectedExpireHours.value = 1; // 重置为默认值
           topExpireHours.value = 1; // 重置为默认值
-          logDebug('ℹ️ 当前没有设置状态');
+          // logDebug('ℹ️ 当前没有设置状态');
         }
         
         // 缓存当前状态数据
@@ -189,7 +189,7 @@ class LocationStateController extends GetxController {
         );
         await _cacheManager.cacheCurrentStatus(statusData);
         
-        logDebug('✅ 从接口加载表情数据成功，共 ${emojiCategories.length} 个分类');
+        // logDebug('✅ 从接口加载表情数据成功，共 ${emojiCategories.length} 个分类');
       } else {
         logWarning('⚠️ 加载表情数据失败: ${result.msg}');
         OKToastUtil.showWarning(result.msg ?? '加载失败');
@@ -229,11 +229,11 @@ class LocationStateController extends GetxController {
   /// - 新设置时：显示底部有效期选择弹窗
   /// - 编辑时：直接回显到顶部状态区域，点击保存按钮保存
   void selectEmoji(EmojiItem emoji) {
-    logDebug('🎯 选择表情: ${emoji.name}, hasStatus: ${hasStatus.value}');
+    // logDebug('🎯 选择表情: ${emoji.name}, hasStatus: ${hasStatus.value}');
     
     if (hasStatus.value) {
       // 编辑模式：直接回显到顶部状态区域
-      logDebug('✏️ 编辑模式：直接回显到顶部');
+      // logDebug('✏️ 编辑模式：直接回显到顶部');
       
       // 保存原始状态（用于取消时恢复）
       if (!hasTempStatus.value) {
@@ -253,7 +253,7 @@ class LocationStateController extends GetxController {
       // 不显示底部弹窗（selectedEmoji保持为null）
     } else {
       // 新设置模式：显示底部弹窗选择有效期
-      logDebug('🆕 新设置模式：显示底部弹窗');
+      // logDebug('🆕 新设置模式：显示底部弹窗');
       selectedEmoji.value = emoji;
       tempExpireHours.value = 1; // 默认1小时
     }
@@ -332,7 +332,7 @@ class LocationStateController extends GetxController {
           await _cacheManager.cacheCurrentStatus(statusData);
         }
 
-        logDebug('✅ 设置状态成功');
+        // logDebug('✅ 设置状态成功');
         OKToastUtil.show('状态已设置');
 
         // 返回定位页面并刷新数据
@@ -435,7 +435,7 @@ class LocationStateController extends GetxController {
         );
         await _cacheManager.cacheCurrentStatus(statusData);
         
-        logDebug('✅ 删除状态成功');
+        // logDebug('✅ 删除状态成功');
         OKToastUtil.show('状态已删除');
         
         // 返回定位页面并刷新数据
@@ -505,7 +505,7 @@ class LocationStateController extends GetxController {
         );
         await _cacheManager.cacheCurrentStatus(statusData);
         
-        logDebug('✅ 更新有效期成功');
+        // logDebug('✅ 更新有效期成功');
         OKToastUtil.show('有效期已更新');
         
         // 返回定位页面并刷新数据
@@ -525,7 +525,7 @@ class LocationStateController extends GetxController {
     try {
       // 清除所有缓存
       await _cacheManager.clearAllCache();
-      logDebug('🗑️ 已清除所有缓存');
+      // logDebug('🗑️ 已清除所有缓存');
       
       // 重新加载数据
       await _loadFaceStatusWithCache();
@@ -563,7 +563,7 @@ class LocationStateController extends GetxController {
   /// 返回定位页面并刷新数据
   void _returnToLocationPageAndRefresh() {
     try {
-      logDebug('🔄 表情设置保存成功，准备返回定位页面并刷新数据');
+      // logDebug('🔄 表情设置保存成功，准备返回定位页面并刷新数据');
       
       // 返回到定位页面
       Get.back();
@@ -571,7 +571,7 @@ class LocationStateController extends GetxController {
       // 刷新定位页面数据
       _refreshLocationPageData();
       
-      logDebug('✅ 已返回定位页面并触发数据刷新');
+      // logDebug('✅ 已返回定位页面并触发数据刷新');
     } catch (e) {
       logError('❌ 返回定位页面并刷新数据失败: $e');
       // 即使刷新失败，也要返回页面
@@ -587,7 +587,7 @@ class LocationStateController extends GetxController {
       if (Get.isRegistered<LocationV2Controller>()) {
         final locationController = Get.find<LocationV2Controller>();
         locationController.refreshLocationData();
-        logDebug('🔄 已触发LocationV2Controller数据刷新');
+        // logDebug('🔄 已触发LocationV2Controller数据刷新');
       } else {
         logWarning('⚠️ 未找到定位页面控制器，无法刷新数据');
       }

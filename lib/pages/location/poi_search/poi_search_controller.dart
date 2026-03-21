@@ -74,20 +74,20 @@ class PoiSearchController extends GetxController {
     _debounceTimer?.cancel();
     
     final keyword = searchController.text.trim();
-    logDebug('🔍 输入框变化: "$keyword"');
+    // logDebug('🔍 输入框变化: "$keyword"');
     
     // 如果输入为空，清空搜索结果
     if (keyword.isEmpty) {
       searchResults.clear();
       hasSearched.value = false;
-      logDebug('✅ 已清空搜索结果');
+      // logDebug('✅ 已清空搜索结果');
       return;
     }
     
     // 设置新的防抖定时器（500ms后执行搜索）
-    logDebug('⏱️ 设置500ms后自动搜索');
+    // logDebug('⏱️ 设置500ms后自动搜索');
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      logDebug('🚀 开始自动搜索: "$keyword"');
+      // logDebug('🚀 开始自动搜索: "$keyword"');
       search(showLoading: false); // 自动搜索不显示loading
     });
   }
@@ -96,7 +96,7 @@ class PoiSearchController extends GetxController {
   String? _getCurrentLocationString() {
     // 🔥 优先使用传入的初始位置
     if (initialLocation != null && initialLocation!.isNotEmpty) {
-      logDebug('✅ 使用传入的初始位置: $initialLocation');
+      // logDebug('✅ 使用传入的初始位置: $initialLocation');
       return initialLocation;
     }
     
@@ -120,17 +120,17 @@ class PoiSearchController extends GetxController {
     final keyword = searchController.text.trim();
 
     if (keyword.isEmpty) {
-      logDebug('⚠️ 关键词为空，跳过搜索');
+      // logDebug('⚠️ 关键词为空，跳过搜索');
       return; // 静默返回，不显示提示
     }
 
     if (selectedCity.value == null) {
-      logDebug('⚠️ 未选择城市，跳过搜索');
+      // logDebug('⚠️ 未选择城市，跳过搜索');
       return; // 静默返回，不显示提示
     }
 
     try {
-      logDebug('🔍 开始搜索 POI: 关键词="$keyword", 城市=${selectedCity.value!.cityName}');
+      // logDebug('🔍 开始搜索 POI: 关键词="$keyword", 城市=${selectedCity.value!.cityName}');
       if (showLoading) {
         isSearching.value = true;
       }
@@ -138,7 +138,7 @@ class PoiSearchController extends GetxController {
 
       // 获取当前位置（用于计算距离）
       final currentLocation = _getCurrentLocationString();
-      logDebug('📍 当前位置: $currentLocation');
+      // logDebug('📍 当前位置: $currentLocation');
 
       final results = await _poiService.searchPoi(
         keyword: keyword,
@@ -148,7 +148,7 @@ class PoiSearchController extends GetxController {
         location: currentLocation, // 传递当前位置
       );
 
-      logDebug('✅ 搜索完成，找到 ${results.length} 条结果');
+      // logDebug('✅ 搜索完成，找到 ${results.length} 条结果');
       searchResults.value = results;
       hasSearched.value = true;
       
@@ -168,7 +168,7 @@ class PoiSearchController extends GetxController {
   Future<void> loadMore() async {
     // 如果正在加载或没有更多数据，直接返回
     if (isLoadingMore.value || !hasMore.value) {
-      logDebug('⚠️ 跳过加载更多: isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
+      // logDebug('⚠️ 跳过加载更多: isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
       return;
     }
     
@@ -178,7 +178,7 @@ class PoiSearchController extends GetxController {
     try {
       isLoadingMore.value = true;
       currentPage++;
-      logDebug('📄 加载第 $currentPage 页数据');
+      // logDebug('📄 加载第 $currentPage 页数据');
 
       // 获取当前位置（用于计算距离）
       final currentLocation = _getCurrentLocationString();
@@ -191,7 +191,7 @@ class PoiSearchController extends GetxController {
         location: currentLocation, // 传递当前位置
       );
 
-      logDebug('✅ 加载更多完成，新增 ${results.length} 条结果');
+      // logDebug('✅ 加载更多完成，新增 ${results.length} 条结果');
       searchResults.addAll(results);
       
       // 判断是否还有更多数据
@@ -214,7 +214,7 @@ class PoiSearchController extends GetxController {
     if (result != null && result is CityModel) {
       selectedCity.value = result;
       cityChanged.value = true; // 标记城市已变化
-      logDebug('🏙️ POI搜索页切换城市: ${result.cityName}');
+      // logDebug('🏙️ POI搜索页切换城市: ${result.cityName}');
     }
   }
 

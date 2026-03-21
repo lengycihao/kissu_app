@@ -352,6 +352,23 @@ class AppUsageReportService(private val context: Context) {
                         put("record", recordList)
                     }
                     
+                    // 计算总使用时长（从会话中累加）
+                    var totalDurationMs = 0L
+                    for (session in sessions) {
+                        totalDurationMs += session.optLong("duration", 0)
+                    }
+                    val totalMinutes = totalDurationMs / 1000 / 60
+                    val totalSeconds = (totalDurationMs / 1000) % 60
+                    
+                    logInfo("📱 $appName ($packageName): ${sessions.size}个会话, 使用${totalMinutes}分${totalSeconds}秒", mapOf(
+                        "appName" to appName,
+                        "packageName" to packageName,
+                        "sessionCount" to sessions.size,
+                        "totalDurationMs" to totalDurationMs,
+                        "totalDurationFormatted" to "${totalMinutes}分${totalSeconds}秒",
+                        "recordCount" to recordList.length()
+                    ))
+                    
                     result.add(appUsageData)
                     
                 } catch (e: Exception) {
@@ -362,6 +379,7 @@ class AppUsageReportService(private val context: Context) {
         }
         
         Log.d(TAG, "📱 采集完成: ${result.size} 个应用")
+        logInfo("📱 采集完成: ${result.size} 个应用", mapOf("appCount" to result.size))
         return result
     }
     
@@ -690,6 +708,13 @@ class AppUsageReportService(private val context: Context) {
             
                 Log.d(TAG, "执行定时上报，日期: $dateInt，应用数量: ${appList.size}")
                 logInfo("执行定时上报，日期: $dateInt，应用数量: ${appList.size}", mapOf("date" to dateInt, "appCount" to appList.size))
+                // 记录每个应用的详细信息
+                for (appData in appList) {
+                    val name = appData.optString("app_name", "unknown")
+                    val pkg = appData.optString("app_pkg", "unknown")
+                    val recordCount = appData.optJSONArray("record")?.length() ?: 0
+                    logInfo("  📦 上报: $name ($pkg), ${recordCount}条记录", mapOf("appName" to name, "packageName" to pkg, "recordCount" to recordCount))
+                }
             
                 val success = sendUsageDataToServer(token, dataToReport, dateInt)
             
@@ -735,6 +760,13 @@ class AppUsageReportService(private val context: Context) {
             
                 Log.d(TAG, "执行立即上报，日期: $dateInt，应用数量: ${appList.size}")
                 logInfo("执行立即上报，日期: $dateInt，应用数量: ${appList.size}", mapOf("date" to dateInt, "appCount" to appList.size))
+                // 记录每个应用的详细信息
+                for (appData in appList) {
+                    val name = appData.optString("app_name", "unknown")
+                    val pkg = appData.optString("app_pkg", "unknown")
+                    val recordCount = appData.optJSONArray("record")?.length() ?: 0
+                    logInfo("  📦 上报: $name ($pkg), ${recordCount}条记录", mapOf("appName" to name, "packageName" to pkg, "recordCount" to recordCount))
+                }
             
                 val success = sendUsageDataToServer(token, dataToReport, dateInt)
             
@@ -1177,12 +1209,12 @@ class AppUsageReportService(private val context: Context) {
             val todayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
             val today = todayFormat.format(Date())
             
-            // 查找今天的日志文件，如果不存在则创建新的
+            // 查找今天的应用使用日志文件，如果不存在则创建新的
             val existingLogFile = logDir.listFiles()?.find { 
-                it.name.startsWith(today) && it.name.endsWith("_app.log") 
+                it.name.startsWith(today) && it.name.endsWith("_app_usage.log") 
             }
             
-            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app.log")
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app_usage.log")
             
             val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
             val timestamp = isoFormat.format(Date())

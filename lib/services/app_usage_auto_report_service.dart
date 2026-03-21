@@ -33,7 +33,7 @@ class AppUsageAutoReportService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    logger.info('App使用记录自动上报服务已初始化', tag: _tag);
+    // logger.debug('App使用记录自动上报服务已初始化', tag: _tag);
   }
   
   @override
@@ -46,11 +46,11 @@ class AppUsageAutoReportService extends GetxService {
   /// 在首页进入时调用
   Future<void> start() async {
     if (_isServiceStarted) {
-      logger.info('服务已启动，跳过重复启动', tag: _tag);
+      // logger.debug('服务已启动，跳过重复启动', tag: _tag);
       return;
     }
     
-    logger.info('🚀 开始启动App使用记录自动上报服务', tag: _tag);
+    // logger.debug('🚀 开始启动App使用记录自动上报服务', tag: _tag);
     
     // 检查权限
     final hasPermission = await _checkUsagePermission();
@@ -60,14 +60,14 @@ class AppUsageAutoReportService extends GetxService {
       // 有权限，启动上报服务（首次启动时增加延迟，让系统有时间准备数据）
       await _startReportService(delayMs: 3000);
     } else {
-      logger.info('暂无App使用记录权限，等待权限开启', tag: _tag);
+      // logger.debug('暂无App使用记录权限，等待权限开启', tag: _tag);
     }
     
     // 启动权限监听（每10秒检查一次）
     _startPermissionListener();
     
     _isServiceStarted = true;
-    logger.info('✅ App使用记录自动上报服务已启动', tag: _tag);
+    // logger.debug('✅ App使用记录自动上报服务已启动', tag: _tag);
   }
   
   /// 停止自动上报服务
@@ -77,7 +77,7 @@ class AppUsageAutoReportService extends GetxService {
       return;
     }
     
-    logger.info('⏹️ 停止App使用记录自动上报服务', tag: _tag);
+    // logger.debug('⏹️ 停止App使用记录自动上报服务', tag: _tag);
     
     // 停止上报服务
     _reportService.stop();
@@ -89,7 +89,7 @@ class AppUsageAutoReportService extends GetxService {
     _isServiceStarted = false;
     _lastPermissionStatus = false;
     
-    logger.info('✅ App使用记录自动上报服务已停止', tag: _tag);
+    // logger.debug('✅ App使用记录自动上报服务已停止', tag: _tag);
   }
   
   /// 重启服务
@@ -108,14 +108,14 @@ class AppUsageAutoReportService extends GetxService {
       // 有权限，启动上报服务（换账号时强制全量上报）
       await _startReportService(delayMs: 3000, forceFullReport: forceFullReport);
     } else {
-      logger.info('暂无App使用记录权限，等待权限开启', tag: _tag);
+      logger.warning('暂无App使用记录权限，等待权限开启', tag: _tag);
     }
     
     // 启动权限监听（每10秒检查一次）
     _startPermissionListener();
     
     _isServiceStarted = true;
-    logger.info('✅ App使用记录自动上报服务已重启', tag: _tag);
+    // logger.debug('✅ App使用记录自动上报服务已重启', tag: _tag);
   }
   
   /// 检查App使用记录权限
@@ -142,13 +142,13 @@ class AppUsageAutoReportService extends GetxService {
   Future<void> _startReportService({int delayMs = 0, bool forceFullReport = false}) async {
     try {
       if (delayMs > 0) {
-        logger.info('⏳ 等待 ${delayMs}ms 后启动上报服务（确保权限已生效，系统数据已准备好）', tag: _tag);
+        // logger.debug('⏳ 等待 ${delayMs}ms 后启动上报服务（确保权限已生效，系统数据已准备好）', tag: _tag);
         await Future.delayed(Duration(milliseconds: delayMs));
       }
       
-      logger.info('📤 启动App使用记录上报服务（全量+定时增量）', tag: _tag);
+      // logger.debug('📤 启动App使用记录上报服务（全量+定时增量）', tag: _tag);
       await _reportService.initialize(forceFullReport: forceFullReport);
-      logger.info('✅ App使用记录上报服务启动成功', tag: _tag);
+      // logger.debug('✅ App使用记录上报服务启动成功', tag: _tag);
     } catch (e) {
       logger.error('启动上报服务失败: $e', tag: _tag, error: e);
     }
@@ -170,7 +170,7 @@ class AppUsageAutoReportService extends GetxService {
         
         // 如果权限从无到有，重新启动服务（延迟5秒，确保权限已生效且系统数据已准备好）
         if (!_lastPermissionStatus && currentPermission) {
-          logger.info('🔓 检测到App使用记录权限已开启，延迟5秒后重新启动上报服务（让系统有时间准备数据）', tag: _tag);
+          // logger.info('🔓 检测到App使用记录权限已开启，延迟5秒后重新启动上报服务（让系统有时间准备数据）', tag: _tag);
           await _startReportService(delayMs: 5000);
         }
         
@@ -188,7 +188,7 @@ class AppUsageAutoReportService extends GetxService {
       }
     });
     
-    logger.info('👂 权限监听已启动（每10秒检查一次）', tag: _tag);
+    logger.debug('👂 权限监听已启动（每10秒检查一次）', tag: _tag);
   }
   
   /// 手动触发权限检查（用于从设置页面返回时立即检查）
@@ -203,7 +203,7 @@ class AppUsageAutoReportService extends GetxService {
       
       // 如果权限从无到有，重新启动服务（延迟5秒，确保权限已生效且系统数据已准备好）
       if (!_lastPermissionStatus && currentPermission) {
-        logger.info('🔓 手动检查：App使用记录权限已开启，延迟5秒后重新启动上报服务（让系统有时间准备数据）', tag: _tag);
+        // logger.debug('🔓 手动检查：App使用记录权限已开启，延迟5秒后重新启动上报服务（让系统有时间准备数据）', tag: _tag);
         await _startReportService(delayMs: 5000);
       }
       

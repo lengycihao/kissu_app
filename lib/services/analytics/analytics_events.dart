@@ -294,7 +294,7 @@ class LockPhoneEvents {
   static const String pageId = 'lock_phone_page';
 
   /// 长按锁机按钮事件
-  static const String longPress = 'lock_phone_page_long_press_levent';
+  static const String longPress = 'lock_phone_page_long_press_event';
 
   /// 主动解锁按钮事件
   static const String initiativeUnlock = 'lock_phone_page_initiative_unlock_phone_event';

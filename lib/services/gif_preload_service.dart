@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// GIF预加载服务
 /// 
@@ -27,10 +28,10 @@ class GifPreloadService {
           'height': height,
         },
       );
-      debugPrint('✅ GIF预加载请求已发送: $assetPath, ${width}x$height');
+      logger.debug('✅ GIF预加载请求已发送: $assetPath, ${width}x$height');
       return result ?? false;
     } catch (e) {
-      debugPrint('❌ GIF预加载失败: $e');
+      logger.error('❌ GIF预加载失败: $e');
       return false;
     }
   }

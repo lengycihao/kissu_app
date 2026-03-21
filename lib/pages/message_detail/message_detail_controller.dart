@@ -71,7 +71,7 @@ class MessageDetailController extends GetxController {
   /// 同意绑定
   Future<void> _affirmBind(MessageItem message) async {
     try {
-      logDebug('开始同意绑定，消息ID: ${message.id}');
+      // logDebug('开始同意绑定，消息ID: ${message.id}');
       
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.affirmBind,
@@ -99,7 +99,7 @@ class MessageDetailController extends GetxController {
   /// 拒绝绑定
   Future<void> _refuseBind(MessageItem message) async {
     try {
-      logDebug('开始拒绝绑定，消息ID: ${message.id}');
+      // logDebug('开始拒绝绑定，消息ID: ${message.id}');
       
       final result = await HttpManagerN.instance.executePost(
         ApiRequest.refuseBind,

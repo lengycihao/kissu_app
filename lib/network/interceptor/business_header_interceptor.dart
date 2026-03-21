@@ -50,7 +50,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       if (value.runes.any((rune) => rune > 127)) {
         // 包含非ASCII字符，进行URL编码
         final encoded = Uri.encodeComponent(value);
-        DebugUtil.info('HTTP头部值已编码: $value -> $encoded');
+        // DebugUtil.info('HTTP头部值已编码: $value -> $encoded');
         return encoded;
       }
       return value;
@@ -103,7 +103,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       _addSignHeader(options);
       
       // 打印所有 header 字段的值
-      _printAllHeaders(options);
+      // _printAllHeaders(options);
     } catch (e) {
       // 如果获取信息失败，不影响请求继续
       DebugUtil.error('BusinessHeaderInterceptor error: $e');
@@ -194,7 +194,7 @@ class BusinessHeaderInterceptor extends Interceptor {
               final androidInfo = await _deviceInfo!.androidInfo;
               _cachedMobileModel = '${androidInfo.brand} ${androidInfo.model}';
               _cachedBrand = androidInfo.brand;
-              DebugUtil.info('设备信息已更新: $_cachedMobileModel');
+              // DebugUtil.info('设备信息已更新: $_cachedMobileModel');
             }
           } else if (Platform.isIOS) {
             // 🔧 修复：检查缓存是否是占位符值，如果是则强制刷新
@@ -207,7 +207,7 @@ class BusinessHeaderInterceptor extends Interceptor {
               final iosInfo = await _deviceInfo!.iosInfo;
               _cachedMobileModel = iosInfo.model;
               _cachedBrand = 'Apple';
-              DebugUtil.info('设备信息已更新: $_cachedMobileModel');
+              // DebugUtil.info('设备信息已更新: $_cachedMobileModel');
             }
           }
         }
@@ -236,10 +236,7 @@ class BusinessHeaderInterceptor extends Interceptor {
 
   /// 添加网络相关请求头
   Future<void> _addNetworkHeaders(RequestOptions options) async {
-    // 设置默认渠道（可以根据实际需求修改）
-    // 打包时请修改这里的渠道值：
-    // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝> kissu_wdj  <豌豆荚> kissu_douyin <抖音>
-    _cachedChannel ??= AppConfigN.appChannel;
+      _cachedChannel ??= AppConfigN.appChannel;
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
 
@@ -284,13 +281,13 @@ class BusinessHeaderInterceptor extends Interceptor {
   /// [isGranted] 定位权限是否已授予
   static void updateLocationPermissionStatus(bool isGranted) {
     _cachedLocationPermissionStatus = isGranted ? '1' : '0';
-    DebugUtil.info('定位权限状态缓存已更新: ${_cachedLocationPermissionStatus}');
+    // DebugUtil.info('定位权限状态缓存已更新: ${_cachedLocationPermissionStatus}');
   }
   
   /// 清除定位权限状态缓存（强制下次请求时重新检查）
   static void clearLocationPermissionCache() {
     _cachedLocationPermissionStatus = null;
-    DebugUtil.info('定位权限状态缓存已清除');
+    // DebugUtil.info('定位权限状态缓存已清除');
   }
 
   /// 获取网络信息（隐私合规版本 + 后台优化）
@@ -315,7 +312,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       
       // 🔧 优化：后台时强制使用缓存，避免因系统限制导致获取失败
       if (isInBackground && _cachedNetworkName != null) {
-        DebugUtil.info('应用在后台，使用缓存的网络信息: $_cachedNetworkName');
+        // DebugUtil.info('应用在后台，使用缓存的网络信息: $_cachedNetworkName');
         options.headers[HttpHeaderKey.networkName] = _safeHeaderValue(_cachedNetworkName!);
         return;
       }
@@ -343,7 +340,7 @@ class BusinessHeaderInterceptor extends Interceptor {
             try {
               final locationStatus = await Permission.location.status;
               if (!locationStatus.isGranted) {
-                DebugUtil.info('位置权限未授权，无法获取WiFi SSID，使用默认值');
+                DebugUtil.warning('位置权限未授权，无法获取WiFi SSID，使用默认值');
                 networkType = 'wifi';
               } else {
                 // 有位置权限，尝试获取WiFi SSID
@@ -411,7 +408,7 @@ class BusinessHeaderInterceptor extends Interceptor {
         
         _cachedNetworkName = networkType;
         _cachedNetworkTime = now;
-        DebugUtil.info('网络信息缓存已更新: $_cachedNetworkName (${isInBackground ? "后台" : "前台"})');
+        // DebugUtil.info('网络信息缓存已更新: $_cachedNetworkName (${isInBackground ? "后台" : "前台"})');
       }
       
       // 🔧 修复：使用安全处理函数确保HTTP头部值符合标准
@@ -462,7 +459,7 @@ class BusinessHeaderInterceptor extends Interceptor {
           final batteryLevel = await battery.batteryLevel;
           _cachedPower = batteryLevel.toString();
           _cachedPowerTime = now;
-          DebugUtil.info('电量缓存已更新: $_cachedPower% (${isInBackground ? "后台" : "前台"})');
+          // DebugUtil.info('电量缓存已更新: $_cachedPower% (${isInBackground ? "后台" : "前台"})');
         }
         options.headers[HttpHeaderKey.power] = _cachedPower;
       } else {
@@ -489,7 +486,7 @@ class BusinessHeaderInterceptor extends Interceptor {
 
     // 🔒 隐私合规检查
     if (!_canCollectSensitiveData()) {
-      DebugUtil.info('隐私政策未同意，跳过 OAID 获取');
+      // DebugUtil.info('隐私政策未同意，跳过 OAID 获取');
       return;
     }
 
@@ -498,7 +495,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       final oaid = await OaidUtil.instance.getOaid();
       if (oaid != null && oaid.isNotEmpty) {
         options.headers[HttpHeaderKey.oaid] = oaid;
-        DebugUtil.info('OAID 已添加到请求头');
+        // DebugUtil.info('OAID 已添加到请求头');
       } else {
         DebugUtil.warning('OAID 不可用');
       }

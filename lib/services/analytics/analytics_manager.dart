@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -73,26 +74,26 @@ class AnalyticsManager extends GetxService {
     _startReportTimer();
 
     _isInitialized = true;
-    debugPrint('📊 AnalyticsManager 初始化完成（OAID将在隐私政策同意后获取）');
+    logger.debug('📊 AnalyticsManager 初始化完成（OAID将在隐私政策同意后获取）');
   }
 
   /// 初始化虚拟用户ID（在用户同意隐私政策后调用）
   /// 🔒 隐私合规：只有在用户同意隐私政策后才获取OAID
   Future<void> initMockUserIdAfterPrivacyAgreed() async {
-    debugPrint('📊 开始初始化虚拟用户ID...');
+    logger.debug('📊 开始初始化虚拟用户ID...');
     if (_mockUserId != null) {
-      debugPrint('📊 虚拟用户ID已存在: $_mockUserId，跳过获取');
+      logger.debug('📊 虚拟用户ID已存在: $_mockUserId，跳过获取');
       return;
     }
     try {
       _mockUserId = await OaidUtil.instance.getOaid();
       if (_mockUserId != null) {
-        debugPrint('📊 虚拟用户ID获取成功: $_mockUserId');
+        logger.debug('📊 虚拟用户ID获取成功: $_mockUserId');
       } else {
-        debugPrint('⚠️ 虚拟用户ID获取返回null');
+        logger.warning('⚠️ 虚拟用户ID获取返回null');
       }
     } catch (e) {
-      debugPrint('❌ 获取虚拟用户ID失败: $e');
+      logger.error('❌ 获取虚拟用户ID失败: $e');
     }
   }
 
@@ -123,7 +124,7 @@ class AnalyticsManager extends GetxService {
     );
 
     _eventQueue.add(event);
-    debugPrint('📊 记录事件: $eventId, 队列长度: ${_eventQueue.length}');
+    logger.debug('📊 记录事件: $eventId, 队列长度: ${_eventQueue.length}');
 
     // 达到阈值触发上报
     if (_eventQueue.length >= _batchThreshold) {
@@ -197,7 +198,7 @@ class AnalyticsManager extends GetxService {
     final params = <String, dynamic>{};
 
     // 添加虚拟用户ID
-    debugPrint('📊 构建埋点参数，当前虚拟用户ID: $_mockUserId');
+    logger.debug('📊 构建埋点参数，当前虚拟用户ID: $_mockUserId');
     if (_mockUserId != null) {
       params[AnalyticsParams.mockUserId] = _mockUserId;
     }
@@ -275,7 +276,7 @@ class AnalyticsManager extends GetxService {
     if (_isReporting || _eventQueue.isEmpty) return;
 
     _isReporting = true;
-    debugPrint('📊 开始上报事件，数量: ${_eventQueue.length}');
+    logger.debug('📊 开始上报事件，数量: ${_eventQueue.length}');
 
     try {
       // 取出待上报的事件
@@ -287,14 +288,14 @@ class AnalyticsManager extends GetxService {
       if (success) {
         // 上报成功，清除已上报的事件
         _eventQueue.removeWhere((e) => eventsToReport.contains(e));
-        debugPrint('📊 事件上报成功，剩余: ${_eventQueue.length}');
+        logger.debug('📊 事件上报成功，剩余: ${_eventQueue.length}');
       } else {
         // 上报失败，保存到本地
         await _flushToLocal();
-        debugPrint('📊 事件上报失败，已保存到本地');
+        logger.warning('📊 事件上报失败，已保存到本地');
       }
     } catch (e) {
-      debugPrint('❌ 事件上报异常: $e');
+      logger.error('❌ 事件上报异常: $e');
       await _flushToLocal();
     } finally {
       _isReporting = false;
@@ -316,20 +317,20 @@ class AnalyticsManager extends GetxService {
       // 将事件转换为后端需要的格式
       final pointData = events.map((e) => e.toUploadJson()).toList();
 
-      debugPrint('📊 上报数据: ${jsonEncode({'point_data': pointData})}');
+      logger.debug('📊 上报数据: ${jsonEncode({'point_data': pointData})}');
 
       // 调用埋点上传接口
       final result = await _analyticsApi.uploadPoint(pointData: pointData);
 
       if (result.isSuccess) {
-        debugPrint('✅ 埋点上报成功');
+        logger.debug('✅ 埋点上报成功');
         return true;
       } else {
-        debugPrint('❌ 埋点上报失败: ${result.msg}');
+        logger.warning('❌ 埋点上报失败: ${result.msg}');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ 埋点上报异常: $e');
+      logger.error('❌ 埋点上报异常: $e');
       return false;
     }
   }
@@ -349,7 +350,7 @@ class AnalyticsManager extends GetxService {
           location = '外部存储';
         }
       } catch (e) {
-        debugPrint('⚠️ 无法访问外部存储: $e');
+        logger.error('⚠️ 无法访问外部存储: $e');
       }
       
       // 2. 如果外部存储失败，使用应用文档目录
@@ -401,18 +402,18 @@ class AnalyticsManager extends GetxService {
         flush: true,
       );
       
-      debugPrint('✅ 埋点数据已写入 ($location): ${logFile.path}');
+      logger.debug('✅ 埋点数据已写入 ($location): ${logFile.path}');
       
       // 如果是外部存储，提供ADB命令
       if (location == '外部存储') {
-        debugPrint('� ADB查看命令: adb shell cat "${logFile.path}"');
-        debugPrint('💻 ADB拉取命令: adb pull "${logFile.path}" ./analytics_log.txt');
+        logger.debug('� ADB查看命令: adb shell cat "${logFile.path}"');
+        logger.debug('💻 ADB拉取命令: adb pull "${logFile.path}" ./analytics_log.txt');
       }
       
       return true;
     } catch (e, stackTrace) {
-      debugPrint('❌ 写入日志文件失败: $e');
-      debugPrint('StackTrace: $stackTrace');
+      logger.error('❌ 写入日志文件失败: $e');
+      logger.debug('StackTrace: $stackTrace');
       return false;
     }
   }
@@ -431,9 +432,9 @@ class AnalyticsManager extends GetxService {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = _eventQueue.map((e) => e.toJsonString()).toList();
       await prefs.setStringList(_cacheKey, jsonList);
-      debugPrint('📊 已保存 ${_eventQueue.length} 个事件到本地');
+      logger.debug('📊 已保存 ${_eventQueue.length} 个事件到本地');
     } catch (e) {
-      debugPrint('❌ 保存事件到本地失败: $e');
+      logger.error('❌ 保存事件到本地失败: $e');
     }
   }
 
@@ -449,16 +450,16 @@ class AnalyticsManager extends GetxService {
             final event = AnalyticsEvent.fromJsonString(jsonString);
             _eventQueue.add(event);
           } catch (e) {
-            debugPrint('❌ 解析缓存事件失败: $e');
+            logger.error('❌ 解析缓存事件失败: $e');
           }
         }
         
         // 清除本地缓存
         await prefs.remove(_cacheKey);
-        debugPrint('📊 从本地恢复 ${_eventQueue.length} 个事件');
+        logger.debug('📊 从本地恢复 ${_eventQueue.length} 个事件');
       }
     } catch (e) {
-      debugPrint('❌ 从本地恢复事件失败: $e');
+      logger.error('❌ 从本地恢复事件失败: $e');
     }
   }
 
@@ -499,13 +500,13 @@ class AnalyticsManager extends GetxService {
       final result = await _analyticsApi.uploadPoint(pointData: pointData);
       
       if (result.isSuccess) {
-        debugPrint('📊 事件立即上报成功: $eventId');
+        logger.debug('📊 事件立即上报成功: $eventId');
       } else {
-        debugPrint('📊 事件立即上报失败: $eventId，已保存到队列');
+        logger.warning('📊 事件立即上报失败: $eventId，已保存到队列');
         _eventQueue.add(event);
       }
     } catch (e) {
-      debugPrint('❌ 事件立即上报异常: $e，已保存到队列');
+      logger.error('❌ 事件立即上报异常: $e，已保存到队列');
       _eventQueue.add(event);
     }
   }
@@ -516,7 +517,7 @@ class AnalyticsManager extends GetxService {
   /// 清空所有事件（谨慎使用）
   void clearAllEvents() {
     _eventQueue.clear();
-    debugPrint('📊 已清空所有待上报事件');
+    logger.debug('📊 已清空所有待上报事件');
   }
 
   /// 获取日志文件内容（用于应用内查看）
@@ -543,10 +544,10 @@ class AnalyticsManager extends GetxService {
       
       if (await logFile.exists()) {
         await logFile.writeAsString('');
-        debugPrint('✅ 日志文件已清空');
+        logger.debug('✅ 日志文件已清空');
       }
     } catch (e) {
-      debugPrint('❌ 清空日志文件失败: $e');
+      logger.error('❌ 清空日志文件失败: $e');
     }
   }
 }

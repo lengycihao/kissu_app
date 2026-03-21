@@ -107,6 +107,7 @@ class LocationHandler(private val activity: Activity) {
         try {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", activity.packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             activity.startActivity(intent)
         } catch (e: Exception) {
@@ -116,21 +117,44 @@ class LocationHandler(private val activity: Activity) {
     
     /**
      * 打开通知设置页面
+     * MIUI/HyperOS 上 ACTION_APP_NOTIFICATION_SETTINGS 会被系统安全层立即关闭，
+     * 对小米设备直接使用 ACTION_APPLICATION_DETAILS_SETTINGS（应用详情页）更可靠。
      */
     private fun openNotificationSettings() {
-        try {
-            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
-                }
-            } else {
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", activity.packageName, null)
-                }
+        val packageName = activity.packageName
+        val isMiui = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) ||
+                     Build.MANUFACTURER.equals("Redmi", ignoreCase = true)
+
+        val primaryIntent: Intent = if (isMiui) {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            activity.startActivity(intent)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+
+        try {
+            activity.startActivity(primaryIntent)
         } catch (e: Exception) {
-            Log.e(TAG, "打开通知设置失败", e)
+            Log.w(TAG, "打开通知设置失败，尝试备用方式: ${e.message}")
+            try {
+                val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                activity.startActivity(fallback)
+            } catch (e2: Exception) {
+                Log.e(TAG, "备用方式打开设置也失败", e2)
+            }
         }
     }
     
@@ -139,7 +163,9 @@ class LocationHandler(private val activity: Activity) {
      */
     private fun openBatteryOptimizationSettings() {
         try {
-            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             activity.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开电池优化设置失败", e)
@@ -151,7 +177,9 @@ class LocationHandler(private val activity: Activity) {
      */
     private fun openUsageAccessSettings() {
         try {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             activity.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "打开使用情况访问设置失败", e)
@@ -165,6 +193,7 @@ class LocationHandler(private val activity: Activity) {
         try {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", activity.packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             activity.startActivity(intent)
         } catch (e: Exception) {

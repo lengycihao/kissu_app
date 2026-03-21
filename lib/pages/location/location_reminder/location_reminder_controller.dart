@@ -61,7 +61,7 @@ class LocationReminderController extends GetxController {
       // 延迟让页面先渲染（已经在通知弹窗之后）
       await Future.delayed(const Duration(milliseconds: 200));
       await PartnerLocationPermissionDialogUtil.show(onConfirm: () {
-        logDebug('用户在另一半权限提示中确认知道了');
+        // logDebug('用户在另一半权限提示中确认知道了');
       });
     } catch (e) {
       logError('显示另一半权限提示失败: $e');
@@ -81,10 +81,10 @@ class LocationReminderController extends GetxController {
         // 显示通知权限弹窗
         await SelfNotificationPermissionDialogUtil.show(
           onKnow: () {
-            logDebug('用户点击了知道了');
+            // logDebug('用户点击了知道了');
           },
           onGoSettings: () async {
-            logDebug('用户点击去开启通知权限');
+            // logDebug('用户点击去开启通知权限');
             // 跳转到系统设置
             await permissionService.openNotificationSettings();
           },
@@ -121,7 +121,7 @@ class LocationReminderController extends GetxController {
     try {
       final service = Get.find<GeofenceMonitoringService>();
       service.startMonitoring();
-      logDebug('✅ 围栏监测已启动');
+      // logDebug('✅ 围栏监测已启动');
     } catch (e) {
       logError('❌ 启动围栏监测失败: $e');
     }
@@ -132,7 +132,7 @@ class LocationReminderController extends GetxController {
     try {
       final service = Get.find<GeofenceMonitoringService>();
       service.stopMonitoring();
-      logDebug('⏹️ 围栏监测已停止');
+      // logDebug('⏹️ 围栏监测已停止');
     } catch (e) {
       logError('❌ 停止围栏监测失败: $e');
     }
@@ -142,7 +142,7 @@ class LocationReminderController extends GetxController {
   Future<void> loadRemindersFromServer() async {
     try {
       isLoading.value = true;
-      logDebug('🌐 开始从服务端加载位置提醒...');
+      // logDebug('🌐 开始从服务端加载位置提醒...');
       
       final result = await _geofenceApi.getGeofencingList();
       
@@ -153,12 +153,12 @@ class LocationReminderController extends GetxController {
             .toList();
         
         reminders.value = list;
-        logDebug('✅ 从服务端加载了 ${list.length} 个位置提醒');
+        // logDebug('✅ 从服务端加载了 ${list.length} 个位置提醒');
         
         // 同步到本地存储（可选）
         await _saveRemindersToLocal();
       } else {
-        logDebug('⚠️ 服务端返回空数据或失败: ${result.msg}');
+        // logDebug('⚠️ 服务端返回空数据或失败: ${result.msg}');
         // 如果服务端加载失败，尝试从本地加载
         await _loadRemindersFromLocal();
       }
@@ -182,10 +182,10 @@ class LocationReminderController extends GetxController {
         reminders.value = jsonList
             .map((json) => LocationReminder.fromJson(json as Map<String, dynamic>))
             .toList();
-        logDebug('✅ 从本地加载了 ${reminders.length} 个位置提醒');
+        // logDebug('✅ 从本地加载了 ${reminders.length} 个位置提醒');
       } else {
         reminders.value = [];
-        logDebug('📍 本地暂无保存的位置提醒');
+        // logDebug('📍 本地暂无保存的位置提醒');
       }
     } catch (e) {
       logError('❌ 从本地加载位置提醒失败: $e');
@@ -200,7 +200,7 @@ class LocationReminderController extends GetxController {
       final jsonList = reminders.map((r) => r.toJson()).toList();
       final jsonString = json.encode(jsonList);
       await prefs.setString(_storageKey, jsonString);
-      logDebug('✅ 保存了 ${reminders.length} 个位置提醒到本地');
+      // logDebug('✅ 保存了 ${reminders.length} 个位置提醒到本地');
     } catch (e) {
       logError('❌ 保存位置提醒到本地失败: $e');
     }
@@ -222,7 +222,7 @@ class LocationReminderController extends GetxController {
   /// 添加位置提醒（调用服务端API）
   Future<bool> addReminder(LocationReminder reminder) async {
     try {
-      logDebug('🌐 开始保存位置提醒到服务端...');
+      // logDebug('🌐 开始保存位置提醒到服务端...');
       
       // 调用服务端API保存
       final result = await _geofenceApi.saveGeofencing(
@@ -235,12 +235,12 @@ class LocationReminderController extends GetxController {
       );
       
       if (result.isSuccess) {
-        logDebug('✅ 位置提醒保存成功');
+        // logDebug('✅ 位置提醒保存成功');
         // 保存成功后重新从服务端加载列表
         await loadRemindersFromServer();
         return true;
       } else {
-        logDebug('❌ 位置提醒保存失败: ${result.msg}');
+        logWarning('❌ 位置提醒保存失败: ${result.msg}');
         OKToastUtil.showError(result.msg ?? '未知错误');
         return false;
       }
@@ -254,7 +254,7 @@ class LocationReminderController extends GetxController {
   /// 删除位置提醒（调用服务端API）
   Future<bool> removeReminder(String id) async {
     try {
-      logDebug('🌐 开始删除位置提醒: $id');
+      // logDebug('🌐 开始删除位置提醒: $id');
       
       // 调用服务端API删除
       final result = await _geofenceApi.deleteGeofencing(
@@ -262,7 +262,7 @@ class LocationReminderController extends GetxController {
       );
       
       if (result.isSuccess) {
-        logDebug('✅ 位置提醒删除成功');
+        // logDebug('✅ 位置提醒删除成功');
         // 删除成功后重新从服务端加载列表
         await loadRemindersFromServer();
         return true;
@@ -281,7 +281,7 @@ class LocationReminderController extends GetxController {
   /// 编辑位置提醒（调用服务端API）
   Future<bool> updateReminder(LocationReminder reminder) async {
     try {
-      logDebug('🌐 开始更新位置提醒: ${reminder.id}');
+      // logDebug('🌐 开始更新位置提醒: ${reminder.id}');
       
       // 调用服务端API更新
       final result = await _geofenceApi.updateGeofencing(
@@ -295,7 +295,7 @@ class LocationReminderController extends GetxController {
       );
       
       if (result.isSuccess) {
-        logDebug('✅ 位置提醒更新成功');
+        // logDebug('✅ 位置提醒更新成功');
         // 更新成功后重新从服务端加载列表
         await loadRemindersFromServer();
         return true;

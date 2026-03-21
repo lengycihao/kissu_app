@@ -5,6 +5,7 @@ import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import '../track_controller.dart';
 import '../track_replay_page/track_replay_controller.dart';
 import '../track_replay_page/track_replay_page.dart';
@@ -89,17 +90,24 @@ class TrackReplayFloatingButton extends StatelessWidget {
     // 埋点：轨迹回放按钮点击
     AnalyticsHelper.trackTrackHistoryReplay();
     
-    // 🔥 非会员点击轨迹回放按钮时跳转VIP页面
+    final isBindPartner = controller.isBindPartner.value;
     final isVip = UserManager.isVip;
+    
+    // 🔥 未绑定时弹绑定弹窗，已绑定但非会员时跳转VIP页面
+    if (!isBindPartner) {
+      // 未绑定：弹绑定弹窗
+      _showBindingDialog(context);
+      return;
+    }
+    
     if (!isVip) {
-      // 埋点：页面离开（进入下一页）
+      // 已绑定但非会员：跳转VIP页面
       controller.onNavigateToNextPage?.call();
-      
       Get.toNamed(
         KissuRoutePath.vip,
         arguments: {
           'source_page': SourcePageUtilsCaller.track,
-          'source_event': TrackEvents.page,
+          'source_event': TrackEvents.historyReplay,
         },
       );
       return;
@@ -133,6 +141,15 @@ class TrackReplayFloatingButton extends StatelessWidget {
       // 返回时删除控制器
       Get.delete<TrackReplayController>();
     });
+  }
+
+  /// 显示绑定弹窗
+  void _showBindingDialog(BuildContext context) {
+    CustomBottomDialog.show(
+      context: context,
+      caller: SourcePageUtilsCaller.track,
+      sourceEvent: TrackEvents.historyReplay,
+    );
   }
 
   /// 获取当前用户头像

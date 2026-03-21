@@ -153,10 +153,10 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
         // 后台继续初始化（不阻塞）
         initFuture.then((_) {
-          DebugUtil.success('应用初始化完成');
+          // DebugUtil.success('应用初始化完成');
         });
       } else {
-        DebugUtil.info('应用已经初始化完成，跳过重复初始化');
+        // DebugUtil.info('应用已经初始化完成，跳过重复初始化');
       }
 
       // 等待关键图片加载完成（最多0.5秒）
@@ -260,7 +260,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         }
 
         if (shouldShowPrivacyDialog) {
-          DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
+          // DebugUtil.info('首次启动，在启动页显示隐私政策弹窗');
           await _showPrivacyDialog();
           // 🔥 隐私协议同意后，检查是否需要显示引导页
           final navigatedToGuide = await _checkAndShowGuidePage();
@@ -277,7 +277,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
           final privacyManager = Get.find<PrivacyComplianceManager>();
           if (privacyManager.isPrivacyAgreed &&
               !privacyManager.isSdkInitialized) {
-            DebugUtil.info('用户已同意隐私政策，开始初始化SDK...');
+            // DebugUtil.info('用户已同意隐私政策，开始初始化SDK...');
             await privacyManager
                 .initializeSdks()
                 .timeout(
@@ -378,21 +378,21 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
         return;
       }
 
-      DebugUtil.info('启动页检查登录状态: ${authService.isLoggedIn}');
-      DebugUtil.info(
-        '用户token: ${authService.userToken != null ? "存在" : "不存在"}',
-      );
+      // DebugUtil.info('启动页检查登录状态: ${authService.isLoggedIn}');
+      // DebugUtil.info(
+      //   '用户token: ${authService.userToken != null ? "存在" : "不存在"}',
+      // );
 
       if (authService.isLoggedIn && authService.userToken != null) {
         // 用户已登录，检查是否需要完善信息
         // 🚀 直接使用authService，避免通过UserManager访问未初始化的服务
         if (authService.needsPerfectInfo) {
-          DebugUtil.info('用户已登录但需要完善信息，跳转到信息完善页面');
+          // DebugUtil.info('用户已登录但需要完善信息，跳转到信息完善页面');
           if (mounted) {
             Get.offAllNamed(KissuRoutePath.infoSetting);
           }
         } else {
-          DebugUtil.success('用户已登录且信息完整，直接跳转到首页');
+          // DebugUtil.success('用户已登录且信息完整，直接跳转到首页');
           // 在跳转到首页前预设滚动位置（不阻塞跳转）
           try {
             _presetHomeScrollPosition();
@@ -412,7 +412,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
           }
         }
       } else {
-        DebugUtil.info('用户未登录，跳转到登录页面');
+        // DebugUtil.info('用户未登录，跳转到登录页面');
         if (mounted) {
           Get.offAllNamed(KissuRoutePath.login);
         }
@@ -741,7 +741,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
   /// 🔥 新增：用户同意隐私政策后立即申请关键权限（网络权限 + 通知权限）
   Future<void> _requestEssentialPermissionsAfterAgreement() async {
-    DebugUtil.info('🔐 开始申请关键权限（网络 + 通知）...');
+    // DebugUtil.info('🔐 开始申请关键权限（网络 + 通知）...');
 
     try {
       // � 已废弃：极光推送（推送现在走腾讯IM）
@@ -749,7 +749,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
       final permissionStatus = await Permission.notification.request();
 
       if (permissionStatus.isGranted) {
-        DebugUtil.success('✅ 通知权限申请成功');
+        // DebugUtil.success('✅ 通知权限申请成功');
       } else if (permissionStatus.isDenied) {
         DebugUtil.warning('⚠️ 用户拒绝了通知权限');
       } else if (permissionStatus.isPermanentlyDenied) {
@@ -760,7 +760,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
 
       // 注意：网络权限（INTERNET）在Android中是普通权限，不需要运行时申请
       // 已在 AndroidManifest.xml 中声明，应用安装时自动授予
-      DebugUtil.success('✅ 网络权限已通过Manifest声明（无需运行时申请）');
+      // DebugUtil.success('✅ 网络权限已通过Manifest声明（无需运行时申请）');
     } catch (e) {
       DebugUtil.error('❌ 申请关键权限失败: $e');
       // 即使权限申请失败，也不阻塞应用启动流程
@@ -798,7 +798,7 @@ class _SplashPageState extends State<SplashPage> with WidgetsBindingObserver {
     try {
       final homeScrollService = getIt<HomeScrollService>();
       homeScrollService.calculateAndSetPresetPosition();
-      DebugUtil.success('已预设首页背景滚动位置');
+      // DebugUtil.success('已预设首页背景滚动位置');
     } catch (e) {
       DebugUtil.error('预设首页滚动位置失败: $e');
     }

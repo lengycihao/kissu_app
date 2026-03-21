@@ -15,6 +15,12 @@ class LockScreenVipDialog {
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black54,
+      animationStyle: AnimationStyle(
+    duration: const Duration(milliseconds: 300),
+    reverseDuration: const Duration(milliseconds: 200),
+    curve: Curves.easeOut,
+    reverseCurve: Curves.easeIn,
+  ),
       builder: (ctx) => _LockScreenVipDialogContent(isFromChat: isFromChat),
     );
   }

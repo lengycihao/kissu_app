@@ -118,7 +118,7 @@ class TrackMarkerManager {
     // 设置标记，表示需要自动显示InfoWindow
     _shouldAutoShowInfoWindow = true;
     
-    logDebug('🎯 设置初始坐标信息: $latitude, $longitude, 位置: $locationName, 目标用户: ${targetUserType == 1 ? "自己" : "另一半"}');
+    // logDebug('🎯 设置初始坐标信息: $latitude, $longitude, 位置: $locationName, 目标用户: ${targetUserType == 1 ? "自己" : "另一半"}');
   }
   
   /// 获取初始坐标信息
@@ -165,9 +165,9 @@ class TrackMarkerManager {
     final initialInfo = initialCoordinateInfo.value;
     if (initialInfo == null) return;
     
-    logDebug('🎯 [AutoShowInfoWindow] 开始执行完整流程...');
-    logDebug('🎯 [AutoShowInfoWindow] 目标坐标: (${initialInfo.latitude}, ${initialInfo.longitude})');
-    logDebug('🎯 [AutoShowInfoWindow] 停留点总数: ${stopPoints.length}');
+    // logDebug('🎯 [AutoShowInfoWindow] 开始执行完整流程...');
+    // logDebug('🎯 [AutoShowInfoWindow] 目标坐标: (${initialInfo.latitude}, ${initialInfo.longitude})');
+    // logDebug('🎯 [AutoShowInfoWindow] 停留点总数: ${stopPoints.length}');
     
     // 在停留点中查找匹配的点
     for (final stopPoint in stopPoints) {
@@ -176,38 +176,38 @@ class TrackMarkerManager {
         stopPoint.position,
       );
       
-      logDebug('🎯 [AutoShowInfoWindow] 检查停留点: ${stopPoint.title}, 距离: ${distance.toStringAsFixed(2)}米');
+      // logDebug('🎯 [AutoShowInfoWindow] 检查停留点: ${stopPoint.title}, 距离: ${distance.toStringAsFixed(2)}米');
       
       // 如果距离小于50米，认为是同一个点
       if (distance < 50) {
-        logDebug('✅ [AutoShowInfoWindow] 找到匹配的停留点！');
+        // logDebug('✅ [AutoShowInfoWindow] 找到匹配的停留点！');
         
         // 完整流程执行
         Future.delayed(const Duration(milliseconds: 100), () {
           // 1. 先清除之前的高亮
           clearMapHighlights();
-          logDebug('🎯 [AutoShowInfoWindow] 步骤1: 清除旧高亮');
+          // logDebug('🎯 [AutoShowInfoWindow] 步骤1: 清除旧高亮');
           
           // 2. 移动相机到停留点
           Future.delayed(const Duration(milliseconds: 100), () {
             _moveMapToLocation(stopPoint.position);
-            logDebug('🎯 [AutoShowInfoWindow] 步骤2: 移动相机到目标点');
+            // logDebug('🎯 [AutoShowInfoWindow] 步骤2: 移动相机到目标点');
             
             // 3. 等待相机移动完成后显示InfoWindow
             Future.delayed(const Duration(milliseconds: 500), () async {
               await _showStopPointInfo(stopPoint);
-              logDebug('🎯 [AutoShowInfoWindow] 步骤3: 显示InfoWindow');
+              // logDebug('🎯 [AutoShowInfoWindow] 步骤3: 显示InfoWindow');
               
               // 4. InfoWindow创建完成后绘制高亮圆圈
               Future.delayed(const Duration(milliseconds: 200), () {
                 drawHighlightCircle(stopPoint.position);
-                logDebug('🎯 [AutoShowInfoWindow] 步骤4: 绘制高亮圆圈');
+                // logDebug('🎯 [AutoShowInfoWindow] 步骤4: 绘制高亮圆圈');
                 
                 // 5. 智能展开底部面板
                 expandToMiddlePosition?.call();
-                logDebug('🎯 [AutoShowInfoWindow] 步骤5: 展开底部面板');
+                // logDebug('🎯 [AutoShowInfoWindow] 步骤5: 展开底部面板');
                 
-                logDebug('✅ [AutoShowInfoWindow] 完整流程执行完成！');
+                // logDebug('✅ [AutoShowInfoWindow] 完整流程执行完成！');
               });
             });
           });
@@ -229,13 +229,13 @@ class TrackMarkerManager {
   /// 🎯 注意：高德地图 SDK 的 showInfoWindow() 可能不会触发适配器，所以使用临时 Marker 方式
   Future<void> _showStopPointInfo(dynamic stopPoint) async {
     try {
-      logDebug('🎯 显示停留点InfoWindow: ${stopPoint.title}');
+      // logDebug('🎯 显示停留点InfoWindow: ${stopPoint.title}');
       
       // 🎯 直接使用临时 Marker 方式，因为直接调用 showInfoWindow() 可能不会触发适配器
       // 临时 Marker 会在创建时自动显示 InfoWindow（如果设置了 autoShowCustomInfoWindow: true）
       await showInfoWindowForStopPoint(stopPoint);
       
-      logDebug('✅ InfoWindow 已通过临时 Marker 方式显示');
+      // logDebug('✅ InfoWindow 已通过临时 Marker 方式显示');
     } catch (e) {
       logError('❌ 显示停留点InfoWindow失败: $e');
     }
@@ -257,8 +257,8 @@ class TrackMarkerManager {
         locationName = stopPoint.locationName ?? '未知位置';
       }
       
-      logDebug('🎯 直接在坐标位置创建 InfoWindow: $locationName');
-      logDebug('🎯 目标坐标: ($position)');
+      // logDebug('🎯 直接在坐标位置创建 InfoWindow: $locationName');
+      // logDebug('🎯 目标坐标: ($position)');
       
       // 在指定位置创建临时 Marker 并显示 InfoWindow
       final stopInfo = _parseStopInfo(stopPoint);
@@ -300,11 +300,11 @@ class TrackMarkerManager {
         ),
         onDragEnd: (String markerId, LatLng newPosition) {
           // 🎯 拖拽结束时清除现有圆圈并重新创建
-          logDebug('🎯 InfoWindow Marker 拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
+          // logDebug('🎯 InfoWindow Marker 拖拽结束，新位置: ${newPosition.latitude}, ${newPosition.longitude}');
           drawHighlightCircle(newPosition); // 这个方法会先清除现有圆圈再创建新的
         },
         onTap: (String markerId) {
-          logDebug('🎯 点击临时 InfoWindow 标记');
+          // logDebug('🎯 点击临时 InfoWindow 标记');
         },
       );
       
@@ -317,7 +317,7 @@ class TrackMarkerManager {
       // 🎯 触发地图更新以显示临时标记和圆圈（一次更新包含所有元素，性能最优）
       _forceMapUpdate();
       
-      logDebug('✅ 临时 InfoWindow 和高亮圆圈已创建并触发地图更新');
+      // logDebug('✅ 临时 InfoWindow 和高亮圆圈已创建并触发地图更新');
       
     } catch (e) {
       logError('❌ 显示停留点 InfoWindow 失败: $e');
@@ -327,7 +327,7 @@ class TrackMarkerManager {
   /// 清除临时 InfoWindow Marker
   void _clearTempInfoWindowMarker() {
     if (_tempInfoWindowMarker != null) {
-      logDebug('🧹 清除之前的临时 InfoWindow Marker 和高亮圆圈');
+      // logDebug('🧹 清除之前的临时 InfoWindow Marker 和高亮圆圈');
       _tempInfoWindowMarker = null;
       
       // 🎯 同时清除高亮圆圈
@@ -335,8 +335,8 @@ class TrackMarkerManager {
       
       // 清除后触发地图更新
       _forceMapUpdate();
-      
-      logDebug('✅ 临时标记和圆圈已清除');
+      // 
+      // logDebug('✅ 临时标记和圆圈已清除');
     }
   }
   
@@ -367,14 +367,14 @@ class TrackMarkerManager {
 
   /// 执行实际的地图更新操作
   void _performMapUpdate() {
-    logDebug('🔄 [ForceMapUpdate] 开始强制更新地图');
+    // logDebug('🔄 [ForceMapUpdate] 开始强制更新地图');
     
     // 强制刷新所有响应式变量，让UI重新构建
     stopMarkers.refresh();
     trackStartEndMarkers.refresh();
     highlightCircles.refresh(); // 🎯 刷新高亮圆圈
     
-    logDebug('✅ [ForceMapUpdate] 地图更新完成（包含圆圈）');
+    // logDebug('✅ [ForceMapUpdate] 地图更新完成（包含圆圈）');
   }
   
   /// 清理资源
@@ -500,7 +500,7 @@ class TrackMarkerManager {
     if (mapController != null) {
       try {
         mapController.hideAllInfoWindows();
-        logDebug('🎯 已隐藏所有 InfoWindow');
+        // logDebug('🎯 已隐藏所有 InfoWindow');
       } catch (e) {
         logError('❌ 隐藏所有 InfoWindow 失败: $e');
       }
@@ -509,7 +509,7 @@ class TrackMarkerManager {
   
   /// 清除所有高亮圆圈（使用原生地图API）
   void clearAllHighlightCircles() {
-    logDebug('🧹 [HighlightCircles] 清除围栏圆圈');
+    // logDebug('🧹 [HighlightCircles] 清除围栏圆圈');
     
     // 清空圆圈列表
     highlightCircles.clear();
@@ -518,14 +518,14 @@ class TrackMarkerManager {
   /// 🎯 统一清除：同时隐藏 InfoWindow 和清除圆圈
   /// 确保 InfoWindow 和圆圈在相同时机出现和消失
   void clearMapHighlights() {
-    logDebug('🧹 [MapHighlights] 清除所有地图高亮（InfoWindow + 围栏圆圈）');
+    // logDebug('🧹 [MapHighlights] 清除所有地图高亮（InfoWindow + 围栏圆圈）');
     hideAllInfoWindows();
     clearAllHighlightCircles();
   }
   
   /// 🎯 不会隐藏 InfoWindow，确保圆圈和 InfoWindow 同时显示
   void drawHighlightCircle(LatLng center) {
-    logDebug('🎯 开始绘制高亮圆圈: ${center.latitude}, ${center.longitude}');
+    // logDebug('🎯 开始绘制高亮圆圈: ${center.latitude}, ${center.longitude}');
     
     // 先清除已有的圆圈
     highlightCircles.clear();
@@ -541,7 +541,7 @@ class TrackMarkerManager {
     
     highlightCircles.add(circle);
     
-    logDebug('✅ 高亮圆圈已添加，当前数量: ${highlightCircles.length}');
+    // logDebug('✅ 高亮圆圈已添加，当前数量: ${highlightCircles.length}');
   }
   
   /// 创建停留点标记
@@ -610,8 +610,8 @@ class TrackMarkerManager {
       stopMarkers.value = markers;
       
       // 🚀 只打印摘要日志
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
-      logDebug('🎯 [CreateStopMarkers] 完成: 输入=${stopPoints.length}, 成功=${markers.length}, 跳过=$skippedCount, 耗时=${duration}ms');
+      // final duration = DateTime.now().difference(startTime).inMilliseconds;
+      // logDebug('🎯 [CreateStopMarkers] 完成: 输入=${stopPoints.length}, 成功=${markers.length}, 跳过=$skippedCount, 耗时=${duration}ms');
     } catch (e) {
       logError('创建停留点标记过程出错: $e');
     }
@@ -762,7 +762,7 @@ class TrackMarkerManager {
           // 计算物理像素尺寸（用于绘制）
           final adaptedWidth = (34.0 * screenScale * dpr).round();
           final adaptedHeight = (48.0 * screenScale * dpr).round();
-          logDebug('📍 起点marker尺寸: ${adaptedWidth}x$adaptedHeight (dpr=$dpr, screenScale=$screenScale)');
+          // logDebug('📍 起点marker尺寸: ${adaptedWidth}x$adaptedHeight (dpr=$dpr, screenScale=$screenScale)');
           
           final startIcon = await _createScaledAssetIcon(
             'assets/images/kissu_location_start.webp',
@@ -777,11 +777,11 @@ class TrackMarkerManager {
             infoWindow: const InfoWindow(title: '', snippet: ''),
             zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在起点标记之上显示
             onTap: (_) {
-              logDebug('点击了轨迹起点');
+              // logDebug('点击了轨迹起点');
               _moveMapToLocation(startPoint);
             },
           ));
-          logDebug('✅ 轨迹起点标记创建成功');
+          // logDebug('✅ 轨迹起点标记创建成功');
         } catch (e) {
           logError('❌ 创建起点标记失败: $e，使用降级方案');
           // 降级方案：使用绿色圆点（使用适配后的尺寸）
@@ -793,7 +793,7 @@ class TrackMarkerManager {
             infoWindow: const InfoWindow(title: '', snippet: ''),
             zIndex: 2.0, // 🎯 设置较低的层级，确保播放头像marker在起点标记之上显示
             onTap: (_) {
-              logDebug('点击了轨迹起点');
+              // logDebug('点击了轨迹起点');
               _moveMapToLocation(startPoint);
             },
           ));
@@ -822,11 +822,11 @@ class TrackMarkerManager {
             infoWindow: const InfoWindow(title: '', snippet: ''),
             zIndex: 2.0,
             onTap: (_) {
-              logDebug('点击了轨迹终点');
+              // logDebug('点击了轨迹终点');
               _moveMapToLocation(endPoint);
             },
           ));
-          logDebug('✅ 轨迹终点图标创建成功');
+          // logDebug('✅ 轨迹终点图标创建成功');
         } catch (e) {
           logError('❌ 创建终点图标失败: $e');
           // 兜底：使用红色圆点
@@ -838,7 +838,7 @@ class TrackMarkerManager {
             infoWindow: const InfoWindow(title: '', snippet: ''),
             zIndex: 2.0,
             onTap: (_) {
-              logDebug('点击了轨迹终点');
+              // logDebug('点击了轨迹终点');
               _moveMapToLocation(endPoint);
             },
           ));
@@ -846,7 +846,7 @@ class TrackMarkerManager {
       }
       
       trackStartEndMarkers.value = markers;
-      logDebug('起终点标记创建完成');
+      // logDebug('起终点标记创建完成');
     } catch (e) {
       logError('创建起终点标记失败: $e');
     }
@@ -928,7 +928,7 @@ class TrackMarkerManager {
     if (_tempInfoWindowMarker != null) {
       try {
         markers.add(_tempInfoWindowMarker!);
-        logDebug('✅ 已添加临时 InfoWindow 标记到地图');
+        // logDebug('✅ 已添加临时 InfoWindow 标记到地图');
       } catch (e) {
         logError('❌ 添加临时 InfoWindow 标记失败: $e');
       }
@@ -938,7 +938,7 @@ class TrackMarkerManager {
     if (replayAvatarMarker != null) {
       try {
         markers.add(replayAvatarMarker);
-        logDebug('✅ 已添加播放头像标记到地图');
+        // logDebug('✅ 已添加播放头像标记到地图');
       } catch (e) {
         logError('❌ 添加播放头像标记失败: $e');
       }
@@ -963,8 +963,8 @@ class TrackMarkerManager {
   /// 所以这里不需要手动调用 _showStopPointInfo，只需要处理其他逻辑（移动地图、绘制圆圈等）
   void handleStopPointTap(dynamic stopPoint) {
      
-
-    logDebug('停留点被点击: ${stopPoint.title}');
+// 
+    // logDebug('停留点被点击: ${stopPoint.title}');
     
  
     
@@ -976,7 +976,7 @@ class TrackMarkerManager {
     Future.delayed(const Duration(milliseconds: 100), () {
       // 1. 先收起下半屏到底部吸顶位置
       collapseToBottomPosition?.call();
-      logDebug('🎯 收起下半屏到底部吸顶位置');
+      // logDebug('🎯 收起下半屏到底部吸顶位置');
       
       // 2. 等待面板收起动画完成后移动地图
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -985,7 +985,7 @@ class TrackMarkerManager {
         // 3. 等待地图移动完成后绘制高亮圆圈
         // 🎯 不需要手动显示 InfoWindow，因为标记会自动显示自定义 InfoWindow
         Future.delayed(const Duration(milliseconds: 500), () {
-          logDebug('🎯 地图移动完成，现在绘制高亮圆圈');
+          // logDebug('🎯 地图移动完成，现在绘制高亮圆圈');
           drawHighlightCircle(stopPoint.position);
         });
       });
@@ -1002,12 +1002,12 @@ class TrackMarkerManager {
     trackStartEndMarkers.clear();
     currentPosition.value = null;
     clearAllHighlightCircles();
-    logDebug('所有标记已清理');
+    // logDebug('所有标记已清理');
   }
   
   /// 立即清理地图上的所有内容
   void clearMapImmediately() {
-    logDebug('🧹 立即清理地图内容...');
+    // logDebug('🧹 立即清理地图内容...');
     
     // 清除所有标记
     stopMarkers.clear();
@@ -1057,7 +1057,7 @@ class TrackMarkerManager {
       stopRecords.value = processedRecords;
       
       // 🚀 只打印摘要日志
-      logDebug('📊 [StopRecords] 更新完成: ${processedRecords.length}条记录');
+      // logDebug('📊 [StopRecords] 更新完成: ${processedRecords.length}条记录');
     } catch (e) {
       logError('❌ [StopRecords] 处理停留记录失败: $e');
       stopRecords.clear();

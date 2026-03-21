@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import com.yuluo.kissu.DeviceWhitelistHelper
 import com.yuluo.kissu.ScreenLockReceiver as NativeScreenLockReceiver
@@ -80,6 +81,18 @@ class SystemHandler(private val activity: Activity) {
             "openWhitelistSettings" -> {
                 val success = DeviceWhitelistHelper.openWhitelistSettings(activity)
                 result.success(success)
+            }
+            "getAndroidId" -> {
+                try {
+                    val androidId = Settings.Secure.getString(
+                        activity.contentResolver,
+                        Settings.Secure.ANDROID_ID
+                    )
+                    result.success(androidId)
+                } catch (e: Exception) {
+                    Log.e(TAG, "获取Android ID失败", e)
+                    result.success(null)
+                }
             }
             else -> {
                 result.notImplemented()

@@ -15,7 +15,7 @@ class LockScreenOverlayService {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'navigateToQuestionPage':
-          logger.info('收到原生跳转答题页面请求', tag: _tag);
+          logger.debug('收到原生跳转答题页面请求', tag: _tag);
           Get.toNamed(KissuRoutePath.lockScreenQuestion);
           break;
         default:
@@ -120,7 +120,7 @@ class LockScreenOverlayService {
       if (lockState.isEmpty) return;
 
       // 有锁屏数据，确保锁屏服务正在运行
-      logger.info('🔒 检测到活跃锁屏数据，确保锁屏服务运行中', tag: _tag);
+      logger.debug('🔒 检测到活跃锁屏数据，确保锁屏服务运行中', tag: _tag);
       await _channel.invokeMethod<bool>('ensureLockServiceRunning');
     } catch (e) {
       logger.error('🔒 检查锁屏恢复失败: $e', tag: _tag);
@@ -132,7 +132,7 @@ class LockScreenOverlayService {
     if (!Platform.isAndroid) return false;
     try {
       final result = await _channel.invokeMethod<bool>('showOverlayAgain');
-      logger.info('恢复悬浮窗显示', tag: _tag);
+      logger.debug('恢复悬浮窗显示', tag: _tag);
       return result ?? false;
     } catch (e) {
       logger.error('恢复悬浮窗显示失败: $e', tag: _tag);

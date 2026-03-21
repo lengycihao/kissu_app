@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/chat/chat_controller.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_message_item.dart';
 import 'package:kissu_app/pages/chat/widgets/image_preview_page.dart';
@@ -434,7 +435,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
                                 },
                               );
                             } catch (e) {
-                              debugPrint('跳转 VIP 页面失败: $e');
+                              logError('跳转 VIP 页面失败: $e');
                             }
                           },
                           child: Image.asset(
@@ -758,7 +759,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
         },
       );
     } catch (e) {
-      debugPrint('跳转 VIP 页面失败: $e');
+      logError('跳转 VIP 页面失败: $e');
     }
   }
 
@@ -953,7 +954,7 @@ class _ChatMessageListViewState extends State<ChatMessageListView> {
           break;
       }
     } catch (e) {
-      debugPrint('导航失败: $e');
+      logError('导航失败: $e');
     }
   }
 

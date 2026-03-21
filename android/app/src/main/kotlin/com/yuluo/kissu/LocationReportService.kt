@@ -491,7 +491,8 @@ class LocationReportService(private val context: Context) {
             put("speed", location.speed.toString())
             put("altitude", location.altitude.toString())
             put("accuracy", location.accuracy.toString())
-            put("location_name", buildLocationName(location))
+            // put("location_name", buildLocationName(location))
+            put("location_name", "")
         }
     }
     

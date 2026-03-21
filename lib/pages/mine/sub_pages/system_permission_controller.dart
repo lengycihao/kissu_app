@@ -242,7 +242,7 @@ class SystemPermissionController extends GetxController
     ever(isUsageAccessGranted, (bool hasPermission) async {
       if (hasPermission) {
         // 权限已开启，通知自动上报服务检查并启动
-        logDebug('检测到App使用记录权限已开启，通知自动上报服务', tag: 'SystemPermission');
+        // logDebug('检测到App使用记录权限已开启，通知自动上报服务', tag: 'SystemPermission');
         try {
           if (Get.isRegistered<AppUsageAutoReportService>()) {
             final service = Get.find<AppUsageAutoReportService>();
@@ -276,18 +276,18 @@ class SystemPermissionController extends GetxController
         final fingerprint = androidInfo.fingerprint;
         final host = androidInfo.host;
         final versionRelease = androidInfo.version.release;
-        final sdkInt = androidInfo.version.sdkInt;
-        final manufacturer = androidInfo.manufacturer;
+        // final sdkInt = androidInfo.version.sdkInt;
+        // final manufacturer = androidInfo.manufacturer;
         
-        logDebug('===== 设备信息详情 =====', tag: 'HarmonyOS');
-        logDebug('brand: $brand', tag: 'HarmonyOS');
-        logDebug('manufacturer: $manufacturer', tag: 'HarmonyOS');
-        logDebug('display: $display', tag: 'HarmonyOS');
-        logDebug('fingerprint: $fingerprint', tag: 'HarmonyOS');
-        logDebug('host: $host', tag: 'HarmonyOS');
-        logDebug('version.release: $versionRelease', tag: 'HarmonyOS');
-        logDebug('version.sdkInt: $sdkInt', tag: 'HarmonyOS');
-        logDebug('===== 设备信息结束 =====', tag: 'HarmonyOS');
+        // logDebug('===== 设备信息详情 =====', tag: 'HarmonyOS');
+        // logDebug('brand: $brand', tag: 'HarmonyOS');
+        // logDebug('manufacturer: $manufacturer', tag: 'HarmonyOS');
+        // logDebug('display: $display', tag: 'HarmonyOS');
+        // logDebug('fingerprint: $fingerprint', tag: 'HarmonyOS');
+        // logDebug('host: $host', tag: 'HarmonyOS');
+        // logDebug('version.release: $versionRelease', tag: 'HarmonyOS');
+        // logDebug('version.sdkInt: $sdkInt', tag: 'HarmonyOS');
+        // logDebug('===== 设备信息结束 =====', tag: 'HarmonyOS');
 
         // 鸿蒙系统检测：多种方式综合判断
         final displayLower = display.toLowerCase();
@@ -295,7 +295,7 @@ class SystemPermissionController extends GetxController
         final hostLower = host.toLowerCase();
         final osVersion = Platform.operatingSystemVersion.toLowerCase();
         
-        logDebug('Platform.operatingSystemVersion: ${Platform.operatingSystemVersion}', tag: 'HarmonyOS');
+        // logDebug('Platform.operatingSystemVersion: ${Platform.operatingSystemVersion}', tag: 'HarmonyOS');
         
         // 方式1：检查是否包含 "harmony" / "ohos" 关键字
         final containsHarmony = displayLower.contains('harmony') ||
@@ -321,18 +321,18 @@ class SystemPermissionController extends GetxController
         
         if (containsHarmony) {
           isHarmonyOS5Plus.value = true;
-          logDebug('✅ 检测到鸿蒙系统 (通过harmony/ohos关键字)', tag: 'HarmonyOS');
+          // logDebug('✅ 检测到鸿蒙系统 (通过harmony/ohos关键字)', tag: 'HarmonyOS');
         } else if (isHuaweiOrHonor && displayStartsWithSystem) {
           isHarmonyOS5Plus.value = true;
-          logDebug('✅ 检测到鸿蒙系统 (华为/荣耀设备 + display以System开头: $display)', tag: 'HarmonyOS');
+          // logDebug('✅ 检测到鸿蒙系统 (华为/荣耀设备 + display以System开头: $display)', tag: 'HarmonyOS');
         } else if (versionIs5Plus) {
           isHarmonyOS5Plus.value = true;
-          logDebug('✅ 检测到鸿蒙5.0+系统 (通过版本号$versionRelease)', tag: 'HarmonyOS');
+          // logDebug('✅ 检测到鸿蒙5.0+系统 (通过版本号$versionRelease)', tag: 'HarmonyOS');
         } else {
-          logDebug('❌ 未检测到鸿蒙系统 (brand=$brand, display=$display, osVersion=${Platform.operatingSystemVersion})', tag: 'HarmonyOS');
+          // logDebug('❌ 未检测到鸿蒙系统 (brand=$brand, display=$display, osVersion=${Platform.operatingSystemVersion})', tag: 'HarmonyOS');
         }
         
-        logDebug('最终鸿蒙检测结果: isHarmonyOS5Plus=${isHarmonyOS5Plus.value}', tag: 'HarmonyOS');
+        // logDebug('最终鸿蒙检测结果: isHarmonyOS5Plus=${isHarmonyOS5Plus.value}', tag: 'HarmonyOS');
       } else {
         _currentBrand.value = SupportedBrand.huawei;
       }
@@ -477,7 +477,7 @@ class SystemPermissionController extends GetxController
 
     // 当应用从后台回到前台时，重新检查权限状态
     if (state == AppLifecycleState.resumed) {
-      logDebug('应用回到前台，重新检查权限状态', tag: 'SystemPermission');
+      // logDebug('应用回到前台，重新检查权限状态', tag: 'SystemPermission');
       // 延迟检查，确保页面完全激活
       Future.delayed(const Duration(milliseconds: 500), () {
         checkAllPermissions();
@@ -545,16 +545,16 @@ class SystemPermissionController extends GetxController
       }
 
       // 记录后台位置权限状态（用于调试）
-      logDebug('后台位置权限: $newLocationAlwaysGranted', tag: 'SystemPermission');
+      // logDebug('后台位置权限: $newLocationAlwaysGranted', tag: 'SystemPermission');
 
-      logDebug('权限状态检查完成:', tag: 'SystemPermission');
-      logDebug('位置权限: ${isLocationGranted.value}', tag: 'SystemPermission');
-      logDebug('通知权限: ${isNotificationGranted.value}', tag: 'SystemPermission');
-      logDebug('电池优化: ${isBatteryOptimized.value}', tag: 'SystemPermission');
-      logDebug(
-        '使用情况访问: ${isUsageAccessGranted.value}',
-        tag: 'SystemPermission',
-      );
+      // logDebug('权限状态检查完成:', tag: 'SystemPermission');
+      // logDebug('位置权限: ${isLocationGranted.value}', tag: 'SystemPermission');
+      // logDebug('通知权限: ${isNotificationGranted.value}', tag: 'SystemPermission');
+      // logDebug('电池优化: ${isBatteryOptimized.value}', tag: 'SystemPermission');
+      // logDebug(
+      //   '使用情况访问: ${isUsageAccessGranted.value}',
+      //   tag: 'SystemPermission',
+      // );
     } catch (e) {
       logError('检查权限状态时发生错误: $e', tag: 'SystemPermission', error: e);
       OKToastUtil.showError('检查权限状态失败');
@@ -711,7 +711,7 @@ class SystemPermissionController extends GetxController
         isOpenProgramLock: 0,
         isOpenSuspendWindow: isOverlayGranted.value ? 1 : 0,
       );
-      logDebug('增量上报权限状态: ${result.isSuccess ? "成功" : "失败: ${result.msg}"}', tag: 'SystemPermission');
+      // logDebug('增量上报权限状态: ${result.isSuccess ? "成功" : "失败: ${result.msg}"}', tag: 'SystemPermission');
     } catch (e) {
       logError('增量上报权限状态异常: $e', tag: 'SystemPermission', error: e);
     }

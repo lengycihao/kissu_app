@@ -88,7 +88,7 @@ class AppUsageDetailController extends GetxController {
     
     // 使用防抖加载数据，避免连续点击时多次请求
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      logDebug('📊 防抖Timer触发，开始加载数据: $newDateStr');
+      // logDebug('📊 防抖Timer触发，开始加载数据: $newDateStr');
       loadData();
     });
   }
@@ -100,7 +100,7 @@ class AppUsageDetailController extends GetxController {
       
       // 格式化日期
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-      logDebug('📊 加载屏幕解锁统计数据: $dateStr');
+      // logDebug('📊 加载屏幕解锁统计数据: $dateStr');
       
       // 调用API
       final result = await _usageRecordApi.getScreenUnlockStat(date: dateStr);
@@ -126,7 +126,7 @@ class AppUsageDetailController extends GetxController {
           screenTrend.value = screenData.trend;
           screenTrendText.value = screenData.trendText;
           
-          logDebug('✅ 屏幕使用数据加载成功: ${screenData.hours}小时${screenData.minutes}分');
+          // logDebug('✅ 屏幕使用数据加载成功: ${screenData.hours}小时${screenData.minutes}分');
         }
         
         // 处理解锁数据
@@ -147,7 +147,7 @@ class AppUsageDetailController extends GetxController {
           unlockTrend.value = unlockData.trend;
           unlockTrendText.value = unlockData.trendText;
           
-          logDebug('✅ 解锁数据加载成功: ${unlockData.unlockNumber}次');
+          // logDebug('✅ 解锁数据加载成功: ${unlockData.unlockNumber}次');
         }
       } else {
         logWarning('❌ 数据加载失败: ${result.msg}');
@@ -256,10 +256,10 @@ class AppUsageDetailController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final hasShownGuide = prefs.getBool('has_shown_phone_history_guide') ?? false;
       
-      logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+      // logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
       
       if (!hasShownGuide) {
-        logDebug('📱 首次进入用机记录页面，显示引导图');
+        // logDebug('📱 首次进入用机记录页面，显示引导图');
         
         // 立即标记已显示，防止重复显示
         await prefs.setBool('has_shown_phone_history_guide', true);
@@ -269,7 +269,7 @@ class AppUsageDetailController extends GetxController {
           showGuideOverlay.value = true;
         });
       } else {
-        logDebug('ℹ️ 引导图已显示过');
+        // logDebug('ℹ️ 引导图已显示过');
       }
     } catch (e) {
       logError('❌ 检查引导图状态失败: $e');
@@ -279,7 +279,7 @@ class AppUsageDetailController extends GetxController {
   /// 隐藏引导图
   void hideGuideOverlay() {
     showGuideOverlay.value = false;
-    logDebug('📱 隐藏引导图');
+    // logDebug('📱 隐藏引导图');
   }
   
   /// 上报页面离开埋点

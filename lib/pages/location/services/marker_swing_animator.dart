@@ -49,7 +49,7 @@ class MarkerSwingAnimator {
 
     // 🚀 修复：检查地图控制器是否已初始化，避免Channel未初始化错误
     if (_mapController == null) {
-      logDebug('⚠️ MapController未初始化，跳过摆动动画');
+      logWarning('⚠️ MapController未初始化，跳过摆动动画');
       return;
     }
 

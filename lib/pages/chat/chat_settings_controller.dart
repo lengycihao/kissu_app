@@ -51,7 +51,7 @@ class ChatSettingsController extends GetxController {
     isSensitiveCollapseEnabled.value = enabled;
     // 同步到聊天控制器
     chatController.sensitiveCollapseEnabled.value = enabled;
-    logDebug('💬 加载敏感消息折叠开关状态: $enabled');
+    // logDebug('💬 加载敏感消息折叠开关状态: $enabled');
   }
 
   @override
@@ -82,7 +82,7 @@ class ChatSettingsController extends GetxController {
     if (newName.isNotEmpty && newName != currentNickname.value) {
       final partnerId = chatController.partnerImId;
       if (partnerId == null || partnerId.isEmpty) {
-        logDebug('更新腾讯 IM 备注失败: 无法获取聊天对象ID');
+        logWarning('更新腾讯 IM 备注失败: 无法获取聊天对象ID');
         return;
       }
 
@@ -95,9 +95,9 @@ class ChatSettingsController extends GetxController {
             currentNickname.value = newName;
             // 同步更新聊天页面的昵称显示
             chatController.chatName.value = newName;
-            logDebug('更新腾讯 IM 备注成功: $newName');
+            // logDebug('更新腾讯 IM 备注成功: $newName');
           } else {
-            logDebug('更新腾讯 IM 备注失败: SDK 返回失败');
+            logWarning('更新腾讯 IM 备注失败: SDK 返回失败');
           }
         }
       } catch (e) {
@@ -153,7 +153,7 @@ class ChatSettingsController extends GetxController {
       SpUtil.putBool('sensitive_collapse_enabled', isSensitiveCollapseEnabled.value);
       // 同步到聊天控制器
       chatController.sensitiveCollapseEnabled.value = isSensitiveCollapseEnabled.value;
-      logDebug('💬 切换敏感消息折叠开关: ${isSensitiveCollapseEnabled.value}');
+      // logDebug('💬 切换敏感消息折叠开关: ${isSensitiveCollapseEnabled.value}');
     }
 
     // 举报对方 - 跳转到举报页面

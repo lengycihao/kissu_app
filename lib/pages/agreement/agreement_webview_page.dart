@@ -76,7 +76,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
-            logDebug('WebView加载进度: $progress%', tag: 'AgreementWebView');
+            // logDebug('WebView加载进度: $progress%', tag: 'AgreementWebView');
             setState(() {
               _loadingProgress = progress;
               // 进度达到100%时，延迟一小段时间再隐藏加载状态，确保页面渲染完成
@@ -92,7 +92,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             });
           },
           onPageStarted: (String url) {
-            logDebug('WebView开始加载: $url', tag: 'AgreementWebView');
+            // logDebug('WebView开始加载: $url', tag: 'AgreementWebView');
             setState(() {
               _isLoading = true;
               _hasError = false;
@@ -100,7 +100,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             });
           },
           onPageFinished: (String url) {
-            logDebug('WebView加载完成: $url', tag: 'AgreementWebView');
+            // logDebug('WebView加载完成: $url', tag: 'AgreementWebView');
             // 注入 viewport meta 标签，确保移动端布局正确
             _injectViewportMeta();
             // 注入 JS 适配层，兼容 H5 调用 window.android.sharePop(...)
@@ -118,7 +118,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             });
           },
           onUrlChange: (UrlChange change) {
-            logDebug('WebView URL改变: ${change.url}', tag: 'AgreementWebView');
+            // logDebug('WebView URL改变: ${change.url}', tag: 'AgreementWebView');
             // URL改变时更新导航状态
             _updateNavigationState();
           },
@@ -136,7 +136,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             });
           },
           onNavigationRequest: (NavigationRequest request) {
-            logDebug('WebView导航请求: ${request.url}', tag: 'AgreementWebView');
+            // logDebug('WebView导航请求: ${request.url}', tag: 'AgreementWebView');
             return NavigationDecision.navigate;
           },
         ),
@@ -264,7 +264,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
   void _handleJsMessage(JavaScriptMessage message) {
     try {
       final raw = message.message;
-      logDebug('收到H5消息: $raw', tag: 'AgreementWebView');
+      // logDebug('收到H5消息: $raw', tag: 'AgreementWebView');
 
       Map<String, dynamic> root;
       try {
@@ -278,14 +278,14 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
 
       // 处理 viewBack 事件：关闭H5页面返回原生
       if (event == 'viewBack') {
-        logDebug('收到 viewBack 事件，关闭H5页面', tag: 'AgreementWebView');
+        // logDebug('收到 viewBack 事件，关闭H5页面', tag: 'AgreementWebView');
         _safeClose();
         return;
       }
 
       // 处理 shareConvene 事件：发送一起便便消息
       if (event == 'shareConvene') {
-        logDebug('收到 shareConvene 事件，发送一起便便消息', tag: 'AgreementWebView');
+        // logDebug('收到 shareConvene 事件，发送一起便便消息', tag: 'AgreementWebView');
         _sendDefecateMessage();
         return;
       }
@@ -338,7 +338,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
       }
 
       // 其他未知事件，记录日志但不处理
-      logDebug('收到未知H5事件: $event', tag: 'AgreementWebView');
+      logWarning('收到未知H5事件: $event', tag: 'AgreementWebView');
     } catch (e) {
       logError('处理H5消息失败: $e', tag: 'AgreementWebView', error: e);
     }
@@ -386,7 +386,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
       );
 
       if (result != null && result.code == 0) {
-        logDebug('一起便便消息发送成功', tag: 'AgreementWebView');
+        // logDebug('一起便便消息发送成功', tag: 'AgreementWebView');
         // 显示成功提示
         OKToastUtil.show('邀请成功');
         // 消息会通过 IM SDK 的回调自动添加到聊天列表（ChatController 监听）
@@ -436,7 +436,7 @@ class _AgreementWebViewPageState extends State<AgreementWebViewPage> {
             if (navigator.canPop()) {
               navigator.pop();
             } else {
-              logDebug('无法安全关闭页面，可能已经是根页面', tag: 'AgreementWebView');
+              logWarning('无法安全关闭页面，可能已经是根页面', tag: 'AgreementWebView');
             }
           } catch (e2) {
             logError('Navigator关闭失败: $e2', tag: 'AgreementWebView', error: e2);

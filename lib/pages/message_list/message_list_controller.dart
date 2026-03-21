@@ -37,7 +37,7 @@ class MessageListController extends GetxController {
         hasNewSystemMessage.value = homeController.systemNoticeRedDot.value > 0;
         hasNewInteractionMessage.value = homeController.interactionNoticeRedDot.value > 0;
         
-        logDebug('📊 同步红点状态: 系统消息=${hasNewSystemMessage.value}, 互动消息=${hasNewInteractionMessage.value}');
+        // logDebug('📊 同步红点状态: 系统消息=${hasNewSystemMessage.value}, 互动消息=${hasNewInteractionMessage.value}');
       } else {
         logWarning('⚠️ HomeController 未注册，无法同步红点状态');
       }
@@ -52,7 +52,7 @@ class MessageListController extends GetxController {
       final permissionService = PermissionService();
       final isGranted = await permissionService.isNotificationPermissionGranted();
       hasNotificationPermission.value = isGranted;
-      logDebug('通知权限状态: $isGranted');
+      // logDebug('通知权限状态: $isGranted');
     } catch (e) {
       logError('检查通知权限失败: $e');
       hasNotificationPermission.value = false;
@@ -95,7 +95,7 @@ class MessageListController extends GetxController {
         homeController.systemNoticeRedDot.value = 0;
         // 清除主红点显示
         homeController.isRedDot.value = false;
-        logDebug('✅ 已清除系统消息红点');
+        // logDebug('✅ 已清除系统消息红点');
       }
     } catch (e) {
       logError('❌ 清除系统消息红点失败: $e');
@@ -116,7 +116,7 @@ class MessageListController extends GetxController {
         homeController.interactionNoticeRedDot.value = 0;
         // 清除主红点显示
         homeController.isRedDot.value = false;
-        logDebug('✅ 已清除互动消息红点');
+        // logDebug('✅ 已清除互动消息红点');
       }
     } catch (e) {
       logError('❌ 清除互动消息红点失败: $e');
@@ -144,7 +144,7 @@ class MessageListController extends GetxController {
       }
 
       OKToastUtil.show('操作成功');
-      logDebug('✅ 已清空消息（红点）');
+      // logDebug('✅ 已清空消息（红点）');
     } catch (e) {
       logError('❌ 清空消息失败: $e');
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:lottie/lottie.dart';
 
 /// Lottie动画预加载服务
@@ -27,11 +28,11 @@ class LottiePreloadService {
   /// 应该在应用启动时调用，例如在main.dart的runApp之前
   Future<void> preloadVipLottieAnimations() async {
     if (_isPreloaded) {
-      debugPrint('🎬 Lottie动画已预加载，跳过');
+      logger.debug('🎬 Lottie动画已预加载，跳过');
       return;
     }
 
-    debugPrint('🎬 开始预加载VIP页面Lottie动画...');
+    logger.debug('🎬 开始预加载VIP页面Lottie动画...');
     final startTime = DateTime.now();
 
     try {
@@ -42,9 +43,9 @@ class LottiePreloadService {
 
       _isPreloaded = true;
       final duration = DateTime.now().difference(startTime).inMilliseconds;
-      debugPrint('🎬 Lottie动画预加载完成，耗时: ${duration}ms');
+      logger.debug('🎬 Lottie动画预加载完成，耗时: ${duration}ms');
     } catch (e) {
-      debugPrint('❌ Lottie动画预加载失败: $e');
+      logger.error('❌ Lottie动画预加载失败: $e');
     }
   }
 
@@ -54,9 +55,9 @@ class LottiePreloadService {
       // 使用AssetLottie加载并缓存动画
       final composition = await AssetLottie(assetPath).load();
       _cachedCompositions[assetPath] = composition;
-      debugPrint('✅ 预加载成功: $assetPath');
+      logger.debug('✅ 预加载成功: $assetPath');
     } catch (e) {
-      debugPrint('❌ 预加载失败: $assetPath - $e');
+      logger.error('❌ 预加载失败: $assetPath - $e');
     }
   }
 
@@ -70,7 +71,7 @@ class LottiePreloadService {
   void clearCache() {
     _cachedCompositions.clear();
     _isPreloaded = false;
-    debugPrint('🗑️ Lottie缓存已清除');
+    logger.debug('🗑️ Lottie缓存已清除');
   }
 }
 

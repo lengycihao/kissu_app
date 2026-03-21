@@ -17,7 +17,7 @@ class HomeScrollService extends GetxService {
     // 使用屏幕适配工具计算预设滚动位置
     _presetScrollOffset = ScreenAdaptation.getPresetScrollOffset();
     
-    logger.debug('🎯 预设首页背景滚动位置: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 预设偏移=${_presetScrollOffset}', tag: 'HomeScrollService');
+    // logger.debug('🎯 预设首页背景滚动位置: 屏幕宽度=${ScreenAdaptation.screenWidth}, 动态背景宽度=${ScreenAdaptation.getDynamicContainerSize().width}, 预设偏移=${_presetScrollOffset}', tag: 'HomeScrollService');
   }
   
   /// 清除预设位置（使用后清除）

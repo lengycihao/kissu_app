@@ -7,7 +7,7 @@ class AppConfigN {
   /// 🔥 打包渠道（打包时在这里统一修改）
   /// kissu_xiaomi <小米>  kissu_huawei <华为>  kissu_rongyao <荣耀>
   /// kissu_vivo <vivo>  kissu_oppo <oppo>  kissu_meizu <魅族>
-  /// kissu_yyb <应用宝>  kissu_wdj <豌豆荚>  kissu_douyin <抖音>
+  /// kissu_yyb <应用宝>  kissu_wdj <豌豆荚>  kissu_douyin <抖音>，kissu_default
   static const String appChannel = 'kissu_douyin';
 
 

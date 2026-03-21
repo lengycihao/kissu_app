@@ -43,16 +43,16 @@ class _CachedMapWidgetState extends State<CachedMapWidget> {
           _lastMarkersLength = markersLength;
           _lastPolylinesLength = polylinesLength;
 
-          logDebug(
-            '🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}',
-            tag: 'CachedMapWidget',
-          );
-          if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
-            logDebug(
-              '🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}',
-              tag: 'CachedMapWidget',
-            );
-          }
+          // logDebug(
+          //   '🗺️ 地图Widget重建 - 标记数量: ${markersLength}, 连接线数量: ${polylinesLength}',
+          //   tag: 'CachedMapWidget',
+          // );
+          // if (_cachedMarkers != null && _cachedMarkers!.isNotEmpty) {
+          //   logDebug(
+          //     '🗺️ 标记详情: ${_cachedMarkers!.map((m) => '标记: ${m.position}').join(', ')}',
+          //     tag: 'CachedMapWidget',
+          //   );
+          // }
         }
 
         // mapType 使用Obx监听，避免影响地图主体

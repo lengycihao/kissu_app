@@ -224,7 +224,7 @@ class LogUploadService {
       final zipFile = File('${tempDir.path}${Platform.pathSeparator}logs_$timestamp.zip');
       await zipFile.writeAsBytes(zipData);
 
-      logInfo(
+      logDebug(
         '日志打包完成: $fileCount 个文件, 原始大小: ${_formatFileSize(totalSize)}, 压缩后: ${_formatFileSize(zipData.length)}',
         tag: 'LogUpload',
       );
@@ -248,7 +248,10 @@ class LogUploadService {
   }) async {
     File? zipFile;
     try {
-      logInfo('开始上传日志...', tag: 'LogUpload');
+      logDebug('开始上传日志...', tag: 'LogUpload');
+
+      // 先 flush 所有缓冲日志到磁盘，确保数据完整
+      await LogManager.instance.flushAll();
 
       // 打包所有日志文件
       zipFile = await _packageAllLogs(maxDays: maxDays);
@@ -280,15 +283,15 @@ class LogUploadService {
       
       // 记录设备信息和备注到日志（因为文件上传接口不接受额外参数）
       if (result.isSuccess) {
-        logInfo(
+        logDebug(
           '日志上传成功，设备信息: ${jsonEncode(deviceInfo)}${remark != null && remark.isNotEmpty ? '，备注: $remark' : ''}',
           tag: 'LogUpload',
         );
         
-        // 上传成功后清除日志文件
+        // 上传成功后清除日志文件（通过 LogManager 清理，确保 FileAppender 的 IOSink 正确关闭）
         if (clearAfterUpload) {
-          await clearLogs();
-          logInfo('日志文件已清除', tag: 'LogUpload');
+          await LogManager.instance.clearLogs();
+          logDebug('日志文件已清除', tag: 'LogUpload');
         }
       } else {
         logError('日志上传失败: ${result.msg}', tag: 'LogUpload');
@@ -327,7 +330,7 @@ class LogUploadService {
             // 忽略单个文件删除错误
           }
         }
-        logInfo('日志文件已清理', tag: 'LogUpload');
+        logDebug('日志文件已清理', tag: 'LogUpload');
       }
     } catch (e) {
       logError('清理日志文件失败', tag: 'LogUpload', error: e);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -204,7 +205,7 @@ class LockScreenController extends GetxController {
         LockPermissionApi.cachedPartnerPermission = result.data;
       }
     } catch (e) {
-      debugPrint('下一步：获取对方权限失败: $e');
+      logError('下一步：获取对方权限失败: $e');
     }
 
     // 先检查对方版本是否支持锁机
@@ -237,7 +238,7 @@ class LockScreenController extends GetxController {
   /// 从缓存的API问题列表中随机选一题填充到Step2
   void randomQuestion() {
     if (_cachedQuestions.isEmpty) {
-      debugPrint('随机问题缓存为空，跳过');
+      // debugPrint('随机问题缓存为空，跳过');
       return;
     }
     final random = DateTime.now().millisecondsSinceEpoch % _cachedQuestions.length;
@@ -265,10 +266,10 @@ class LockScreenController extends GetxController {
         _cachedQuestions = result.data!
             .whereType<Map<String, dynamic>>()
             .toList();
-        debugPrint('✅ 缓存了 ${_cachedQuestions.length} 道随机问题');
+        // debugPrint('✅ 缓存了 ${_cachedQuestions.length} 道随机问题');
       }
     } catch (e) {
-      debugPrint('获取随机问题失败: $e');
+      logWarning('获取随机问题失败: $e');
     } finally {
       isLoadingQuestions.value = false;
     }
@@ -313,7 +314,7 @@ class LockScreenController extends GetxController {
         LockPermissionApi.cachedPartnerPermission = result.data;
       }
     } catch (e) {
-      debugPrint('获取对方权限状态失败: $e');
+      logError('获取对方权限状态失败: $e');
     } finally {
       isLoadingPartnerPermission.value = false;
     }
@@ -364,9 +365,9 @@ class LockScreenController extends GetxController {
         isOpenProgramLock: 0,
         isOpenSuspendWindow: isOverlayGranted.value ? 1 : 0,
       );
-      debugPrint('上报权限状态: ${result.isSuccess ? '成功' : '失败: ${result.msg}'}');
+      // debugPrint('上报权限状态: ${result.isSuccess ? '成功' : '失败: ${result.msg}'}');
     } catch (e) {
-      debugPrint('上报权限状态异常: $e');
+      logError('上报权限状态异常: $e');
     }
   }
 
@@ -545,7 +546,7 @@ class LockScreenController extends GetxController {
       receiverID: partnerId,
       customData: jsonEncode({'msg_lock': 'connect_app'}),
     );
-    debugPrint('已发送关联App提醒给iOS对方');
+    // debugPrint('已发送关联App提醒给iOS对方');
     OKToastUtil.showSuccess('已通过聊天通知Ta');
   }
 
@@ -565,14 +566,14 @@ class LockScreenController extends GetxController {
           receiverID: partnerId,
           customData: jsonEncode({'msg_lock': 'connect_app'}),
         );
-        debugPrint('已发送关联App提醒给iOS对方');
+        // debugPrint('已发送关联App提醒给iOS对方');
        }
       if (screenUse == 0) {
         await im.sendCustomMessage(
           receiverID: partnerId,
           customData: jsonEncode({'msg_lock': 'phone_use'}),
         );
-         debugPrint('已发送screen_use权限提醒给iOS对方');
+        //  debugPrint('已发送screen_use权限提醒给iOS对方');
       }
         OKToastUtil.showSuccess('已通过聊天通知Ta');
 
@@ -585,14 +586,14 @@ class LockScreenController extends GetxController {
           receiverID: partnerId,
           customData: jsonEncode({'msg_lock': 'lock_phone'}),
         );
-         debugPrint('已发送悬浮窗权限提醒给对方');
+        //  debugPrint('已发送悬浮窗权限提醒给对方');
       }
       if (screenUse == 0) {
         await im.sendCustomMessage(
           receiverID: partnerId,
           customData: jsonEncode({'msg_lock': 'phone_use'}),
         );
-         debugPrint('已发送app使用记录权限提醒给对方');
+        //  debugPrint('已发送app使用记录权限提醒给对方');
       }
         OKToastUtil.showSuccess('已通过聊天通知Ta');
 
@@ -641,7 +642,7 @@ class LockScreenController extends GetxController {
       );
 
       if (result.isSuccess) {
-        debugPrint('✅ 锁机接口调用成功（后端自动发送IM）');
+        // debugPrint('✅ 锁机接口调用成功（后端自动发送IM）');
         OKToastUtil.showSuccess('锁机成功');
         // 更新本地状态
         final now = DateTime.now();
@@ -682,13 +683,13 @@ class LockScreenController extends GetxController {
       if (imageFile != null && await imageFile.exists()) {
         final uploadResult = await _fileUploadApi.uploadFile(imageFile);
         if (uploadResult.isSuccess && uploadResult.data != null) {
-          debugPrint('✅ 锁机背景图上传成功: ${uploadResult.data}');
+          // debugPrint('✅ 锁机背景图上传成功: ${uploadResult.data}');
           return uploadResult.data!;
         }
-        debugPrint('⚠️ 锁机背景图上传失败: ${uploadResult.msg}');
+        logError('⚠️ 锁机背景图上传失败: ${uploadResult.msg}');
       }
     } catch (e) {
-      debugPrint('上传锁机背景图异常: $e');
+      logError('上传锁机背景图异常: $e');
     }
     return '';
   }
@@ -719,12 +720,12 @@ class LockScreenController extends GetxController {
       // 调用解锁API（后端自动发IM消息 unlock_phone_send）
       final result = await _lockPermissionApi.unlockUserPhone(unlockType: 1);
       if (result.isSuccess) {
-        debugPrint('🔓 主动解锁接口调用成功');
+        // debugPrint('🔓 主动解锁接口调用成功');
       } else {
-        debugPrint('🔓 主动解锁接口失败: ${result.msg}');
+        logError('🔓 主动解锁接口失败: ${result.msg}');
       }
     } catch (e) {
-      debugPrint('🔓 主动解锁异常: $e');
+      logError('🔓 主动解锁异常: $e');
     }
 
     // 不管接口是否成功都重置本地状态
@@ -734,8 +735,8 @@ class LockScreenController extends GetxController {
     lockDuration.value = '00:00:00';
     _justUnlocked = true; // 防止fetchLockRecords再次锁定
     _saveLockState(false);
-    // 刷新用户信息（更新 half_lock_status）
-    UserManager.refreshUserInfo();
+    // 刷新用户信息（更新 half_lock_status），必须 await 确保返回聊天页时数据已最新
+    await UserManager.refreshUserInfo();
     // 刷新锁机记录
     await _fetchLockRecords();
     // 解锁成功提示
@@ -823,7 +824,7 @@ class LockScreenController extends GetxController {
         _justUnlocked = false;
       }
     } catch (e) {
-      debugPrint('获取锁机记录失败: $e');
+      logError('获取锁机记录失败: $e');
     } finally {
       isLoadingRecords.value = false;
     }
@@ -854,7 +855,7 @@ class LockScreenController extends GetxController {
         }
       }
     } catch (e) {
-      debugPrint('检查锁定状态失败: $e');
+      logError('检查锁定状态失败: $e');
     }
   }
 
@@ -871,7 +872,7 @@ class LockScreenController extends GetxController {
         await prefs.remove('lock_start_time');
       }
     } catch (e) {
-      debugPrint('保存锁定状态失败: $e');
+      logError('保存锁定状态失败: $e');
     }
   }
 
@@ -891,9 +892,9 @@ class LockScreenController extends GetxController {
       }
       // 上报完毕后清除
       await prefs.remove('lock_answer_analytics_events');
-      debugPrint('📊 埋点6: 已上报${events.length}条答题事件');
+      // debugPrint('📊 埋点6: 已上报${events.length}条答题事件');
     } catch (e) {
-      debugPrint('📊 读取答题埋点事件失败: $e');
+      logError('📊 读取答题埋点事件失败: $e');
     }
   }
 

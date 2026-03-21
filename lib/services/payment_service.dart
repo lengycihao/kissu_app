@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:logger/logger.dart';
@@ -32,7 +33,7 @@ class PaymentService extends GetxService {
     super.onInit();
     // 🔒 隐私合规：不在服务初始化时自动启动支付SDK
     // 等待实际使用时再初始化
-    debugPrint('支付服务已注册（按需初始化）');
+    logger.debug('支付服务已注册（按需初始化）');
 
     // 监听应用生命周期
     _setupAppLifecycleListener();
@@ -55,7 +56,7 @@ class PaymentService extends GetxService {
   /// 设置 fluwx 微信支付回调监听
   void _setupFluwxCallbackHandler() {
     _fluwxCancelable = _fluwx.addSubscriber((response) {
-      _logger.i(
+      logger.debug(
         '📱 收到 fluwx 微信支付回调: ${response.isSuccessful}, errCode: ${response.errCode}',
       );
       if (response is WeChatPaymentResponse) {
@@ -63,31 +64,31 @@ class PaymentService extends GetxService {
       }
     });
 
-    _logger.i('✅ fluwx 微信支付回调监听器已设置');
+    logger.debug('✅ fluwx 微信支付回调监听器已设置');
   }
 
   /// 设置支付宝支付回调处理器
   void _setupAlipayCallbackHandler() {
     _channel.setMethodCallHandler((call) async {
-      _logger.i('📱 收到原生回调: ${call.method}, 参数: ${call.arguments}');
+      logger.debug('📱 收到原生回调: ${call.method}, 参数: ${call.arguments}');
 
       switch (call.method) {
         case 'onAlipayResponse':
           _handleAlipayResponse(call.arguments);
           break;
         default:
-          _logger.w('未知的原生回调方法: ${call.method}');
+          logger.warning('未知的原生回调方法: ${call.method}');
       }
     });
 
-    _logger.i('✅ 支付宝支付回调处理器已设置');
+    logger.debug('✅ 支付宝支付回调处理器已设置');
   }
 
   /// 处理通用支付结果
   void _handlePaymentResult(dynamic arguments) {
     try {
       final Map<String, dynamic> result = Map<String, dynamic>.from(arguments);
-      _logger.i('💰 处理支付结果: $result');
+      logger.debug('💰 处理支付结果: $result');
 
       // 通知所有监听者
       _paymentResultController.add(result);
@@ -98,14 +99,14 @@ class PaymentService extends GetxService {
       final payType = result['payType'] ?? '';
 
       if (success) {
-        _logger.i('✅ 支付成功 - 类型: $payType');
+        logger.debug('✅ 支付成功 - 类型: $payType');
         _onPaymentSuccess(payType);
       } else {
-        _logger.e('❌ 支付失败 - 类型: $payType, 原因: $message');
+        logger.warning('❌ 支付失败 - 类型: $payType, 原因: $message');
         _onPaymentFailed(message);
       }
     } catch (e) {
-      _logger.e('处理支付结果时出错: $e');
+      logger.error('处理支付结果时出错: $e');
     }
   }
 
@@ -139,7 +140,7 @@ class PaymentService extends GetxService {
 
       _handlePaymentResult(result);
     } catch (e) {
-      _logger.e('处理 fluwx 微信支付响应时出错: $e');
+      logger.error('处理 fluwx 微信支付响应时出错: $e');
     }
   }
 
@@ -149,7 +150,7 @@ class PaymentService extends GetxService {
       final Map<String, dynamic> response = Map<String, dynamic>.from(
         arguments,
       );
-      _logger.i('🟦 支付宝响应: $response');
+      logger.debug('🟦 支付宝响应: $response');
 
       final resultStatus = response['resultStatus'] ?? '';
       final result = response['result'] ?? '';
@@ -177,7 +178,7 @@ class PaymentService extends GetxService {
 
       _handlePaymentResult(payResult);
     } catch (e) {
-      _logger.e('处理支付宝响应时出错: $e');
+      logger.error('处理支付宝响应时出错: $e');
     }
   }
 
@@ -194,7 +195,7 @@ class PaymentService extends GetxService {
 
     // 触发VIP状态变化回调
     if (_onVipStatusChanged != null) {
-      _logger.i('📢 触发VIP状态变化回调（支付成功）');
+      logger.debug('📢 触发VIP状态变化回调（支付成功）');
       _onVipStatusChanged!(true);
       _onVipStatusChanged = null;
     }
@@ -202,7 +203,7 @@ class PaymentService extends GetxService {
     // 刷新用户信息
     UserManager.refreshUserInfo().then((success) {
       if (success) {
-        _logger.i('✅ 用户信息已刷新');
+        logger.debug('✅ 用户信息已刷新');
       }
     });
   }
@@ -220,7 +221,7 @@ class PaymentService extends GetxService {
 
     // 触发VIP状态变化回调
     if (_onVipStatusChanged != null) {
-      _logger.i('📢 触发VIP状态变化回调（支付失败）');
+      logger.debug('📢 触发VIP状态变化回调（支付失败）');
       _onVipStatusChanged!(false);
       _onVipStatusChanged = null;
     }
@@ -258,11 +259,11 @@ class PaymentService extends GetxService {
   /// 初始化支付服务
   Future<void> _initializePayment() async {
     try {
-      _logger.i('支付服务初始化中...');
+      logger.debug('支付服务初始化中...');
 
       // 检查是否为 Android 平台
       if (!Platform.isAndroid) {
-        _logger.w('当前平台不支持支付功能，仅支持 Android');
+        logger.debug('当前平台不支持支付功能，仅支持 Android');
         _isInitialized.value = false;
         return;
       }
@@ -271,9 +272,9 @@ class PaymentService extends GetxService {
       await _initWechatPay();
 
       _isInitialized.value = true;
-      _logger.i('支付服务初始化成功（Android 平台）');
+      logger.debug('支付服务初始化成功（Android 平台）');
     } catch (e) {
-      _logger.e('支付服务初始化失败: $e');
+      logger.error('支付服务初始化失败: $e');
       _isInitialized.value = false;
     }
   }
@@ -289,13 +290,13 @@ class PaymentService extends GetxService {
       );
 
       if (registered) {
-        _logger.i('✅ fluwx 微信支付 SDK 初始化成功');
+       logger.debug('✅ fluwx 微信支付 SDK 初始化成功');
       } else {
-        _logger.e('❌ fluwx 微信支付 SDK 初始化失败');
+        logger.error('❌ fluwx 微信支付 SDK 初始化失败');
         throw Exception('微信支付 SDK 初始化失败');
       }
     } catch (e) {
-      _logger.e('微信支付 SDK 初始化失败: $e');
+      logger.error('微信支付 SDK 初始化失败: $e');
       rethrow;
     }
   }
@@ -331,11 +332,11 @@ class PaymentService extends GetxService {
       }
 
       if (_paymentInProgress.value) {
-        _logger.w('检测到支付状态异常，强制重置并继续');
+        logger.debug('检测到支付状态异常，强制重置并继续');
         _forceResetPaymentState();
       }
 
-      _logger.i('发起微信支付请求');
+     logger.debug('发起微信支付请求');
       _logPaymentParams('微信支付', {
         'appId': appId,
         'partnerId': partnerId,
@@ -362,7 +363,7 @@ class PaymentService extends GetxService {
       // 设置支付超时机制 - 60秒超时
       timeoutTimer = Timer(const Duration(seconds: 60), () {
         if (_paymentInProgress.value) {
-          _logger.w('微信支付超时（60秒）');
+          logger.debug('微信支付超时（60秒）');
           _resetPaymentState();
           _showError('支付超时，请重试');
         }
@@ -370,7 +371,7 @@ class PaymentService extends GetxService {
 
       try {
         // 使用 fluwx 调用微信支付
-        _logger.i('正在使用 fluwx 调用微信支付...');
+        logger.debug('正在使用 fluwx 调用微信支付...');
 
         // 将 timeStamp 从 String 转换为 int
         final timestampInt = int.tryParse(timeStamp) ?? 0;
@@ -388,17 +389,17 @@ class PaymentService extends GetxService {
           ),
         );
 
-        _logger.i('fluwx 微信支付调用返回: $result');
+        logger.debug('fluwx 微信支付调用返回: $result');
 
         if (result) {
           // 成功唤起微信支付，等待用户操作
-          _logger.i('✅ 成功唤起微信支付，等待支付结果回调...');
+          logger.debug('✅ 成功唤起微信支付，等待支付结果回调...');
           // 注意：不要在这里返回结果，也不要隐藏进度
           // 实际支付结果通过 _handleFluwxWechatResponse 回调处理
           // 这里不返回，让方法继续等待（实际上方法会结束，但状态保持）
         } else {
           // fluwx 返回失败（如：微信未安装、版本过低等）
-          _logger.e('❌ fluwx 调用失败');
+          logger.error('❌ fluwx 调用失败');
           timeoutTimer.cancel();
           _hideProgress();
           _paymentInProgress.value = false;
@@ -411,7 +412,7 @@ class PaymentService extends GetxService {
         return true; // 仅表示成功唤起，不表示支付成功
       } catch (e) {
         timeoutTimer.cancel();
-        _logger.e('微信支付调用异常: $e');
+        logger.error('微信支付调用异常: $e');
         _hideProgress();
         _paymentInProgress.value = false;
         _showError('支付调用失败: $e');
@@ -419,7 +420,7 @@ class PaymentService extends GetxService {
       }
     } catch (e) {
       timeoutTimer?.cancel();
-      _logger.e('微信支付异常: $e');
+      logger.error('微信支付异常: $e');
       _hideProgress();
       _paymentInProgress.value = false;
       return false;
@@ -429,45 +430,45 @@ class PaymentService extends GetxService {
   /// 支付宝支付
   Future<bool> payWithAlipay({required String orderInfo}) async {
     try {
-      _logger.i('开始支付宝支付流程，orderInfo长度: ${orderInfo.length}');
+      logger.debug('开始支付宝支付流程，orderInfo长度: ${orderInfo.length}');
 
       // 检查平台和初始化状态
       if (!Platform.isAndroid) {
-        _logger.e('当前平台不支持支付宝支付，当前平台: ${Platform.operatingSystem}');
+        // logger.debug('当前平台不支持支付宝支付，当前平台: ${Platform.operatingSystem}');
         _showError('当前平台不支持支付宝支付');
         return false;
       }
 
       // 按需初始化支付服务
       if (!_isInitialized.value) {
-        _logger.i('支付服务未初始化，开始初始化...');
+        logger.debug('支付服务未初始化，开始初始化...');
         await _initializePayment();
         if (!_isInitialized.value) {
-          _logger.e('支付服务初始化失败');
+          logger.warning('支付服务初始化失败');
           _showError('支付服务初始化失败，请重试');
           return false;
         }
       }
 
       if (_paymentInProgress.value) {
-        _logger.w('检测到支付状态异常，强制重置并继续');
+        logger.warning('检测到支付状态异常，强制重置并继续');
         _forceResetPaymentState();
       }
 
       // 检查订单信息
       if (orderInfo.isEmpty) {
-        _logger.e('支付宝订单信息为空');
+        logger.warning('支付宝订单信息为空');
         _showError('订单信息错误，请重试');
         return false;
       }
 
       // 检查支付宝是否已安装
-      _logger.i('检查支付宝安装状态...');
+      // logger.debug('检查支付宝安装状态...');
       bool alipayInstalled = await isAlipayInstalled();
-      _logger.i('支付宝安装状态: $alipayInstalled');
+      // logger.debug('支付宝安装状态: $alipayInstalled');
 
       if (!alipayInstalled) {
-        _logger.e('支付宝未安装');
+        logger.warning('支付宝未安装');
         _showError('请先安装支付宝客户端');
         return false;
       }
@@ -478,15 +479,15 @@ class PaymentService extends GetxService {
 
       try {
         // 调用原生支付宝支付
-        _logger.i(
-          '正在调用原生支付宝支付，orderInfo前100字符: ${orderInfo.substring(0, orderInfo.length > 100 ? 100 : orderInfo.length)}...',
-        );
+      //  logger.debug(
+      //     '正在调用原生支付宝支付，orderInfo前100字符: ${orderInfo.substring(0, orderInfo.length > 100 ? 100 : orderInfo.length)}...',
+      //   );
         final result = await _channel.invokeMethod('payWithAlipay', {
           'orderInfo': orderInfo,
         });
 
-        _logger.i('支付宝支付调用完成，返回结果类型: ${result.runtimeType}');
-        _logger.i('支付宝支付返回结果: $result');
+        // logger.debug('支付宝支付调用完成，返回结果类型: ${result.runtimeType}');
+        // logger.debug('支付宝支付返回结果: $result');
 
         // 注意：不要在这里隐藏进度和重置状态，让 _onPaymentSuccess/_onPaymentFailed 处理
 
@@ -495,36 +496,36 @@ class PaymentService extends GetxService {
           final message = result['message'] ?? '未知错误';
           final resultData = result['result'];
 
-          _logger.i('支付宝支付结果解析: success=$success, message=$message');
+         logger.debug('支付宝支付结果解析: success=$success, message=$message');
           if (resultData != null) {
-            _logger.i('支付宝支付详细结果: $resultData');
+            logger.debug('支付宝支付详细结果: $resultData');
           }
 
           if (success == true) {
-            _logger.i('支付宝支付成功');
+            logger.debug('支付宝支付成功');
             // 触发支付成功处理（会隐藏进度、重置状态、刷新用户信息）
             _onPaymentSuccess('alipay');
             return true;
           } else {
-            _logger.e('支付宝支付失败: $message');
+            logger.error('支付宝支付失败: $message');
             // 触发支付失败处理（会隐藏进度、重置状态、显示错误）
             _onPaymentFailed(message);
             return false;
           }
         } else {
-          _logger.e('支付宝支付返回结果格式错误: $result');
+          logger.error('支付宝支付返回结果格式错误: $result');
           _onPaymentFailed('返回结果格式错误');
           return false;
         }
       } catch (e) {
         _hideProgress();
         _paymentInProgress.value = false;
-        _logger.e('支付宝支付调用失败: $e');
+       logger.error('支付宝支付调用失败: $e');
         _showError('支付调用失败: $e');
         return false;
       }
     } catch (e) {
-      _logger.e('支付宝支付异常: $e');
+      logger.error('支付宝支付异常: $e');
       _hideProgress();
       _paymentInProgress.value = false;
       _showError('支付异常: $e');
@@ -546,10 +547,10 @@ class PaymentService extends GetxService {
     try {
       // 使用原生方法检查微信是否安装
       final result = await _channel.invokeMethod('isWechatInstalled');
-      _logger.d('微信安装检测结果: $result');
+      logger.debug('微信安装检测结果: $result');
       return result == true;
     } catch (e) {
-      _logger.e('检查微信安装状态失败: $e');
+      logger.error('检查微信安装状态失败: $e');
       return false;
     }
   }
@@ -567,10 +568,10 @@ class PaymentService extends GetxService {
 
     try {
       final result = await _channel.invokeMethod('isAlipayInstalled');
-      _logger.d('支付宝安装检测结果: $result');
+      logger.debug('支付宝安装检测结果: $result');
       return result == true;
     } catch (e) {
-      _logger.e('检查支付宝安装状态失败: $e');
+      logger.error('检查支付宝安装状态失败: $e');
       return false;
     }
   }
@@ -620,7 +621,7 @@ class PaymentService extends GetxService {
         // );
         OKToastUtil.show(message);
       } else {
-        _logger.w('无法显示Toast: context为null');
+        logger.debug('无法显示Toast: context为null');
         // 使用Get.snackbar作为fallback
         Get.snackbar(
           '支付失败',
@@ -632,19 +633,19 @@ class PaymentService extends GetxService {
         );
       }
     } catch (e) {
-      _logger.e('显示错误消息失败: $e');
+      logger.error('显示错误消息失败: $e');
     }
   }
 
   /// 记录支付参数（调试用）
   void _logPaymentParams(String paymentType, Map<String, dynamic> params) {
-    _logger.i('$paymentType 参数:');
+    logger.debug('$paymentType 参数:');
     params.forEach((key, value) {
       if (key != 'sign') {
         // 不记录敏感的签名信息
-        _logger.i('  $key: $value');
+       logger.debug('  $key: $value');
       } else {
-        _logger.i('  $key: ${value.toString().substring(0, 8)}...');
+        logger.debug('  $key: ${value.toString().substring(0, 8)}...');
       }
     });
   }
@@ -659,29 +660,29 @@ class PaymentService extends GetxService {
 
   /// 重置支付状态
   void _resetPaymentState() {
-    _logger.i('重置支付状态');
+    logger.debug('重置支付状态');
     _paymentInProgress.value = false;
     try {
       _hideProgress();
     } catch (e) {
-      _logger.e('重置支付状态时隐藏进度失败: $e');
+      logger.error('重置支付状态时隐藏进度失败: $e');
     }
   }
 
   /// 强制重置支付状态（用于异常情况）
   void forceResetPaymentState() {
-    _logger.w('强制重置支付状态');
+   logger.debug('强制重置支付状态');
     _resetPaymentState();
   }
 
   /// 强制重置支付状态（内部方法，更彻底的重置）
   void _forceResetPaymentState() {
-    _logger.w('强制重置支付状态（内部方法）');
+    logger.debug('强制重置支付状态（内部方法）');
     _paymentInProgress.value = false;
     try {
       _hideProgress();
     } catch (e) {
-      _logger.e('强制重置时隐藏进度失败: $e');
+      logger.error('强制重置时隐藏进度失败: $e');
     }
     // 确保状态完全重置
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -692,51 +693,51 @@ class PaymentService extends GetxService {
   /// 检查并重置异常支付状态
   void checkAndResetPaymentState() {
     if (_paymentInProgress.value) {
-      _logger.w('检测到异常支付状态，自动重置');
+      logger.warning('检测到异常支付状态，自动重置');
       _resetPaymentState();
     }
   }
 
   /// 彻底检查并重置支付状态（用于支付前检查）
   void thoroughCheckAndResetPaymentState() {
-    _logger.i('开始彻底检查支付状态...');
-    _logger.i('当前支付状态: ${_paymentInProgress.value}');
+    logger.debug('开始彻底检查支付状态...');
+    logger.debug('当前支付状态: ${_paymentInProgress.value}');
 
     if (_paymentInProgress.value) {
-      _logger.w('检测到异常支付状态，执行彻底重置');
+      logger.warning('检测到异常支付状态，执行彻底重置');
       _forceResetPaymentState();
 
       // 延迟再次检查，确保状态完全重置
       Future.delayed(const Duration(milliseconds: 200), () {
         if (_paymentInProgress.value) {
-          _logger.w('延迟检查发现状态仍未重置，再次强制重置');
+          logger.warning('延迟检查发现状态仍未重置，再次强制重置');
           _forceResetPaymentState();
         }
       });
     }
 
-    _logger.i('支付状态检查完成，当前状态: ${_paymentInProgress.value}');
+    logger.debug('支付状态检查完成，当前状态: ${_paymentInProgress.value}');
   }
 
   /// 立即检查是否收到了支付取消的通知
   void _checkForImmediatePaymentCancellation() {
-    _logger.i('🔍 立即检查支付取消状态...');
+    logger.debug('🔍 立即检查支付取消状态...');
 
     // 检查是否从后台回来的时间过短（可能用户直接取消了支付）
     if (_backgroundTimestamp > 0) {
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       final timeDiff = currentTime - _backgroundTimestamp;
 
-      _logger.i('从后台到前台的时间差: ${timeDiff}ms');
+     logger.debug('从后台到前台的时间差: ${timeDiff}ms');
 
       // 如果时间差小于3秒，很可能是用户直接取消了支付
       if (timeDiff < 3000) {
-        _logger.w('⚡ 检测到快速返回（${timeDiff}ms < 3000ms），可能是用户取消支付');
+        logger.warning('⚡ 检测到快速返回（${timeDiff}ms < 3000ms），可能是用户取消支付');
 
         // 延迟1秒后检查，给微信回调一点时间
         Future.delayed(const Duration(seconds: 1), () {
           if (_paymentInProgress.value) {
-            _logger.w('快速返回且1秒后仍在支付中，判断为用户取消支付');
+            logger.debug('快速返回且1秒后仍在支付中，判断为用户取消支付');
             _resetPaymentState();
             _showError('支付已取消');
           }
@@ -751,11 +752,11 @@ class PaymentService extends GetxService {
   /// 🔧 通知原生取消支付超时定时器（仅用于支付宝）
   Future<void> _cancelNativePaymentTimeout() async {
     try {
-      _logger.i('🔔 通知原生层取消支付超时定时器（仅支付宝）');
+      logger.debug('🔔 通知原生层取消支付超时定时器（仅支付宝）');
       await _channel.invokeMethod('cancelPaymentTimeout');
-      _logger.i('✅ 已成功通知原生层取消超时');
+      logger.debug('✅ 已成功通知原生层取消超时');
     } catch (e) {
-      _logger.w('⚠️ 通知原生层取消超时失败（可能不支持此方法）: $e');
+      logger.error('⚠️ 通知原生层取消超时失败（可能不支持此方法）: $e');
       // 不抛出异常，因为这不是关键操作
     }
   }

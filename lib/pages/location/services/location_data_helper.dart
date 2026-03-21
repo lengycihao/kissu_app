@@ -29,7 +29,7 @@ class LocationDataHelper {
     required Rx<LatLng?> location,
   }) {
     // 🔥 调试：打印原始经纬度值
-    logDebug('📍 [LocationDataHelper] 更新位置 - latitude: "${userData.latitude}", longitude: "${userData.longitude}"');
+    // logDebug('📍 [LocationDataHelper] 更新位置 - latitude: "${userData.latitude}", longitude: "${userData.longitude}"');
     
     if (userData.latitude != null && userData.longitude != null) {
       // 检查是否为空字符串
@@ -40,17 +40,17 @@ class LocationDataHelper {
         final lat = double.tryParse(latStr);
         final lng = double.tryParse(lngStr);
         if (lat != null && lng != null) {
-          logDebug('📍 [LocationDataHelper] 解析成功 - LatLng($lat, $lng)');
+          // logDebug('📍 [LocationDataHelper] 解析成功 - LatLng($lat, $lng)');
           location.value = LatLng(lat, lng);
           return;
         } else {
-          logDebug('📍 [LocationDataHelper] 解析失败 - lat: $lat, lng: $lng');
+          logWarning('📍 [LocationDataHelper] 解析失败 - lat: $lat, lng: $lng');
         }
       } else {
-        logDebug('📍 [LocationDataHelper] 经纬度为空字符串');
+        logWarning('📍 [LocationDataHelper] 经纬度为空字符串');
       }
     } else {
-      logDebug('📍 [LocationDataHelper] 经纬度为null');
+      logWarning('📍 [LocationDataHelper] 经纬度为null');
     }
     // 🚀 修复：如果经纬度为空或解析失败，清空位置数据
     location.value = null;

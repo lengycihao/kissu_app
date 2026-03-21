@@ -47,17 +47,17 @@ class OaidUtil {
   /// 🔒 隐私合规：只有在用户同意隐私政策后才获取
   /// 返回值永远不为 null，确保埋点数据始终有 device_id
   Future<String?> getOaid() async {
-    logger.info('开始获取设备ID...', tag: 'OaidUtil');
+    // logger.info('开始获取设备ID...', tag: 'OaidUtil');
     
     // 返回 OAID 缓存
     if (_cachedOaid != null) {
-      logger.info('返回缓存的设备ID: ${_cachedOaid!.substring(0, 8)}...', tag: 'OaidUtil');
+      // logger.info('返回缓存的设备ID: ${_cachedOaid!.substring(0, 8)}...', tag: 'OaidUtil');
       return _cachedOaid;
     }
 
     // 🔒 隐私合规检查：用户未同意隐私政策时不获取任何设备ID
     final canCollect = _canCollectSensitiveData();
-    logger.info('隐私合规检查结果: $canCollect', tag: 'OaidUtil');
+    // logger.info('隐私合规检查结果: $canCollect', tag: 'OaidUtil');
     if (!canCollect) {
       logger.warning('隐私政策未同意，跳过设备ID获取', tag: 'OaidUtil');
       return null;
@@ -69,7 +69,7 @@ class OaidUtil {
         final oaid = await FlutterAndroidOaidPlugin.getOAID();
         if (oaid.isNotEmpty) {
           _cachedOaid = oaid;
-          logger.info('OAID 获取成功: ${oaid.substring(0, 8)}...', tag: 'OaidUtil');
+          // logger.info('OAID 获取成功: ${oaid.substring(0, 8)}...', tag: 'OaidUtil');
           return oaid;
         } else {
           logger.warning('OAID 获取失败，将使用 UUID 备用', tag: 'OaidUtil');
@@ -100,7 +100,7 @@ class OaidUtil {
       
       if (storedUuid != null && storedUuid.isNotEmpty) {
         _cachedUuid = storedUuid;
-        logger.info('UUID 从本地存储恢复: ${storedUuid.substring(0, 8)}...', tag: 'OaidUtil');
+        // logger.info('UUID 从本地存储恢复: ${storedUuid.substring(0, 8)}...', tag: 'OaidUtil');
         return storedUuid;
       }
       
@@ -108,7 +108,7 @@ class OaidUtil {
       final newUuid = const Uuid().v4();
       await prefs.setString(_uuidStorageKey, newUuid);
       _cachedUuid = newUuid;
-      logger.info('UUID 生成成功: ${newUuid.substring(0, 8)}...', tag: 'OaidUtil');
+      // logger.info('UUID 生成成功: ${newUuid.substring(0, 8)}...', tag: 'OaidUtil');
       return newUuid;
     } catch (e) {
       logger.error('UUID 获取/生成失败', tag: 'OaidUtil', error: e);

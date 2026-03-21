@@ -194,7 +194,7 @@ class LocationV2Controller extends GetxController
             _pendingLocationName = args['locationName'] as String?;
             _pendingAvatarUrl = args['avatarUrl'] as String?;
             _shouldShowHighlight = true; // 标记需要显示高亮
-            logDebug('📍 定位页面：收到路由参数初始跳转坐标 $_pendingInitialTarget, 位置名称: $_pendingLocationName');
+            // logDebug('📍 定位页面：收到路由参数初始跳转坐标 $_pendingInitialTarget, 位置名称: $_pendingLocationName');
           }
         }
       }
@@ -216,7 +216,7 @@ class LocationV2Controller extends GetxController
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    logDebug('📍 定位页面重新获得焦点，静默刷新用户信息');
+    // logDebug('📍 定位页面重新获得焦点，静默刷新用户信息');
     // 🔥 恢复定时刷新
     onPageVisible();
     // 先用本地数据（已经在onInit中加载）
@@ -227,7 +227,7 @@ class LocationV2Controller extends GetxController
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      logDebug('🔄 定位页面：静默刷新用户信息');
+      // logDebug('🔄 定位页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
@@ -245,23 +245,23 @@ class LocationV2Controller extends GetxController
     _locationRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       // 只有在页面可见、未关闭、未在加载中时才刷新
       if (!isClosed && !isLoading.value && _isPageVisible) {
-        logDebug('🔄 定位页面：定时刷新位置数据（30秒周期）');
+        // logDebug('🔄 定位页面：定时刷新位置数据（30秒周期）');
         _silentRefreshLocationData();
       }
     });
-    logDebug('⏰ 定位页面：定时刷新已启动（每30秒）');
+    // logDebug('⏰ 定位页面：定时刷新已启动（每30秒）');
   }
   
   /// 🔥 新增：页面进入前台时调用
   void onPageVisible() {
     _isPageVisible = true;
-    logDebug('📍 定位页面：页面可见，恢复定时刷新');
+    // logDebug('📍 定位页面：页面可见，恢复定时刷新');
   }
   
   /// 🔥 新增：页面进入后台或被覆盖时调用
   void onPageHidden() {
     _isPageVisible = false;
-    logDebug('📍 定位页面：页面隐藏，暂停定时刷新');
+    // logDebug('📍 定位页面：页面隐藏，暂停定时刷新');
   }
   
   /// 🔥 新增：静默刷新位置数据（不阻塞UI，不显示Loading）
@@ -311,7 +311,7 @@ class LocationV2Controller extends GetxController
         _updateLocationRecords(currentUser);
         await _initTrackStartEndMarkers();
         
-        logDebug('✅ 定位页面：静默刷新位置数据成功');
+        // logDebug('✅ 定位页面：静默刷新位置数据成功');
       }
     } catch (e) {
       logError('❌ 定位页面：静默刷新位置数据失败: $e');
@@ -394,7 +394,7 @@ class LocationV2Controller extends GetxController
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
-        logDebug('🎯 定位页面：收起底部面板到底部吸顶位置');
+        // logDebug('🎯 定位页面：收起底部面板到底部吸顶位置');
       } catch (e) {
         logError('❌ 定位页面：收起底部面板到底部位置失败: $e');
       }
@@ -403,13 +403,13 @@ class LocationV2Controller extends GetxController
 
   /// 统一的异步初始化流程（优化：后台静默加载，不阻塞UI）
   void _initializePageAsync() {
-    logDebug('🚀 地图页面异步初始化流程开始（后台静默执行）');
+    // logDebug('🚀 地图页面异步初始化流程开始（后台静默执行）');
 
     // 立即启动后台数据加载，不等待结果
     // 这样地图可以立即显示，数据到了再更新
     loadLocationData()
         .then((_) {
-          logDebug('📊 位置数据加载完成');
+          // logDebug('📊 位置数据加载完成');
         })
         .catchError((e) {
           logError('位置数据加载失败: $e');
@@ -418,7 +418,7 @@ class LocationV2Controller extends GetxController
     // 并行检查定位权限
     _checkLocationPermissionOnPageEnter()
         .then((_) {
-          logDebug('📊 定位权限检查完成');
+          // logDebug('📊 定位权限检查完成');
         })
         .catchError((e) {
           logError('定位权限检查失败: $e');
@@ -672,7 +672,7 @@ class LocationV2Controller extends GetxController
       final distanceInMeters = _parseDistanceToMeters(distance.value);
       final bool shouldStayInCloseMode = distanceInMeters != null && distanceInMeters <= 100;
       if (shouldStayInCloseMode) {
-        logDebug('🎯 已在近距离模式且GIF已启动，数据无变化，跳过marker重建');
+        // logDebug('🎯 已在近距离模式且GIF已启动，数据无变化，跳过marker重建');
         return;
       }
     }
@@ -695,12 +695,12 @@ class LocationV2Controller extends GetxController
         LatLng? myPos = actualMyLocation.value ?? myLocation.value;
 
         // 如果还没有位置数据，尝试从实时定位服务获取
-        if (myPos == null) {
-          myPos = _tryGetCurrentLocationFromService();
-          if (myPos != null) {
-            logDebug('📍 使用实时定位服务创建 marker: $myPos');
-          }
-        }
+        // if (myPos == null) {
+        //   myPos = _tryGetCurrentLocationFromService();
+        //   // if (myPos != null) {
+        //   //   // logDebug('📍 使用实时定位服务创建 marker: $myPos');
+        //   // }
+        // }
 
         if (myPos != null) {
           try {
@@ -712,9 +712,9 @@ class LocationV2Controller extends GetxController
 
             // 🎯 获取头像anchor，用于调试
             final avatarAnchor = _cachedMyAnchor ?? const Offset(0.5, 1.0);
-            logDebug(
-              '📍 未绑定状态创建marker - 位置: $capturedPos, 头像anchor: $avatarAnchor',
-            );
+            // logDebug(
+            //   '📍 未绑定状态创建marker - 位置: $capturedPos, 头像anchor: $avatarAnchor',
+            // );
 
             // 🚀 添加底座marker（可旋转，zIndex=1，在下层）
             if (_persistentMyPedestalIcon != null) {
@@ -733,9 +733,9 @@ class LocationV2Controller extends GetxController
               );
               pedestalMarker.setIdForCopy('my_pedestal');
               tempMarkers.add(pedestalMarker);
-              logDebug(
-                '✅ 底座marker创建 - 位置: $capturedPos, anchor: (0.5, 0.5), 旋转: $rotation°',
-              );
+              // logDebug(
+              //   '✅ 底座marker创建 - 位置: $capturedPos, anchor: (0.5, 0.5), 旋转: $rotation°',
+              // );
             }
 
             // 🚀 添加头像marker（不旋转，zIndex=2，在上层）
@@ -768,9 +768,9 @@ class LocationV2Controller extends GetxController
             );
             myMarker.setIdForCopy('my_marker');
             tempMarkers.add(myMarker);
-            logDebug(
-              '✅ 头像marker创建 - 位置: $capturedPos, anchor: $avatarAnchor',
-            );
+            // logDebug(
+            //   '✅ 头像marker创建 - 位置: $capturedPos, anchor: $avatarAnchor',
+            // );
           } catch (e) {
             logError('Create my marker error: $e');
           }
@@ -782,7 +782,7 @@ class LocationV2Controller extends GetxController
         final LatLng? partnerPos = partnerLocation.value;
         
         // 🔥 调试：打印位置信息
-        logDebug('📍 [Marker创建] myPos: $myPos, partnerPos: $partnerPos');
+        // logDebug('📍 [Marker创建] myPos: $myPos, partnerPos: $partnerPos');
         
         // 🎯 判断是否进入近距离模式（<100米）
         final distanceInMeters = _parseDistanceToMeters(distance.value);
@@ -791,15 +791,15 @@ class LocationV2Controller extends GetxController
         // 🎯 修复：距离为"未知"时仍然创建marker，只是不进入近距离模式
         // 只有在完全没有位置数据时才跳过
         if (myPos == null && partnerPos == null) {
-          logDebug('📍 没有任何位置数据，跳过marker创建');
+          // logDebug('📍 没有任何位置数据，跳过marker创建');
           return;
         }
         
-        logDebug('📍 距离判断: ${distance.value} = ${distanceInMeters}米, 近距离模式: $shouldUseCloseMode');
+        // logDebug('📍 距离判断: ${distance.value} = ${distanceInMeters}米, 近距离模式: $shouldUseCloseMode');
         
         // 🎯 近距离模式：两个摇摆头像 + GIF，位置以我的坐标为准
         if (shouldUseCloseMode && myPos != null) {
-          logDebug('🎯 进入近距离模式，创建摇摆头像和GIF');
+          // logDebug('🎯 进入近距离模式，创建摇摆头像和GIF');
           
           // 如果之前不是近距离模式，需要停止原有动画
           if (!_isCloseMode) {
@@ -816,7 +816,7 @@ class LocationV2Controller extends GetxController
           await _createCloseModeMarkers(tempMarkers, myPos);
         } else {
           // 🎯 正常模式：分开的头像 + 连线
-          logDebug('🎯 进入正常模式，创建分开的头像');
+          // logDebug('🎯 进入正常模式，创建分开的头像');
           
           // 如果之前是近距离模式，需要停止GIF和摆动动画
           if (_isCloseMode) {
@@ -940,10 +940,10 @@ class LocationV2Controller extends GetxController
       final partnerAvatarUrl = user?.loverInfo?.headPortrait ?? 
                                user?.halfUserInfo?.headPortrait ?? '';
       
-      logDebug('🎯 近距离模式头像: 我=$myAvatarUrl, Ta=$partnerAvatarUrl, 位置=$position');
+      // logDebug('🎯 近距离模式头像: 我=$myAvatarUrl, Ta=$partnerAvatarUrl, 位置=$position');
 
       // 1. 创建Ta的头像marker（左边，逆时针旋转20度）
-      logDebug('🎯 开始创建Ta的头像marker');
+      // logDebug('🎯 开始创建Ta的头像marker');
       final partnerMarkerData = await _markerBuilder.createAvatarWithBgMarker(
         partnerAvatarUrl,
         defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
@@ -959,11 +959,11 @@ class LocationV2Controller extends GetxController
       final partnerAnchor = partnerMarkerData['anchor'] as Offset? ?? const Offset(0.5, 1.0);
       // 🎯 减小anchor偏移量，提高点击响应准确性（原来是+0.5，点击热区偏移太大）
       final partnerAnchorAdjusted = Offset(partnerAnchor.dx + 0.47, partnerAnchor.dy);
-      logDebug('🎯 Ta的头像: icon=${partnerIcon != null}, anchor=$partnerAnchor, adjusted=$partnerAnchorAdjusted');
+      // logDebug('🎯 Ta的头像: icon=${partnerIcon != null}, anchor=$partnerAnchor, adjusted=$partnerAnchorAdjusted');
       
       // 🎯 近距离模式：点击头像不做任何操作
       void onCloseModeMarkerTap(String markerId) {
-        logDebug('📍 近距离模式（≤100米）：点击头像不做任何操作');
+        // logDebug('📍 近距离模式（≤100米）：点击头像不做任何操作');
         // 不跳转详情页，不移动相机，不缩放
       }
 
@@ -979,13 +979,13 @@ class LocationV2Controller extends GetxController
         // 🎯 使用不同的marker ID，避免与正常模式冲突
         partnerMarker.setIdForCopy('close_partner_marker');
         tempMarkers.add(partnerMarker);
-        logDebug('✅ 近距离模式: Ta的头像marker创建成功（左边），位置: $position');
+        // logDebug('✅ 近距离模式: Ta的头像marker创建成功（左边），位置: $position');
       } else {
         logError('❌ 近距离模式: Ta的头像icon为null');
       }
 
       // 2. 创建我的头像marker（右边，顺时针旋转20度）
-      logDebug('🎯 开始创建我的头像marker，头像URL: $myAvatarUrl');
+      // logDebug('🎯 开始创建我的头像marker，头像URL: $myAvatarUrl');
       final myMarkerData = await _markerBuilder.createAvatarWithBgMarker(
         myAvatarUrl,
         defaultAsset: 'assets/3.0/kissu3_love_avater.webp',
@@ -997,12 +997,12 @@ class LocationV2Controller extends GetxController
         rotationDegrees: 20.0,
         face: myFace.value, // 🎯 传递我的心情状态
       );
-      logDebug('🎯 我的头像marker数据: $myMarkerData');
+      // logDebug('🎯 我的头像marker数据: $myMarkerData');
       final myIcon = myMarkerData['descriptor'] as BitmapDescriptor?;
       final myAnchor = myMarkerData['anchor'] as Offset? ?? const Offset(0.5, 1.0);
       // 🎯 减小anchor偏移量，提高点击响应准确性（原来是-0.5，点击热区偏移太大）
       final myAnchorAdjusted = Offset(myAnchor.dx - 0.47, myAnchor.dy);
-      logDebug('🎯 我的头像: icon=${myIcon != null}, anchor=$myAnchor, adjusted=$myAnchorAdjusted');
+      // logDebug('🎯 我的头像: icon=${myIcon != null}, anchor=$myAnchor, adjusted=$myAnchorAdjusted');
       
       if (myIcon != null) {
         final myMarker = Marker(
@@ -1016,7 +1016,7 @@ class LocationV2Controller extends GetxController
         // 🎯 使用不同的marker ID，避免与正常模式冲突
         myMarker.setIdForCopy('close_my_marker');
         tempMarkers.add(myMarker);
-        logDebug('✅ 近距离模式: 我的头像marker创建成功（右边），位置: $position');
+        // logDebug('✅ 近距离模式: 我的头像marker创建成功（右边），位置: $position');
       } else {
         logError('❌ 近距离模式: 我的头像icon为null，无法创建marker');
       }
@@ -1033,7 +1033,7 @@ class LocationV2Controller extends GetxController
       );
       gifMarker.setIdForCopy('gif_marker');
       tempMarkers.add(gifMarker);
-      logDebug('✅ 近距离模式: GIF占位marker创建成功（透明图标）');
+      // logDebug('✅ 近距离模式: GIF占位marker创建成功（透明图标）');
 
       // 4. 🔧 创建一个覆盖整个两人头像区域的可点击marker
       // 高德地图SDK只检测非透明像素，所以需要一个几乎透明但非完全透明的点击区域
@@ -1048,7 +1048,7 @@ class LocationV2Controller extends GetxController
       );
       clickableMarker.setIdForCopy('close_clickable_area');
       tempMarkers.add(clickableMarker);
-      logDebug('✅ 近距离模式: 可点击区域marker创建成功');
+      // logDebug('✅ 近距离模式: 可点击区域marker创建成功');
 
     } catch (e) {
       logError('❌ 创建近距离模式markers失败: $e');
@@ -1112,7 +1112,7 @@ class LocationV2Controller extends GetxController
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData != null) {
         _clickableAreaIcon = BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
-        logDebug('✅ 创建可点击区域图标成功: ${width}x$height');
+        // logDebug('✅ 创建可点击区域图标成功: ${width}x$height');
         return _clickableAreaIcon!;
       }
     } catch (e) {
@@ -1144,7 +1144,7 @@ class LocationV2Controller extends GetxController
       );
       if (success) {
         _closeGifStarted = true;
-        logDebug('✅ 近距离模式: GIF动画启动成功');
+        // logDebug('✅ 近距离模式: GIF动画启动成功');
       }
 
       // 🎯 同步启动两个摆动动画（确保两个头像动画完全同步）
@@ -1159,7 +1159,7 @@ class LocationV2Controller extends GetxController
         marker2ToAngle: 5.0,
         duration: 800,
       );
-      logDebug('✅ 近距离模式: 两个头像摆动动画同步启动');
+      // logDebug('✅ 近距离模式: 两个头像摆动动画同步启动');
     } catch (e) {
       logError('❌ 启动近距离模式动画失败: $e');
     }
@@ -1174,13 +1174,13 @@ class LocationV2Controller extends GetxController
       if (_closeGifStarted) {
         await mapController!.stopGifAnimation(markerId: 'gif_marker');
         _closeGifStarted = false;
-        logDebug('✅ 近距离模式: GIF动画已停止');
+        // logDebug('✅ 近距离模式: GIF动画已停止');
       }
 
       // 停止摆动动画
       await mapController!.stopSwingAnimation(markerId: 'close_partner_marker');
       await mapController!.stopSwingAnimation(markerId: 'close_my_marker');
-      logDebug('✅ 近距离模式: 摆动动画已停止');
+      // logDebug('✅ 近距离模式: 摆动动画已停止');
     } catch (e) {
       logError('❌ 停止近距离模式动画失败: $e');
     }
@@ -1222,7 +1222,7 @@ class LocationV2Controller extends GetxController
           zIndex: 2.0,
           onTap: (String markerId) {
             // 🎯 大于100米时：移动相机到我的位置并缩放到18
-            logDebug('📍 点击我的头像，移动相机到我的位置并缩放到18');
+            // logDebug('📍 点击我的头像，移动相机到我的位置并缩放到18');
             _animateMapToLocation(myPos, zoom: 18.0);
           },
         );
@@ -1236,7 +1236,7 @@ class LocationV2Controller extends GetxController
     // 创建伴侣的marker
     if (partnerPos != null) {
       try {
-        logDebug('📍 创建伴侣marker - partnerPos: $partnerPos, _persistentPartnerIcon: ${_persistentPartnerIcon != null ? "有" : "无"}');
+        // logDebug('📍 创建伴侣marker - partnerPos: $partnerPos, _persistentPartnerIcon: ${_persistentPartnerIcon != null ? "有" : "无"}');
         
         final BitmapDescriptor partnerIcon =
             _persistentPartnerIcon ??
@@ -1266,7 +1266,7 @@ class LocationV2Controller extends GetxController
           zIndex: 2.0,
           onTap: (String markerId) {
             // 🎯 大于100米时：移动相机到伴侣的位置并缩放到18
-            logDebug('📍 点击伴侣头像，移动相机到伴侣的位置并缩放到18');
+            // logDebug('📍 点击伴侣头像，移动相机到伴侣的位置并缩放到18');
             _animateMapToLocation(partnerPos, zoom: 18.0);
           },
         );
@@ -1295,7 +1295,7 @@ class LocationV2Controller extends GetxController
     // 🎯 小于100米时不显示连线（直接判断距离，不依赖_isCloseMode状态）
     final distanceInMeters = _parseDistanceToMeters(distance.value);
     if (distanceInMeters != null && distanceInMeters <= 100) {
-      logDebug('📍 距离小于100米($distanceInMeters米)，不显示连线');
+      // logDebug('📍 距离小于100米($distanceInMeters米)，不显示连线');
       update([markersUpdateId]);
       return;
     }
@@ -1342,17 +1342,17 @@ class LocationV2Controller extends GetxController
   CameraPosition get initialCameraPosition {
     // 🚀 修复：未绑定时对准自己的位置（从接口获取）
     if (!isBindPartner.value) {
-      logDebug('📍 未绑定状态，只使用自己的位置初始化地图');
+      // logDebug('📍 未绑定状态，只使用自己的位置初始化地图');
 
       // 🔥 使用接口数据 myLocation
       if (myLocation.value != null) {
-        logDebug('📍 使用接口位置数据 myLocation: ${myLocation.value}');
+        // logDebug('📍 使用接口位置数据 myLocation: ${myLocation.value}');
         // 🔥 未绑定时有位置数据，缩放到省级（zoom 8）
         return CameraPosition(target: myLocation.value!, zoom: 10.0);
       }
 
       // 最后使用默认位置（天安门）
-      logDebug('📍 未绑定且无位置数据，使用默认位置（天安门）');
+      // logDebug('📍 未绑定且无位置数据，使用默认位置（天安门）');
       return const CameraPosition(
         target: LatLng(39.9042, 116.4074), // 天安门坐标
         zoom: 3.0, // 大范围视图
@@ -1360,7 +1360,7 @@ class LocationV2Controller extends GetxController
     }
 
     // 🚀 已绑定时的逻辑：使用中间位置和合理的缩放级别
-    logDebug('📍 已绑定状态，计算双人中心位置');
+    // logDebug('📍 已绑定状态，计算双人中心位置');
     if (myLocation.value != null && partnerLocation.value != null) {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
@@ -1370,22 +1370,22 @@ class LocationV2Controller extends GetxController
       final centerLng = (myPos.longitude + partnerPos.longitude) / 2;
       final center = LatLng(centerLat, centerLng);
 
-      logInfo(
-        '📍 双人位置：我(${myPos.latitude}, ${myPos.longitude}) 伴侣(${partnerPos.latitude}, ${partnerPos.longitude}) 中心($center)',
-      );
+      // logInfo(
+      //   '📍 双人位置：我(${myPos.latitude}, ${myPos.longitude}) 伴侣(${partnerPos.latitude}, ${partnerPos.longitude}) 中心($center)',
+      // );
       // 初始使用较低缩放级别，具体缩放由 _animateMapToShowBothUsersSync 中的 newLatLngBounds 精确控制
       return CameraPosition(target: center, zoom: 10.0);
     } else if (myLocation.value != null) {
       // 🔥 已绑定但只有我的位置（如未开通会员），缩放级别17
-      logInfo('📍 只有我的位置: ${myLocation.value}，缩放级别17');
+      // logInfo('📍 只有我的位置: ${myLocation.value}，缩放级别17');
       return CameraPosition(target: myLocation.value!, zoom: 17.0);
     } else if (partnerLocation.value != null) {
       // 🔥 已绑定但只有对方位置，缩放级别17
-      logInfo('📍 只有对方位置: ${partnerLocation.value}，缩放级别17');
+      // logInfo('📍 只有对方位置: ${partnerLocation.value}，缩放级别17');
       return CameraPosition(target: partnerLocation.value!, zoom: 17.0);
     } else {
       // 🚀 修复：已绑定但没有位置数据时，使用默认位置（不再使用 partnerLocation）
-      logInfo('📍 已绑定但无位置数据，使用默认位置（天安门）');
+      // logInfo('📍 已绑定但无位置数据，使用默认位置（天安门）');
       return const CameraPosition(
         target: LatLng(39.9042, 116.4074), // 天安门坐标
         zoom: 3.0, // 大范围视图
@@ -1434,9 +1434,9 @@ class LocationV2Controller extends GetxController
 
   /// SafeAMapWidget销毁时回调，避免在地图已经被释放后继续发送方法通道消息
   void onMapDisposed() {
-    if (mapController != null) {
-      logDebug('🧹 定位页面：地图PlatformView已销毁，清空Controller引用');
-    }
+    // if (mapController != null) {
+    //   // logDebug('🧹 定位/页面：地图PlatformView已销毁，清空Controller引用');
+    // }
     // 标记Channel不可用，后续所有地图操作都会直接跳过，防止Bad state日志刷屏
     _isMapChannelAvailable = false;
     mapController = null;
@@ -1465,13 +1465,13 @@ class LocationV2Controller extends GetxController
   Future<void> _animateMapToShowBothUsersSync() async {
     // 🚀 修复：未绑定时对准自己的位置（从接口获取）
     if (!isBindPartner.value) {
-      logDebug('📍 未绑定状态，地图只聚焦自己的位置');
+      // logDebug('📍 未绑定状态，地图只聚焦自己的位置');
       // 🔥 使用接口数据 myLocation
       LatLng? targetLocation = myLocation.value;
 
       if (targetLocation != null) {
         try {
-          logInfo('📍 未绑定状态，移动地图到自己的位置: $targetLocation');
+          // logInfo('📍 未绑定状态，移动地图到自己的位置: $targetLocation');
           // 🔥 未绑定时有位置数据，缩放到省级（zoom 8）
           await mapController!.moveCamera(
             CameraUpdate.newLatLngZoom(targetLocation, 10.0),
@@ -1482,13 +1482,13 @@ class LocationV2Controller extends GetxController
           logError('Animate map error: $e');
         }
       } else {
-        logInfo('⚠️ 未绑定状态且无位置数据，地图保持默认位置');
+        // logInfo('⚠️ 未绑定状态且无位置数据，地图保持默认位置');
       }
       return; // 🚀 关键：未绑定时直接返回，不执行下面的逻辑
     }
 
     // 🚀 已绑定时的逻辑
-    logDebug('📍 已绑定状态，计算双人地图位置');
+    // logDebug('📍 已绑定状态，计算双人地图位置');
     if (myLocation.value != null && partnerLocation.value != null) {
       final myPos = myLocation.value!;
       final partnerPos = partnerLocation.value!;
@@ -1514,10 +1514,10 @@ class LocationV2Controller extends GetxController
           northeast: LatLng(neLat, neLng),
         );
 
-        logDebug('📍 已绑定，使用原生LatLngBounds移动地图到双人中心位置');
-        logDebug(
-          '📍 bounds: southwest($swLat, $swLng), northeast($neLat, $neLng)',
-        );
+        // logDebug('📍 已绑定，使用原生LatLngBounds移动地图到双人中心位置');
+        // logDebug(
+        //   '📍 bounds: southwest($swLat, $swLng), northeast($neLat, $neLng)',
+        // );
 
         await mapController!.moveCamera(
           CameraUpdate.newLatLngBounds(bounds, 80), // 🎯 减小边距到30，增大缩放等级
@@ -1529,15 +1529,15 @@ class LocationV2Controller extends GetxController
       }
     } else if (myLocation.value != null) {
       // 🔥 已绑定但只有我的位置（如未开通会员看不到对方位置），缩放级别17
-      logInfo('📍 已绑定但只有我的位置，聚焦我的位置，缩放级别17');
+      // logInfo('📍 已绑定但只有我的位置，聚焦我的位置，缩放级别17');
       _animateMapToLocation(myLocation.value!, zoom: 17.0);
     } else if (partnerLocation.value != null) {
       // 🔥 已绑定但只有对方位置，缩放级别17
-      logInfo('📍 已绑定但只有对方位置，聚焦对方位置，缩放级别17');
+      // logInfo('📍 已绑定但只有对方位置，聚焦对方位置，缩放级别17');
       _animateMapToLocation(partnerLocation.value!, zoom: 17.0);
     } else {
       // 🚀 修复：已绑定但无位置数据时，不使用 partnerLocation
-      logInfo('📍 已绑定但无位置数据，地图保持默认位置');
+      // logInfo('📍 已绑定但无位置数据，地图保持默认位置');
     }
   }
 
@@ -1549,14 +1549,14 @@ class LocationV2Controller extends GetxController
 
     // 如果点击的是当前用户，不做任何处理
     if (isOneself.value == targetUserType) {
-      logDebug('🎯 定位页面：点击的是当前用户头像，不切换');
+      // logDebug('🎯 定位页面：点击的是当前用户头像，不切换');
       return;
     }
 
   
 
     // 📱 每次切换头像时，将下半屏恢复到底部吸顶位置
-    logDebug('💡 定位页面：切换头像，恢复下半屏到底部吸顶位置');
+    // logDebug('💡 定位页面：切换头像，恢复下半屏到底部吸顶位置');
     collapseToBottomPosition();
 
     isSwitchingView.value = true;
@@ -1581,7 +1581,7 @@ class LocationV2Controller extends GetxController
       } else {
         isOneself.value = 0;
         // 🔥 不再清空位置数据，保留已有的位置信息用于地图移动
-        logDebug('📍 切换到另一半视图');
+        // logDebug('📍 切换到另一半视图');
       }
 
       await loadLocationData().timeout(
@@ -1651,14 +1651,14 @@ class LocationV2Controller extends GetxController
   /// 🔥 修复：近距离模式下也需要切换底部的设备信息、位置信息等
   void moveToMyLocationInCloseMode() {
     if (mapController == null) {
-      logDebug('🎯 moveToMyLocationInCloseMode: mapController 为空');
+      // logDebug('🎯 moveToMyLocationInCloseMode: mapController 为空');
       return;
     }
 
     // 🎯 只使用接口返回的位置
     final myPos = myLocation.value;
     if (myPos == null) {
-      logDebug('🎯 moveToMyLocationInCloseMode: 我的位置为空（接口未返回位置数据）');
+      // logDebug('🎯 moveToMyLocationInCloseMode: 我的位置为空（接口未返回位置数据）');
       return;
     }
 
@@ -1685,18 +1685,18 @@ class LocationV2Controller extends GetxController
       if (currentUser != null) {
         _updateCurrentUserDataWithoutLocation(currentUser);
         _updateLocationRecords(currentUser);
-        logDebug('🎯 近距离模式：已更新底部信息为${newIsOneself == 1 ? "我" : "Ta"}的数据');
+        // logDebug('🎯 近距离模式：已更新底部信息为${newIsOneself == 1 ? "我" : "Ta"}的数据');
       }
     }
 
     // 隐藏infowindow和圆圈
     clearMapHighlights();
-    logDebug('🎯 近距离模式：底部信息已切换');
+    // logDebug('🎯 近距离模式：底部信息已切换');
   }
 
   /// 🎯 在指定位置显示高亮圆圈和InfoWindow（从聊天页面跳转时使用）
   void _showHighlightAtLocation(LatLng location, String? locationName, String? avatarUrl) {
-    logDebug('🎯 显示高亮: 位置=(${location.latitude}, ${location.longitude}), 名称=$locationName');
+    // logDebug('🎯 显示高亮: 位置=(${location.latitude}, ${location.longitude}), 名称=$locationName');
     
     // 1. 绘制高亮圆圈
     _drawHighlightCircle(location);
@@ -1704,12 +1704,12 @@ class LocationV2Controller extends GetxController
     // 2. 创建并显示InfoWindow Marker
     _createInfoWindowMarker(location, locationName ?? '位置信息', avatarUrl);
     
-    logDebug('🎯 高亮显示完成');
+    // logDebug('🎯 高亮显示完成');
   }
 
   /// 🎯 绘制高亮圆圈
   void _drawHighlightCircle(LatLng center) {
-    logDebug('🎯 绘制高亮圆圈: ${center.latitude}, ${center.longitude}');
+    // logDebug('🎯 绘制高亮圆圈: ${center.latitude}, ${center.longitude}');
     
     // 先清除已有的圆圈
     highlightCircles.clear();
@@ -1726,13 +1726,13 @@ class LocationV2Controller extends GetxController
     highlightCircles.add(circle);
     update([markersUpdateId]);
     
-    logDebug('🎯 高亮圆圈已添加');
+    // logDebug('🎯 高亮圆圈已添加');
   }
 
   /// 🎯 创建InfoWindow Marker
   Future<void> _createInfoWindowMarker(LatLng position, String title, String? avatarUrl) async {
     try {
-      logDebug('🎯 创建InfoWindow Marker: $title');
+      // logDebug('🎯 创建InfoWindow Marker: $title');
       
       // 清除之前的临时Marker
       _tempInfoWindowMarker = null;
@@ -1752,12 +1752,12 @@ class LocationV2Controller extends GetxController
         infoWindow: InfoWindow(title: title, snippet: ''),
         customInfoWindowBuilder: (context) => _buildLocationInfoWindow(title),
         onTap: (_) {
-          logDebug('🎯 点击InfoWindow Marker');
+          // logDebug('🎯 点击InfoWindow Marker');
         },
       );
       
       update([markersUpdateId]);
-      logDebug('🎯 InfoWindow Marker已创建');
+      // logDebug('🎯 InfoWindow Marker已创建');
     } catch (e) {
       logError('🎯 创建InfoWindow Marker失败: $e');
     }
@@ -1799,7 +1799,7 @@ class LocationV2Controller extends GetxController
 
   /// 🎯 清除地图高亮（InfoWindow和圆圈）
   void clearMapHighlights() {
-    logDebug('🎯 清除地图高亮');
+    // logDebug('🎯 清除地图高亮');
     highlightCircles.clear();
     _tempInfoWindowMarker = null;
     update([markersUpdateId]);
@@ -1812,10 +1812,10 @@ class LocationV2Controller extends GetxController
     LatLng? targetLocation;
     if (isMyself) {
       targetLocation = myLocation.value;
-      logDebug('📍 移动到我的位置: $targetLocation');
+      // logDebug('📍 移动到我的位置: $targetLocation');
     } else {
       targetLocation = partnerLocation.value;
-      logDebug('📍 移动到对方位置: $targetLocation');
+      // logDebug('📍 移动到对方位置: $targetLocation');
     }
 
     // 🚀 修复：如果目标位置为空，尝试使用另一个位置
@@ -1823,12 +1823,12 @@ class LocationV2Controller extends GetxController
       // 尝试使用另一个位置
       targetLocation = isMyself ? partnerLocation.value : myLocation.value;
       if (targetLocation != null) {
-        logDebug('📍 目标位置为空，使用另一方位置: $targetLocation');
+        // logDebug('📍 目标位置为空，使用另一方位置: $targetLocation');
       }
     }
 
     if (targetLocation == null) {
-      logDebug('📍 所有位置都为空，移动到默认位置（天安门）');
+      // logDebug('📍 所有位置都为空，移动到默认位置（天安门）');
       try {
         mapController!.moveCamera(
           CameraUpdate.newLatLngZoom(
@@ -1845,7 +1845,7 @@ class LocationV2Controller extends GetxController
 
     try {
       // 🔥 单独显示时缩放级别17
-      logDebug('📍 移动地图到位置: $targetLocation，缩放级别17');
+      // logDebug('📍 移动地图到位置: $targetLocation，缩放级别17');
       mapController!.moveCamera(
         CameraUpdate.newLatLngZoom(targetLocation, 17.0),
         animated: false,
@@ -1897,7 +1897,7 @@ class LocationV2Controller extends GetxController
 
         // 🚀 优化：无论绑定与否，自己的位置都优先使用实时定位数据
         if (!isBindPartner.value) {
-          logDebug('⚠️ [未绑定] 更新头像和位置数据');
+          // logDebug('⚠️ [未绑定] 更新头像和位置数据');
 
           // 更新头像和位置数据
           if (locationDataResult.userLocationMobileDevice != null) {
@@ -1912,13 +1912,13 @@ class LocationV2Controller extends GetxController
           isOneself.value = 1;
         } else {
           // 已绑定时，更新头像和对方数据
-          logDebug('✅ [已绑定] 更新头像和对方位置数据');
+          // logDebug('✅ [已绑定] 更新头像和对方位置数据');
 
           if (locationDataResult.userLocationMobileDevice != null) {
             _updateMyAvatarData(locationDataResult.userLocationMobileDevice!);
 
             // 🎯 始终使用接口数据更新位置（不再使用实时定位）
-            logDebug('📍 [已绑定] 使用接口数据更新我的位置');
+            // logDebug('📍 [已绑定] 使用接口数据更新我的位置');
             _updateMyLocationData(locationDataResult.userLocationMobileDevice!);
           }
 
@@ -2138,16 +2138,16 @@ class LocationV2Controller extends GetxController
     // 判断绑定状态
     if (!isBindPartner.value) {
       // 未绑定 -> 弹出绑定弹窗
-      logDebug('📍 位置提醒：未绑定，弹出绑定弹窗');
+      // logDebug('📍 位置提醒：未绑定，弹出绑定弹窗');
        
       performBindAction(sourceEvent: LocationEvents.locationKnock);
     } else if (!isVip.value) {
       // 已绑定但非会员 -> 跳转到开通会员页面
-      logDebug('📍 位置提醒：已绑定但非会员，跳转到开通会员页面');
+      // logDebug('📍 位置提醒：已绑定但非会员，跳转到开通会员页面');
       onOpenMembershipButtonTap();
     } else {
       // 已绑定且是会员 -> 跳转到位置提醒页面
-      logDebug('📍 位置提醒：已绑定且是会员，跳转到位置提醒页面');
+      // logDebug('📍 位置提醒：已绑定且是会员，跳转到位置提醒页面');
       // 从 locationData 中读取另一半定位开关状态（isOpenLocation: 1=已开启）
       bool partnerLocationOpen = true;
       try {
@@ -2174,7 +2174,7 @@ class LocationV2Controller extends GetxController
                 cityName: cityName,
                 adcode: '', // adcode暂时为空，后续可以通过逆地理编码获取
               );
-              logDebug('📍 提取到另一半的城市: $cityName');
+              // logDebug('📍 提取到另一半的城市: $cityName');
             }
           }
         }
@@ -2426,7 +2426,7 @@ class LocationV2Controller extends GetxController
           if (globalCached != null && _cachedMyAnchor != null) {
             // 只有当anchor已经被计算过时才使用全局缓存
             _persistentMyIcon = globalCached;
-            logDebug('🎯 使用全局缓存的我的Marker');
+            // logDebug('🎯 使用全局缓存的我的Marker');
           } else {
             // 创建新的Marker（不包含底座，底座将作为独立marker）
             final markerData = await _createAvatarMarker(
@@ -2481,7 +2481,7 @@ class LocationV2Controller extends GetxController
           if (globalCached != null && _cachedPartnerAnchor != null) {
             // 只有当anchor已经被计算过时才使用全局缓存
             _persistentPartnerIcon = globalCached;
-            logDebug('🎯 使用全局缓存的Ta的Marker');
+            // logDebug('🎯 使用全局缓存的Ta的Marker');
           } else {
             // 创建新的Marker（不包含底座，底座是独立marker）
             final markerData = await _createAvatarMarker(
@@ -2537,8 +2537,8 @@ class LocationV2Controller extends GetxController
         _cachedIsBindPartner = isBindPartner.value;
       }
 
-      final markerDuration = DateTime.now().difference(markerStartTime);
-      logDebug('📊 Marker创建/缓存耗时: ${markerDuration.inMilliseconds}ms');
+      // final markerDuration = DateTime.now().difference(markerStartTime);
+      // logDebug('📊 Marker创建/缓存耗时: ${markerDuration.inMilliseconds}ms');
     } catch (e) {
       logError('Update icon cache error: $e');
     }
@@ -2573,7 +2573,7 @@ class LocationV2Controller extends GetxController
           duration: 400, // iOS原版：0.4秒
         );
         if (mySuccess) {
-          logDebug('✅ 我的Marker呼吸动画已启动(iOS原版效果)');
+          // logDebug('✅ 我的Marker呼吸动画已启动(iOS原版效果)');
         }
       }
 
@@ -2586,7 +2586,7 @@ class LocationV2Controller extends GetxController
           duration: 400, // iOS原版：0.4秒
         );
         if (partnerSuccess) {
-          logDebug('✅ Ta的Marker呼吸动画已启动(iOS原版效果)');
+          // logDebug('✅ Ta的Marker呼吸动画已启动(iOS原版效果)');
         }
       }
     } catch (e) {
@@ -2603,7 +2603,7 @@ class LocationV2Controller extends GetxController
       await mapController!.stopMarkerBreathAnimation(
         markerId: 'partner_marker',
       );
-      logDebug('✅ Marker呼吸动画已停止');
+      // logDebug('✅ Marker呼吸动画已停止');
     } catch (e) {
       logError('❌ 停止原生动画失败: $e');
     }
@@ -2617,7 +2617,7 @@ class LocationV2Controller extends GetxController
     try {
       _locationServiceWorker?.dispose();
       _locationServiceWorker = null;
-      logDebug('✅ 定位服务监听器已清理');
+      // logDebug('✅ 定位服务监听器已清理');
     } catch (e) {
       logError('Dispose location service worker error: $e');
     }
@@ -2626,7 +2626,7 @@ class LocationV2Controller extends GetxController
     try {
       _headingWorker?.dispose();
       _headingWorker = null;
-      logDebug('✅ 方向监听器已清理');
+      // logDebug('✅ 方向监听器已清理');
     } catch (e) {
       logError('Dispose heading worker error: $e');
     }
@@ -2635,7 +2635,7 @@ class LocationV2Controller extends GetxController
     try {
       _pedestalUpdateTimer?.cancel();
       _pedestalUpdateTimer = null;
-      logDebug('✅ 底座更新定时器已清理');
+      // logDebug('✅ 底座更新定时器已清理');
     } catch (e) {
       logError('Dispose pedestal update timer error: $e');
     }
@@ -2644,7 +2644,7 @@ class LocationV2Controller extends GetxController
     try {
       _markerRebuildTimer?.cancel();
       _markerRebuildTimer = null;
-      logDebug('✅ Marker重建定时器已清理');
+      // logDebug('✅ Marker重建定时器已清理');
     } catch (e) {
       logError('Dispose marker rebuild timer error: $e');
     }
@@ -2653,7 +2653,7 @@ class LocationV2Controller extends GetxController
     try {
       _locationRefreshTimer?.cancel();
       _locationRefreshTimer = null;
-      logDebug('✅ 位置刷新定时器已清理');
+      // logDebug('✅ 位置刷新定时器已清理');
     } catch (e) {
       logError('Dispose location refresh timer error: $e');
     }

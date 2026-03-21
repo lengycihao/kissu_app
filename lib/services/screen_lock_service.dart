@@ -39,7 +39,7 @@ class ScreenLockService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    DebugUtil.info('ScreenLockService 初始化');
+    DebugUtil.check('ScreenLockService 初始化');
   }
   
   @override
@@ -64,7 +64,7 @@ class ScreenLockService extends GetxService {
       _eventSubscription?.cancel();
       _eventSubscription = null;
       
-      DebugUtil.info('开始启动锁屏监听服务...');
+      DebugUtil.check('开始启动锁屏监听服务...');
       
       _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
         _handleScreenEvent,
@@ -92,7 +92,7 @@ class ScreenLockService extends GetxService {
       _eventSubscription?.cancel();
       _eventSubscription = null;
       _isInitialized = false;
-      DebugUtil.info('锁屏监听服务已停止');
+      DebugUtil.check('锁屏监听服务已停止');
     } catch (e) {
       DebugUtil.error('停止锁屏监听服务失败: $e');
     }
@@ -101,25 +101,25 @@ class ScreenLockService extends GetxService {
   /// 处理锁屏/解锁事件
   void _handleScreenEvent(dynamic event) {
   try {
-    DebugUtil.info('🔍 原始锁屏事件数据: $event');
-    DebugUtil.info('🔍 数据类型: ${event.runtimeType}');
+    DebugUtil.success('🔍 原始锁屏事件数据: $event');
+    DebugUtil.success('🔍 数据类型: ${event.runtimeType}');
     
     // ✅ 统一转换 Map 类型，确保类型安全
     if (event is Map) {
       final eventMap = Map<String, dynamic>.from(event);
-      DebugUtil.info('✅ 数据类型验证通过: Map<String, dynamic>');
+      DebugUtil.check('✅ 数据类型验证通过: Map<String, dynamic>');
       
       // 打印所有键值对
       eventMap.forEach((key, value) {
-        DebugUtil.info('🔍 键值对: $key => $value (${value.runtimeType})');
+        DebugUtil.check('🔍 键值对: $key => $value (${value.runtimeType})');
       });
       
       // 尝试提取字段（原生传入的事件类型与时间戳，时间戳为毫秒）
       dynamic rawEventType = eventMap['event_type'];
       dynamic rawTimestamp = eventMap['timestamp'];
       
-      DebugUtil.info('🔍 原始event_type: $rawEventType (${rawEventType.runtimeType})');
-      DebugUtil.info('🔍 原始timestamp: $rawTimestamp (${rawTimestamp.runtimeType})');
+      DebugUtil.check('🔍 原始event_type: $rawEventType (${rawEventType.runtimeType})');
+      DebugUtil.check('🔍 原始timestamp: $rawTimestamp (${rawTimestamp.runtimeType})');
       
       // 安全类型转换
       String? eventType;
@@ -127,7 +127,7 @@ class ScreenLockService extends GetxService {
       
       try {
         eventType = rawEventType as String?;
-        DebugUtil.info('✅ event_type转换成功: $eventType');
+        DebugUtil.check('✅ event_type转换成功: $eventType');
       } catch (e) {
         DebugUtil.error('❌ event_type转换失败: $e');
       }
@@ -135,7 +135,7 @@ class ScreenLockService extends GetxService {
       try {
         // 注意 timestamp 可能是 double 或 num，这里统一转为毫秒整数
         timestampMillis = (rawTimestamp is num) ? rawTimestamp.toInt() : null;
-        DebugUtil.info('✅ timestamp转换成功(毫秒): $timestampMillis');
+        DebugUtil.check('✅ timestamp转换成功(毫秒): $timestampMillis');
       } catch (e) {
         DebugUtil.error('❌ timestamp转换失败: $e');
       }
@@ -149,7 +149,7 @@ class ScreenLockService extends GetxService {
       // 将毫秒时间戳转换为秒级时间戳，便于后端对齐
       final timestampSeconds = timestampMillis ~/ 1000;
       
-      DebugUtil.success('✅ 收到有效锁屏事件: $eventType, 时间戳(秒): $timestampSeconds');
+      DebugUtil.check('✅ 收到有效锁屏事件: $eventType, 时间戳(秒): $timestampSeconds');
 
       // 轻量去重：同一类型事件在1秒内重复到达则丢弃，兜底部分ROM重复广播
       if (_lastEventType != null &&
@@ -170,11 +170,11 @@ class ScreenLockService extends GetxService {
       // 根据事件类型触发相应的上报
       switch (eventType) {
         case 'unlock':
-          DebugUtil.info('🔓 处理解锁事件');
+          DebugUtil.check('🔓 处理解锁事件');
         _handleUnlockEvent(timestampSeconds);
           break;
         case 'lock':
-          DebugUtil.info('🔒 处理锁屏事件');
+          DebugUtil.check('🔒 处理锁屏事件');
         _handleLockEvent(timestampSeconds);
           break;
         default:
@@ -193,7 +193,7 @@ class ScreenLockService extends GetxService {
   /// 处理解锁事件
   void _handleUnlockEvent([int? timestampSeconds]) {
     try {
-      DebugUtil.info('处理手机解锁事件');
+      DebugUtil.check('处理手机解锁事件');
       
       // 检查敏感数据服务是否可用
       if (Get.isRegistered<SensitiveDataService>()) {
@@ -210,7 +210,7 @@ class ScreenLockService extends GetxService {
   /// 处理锁屏事件
   void _handleLockEvent([int? timestampSeconds]) {
     try {
-      DebugUtil.info('处理手机锁屏事件');
+      DebugUtil.check('处理手机锁屏事件');
       
       // 检查敏感数据服务是否可用
       if (Get.isRegistered<SensitiveDataService>()) {
@@ -231,7 +231,7 @@ class ScreenLockService extends GetxService {
     // 尝试重新启动监听（延迟重试）
     Future.delayed(const Duration(seconds: 5), () {
       if (!_isInitialized) {
-        DebugUtil.info('尝试重新启动锁屏监听服务...');
+        DebugUtil.check('尝试重新启动锁屏监听服务...');
         startListening();
       }
     });
@@ -247,7 +247,7 @@ class ScreenLockService extends GetxService {
     // 🔥 修复：尝试自动重新启动监听（延迟重试）
     Future.delayed(const Duration(seconds: 2), () {
       if (!_isInitialized) {
-        DebugUtil.info('事件流结束后尝试重新启动锁屏监听服务...');
+        DebugUtil.check('事件流结束后尝试重新启动锁屏监听服务...');
         startListening();
       }
     });
@@ -264,19 +264,19 @@ class ScreenLockService extends GetxService {
   
   /// 手动触发解锁事件（用于测试）
   void triggerUnlockEvent() {
-    DebugUtil.info('手动触发解锁事件（测试用）');
+    DebugUtil.check('手动触发解锁事件（测试用）');
     _handleUnlockEvent();
   }
   
   /// 手动触发锁屏事件（用于测试）
   void triggerLockEvent() {
-    DebugUtil.info('手动触发锁屏事件（测试用）');
+    DebugUtil.check('手动触发锁屏事件（测试用）');
     _handleLockEvent();
   }
   
   /// 处理测试事件（用于调试）
   void handleTestEvent(dynamic event) {
-    DebugUtil.info('🧪 处理测试事件: $event');
+    DebugUtil.check('🧪 处理测试事件: $event');
     _handleScreenEvent(event);
   }
 }

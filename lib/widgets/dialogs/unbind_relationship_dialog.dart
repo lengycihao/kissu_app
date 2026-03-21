@@ -142,7 +142,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                           text: '“',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFFF408D),
+                            color: Color(0xFF666666),
                           ),
                         ),
                         TextSpan(
@@ -156,7 +156,7 @@ class _UnbindRelationshipDialogState extends State<UnbindRelationshipDialog> {
                           text: '”',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFFF408D),
+                            color: Color(0xFF666666),
                           ),
                         ),
                       ],

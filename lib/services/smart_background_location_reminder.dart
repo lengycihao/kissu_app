@@ -144,26 +144,26 @@ class SmartBackgroundLocationReminder extends GetxService {
      
       // 1. 检查基础条件
       if (!_shouldShowReminder()) {
-        logInfo('📱 不满足提醒条件，跳过');
+        logDebug('📱 不满足提醒条件，跳过');
         return;
       }
       
       // 2. 检查后台时间是否足够长
       if (!_hasBeenInBackgroundLongEnough()) {
-        logInfo('📱 后台时间不足，跳过提醒');
+        logDebug('📱 后台时间不足，跳过提醒');
         return;
       }
       
       // 3. 检查定位服务状态
       if (!_isLocationServiceActive()) {
-        logInfo('📱 定位服务未激活，跳过提醒');
+        logDebug('📱 定位服务未激活，跳过提醒');
         return;
       }
       
       // 4. 检查后台定位权限状态
       final backgroundPermissionStatus = await _checkBackgroundLocationPermission();
       if (backgroundPermissionStatus == BackgroundLocationPermissionStatus.granted) {
-        logInfo('📱 后台定位权限已授予，跳过提醒');
+        logDebug('📱 后台定位权限已授予，跳过提醒');
         return;
       }
       
@@ -192,7 +192,7 @@ class SmartBackgroundLocationReminder extends GetxService {
     if (_lastReminderTime.value != null) {
       final timeSinceLastReminder = DateTime.now().difference(_lastReminderTime.value!);
       if (timeSinceLastReminder < _reminderCooldown) {
-        logInfo('📱 提醒冷却中，剩余时间: ${_reminderCooldown - timeSinceLastReminder}');
+        logDebug('📱 提醒冷却中，剩余时间: ${_reminderCooldown - timeSinceLastReminder}');
         return false;
       }
     }

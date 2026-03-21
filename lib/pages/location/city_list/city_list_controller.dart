@@ -100,9 +100,9 @@ class CityListController extends GetxController {
         // 默认选中第一个字母
         selectedLetter.value = letterIndex.isNotEmpty ? letterIndex.first : '';
         
-        logDebug('✅ 城市列表加载成功：${allCities.length}个分组，${hotCities.length}个热门城市');
+        // logDebug('✅ 城市列表加载成功：${allCities.length}个分组，${hotCities.length}个热门城市');
       } else {
-        logDebug('❌ 加载城市列表失败: ${result.msg}');
+        logWarning('❌ 加载城市列表失败: ${result.msg}');
         // 使用本地默认数据
         _loadDefaultCities();
       }
@@ -227,7 +227,7 @@ class CityListController extends GetxController {
       // 找到目标字母在列表中的索引
       final targetIndex = allCities.indexWhere((group) => group.firstLetter == letter);
       if (targetIndex == -1) {
-        logDebug('⚠️ 未找到字母 $letter 的分组');
+        // logDebug('⚠️ 未找到字母 $letter 的分组');
         return;
       }
       
@@ -242,7 +242,7 @@ class CityListController extends GetxController {
             alignment: 0.0,
             curve: Curves.easeInOut,
           );
-          logDebug('📍 ensureVisible used for letter: $letter');
+          // logDebug('📍 ensureVisible used for letter: $letter');
           return;
         }
       } catch (e) {
@@ -265,7 +265,7 @@ class CityListController extends GetxController {
         targetPosition.clamp(0.0, scrollController.position.maxScrollExtent),
       );
       
-      logDebug('📍 滚动到字母: $letter (索引: $targetIndex, 位置: $targetPosition)');
+      // logDebug('📍 滚动到字母: $letter (索引: $targetIndex, 位置: $targetPosition)');
     } catch (e) {
       logError('❌ 滚动到字母失败: $e');
     }

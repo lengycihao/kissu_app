@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../utils/map_marker_util.dart';
 
 /// 位置信息数据模型
@@ -108,7 +109,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         });
       }
     } catch (e) {
-      debugPrint('创建标记图标失败: $e');
+      logError('创建标记图标失败: $e');
     }
   }
 
@@ -225,7 +226,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                         ),
                         onSubmitted: (value) {
                           // TODO: 实现搜索功能
-                          debugPrint('搜索: $value');
+                          // debugPrint('搜索: $value');
                         },
                       ),
                     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'analytics_manager.dart';
 import 'analytics_params.dart';
 
@@ -58,7 +59,7 @@ mixin AnalyticsPageMixin on GetxController {
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _hasTrackedPageExit = false;
     _exitType = ExitTypeValue.back; // 重置离开方式
-    debugPrint('📊 页面进入: $analyticsEventId');
+    logger.debug('📊 页面进入: $analyticsEventId');
   }
 
   /// 记录页面离开
@@ -80,9 +81,9 @@ mixin AnalyticsPageMixin on GetxController {
         exitType: _exitType,
         params: analyticsExtraParams,
       );
-      debugPrint('📊 页面离开: $analyticsEventId, 停留: ${duration}秒, 离开方式: $_exitType');
+      logger.debug('📊 页面离开: $analyticsEventId, 停留: ${duration}秒, 离开方式: $_exitType');
     } catch (e) {
-      debugPrint('❌ 记录页面离开失败: $e');
+      logger.error('❌ 记录页面离开失败: $e');
     }
   }
 
@@ -194,7 +195,7 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _hasTrackedPageExit = false;
     _exitType = ExitTypeValue.back; // 重置离开方式
-    debugPrint('📊 页面进入: $analyticsEventId${_isResumedFromBackground ? " (从后台恢复)" : ""}');
+    logger.debug('📊 页面进入: $analyticsEventId${_isResumedFromBackground ? " (从后台恢复)" : ""}');
     _isResumedFromBackground = false;
   }
 
@@ -217,9 +218,9 @@ mixin AnalyticsPageStateMixin<T extends StatefulWidget> on State<T>, WidgetsBind
         exitType: _exitType,
         params: analyticsExtraParams,
       );
-      debugPrint('📊 页面离开: $analyticsEventId, 停留: ${duration}秒, 离开方式: $_exitType');
+      logger.debug('📊 页面离开: $analyticsEventId, 停留: ${duration}秒, 离开方式: $_exitType');
     } catch (e) {
-      debugPrint('❌ 记录页面离开失败: $e');
+      logger.error('❌ 记录页面离开失败: $e');
     }
   }
 

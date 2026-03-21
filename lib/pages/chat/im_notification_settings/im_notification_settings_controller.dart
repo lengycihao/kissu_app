@@ -124,7 +124,7 @@ class ImNotificationSettingsController extends GetxController {
             .map((json) => NotificationSettingsResponse.fromJson(json as Map<String, dynamic>))
             .toList();
         _applyServerSettings(responses);
-        logDebug('✅ 从缓存加载IM通知设置成功');
+        // logDebug('✅ 从缓存加载IM通知设置成功');
       }
     } catch (e) {
       logError('⚠️ 从缓存加载IM通知设置失败: $e');
@@ -156,7 +156,7 @@ class ImNotificationSettingsController extends GetxController {
       final jsonList = responses.map((r) => r.toJson()).toList();
       await SpUtil.putJsonMap(_cacheKey, jsonList);
       await SpUtil.putString(_cacheTimeKey, DateTime.now().toIso8601String());
-      logDebug('✅ IM通知设置已保存到缓存');
+      // logDebug('✅ IM通知设置已保存到缓存');
     } catch (e) {
       logError('⚠️ 保存IM通知设置到缓存失败: $e');
     }

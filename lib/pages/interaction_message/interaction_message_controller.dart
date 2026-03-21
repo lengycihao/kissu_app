@@ -36,7 +36,7 @@ class InteractionMessageController extends GetxController {
         // 解析数据 - 使用listJson字段
         final dataList = result.getListJson();
         messageList.value = dataList.map((item) => InteractionMessageGroup.fromJson(item)).toList();
-        logDebug('✅ 互动消息加载成功，共 ${messageList.length} 组');
+        // logDebug('✅ 互动消息加载成功，共 ${messageList.length} 组');
       } else {
         errorMessage.value = result.msg ?? '加载失败';
         logError('❌ 互动消息加载失败: ${result.msg}');
@@ -61,7 +61,7 @@ class InteractionMessageController extends GetxController {
 
   /// 查看消息详情
   void onViewMessage(InteractionMessageItem message) {
-    logDebug('查看消息: ${message.title}');
+    // logDebug('查看消息: ${message.title}');
     if (message.eventType == 2) {
       Get.toNamed(KissuRoutePath.location);
     }

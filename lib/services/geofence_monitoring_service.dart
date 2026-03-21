@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/location/location_reminder/location_reminder_controller.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -56,22 +57,22 @@ class GeofenceMonitoringService extends GetxService {
       );
       
       _isInitialized = true;
-      debugPrint('✅ 电子围栏通知初始化成功');
+      logger.debug('✅ 电子围栏通知初始化成功');
     } catch (e) {
-      debugPrint('❌ 电子围栏通知初始化失败: $e');
+      logger.error('❌ 电子围栏通知初始化失败: $e');
     }
   }
   
   /// 通知点击回调
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('📱 用户点击了围栏通知: ${response.payload}');
+    logger.debug('📱 用户点击了围栏通知: ${response.payload}');
     // TODO: 可以跳转到位置提醒页面
   }
   
   /// 开始监测
   Future<void> startMonitoring() async {
     if (_locationSubscription != null) {
-      debugPrint('⚠️ 围栏监测已在运行中');
+      logger.debug('⚠️ 围栏监测已在运行中');
       return;
     }
     
@@ -80,13 +81,13 @@ class GeofenceMonitoringService extends GetxService {
       _locationSubscription = SimpleLocationService.instance.locationStream.listen(
         _onLocationUpdate,
         onError: (error) {
-          debugPrint('❌ 位置更新错误: $error');
+          logger.error('❌ 位置更新错误: $error');
         },
       );
       
-      debugPrint('✅ 电子围栏监测已启动');
+      logger.debug('✅ 电子围栏监测已启动');
     } catch (e) {
-      debugPrint('❌ 启动围栏监测失败: $e');
+      logger.error('❌ 启动围栏监测失败: $e');
     }
   }
   
@@ -94,7 +95,7 @@ class GeofenceMonitoringService extends GetxService {
   void stopMonitoring() {
     _locationSubscription?.cancel();
     _locationSubscription = null;
-    debugPrint('⏹️ 电子围栏监测已停止');
+    logger.debug('⏹️ 电子围栏监测已停止');
   }
   
   /// 位置更新回调
@@ -105,7 +106,7 @@ class GeofenceMonitoringService extends GetxService {
       final longitude = locationData['longitude'];
       
       if (latitude == null || longitude == null) {
-        debugPrint('⚠️ 无效的位置数据');
+        logger.warning('⚠️ 无效的位置数据,latitude: $latitude, longitude: $longitude');
         return;
       }
       
@@ -113,7 +114,7 @@ class GeofenceMonitoringService extends GetxService {
       final userLng = double.tryParse(longitude.toString());
       
       if (userLat == null || userLng == null) {
-        debugPrint('⚠️ 无法解析经纬度');
+        logger.warning('⚠️ 无法解析经纬度,latitude: $latitude, longitude: $longitude');
         return;
       }
       
@@ -130,7 +131,7 @@ class GeofenceMonitoringService extends GetxService {
         _checkGeofence(reminder, userLat, userLng);
       }
     } catch (e) {
-      debugPrint('❌ 处理位置更新失败: $e');
+      logger.error('❌ 处理位置更新失败: $e');
     }
   }
   
@@ -179,7 +180,7 @@ class GeofenceMonitoringService extends GetxService {
           distance,
         );
         
-        debugPrint('🔔 触发围栏提醒: ${reminder.name}, 类型=${reminder.type}, 距离=${distance.toStringAsFixed(1)}米');
+        logger.debug('🔔 触发围栏提醒: ${reminder.name}, 类型=${reminder.type}, 距离=${distance.toStringAsFixed(1)}米');
       }
     }
   }
@@ -221,7 +222,7 @@ class GeofenceMonitoringService extends GetxService {
     double distance,
   ) async {
     if (!_isInitialized) {
-      debugPrint('⚠️ 通知未初始化，跳过');
+      logger.warning('⚠️ 通知未初始化，跳过');
       return;
     }
     
@@ -256,9 +257,9 @@ class GeofenceMonitoringService extends GetxService {
         payload: reminderId,
       );
       
-      debugPrint('✅ 通知已发送: $title - $body');
+      logger.debug('✅ 通知已发送: $title - $body');
     } catch (e) {
-      debugPrint('❌ 发送通知失败: $e');
+      logger.error('❌ 发送通知失败: $e');
     }
   }
   
@@ -270,7 +271,7 @@ class GeofenceMonitoringService extends GetxService {
   /// 重置所有围栏状态
   void resetGeofenceStates() {
     _geofenceStates.clear();
-    debugPrint('🔄 围栏状态已重置');
+    logger.debug('🔄 围栏状态已重置');
   }
   
   /// 检查指定围栏的当前状态

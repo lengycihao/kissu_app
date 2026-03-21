@@ -10,6 +10,7 @@ import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import '../../../widgets/safe_amap_widget.dart';
 import '../../../utils/user_manager.dart';
+import '../../../widgets/dialogs/custom_bottom_dialog.dart';
 import '../track_controller.dart';
 import '../track_page_config.dart';
 
@@ -87,26 +88,27 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
       final isBindPartner = widget.controller.isBindPartner.value;
       final isVip = UserManager.isVip;
       
-      // 🔥 非会员时：禁用地图缩放和滚动手势，点击地图跳转VIP页面
-      // 会员时：根据面板展开程度控制手势
+      // 🔥 未绑定或非会员时：禁用地图缩放和滚动手势
+      // - 未绑定：点击地图弹绑定弹窗
+      // - 已绑定但非会员：点击地图跳转VIP页面
+      // - 会员：根据面板展开程度控制手势
       final bool enableMapGestures;
-      if (!isVip) {
-        // 非会员：禁用地图手势（缩放、滚动等）
+      final bool needInterceptGestures = !isBindPartner || !isVip;
+      
+      if (needInterceptGestures) {
+        // 未绑定或非会员：禁用地图手势
         enableMapGestures = false;
-      } else if (!isBindPartner) {
-        // 会员但未绑定：始终启用地图手势
-        enableMapGestures = true;
       } else {
         // 会员且已绑定：根据面板展开程度控制
         enableMapGestures = sheetPercent <= TrackPageConfig.mapEnableThreshold;
       }
 
-      // 非会员时使用GestureDetector包裹地图，拦截所有手势并跳转VIP页面
-      if (!isVip) {
+      // 未绑定或非会员时使用GestureDetector包裹地图，拦截所有手势
+      if (needInterceptGestures) {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _navigateToVipPage(),
-          onScaleStart: (_) => _navigateToVipPage(),
+          onTap: () => _handleMapInteraction(),
+          onScaleStart: (_) => _handleMapInteraction(),
           child: AbsorbPointer(
             absorbing: true, // 非会员时完全吸收地图手势
             child: SafeAMapWidget(
@@ -162,20 +164,39 @@ class _TrackMapWidgetState extends State<TrackMapWidget> {
     });
   }
 
-  /// 非会员点击地图时跳转VIP页面
-  void _navigateToVipPage() {
-    // 埋点：非会员点击地图
+  /// 处理地图交互（未绑定弹绑定弹窗，已绑定但非会员跳转VIP页面）
+  void _handleMapInteraction() {
+    final isBindPartner = widget.controller.isBindPartner.value;
+    final isVip = UserManager.isVip;
+    
+    // 埋点：点击地图
     AnalyticsHelper.trackTrackMapClick();
     
-    // 埋点：页面离开（进入下一页）
-    widget.controller.onNavigateToNextPage?.call();
+    if (!isBindPartner) {
+      // 未绑定：弹绑定弹窗
+      _showBindingDialog();
+    } else if (!isVip) {
+      // 已绑定但非会员：跳转VIP页面
+      widget.controller.onNavigateToNextPage?.call();
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {
+          'source_page': SourcePageUtilsCaller.track,
+          'source_event': TrackEvents.mapClick,
+        },
+      );
+    }
+  }
+  
+  /// 显示绑定弹窗
+  void _showBindingDialog() {
+    final currentContext = Get.context;
+    if (currentContext == null) return;
     
-    Get.toNamed(
-      KissuRoutePath.vip,
-      arguments: {
-        'source_page': SourcePageUtilsCaller.track,
-        'source_event': TrackEvents.page,
-      },
+    CustomBottomDialog.show(
+      context: currentContext,
+      caller: SourcePageUtilsCaller.track,
+      sourceEvent: TrackEvents.mapClick,
     );
   }
 

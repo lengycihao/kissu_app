@@ -367,7 +367,7 @@ public class MapController
             final Map<String, Object> arguments = new HashMap<String, Object>(2);
             arguments.put("position", ConvertUtil.cameraPositionToMap(cameraPosition));
             methodChannel.invokeMethod("camera#onMove", arguments);
-            LogUtil.i(CLASS_NAME, "onCameraChange===>" + arguments);
+            // LogUtil.i(CLASS_NAME, "onCameraChange===>" + arguments);
         }
     }
 

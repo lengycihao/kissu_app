@@ -101,9 +101,9 @@ class ChatThemeController extends GetxController {
       chatController.updateBubbleStyle(bubbleStyle);
       chatController.updateTheme(theme);
       
-      logDebug('💬 应用聊天主题: $theme');
-      logDebug('💬 主题背景: $backgroundPath');
-      logDebug('💬 主题气泡: $bubbleStyle');
+      // logDebug('💬 应用聊天主题: $theme');
+      // logDebug('💬 主题背景: $backgroundPath');
+      // logDebug('💬 主题气泡: $bubbleStyle');
       
       // 直接返回到聊天页面，跳过设置页面
       Get.until((route) => route.settings.name == KissuRoutePath.chat);

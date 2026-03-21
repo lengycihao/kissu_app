@@ -17,17 +17,17 @@ Future<void> setupServiceLocator() async {
 
   // HomeScrollService 已移至 GetX 管理，不再通过 service locator 注册
 
-  logger.info('Service locator setup completed', tag: 'ServiceLocator');
+  // logger.info('Service locator setup completed', tag: 'ServiceLocator');
 }
 
 /// Clean up all registered services
 Future<void> cleanupServiceLocator() async {
-  logger.info('Cleaning up service locator', tag: 'ServiceLocator');
+  // logger.info('Cleaning up service locator', tag: 'ServiceLocator');
 
   // Reset GetIt instance
   await getIt.reset();
 
-  logger.info('Service locator cleanup completed', tag: 'ServiceLocator');
+  // logger.info('Service locator cleanup completed', tag: 'ServiceLocator');
 }
 
 /// Convenience methods for common service access

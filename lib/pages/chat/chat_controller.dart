@@ -180,12 +180,12 @@ class ChatController extends GetxController {
       if ((half.headPortrait ?? '').isNotEmpty) {
         avatarUrl.value = half.headPortrait!;
       }
-      logDebug('💬 初始化聊天对象: imId=$_partnerImId, name=${chatName.value}');
+      // logDebug('💬 初始化聊天对象: imId=$_partnerImId, name=${chatName.value}');
       
       // 异步从 IM SDK 获取最新资料（包括备注）
       _updatePartnerInfoFromIM();
     } else {
-      logDebug('💬 未找到halfUserInfo，暂无法确定聊天对象IM ID');
+      logWarning('💬 未找到halfUserInfo，暂无法确定聊天对象IM ID');
     }
   }
 
@@ -213,7 +213,7 @@ class ChatController extends GetxController {
         if (face != null && face.isNotEmpty) {
           avatarUrl.value = face;
         }
-        logDebug('💬 从IM SDK更新好友信息成功: name=${chatName.value}');
+        // logDebug('💬 从IM SDK更新好友信息成功: name=${chatName.value}');
       } else {
         // 2. 如果不是好友，尝试获取普通用户信息
         final userInfo = await im.getUsersInfo(partnerId);
@@ -224,7 +224,7 @@ class ChatController extends GetxController {
           if (userInfo.faceUrl != null && userInfo.faceUrl!.isNotEmpty) {
             avatarUrl.value = userInfo.faceUrl!;
           }
-          logDebug('💬 从IM SDK更新用户信息成功: name=${chatName.value}');
+          // logDebug('💬 从IM SDK更新用户信息成功: name=${chatName.value}');
         }
       }
     } catch (e) {
@@ -285,16 +285,16 @@ class ChatController extends GetxController {
     final partnerId = _partnerImId;
 
     if (partnerId == null || partnerId.isEmpty) {
-      logDebug('💬 无法拉取历史消息：未找到另一半IM ID');
+      logWarning('💬 无法拉取历史消息：未找到另一半IM ID');
       return;
     }
     if (!im.isInitialized || !im.isLoggedIn) {
-      logDebug('💬 IM未初始化或未登录，尝试重新登录后拉取历史消息');
+      logWarning('💬 IM未初始化或未登录，尝试重新登录后拉取历史消息');
       // 🔥 修复：尝试确保IM登录状态，而不是直接返回
       await im.ensureIMLoginStatus();
       // 再次检查状态
       if (!im.isInitialized || !im.isLoggedIn) {
-        logDebug('💬 IM重新登录失败，无法拉取历史消息');
+        logWarning('💬 IM重新登录失败，无法拉取历史消息');
         return;
       }
     }
@@ -389,7 +389,7 @@ class ChatController extends GetxController {
       // 如果maxScrollExtent很小（内容不够一屏幕），继续加载更多
       // reverse:true时，maxScrollExtent是可滚动的最大距离
       if (pos.maxScrollExtent < 100) {
-        logDebug('💬 内容不够一屏幕，自动加载更多历史消息');
+        // logDebug('💬 内容不够一屏幕，自动加载更多历史消息');
         _loadMoreHistoryMessages().then((_) {
           // 递归检查，直到内容够一屏幕或没有更多历史
           _checkAndLoadMoreIfNeeded();
@@ -403,12 +403,12 @@ class ChatController extends GetxController {
     final savedBackground = await SpUtil.getString('chat_background_path');
     if (savedBackground.isNotEmpty) {
       backgroundImage.value = savedBackground;
-      logDebug('💬 加载缓存的聊天背景: $savedBackground');
+      // logDebug('💬 加载缓存的聊天背景: $savedBackground');
     } else {
       // 如果没有保存的背景，默认使用第一套主题的背景
       const defaultThemeBackground = 'assets/chat/kissu_chat_theme_bg1.webp';
       backgroundImage.value = defaultThemeBackground;
-      logDebug('💬 使用默认主题背景（第一套主题）: $defaultThemeBackground');
+      // logDebug('💬 使用默认主题背景（第一套主题）: $defaultThemeBackground');
     }
   }
 
@@ -417,13 +417,13 @@ class ChatController extends GetxController {
     final savedStyle = await SpUtil.getInteger('chat_bubble_style', 1);
     if (savedStyle > 0 && savedStyle <= 4) {
       bubbleStyle.value = savedStyle;
-      logDebug('💬 加载缓存的气泡样式: $savedStyle');
+      // logDebug('💬 加载缓存的气泡样式: $savedStyle');
     } else {
       // 如果缓存中没有或值无效，使用默认样式1
       bubbleStyle.value = 1;
       // 同时保存默认值到缓存
       await SpUtil.putInteger('chat_bubble_style', 1);
-      logDebug('💬 使用默认气泡样式: 1');
+      // logDebug('💬 使用默认气泡样式: 1');
     }
   }
 
@@ -432,11 +432,11 @@ class ChatController extends GetxController {
     final savedTheme = await SpUtil.getInteger('chat_theme', 1);
     if (savedTheme > 0 && savedTheme <= 4) {
       chatTheme.value = savedTheme;
-      logDebug('💬 加载缓存的主题: $savedTheme');
+      // logDebug('💬 加载缓存的主题: $savedTheme');
     } else {
       chatTheme.value = 1;
       await SpUtil.putInteger('chat_theme', 1);
-      logDebug('💬 使用默认主题: 1');
+      // logDebug('💬 使用默认主题: 1');
     }
   }
 
@@ -444,7 +444,7 @@ class ChatController extends GetxController {
   Future<void> _loadSensitiveCollapseFromCache() async {
     final enabled = await SpUtil.getBool('sensitive_collapse_enabled', false);
     sensitiveCollapseEnabled.value = enabled;
-    logDebug('💬 加载敏感消息折叠开关状态: $enabled');
+    // logDebug('💬 加载敏感消息折叠开关状态: $enabled');
   }
 
   // 更新气泡样式（由 ChatBubbleController 调用）
@@ -455,7 +455,7 @@ class ChatController extends GetxController {
       SpUtil.putInteger('chat_bubble_style', style);
       // 刷新消息列表以触发气泡重建
       messages.refresh();
-      logDebug('💬 更新并保存气泡样式: $style');
+      // logDebug('💬 更新并保存气泡样式: $style');
     }
   }
 
@@ -463,7 +463,7 @@ class ChatController extends GetxController {
   void updateTheme(int theme) {
     if (theme >= 1 && theme <= 4) {
       chatTheme.value = theme;
-      logDebug('💬 更新主题: $theme');
+      // logDebug('💬 更新主题: $theme');
     }
   }
 
@@ -529,7 +529,7 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    logDebug('💬 ChatController 初始化');
+    // logDebug('💬 ChatController 初始化');
     
     // 埋点：记录页面进入时间（十位时间戳）
     _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -593,7 +593,7 @@ class ChatController extends GetxController {
     try {
       final userVipStatus = UserManager.isVip;
       isVip.value = userVipStatus;
-      logDebug('💬 用户VIP状态: $userVipStatus');
+      // logDebug('💬 用户VIP状态: $userVipStatus');
     } catch (e) {
       logError('获取用户VIP状态失败: $e');
       isVip.value = false;
@@ -608,7 +608,7 @@ class ChatController extends GetxController {
     scrollController.dispose();
     inputFocusNode.dispose();
     _deviceInfoTooltipTimer?.cancel();
-    logDebug('💬 ChatController 销毁');
+    // logDebug('💬 ChatController 销毁');
     super.onClose();
   }
 
@@ -649,7 +649,7 @@ class ChatController extends GetxController {
       // 当输入框获得焦点时（键盘抬起），关闭所有面板
       if (inputFocusNode.hasFocus) {
         showEmojiPanel.value = false;
-        logDebug('💬 键盘抬起，关闭所有面板');
+        // logDebug('💬 键盘抬起，关闭所有面板');
         // 键盘抬起时，延迟滚动到底部
         _scrollToBottomWithDelay();
       }
@@ -695,17 +695,17 @@ class ChatController extends GetxController {
   }) async {
     final partnerId = _partnerImId;
     if (partnerId == null || partnerId.isEmpty) {
-      logDebug('💬 未找到另一半IM ID，暂时只本地显示消息: $text');
+      logWarning('💬 未找到另一半IM ID，暂时只本地显示消息: $text');
       return;
     }
 
     final im = TencentIMService.instance;
     if (!im.isInitialized || !im.isLoggedIn) {
-      logDebug('💬 IM未初始化或未登录，尝试重新登录后发送消息');
+      logWarning('💬 IM未初始化或未登录，尝试重新登录后发送消息');
       // 🔥 修复：尝试确保IM登录状态
       await im.ensureIMLoginStatus();
       if (!im.isInitialized || !im.isLoggedIn) {
-        logDebug('💬 IM重新登录失败，暂时只本地显示消息: $text');
+        logWarning('💬 IM重新登录失败，暂时只本地显示消息: $text');
         return;
       }
     }
@@ -950,7 +950,7 @@ class ChatController extends GetxController {
     if (showEmojiPanel.value) {
       // 展开表情面板时，收起键盘
       inputFocusNode.unfocus();
-      logDebug('💬 表情面板展开，收起键盘');
+      // logDebug('💬 表情面板展开，收起键盘');
       // 延迟滚动到底部，确保面板完全展开后再滚动
       _scrollToBottomWithDelay();
     }
@@ -1021,7 +1021,7 @@ class ChatController extends GetxController {
       final im = TencentIMService.instance;
 
       if (partnerId == null || partnerId.isEmpty) {                                                                                                                                                                                                                                                                                                           
-        logDebug('💬 未找到另一半IM ID，暂时本地显示图片: ${imageFile.path}');
+        logWarning('💬 未找到另一半IM ID，暂时本地显示图片: ${imageFile.path}');
       }
 
       // 先尝试读取图片原始宽高，用于前端按 1:1 / 16:9 / 9:16 展示
@@ -1070,7 +1070,7 @@ class ChatController extends GetxController {
           imagePath: imageFile.path,
           isGroup: false,
         );
-        logDebug('💬 发送图片消息到IM: ${imageFile.path}');
+        // logDebug('💬 发送图片消息到IM: ${imageFile.path}');
 
         // 使用 SDK 返回的 msgID + 服务器时间，更新本地临时图片消息
         if (res != null && res.code == 0 && res.data != null) {
@@ -1453,7 +1453,7 @@ class ChatController extends GetxController {
 
   // 处理更多菜单点击
   void handleMoreMenuAction(MoreMenuType type) {
-    logDebug('💬 更多菜单: ${type.name}');
+    // logDebug('💬 更多菜单: ${type.name}');
 
     switch (type) {
       case MoreMenuType.editRemark:
@@ -1526,7 +1526,7 @@ class ChatController extends GetxController {
       //   duration: const Duration(seconds: 1),
       // );
       
-      logDebug('💬 更换聊天背景: ${imageFile.path}');
+      // logDebug('💬 更换聊天背景: ${imageFile.path}');
       // TODO: 上传背景图到服务器，保存用户偏好设置
     }
   }
@@ -1583,7 +1583,7 @@ class ChatController extends GetxController {
         if (scrollController.hasClients && messages.isNotEmpty) {
           // reverse:true时，滚动到0就是底部
           scrollController.jumpTo(0.0);
-          logDebug('💬 初始化时自动定位到底部');
+          // logDebug('💬 初始化时自动定位到底部');
         }
       });
     });

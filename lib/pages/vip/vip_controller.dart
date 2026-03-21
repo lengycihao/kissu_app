@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -304,7 +305,7 @@ class VipController extends GetxController {
   
   @override
   void onClose() {
-    _logger.i('📦 VipController onClose 被调用');
+    // _logger.i('📦 VipController onClose 被调用');
 
     // 埋点：记录页面离开事件（返回）
     _trackPageExit(_exitType);
@@ -323,25 +324,25 @@ class VipController extends GetxController {
     try {
       pageController.dispose();
     } catch (e) {
-      print('PageController dispose失败: $e');
+      logError('PageController dispose失败: $e');
     }
 
     try {
       commentScrollController.dispose();
     } catch (e) {
-      print('CommentScrollController dispose失败: $e');
+      logError('CommentScrollController dispose失败: $e');
     }
 
     try {
       priceScrollController.dispose();
     } catch (e) {
-      print('PriceScrollController dispose失败: $e');
+      logError('PriceScrollController dispose失败: $e');
     }
 
     try {
       mainScrollController.dispose();
     } catch (e) {
-      print('MainScrollController dispose失败: $e');
+      logError('MainScrollController dispose失败: $e');
     }
 
     super.onClose();
@@ -362,13 +363,12 @@ class VipController extends GetxController {
     try {
       // 如果用户已经是VIP，直接返回，不展示挽留弹窗
       if (UserManager.isVip) {
-        debugPrint('✅ 用户已是VIP，跳过挽留弹窗');
-        return true;
+         return true;
       }
 
       final context = Get.context;
       if (context == null) {
-        debugPrint('❌ 无法获取Context，直接返回');
+        logError('❌ 无法获取Context，直接返回');
         return true;
       }
 
@@ -376,8 +376,7 @@ class VipController extends GetxController {
       final result = await VipCancelRetentionDialog.show(
         context: context,
         onUnlock: () {
-          debugPrint('💫 用户点击"全部解锁"');
-          _handleUnlockFromRetention();
+           _handleUnlockFromRetention();
         },
         onCancel: () {},
         barrierDismissible: true,
@@ -388,7 +387,7 @@ class VipController extends GetxController {
       // result 为 null 表示点击背景关闭，不允许返回
       return result == false; // 只有点击"下次再说"才返回true
     } catch (e) {
-      debugPrint('❌ 显示挽留弹窗失败: $e');
+      logError('❌ 显示挽留弹窗失败: $e');
       return true; // 出错时允许返回
     }
   }
@@ -399,8 +398,7 @@ class VipController extends GetxController {
 
     // 检查是否正在购买
     if (isPurchasing.value) {
-      debugPrint('💫 正在购买中，忽略重复点击');
-      return;
+       return;
     }
 
     // 检查是否有套餐
@@ -415,12 +413,10 @@ class VipController extends GetxController {
       OKToastUtil.show('请先选择套餐');
       return;
     }
-    debugPrint('💫 使用当前选中的套餐: ${currentPackage.title}');
-
+ 
     // 设置支付方式为微信
     selectedPaymentMethod.value = 0;
-    debugPrint('💫 设置支付方式为微信');
-
+ 
     // 设置正在购买标志
     isPurchasing.value = true;
 
@@ -428,7 +424,7 @@ class VipController extends GetxController {
       // 执行支付
       await _processPurchase(currentPackage);
     } catch (e) {
-      debugPrint('❌ 从挽留弹窗购买失败: $e');
+      logError('❌ 从挽留弹窗购买失败: $e');
       // 错误提示已在_processPurchase中处理
     } finally {
       isPurchasing.value = false;
@@ -438,26 +434,23 @@ class VipController extends GetxController {
   /// 加载VIP横幅数据
   void _loadVipBannerData() async {
     try {
-      _logger.i('开始加载VIP横幅和评价数据...');
-
+ 
       // 调用真实的 /pay/iconBanner 接口
       final result = await _vipService.getVipIconBanner();
 
       if (result.isSuccess && result.data != null) {
         bannerData.value = result.data!;
-        _logger.i(
-          'VIP页面数据加载完成，轮播图数量: ${bannerData.value?.vipIconBanner.length}, 评价数量: ${bannerData.value?.commentList.length}',
-        );
+        
 
         // 启动自动轮播
         _startAutoCarousel();
       } else {
-        _logger.e('VIP横幅数据加载失败: ${result.msg}');
+        logError('VIP横幅数据加载失败: ${result.msg}');
         // 加载失败时使用默认的测试数据作为备用
         _loadFallbackData();
       }
     } catch (e) {
-      _logger.e('VIP横幅数据加载异常: $e');
+      logError('VIP横幅数据加载异常: $e');
       // 出现异常时使用默认的测试数据作为备用
       _loadFallbackData();
     }
@@ -466,8 +459,7 @@ class VipController extends GetxController {
   /// 加载备用数据（当API调用失败时使用）
   void _loadFallbackData() {
     try {
-      _logger.i('使用备用数据...');
-      final testData = {
+       final testData = {
         "desc": "想TA就立刻知道TA在哪儿",
         "comment_list": [
           {
@@ -571,8 +563,7 @@ class VipController extends GetxController {
       };
 
       bannerData.value = VipBannerModel.fromJson(testData);
-      _logger.i('备用数据加载完成');
-
+ 
       // 启动自动轮播
       _startAutoCarousel();
     } catch (e) {
@@ -672,9 +663,7 @@ class VipController extends GetxController {
 
   /// 选择价格
   void selectPrice(int index) {
-    debugPrint('🎯 selectPrice被调用: index=$index');
-    debugPrint('🎯 当前套餐数量: ${vipPackages.length}');
-    debugPrint('🎯 当前选中索引: ${selectedPriceIndex.value}');
+     
 
     if (index >= 0 && index < vipPackages.length) {
       final package = vipPackages[index];
@@ -691,19 +680,17 @@ class VipController extends GetxController {
 
       // 先选中套餐
       selectedPriceIndex.value = index;
-      debugPrint('🎯 价格选择成功: 新索引=$index, 套餐=${vipPackages[index].title}');
-      _scrollToSelectedPrice(index);
+       _scrollToSelectedPrice(index);
 
       // 强制更新UI (对于使用GetBuilder的组件)
       update();
 
       // 然后检查是否有折扣，如果有则显示弹窗
       if (package.hasDiscount) {
-        debugPrint('🎯 套餐有折扣，显示折扣弹窗: ${package.title}');
-        _showDiscountDialog(package);
+         _showDiscountDialog(package);
       }
     } else {
-      debugPrint(
+      logError(
         '🎯 价格选择失败: 索引超出范围 index=$index, length=${vipPackages.length}',
       );
     }
@@ -758,15 +745,12 @@ class VipController extends GetxController {
 
   /// 切换协议同意状态
   void toggleAgreement() {
-    debugPrint('💫 协议勾选按钮被点击，当前状态: ${agreementChecked.value}');
-    agreementChecked.value = !agreementChecked.value;
-    debugPrint('💫 协议勾选状态已切换为: ${agreementChecked.value}');
-  }
+     agreementChecked.value = !agreementChecked.value;
+   }
 
   /// 显示协议警告提示
   void showAgreementWarning() {
-    debugPrint('💫 协议未勾选，显示提示');
-    CustomToast.show(Get.context!, '请先同意《会员服务协议》');
+     CustomToast.show(Get.context!, '请先同意《会员服务协议》');
   }
 
   /// 显示折扣底部弹窗
@@ -821,22 +805,18 @@ class VipController extends GetxController {
 
           if (defaultVipType != null) {
             // 如果传入了 defaultVipType，优先根据 type 字段选择
-            debugPrint('📦 根据传入参数选择套餐: type=$defaultVipType');
-            for (int i = 0; i < vipPackages.length; i++) {
+             for (int i = 0; i < vipPackages.length; i++) {
               if (vipPackages[i].type == defaultVipType) {
                 defaultIndex = i;
-                debugPrint('✅ 找到匹配的套餐: ${vipPackages[i].title}');
-                break;
+                 break;
               }
             }
           } else {
             // 否则根据 isChecked 字段选择（1=选中，0=未选中）
-            debugPrint('📦 根据 isChecked 字段选择套餐');
-            for (int i = 0; i < vipPackages.length; i++) {
+             for (int i = 0; i < vipPackages.length; i++) {
               if (vipPackages[i].isChecked == 1) {
                 defaultIndex = i;
-                debugPrint('✅ 找到 isChecked=1 的套餐: ${vipPackages[i].title}');
-                break;
+                 break;
               }
             }
           }
@@ -856,8 +836,7 @@ class VipController extends GetxController {
             // 延迟一点显示弹窗，确保页面已经渲染完成
             Future.delayed(const Duration(milliseconds: 500), () {
               if (!_isDisposed && isPageVisible.value) {
-                debugPrint('🎯 默认套餐有折扣，显示折扣弹窗: ${defaultPackage.title}');
-                _showDiscountDialog(defaultPackage);
+                 _showDiscountDialog(defaultPackage);
               }
             });
           }
@@ -910,13 +889,10 @@ class VipController extends GetxController {
   }
 
   /// 从弹窗购买VIP（不需要协议检查）
-  void _purchaseVipFromDialog() async {
-    debugPrint('💫 从弹窗支付按钮被点击，开始购买VIP流程');
-    debugPrint('💫 当前是否正在购买: ${isPurchasing.value}');
+  void _purchaseVipFromDialog() async { 
 
     if (isPurchasing.value) {
-      debugPrint('💫 正在购买中，忽略重复点击');
-      return;
+       return;
     }
 
     // 检查是否选择了套餐
@@ -932,15 +908,9 @@ class VipController extends GetxController {
       // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
 
-      // 获取选中的支付方式
-      final paymentMethod = _getSelectedPaymentMethod();
+      
 
-      // 直接进入支付流程，不再显示确认对话框
-      debugPrint('💫 开始处理支付，支付方式: $paymentMethod');
-
-      // 确保支付状态清理
-      _logger.i('💫 开始新的支付流程，清理之前的状态');
-
+  
       // 处理购买过程
       await _processPurchase(package);
     } catch (e) {
@@ -951,21 +921,15 @@ class VipController extends GetxController {
   }
 
   /// 购买VIP
-  void purchaseVip() async {
-    debugPrint('💫 支付按钮被点击，开始购买VIP流程');
-    debugPrint('💫 当前协议勾选状态: ${agreementChecked.value}');
-    debugPrint('💫 当前是否正在购买: ${isPurchasing.value}');
-
+  void purchaseVip() async { 
     if (isPurchasing.value) {
-      debugPrint('💫 正在购买中，忽略重复点击');
-      return;
+       return;
     }
 
     // 协议检查已在UI层面处理，这里可以省略
     // 但为了安全起见，仍然保留检查
     if (!agreementChecked.value) {
-      debugPrint('💫 协议未勾选，显示提示');
-      showAgreementWarning();
+       showAgreementWarning();
       return;
     }
 
@@ -982,15 +946,9 @@ class VipController extends GetxController {
       // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
 
-      // 获取选中的支付方式
-      final paymentMethod = _getSelectedPaymentMethod();
-
-      // 直接进入支付流程，不再显示确认对话框
-      debugPrint('💫 开始处理支付，支付方式: $paymentMethod');
-
-      // 确保支付状态清理
-      _logger.i('💫 开始新的支付流程，清理之前的状态');
-
+  
+  
+  
       // 处理购买过程
       await _processPurchase(package);
 
@@ -1026,15 +984,13 @@ class VipController extends GetxController {
     _paymentResultSubscription = _paymentService.listenToPaymentResult((
       result,
     ) {
-      _logger.i('🎯 收到支付结果回调: $result');
-
+ 
       final success = result['success'] ?? false;
       final payType = result['payType'] ?? '';
       final message = result['message'] ?? '';
 
       if (success) {
-        _logger.i('✅ 支付成功通知 - 类型: $payType');
-
+ 
         // 获取当前选中的套餐
         if (selectedPriceIndex.value >= 0 &&
             selectedPriceIndex.value < vipPackages.length) {
@@ -1053,7 +1009,7 @@ class VipController extends GetxController {
           _handlePaymentSuccess(package);
         }
       } else {
-        _logger.e('❌ 支付失败通知 - 类型: $payType, 原因: $message');
+        logError('❌ 支付失败通知 - 类型: $payType, 原因: $message');
 
         // 埋点：记录支付失败或取消
         if (selectedPriceIndex.value >= 0 &&
@@ -1069,8 +1025,7 @@ class VipController extends GetxController {
 
         // 检查是否是用户取消
         if (message.contains('取消')) {
-          _logger.i('用户取消了支付');
-        } else {
+         } else {
           // 支付失败时，仍然检查一下VIP状态
           _checkVipStatusAfterFailure();
         }
@@ -1080,8 +1035,7 @@ class VipController extends GetxController {
 
   /// 支付失败后检查VIP状态
   Future<void> _checkVipStatusAfterFailure() async {
-    _logger.i('💡 支付失败，延迟检查VIP状态...');
-    await Future.delayed(const Duration(seconds: 2));
+     await Future.delayed(const Duration(seconds: 2));
 
     final refreshSuccess = await UserManager.refreshUserInfo();
     if (refreshSuccess) {
@@ -1091,8 +1045,7 @@ class VipController extends GetxController {
           user.vipEndTime! * 1000,
         );
         if (vipEndTime.isAfter(DateTime.now())) {
-          _logger.i('🎉 检测到用户已是VIP，可能支付已成功');
-
+ 
           if (selectedPriceIndex.value >= 0 &&
               selectedPriceIndex.value < vipPackages.length) {
             final package = vipPackages[selectedPriceIndex.value];
@@ -1117,9 +1070,7 @@ class VipController extends GetxController {
       // 记录支付开始时间（十位时间戳）
       _payStartTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       
-      _logger.i(
-        '💫 开始处理购买流程，套餐: ${package.title}, 支付方式: ${selectedPaymentMethod.value}',
-      );
+       
       bool result = false;
 
       if (selectedPaymentMethod.value == 0) {
@@ -1127,7 +1078,7 @@ class VipController extends GetxController {
         // 🔥 先检查微信是否安装
         final isWechatInstalled = await _paymentService.isWechatInstalled();
         if (!isWechatInstalled) {
-          _logger.e('💫 微信未安装');
+          logError('💫 微信未安装');
           // 埋点：记录微信未安装（支付失败）
           _trackPaymentResult(package, payStatus: 0);
           OKToastUtil.show('请先安装微信');
@@ -1135,18 +1086,13 @@ class VipController extends GetxController {
           return;
         }
         
-        _logger.i('💫 开始创建微信支付订单');
-        final wxPayResult = await _vipService.wxPay(vipPackageId: package.id);
-        _logger.i(
-          '💫 微信支付订单创建结果: isSuccess=${wxPayResult.isSuccess}, msg=${wxPayResult.msg}',
-        );
+         final wxPayResult = await _vipService.wxPay(vipPackageId: package.id);
+         
 
         if (wxPayResult.isSuccess && wxPayResult.data != null) {
           // 解析微信支付参数
           final payData = wxPayResult.data!;
-          _logger.i(
-            '💫 微信支付参数: appId=${payData.appId}, partnerId=${payData.partnerId}, prepayId=${payData.prepayId}',
-          );
+           
 
           result = await _paymentService.payWithWechat(
             appId: payData.appId ?? '',
@@ -1157,9 +1103,8 @@ class VipController extends GetxController {
             timeStamp: payData.timestamp ?? '',
             sign: payData.sign ?? '',
           );
-          _logger.i('💫 微信支付SDK调用完成，结果: $result');
-        } else {
-          _logger.e('💫 微信支付订单创建失败: ${wxPayResult.msg}');
+         } else {
+          logError('💫 微信支付订单创建失败: ${wxPayResult.msg}');
           throw Exception(wxPayResult.msg ?? '微信支付订单创建失败');
         }
       } else {
@@ -1167,7 +1112,7 @@ class VipController extends GetxController {
         // 🔥 先检查支付宝是否安装
         final isAlipayInstalled = await _paymentService.isAlipayInstalled();
         if (!isAlipayInstalled) {
-          _logger.e('💫 支付宝未安装');
+          logError('💫 支付宝未安装');
           // 埋点：记录支付宝未安装（支付失败）
           _trackPaymentResult(package, payStatus: 0);
           OKToastUtil.show('请先安装支付宝');
@@ -1175,34 +1120,24 @@ class VipController extends GetxController {
           return;
         }
         
-        _logger.i('💫 开始创建支付宝支付订单');
-        final aliPayResult = await _vipService.aliPay(vipPackageId: package.id);
-        _logger.i(
-          '💫 支付宝订单创建结果: isSuccess=${aliPayResult.isSuccess}, msg=${aliPayResult.msg}',
-        );
+         final aliPayResult = await _vipService.aliPay(vipPackageId: package.id);
+         
 
         if (aliPayResult.isSuccess && aliPayResult.data != null) {
-          _logger.i(
-            '💫 支付宝订单创建成功，orderString长度: ${aliPayResult.data!.orderString?.length ?? 0}',
-          );
-          _logger.i(
-            '💫 支付宝订单字符串前100字符: ${aliPayResult.data!.orderString?.substring(0, (aliPayResult.data!.orderString?.length ?? 0) > 100 ? 100 : (aliPayResult.data!.orderString?.length ?? 0))}...',
-          );
+           
 
           // 调用支付宝支付
-          _logger.i('💫 开始调用支付宝支付SDK');
+           
           result = await _paymentService.payWithAlipay(
             orderInfo: aliPayResult.data!.orderString ?? '',
           );
-          _logger.i('💫 支付宝支付SDK调用完成，结果: $result');
-        } else {
-          _logger.e('💫 支付宝订单创建失败: ${aliPayResult.msg}');
+         } else {
+          logError('💫 支付宝订单创建失败: ${aliPayResult.msg}');
           throw Exception(aliPayResult.msg ?? '支付宝支付订单创建失败');
         }
       }
 
-      _logger.i('💫 支付SDK调用结果: $result');
-
+ 
       // 注意：对于微信支付，result 只表示是否成功唤起微信，不表示支付结果
       // 实际支付结果通过 PaymentService 的回调处理
       // 对于支付宝，result 表示实际支付结果
@@ -1210,11 +1145,10 @@ class VipController extends GetxController {
         // 微信支付
         if (result) {
           // 成功唤起微信，等待回调
-          _logger.i('💫 微信支付已唤起，等待用户操作和回调...');
-          // 不做任何处理，让 PaymentService 的回调来处理结果
+           // 不做任何处理，让 PaymentService 的回调来处理结果
         } else {
           // 🔥 微信支付唤起失败（可能是微信未安装或版本过低）
-          _logger.e('💫 微信支付唤起失败（可能未安装微信）');
+          logError('💫 微信支付唤起失败（可能未安装微信）');
           
           // 埋点：记录微信支付失败（未安装/唤起失败）
           _trackPaymentResult(package, payStatus: 0);
@@ -1225,8 +1159,7 @@ class VipController extends GetxController {
       } else {
         // 支付宝支付：处理返回值
         if (result) {
-          _logger.i('💫 支付宝支付成功，开始处理后续操作');
-          
+           
           // 🔥 埋点：记录支付宝支付成功
           _trackPaymentResult(package, payStatus: 1);
           
@@ -1235,7 +1168,7 @@ class VipController extends GetxController {
           await _handlePaymentSuccess(package);
         } else {
           // 🔥 支付宝支付失败或取消
-          _logger.e('💫 支付宝支付失败或取消');
+          logError('💫 支付宝支付失败或取消');
           
           // 埋点：记录支付宝支付取消（支付宝返回false通常是用户取消）
           _trackPaymentResult(package, payStatus: 2);
@@ -1247,9 +1180,7 @@ class VipController extends GetxController {
         }
       }
     } catch (e) {
-      _logger.e('💫 支付处理失败: $e');
-      _logger.e('💫 异常类型: ${e.runtimeType}');
-      _logger.e('💫 异常堆栈: ${e.toString()}');
+      logError('💫 支付处理失败: $e'); 
       
       // 🔥 埋点：记录支付异常失败
       if (selectedPriceIndex.value >= 0 &&
@@ -1267,16 +1198,14 @@ class VipController extends GetxController {
   void _updateVipStatus(VipPackageModel package) {
     // 这里应该更新用户的VIP状态
     // 例如保存到本地存储或更新用户管理器中的状态
-    debugPrint('VIP购买成功: ${package.title}');
-    // 更新响应式会员状态
+     // 更新响应式会员状态
     isVipStatus.value = UserManager.isVip;
   }
 
   /// 支付成功后的处理
   Future<void> _handlePaymentSuccess(VipPackageModel package) async {
     try {
-      _logger.i('支付成功，开始处理后续操作...');
-
+ 
       // 显示支付成功提示
       // OKToastUtil.show('支付成功');
 
@@ -1302,7 +1231,7 @@ class VipController extends GetxController {
         await _refreshMinePageAndReturn();
       }
     } catch (e) {
-      _logger.e('支付成功后处理异常: $e');
+      logError('支付成功后处理异常: $e');
       // 即使出现异常，也要尝试返回上一页
       Get.back();
     }
@@ -1311,27 +1240,23 @@ class VipController extends GetxController {
   /// 刷新我的页面并返回上一页
   Future<void> _refreshMinePageAndReturn() async {
     try {
-      _logger.i('开始刷新页面数据...');
-
+ 
       // 刷新我的页面数据
       if (Get.isRegistered<MineController>()) {
         final mineController = Get.find<MineController>();
         await mineController.refreshUserInfo();
-        _logger.i('我的页面数据已刷新');
-      }
+       }
 
       // 刷新首页数据（如果首页控制器存在）
       if (Get.isRegistered<HomeController>()) {
         final homeController = Get.find<HomeController>();
         homeController.loadUserInfo();
-        _logger.i('首页数据已刷新');
-      }
+       }
 
       // 返回上一页
       Get.back();
-      _logger.i('已返回上一页');
-    } catch (e) {
-      _logger.e('刷新页面数据失败: $e');
+     } catch (e) {
+     logError('刷新页面数据失败: $e');
       // 即使刷新失败也要返回上一页
       Get.back();
     }
@@ -1525,8 +1450,7 @@ class VipController extends GetxController {
 
     
 
-    _logger.i('📊 上报支付埋点: vipType=$vipType, payType=$payType, payStatus=$payStatus, payDuration=$payDuration');
-
+ 
     // 根据是否是会员设置按钮名称
     final btnName = isVipStatus.value ? PayBtnValue.payLater : PayBtnValue.payNow;
 
@@ -1556,8 +1480,7 @@ class VipController extends GetxController {
     // 按钮名称
     final btnName = package.title;
 
-    _logger.i('📊 上报99元支付埋点: payType=$payType, payStatus=$payStatus, btnName=$btnName, payDuration=$payDuration');
-
+ 
     // 调用99元支付埋点
     AnalyticsHelper.track99PayEvent(
       vipType: 3, // 永久会员

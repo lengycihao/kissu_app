@@ -80,6 +80,9 @@ class LockScreenOverlayService : Service() {
     
     // 自定义字体
     private var customTypeface: Typeface? = null
+    
+    // 是否为鸿薙5.0+系统（纯鸿蒙）
+    private var isHarmonyOS5Plus = false
 
     companion object {
         const val CHANNEL_ID = "kissu_lock_overlay_channel"
@@ -98,6 +101,9 @@ class LockScreenOverlayService : Service() {
         
         // 加载自定义字体
         loadCustomTypeface()
+        
+        // 检测是否为鸿薙5.0+系统
+        isHarmonyOS5Plus = detectHarmonyOS5Plus()
 
         // 🔥 恢复关机前保存的答题次数
         answerAttempts = prefs?.getInt("lock_answer_attempts", 0) ?: 0
@@ -743,51 +749,55 @@ class LockScreenOverlayService : Service() {
         }
         lockScreenContainerTop?.addView(sliderContainer, sliderParams)
 
-        // 底部图标
-        val bottomLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        // 底部图标（鸿薙5.0+纯鸿蒙系统不显示电话和短信按钮）
+        if (!isHarmonyOS5Plus) {
+            val bottomLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            val bottomParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(60)
+            ).apply {
+                gravity = Gravity.BOTTOM
+                bottomMargin = dp(40)
+                leftMargin = dp(40)
+                rightMargin = dp(40)
+            }
+            lockScreenContainerTop?.addView(bottomLayout, bottomParams)
+
+            val messageButton = ImageView(context).apply {
+                setImageResource(R.drawable.kissu_lock_message)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { openMessagingApp() }
+            }
+
+            bottomLayout.addView(messageButton,
+                LinearLayout.LayoutParams(dp(50), dp(50))
+            )
+
+            val spacer = View(context)
+            bottomLayout.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
+
+            val phoneButton = ImageView(context).apply {
+                setImageResource(R.drawable.kissu_lock_phone)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+
+
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { openPhoneApp() }
+            }
+
+            bottomLayout.addView(phoneButton,
+                LinearLayout.LayoutParams(dp(50), dp(50))
+            )
+        } else {
+            android.util.Log.d("LockScreenOverlay", "鸿薙5.0+系统，隐藏底部电话和短信按钮")
         }
-        val bottomParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            dp(60)
-        ).apply {
-            gravity = Gravity.BOTTOM
-            bottomMargin = dp(40)
-            leftMargin = dp(40)
-            rightMargin = dp(40)
-        }
-        lockScreenContainerTop?.addView(bottomLayout, bottomParams)
-
-        val messageButton = ImageView(context).apply {
-            setImageResource(R.drawable.kissu_lock_message)
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { openMessagingApp() }
-        }
-
-        bottomLayout.addView(messageButton,
-            LinearLayout.LayoutParams(dp(50), dp(50))
-        )
-
-        val spacer = View(context)
-        bottomLayout.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
-
-        val phoneButton = ImageView(context).apply {
-            setImageResource(R.drawable.kissu_lock_phone)
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-
-
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { openPhoneApp() }
-        }
-
-        bottomLayout.addView(phoneButton,
-            LinearLayout.LayoutParams(dp(50), dp(50))
-        )
 
         // 将两个容器添加到根容器
         rootContainer.addView(bgImageView)
@@ -1546,6 +1556,66 @@ class LockScreenOverlayService : Service() {
             value.toFloat(),
             resources.displayMetrics
         ).toInt()
+    }
+    
+    /**
+     * 检测是否为鸿薙5.0+系统（纯鸿蒙 / HarmonyOS NEXT）
+     * 复用项目Flutter侧的同样检测逻辑
+     */
+    private fun detectHarmonyOS5Plus(): Boolean {
+        try {
+            val brand = Build.BRAND?.lowercase() ?: ""
+            val display = Build.DISPLAY?.lowercase() ?: ""
+            val fingerprint = Build.FINGERPRINT?.lowercase() ?: ""
+            val host = Build.HOST?.lowercase() ?: ""
+            val versionRelease = Build.VERSION.RELEASE ?: ""
+            
+            android.util.Log.d("LockScreenOverlay", "===== 鸿蒙检测: brand=$brand, display=${Build.DISPLAY}, fingerprint=${Build.FINGERPRINT}, host=${Build.HOST}, version.release=$versionRelease =====")
+            
+            // 方式1：检查是否包含 harmony / ohos 关键字
+            val containsHarmony = display.contains("harmony") ||
+                fingerprint.contains("harmony") ||
+                host.contains("harmony") ||
+                display.contains("ohos") ||
+                fingerprint.contains("ohos")
+            
+            // 方式2：华为/荣耀设备 display 以 "system" 开头
+            val isHuaweiOrHonor = brand.contains("huawei") || brand.contains("honor")
+            val displayStartsWithSystem = display.startsWith("system")
+            
+            // 方式3：华为/荣耀设备 version.release 为 "5.x.x" 格式
+            var versionIs5Plus = false
+            if (isHuaweiOrHonor) {
+                val parts = versionRelease.split(".")
+                val majorVersion = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                versionIs5Plus = majorVersion >= 5 && parts.size > 1
+            }
+            
+            val result = when {
+                containsHarmony -> {
+                    android.util.Log.d("LockScreenOverlay", "✅ 检测到鸿蒙系统 (通过harmony/ohos关键字)")
+                    true
+                }
+                isHuaweiOrHonor && displayStartsWithSystem -> {
+                    android.util.Log.d("LockScreenOverlay", "✅ 检测到鸿蒙系统 (华为/荣耀+display以System开头: ${Build.DISPLAY})")
+                    true
+                }
+                versionIs5Plus -> {
+                    android.util.Log.d("LockScreenOverlay", "✅ 检测到鸿薙5.0+系统 (通过版本号$versionRelease)")
+                    true
+                }
+                else -> {
+                    android.util.Log.d("LockScreenOverlay", "❌ 未检测到鸿蒙系统")
+                    false
+                }
+            }
+            
+            android.util.Log.d("LockScreenOverlay", "鸿蒙检测结果: isHarmonyOS5Plus=$result")
+            return result
+        } catch (e: Exception) {
+            android.util.Log.e("LockScreenOverlay", "鸿蒙检测异常: ${e.message}")
+            return false
+        }
     }
     
     private fun loadCustomTypeface() {

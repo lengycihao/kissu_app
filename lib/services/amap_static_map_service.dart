@@ -32,7 +32,7 @@ class AMapStaticMapService {
     bool isSatellite = false,
   }) {
     try {
-      DebugUtil.info('🗺️ 生成静态地图URL: ($latitude, $longitude), 卫星: $isSatellite, 显示标记: $showMarker');
+      DebugUtil.check('🗺️ 生成静态地图URL: ($latitude, $longitude), 卫星: $isSatellite, 显示标记: $showMarker');
       
       // 构建URL参数（注意：高德API不需要对部分参数进行URL编码）
       final params = {
@@ -69,7 +69,7 @@ class AMapStaticMapService {
       
       final url = urlBuffer.toString();
       
-      DebugUtil.success('✅ 静态地图URL生成成功: $url');
+      DebugUtil.check('✅ 静态地图URL生成成功: $url');
       return url;
     } catch (e) {
       DebugUtil.error('❌ 生成静态地图URL失败: $e');

@@ -60,7 +60,7 @@ class PrivacyComplianceManager extends GetxService {
         final firstLaunchAgreed = prefs.getBool('has_agreed_first_agreement') ?? false;
         if (firstLaunchAgreed) {
           if (kDebugMode) {
-            DebugUtil.info('📋 检测到 FirstLaunchService 已同意，同步状态到 PrivacyComplianceManager');
+            DebugUtil.check('📋 检测到 FirstLaunchService 已同意，同步状态到 PrivacyComplianceManager');
           }
           // 同步状态
           await prefs.setBool(_privacyAgreedKey, true);
@@ -70,14 +70,14 @@ class PrivacyComplianceManager extends GetxService {
       }
       
       if (kDebugMode) {
-        DebugUtil.info('📋 加载隐私政策状态 - agreed: $agreed, version: $version, 当前版本: $_currentPrivacyVersion');
+        DebugUtil.check('📋 加载隐私政策状态 - agreed: $agreed, version: $version, 当前版本: $_currentPrivacyVersion');
       }
       
       // 检查版本是否匹配，如果隐私政策更新了需要重新同意
       if (agreed && (version == _currentPrivacyVersion || version.isEmpty)) {
         _isPrivacyAgreed.value = true;
         if (kDebugMode) {
-          DebugUtil.success('✅ 隐私政策已同意，版本: $version');
+          DebugUtil.check('✅ 隐私政策已同意，版本: $version');
         }
         
         // 🔥 修复：在用户已同意隐私政策的情况下，初始化真实的设备ID
@@ -85,7 +85,7 @@ class PrivacyComplianceManager extends GetxService {
           final deviceUtil = DeviceUtil.instance;
           await deviceUtil.initializeDeviceId();
           if (kDebugMode) {
-            DebugUtil.success('真实设备ID初始化完成（已同意隐私政策）');
+            DebugUtil.check('真实设备ID初始化完成（已同意隐私政策）');
           }
         } catch (e) {
           if (kDebugMode) {
@@ -97,7 +97,7 @@ class PrivacyComplianceManager extends GetxService {
         // 即使用户之前同意过，也需要等待启动页检查后再决定是否初始化
         // 这样确保符合应用市场的隐私合规要求
         if (kDebugMode) {
-          DebugUtil.info('⚠️ 隐私政策已同意，但不在启动时自动初始化SDK（等待启动页检查）');
+          DebugUtil.check('⚠️ 隐私政策已同意，但不在启动时自动初始化SDK（等待启动页检查）');
         }
         
       } else {
@@ -124,7 +124,7 @@ class PrivacyComplianceManager extends GetxService {
       _isPrivacyAgreed.value = true;
       
       if (kDebugMode) {
-        DebugUtil.success('用户已同意隐私政策，版本: $_currentPrivacyVersion');
+        DebugUtil.check('用户已同意隐私政策，版本: $_currentPrivacyVersion');
       }
       
       // 🔥 修复：在用户同意隐私政策后，初始化真实的设备ID
@@ -132,7 +132,7 @@ class PrivacyComplianceManager extends GetxService {
         final deviceUtil = DeviceUtil.instance;
         await deviceUtil.initializeDeviceId();
         if (kDebugMode) {
-          DebugUtil.success('真实设备ID初始化完成');
+          DebugUtil.check('真实设备ID初始化完成');
         }
       } catch (e) {
         if (kDebugMode) {
@@ -204,7 +204,7 @@ class PrivacyComplianceManager extends GetxService {
     
     if (isSdkInitialized || isInitializing) {
       if (kDebugMode) {
-        DebugUtil.warning('隐私相关功能已初始化或正在初始化中');
+        DebugUtil.check('隐私相关功能已初始化或正在初始化中');
       }
       return;
     }
@@ -224,7 +224,7 @@ class PrivacyComplianceManager extends GetxService {
       await _enablePrivacyFeatures();
       
       if (kDebugMode) {
-        DebugUtil.success('隐私相关功能启用完成');
+        DebugUtil.check('隐私相关功能启用完成');
       }
       
       // 上报APP打开事件
@@ -273,7 +273,7 @@ class PrivacyComplianceManager extends GetxService {
       _notifyPrivacyAgreement();
       
       if (kDebugMode) {
-        DebugUtil.success('隐私功能启用完成');
+        DebugUtil.check('隐私功能启用完成');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -302,7 +302,7 @@ class PrivacyComplianceManager extends GetxService {
   Future<void> _enableJPushService() async {
     // 极光推送已废弃，推送功能现在统一走腾讯IM离线推送
     if (kDebugMode) {
-      DebugUtil.info('极光推送已废弃，跳过初始化');
+      DebugUtil.check('极光推送已废弃，跳过初始化');
     }
   }
   
@@ -316,7 +316,7 @@ class PrivacyComplianceManager extends GetxService {
           // 调用公开的初始化方法
           await imService.initIM();
           if (kDebugMode) {
-            DebugUtil.success('腾讯IM服务已启用');
+            DebugUtil.check('腾讯IM服务已启用');
           }
         }
       }
@@ -370,7 +370,7 @@ class PrivacyComplianceManager extends GetxService {
       // 注意：唤醒处理器会在应用启动时被调用，但我们需要确保应用完全启动后再处理路由跳转
       OpenInstallService.registerWakeupHandler((Map<String, dynamic> data) {
         if (kDebugMode) {
-          DebugUtil.info('🔔 OpenInstall唤醒回调被触发（应用可能还在启动中）');
+          DebugUtil.check('🔔 OpenInstall唤醒回调被触发（应用可能还在启动中）');
         }
         _handleOpenInstallWakeup(data);
       });
@@ -380,7 +380,7 @@ class PrivacyComplianceManager extends GetxService {
         final inviteCode = await OpenInstallService.getInviteCode();
         if (inviteCode != null && inviteCode.isNotEmpty) {
           if (kDebugMode) {
-            DebugUtil.info('检测到OpenInstall邀请码: $inviteCode');
+            DebugUtil.check('检测到OpenInstall邀请码: $inviteCode');
           }
         }
       } catch (e) {
@@ -430,10 +430,10 @@ class PrivacyComplianceManager extends GetxService {
   void _handleOpenInstallWakeup(Map<String, dynamic> data) {
     try {
       if (kDebugMode) {
-        DebugUtil.info('🔔 OpenInstall唤醒参数: $data');
+        DebugUtil.success('🔔 OpenInstall唤醒参数: $data');
         // 打印所有键值对，方便调试
         data.forEach((key, value) {
-          DebugUtil.info('  - $key: $value');
+          DebugUtil.success('  - $key: $value');
         });
       }
       
@@ -486,20 +486,20 @@ class PrivacyComplianceManager extends GetxService {
       // 如果没有路径参数，直接返回（应用会正常启动到首页）
       if (path == null || path.isEmpty) {
         if (kDebugMode) {
-          DebugUtil.info('✅ OpenInstall唤醒参数中没有路径信息，应用正常启动到首页');
+          DebugUtil.success('✅ OpenInstall唤醒参数中没有路径信息，应用正常启动到首页');
         }
         return;
       }
       
       if (kDebugMode) {
-        DebugUtil.info('📋 从OpenInstall唤醒参数中提取到路径: $path');
+        DebugUtil.success('📋 从OpenInstall唤醒参数中提取到路径: $path');
       }
       
       // 根据路径跳转到对应页面
       String routePath = _convertOpenInstallPathToRoute(path);
       
       if (kDebugMode) {
-        DebugUtil.info('🔄 准备跳转到路由: $routePath (原始路径: $path)');
+        DebugUtil.success('🔄 准备跳转到路由: $routePath (原始路径: $path)');
       }
       
       // 检查路由是否存在
@@ -546,13 +546,12 @@ class PrivacyComplianceManager extends GetxService {
       
       if (kDebugMode) {
         if (exists) {
-          DebugUtil.info('✅ 路由存在: $routePath');
+          DebugUtil.success('✅ 路由存在: $routePath');
         } else {
           DebugUtil.warning('⚠️ 路由不存在: $routePath');
-          DebugUtil.info('可用路由列表:');
-          routes.forEach((route) {
-            DebugUtil.info('  - ${route.name}');
-          });
+           for (var route in routes) {
+            DebugUtil.check('  - ${route.name}');
+          }
         }
       }
       

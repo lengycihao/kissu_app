@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
@@ -30,7 +31,7 @@ class AppActivationService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_hasActivatedKey, true);
-      DebugUtil.success('已标记App激活状态');
+      DebugUtil.check('已标记App激活状态');
     } catch (e) {
       DebugUtil.error('标记激活状态失败: $e');
     }
@@ -41,35 +42,49 @@ class AppActivationService extends GetxService {
   Future<void> tryActivate() async {
     // 检查是否已经激活过
     if (await hasActivated()) {
-      DebugUtil.info('App已激活过，跳过激活接口调用');
+      DebugUtil.check('App已激活过，跳过激活接口调用');
       return;
     }
 
     // 只支持 Android 平台（OAID只在Android上可用）
     if (!Platform.isAndroid) {
-      DebugUtil.info('非Android平台，跳过激活接口调用');
+      DebugUtil.check('非Android平台，跳过激活接口调用');
       return;
     }
 
     try {
       // 获取 OAID（如果获取失败也继续调用激活接口）
-      DebugUtil.info('开始获取OAID用于激活接口...');
+      DebugUtil.check('开始获取OAID用于激活接口...');
       final oaid = await OaidUtil.instance.getOaid();
       
       if (oaid == null || oaid.isEmpty) {
         DebugUtil.warning('OAID获取失败，仍然调用激活接口');
       } else {
-        DebugUtil.info('OAID获取成功，开始调用激活接口...');
+        DebugUtil.check('OAID获取成功，开始调用激活接口...');
+      }
+      
+      // 获取 Android ID（用于巨量引擎归因）
+      String? androidId;
+      try {
+        const channel = MethodChannel('kissu_app/whitelist');
+        androidId = await channel.invokeMethod<String>('getAndroidId');
+        if (androidId != null && androidId.isNotEmpty) {
+          DebugUtil.check('Android ID获取成功: ${androidId.substring(0, 4)}...');
+        } else {
+          DebugUtil.warning('Android ID获取为空');
+        }
+      } catch (e) {
+        DebugUtil.warning('获取Android ID失败: $e');
       }
       
       // 调用激活接口
       final authApi = AuthApi();
-      final result = await authApi.appStart();
+      final result = await authApi.appStart(androidId: androidId);
       
       if (result.isSuccess) {
         // 激活成功，标记已激活
         await markActivated();
-        DebugUtil.success('App激活接口调用成功');
+        DebugUtil.check('App激活接口调用成功');
       } else {
         DebugUtil.warning('App激活接口调用失败: ${result.msg}');
         // 失败时不标记，允许下次重试
@@ -85,7 +100,7 @@ class AppActivationService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_hasActivatedKey);
-      DebugUtil.info('激活状态已清除');
+      DebugUtil.check('激活状态已清除');
     } catch (e) {
       DebugUtil.error('清除激活状态失败: $e');
     }

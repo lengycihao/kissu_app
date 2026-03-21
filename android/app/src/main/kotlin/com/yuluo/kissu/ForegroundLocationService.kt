@@ -1413,7 +1413,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     httpTimeOut = 30000
                     // ✅ 关键修复：与Flutter层统一为5秒，避免APP被杀后定位频率骤降
                     interval = 5000 // 5秒定位一次（与Flutter层保持一致）
-                    isNeedAddress = true
+                    isNeedAddress = false
                     isOnceLocation = false
                     isOnceLocationLatest = false
                     isSensorEnable = false
@@ -1873,7 +1873,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     private fun updateLocationNotification(location: AMapLocation) {
         // 🔧 移除通知更新，保持静默
         // 不在定位成功后更新通知内容，避免频繁弹出通知
-        Log.d(TAG, "定位成功，静默模式（不更新通知）")
+        // Log.d(TAG, "定位成功，静默模式（不更新通知）")
     }
     
     // ================================
@@ -2376,12 +2376,12 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val todayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val today = todayFormat.format(Date())
             
-            // 查找今天的日志文件，如果不存在则创建新的
+            // 查找今天的定位日志文件，如果不存在则创建新的
             val existingLogFile = logDir.listFiles()?.find { 
-                it.name.startsWith(today) && it.name.endsWith("_app.log") 
+                it.name.startsWith(today) && it.name.endsWith("_location.log") 
             }
             
-            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app.log")
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_location.log")
             
             // 构建与 Flutter 层格式一致的 JSON 日志
             val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault()).format(Date())

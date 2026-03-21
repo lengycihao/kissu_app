@@ -99,23 +99,23 @@ class ChatMoreMenu extends StatelessWidget {
     required Offset position,
     Function(MoreMenuType)? onItemTap,
   }) {
-    print('🎯 ChatMoreMenu.show 被调用, position: $position');
+    // print('🎯 ChatMoreMenu.show 被调用, position: $position');
     final overlay = Overlay.of(context);
-    print('🎯 Overlay: $overlay');
+    // print('🎯 Overlay: $overlay');
     OverlayEntry? overlayEntry;
 
     overlayEntry = OverlayEntry(
       builder: (context) {
         final screenWidth = MediaQuery.of(context).size.width;
         final rightPosition = screenWidth - position.dx;
-        print('🎯 屏幕宽度: $screenWidth, right位置: $rightPosition, top: ${position.dy}');
+        // print('🎯 屏幕宽度: $screenWidth, right位置: $rightPosition, top: ${position.dy}');
         
         return Stack(
           children: [
             // 点击外部区域关闭
             GestureDetector(
               onTap: () {
-                print('🎯 点击外部，关闭菜单');
+                // print('🎯 点击外部，关闭菜单');
                 overlayEntry?.remove();
               },
               child: Container(
@@ -132,7 +132,7 @@ class ChatMoreMenu extends StatelessWidget {
                 color: Colors.transparent,
                 child: ChatMoreMenu(
                   onItemTap: (type) {
-                    print('🎯 菜单项被点击: $type');
+                    // print('🎯 菜单项被点击: $type');
                     overlayEntry?.remove();
                     onItemTap?.call(type);
                   },

@@ -19,9 +19,9 @@ class FaceStatusApi {
 
     if (result.isSuccess) {
       final rawJson = result.getDataJson();
-      DebugUtil.info('📱 获取状态表情数据成功');
-      DebugUtil.info('  face_list 数量: ${(rawJson['face_list'] as List?)?.length ?? 0}');
-      DebugUtil.info('  now_face 是否有数据: ${rawJson['now_face'] != null}');
+      // DebugUtil.info('📱 获取状态表情数据成功');
+      // DebugUtil.info('  face_list 数量: ${(rawJson['face_list'] as List?)?.length ?? 0}');
+      // DebugUtil.info('  now_face 是否有数据: ${rawJson['now_face'] != null}');
       
       return result.convert(data: FaceStatusResponseModel.fromJson(rawJson));
     } else {
@@ -47,7 +47,7 @@ class FaceStatusApi {
     );
 
     if (result.isSuccess) {
-      DebugUtil.info('✅ 设置状态成功: faceId=$faceId, faceExpire=$faceExpire');
+      // DebugUtil.info('✅ 设置状态成功: faceId=$faceId, faceExpire=$faceExpire');
     } else {
       DebugUtil.warning('⚠️ 设置状态失败: ${result.msg}');
     }
@@ -63,7 +63,7 @@ class FaceStatusApi {
     );
 
     if (result.isSuccess) {
-      DebugUtil.info('✅ 删除状态成功');
+      // DebugUtil.info('✅ 删除状态成功');
     } else {
       DebugUtil.warning('⚠️ 删除状态失败: ${result.msg}');
     }

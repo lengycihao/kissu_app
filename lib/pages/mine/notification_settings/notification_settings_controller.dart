@@ -280,7 +280,7 @@ class NotificationSettingsController extends GetxController {
             .map((json) => NotificationSettingsResponse.fromJson(json as Map<String, dynamic>))
             .toList();
         _applyServerSettings(responses);
-        logDebug('✅ 从缓存加载通知设置成功');
+        // logDebug('✅ 从缓存加载通知设置成功');
       }
     } catch (e) {
       logError('⚠️ 从缓存加载通知设置失败: $e');
@@ -312,7 +312,7 @@ class NotificationSettingsController extends GetxController {
       final jsonList = responses.map((r) => r.toJson()).toList();
       await SpUtil.putJsonMap(_cacheKey, jsonList);
       await SpUtil.putString(_cacheTimeKey, DateTime.now().toIso8601String());
-      logDebug('✅ 通知设置已保存到缓存');
+      // logDebug('✅ 通知设置已保存到缓存');
     } catch (e) {
       logError('⚠️ 保存通知设置到缓存失败: $e');
     }

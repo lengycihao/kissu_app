@@ -42,31 +42,31 @@ class LocationTipsManager extends GetxController {
   
   /// 检查所有提示
   void _checkAllTips() {
-    logDebug('🔍 LocationTipsManager: 开始检查所有提示');
+    // logDebug('🔍 LocationTipsManager: 开始检查所有提示');
     _checkPermissionTip();
     _checkPartnerLocationTip();
     _checkVipExpiryTip();
-    logDebug('🔍 LocationTipsManager: 所有提示检查完成');
+    // logDebug('🔍 LocationTipsManager: 所有提示检查完成');
   }
   
   /// 1. 检查用户"始终允许"定位权限提示
   void _checkPermissionTip() async {
     try {
-      logDebug('🔍 LocationTipsManager: 开始检查始终允许定位权限');
+      // logDebug('🔍 LocationTipsManager: 开始检查始终允许定位权限');
       
       // 检查始终允许定位权限状态（后台定位权限）
       final alwaysStatus = await Permission.location.status;
       final shouldShow = !alwaysStatus.isGranted;
       
-      logDebug('🔐 始终允许定位权限状态: $alwaysStatus');
-      logDebug('🔐 是否应该显示权限提示: $shouldShow');
-      logDebug('🔐 当前提示状态: ${showPermissionTip.value}');
+      // logDebug('🔐 始终允许定位权限状态: $alwaysStatus');
+      // logDebug('🔐 是否应该显示权限提示: $shouldShow');
+      // logDebug('🔐 当前提示状态: ${showPermissionTip.value}');
       
       if (showPermissionTip.value != shouldShow) {
         showPermissionTip.value = shouldShow;
-        logDebug('🔐 始终允许定位权限提示状态更新: $shouldShow (状态: $alwaysStatus)');
+        // logDebug('🔐 始终允许定位权限提示状态更新: $shouldShow (状态: $alwaysStatus)');
       } else {
-        logDebug('🔐 权限提示状态无变化，保持: ${showPermissionTip.value}');
+        // logDebug('🔐 权限提示状态无变化，保持: ${showPermissionTip.value}');
       }
     } catch (e) {
       logError('❌ 检查始终允许定位权限失败: $e');
@@ -81,7 +81,7 @@ class LocationTipsManager extends GetxController {
       if (locationData?.halfLocationMobileDevice?.isOpenLocation != null) {
         final isPartnerLocationOpen = locationData!.halfLocationMobileDevice!.isOpenLocation == 1;
         showPartnerLocationTip.value = !isPartnerLocationOpen;
-        logDebug('📍 另一半定位开关提示状态: ${showPartnerLocationTip.value}');
+        // logDebug('📍 另一半定位开关提示状态: ${showPartnerLocationTip.value}');
       } else {
         showPartnerLocationTip.value = false;
       }
@@ -103,14 +103,14 @@ class LocationTipsManager extends GetxController {
       // 永久会员不显示提示
       if (user.isForEverVip == 1) {
         showVipExpiryTip.value = false;
-        logDebug('👑 永久会员，不显示到期提示');
+        // logDebug('👑 永久会员，不显示到期提示');
         return;
       }
       
       // 非会员不显示提示
       if (user.isVip != 1) {
         showVipExpiryTip.value = false;
-        logDebug('👤 非会员，不显示到期提示');
+        // logDebug('👤 非会员，不显示到期提示');
         return;
       }
       
@@ -129,25 +129,25 @@ class LocationTipsManager extends GetxController {
             // 显示天数（1-5天）
             vipExpiryDays.value = difference.inDays;
             vipExpiryText.value = "你的会员还有${difference.inDays}天到期！";
-            logDebug('⏰ 会员${difference.inDays}天后到期');
+            // logDebug('⏰ 会员${difference.inDays}天后到期');
           }  else {
             // 显示小时数（小于1天且大于0小时）
             vipExpiryHours.value = difference.inHours;
             vipExpiryText.value = "你的会员不足1天，请尽快续费！";
-            logDebug('⏰ 会员不足1天，请尽快续费！');
+            // logDebug('⏰ 会员不足1天，请尽快续费！');
            }
         } else if (difference.inDays < 0) {
           // 已过期，仍然显示提示
           showVipExpiryTip.value = true;
           vipExpiryText.value = "你的会员已过期${difference.inDays.abs()}天！";
-          logDebug('⏰ 会员已过期');
+          // logDebug('⏰ 会员已过期');
         } else {
           showVipExpiryTip.value = false;
-          logDebug('✅ 会员到期时间充足（>${difference.inDays}天），不显示提示');
+          // logDebug('✅ 会员到期时间充足（>${difference.inDays}天），不显示提示');
         }
       } else {
         showVipExpiryTip.value = false;
-        logInfo('⚠️ 会员到期时间为空');
+        logWarning('⚠️ 会员到期时间为空');
       }
     } catch (e) {
       logError('❌ 检查会员到期提示失败: $e');
@@ -170,14 +170,14 @@ class LocationTipsManager extends GetxController {
   
   /// 应用恢复前台时检查权限状态
   void onAppResumed() {
-    logDebug('📱 LocationTipsManager: 应用恢复前台，重新检查权限状态');
+    // logDebug('📱 LocationTipsManager: 应用恢复前台，重新检查权限状态');
     _checkPermissionTip();
   }
   
   /// 点击权限提示 - 跳转到设置页面
   void onPermissionTipTap() async {
     try {
-      logDebug('🔐 点击定位权限提示，跳转到设置页面');
+      // logDebug('🔐 点击定位权限提示，跳转到设置页面');
       
       // 开启自己定位按钮埋点
       // 注意：点击提示时说明当前是关闭状态，点击后希望开启

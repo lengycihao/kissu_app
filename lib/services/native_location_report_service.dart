@@ -30,7 +30,7 @@ class NativeLocationReportService {
       final userId = authService.userId ?? '';
       final baseUrl = AppConfigN.baseApiUrl;
       
-      logger.info('🔐 保存用户 Token 到 Native：userId=$userId, baseUrl=$baseUrl', tag: 'NativeLocationReportService');
+      logger.debug('🔐 保存用户 Token 到 Native：userId=$userId, baseUrl=$baseUrl', tag: 'NativeLocationReportService');
       
       final result = await _channel.invokeMethod('saveUserToken', {
         'token': token,
@@ -44,7 +44,7 @@ class NativeLocationReportService {
         final message = result['message'] as String? ?? '';
         
         if (success) {
-          logger.info('✅ Native Token 保存成功', tag: 'NativeLocationReportService');
+          logger.debug('✅ Native Token 保存成功', tag: 'NativeLocationReportService');
         } else {
           logger.error('❌ Native Token 保存失败: $message', tag: 'NativeLocationReportService');
         }
@@ -62,7 +62,7 @@ class NativeLocationReportService {
   /// 清除用户 Token（登出时调用）
   static Future<bool> clearUserToken() async {
     try {
-      logger.info('🗑️ 清除 Native Token', tag: 'NativeLocationReportService');
+      logger.debug('🗑️ 清除 Native Token', tag: 'NativeLocationReportService');
       
       final result = await _channel.invokeMethod('clearUserToken');
       
@@ -71,7 +71,7 @@ class NativeLocationReportService {
         final message = result['message'] as String? ?? '';
         
         if (success) {
-          logger.info('✅ Native Token 已清除', tag: 'NativeLocationReportService');
+          logger.debug('✅ Native Token 已清除', tag: 'NativeLocationReportService');
         } else {
           logger.error('❌ Native Token 清除失败: $message', tag: 'NativeLocationReportService');
         }

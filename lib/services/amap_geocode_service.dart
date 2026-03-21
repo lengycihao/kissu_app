@@ -123,7 +123,7 @@ class AMapGeocodeService {
     String? city,
   }) async {
     try {
-      DebugUtil.info('🗺️ 开始正向地理编码: address=$address, city=$city');
+      DebugUtil.check('🗺️ 开始正向地理编码: address=$address, city=$city');
       final url = 'https://restapi.amap.com/v3/geocode/geo';
       final params = {
         'key': _webApiKey,
@@ -171,7 +171,7 @@ class AMapGeocodeService {
       final lng = parts[0];
       final lat = parts[1];
 
-      DebugUtil.success('✅ 正向地理编码成功: $address -> ($lat,$lng)');
+      DebugUtil.check('✅ 正向地理编码成功: $address -> ($lat,$lng)');
       return {
         'success': true,
         'longitude': lng,

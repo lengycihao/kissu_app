@@ -147,15 +147,15 @@ configurations.all {
     // 排除 flutter_android_oaid_plugin 里远程引入的 OAID 依赖，避免和本地 AAR 重复
     exclude(group = "com.github.gzu-liyujiang", module = "Android_CN_OAID")
     
-    // 排除 jpush_flutter 插件传递引入的远程极光推送SDK，使用本地SDK
-    exclude(group = "cn.jiguang.sdk", module = "jpush")
-    exclude(group = "cn.jiguang.sdk", module = "jcore")
-    exclude(group = "cn.jiguang.sdk", module = "jpush-xiaomi")
-    exclude(group = "cn.jiguang.sdk", module = "jpush-oppo")
-    exclude(group = "cn.jiguang.sdk", module = "jpush-vivo")
-    exclude(group = "cn.jiguang.sdk", module = "jpush-meizu")
-    exclude(group = "cn.jiguang.sdk", module = "jpush-huawei")
-    exclude(group = "cn.jiguang.sdk", module = "jpush-honor")
+    // // 排除 jpush_flutter 插件传递引入的远程极光推送SDK，使用本地SDK
+    // exclude(group = "cn.jiguang.sdk", module = "jpush")
+    // exclude(group = "cn.jiguang.sdk", module = "jcore")
+    // exclude(group = "cn.jiguang.sdk", module = "jpush-xiaomi")
+    // exclude(group = "cn.jiguang.sdk", module = "jpush-oppo")
+    // exclude(group = "cn.jiguang.sdk", module = "jpush-vivo")
+    // exclude(group = "cn.jiguang.sdk", module = "jpush-meizu")
+    // exclude(group = "cn.jiguang.sdk", module = "jpush-huawei")
+    // exclude(group = "cn.jiguang.sdk", module = "jpush-honor")
     
     // 🎯 已移除：不再排除高德地图SDK，因为已改回分离版本（3dmap + location）
     // exclude(group = "com.amap.api", module = "3dmap")
@@ -166,8 +166,8 @@ configurations.all {
 dependencies {
     // ================= 极光推送本地SDK依赖 =================
     // JPush 核心依赖 - 使用本地文件（只保留核心SDK，厂商通道暂时禁用以优先保障腾讯IM离线推送）
-    implementation(files("../libs/jiguang/libs/jcore-android-5.2.2.aar"))
-    implementation(files("../libs/jiguang/libs/jpush-android-5.9.0.jar"))
+    // implementation(files("../libs/jiguang/libs/jcore-android-5.2.2.aar"))
+    // implementation(files("../libs/jiguang/libs/jpush-android-5.9.0.jar"))
     
     // 🔥 极光推送厂商通道暂时禁用，优先保障腾讯IM离线推送
     // 极光推送仍可通过自有通道工作，只是厂商通道不可用
@@ -252,4 +252,6 @@ dependencies {
     // 魅族推送
     implementation("com.tencent.timpush:meizu:7.8.5484")
     // ================= 腾讯IM离线推送厂商SDK结束 =================
+
+    implementation("com.bytedance.ads:AppConvert:2.0.4")
 }

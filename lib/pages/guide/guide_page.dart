@@ -46,10 +46,10 @@ class _GuidePageState extends State<GuidePage> {
       final isLoggedIn = authService.isLoggedIn; // isLoggedIn是getter，不是方法
       
       if (isLoggedIn) {
-        logDebug('用户已登录，导航到主页');
+        // logDebug('用户已登录，导航到主页');
         Get.offAllNamed(KissuRoutePath.home);
       } else {
-        logDebug('用户未登录，导航到登录页');
+        // logDebug('用户未登录，导航到登录页');
         Get.offAllNamed(KissuRoutePath.login);
       }
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/services/lock_screen_overlay_service.dart';
 import 'package:kissu_app/network/public/lock_permission_api.dart';
@@ -68,7 +69,7 @@ class _LockScreenQuestionPageState extends State<LockScreenQuestionPage> {
         unlockType: 2,
         unlockAnswerIndex: index,
       );
-      debugPrint('🔓 答题解锁API调用: index=$index, success=${result.isSuccess}');
+      // debugPrint('🔓 答题解锁API调用: index=$index, success=${result.isSuccess}');
 
       if (result.isSuccess) {
         // 答对了，解锁成功
@@ -80,7 +81,7 @@ class _LockScreenQuestionPageState extends State<LockScreenQuestionPage> {
         return;
       }
     } catch (e) {
-      debugPrint('🔓 答题解锁API异常: $e');
+      logError('🔓 答题解锁API异常: $e');
     }
 
     // 答错了，提示可以重新选择

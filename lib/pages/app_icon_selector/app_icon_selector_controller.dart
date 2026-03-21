@@ -241,7 +241,7 @@ class AppIconSelectorController extends GetxController {
             }
           }
         }
-        logDebug('图标列表数据加载成功，共更新 ${result.data!.length} 个图标');
+        // logDebug('图标列表数据加载成功，共更新 ${result.data!.length} 个图标');
       } else {
         logWarning('图标列表数据加载失败: ${result.msg}');
       }

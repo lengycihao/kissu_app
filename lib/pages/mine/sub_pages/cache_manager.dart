@@ -24,7 +24,7 @@ class CacheManager {
       try {
         final tempDir = await getTemporaryDirectory();
         totalSize += await _calculateDirectorySize(tempDir);
-        logDebug('临时目录大小: ${_formatBytes(totalSize)}');
+        // logDebug('临时目录大小: ${_formatBytes(totalSize)}');
       } catch (e) {
         logWarning('计算临时目录大小失败: $e');
       }
@@ -61,7 +61,7 @@ class CacheManager {
           final logFile = File('${appDocDir.path}/$logFileName');
           if (await logFile.exists()) {
             totalSize += await logFile.length();
-            logDebug('日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
+            // logDebug('日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
           }
         }
         
@@ -74,7 +74,7 @@ class CacheManager {
                 final logFile = File('${externalDir.path}/$logFileName');
                 if (await logFile.exists()) {
                   totalSize += await logFile.length();
-                  logDebug('外部日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
+                  // logDebug('外部日志文件 $logFileName: ${_formatBytes(await logFile.length())}');
                 }
               }
             }
@@ -93,7 +93,7 @@ class CacheManager {
         if (await imageCacheDir.exists()) {
           final imageSize = await _calculateDirectorySize(imageCacheDir);
           totalSize += imageSize;
-          logDebug('图片缓存大小: ${_formatBytes(imageSize)}');
+          // logDebug('图片缓存大小: ${_formatBytes(imageSize)}');
         }
       } catch (e) {
         logError('计算图片缓存大小失败: $e');
@@ -101,7 +101,7 @@ class CacheManager {
       
       // 格式化缓存大小
       cacheSize.value = _formatBytes(totalSize);
-      logDebug('总缓存大小: ${cacheSize.value}');
+      // logDebug('总缓存大小: ${cacheSize.value}');
     } catch (e) {
       logError('计算缓存大小失败: $e');
       cacheSize.value = '未知';
@@ -170,7 +170,7 @@ class CacheManager {
       try {
         final tempDir = await getTemporaryDirectory();
         deletedCount += await _clearDirectory(tempDir);
-        logDebug('已清除临时目录');
+        // logDebug('已清除临时目录');
       } catch (e) {
         logError('清除临时目录失败: $e');
       }
@@ -207,7 +207,7 @@ class CacheManager {
           if (await logFile.exists()) {
             await logFile.delete();
             deletedCount++;
-            logDebug('已删除日志文件: $logFileName');
+            // logDebug('已删除日志文件: $logFileName');
           }
         }
         
@@ -221,7 +221,7 @@ class CacheManager {
                 if (await logFile.exists()) {
                   await logFile.delete();
                   deletedCount++;
-                  logDebug('已删除外部日志文件: $logFileName');
+                  // logDebug('已删除外部日志文件: $logFileName');
                 }
               }
             }
@@ -239,7 +239,7 @@ class CacheManager {
         final imageCacheDir = Directory('${tempDir.path}/libCachedImageData');
         if (await imageCacheDir.exists()) {
           deletedCount += await _clearDirectory(imageCacheDir);
-          logDebug('已清除图片缓存');
+          // logDebug('已清除图片缓存');
         }
       } catch (e) {
         logError('清除图片缓存失败: $e');
@@ -251,7 +251,7 @@ class CacheManager {
         final logsDir = Directory('${appSupportDir.path}${Platform.pathSeparator}logs');
         if (await logsDir.exists()) {
           deletedCount += await _clearDirectory(logsDir);
-          logDebug('已清除日志目录');
+          // logDebug('已清除日志目录');
         }
       } catch (e) {
         logError('清除日志目录失败: $e');
@@ -260,7 +260,7 @@ class CacheManager {
       // 6. 清除表情缓存（SharedPreferences）
       try {
         await EmojiCacheManager.instance.clearAllCache();
-        logDebug('已清除表情缓存');
+        // logDebug('已清除表情缓存');
       } catch (e) {
         logError('清除表情缓存失败: $e');
       }
@@ -268,7 +268,7 @@ class CacheManager {
       // 7. 清除轨迹缓存（SharedPreferences）
       try {
         await TrackCacheManager.instance.clearAllCache();
-        logDebug('已清除轨迹缓存');
+        // logDebug('已清除轨迹缓存');
       } catch (e) {
         logError('清除轨迹缓存失败: $e');
       }
@@ -276,7 +276,7 @@ class CacheManager {
       // 8. 清除App Logo缓存（SharedPreferences）
       try {
         await AppLogoCacheService().clearCache();
-        logDebug('已清除App Logo缓存');
+        // logDebug('已清除App Logo缓存');
       } catch (e) {
         logError('清除App Logo缓存失败: $e');
       }
@@ -284,7 +284,7 @@ class CacheManager {
       // 9. 清除内存图片缓存
       try {
         MemoryManager.clearAllCaches();
-        logDebug('已清除内存图片缓存');
+        // logDebug('已清除内存图片缓存');
       } catch (e) {
         logError('清除内存图片缓存失败: $e');
       }
@@ -292,7 +292,7 @@ class CacheManager {
       // 重新计算缓存大小
       await calculateCacheSize();
 
-      logDebug('缓存清除完成，共删除 $deletedCount 个文件/目录');
+      // logDebug('缓存清除完成，共删除 $deletedCount 个文件/目录');
       OKToastUtil.show('缓存清除成功');
     } catch (e) {
       logError('清除缓存失败: $e');

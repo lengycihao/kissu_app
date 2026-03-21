@@ -2,6 +2,7 @@ import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/network/interceptor/http_header_key.dart';
 import 'package:kissu_app/model/unbind_reason_model.dart';
 
 class AuthApi {
@@ -236,10 +237,16 @@ class AuthApi {
   }
 
   /// App启动接口
-  Future<HttpResultN> appStart() async {
+  /// [androidId] Android ID（Settings.Secure.ANDROID_ID），用于巨量引擎归因
+  Future<HttpResultN> appStart({String? androidId}) async {
+    final Map<String, String> extraHeaders = {};
+    if (androidId != null && androidId.isNotEmpty) {
+      extraHeaders[HttpHeaderKey.androidId] = androidId;
+    }
     final result = await HttpManagerN.instance.executePost(
       ApiRequest.appStart,
       jsonParam: {},
+      headers: extraHeaders.isNotEmpty ? extraHeaders : null,
       paramEncrypt: false,
     );
     return result;

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
@@ -237,7 +238,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                                 },
                               );
                             } catch (e) {
-                              debugPrint('跳转 VIP 页面失败: $e');
+                              logError('跳转 VIP 页面失败: $e');
                             }
                           },
                           child: Image.asset(
@@ -560,7 +561,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         },
       );
     } catch (e) {
-      debugPrint('跳转VIP页面失败: $e');
+      logError('跳转VIP页面失败: $e');
     }
   }
 
@@ -653,7 +654,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           break;
       }
     } catch (e) {
-      debugPrint('导航失败: $e');
+      logError('导航失败: $e');
       // 🔥 修复：兜底跳转到轨迹页面（若有坐标）
       try {
         if (args != null &&
@@ -878,7 +879,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       }
     } catch (e) {
       // 如果获取控制器失败，使用默认样式1
-      debugPrint('💬 获取气泡样式失败，使用默认样式: $e');
+      logError('💬 获取气泡样式失败，使用默认样式: $e');
       final defaultPath = widget.message.isSent
           ? 'assets/chat/kissu_chat_bubble_self_1.webp'
           : 'assets/chat/kissu_chat_bubble_other_1.webp';
@@ -1158,7 +1159,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         transition: Transition.rightToLeft,
       );
     } catch (e) {
-      debugPrint('跳转一起便便H5页面失败: $e');
+      logError('跳转一起便便H5页面失败: $e');
     }
   }
 

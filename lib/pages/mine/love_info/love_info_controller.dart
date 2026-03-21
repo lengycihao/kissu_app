@@ -70,7 +70,7 @@ class LoveInfoController extends GetxController {
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    logDebug('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
+    // logDebug('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
@@ -79,7 +79,7 @@ class LoveInfoController extends GetxController {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      logDebug('🔄 恋爱信息页面：静默刷新用户信息');
+      // logDebug('🔄 恋爱信息页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
@@ -92,17 +92,17 @@ class LoveInfoController extends GetxController {
 
   /// 刷新用户信息（供外部调用，例如绑定成功后）
   void refreshUserInfo() {
-   logDebug('🔄 刷新恋爱信息页用户数据...');
+  //  logDebug('🔄 刷新恋爱信息页用户数据...');
     _loadUserInfo();
   }
   
   /// 🔥 从服务器刷新用户信息（绑定成功后调用，确保获取最新数据）
   Future<void> refreshFromServer() async {
-    logDebug('🔄 恋爱信息页：从服务器刷新用户信息');
+    // logDebug('🔄 恋爱信息页：从服务器刷新用户信息');
     try {
       final success = await UserManager.refreshUserInfo();
       if (success) {
-        logDebug('✅ 恋爱信息页：服务器数据刷新成功');
+        // logDebug('✅ 恋爱信息页：服务器数据刷新成功');
         _loadUserInfo();
       } else {
         logWarning('⚠️ 恋爱信息页：服务器数据刷新失败，使用本地缓存');
@@ -118,13 +118,13 @@ class LoveInfoController extends GetxController {
   void _loadUserInfo() {
     final user = UserManager.currentUser;
     if (user != null) {
-      logDebug('Loading user info: ${user.nickname}');
+      // logDebug('Loading user info: ${user.nickname}');
 
       // 绑定状态处理 (1绑定，2未绑定，0初始未绑定)
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
       // isBindPartner.value  = false;
-      logDebug('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
+      // logDebug('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
 
       // 我的信息
       myAvatar.value = user.headPortrait ?? "";
@@ -138,7 +138,7 @@ class LoveInfoController extends GetxController {
       myPhone.value = user.phone ?? "";
 
       if (isBindPartner.value) {
-        logDebug('Processing bound state...');
+        // logDebug('Processing bound state...');
         // 已绑定状态 - 处理伴侣信息和恋爱信息
         _handleBoundState(user);
       }
@@ -146,11 +146,11 @@ class LoveInfoController extends GetxController {
   }
 
   void _handleBoundState(user) {
-    logDebug('Handling bound state...');
+    // logDebug('Handling bound state...');
 
     // 处理伴侣信息
     if (user.halfUserInfo != null) {
-      logDebug('Using halfUserInfo for partner data');
+      // logDebug('Using halfUserInfo for partner data');
       final half = user.halfUserInfo!;
       partnerAvatar.value = half.headPortrait ?? "";
       partnerNickname.value = half.nickname ?? "";
@@ -162,9 +162,9 @@ class LoveInfoController extends GetxController {
       partnerBirthday.value = half.birthday ?? "未选择";
       partnerPhone.value = half.phone ?? "";
 
-      logDebug(
-        'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
-      );
+      // logDebug(
+      //   'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
+      // );
     }
     
     // 处理恋爱信息和日期 - 与MineController保持一致的逻辑
@@ -174,33 +174,33 @@ class LoveInfoController extends GetxController {
   void _handleDateAndDays(user) {
     // 只使用LoverInfo中的接口数据，不做本地计算
     if (user.loverInfo != null) {
-      logDebug('Using loverInfo for love data');
+      // logDebug('Using loverInfo for love data');
       final lover = user.loverInfo!;
       
       // 绑定日期
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
-        logDebug('Bind date from loverInfo: ${bindDate.value}');
+        // logDebug('Bind date from loverInfo: ${bindDate.value}');
       }
       
       // 相恋时间
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
-        logDebug('Love time from loverInfo: ${loveTime.value}');
+        // logDebug('Love time from loverInfo: ${loveTime.value}');
       }
 
       // 恋爱天数 - 直接使用服务器数据
       if (lover.loveDays != null) {
         loveDays.value = lover.loveDays!;
         togetherDays.value = lover.loveDays!;
-        logDebug('✅ Love days from loverInfo API: ${loveDays.value}');
+        // logDebug('✅ Love days from loverInfo API: ${loveDays.value}');
       } else {
         loveDays.value = 0;
         togetherDays.value = 0;
-        logDebug('❌ Love days is null, set to 0');
+        // logDebug('❌ Love days is null, set to 0');
       }
     } else {
-      logDebug('No loverInfo data available, keeping default value: 0');
+      // logDebug('No loverInfo data available, keeping default value: 0');
       loveDays.value = 0;
       togetherDays.value = 0;
     }
@@ -410,7 +410,7 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('System avatar updated, mine page refreshed');
+          // DebugUtil.success('System avatar updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
@@ -419,7 +419,7 @@ class LoveInfoController extends GetxController {
         try {
           final homeController = Get.find<HomeController>();
           homeController.loadUserInfo();
-          DebugUtil.success('System avatar updated, home page refreshed');
+          // DebugUtil.success('System avatar updated, home page refreshed');
         } catch (e) {
           DebugUtil.error('Home controller not found: $e');
         }
@@ -612,7 +612,7 @@ class LoveInfoController extends GetxController {
         try {
           final homeController = Get.find<HomeController>();
           homeController.loadUserInfo();
-          DebugUtil.success('Avatar updated, home page refreshed');
+          // DebugUtil.success('Avatar updated, home page refreshed');
         } catch (e) {
           DebugUtil.error('Home controller not found: $e');
         }
@@ -689,7 +689,7 @@ class LoveInfoController extends GetxController {
             try {
               final mineController = Get.find<MineController>();
               mineController.loadUserInfo();
-              DebugUtil.success('Phone changed, mine page refreshed');
+              // DebugUtil.success('Phone changed, mine page refreshed');
             } catch (e) {
               DebugUtil.error('Mine page not found: $e');
             }
@@ -764,7 +764,7 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('Nickname updated, mine page refreshed');
+          // DebugUtil.success('Nickname updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
@@ -849,7 +849,7 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('Gender updated, mine page refreshed');
+          // DebugUtil.success('Gender updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
@@ -1065,7 +1065,7 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('Birthday updated, mine page refreshed');
+          // DebugUtil.success('Birthday updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
@@ -1170,11 +1170,11 @@ class LoveInfoController extends GetxController {
 
       if (result.isSuccess) {
         // 🔄 先从服务器刷新用户信息，获取最新的恋爱天数
-        DebugUtil.info('相恋时间更新成功，开始刷新用户信息...');
+        // DebugUtil.info('相恋时间更新成功，开始刷新用户信息...');
         final refreshSuccess = await UserManager.refreshUserInfo();
         
         if (refreshSuccess) {
-          DebugUtil.success('用户信息刷新成功，开始更新各页面显示');
+          // DebugUtil.success('用户信息刷新成功，开始更新各页面显示');
           
           // 重新加载本页面的用户信息
           _loadUserInfo();
@@ -1183,7 +1183,7 @@ class LoveInfoController extends GetxController {
           try {
             final mineController = Get.find<MineController>();
             mineController.loadUserInfo();
-            DebugUtil.success('Love time updated, mine page refreshed');
+            // DebugUtil.success('Love time updated, mine page refreshed');
           } catch (e) {
             DebugUtil.error('Mine page not found: $e');
           }
@@ -1192,7 +1192,7 @@ class LoveInfoController extends GetxController {
           try {
             final homeController = Get.find<HomeController>();
             await homeController.loadIndexData();
-            DebugUtil.success('Love time updated, home page refreshed');
+            // DebugUtil.success('Love time updated, home page refreshed');
           } catch (e) {
             DebugUtil.error('Home controller not found: $e');
           }
@@ -1201,7 +1201,7 @@ class LoveInfoController extends GetxController {
           try {
             final breakController = Get.find<BreakRelationshipController>();
             breakController.loadUserData();
-            DebugUtil.success('Love time updated, break relationship page refreshed');
+            // DebugUtil.success('Love time updated, break relationship page refreshed');
           } catch (e) {
             DebugUtil.info('Break relationship controller not found: $e');
           }

@@ -30,7 +30,7 @@ class OpenInstallService {
     if (Platform.isAndroid) {
       service._plugin.clipBoardEnabled(enableClipboard);
       if (kDebugMode) {
-        DebugUtil.info('OpenInstall剪贴板读取状态: $enableClipboard');
+        DebugUtil.check('OpenInstall剪贴板读取状态: $enableClipboard');
       }
     }
     
@@ -39,14 +39,14 @@ class OpenInstallService {
     
     service._isInitialized = true;
     if (kDebugMode) {
-      DebugUtil.info('OpenInstall服务初始化完成（剪贴板: $enableClipboard）');
+      DebugUtil.check('OpenInstall服务初始化完成（剪贴板: $enableClipboard）');
     }
   }
 
   /// 默认的拉起回调处理
   Future<void> _defaultWakeupHandler(Map<String, Object> data) async {
     if (kDebugMode) {
-      DebugUtil.info('OpenInstall唤醒参数: $data');
+      DebugUtil.check('OpenInstall唤醒参数: $data');
     }
     
     // 如果有自定义的唤醒处理器，则调用
@@ -107,7 +107,7 @@ class OpenInstallService {
 
     if (!Platform.isAndroid) {
       if (kDebugMode) {
-        DebugUtil.info('getInstallParamsCanRetry方法仅支持Android平台');
+        DebugUtil.check('getInstallParamsCanRetry方法仅支持Android平台');
       }
       return null;
     }
@@ -139,7 +139,7 @@ class OpenInstallService {
     
     service._plugin.reportRegister();
     if (kDebugMode) {
-      DebugUtil.info('OpenInstall注册事件上报完成');
+      DebugUtil.check('OpenInstall注册事件上报完成');
     }
   }
 
@@ -159,7 +159,7 @@ class OpenInstallService {
     
     service._plugin.reportEffectPoint(pointId, pointValue, extraMap);
     if (kDebugMode) {
-      DebugUtil.info('OpenInstall效果点上报完成: $pointId = $pointValue');
+      DebugUtil.check('OpenInstall效果点上报完成: $pointId = $pointValue');
     }
   }
 
@@ -177,7 +177,7 @@ class OpenInstallService {
     
     final result = await service._plugin.reportShare(shareCode, platform);
     if (kDebugMode) {
-      DebugUtil.info('OpenInstall分享事件上报完成: $shareCode -> $platform');
+      DebugUtil.check('OpenInstall分享事件上报完成: $shareCode -> $platform');
     }
     return result.cast<String, dynamic>();
   }
@@ -203,11 +203,11 @@ class OpenInstallService {
     if (Platform.isAndroid) {
       service._plugin.setChannel(channelCode);
       if (kDebugMode) {
-        DebugUtil.info('OpenInstall渠道代码设置完成: $channelCode');
+        DebugUtil.check('OpenInstall渠道代码设置完成: $channelCode');
       }
     } else {
       if (kDebugMode) {
-        DebugUtil.info('setChannel方法仅支持Android平台');
+        DebugUtil.check('setChannel方法仅支持Android平台');
       }
     }
   }
@@ -223,11 +223,11 @@ class OpenInstallService {
     if (Platform.isAndroid) {
       service._plugin.configAndroid(config);
       if (kDebugMode) {
-        DebugUtil.info('OpenInstall Android配置完成: $config');
+        DebugUtil.check('OpenInstall Android配置完成: $config');
       }
     } else {
       if (kDebugMode) {
-        DebugUtil.info('configAndroid方法仅支持Android平台');
+        DebugUtil.check('configAndroid方法仅支持Android平台');
       }
     }
   }
@@ -243,11 +243,11 @@ class OpenInstallService {
     if (Platform.isIOS) {
       service._plugin.configIos(config);
       if (kDebugMode) {
-        DebugUtil.info('OpenInstall iOS配置完成: $config');
+        DebugUtil.check('OpenInstall iOS配置完成: $config');
       }
     } else {
       if (kDebugMode) {
-        DebugUtil.info('configIos方法仅支持iOS平台');
+        DebugUtil.check('configIos方法仅支持iOS平台');
       }
     }
   }
@@ -263,11 +263,11 @@ class OpenInstallService {
     if (Platform.isAndroid) {
       service._plugin.clipBoardEnabled(enabled);
       if (kDebugMode) {
-        DebugUtil.info('OpenInstall剪切板读取状态设置完成: $enabled');
+        DebugUtil.check('OpenInstall剪切板读取状态设置完成: $enabled');
       }
     } else {
       if (kDebugMode) {
-        DebugUtil.info('setClipboardEnabled方法仅支持Android平台');
+        DebugUtil.check('setClipboardEnabled方法仅支持Android平台');
       }
     }
   }
@@ -279,7 +279,7 @@ class OpenInstallService {
       return params?['channelCode'] as String?;
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.info('获取渠道信息失败: $e');
+        DebugUtil.error('获取渠道信息失败: $e');
       }
       return null;
     }
@@ -292,7 +292,7 @@ class OpenInstallService {
       return params?['bindData'] as String?;
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.info('获取携带参数失败: $e');
+        DebugUtil.error('获取携带参数失败: $e');
       }
       return null;
     }
@@ -305,7 +305,7 @@ class OpenInstallService {
       return params != null && params.isNotEmpty;
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.info('检查OpenInstall安装状态失败: $e');
+        DebugUtil.error('检查OpenInstall安装状态失败: $e');
       }
       return false;
     }
@@ -327,7 +327,7 @@ class OpenInstallService {
         final value = params[key];
         if (value != null && value.toString().isNotEmpty) {
           if (kDebugMode) {
-            DebugUtil.info('从OpenInstall参数中获取到邀请码: $key = $value');
+            DebugUtil.check('从OpenInstall参数中获取到邀请码: $key = $value');
           }
           return value.toString();
         }
@@ -339,19 +339,19 @@ class OpenInstallService {
         final inviteCode = _parseInviteCodeFromBindData(bindData);
         if (inviteCode != null) {
           if (kDebugMode) {
-            DebugUtil.info('从bindData中解析到邀请码: $inviteCode');
+            DebugUtil.check('从bindData中解析到邀请码: $inviteCode');
           }
           return inviteCode;
         }
       }
 
       if (kDebugMode) {
-        DebugUtil.info('未在OpenInstall参数中找到邀请码，参数: $params');
+        DebugUtil.check('未在OpenInstall参数中找到邀请码，参数: $params');
       }
       return null;
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.info('获取邀请码失败: $e');
+        DebugUtil.error('获取邀请码失败: $e');
       }
       return null;
     }
@@ -396,7 +396,7 @@ class OpenInstallService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.info('解析bindData中的邀请码失败: $e');
+        DebugUtil.error('解析bindData中的邀请码失败: $e');
       }
       return null;
     }

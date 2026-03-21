@@ -83,14 +83,7 @@ class TrackDataManager {
     // 缓存结果
     _trackPointsCache[cacheKey] = points;
     
-    // 🔥 修复：同步更新轨迹线状态，避免异步更新导致的时序问题
-    // 之前使用 Future.microtask() 会导致 hasValidTrackData 状态更新滞后，
-    // 在头像切换时 UI 可能在状态更新前就读取了旧值，导致 marker 显示不稳定
-    final hasData = points.isNotEmpty;
-    if (hasValidTrackData.value != hasData) {
-      hasValidTrackData.value = hasData;
-    }
-    logDebug('轨迹点数量: ${points.length}, hasValidTrackData: $hasData');
+    // logDebug('轨迹点数量: ${points.length}');
     
     return points;
   }
@@ -136,7 +129,7 @@ class TrackDataManager {
     _stopPointsCache[cacheKey] = result;
     
     // 🚀 只打印摘要日志
-    logDebug('📍 [StopPoints] 计算完成: 总数=${allStops.length}, 有效停留点=${result.length} (已缓存)');
+    // logDebug('📍 [StopPoints] 计算完成: 总数=${allStops.length}, 有效停留点=${result.length} (已缓存)');
     return result;
   }
   
@@ -144,7 +137,7 @@ class TrackDataManager {
   Future<void> loadBothUsersData({required DateTime date}) async {
     try {
       isLoading.value = true;
-      logDebug('📍 开始加载两个用户的轨迹数据 - 日期: ${DateFormat('yyyy-MM-dd').format(date)}');
+      // logDebug('📍 开始加载两个用户的轨迹数据 - 日期: ${DateFormat('yyyy-MM-dd').format(date)}');
       
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
       
@@ -157,7 +150,7 @@ class TrackDataManager {
       // 处理自己的数据
       if (results[0].isSuccess && results[0].data != null) {
         myselfData.value = results[0].data;
-        logDebug('✅ 自己的轨迹数据加载成功');
+        // logDebug('✅ 自己的轨迹数据加载成功');
       } else {
         myselfData.value = null;
         logWarning('⚠️ 自己的轨迹数据加载失败: ${results[0].msg}');
@@ -166,7 +159,7 @@ class TrackDataManager {
       // 处理另一半的数据
       if (results[1].isSuccess && results[1].data != null) {
         partnerData.value = results[1].data;
-        logDebug('✅ 另一半的轨迹数据加载成功');
+        // logDebug('✅ 另一半的轨迹数据加载成功');
       } else {
         partnerData.value = null;
         logWarning('⚠️ 另一半的轨迹数据加载失败: ${results[1].msg}');
@@ -174,6 +167,9 @@ class TrackDataManager {
       
       // 更新统计数据（基于当前显示的用户）
       updateStatistics();
+      
+      // 🔥 数据加载完成后同步更新轨迹线状态
+      _updateTrackDataState();
       
     } catch (e) {
       logError('❌ 加载轨迹数据异常: $e');
@@ -189,7 +185,7 @@ class TrackDataManager {
   void switchUser(int userType) {
     if (currentUserType.value == userType) return;
     
-    logDebug('🔄 切换用户: ${userType == 1 ? "自己" : "另一半"}');
+    // logDebug('🔄 切换用户: ${userType == 1 ? "自己" : "另一半"}');
     currentUserType.value = userType;
     
     // 清空缓存，强制重新计算轨迹点和停留点
@@ -198,6 +194,9 @@ class TrackDataManager {
     
     // 更新统计数据
     updateStatistics();
+    
+    // 🔥 切换用户后同步更新轨迹线状态
+    _updateTrackDataState();
   }
   
   /// 更新统计数据（基于当前显示的用户）
@@ -230,7 +229,7 @@ class TrackDataManager {
       moveDistance.value = "0米";
     }
     
-    logDebug('统计数据更新 - 停留: ${stayCount.value}次, 时长: ${stayDuration.value}, 距离: ${moveDistance.value}');
+    // logDebug('统计数据更新 - 停留: ${stayCount.value}次, 时长: ${stayDuration.value}, 距离: ${moveDistance.value}');
   }
   
   /// 清空统计数据
@@ -240,9 +239,19 @@ class TrackDataManager {
     moveDistance.value = "0米";
   }
   
+  /// 🔥 更新轨迹线状态（从数据变更点调用，而不是在 getter 中设置，避免在 Obx build 中触发 setState）
+  void _updateTrackDataState() {
+    final points = trackPoints;
+    final hasData = points.isNotEmpty;
+    if (hasValidTrackData.value != hasData) {
+      hasValidTrackData.value = hasData;
+      // logDebug('hasValidTrackData 更新: $hasData');
+    }
+  }
+  
   /// 清空所有数据
   void clearAllData() {
-    logDebug('🧹 清空所有轨迹数据...');
+    // logDebug('🧹 清空所有轨迹数据...');
     myselfData.value = null;
     partnerData.value = null;
     _trackPointsCache.clear();
@@ -255,7 +264,7 @@ class TrackDataManager {
   void clearCache() {
     _trackPointsCache.clear();
     _stopPointsCache.clear();
-    logDebug('轨迹点和停留点缓存已清空');
+    // logDebug('轨迹点和停留点缓存已清空');
   }
   
   /// 获取起点坐标

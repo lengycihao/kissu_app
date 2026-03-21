@@ -99,7 +99,7 @@ class HomePopupService {
   /// 
   /// 优先级：绑定弹窗 > VIP购买弹窗 > VIP推广弹窗 > 引导图
   Future<void> startPopupFlow() async {
-    logDebug('🚀 启动弹窗流程...');
+    // logDebug('🚀 启动弹窗流程...');
     
     // 1. 检查绑定弹窗（最高优先级）
     await checkAndShowBindingDialog();
@@ -125,22 +125,22 @@ class HomePopupService {
   /// 检查并显示绑定弹窗
   Future<void> checkAndShowBindingDialog() async {
     try {
-      logDebug('🔍 检查绑定弹窗条件: isBound=${isBound.value}, hasShown=$_hasShownBindingDialogThisSession');
+      // logDebug('🔍 检查绑定弹窗条件: isBound=${isBound.value}, hasShown=$_hasShownBindingDialogThisSession');
       
       if (isBound.value) {
-        logDebug('🔗 用户已绑定，不显示绑定弹窗');
+        // logDebug('🔗 用户已绑定，不显示绑定弹窗');
         return;
       }
 
       if (_hasShownBindingDialogThisSession) {
-        logDebug('📱 本次会话已显示过绑定弹窗，不再显示');
+        // logDebug('📱 本次会话已显示过绑定弹窗，不再显示');
         return;
       }
 
-      logDebug('💕 用户未绑定且本次会话未显示过绑定弹窗，准备显示绑定弹窗');
+      // logDebug('💕 用户未绑定且本次会话未显示过绑定弹窗，准备显示绑定弹窗');
 
       Future.delayed(const Duration(milliseconds: 800), () {
-        logDebug('⏰ 延迟800ms后，开始显示绑定弹窗');
+        // logDebug('⏰ 延迟800ms后，开始显示绑定弹窗');
         _showBindingDialog();
       });
       
@@ -154,7 +154,7 @@ class HomePopupService {
     try {
       final currentContext = Get.context;
       if (currentContext == null) {
-        logDebug('❌ 无法获取Context，跳过显示绑定弹窗');
+        logWarning('❌ 无法获取Context，跳过显示绑定弹窗');
         return;
       }
 
@@ -162,19 +162,19 @@ class HomePopupService {
       // 因为在延迟800ms期间，服务器可能已经返回了最新的用户信息
       final latestBindStatus = UserManager.currentUser?.bindStatus.toString() == "1";
       if (latestBindStatus) {
-        logDebug('🔗 延迟后再次检查：用户已绑定，取消显示绑定弹窗');
+        // logDebug('🔗 延迟后再次检查：用户已绑定，取消显示绑定弹窗');
         isBound.value = true; // 同步更新绑定状态
         return;
       }
 
-      logDebug('💑 显示绑定弹窗');
+      // logDebug('💑 显示绑定弹窗');
       
       // 标记弹窗正在显示，隐藏引导图
       _isShowingPopup.value = true;
       isShowingDialog.value = true;
       if (showGuideOverlay.value) {
         hideGuideOverlay();
-        logDebug('⚠️ 隐藏引导图，显示绑定弹窗');
+        // logDebug('⚠️ 隐藏引导图，显示绑定弹窗');
       }
       
       // 标记本次会话已显示
@@ -185,12 +185,12 @@ class HomePopupService {
         caller: SourcePageUtilsCaller.home,
         sourceEvent: HomeEvents.page, // 首页自动弹出，传首页页面事件ID
         onClose: () {
-          logDebug('💑 绑定弹窗已关闭');
+          // logDebug('💑 绑定弹窗已关闭');
         },
       );
       
       final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
-        logDebug('⚠️ 绑定弹窗显示超时，强制重置状态');
+        // logDebug('⚠️ 绑定弹窗显示超时，强制重置状态');
         _resetPopupState();
       });
       
@@ -199,7 +199,7 @@ class HomePopupService {
           _resetPopupState();
         });
         
-        logDebug('💑 绑定弹窗已关闭，结果: $result');
+        // logDebug('💑 绑定弹窗已关闭，结果: $result');
         Future.delayed(const Duration(milliseconds: 300), () {
           onRefreshAfterBinding();
         });
@@ -220,21 +220,21 @@ class HomePopupService {
   Future<void> checkAndShowVipPurchaseDialog() async {
     try {
       if (!isBound.value) {
-        logDebug('💎 用户未绑定，不显示VIP购买弹窗');
+        // logDebug('💎 用户未绑定，不显示VIP购买弹窗');
         return;
       }
 
       if (UserManager.isVip) {
-        logDebug('💎 用户已是VIP会员，不显示VIP购买弹窗');
+        // logDebug('💎 用户已是VIP会员，不显示VIP购买弹窗');
         return;
       }
 
       if (_hasShownVipDialogThisSession) {
-        logDebug('💎 本次会话已显示过VIP购买弹窗，不再显示');
+        // logDebug('💎 本次会话已显示过VIP购买弹窗，不再显示');
         return;
       }
 
-      logDebug('💎 用户已绑定且非会员，本次会话未显示过VIP购买弹窗，准备显示');
+      // logDebug('💎 用户已绑定且非会员，本次会话未显示过VIP购买弹窗，准备显示');
 
       Future.delayed(const Duration(milliseconds: 800), () {
         _showVipPurchaseDialog();
@@ -250,17 +250,17 @@ class HomePopupService {
     try {
       final currentContext = Get.context;
       if (currentContext == null) {
-        logDebug('❌ 无法获取Context，跳过显示VIP购买弹窗');
+        logWarning('❌ 无法获取Context，跳过显示VIP购买弹窗');
         return;
       }
 
-      logDebug('💎 显示VIP购买弹窗');
+      // logDebug('💎 显示VIP购买弹窗');
       
       _isShowingPopup.value = true;
       isShowingDialog.value = true;
       if (showGuideOverlay.value) {
         hideGuideOverlay();
-        logDebug('⚠️ 隐藏引导图，显示VIP购买弹窗');
+        // logDebug('⚠️ 隐藏引导图，显示VIP购买弹窗');
       }
       
       _hasShownVipDialogThisSession = true;
@@ -268,7 +268,7 @@ class HomePopupService {
       final dialogFuture = DialogManager.showVipPurchase(
         context: currentContext,
         onConfirm: () {
-          logDebug('💎 点击了立即查看按钮，跳转到VIP页面，默认选中永久会员');
+          // logDebug('💎 点击了立即查看按钮，跳转到VIP页面，默认选中永久会员');
           _resetPopupState();
           
           // 埋点：首页离开（进入下一页）
@@ -287,7 +287,7 @@ class HomePopupService {
       );
       
       final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
-        logDebug('⚠️ VIP购买弹窗显示超时，强制重置状态');
+        // logDebug('⚠️ VIP购买弹窗显示超时，强制重置状态');
         _resetPopupState();
       });
       
@@ -295,7 +295,7 @@ class HomePopupService {
         Future.delayed(const Duration(milliseconds: 300), () {
           _resetPopupState();
         });
-        logDebug('💎 VIP购买弹窗已关闭');
+        // logDebug('💎 VIP购买弹窗已关闭');
       }).catchError((e) {
         _resetPopupState();
         logError('❌ VIP购买弹窗错误: $e');
@@ -320,13 +320,13 @@ class HomePopupService {
       final prefs = await SharedPreferences.getInstance();
       final shouldShow = prefs.getBool('should_show_vip_promo') ?? false;
       
-      logDebug('🔍 检查VIP推广标识: $shouldShow');
+      // logDebug('🔍 检查VIP推广标识: $shouldShow');
       
       if (shouldShow) {
-        logDebug('🎁 检测到需要显示VIP推广弹窗');
+        // logDebug('🎁 检测到需要显示VIP推广弹窗');
         
         await prefs.remove('should_show_vip_promo');
-        logDebug('🧹 VIP推广标识已清除（在显示弹窗前）');
+        // logDebug('🧹 VIP推广标识已清除（在显示弹窗前）');
         
         await Future.delayed(const Duration(milliseconds: 500));
         
@@ -337,17 +337,17 @@ class HomePopupService {
             isShowingDialog.value = true;
             if (showGuideOverlay.value) {
               hideGuideOverlay();
-              logDebug('⚠️ 隐藏引导图，显示VIP推广弹窗');
+              // logDebug('⚠️ 隐藏引导图，显示VIP推广弹窗');
             }
             
             final dialogFuture = DialogManager.showHuaweiVipPromo(currentContext);
             final timeoutFuture = Future.delayed(const Duration(seconds: 10), () {
-              logDebug('⚠️ VIP推广弹窗显示超时，强制重置状态');
+              // logDebug('⚠️ VIP推广弹窗显示超时，强制重置状态');
               _resetPopupState();
             });
             
             await Future.any([dialogFuture, timeoutFuture]);
-            logDebug('✅ VIP推广弹窗已显示并关闭');
+            // logDebug('✅ VIP推广弹窗已显示并关闭');
             
             Future.delayed(const Duration(milliseconds: 300), () {
               _resetPopupState();
@@ -360,7 +360,7 @@ class HomePopupService {
           logError('❌ 显示VIP推广弹窗失败: $e');
         }
       } else {
-        logDebug('ℹ️ 无需显示VIP推广弹窗');
+        // logDebug('ℹ️ 无需显示VIP推广弹窗');
       }
     } catch (e) {
       _resetPopupState();
@@ -373,19 +373,19 @@ class HomePopupService {
   /// 检查VIP到期弹窗（整个会话期间只执行一次）
   void checkVipOuttimeDialogOnce() {
     if (_hasCheckedVipOuttimeDialogThisSession) {
-      logDebug('📱 VIP到期弹窗今天已检查过，跳过');
+      // logDebug('📱 VIP到期弹窗今天已检查过，跳过');
       return;
     }
     
     final vipData = getCachedVipData();
     if (vipData == null) {
       if (_vipOuttimeDialogCheckRetryCount >= _maxVipOuttimeDialogCheckRetries) {
-        logDebug('📱 VIP数据加载超时，放弃检查VIP到期弹窗');
+        // logDebug('📱 VIP数据加载超时，放弃检查VIP到期弹窗');
         _hasCheckedVipOuttimeDialogThisSession = true;
         return;
       }
       _vipOuttimeDialogCheckRetryCount++;
-      logDebug('📱 VIP数据还未加载，延迟检查VIP到期弹窗 (重试 $_vipOuttimeDialogCheckRetryCount/$_maxVipOuttimeDialogCheckRetries)');
+      // logDebug('📱 VIP数据还未加载，延迟检查VIP到期弹窗 (重试 $_vipOuttimeDialogCheckRetryCount/$_maxVipOuttimeDialogCheckRetries)');
       Future.delayed(const Duration(milliseconds: 1000), () {
         checkVipOuttimeDialogOnce();
       });
@@ -413,16 +413,16 @@ class HomePopupService {
       final lastShowDate = prefs.getString('vip_outtime_dialog_last_show_date');
       
       if (lastShowDate == today) {
-        logDebug('📱 VIP到期弹窗今天已显示过，不再显示');
+        // logDebug('📱 VIP到期弹窗今天已显示过，不再显示');
         return;
       }
 
       await prefs.setString('vip_outtime_dialog_last_show_date', today);
-      logDebug('✅ VIP到期弹窗已提前记录: $today');
+      // logDebug('✅ VIP到期弹窗已提前记录: $today');
 
       final context = Get.context;
       if (context == null) {
-        logDebug('⚠️ 无法获取上下文，延迟显示VIP到期弹窗');
+        // logDebug('⚠️ 无法获取上下文，延迟显示VIP到期弹窗');
         _vipOuttimeDialogRetryTimer?.cancel();
         int retryCount = 0;
         _vipOuttimeDialogRetryTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
@@ -453,12 +453,12 @@ class HomePopupService {
   /// 显示VIP到期弹窗
   Future<void> _showVipOuttimeDialog(BuildContext context, int expireDays) async {
     try {
-      logDebug('📱 显示VIP到期弹窗: expireDays=$expireDays');
+      // logDebug('📱 显示VIP到期弹窗: expireDays=$expireDays');
       final result = await VipOuttimeDialog.show(
         context: context,
         expireDays: expireDays,
         onRenew: () {
-          logDebug('📱 用户点击立即续费，跳转到VIP页面');
+          // logDebug('📱 用户点击立即续费，跳转到VIP页面');
           Get.toNamed(
             KissuRoutePath.vip,
             arguments: {
@@ -468,12 +468,12 @@ class HomePopupService {
           );
         },
         onLater: () {
-          logDebug('📱 用户点击下次再说');
+          // logDebug('📱 用户点击下次再说');
         },
       );
 
       if (result != null) {
-        logDebug('✅ VIP到期弹窗用户操作完成');
+        // logDebug('✅ VIP到期弹窗用户操作完成');
       }
     } catch (e) {
       logError('❌ 显示VIP到期弹窗异常: $e');
@@ -486,13 +486,13 @@ class HomePopupService {
   void checkVipExpireReminderDialogOnce() {
     
     if (_hasCheckedVipExpireReminderDialogThisSession) {
-      logDebug('📱 VIP过期提醒弹窗今天已检查过，跳过');
+      // logDebug('📱 VIP过期提醒弹窗今天已检查过，跳过');
       return;
     }
     
     final vipData = getCachedVipData();
     if (vipData == null) {
-      logDebug('📱 VIP数据还未加载，跳过VIP过期提醒弹窗检查');
+      // logDebug('📱 VIP数据还未加载，跳过VIP过期提醒弹窗检查');
       return;
     }
     
@@ -513,12 +513,12 @@ class HomePopupService {
       final lastShowDate = prefs.getString('vip_expire_reminder_dialog_last_show_date');
       
       if (lastShowDate == today) {
-        logDebug('📱 VIP过期提醒弹窗今天已显示过，不再显示');
+        // logDebug('📱 VIP过期提醒弹窗今天已显示过，不再显示');
         return;
       }
 
       await prefs.setString('vip_expire_reminder_dialog_last_show_date', today);
-      logDebug('✅ VIP过期提醒弹窗已提前记录: $today');
+      // logDebug('✅ VIP过期提醒弹窗已提前记录: $today');
 
       final context = Get.context;
       if (context == null) {
@@ -535,14 +535,14 @@ class HomePopupService {
   /// 显示VIP过期提醒弹窗
   Future<void> _showVipExpireReminderDialog(BuildContext context, String desc, int expireDays) async {
     try {
-      logDebug('📱 显示VIP过期提醒弹窗: desc=$desc, expireDays=$expireDays');
+      // logDebug('📱 显示VIP过期提醒弹窗: desc=$desc, expireDays=$expireDays');
       
       final result = await VipExpireReminderDialog.show(
         context: context,
         desc: desc,
         expireDays: expireDays,
         onRenewal: () {
-          logDebug('📱 用户点击立即续费，跳转到VIP页面');
+          // logDebug('📱 用户点击立即续费，跳转到VIP页面');
           onNavigateToNextPage?.call();
           Get.toNamed(
             KissuRoutePath.vip,
@@ -553,12 +553,12 @@ class HomePopupService {
           );
         },
         onCancel: () {
-          logDebug('📱 用户点击下次再说');
+          // logDebug('📱 用户点击下次再说');
         },
       );
 
       if (result != null) {
-        logDebug('✅ VIP过期提醒弹窗用户操作完成');
+        // logDebug('✅ VIP过期提醒弹窗用户操作完成');
       }
     } catch (e) {
       logError('❌ 显示VIP过期提醒弹窗异常: $e');
@@ -573,22 +573,22 @@ class HomePopupService {
       final prefs = await SharedPreferences.getInstance();
       final hasShownGuide1 = prefs.getBool('has_shown_guide1') ?? false;
       
-      logDebug('🔍 检查引导图1显示状态: $hasShownGuide1 (已绑定: ${isBound.value})');
+      // logDebug('🔍 检查引导图1显示状态: $hasShownGuide1 (已绑定: ${isBound.value})');
       
       if (!hasShownGuide1) {
-        logDebug('📱 首次登录，显示引导图1');
+        // logDebug('📱 首次登录，显示引导图1');
         await prefs.setBool('has_shown_guide1', true);
         
         Future.delayed(const Duration(milliseconds: 500), () {
           _showGuide1();
         });
       } else {
-        logDebug('ℹ️ 引导图1已显示过，检查是否需要显示引导图2或VIP购买弹窗 (已绑定: ${isBound.value})');
+        // logDebug('ℹ️ 引导图1已显示过，检查是否需要显示引导图2或VIP购买弹窗 (已绑定: ${isBound.value})');
         
         if (isBound.value) {
           checkAndShowGuide2();
         } else {
-          logDebug('ℹ️ 未绑定老用户，不显示引导图');
+          // logDebug('ℹ️ 未绑定老用户，不显示引导图');
         }
       }
     } catch (e) {
@@ -599,12 +599,12 @@ class HomePopupService {
   /// 显示引导图1
   void _showGuide1() {
     if (_isShowingPopup.value) {
-      logDebug('⚠️ 正在显示弹窗，延迟显示引导图1');
+      // logDebug('⚠️ 正在显示弹窗，延迟显示引导图1');
       Future.delayed(const Duration(milliseconds: 500), () {
         if (!_isShowingPopup.value) {
           currentGuideType.value = GuideType.swipe;
           showGuideOverlay.value = true;
-          logDebug('📱 弹窗已关闭，显示引导图1');
+          // logDebug('📱 弹窗已关闭，显示引导图1');
         }
       });
       return;
@@ -612,30 +612,30 @@ class HomePopupService {
     
     currentGuideType.value = GuideType.swipe;
     showGuideOverlay.value = true;
-    logDebug('📱 显示引导图1');
+    // logDebug('📱 显示引导图1');
   }
 
   /// 引导图1关闭后的回调
   void onGuide1Dismissed() {
-    logDebug('📱 引导图1关闭回调被调用');
+    // logDebug('📱 引导图1关闭回调被调用');
     // 🔥 修复：确保状态正确重置
     showGuideOverlay.value = false;
     _resetPopupState();
-    logDebug('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
+    // logDebug('📱 引导图1已关闭，检查是否需要显示引导图2 (已绑定: ${isBound.value})');
     
     Future.delayed(const Duration(milliseconds: 300), () {
       if (isBound.value && !_isShowingPopup.value) {
         checkAndShowGuide2();
       } else {
         if (_isShowingPopup.value) {
-          logDebug('⚠️ 正在显示弹窗，延迟显示引导图2');
+          // logDebug('⚠️ 正在显示弹窗，延迟显示引导图2');
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (isBound.value && !_isShowingPopup.value) {
               checkAndShowGuide2();
             }
           });
         } else {
-          logDebug('✅ 未绑定用户引导流程完成，引导图后不再弹出其他弹窗');
+          // logDebug('✅ 未绑定用户引导流程完成，引导图后不再弹出其他弹窗');
         }
       }
     });
@@ -643,18 +643,18 @@ class HomePopupService {
 
   /// 引导图2关闭后的回调
   void onGuide2Dismissed() {
-    logDebug('📱 引导图2关闭回调被调用');
+    // logDebug('📱 引导图2关闭回调被调用');
     // 🔥 修复：确保状态正确重置
     showGuideOverlay.value = false;
     _resetPopupState();
-    logDebug('✅ 引导图2已关闭，引导流程完成，引导图后不再弹出其他弹窗');
+    // logDebug('✅ 引导图2已关闭，引导流程完成，引导图后不再弹出其他弹窗');
   }
 
   /// 检查并显示引导图2（相恋时间设置引导）
   Future<void> checkAndShowGuide2() async {
     try {
       if (_isShowingPopup.value) {
-        logDebug('⚠️ 正在显示弹窗，延迟检查引导图2');
+        // logDebug('⚠️ 正在显示弹窗，延迟检查引导图2');
         Future.delayed(const Duration(milliseconds: 1000), () {
           if (!_isShowingPopup.value) {
             checkAndShowGuide2();
@@ -666,10 +666,10 @@ class HomePopupService {
       final prefs = await SharedPreferences.getInstance();
       final hasShownGuide2 = prefs.getBool('has_shown_guide2') ?? false;
       
-      logDebug('🔍 检查引导图2显示状态: $hasShownGuide2');
+      // logDebug('🔍 检查引导图2显示状态: $hasShownGuide2');
       
       if (!hasShownGuide2) {
-        logDebug('📱 显示引导图2（已绑定且第一次进入首页）');
+        // logDebug('📱 显示引导图2（已绑定且第一次进入首页）');
         await prefs.setBool('has_shown_guide2', true);
         
         if (!_isShowingPopup.value) {
@@ -679,7 +679,7 @@ class HomePopupService {
             }
           });
         } else {
-          logDebug('⚠️ 弹窗正在显示，延迟显示引导图2');
+          // logDebug('⚠️ 弹窗正在显示，延迟显示引导图2');
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (!_isShowingPopup.value) {
               displayGuideOverlay();
@@ -687,7 +687,7 @@ class HomePopupService {
           });
         }
       } else {
-        logDebug('ℹ️ 引导图2已显示过，检查VIP购买弹窗');
+        // logDebug('ℹ️ 引导图2已显示过，检查VIP购买弹窗');
         await checkAndShowVipPurchaseDialog();
       }
     } catch (e) {
@@ -698,12 +698,12 @@ class HomePopupService {
   /// 显示引导层（引导图2使用）
   void displayGuideOverlay() {
     if (_isShowingPopup.value) {
-      logDebug('⚠️ 正在显示弹窗，延迟显示引导图');
+      // logDebug('⚠️ 正在显示弹窗，延迟显示引导图');
       Future.delayed(const Duration(milliseconds: 500), () {
         if (!_isShowingPopup.value) {
           currentGuideType.value = GuideType.datingTime;
           showGuideOverlay.value = true;
-          logDebug('📱 弹窗已关闭，显示引导层');
+          // logDebug('📱 弹窗已关闭，显示引导层');
         }
       });
       return;
@@ -711,31 +711,31 @@ class HomePopupService {
     
     currentGuideType.value = GuideType.datingTime;
     showGuideOverlay.value = true;
-    logDebug('📱 显示引导层');
+    // logDebug('📱 显示引导层');
   }
 
   /// 隐藏引导层
   void hideGuideOverlay() {
-    logDebug('📱 开始隐藏引导层...');
+    // logDebug('📱 开始隐藏引导层...');
     showGuideOverlay.value = false;
     
     // 🔥 修复：立即重置弹窗状态，防止卡死
     // 不要延迟检查，直接重置状态
     if (_isShowingPopup.value) {
-      logDebug('⚠️ 引导层关闭时检测到弹窗状态为true，强制重置');
+      // logDebug('⚠️ 引导层关闭时检测到弹窗状态为true，强制重置');
       _resetPopupState();
     }
     
-    logDebug('📱 引导层已隐藏');
+    // logDebug('📱 引导层已隐藏');
   }
 
   /// 检查并显示引导层（调试模式：一直显示）
   Future<void> checkAndShowGuideDebug() async {
     try {
-      logDebug('🔍 调试模式：强制显示引导层');
+      // logDebug('🔍 调试模式：强制显示引导层');
       Future.delayed(const Duration(milliseconds: 1000), () {
         displayGuideOverlay();
-        logDebug('✅ 引导层已显示（调试模式）');
+        // logDebug('✅ 引导层已显示（调试模式）');
       });
     } catch (e) {
       logError('❌ 显示引导层失败: $e');

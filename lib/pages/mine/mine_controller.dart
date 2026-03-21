@@ -203,7 +203,7 @@ class MineController extends GetxController {
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() async {
-    debugPrint('👤 我的页面重新获得焦点，静默刷新用户信息');
+    // debugPrint('👤 我的页面重新获得焦点，静默刷新用户信息');
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息，await确保数据更新后再检查锁机状态
     await _silentRefreshUserInfo();
@@ -222,17 +222,17 @@ class MineController extends GetxController {
       if (Get.isRegistered<HomeController>()) {
         final homeController = Get.find<HomeController>();
         isRedDot.value = homeController.isRedDot.value;
-        logDebug('📊 从HomeController获取红点状态: ${isRedDot.value}');
+        // logDebug('📊 从HomeController获取红点状态: ${isRedDot.value}');
         return;
       }
 
       // HomeController 不存在，调用 /index 接口获取
-      logDebug('📊 HomeController不存在，从接口获取红点状态');
+      // logDebug('📊 HomeController不存在，从接口获取红点状态');
       final indexApi = IndexApi();
       final result = await indexApi.getIndexData();
       if (result.isSuccess && result.data != null) {
         isRedDot.value = result.data!.isRedDot == 1;
-        logDebug('📊 从接口获取红点状态: ${isRedDot.value}');
+        // logDebug('📊 从接口获取红点状态: ${isRedDot.value}');
       }
     } catch (e) {
       logError('❌ 加载红点状态失败: $e');
@@ -284,13 +284,13 @@ class MineController extends GetxController {
           isUsageAccessGranted &&
           allGuidesCompleted;
 
-      logDebug(
-        '权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted, '
-        '防休眠=$preventSleepCompleted, 后台运行指引=$backgroundRunCompleted, 锁后台指引=$lockBackgroundCompleted, '
-        '是否小米系=$_isXiaomiDevice',
-        tag: 'Mine',
-      );
-      logDebug('系统权限开关是否全部开启: ${areAllPermissionsGranted.value}', tag: 'Mine');
+      // logDebug(
+      //   '权限状态检查完成: 位置=$isLocationGranted, 通知=$isNotificationGranted, 电池=$isBatteryOptimized, 使用情况=$isUsageAccessGranted, '
+      //   '防休眠=$preventSleepCompleted, 后台运行指引=$backgroundRunCompleted, 锁后台指引=$lockBackgroundCompleted, '
+      //   '是否小米系=$_isXiaomiDevice',
+      //   tag: 'Mine',
+      // );
+      // logDebug('系统权限开关是否全部开启: ${areAllPermissionsGranted.value}', tag: 'Mine');
     } catch (e) {
       logError('检查权限状态失败: $e', tag: 'Mine', error: e);
       // 出错时默认显示图标（保守策略）
@@ -301,7 +301,7 @@ class MineController extends GetxController {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      logDebug('🔄 我的页面：静默刷新用户信息');
+      // logDebug('🔄 我的页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
@@ -322,11 +322,11 @@ class MineController extends GetxController {
     matchCode.value = userInfo['matchCode'];
     userAvatar.value = userInfo['avatar'].isNotEmpty ? userInfo['avatar'] : '';
 
-    // 调试输出
-    logDebug('👤 我的页面用户信息：');
-    logDebug('   昵称: ${nickname.value}');
-    logDebug('   另一半昵称: ${partnerNickname.value}');
-    logDebug('   绑定状态: ${userInfo['isBound']}');
+    // // 调试输出
+    // logDebug('👤 我的页面用户信息：');
+    // logDebug('   昵称: ${nickname.value}');
+    // logDebug('   另一半昵称: ${partnerNickname.value}');
+    // logDebug('   绑定状态: ${userInfo['isBound']}');
 
     // 绑定状态
     isBound.value = userInfo['isBound'];
@@ -342,8 +342,8 @@ class MineController extends GetxController {
       // 如果有用户对象，继续处理绑定状态的其他数据
       final user = UserManager.currentUser;
       if (user != null) {
-        logDebug('   loverInfo.nickname: ${user.loverInfo?.nickname}');
-        logDebug('   halfUserInfo.nickname: ${user.halfUserInfo?.nickname}');
+        // logDebug('   loverInfo.nickname: ${user.loverInfo?.nickname}');
+        // logDebug('   halfUserInfo.nickname: ${user.halfUserInfo?.nickname}');
         _handleBoundState(user);
       }
     } else {
@@ -733,10 +733,10 @@ class MineController extends GetxController {
     const String kfId = 'kfcf77b8b4a2a2a61d9'; // 客服 ID
 
     try {
-      logDebug('📞 开始拉起企业微信客服', tag: 'Mine');
+      // logDebug('📞 开始拉起企业微信客服', tag: 'Mine');
       // 直接使用客服ID拉起会话
       await PermissionHelper.openWeComKfWithParams(corpId: corpId, kfId: kfId);
-      logDebug('✅ 企业微信客服拉起成功', tag: 'Mine');
+      // logDebug('✅ 企业微信客服拉起成功', tag: 'Mine');
     } catch (e) {
       logError('❌ 拉起企业微信客服失败: $e', tag: 'Mine', error: e);
       OKToastUtil.show('拉起企业微信客服失败: $e');
@@ -800,8 +800,8 @@ class MineController extends GetxController {
 
   // 点击自己的头像
   void onAvatarTap() async {
-    logDebug('🔥 头像被点击了！', tag: 'Mine');
-    logDebug('🔥 当前绑定状态: ${isBound.value}', tag: 'Mine');
+    // logDebug('🔥 头像被点击了！', tag: 'Mine');
+    // logDebug('🔥 当前绑定状态: ${isBound.value}', tag: 'Mine');
 
     // 埋点：记录头像点击
     AnalyticsHelper.trackMyPageAvatar();
@@ -815,7 +815,7 @@ class MineController extends GetxController {
       // 从恋爱信息页面返回时，刷新我的页面
       onPageResumed();
     } else {
-      logDebug('🔥 用户未绑定，不执行跳转', tag: 'Mine');
+      // logDebug('🔥 用户未绑定，不执行跳转', tag: 'Mine');
     }
     // 如果未绑定，暂时不做任何操作
   }
@@ -848,11 +848,11 @@ class MineController extends GetxController {
 
   // 会员续费/开通
   void onRenewTap() async {
-    logDebug('💫 VIP按钮被点击', tag: 'Mine');
+    // logDebug('💫 VIP按钮被点击', tag: 'Mine');
 
     // 如果未绑定，弹出绑定弹窗
     if (!isBound.value) {
-      logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
+      // logDebug('💫 用户未绑定，弹出绑定弹窗', tag: 'Mine');
 
       // 埋点：记录会员模块点击（立即绑定）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.bindNow);
@@ -878,7 +878,7 @@ class MineController extends GetxController {
 
     if (isForeverVip.value) {
       // 永久会员，跳转到权益页面
-      logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
+      // logDebug('💫 永久会员，跳转到权益页面', tag: 'Mine');
 
       // 埋点：记录会员模块点击（会员中心）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.vipCenter);
@@ -886,7 +886,7 @@ class MineController extends GetxController {
       Get.toNamed(KissuRoutePath.foreverVip, arguments: {});
     } else if (isVip.value) {
       // 普通会员，跳转到VIP页面（续费）
-      logDebug('💫 普通会员，跳转到VIP页面（续费）', tag: 'Mine');
+      // logDebug('💫 普通会员，跳转到VIP页面（续费）', tag: 'Mine');
 
       // 埋点：记录会员模块点击（去续费）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.renewVip);
@@ -900,7 +900,7 @@ class MineController extends GetxController {
       );
     } else {
       // 非会员，跳转到VIP页面（开通会员）
-      logDebug('💫 非会员，跳转到VIP页面（开通会员）', tag: 'Mine');
+      // logDebug('💫 非会员，跳转到VIP页面（开通会员）', tag: 'Mine');
 
       // 埋点：记录会员模块点击（开通会员）
       AnalyticsHelper.trackMyPageVipBtn(btnName: VipModuleBtnValue.openVip);
@@ -921,11 +921,11 @@ class MineController extends GetxController {
     try {
       final currentContext = Get.context;
       if (currentContext == null) {
-        logDebug('❌ 无法获取Context，跳过显示关闭确认弹窗');
+        logWarning('❌ 无法获取Context，跳过显示关闭确认弹窗');
         return true; // 出错时允许关闭
       }
 
-      logDebug('💬 显示绑定弹窗关闭确认');
+      // logDebug('💬 显示绑定弹窗关闭确认');
 
       // 使用 BindingCloseConfirmDialog
       final result = await BindingCloseConfirmDialog.show(
@@ -933,11 +933,11 @@ class MineController extends GetxController {
         barrierDismissible: true,
         onCancel: () {
           // 点击"再想想"，关闭所有弹窗
-          logDebug('💬 用户点击"再想想"，关闭所有弹窗');
+          // logDebug('💬 用户点击"再想想"，关闭所有弹窗');
         },
         onConfirm: () {
           // 点击"立即绑定"，只关闭确认弹窗
-          logDebug('💬 用户点击"立即绑定"，保持绑定弹窗显示');
+          // logDebug('💬 用户点击"立即绑定"，保持绑定弹窗显示');
         },
       );
 
@@ -964,7 +964,7 @@ class MineController extends GetxController {
       final navigated = LoginNavigationLock.navigateToLoginSafely();
       if (!navigated) {
         // 如果已经有其他线程正在导航，直接返回
-        logDebug('⏸️ 正在导航到登录页，跳过重复操作', tag: 'Mine');
+        // logDebug('⏸️ 正在导航到登录页，跳过重复操作', tag: 'Mine');
         return;
       }
 
@@ -984,7 +984,7 @@ class MineController extends GetxController {
   void _clearLoveInfoController() {
     if (Get.isRegistered<LoveInfoController>()) {
       Get.delete<LoveInfoController>(force: true);
-      logDebug('🧹 恋爱信息控制器已清理', tag: 'Mine');
+      // logDebug('🧹 恋爱信息控制器已清理', tag: 'Mine');
     }
   }
 
@@ -994,7 +994,7 @@ class MineController extends GetxController {
       if (Get.isRegistered<UsageReportController>()) {
         final usageReportController = Get.find<UsageReportController>();
         usageReportController.loadData();
-        logDebug('已刷新用机记录页面数据', tag: 'Mine');
+        // logDebug('已刷新用机记录页面数据', tag: 'Mine');
       }
     } catch (e) {
       logError('刷新用机记录页面数据失败: $e', tag: 'Mine', error: e);
@@ -1039,7 +1039,7 @@ class MineController extends GetxController {
     );
     // 1. 未绑定：先引导绑定
     if (!isBound.value) {
-      logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
+      // logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
 
       if (Get.context != null) {
         await CustomBottomDialog.show(
@@ -1075,7 +1075,7 @@ class MineController extends GetxController {
     }
 
     // 3. 已绑定且是会员：进入 App 使用记录页面
-    logDebug('app使用记录：已绑定且为会员，进入App使用记录页面', tag: 'Mine');
+    // logDebug('app使用记录：已绑定且为会员，进入App使用记录页面', tag: 'Mine');
     onNavigateToNextPage?.call();
     Get.to(
       () => const AppUsagePage(),
@@ -1095,7 +1095,7 @@ class MineController extends GetxController {
 
     // 1. 未绑定：弹出绑定弹窗
     if (!isBound.value) {
-      logDebug('一键锁机：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
+      // logDebug('一键锁机：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
       if (Get.context != null) {
         await CustomBottomDialog.show(
           context: Get.context!,
@@ -1115,7 +1115,7 @@ class MineController extends GetxController {
 
     // 2. 已绑定但非会员：弹出VIP弹窗
     if (!UserManager.isVip) {
-      logDebug('一键锁机：已绑定但非会员，弹出VIP弹窗', tag: 'Mine');
+      // logDebug('一键锁机：已绑定但非会员，弹出VIP弹窗', tag: 'Mine');
       if (Get.context != null) {
         await LockScreenVipDialog.show(Get.context!);
       }
@@ -1146,7 +1146,7 @@ class MineController extends GetxController {
     );
     // 1. 未绑定：先引导绑定
     if (!isBound.value) {
-      logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
+      // logDebug('app使用记录：用户未绑定，先弹出绑定弹窗', tag: 'Mine');
 
       if (Get.context != null) {
         await CustomBottomDialog.show(

@@ -37,10 +37,10 @@ class AppLogoCacheService {
             logWarning('发现空的logo缓存，已过滤: $key', tag: _tag);
           }
         });
-        logDebug('已加载logo缓存: ${_cache.length}个应用', tag: _tag);
+        // logDebug('已加载logo缓存: ${_cache.length}个应用', tag: _tag);
       } else {
         _cache = {};
-        logDebug('logo缓存为空', tag: _tag);
+        // logDebug('logo缓存为空', tag: _tag);
       }
       
       _isLoaded = true;
@@ -83,7 +83,7 @@ class AppLogoCacheService {
       
       _cache[packageName] = logoUrl;
       await _saveCache();
-      logDebug('已缓存logo: $packageName -> $logoUrl', tag: _tag);
+      // logDebug('已缓存logo: $packageName -> $logoUrl', tag: _tag);
     } catch (e) {
       logError('缓存logo失败: $e', tag: _tag, error: e);
     }
@@ -106,7 +106,7 @@ class AppLogoCacheService {
       _cache.clear();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_cacheKey);
-      logDebug('已清除所有logo缓存', tag: _tag);
+      // logDebug('已清除所有logo缓存', tag: _tag);
     } catch (e) {
       logError('清除logo缓存失败: $e', tag: _tag, error: e);
     }

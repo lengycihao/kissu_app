@@ -76,7 +76,7 @@ class FeedbackController extends GetxController {
       isUploadingLog.value = true;
       logUploadProgress.value = 0.0;
 
-      logDebug('开始上传日志文件', tag: 'Feedback');
+      // logDebug('开始上传日志文件', tag: 'Feedback');
 
       final result = await LogUploadService.instance.uploadLogs(
         remark: content.value.isNotEmpty ? content.value : '用户主动上传日志',
@@ -92,7 +92,7 @@ class FeedbackController extends GetxController {
       if (result.isSuccess) {
         final data = result.getDataJson();
         final fileUrl = data['file_url'] as String?;
-        logDebug('日志上传成功，URL: $fileUrl', tag: 'Feedback');
+        // logDebug('日志上传成功，URL: $fileUrl', tag: 'Feedback');
         if (showToast) {
           CustomToast.show(Get.context!, "日志上传成功，感谢您的配合！");
         }
@@ -180,28 +180,28 @@ class FeedbackController extends GetxController {
 
       if (hasPermission) {
         // 有权限，直接选择图片
-        logDebug('✅ 意见反馈: 已有权限，直接选择图片', tag: 'Feedback');
+        // logDebug('✅ 意见反馈: 已有权限，直接选择图片', tag: 'Feedback');
         final picked = await picker.pickImage(source: ImageSource.gallery);
         if (picked != null) {
           selectedImages.add(File(picked.path));
-          logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
+          // logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
         } else {
-          logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
+          // logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
         }
       } else {
         // 没有权限，申请权限（会弹出系统权限弹窗）
-        logDebug('⚠️ 意见反馈: 没有权限，申请权限', tag: 'Feedback');
+        // logDebug('⚠️ 意见反馈: 没有权限，申请权限', tag: 'Feedback');
         final permissionGranted = await _permissionService
             .requestPhotosPermission();
 
         if (permissionGranted) {
-          logDebug('✅ 意见反馈: 权限申请成功，开始选择图片', tag: 'Feedback');
+          // logDebug('✅ 意见反馈: 权限申请成功，开始选择图片', tag: 'Feedback');
           final picked = await picker.pickImage(source: ImageSource.gallery);
           if (picked != null) {
             selectedImages.add(File(picked.path));
-            logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
+            // logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
           } else {
-            logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
+            // logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
           }
         } else {
           logWarning('❌ 意见反馈: 权限申请被拒绝', tag: 'Feedback');

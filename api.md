@@ -1,91 +1,176 @@
-1.聊天页面一键锁机点击事件埋点
-页面id : chat_page
-事件id :chat_page_click_lock_phone_event
-参数，注意lock_status这个是新增的  0无状态 1锁机中  2已解锁
-虚拟用户id	device_id	string
-用户id	user_id	int
-点击时间	click_time	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-参与188活动	is_check_in	int
-绑定次数	bind_num	int
-锁机状态	lock_status	int
+import 'dart:async';
+import 'package:get/get.dart';
+import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:amap_flutter_base/amap_flutter_base.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
-2.非会员时点击一键锁机（入口聊天页面，我的页面）弹出的弹窗有两个埋点事件
-（1）曝光事件
-如果在聊天页面弹出，则页面id为chat_page，事件id为chat_page_vip_lock_phone_exposure_dialog_event
-如果在个人页面弹出，则页面id为my_page，事件id为my_page_vip_lock_phone_exposure_dialog_event
-参数 注意previous_page这个参数 如果在聊天页面弹出，则previous_page为chat，如果在个人页面弹出，则previous_page为mine
-曝光时间	page_enter_time	int
-虚拟用户id	device_id	string
-用户id	user_id	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-是否参与188活动	is_check_in	int
-绑定次数	bind_num	int
-位置	previous_page	string
-(2)点击事件
-如果在聊天页面弹出，则页面id为chat_page，事件id为chat_page_vip_lock_phone_click_dialog_event
-如果在个人页面弹出，则页面id为my_page，事件id为my_page_vip_lock_phone_click_dialog_event
-参数 注意btn_status  1进入 0关闭
-虚拟用户id	device_id	string
-用户id	user_id	int
-点击时间	click_time	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-参与188活动	is_check_in	int
-绑定次数	bind_num	int
-点击的状态	btn_status	int
+class TrackMapManager {
+  AMapController? mapController;
 
-3.我的页面一键锁机点击事件埋点,注意这个埋点事件已经存在了，只是新增了lock_status这个参数，且这个参数只有一键锁机这个功能有
-页面id : my_page
-事件id :my_page_functions_moudle_event
-参数，注意lock_status这个是新增的  0无状态 1锁机中 2已解锁
-虚拟用户id	device_id	string
-用户id	user_id	int
-点击时间	click_time	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-参与188活动	is_check_in	int
-按钮名称	btn_name	string
-绑定次数	bind_num	int
-锁机状态	lock_status	int
+  final isMapReady = false.obs;
+  final mapType = 1.obs;
 
-4.一键锁机页面的长按锁机按钮点击事件
-页面id : lock_phone_page
-事件id :lock_phone_page_long_press_levent
-参数 
-虚拟用户id	device_id	string
-用户id	user_id	int
-点击时间	click_time	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-参与188活动	is_check_in	int
-绑定次数	bind_num	int
+  /// ✅ 是否已经自动调整过地图（核心开关）
+  bool _hasFitted = false;
 
-5.锁定成功之后，主动解锁按钮的点击事件
-页面id : lock_phone_page
-事件id :lock_phone_page_initiative_unlock_phone_event
-参数 
-虚拟用户id	device_id	string
-用户id	user_id	int
-点击时间	click_time	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-参与188活动	is_check_in	int
-绑定次数	bind_num	int
+  /// ✅ 是否用户主动操作过地图
+  bool _userInteracting = false;
 
-6.被锁定方在回答问题时，选择答案时的埋点,注意这个埋点事件是每次选择答案都会触发
-页面id : lock_phone_page
-事件id :lock_phone_page_answer_unlock_phone_event
-参数  注意unlock_status  1解锁成功0解锁失败
-虚拟用户id	device_id	string
-用户id	user_id	int
-点击时间	click_time	int
-会员状态	vip_status	int
-绑定状态	bind_status	int
-参与188活动	is_check_in	int
-绑定次数	bind_num	int
-解锁状态	unlock_status	int
+  /// 防抖（仅用于用户操作）
+  Timer? _debounceTimer;
 
-7.注意这个开通会员页面的事件vip_page_event 和绑定弹窗页面bind_page_event也要更新，因为他们有source_event，source_page这两个参数，在两个一键锁机入口触发这两个页面的时候要把对应的来源页和来源事件传入
+  /// ===== 初始化 =====
+
+  void onMapCreated(AMapController controller, Function? hideAllInfoWindows) {
+    mapController = controller;
+    setMapReady(true);
+
+    hideAllInfoWindows?.call();
+
+    Future.delayed(const Duration(milliseconds: 50), () {
+      hideAllInfoWindows?.call();
+    });
+  }
+
+  void setMapReady(bool ready) {
+    isMapReady.value = ready;
+  }
+
+  /// ===== 用户行为标记（重要） =====
+
+  void onUserGesture() {
+    _userInteracting = true;
+    logDebug('👆 用户开始操作地图');
+  }
+
+  void resetUserGesture() {
+    _userInteracting = false;
+  }
+
+  /// ===== ✅ 核心：只执行一次的地图自适应 =====
+
+  Future<void> fitMapOnce({
+    required List<LatLng> trackPoints,
+    required dynamic locationData,
+  }) async {
+    if (!isMapReady.value || mapController == null) return;
+
+    /// ❗ 已执行过，不再执行（核心优化）
+    if (_hasFitted) {
+      logDebug('⚠️ 已经fit过地图，跳过');
+      return;
+    }
+
+    /// ❗ 用户操作过，不抢控制权
+    if (_userInteracting) {
+      logDebug('⚠️ 用户正在操作地图，跳过自动fit');
+      return;
+    }
+
+    _hasFitted = true;
+
+    final isVip = UserManager.isVip;
+
+    try {
+      if (!isVip) {
+        await mapController!.moveCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: LatLng(35.86166, 104.195397),
+              zoom: 3.0,
+            ),
+          ),
+        );
+        return;
+      }
+
+      final List<LatLng> allPoints = [];
+
+      if (locationData?.locations != null) {
+        for (final loc in locationData.locations) {
+          if (loc.lat != 0 && loc.lng != 0) {
+            allPoints.add(LatLng(loc.lat, loc.lng));
+          }
+        }
+      }
+
+      if (allPoints.isEmpty) return;
+
+      if (allPoints.length == 1) {
+        await mapController!.moveCamera(
+          CameraUpdate.newLatLngZoom(allPoints.first, 18),
+        );
+        return;
+      }
+
+      double minLat = allPoints.first.latitude;
+      double maxLat = allPoints.first.latitude;
+      double minLng = allPoints.first.longitude;
+      double maxLng = allPoints.first.longitude;
+
+      for (final p in allPoints) {
+        if (p.latitude < minLat) minLat = p.latitude;
+        if (p.latitude > maxLat) maxLat = p.latitude;
+        if (p.longitude < minLng) minLng = p.longitude;
+        if (p.longitude > maxLng) maxLng = p.longitude;
+      }
+
+      final bounds = LatLngBounds(
+        southwest: LatLng(minLat, minLng),
+        northeast: LatLng(maxLat, maxLng),
+      );
+
+      await mapController!.moveCamera(
+        CameraUpdate.newLatLngBounds(bounds, 100),
+        animated: true,
+        duration: 500,
+      );
+
+      logDebug('✅ 首次地图自适应完成');
+    } catch (e) {
+      logError('fitMapOnce失败: $e');
+    }
+  }
+
+  /// ===== ❌ 禁止自动触发地图移动 =====
+
+  void forceMapUpdate({
+    required List<LatLng> trackPoints,
+    required List<dynamic> stopPoints,
+    required dynamic locationData,
+  }) {
+    /// ❗ 只刷新UI，不动地图
+    logDebug('🔄 刷新地图UI（不移动相机）');
+  }
+
+  /// ===== ✅ 用户触发地图移动（安全） =====
+
+  void moveToPointByUser(LatLng point) {
+    if (!isMapReady.value || mapController == null) return;
+
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      mapController!.moveCamera(
+        CameraUpdate.newLatLngZoom(point, 18),
+      );
+    });
+  }
+
+  /// ===== 地图类型 =====
+
+  void switchMapType(int type) {
+    if (mapType.value == type) return;
+    mapType.value = type;
+  }
+
+  /// ===== 生命周期 =====
+
+  void onMapDisposed() {
+    _debounceTimer?.cancel();
+    mapController = null;
+    setMapReady(false);
+    _hasFitted = false;
+    _userInteracting = false;
+  }
+}

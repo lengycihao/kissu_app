@@ -1,5 +1,6 @@
 import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/network/public/api_request.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 版本信息模型
 class VersionInfo {
@@ -69,7 +70,7 @@ class VersionApi {
       }
       return null;
     } catch (e) {
-      print('检查版本更新失败: $e');
+      logError('检查版本更新失败: $e');
       return null;
     }
   }

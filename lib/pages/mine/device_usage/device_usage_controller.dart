@@ -116,10 +116,10 @@ class DeviceUsageController extends GetxController {
       final hasShownGuide =
           prefs.getBool('has_shown_device_usage_guide') ?? false;
 
-      logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+      // logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
 
       if (!hasShownGuide) {
-        logDebug('📱 首次进入用机记录页面，显示引导图');
+        // logDebug('📱 首次进入用机记录页面，显示引导图');
 
         // 立即标记已显示，防止重复显示
         await prefs.setBool('has_shown_device_usage_guide', true);
@@ -232,7 +232,7 @@ class DeviceUsageController extends GetxController {
     try {
       await UserManager.refreshUserInfo();
     } catch (e) {
-      logDebug('刷新用户信息失败: $e', tag: 'DeviceUsage');
+      logWarning('刷新用户信息失败: $e', tag: 'DeviceUsage');
     }
     
     // 更新绑定和会员状态
@@ -242,7 +242,7 @@ class DeviceUsageController extends GetxController {
     
     // 如果绑定状态或会员状态发生变化，重新加载数据
     if (oldBound != isUserBound.value || oldVip != isUserVip.value) {
-      logDebug('绑定或会员状态发生变化，重新加载数据', tag: 'DeviceUsage');
+      // logDebug('绑定或会员状态发生变化，重新加载数据', tag: 'DeviceUsage');
       await _loadData();
     }
   }
@@ -282,7 +282,7 @@ class DeviceUsageController extends GetxController {
       // 检查是否已绑定
       final userInfo = UserManager.getUserBasicInfo();
       if (!userInfo['isBound']) {
-        logDebug('用户未绑定，不加载数据', tag: 'DeviceUsage');
+        // logDebug('用户未绑定，不加载数据', tag: 'DeviceUsage');
         return;
       }
 
@@ -380,7 +380,7 @@ class DeviceUsageController extends GetxController {
         // 保存另一半用户设备信息
         halfUserData.value = data.halfUserData;
 
-        logInfo('用机记录数据加载成功', tag: 'DeviceUsage');
+        // logInfo('用机记录数据加载成功', tag: 'DeviceUsage');
       } else {
         logWarning('用机记录数据加载失败: ${result.msg}', tag: 'DeviceUsage');
         // 加载失败时使用空数据
