@@ -1656,6 +1656,33 @@
 
         <package android:name="com.eg.android.AlipayGphone" />
 
+        <!-- 各品牌应用市场 scheme 声明（Android 11+ 包可见性） -->
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mimarket" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="appmarket" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="vivomarket" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mstore" />
+        </intent>
+
         <!-- 查询所有已安装的应用，用于app使用时长统计功能 -->
 
         <intent>

@@ -46,7 +46,7 @@ class OaidUtil {
   /// 获取设备ID（优先 OAID，备用 UUID）
   /// 🔒 隐私合规：只有在用户同意隐私政策后才获取
   /// 返回值永远不为 null，确保埋点数据始终有 device_id
-  Future<String?> getOaid() async {
+  Future<String?> getOaid() async {                                                                                                                                                       
     // logger.info('开始获取设备ID...', tag: 'OaidUtil');
     
     // 返回 OAID 缓存

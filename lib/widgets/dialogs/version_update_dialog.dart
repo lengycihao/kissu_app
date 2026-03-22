@@ -16,8 +16,13 @@ class VersionUpdateDialog extends StatelessWidget {
 
   /// 移除HTML标签
   String _stripHtmlTags(String htmlString) {
-    // 移除所有HTML标签
-    String result = htmlString.replaceAll(RegExp(r'<[^>]*>'), '');
+    // 将换行相关标签转为换行符
+    String result = htmlString
+        .replaceAll(RegExp(r'<br\s*/?>'), '\n')
+        .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<p>', caseSensitive: false), '');
+    // 移除剩余HTML标签
+    result = result.replaceAll(RegExp(r'<[^>]*>'), '');
     // 替换HTML实体
     result = result
         .replaceAll('&nbsp;', ' ')

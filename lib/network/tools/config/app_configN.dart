@@ -5,22 +5,22 @@ class AppConfigN {
   static const serverEnvironmentTest = false;
 
   /// 🔥 打包渠道（打包时在这里统一修改）
-  /// kissu_xiaomi <小米>  kissu_huawei <华为>  kissu_rongyao <荣耀>
-  /// kissu_vivo <vivo>  kissu_oppo <oppo>  kissu_meizu <魅族>
-  /// kissu_yyb <应用宝>  kissu_wdj <豌豆荚>  kissu_douyin <抖音>，kissu_default
-  static const String appChannel = 'kissu_douyin';
+  /// kissu_xiaomi  kissu_huawei  kissu_rongyao
+  /// kissu_vivo  kissu_oppo  kissu_meizu
+  /// kissu_yyb  kissu_wdj  kissu_douyin，kissu_default
+  static const String appChannel = 'kissu_xiaomi';
 
 
   // 生产环境加密，测试环境不加密
   static bool get apiEncrypt => !serverEnvironmentTest;
 
 
-  // /// 域名
+  // /// 配置
   static late final String baseApiUrl;
-  static bool _isConfigured = false; // 🔒 添加配置标志，防止重复初始化
+  static bool _isConfigured = false; // 🔥 配置标志防止重复初始化
 
   static Future configuration({String urlType = 'test'}) async {
-    // 🔒 如果已经配置过，直接返回
+    // 🔥 已经配置过直接返回
     if (_isConfigured) {
       return;
     }
@@ -32,7 +32,7 @@ class AppConfigN {
     // PackageInfo packageInfo = await PackageInfo.fromPlatform();
     // appVersion = packageInfo.version;
 
-    // 根据环境配置 API 地址
+    // 根据环境 API 地址
     if (serverEnvironmentTest) {
       // 测试环境
       baseApiUrl = "http://dev-love-api.ikissu.cn";

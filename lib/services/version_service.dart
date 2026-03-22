@@ -22,7 +22,7 @@ class VersionService extends GetxService {
   /// 上次检查时间（用于前台恢复检查冷却）
   DateTime? _lastCheckTime;
   
-  /// 检查冷却时间（前台恢复时至少间隔5分钟才再次检查）
+  /// 检查冷却时间（前台恢复时至少间隔5s钟才再次检查）
   static const Duration _checkCooldown = Duration(seconds: 5);
   
   static const String _packageName = 'com.yuluo.kissu';
@@ -59,8 +59,7 @@ class VersionService extends GetxService {
       String version = packageInfo.version; // 例如: "1.0.1"
       
       // 将版本号转换为数字格式
-      // 1.0.1 -> 1000100
-      // 1.0.2 -> 1000200
+       
       List<String> parts = version.split('.');
       if (parts.length == 3) {
         int major = int.tryParse(parts[0]) ?? 0;
@@ -175,18 +174,32 @@ class VersionService extends GetxService {
   
   /// 根据手机品牌打开对应的应用市场
   static Future<void> openAppStore() async {
-    if (Platform.isIOS) {
-      // iOS 跳转 App Store（需要替换为实际的 Apple ID）
-      const appStoreUrl = 'https://apps.apple.com/app/id0000000000';
-      final uri = Uri.parse(appStoreUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+    // 获取设备信息
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+    final brand = androidInfo.brand.toLowerCase();
+    
+    // 华为/荣耀 + 鸿蒙系统：直接打开华为应用市场首页（app不在鸿蒙应用市场）
+    final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+    if (isHuaweiOrHonor && _isHarmonyOS(androidInfo)) {
+      try {
+        final launched = await launchUrl(
+          Uri.parse('appmarket://'),
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) return;
+      } catch (_) {}
+      // scheme 打不开，尝试网页
+      try {
+        final launched = await launchUrl(
+          Uri.parse('https://appgallery.huawei.com'),
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) return;
+      } catch (_) {}
+      OKToastUtil.show('无法打开应用市场');
       return;
     }
-    
-    // 获取设备品牌
-    final brand = await _getDeviceBrand();
     
     // 品牌对应的应用市场 scheme
     final Map<String, String> storeSchemes = {
@@ -214,51 +227,79 @@ class VersionService extends GetxService {
       'meizu': 'https://app.meizu.com/apps/public/detail?package_name=$_packageName',
     };
     
-    // 先尝试品牌对应的应用市场 scheme
+    // 先尝试品牌对应的应用市场 scheme（直接 launch，不用 canLaunchUrl）
     final schemeUrl = storeSchemes[brand];
     if (schemeUrl != null) {
-      final uri = Uri.parse(schemeUrl);
       try {
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          return;
-        }
+        final launched = await launchUrl(
+          Uri.parse(schemeUrl),
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) return;
       } catch (_) {}
     }
     
     // scheme 打不开，尝试网页备用链接
     final fallbackUrl = storeFallbacks[brand];
     if (fallbackUrl != null) {
-      final uri = Uri.parse(fallbackUrl);
       try {
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          return;
-        }
+        final launched = await launchUrl(
+          Uri.parse(fallbackUrl),
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) return;
       } catch (_) {}
     }
     
     // 兜底：使用系统默认应用市场
-    final defaultUri = Uri.parse('market://details?id=$_packageName');
     try {
-      if (await canLaunchUrl(defaultUri)) {
-        await launchUrl(defaultUri, mode: LaunchMode.externalApplication);
-        return;
-      }
+      final launched = await launchUrl(
+        Uri.parse('market://details?id=$_packageName'),
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched) return;
     } catch (_) {}
     
     OKToastUtil.show('无法打开应用市场');
   }
   
-  /// 获取设备品牌（小写）
-  static Future<String> _getDeviceBrand() async {
-    try {
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.brand.toLowerCase();
-    } catch (e) {
-      return '';
+  /// 检测是否为鸿蒙系统（与 SystemPermissionController 相同的逻辑）
+  static bool _isHarmonyOS(AndroidDeviceInfo androidInfo) {
+    final brand = androidInfo.brand.toLowerCase();
+    final displayLower = androidInfo.display.toLowerCase();
+    final fingerprintLower = androidInfo.fingerprint.toLowerCase();
+    final hostLower = androidInfo.host.toLowerCase();
+    final osVersion = Platform.operatingSystemVersion.toLowerCase();
+    final versionRelease = androidInfo.version.release;
+    
+    // 方式1：包含 harmony / ohos 关键字
+    if (displayLower.contains('harmony') ||
+        fingerprintLower.contains('harmony') ||
+        hostLower.contains('harmony') ||
+        displayLower.contains('ohos') ||
+        fingerprintLower.contains('ohos') ||
+        osVersion.contains('harmony') ||
+        osVersion.contains('ohos')) {
+      return true;
     }
+    
+    // 方式2：华为/荣耀设备 display/osVersion 以 "system" 开头
+    final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+    if (isHuaweiOrHonor && 
+        (displayLower.startsWith('system') || osVersion.startsWith('system'))) {
+      return true;
+    }
+    
+    // 方式3：华为/荣耀设备 version.release 为 "5.x.x" 格式
+    if (isHuaweiOrHonor) {
+      final parts = versionRelease.split('.');
+      final majorVersion = int.tryParse(parts[0]) ?? 0;
+      if (majorVersion >= 5 && parts.length > 1) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 }
 

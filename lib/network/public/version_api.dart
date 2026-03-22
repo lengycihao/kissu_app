@@ -6,16 +6,16 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 class VersionInfo {
   /// 更新类型: 1=静默更新, 2=弱更新, 3=强更新
   final int upgradeType;
-  
+
   /// 版本号（字符串格式，如：1.0.2）
   final String version;
-  
+
   /// 版本号（数字格式，如：1000200）
   final int versionNum;
-  
+
   /// 更新内容（HTML格式）
   final String contentTxt;
-  
+
   /// 下载地址
   final String url;
 
@@ -29,10 +29,14 @@ class VersionInfo {
 
   factory VersionInfo.fromJson(Map<String, dynamic> json) {
     return VersionInfo(
-      upgradeType: json['upgrade_type'] ?? 1,
-      version: json['version'] ?? '',
+      upgradeType: json['upgrade_type'] ?? 0,
+      version: json['version'] ?? '1.0.0',
       versionNum: json['version_num'] ?? 0,
       contentTxt: json['content_txt'] ?? '',
+      // upgradeType: 2,
+      // version: '3.0.0',
+      // versionNum: 3000000,
+      // contentTxt:  '<p>测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本测试静默更新版本</p>',
       url: json['url'] ?? '',
     );
   }
@@ -46,13 +50,13 @@ class VersionInfo {
       'url': url,
     };
   }
-  
+
   /// 是否是静默更新
   bool get isSilent => upgradeType == 1;
-  
+
   /// 是否是弱更新（可取消）
   bool get isOptional => upgradeType == 2;
-  
+
   /// 是否是强更新（必须更新）
   bool get isForced => upgradeType == 3;
 }
@@ -75,4 +79,3 @@ class VersionApi {
     }
   }
 }
-
