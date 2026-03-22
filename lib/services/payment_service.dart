@@ -8,6 +8,7 @@ import 'package:logger/logger.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:fluwx/fluwx.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// 支付服务类 - 使用 fluwx 处理微信支付，MethodChannel 处理支付宝支付
 class PaymentService extends GetxService {
@@ -284,7 +285,7 @@ class PaymentService extends GetxService {
     try {
       // 使用 fluwx 注册微信 API
       final registered = await _fluwx.registerApi(
-        appId: 'wxca15128b8c388c13',
+        appId: AppConstants.weChatAppId,
         doOnAndroid: true,
         doOnIOS: false,
       );

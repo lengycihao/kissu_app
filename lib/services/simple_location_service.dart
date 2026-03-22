@@ -11,6 +11,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:kissu_app/model/location_model/location_report_model.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/services/foreground_location_service.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
@@ -274,7 +275,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 隐私授权状态将由 PrivacyComplianceManager 根据用户同意情况决定
 
       // 设置API Key - 确保在任何定位操作前执行
-      AMapFlutterLocation.setApiKey('7623ef33c6617f0c00aceca537b97516', '');
+      AMapFlutterLocation.setApiKey(AppConstants.amapApiKey, '');
     } catch (e) {
       logger.error('初始化高德定位服务失败', tag: 'Location', error: e);
     }
@@ -297,7 +298,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       AMapFlutterLocation.updatePrivacyAgree(shouldAgreePrivacy);
 
       // 重新设置API Key（确保在定位前生效）
-      AMapFlutterLocation.setApiKey('7623ef33c6617f0c00aceca537b97516', '');
+      AMapFlutterLocation.setApiKey(AppConstants.amapApiKey, '');
     } catch (e) {
       logger.error('设置高德定位隐私合规失败', tag: 'Location', error: e);
     }

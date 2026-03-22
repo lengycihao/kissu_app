@@ -11,6 +11,7 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// 首页右上角头像模块
 /// 包含：双头像、状态文本、通知图标、活动图标
@@ -349,7 +350,7 @@ class HomeAvatarSection extends StatelessWidget {
                               if (baseUrl.isEmpty) {
                                 // 如果接口没有返回链接，使用默认链接
                                 baseUrl =
-                                    'http://devweb.ikissu.cn/share/couplesdeFecating.html';
+                                    AppConstants.defaultSharePageDev;
                               }
 
                               String url = baseUrl;

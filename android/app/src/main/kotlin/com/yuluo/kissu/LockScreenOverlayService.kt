@@ -2,6 +2,7 @@ package com.yuluo.kissu
 
 import android.app.*
 import android.app.usage.UsageEvents
+import com.yuluo.kissu.constants.AppConstants
 import android.app.usage.UsageStatsManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -1436,7 +1437,7 @@ class LockScreenOverlayService : Service() {
     }
 
     private fun generateSignForApi(headers: Map<String, String>, bodyParams: Map<String, String>): String {
-        val secretKey = "TYXHTRrGeP8xy095q0iY"
+        val secretKey = AppConstants.API_SIGNATURE_SECRET_KEY
         val allParams = mutableMapOf<String, String>()
         val businessHeaders = setOf("channel", "version", "deviceid", "pkg", "token", "userid")
         headers.forEach { (key, value) ->

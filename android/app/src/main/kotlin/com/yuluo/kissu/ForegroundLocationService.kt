@@ -3,6 +3,7 @@ package com.yuluo.kissu
 import android.Manifest
 import android.app.*
 import android.content.BroadcastReceiver
+import com.yuluo.kissu.constants.AppConstants
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -91,7 +92,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         private const val BROADCAST_DEBOUNCE_MS = 1000L // 1秒内相同广播只处理一次
         
         // 🔥 IM SDK AppID（与Flutter侧TencentIMService.sdkAppID一致）
-        private const val IM_SDK_APP_ID = 1600095370
+        private const val IM_SDK_APP_ID = AppConstants.TENCENT_IM_SDK_APP_ID
         
         @Volatile
         private var isServiceRunning = false

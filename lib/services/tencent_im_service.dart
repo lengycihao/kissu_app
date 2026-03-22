@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimSDKListener.dart';
 import 'package:tencent_cloud_chat_sdk/enum/log_level_enum.dart';
@@ -53,11 +54,11 @@ class TencentIMService extends GetxService {
   static TencentIMService get instance => Get.find<TencentIMService>();
   
   // IM SDK AppID
-  static const int sdkAppID = 1600095370;
+  static const int sdkAppID = AppConstants.tencentIMSdkAppID;
   
   // 🔥 腾讯云IM推送服务客户端密钥（从IM控制台 > 推送服务Push > 接入设置 获取）
   // 注意：这个appKey是腾讯云IM推送专用的，不是极光推送的appKey
-  static const String pushAppKey = "4M2JkNNiZkZslXJyw0YsmudcMw42THgiRtSud5H5iTRsT3GuHEXhQnzlQaYkjPrp";
+  static const String pushAppKey = AppConstants.tencentIMPushAppKey;
   
   // 是否已初始化
   bool _isInitialized = false;

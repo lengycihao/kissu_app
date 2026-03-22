@@ -6,6 +6,8 @@ import android.content.ComponentName
 
 import android.content.Context
 
+import com.yuluo.kissu.constants.AppConstants
+
 import android.content.Intent
 
 import android.content.pm.PackageManager
@@ -990,9 +992,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         // 这里仅保留平台配置（微信/QQ），避免重复初始化
 
-        PlatformConfig.setWeixin("wxca15128b8c388c13", "e0d2d1e8c3f4e5f6a7b8c9d0e1f2a3b4")
+        PlatformConfig.setWeixin(AppConstants.WECHAT_APP_ID, AppConstants.WECHAT_APP_SECRET)
 
-        PlatformConfig.setQQZone("102797447", "c5KJ2VipiMRMCpJf")
+        PlatformConfig.setQQZone(AppConstants.QQ_APP_KEY, AppConstants.QQ_APP_SECRET)
 
         Log.d(TAG, "友盟平台配置完成（UMeng init 在 Application 中完成）")
 
@@ -1052,9 +1054,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
             Log.d(TAG, "初始化微信 API")
 
-            wxApi = com.tencent.mm.opensdk.openapi.WXAPIFactory.createWXAPI(this, "wxca15128b8c388c13", true)
+            wxApi = com.tencent.mm.opensdk.openapi.WXAPIFactory.createWXAPI(this, AppConstants.WECHAT_APP_ID, true)
 
-            wxApi?.registerApp("wxca15128b8c388c13")
+            wxApi?.registerApp(AppConstants.WECHAT_APP_ID)
 
         }
 

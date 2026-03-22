@@ -10,6 +10,7 @@ import com.umeng.commonsdk.UMConfigure
 import com.tencent.chat.flutter.push.tencent_cloud_chat_push.application.TencentCloudChatPushApplication
 import com.tencent.qcloud.tim.push.TIMPushListener
 import com.tencent.qcloud.tim.push.TIMPushManager
+import com.yuluo.kissu.constants.AppConstants
 
 class KissuApplication : TencentCloudChatPushApplication() {
     companion object {
@@ -30,8 +31,8 @@ class KissuApplication : TencentCloudChatPushApplication() {
             try {
                 UMConfigure.init(
                     context,
-                    "6879fba679267e0210b67bde",
-                    "Umeng",
+                    AppConstants.UMENG_APP_KEY,
+                    AppConstants.UMENG_CHANNEL,
                     UMConfigure.DEVICE_TYPE_PHONE,
                     null
                 )
@@ -58,8 +59,8 @@ class KissuApplication : TencentCloudChatPushApplication() {
         try { 
             UMConfigure.preInit(
                 applicationContext,
-                "6879fba679267e0210b67bde",
-                "Umeng"
+                AppConstants.UMENG_APP_KEY,
+                AppConstants.UMENG_CHANNEL
             )
             Log.d(TAG, "✅ 友盟SDK预初始化完成（preInit）")
         } catch (e: Exception) {

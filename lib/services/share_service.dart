@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// ShareService: unified WeChat / QQ share entry points via UMeng U-Share
 class ShareService extends GetxService {
@@ -28,18 +29,18 @@ class ShareService extends GetxService {
     try {
       // 初始化友盟SDK（包含合规预初始化和隐私授权）
       await _channel.invokeMethod('umInit', {
-        'appKey': '6879fba679267e0210b67bde',
-        'channel': 'umengshare',
+        'appKey': AppConstants.umengAppKey,
+        'channel': AppConstants.umengChannel,
         'logEnabled': true,
       });
       
       // 配置支持的平台
       await _channel.invokeMethod('platformConfig', {
-        'qqAppKey': '102797447',
-        'qqAppSecret': 'c5KJ2VipiMRMCpJf',
-         'weChatAppId': 'wxca15128b8c388c13',
-        'weChatUniversalLink': 'https://ulink.ikissu.cn/',
-        'weChatFileProvider': 'com.yuluo.kissu.fileprovider', // 微信FileProvider配置
+        'qqAppKey': AppConstants.qqAppKey,
+        'qqAppSecret': AppConstants.qqAppSecret,
+        'weChatAppId': AppConstants.weChatAppId,
+        'weChatUniversalLink': AppConstants.weChatUniversalLink,
+        'weChatFileProvider': AppConstants.weChatFileProvider,
       });
       
       logger.debug('友盟分享SDK初始化成功', tag: 'ShareService');
@@ -326,7 +327,7 @@ class ShareService extends GetxService {
         
         // 获取基础页面URL
         final basePage = shareConfig?.sharePage ?? 
-          (useDefaultFallback ? 'https://www.ikissu.cn/share/matchingcode.html' : null);
+          (useDefaultFallback ? AppConstants.defaultSharePage : null);
         
         if (basePage == null) {
           return {'error': '分享链接未配置'};

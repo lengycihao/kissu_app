@@ -10,6 +10,7 @@ import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// 版本更新服务
 class VersionService extends GetxService {
@@ -25,7 +26,7 @@ class VersionService extends GetxService {
   /// 检查冷却时间（前台恢复时至少间隔5s钟才再次检查）
   static const Duration _checkCooldown = Duration(seconds: 5);
   
-  static const String _packageName = 'com.yuluo.kissu';
+  static const String _packageName = AppConstants.packageName;
   
   /// SharedPreferences key: 用户点击"稍后更新"时记录的日期（yyyy-MM-dd）
   static const String _spKeyDismissDate = 'version_update_dismiss_date';

@@ -12,6 +12,7 @@ import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 import 'location_preview_widget.dart';
 import 'image_preview_page.dart';
 import '../models/chat_message.dart';
@@ -1122,7 +1123,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
 
       if (baseUrl.isEmpty) {
         // 如果接口没有返回链接，使用默认链接（与首页保持一致）
-        baseUrl = 'http://devweb.ikissu.cn/share/couplesdeFecating.html';
+        baseUrl = AppConstants.defaultSharePageDev;
       }
       // 注意：不强制转换为 HTTPS，因为开发环境 SSL 证书可能有问题
 

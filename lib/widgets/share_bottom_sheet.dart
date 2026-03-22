@@ -7,6 +7,7 @@ import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// 分享底部弹窗组件
 class ShareBottomSheet extends StatelessWidget {
@@ -390,7 +391,7 @@ class ShareBottomSheet extends StatelessWidget {
     
     // 获取基础页面URL
     final basePage = shareConfig?.sharePage ?? 
-        'https://www.ikissu.cn/share/matchingcode.html';
+        AppConstants.defaultSharePage;
     
     // 智能拼接URL参数（与ShareService._buildShareParams保持一致）
     String appLink;

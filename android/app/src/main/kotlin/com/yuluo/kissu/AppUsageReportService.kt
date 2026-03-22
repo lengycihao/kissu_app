@@ -2,6 +2,7 @@ package com.yuluo.kissu
 
 import android.Manifest
 import android.app.usage.UsageEvents
+import com.yuluo.kissu.constants.AppConstants
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.SharedPreferences
@@ -1125,7 +1126,7 @@ class AppUsageReportService(private val context: Context) {
         headers: Map<String, String>,
         bodyParams: Map<String, String>
     ): String {
-        val secretKey = "TYXHTRrGeP8xy095q0iY"
+        val secretKey = AppConstants.API_SIGNATURE_SECRET_KEY
         
         // 合并所有参数
         val allParams = mutableMapOf<String, String>()

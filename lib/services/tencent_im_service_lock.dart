@@ -109,7 +109,7 @@ class _IMLockScreenHandler {
             }
             final bytes = bytesList.expand((x) => x).toList();
             // 保存到应用缓存目录
-            final dir = Directory('/data/data/${const String.fromEnvironment('APP_ID', defaultValue: 'com.yuluo.kissu')}/cache');
+            final dir = Directory('/data/data/${const String.fromEnvironment('APP_ID', defaultValue: AppConstants.packageName)}/cache');
             if (!await dir.exists()) await dir.create(recursive: true);
             final file = File('${dir.path}/lock_bg_image.jpg');
             await file.writeAsBytes(bytes);

@@ -13,6 +13,7 @@ import com.umeng.socialize.media.UMImage
 import com.umeng.socialize.media.UMWeb
 import io.flutter.plugin.common.MethodChannel
 import java.net.URLEncoder
+import com.yuluo.kissu.constants.AppConstants
 
 /**
  * 分享处理器
@@ -49,17 +50,17 @@ class ShareHandler(private val activity: Activity) {
                 try {
                     // 微信配置
                     PlatformConfig.setWeixin(
-                        "wxca15128b8c388c13",
-                        "e0d2d1e8c3f4e5f6a7b8c9d0e1f2a3b4"
+                        AppConstants.WECHAT_APP_ID,
+                        AppConstants.WECHAT_APP_SECRET
                     )
                     
                     // 🔥 关键修复：设置微信FileProvider，否则微信分享回调不会触发
-                    PlatformConfig.setWXFileProvider("com.yuluo.kissu.fileprovider")
+                    PlatformConfig.setWXFileProvider(AppConstants.WECHAT_FILE_PROVIDER)
 
                     // QQ / QQ 空间配置
                     PlatformConfig.setQQZone(
-                        "102797447",
-                        "c5KJ2VipiMRMCpJf"
+                        AppConstants.QQ_APP_KEY,
+                        AppConstants.QQ_APP_SECRET
                     )
 
                     Log.d(TAG, "友盟分享平台配置完成（WeChat / QQ）")

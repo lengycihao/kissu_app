@@ -2,6 +2,7 @@ package com.yuluo.kissu
 
 import android.Manifest
 import android.content.Context
+import com.yuluo.kissu.constants.AppConstants
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -289,7 +290,7 @@ class SensitiveEventReportService(private val context: Context) {
         headers: Map<String, String>,
         bodyParams: Map<String, String>
     ): String {
-        val secretKey = "TYXHTRrGeP8xy095q0iY"
+        val secretKey = AppConstants.API_SIGNATURE_SECRET_KEY
 
         val allParams = mutableMapOf<String, String>()
 

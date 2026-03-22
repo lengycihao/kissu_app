@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// 第三方信息共享清单页面
 class ThirdPartySharingPage extends StatefulWidget {
@@ -61,7 +62,7 @@ class _ThirdPartySharingPageState extends State<ThirdPartySharingPage> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://www.ikissu.cn/agreement/thirdPartyShare.html'));
+      ..loadRequest(Uri.parse(AppConstants.thirdPartySharingUrl));
   }
 
   @override

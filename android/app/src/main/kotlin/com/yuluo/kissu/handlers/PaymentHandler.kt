@@ -15,6 +15,7 @@ import com.tencent.mm.opensdk.openapi.IWXAPI
 import com.tencent.mm.opensdk.openapi.WXAPIFactory
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.*
+import com.yuluo.kissu.constants.AppConstants
 
 /**
  * 支付处理器
@@ -24,7 +25,7 @@ class PaymentHandler(private val activity: Activity) {
     
     companion object {
         private const val TAG = "PaymentHandler"
-        private const val WECHAT_APP_ID = "wxca15128b8c388c13"
+        private const val WECHAT_APP_ID = AppConstants.WECHAT_APP_ID
     }
     
     // 微信支付API
