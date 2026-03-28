@@ -9,6 +9,7 @@ enum MessageType {
   lockPhone, // 锁机提醒卡片消息（开启悬浮窗权限）
   phoneUse, // 应用使用记录权限提醒卡片消息
   connectApp, // 关联app卡片消息
+  sayGuess, // 你说我猜邀请卡片消息
 }
 
 /// 消息模型
@@ -34,6 +35,7 @@ class ChatMessage {
   final Map<String, dynamic>? defaultExt; // 原始扩展字段（用于位置等）
   final int? isVip; // 服务端字段 is_vip: 1 表示 VIP 优先展示
   final String? imVipContent; // VIP用户显示的内容（非VIP用户显示content）
+  final String? groupId; // 游戏群ID（用于sayGuess邀请消息）
 
   ChatMessage({
     required this.id,
@@ -57,6 +59,7 @@ class ChatMessage {
     this.defaultExt,
     this.isVip,
     this.imVipContent,
+    this.groupId,
   });
 
   /// 创建一个带有更新字段的新消息副本
@@ -82,6 +85,7 @@ class ChatMessage {
     Map<String, dynamic>? defaultExt,
     int? isVip,
     String? imVipContent,
+    String? groupId,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -105,6 +109,7 @@ class ChatMessage {
       defaultExt: defaultExt ?? this.defaultExt,
       isVip: isVip ?? this.isVip,
       imVipContent: imVipContent ?? this.imVipContent,
+      groupId: groupId ?? this.groupId,
     );
   }
 }

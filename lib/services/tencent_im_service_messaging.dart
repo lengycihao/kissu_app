@@ -59,8 +59,7 @@ class _IMMessageHandler {
         disablePush: false,
         iOSSound: 'default',
         ignoreIOSBadge: false,
-        // 🔥 各厂商通道配置，确保通知能正确弹出
-        androidOPPOChannelID: 'kissu_im_message',
+         androidOPPOChannelID: 'kissu_im_message',
         // androidOPPOCategory: 'IM',
         // androidVIVOClassification: 1,
         androidVIVOCategory: 'IM',

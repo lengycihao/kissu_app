@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
+import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/dialogs/simple_image_source_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
-import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/public/photo_wall_api.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
@@ -79,7 +79,6 @@ class _AvatarUploadDialog extends StatefulWidget {
 }
 
 class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
-  final PermissionService _permissionService = PermissionService();
   final FileUploadApi _fileUploadApi = FileUploadApi();
   final PhotoWallApi _photoWallApi = PhotoWallApi();
 
@@ -93,50 +92,11 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
   /// 选择头像
   Future<void> _pickAvatar() async {
     try {
-      // 检查是否已有相册和相机权限
-      final hasPhotoPermission = await _permissionService.checkPermissionStatus(
-        PermissionType.photos,
-      );
-      final hasCameraPermission = await _permissionService
-          .checkPermissionStatus(PermissionType.camera);
+      // 显示选择来源对话框（相册/拍照）
+      final imageSource = await SimpleImageSourceDialog.show(context);
+      if (imageSource == null) return;
 
-      // 如果两个权限都有，直接显示选择来源对话框
-      if (hasPhotoPermission && hasCameraPermission) {
-        final imageSource = await SimpleImageSourceDialog.show(context);
-        if (imageSource == null) return;
-
-        await _pickImageFromSource(imageSource);
-        return;
-      }
-
-      // 如果没有权限，先显示权限说明弹窗
-      final shouldContinue =
-          await PermissionRequestDialog.showPhotosPermissionDialog(context);
-      if (shouldContinue != true) return;
-
-      // 申请权限
-      bool photoPermissionGranted = hasPhotoPermission;
-      bool cameraPermissionGranted = hasCameraPermission;
-
-      if (!hasPhotoPermission) {
-        photoPermissionGranted = await _permissionService
-            .requestPhotosPermission();
-      }
-
-      if (!hasCameraPermission) {
-        cameraPermissionGranted = await _permissionService
-            .requestCameraPermission();
-      }
-
-      // 如果至少有一个权限被授予，显示选择来源对话框
-      if (photoPermissionGranted || cameraPermissionGranted) {
-        final imageSource = await SimpleImageSourceDialog.show(context);
-        if (imageSource == null) return;
-
-        await _pickImageFromSource(imageSource);
-      } else {
-        CustomToast.show(context, '权限未授予，无法选择图片');
-      }
+      await _pickImageFromSource(imageSource);
     } catch (e) {
       logError('选择照片失败: $e', tag: 'ImageDialog', error: e);
       CustomToast.show(context, '选择照片失败');
@@ -146,37 +106,22 @@ class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
   /// 从指定来源选择图片
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
-      // 再次检查权限状态（防止用户在选择来源时权限被撤销）
-      bool hasPermission = false;
-      if (source == ImageSource.camera) {
-        hasPermission = await _permissionService.checkPermissionStatus(
-          PermissionType.camera,
-        );
+      if (source == ImageSource.gallery) {
+        // 使用统一的图片选择器（和聊天页一致），权限由 ChatImagePickerPage 内部处理
+        final files = await ChatImagePickerPage.open(context, maxCount: 1);
+        if (files != null && files.isNotEmpty) {
+          await _navigateToCropPage(files.first.path);
+        }
       } else {
-        hasPermission = await _permissionService.checkPermissionStatus(
-          PermissionType.photos,
-        );
-      }
-
-      if (!hasPermission) {
-        CustomToast.show(context, '权限未授予，无法选择图片');
-        return;
-      }
-
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: source,
-        // 不设置imageQuality和maxWidth/maxHeight，保持原始图片质量
-        // 压缩将在裁剪后上传时进行
-      );
-
-      if (pickedFile != null) {
-        // 直接进入图片裁剪页面（会预加载图片，裁剪页面有自己的loading）
-        await _navigateToCropPage(pickedFile.path);
+        // 使用统一的拍照工具（和聊天页一致），权限由 MediaPickerUtil 内部处理
+        final file = await MediaPickerUtil.takePhoto(imageQuality: 92);
+        if (file != null) {
+          await _navigateToCropPage(file.path);
+        }
       }
     } catch (e) {
       logError('选择图片失败: $e', tag: 'ImageDialog', error: e);
-      CustomToast.show(context, '选择图片失败: $e');
+      CustomToast.show(context, '选择图片失败');
     }
   }
 

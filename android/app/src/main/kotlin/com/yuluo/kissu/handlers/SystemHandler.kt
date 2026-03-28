@@ -82,8 +82,25 @@ class SystemHandler(private val activity: Activity) {
                 val success = DeviceWhitelistHelper.openWhitelistSettings(activity)
                 result.success(success)
             }
+            "initBDConvert" -> {
+                try {
+                    com.bytedance.ads.convert.BDConvert.init(activity.applicationContext, activity)
+                    Log.d(TAG, "✅ 巨量引擎SDK初始化成功（Flutter触发）")
+                    result.success(true)
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ 巨量引擎SDK初始化失败", e)
+                    result.success(false)
+                }
+            }
             "getAndroidId" -> {
                 try {
+                    // 隐私合规检查：仅在用户同意隐私政策后才返回
+                    val prefs = activity.getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    val agreed = prefs.getBoolean("flutter.privacy_policy_agreed", false)
+                    if (!agreed) {
+                        result.success(null)
+                        return
+                    }
                     val androidId = Settings.Secure.getString(
                         activity.contentResolver,
                         Settings.Secure.ANDROID_ID

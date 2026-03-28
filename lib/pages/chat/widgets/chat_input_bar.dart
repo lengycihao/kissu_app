@@ -87,6 +87,47 @@ class ChatInputBarState extends State<ChatInputBar> {
     // 不自动请求焦点，避免弹出键盘
   }
 
+  /// 删除输入框中光标前的一个字符/表情（供外部调用）
+  void deleteLastEmoji() {
+    final text = _textController.text;
+    if (text.isEmpty) return;
+
+    final selection = _textController.selection;
+    final cursorPos = (selection.start >= 0 && selection.start <= text.length)
+        ? selection.start
+        : text.length;
+
+    if (cursorPos == 0) return;
+
+    // 处理有选中文本的情况：直接删除选中部分
+    if (selection.start != selection.end && selection.start >= 0 && selection.end >= 0) {
+      final safeStart = selection.start.clamp(0, text.length);
+      final safeEnd = selection.end.clamp(0, text.length);
+      final newText = text.replaceRange(safeStart, safeEnd, '');
+      _textController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: safeStart),
+      );
+      return;
+    }
+
+    // 处理emoji（可能占多个code unit）：从光标前一个字符开始回退
+    final prevCodeUnit = text.codeUnitAt(cursorPos - 1);
+    int deleteCount = 1;
+    // 如果是UTF-16代理对的低位，需要删除两个code unit
+    if (_isLowSurrogate(prevCodeUnit) && cursorPos >= 2) {
+      deleteCount = 2;
+    }
+
+    final newText = text.substring(0, cursorPos - deleteCount) + text.substring(cursorPos);
+    _textController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPos - deleteCount),
+    );
+  }
+
+  bool _isLowSurrogate(int codeUnit) => codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
+
   void _sendMessage() {
     final text = _textController.text.trim();
     if (text.isNotEmpty && widget.onSendText != null) {

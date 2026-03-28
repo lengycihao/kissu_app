@@ -7,8 +7,8 @@ class AppConfigN {
   /// 🔥 打包渠道（打包时在这里统一修改）
   /// kissu_xiaomi  kissu_huawei  kissu_rongyao
   /// kissu_vivo  kissu_oppo  kissu_meizu
-  /// kissu_yyb  kissu_wdj  kissu_douyin，kissu_default
-  static const String appChannel = 'kissu_xiaomi';
+  /// kissu_yyb  kissu_wdj  kissu_douyin   kissu_default
+  static const String appChannel = 'kissu_oppo';
 
 
   // 生产环境加密，测试环境不加密

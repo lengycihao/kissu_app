@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
@@ -63,23 +62,9 @@ class AppActivationService extends GetxService {
         DebugUtil.check('OAID获取成功，开始调用激活接口...');
       }
       
-      // 获取 Android ID（用于巨量引擎归因）
-      String? androidId;
-      try {
-        const channel = MethodChannel('kissu_app/whitelist');
-        androidId = await channel.invokeMethod<String>('getAndroidId');
-        if (androidId != null && androidId.isNotEmpty) {
-          DebugUtil.check('Android ID获取成功: ${androidId.substring(0, 4)}...');
-        } else {
-          DebugUtil.warning('Android ID获取为空');
-        }
-      } catch (e) {
-        DebugUtil.warning('获取Android ID失败: $e');
-      }
-      
-      // 调用激活接口
+      // 调用激活接口（androidid 已由 BusinessHeaderInterceptor 自动添加到请求头）
       final authApi = AuthApi();
-      final result = await authApi.appStart(androidId: androidId);
+      final result = await authApi.appStart();
       
       if (result.isSuccess) {
         // 激活成功，标记已激活

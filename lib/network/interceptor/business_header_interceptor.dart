@@ -16,6 +16,7 @@ import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oaid_util.dart';
+import 'package:flutter/services.dart';
 
 /// 业务请求头拦截器
 /// 自动添加 token、sign、version、channel 等业务相关的请求头
@@ -39,6 +40,9 @@ class BusinessHeaderInterceptor extends Interceptor {
   
   // 缓存定位权限状态
   static String? _cachedLocationPermissionStatus; // '1' 或 '0'
+  
+  // 缓存 Android ID
+  static String? _cachedAndroidId;
 
   BusinessHeaderInterceptor(this._authService);
 
@@ -179,6 +183,9 @@ class BusinessHeaderInterceptor extends Interceptor {
       
       // 动态获取 OAID（每次请求时实时检查隐私合规状态）
       await _addOaidHeader(options);
+      
+      // 添加 Android ID（隐私合规后才添加）
+      await _addAndroidIdHeader(options);
       
       // 设备型号和品牌信息相对不那么敏感，但也要检查隐私状态
       if (_canCollectSensitiveData()) {
@@ -505,6 +512,25 @@ class BusinessHeaderInterceptor extends Interceptor {
     }
   }
   
+  /// 添加 Android ID 到请求头（隐私合规版本）
+  Future<void> _addAndroidIdHeader(RequestOptions options) async {
+    // 只在 Android 平台且隐私合规后添加
+    if (!Platform.isAndroid) return;
+    if (!_canCollectSensitiveData()) return;
+
+    try {
+      if (_cachedAndroidId == null) {
+        const channel = MethodChannel('kissu_app/whitelist');
+        _cachedAndroidId = await channel.invokeMethod<String>('getAndroidId');
+      }
+      if (_cachedAndroidId != null && _cachedAndroidId!.isNotEmpty) {
+        options.headers[HttpHeaderKey.androidId] = _cachedAndroidId;
+      }
+    } catch (e) {
+      DebugUtil.error('获取 Android ID 失败: $e');
+    }
+  }
+
   /// 检查是否可以收集敏感数据
   bool _canCollectSensitiveData() {
     try {
@@ -600,6 +626,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     _cachedPower = null;
     _cachedPowerTime = null;
     _cachedLocationPermissionStatus = null;
+    _cachedAndroidId = null;
     _packageInfo = null;
   }
   

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">查看另一半的位置、电量等信息</string>
+    <string name="widget_label">Kissu 4*2小组件</string>
+    <string name="widget_days_description">查看在一起的天数</string>
+    <string name="widget_days_label">Kissu 2*2小组件</string>
+</resources>

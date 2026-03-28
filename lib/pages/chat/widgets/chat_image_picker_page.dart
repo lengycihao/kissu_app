@@ -105,27 +105,34 @@ class _ChatImagePickerPageState extends State<ChatImagePickerPage> {
   }
 
   Future<void> _loadAlbums() async {
-    final PermissionState ps = await PhotoManager.requestPermissionExtend();
-    if (!ps.hasAccess) {
+    // 触发系统权限弹窗（不检查返回值，部分设备授权后仍返回 denied）
+    await PhotoManager.requestPermissionExtend();
+
+    // 直接尝试加载相册，能加载到就说明有权限
+    List<AssetPathEntity> albums = [];
+    try {
+      albums = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
+        filterOption: FilterOptionGroup(
+          imageOption: const FilterOption(
+            sizeConstraint: SizeConstraint(ignoreSize: true),
+          ),
+          orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
+        ),
+      );
+    } catch (e) {
       if (mounted) {
-        OKToastUtil.showError('请授予相册访问权限');
+        OKToastUtil.showError('无法访问相册，请检查权限设置');
         Navigator.of(context).pop();
       }
       return;
     }
 
-    final albums = await PhotoManager.getAssetPathList(
-      type: RequestType.image,
-      filterOption: FilterOptionGroup(
-        imageOption: const FilterOption(
-          sizeConstraint: SizeConstraint(ignoreSize: true),
-        ),
-        orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
-      ),
-    );
-
     if (albums.isEmpty) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        OKToastUtil.showError('无法访问相册，请检查权限设置');
+        Navigator.of(context).pop();
+      }
       return;
     }
 

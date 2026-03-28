@@ -67,4 +67,9 @@ class KissuRoutePath {
   static const checkIn188Activity = '/kisssu_app/check_in_188_activity';
   static const lockScreen = '/kisssu_app/lock_screen';
   static const lockScreenQuestion = '/kisssu_app/lock_screen_question';
+  static const widgetCenter = '/kisssu_app/widget_center';
+  static const guessGame = '/kisssu_app/guess_game';
+  static const guessGameV2Home = '/kisssu_app/guess_game_v2/home';
+  static const guessGameV2TopicSelection = '/kisssu_app/guess_game_v2/topic_selection';
+  static const guessGameV2Play = '/kisssu_app/guess_game_v2/game_play';
 }

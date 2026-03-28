@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -166,15 +166,13 @@ class LockScreenController extends GetxController {
 
   Future<void> pickCustomImage() async {
     try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1080,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-      if (pickedFile != null) {
-        customImagePath.value = pickedFile.path;
+      final context = Get.context;
+      if (context == null) return;
+
+      // 使用统一的图片选择器（和聊天页一致），权限由 ChatImagePickerPage 内部处理
+      final files = await ChatImagePickerPage.open(context, maxCount: 1);
+      if (files != null && files.isNotEmpty) {
+        customImagePath.value = files.first.path;
         selectedImageIndex.value = 3; // 自定义图片索引
       }
     } catch (e) {

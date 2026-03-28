@@ -38,18 +38,15 @@ class _VipPageState extends State<VipPage> with WidgetsBindingObserver {
     
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       controller.onAppPaused();
+      controller.pauseAutoCarousel();
     } else if (state == AppLifecycleState.resumed) {
       controller.onAppResumed();
+      controller.resumeAutoCarousel();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 监听页面可见性变化
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupPageVisibilityListener();
-    });
-
     // 计算底部支付组件的实际高度
     // 包括：支付方式选项(~44) + 间距(10) + 按钮(50) + 间距(15) + 协议文字(~20) + 顶部padding(10) + 底部padding(25) + 底部安全区域
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -297,70 +294,4 @@ class _VipPageState extends State<VipPage> with WidgetsBindingObserver {
     }
   }
 
-  // 评价轮播图指示条
-  // ignore: unused_element
-  Widget _buildCommentCarouselIndicators() {
-    return Obx(() {
-      final commentList = controller.bannerData.value?.commentList ?? [];
-      if (commentList.isEmpty) {
-        return const SizedBox();
-      }
-
-      final itemCount = commentList.length;
-      if (itemCount <= 1) {
-        return const SizedBox(); // 只有一个项目时不显示指示条
-      }
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          itemCount,
-          (index) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: controller.commentCurrentIndex.value == index
-                  ? const Color(0xFFFF408D)
-                  : const Color(0xFFE0E0E0),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-
-  /// 设置页面可见性监听
-  void _setupPageVisibilityListener() {
-    WidgetsBinding.instance.addObserver(_PageVisibilityObserver(controller));
-  }
-}
-
-/// 页面可见性观察者
-class _PageVisibilityObserver extends WidgetsBindingObserver {
-  final VipController controller;
-
-  _PageVisibilityObserver(this.controller);
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.inactive:
-        controller.pauseAutoCarousel(); // 暂停自动轮播
-        break;
-      case AppLifecycleState.resumed:
-        controller.resumeAutoCarousel(); // 恢复自动轮播
-        break;
-      case AppLifecycleState.detached:
-        controller.pauseAutoCarousel(); // 暂停自动轮播
-        break;
-      case AppLifecycleState.hidden:
-        controller.pauseAutoCarousel(); // 暂停自动轮播
-        break;
-    }
-  }
 }

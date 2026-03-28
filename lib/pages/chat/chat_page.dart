@@ -49,6 +49,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       case AppLifecycleState.resumed:
         // App从后台恢复
         controller.onAppResumed();
+        controller.refreshLatestMessages();
         break;
       default:
         break;
@@ -111,8 +112,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
               ),
 
-              // 🔥 一键锁机按钮
-              _buildLockButton(),
+              // 🔥 一键锁机 + 你说我猜按钮
+              Row(
+                children: [
+                  _buildLockButton(),
+                  _buildSayGuessButton(),
+                ],
+              ),
 
               // 输入栏
               Obx(() => ChatInputBar(
@@ -135,6 +141,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                       onEmojiSelected: (emoji) {
                         // 点击表情时，插入到输入框而不是直接发送
                         _inputBarKey.currentState?.insertEmoji(emoji);
+                      },
+                      onDelete: () {
+                        // 删除输入框中光标前的一个字符/表情
+                        _inputBarKey.currentState?.deleteLastEmoji();
                       },
                     )
                   : const SizedBox.shrink()),
@@ -248,6 +258,87 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       );
     });
   }
+
+  // 🔥 你说我猜按钮
+  Widget _buildSayGuessButton() {
+    return GestureDetector(
+      onTap: () async {
+        // 埋点1: 聊天页面你说我猜点击事件
+        //  AnalyticsHelper.trackChatLockPhoneClick(lockStatus: lockStatus);
+
+        // 1. 未绑定：弹出绑定弹窗
+        final isBound = UserManager.currentUser?.bindStatus?.toString() == "1";
+        if (!isBound) {
+          await CustomBottomDialog.show(
+            context: context,
+            caller: SourcePageUtilsCaller.chat,
+            sourceEvent: ChatEvents.lockPhoneClick, //warning: 这里需要替换成你说我猜的点击事件
+            isDismissible: false,
+            enableDrag: false,
+          );
+          return;
+        }
+        // 2. 已绑定但非会员：弹出VIP弹窗
+        if (!UserManager.isVip) {
+          await LockScreenVipDialog.show(context, isFromChat: true);
+          return;
+        }
+        // 3. 已绑定且是会员：进入你说我猜页面
+        await Get.toNamed(KissuRoutePath.guessGameV2Home);
+      },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(0, 10, 16, 0),
+         decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))
+         ),
+        
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+          decoration: BoxDecoration(
+            color: Color(0xffF2F2F2),
+            borderRadius: BorderRadius.circular(28)
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min, 
+            children: [
+              // 锁机图标（带锁机中/new状态角标）
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Image.asset(
+                    'assets/lock/kissu_lock_icon.webp',
+                    width: 16,
+                    height: 16,
+                  ),
+                 Positioned(
+                      top: -15,
+                      left:90,
+                      child: Image.asset(
+                        'assets/4.0/kissu_change_logo_new.webp',
+                        width: 28,
+                        height: 20,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 4),
+              // 一键锁机文字
+              const Text(
+                '你说我猜（竞技版）',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF503F3F),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   // 顶部导航栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {

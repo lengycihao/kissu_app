@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/kissu_compoent42_bg">
+
+    <!-- 连线：在两个头像之间，仅与头像边缘稍微重叠 -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:layout_gravity="top"
+        android:layout_marginTop="50dp"
+        android:layout_marginStart="68dp"
+        android:layout_marginEnd="68dp"
+        android:src="@drawable/kissu_compoent_line"
+        android:scaleType="fitXY"
+        android:contentDescription="连线" />
+
+    <!-- ========== 左侧：自己头像 + 电量 + 位置 ========== -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|top"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="30dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- 头像 + 电量（电量与头像底部稍重叠） -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <!-- 粉色边框头像 -->
+            <FrameLayout
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:background="@drawable/widget_avatar_border_pink"
+                android:padding="3dp">
+
+                <ImageView
+                    android:id="@+id/iv_self_avatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_widget_avatar"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="我的头像" />
+            </FrameLayout>
+
+            <!-- 电量标签：45x20 粉色背景 + 电池图标 + 电量文字 -->
+            <LinearLayout
+                android:layout_width="52dp"
+                android:layout_height="20dp"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginTop="60dp"
+                android:background="@drawable/widget_battery_bg_pink"
+                android:gravity="center_vertical|center_horizontal"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/kissu_compoent_battery"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="电池" />
+
+                <TextView
+                    android:id="@+id/tv_self_battery"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:text="--%"
+                    android:textSize="9sp"
+                    android:textColor="#FFFFFFFF"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- 位置（只展示市） -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp">
+
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/kissu_compoent_location"
+                android:scaleType="fitCenter"
+                android:contentDescription="位置" />
+
+            <TextView
+                android:id="@+id/tv_self_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="定位中"
+                android:textSize="10sp"
+                android:textColor="#FF802145"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:maxWidth="70dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ========== 右侧：另一半头像 + 电量 + 位置 ========== -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|top"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="30dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- 头像 + 电量 -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <!-- 蓝色边框头像 -->
+            <FrameLayout
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:background="@drawable/widget_avatar_border_blue"
+                android:padding="3dp">
+
+                <ImageView
+                    android:id="@+id/iv_partner_avatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_widget_avatar"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Ta的头像" />
+            </FrameLayout>
+
+            <!-- 电量标签：45x20 蓝色背景 + 电池图标 + 电量文字 -->
+            <LinearLayout
+                android:layout_width="52dp"
+                android:layout_height="20dp"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginTop="60dp"
+                android:background="@drawable/widget_battery_bg_blue"
+                android:gravity="center_vertical|center_horizontal"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/kissu_compoent_battery"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="电池" />
+
+                <TextView
+                    android:id="@+id/tv_partner_battery"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:text="--%"
+                    android:textSize="9sp"
+                    android:textColor="#FFFFFFFF"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- 位置（只展示市） -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp">
+
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/kissu_compoent_location"
+                android:scaleType="fitCenter"
+                android:contentDescription="位置" />
+
+            <TextView
+                android:id="@+id/tv_partner_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="定位中"
+                android:textSize="10sp"
+                android:textColor="#FF802145"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:maxWidth="70dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ========== 中间上方：距离标签（在连线上） ========== -->
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="40dp">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/kissu_compoent_distance_bg"
+            android:scaleType="centerInside"
+            android:adjustViewBounds="true"
+            android:maxHeight="28dp"
+            android:contentDescription="距离背景" />
+
+        <TextView
+            android:id="@+id/tv_distance"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:text="---"
+            android:textSize="12sp"
+            android:textColor="#FFFFFFFF"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <!-- ========== 中间下方：心形 + 天数 ========== -->
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="25dp">
+
+        <ImageView
+            android:layout_width="65dp"
+            android:layout_height="53dp"
+            android:src="@drawable/kissu_compoent_heart_bg"
+            android:scaleType="fitCenter"
+            android:contentDescription="心形背景" />
+
+        <LinearLayout
+            android:layout_width="65dp"
+            android:layout_height="53dp"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tv_days"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DAY"
+                android:textSize="9sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ========== 底部：最后刷新时间（调试用） ========== -->
+    <TextView
+        android:id="@+id/tv_last_refresh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:text="刷新: --:--:--"
+        android:textSize="8sp"
+        android:textColor="#80802145"
+        android:singleLine="true" />
+
+</FrameLayout>

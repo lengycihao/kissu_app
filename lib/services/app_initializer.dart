@@ -9,6 +9,7 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 
 import 'package:kissu_app/network/interceptor/api_response_interceptor.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 
@@ -421,6 +422,10 @@ class AppInitializer {
       Get.put(AppLifecycleService(), permanent: true);
 
       DebugUtil.check('应用生命周期服务初始化完成');
+
+      // 步骤17.5: 初始化小组件导航监听
+      WidgetCenterController.setupWidgetNavigationHandler();
+      DebugUtil.check('小组件导航监听初始化完成');
 
       
 

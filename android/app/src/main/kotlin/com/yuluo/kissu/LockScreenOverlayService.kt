@@ -1370,6 +1370,12 @@ class LockScreenOverlayService : Service() {
                     "os" to "1"
                 )
                 
+                // 添加 Android ID（隐私合规后才添加）
+                val androidId = getAndroidIdForApi()
+                if (!androidId.isNullOrEmpty()) {
+                    headers["androidid"] = androidId
+                }
+                
                 // 准备请求体
                 val bodyParams = mapOf(
                     "unlock_type" to "2",
@@ -1434,6 +1440,16 @@ class LockScreenOverlayService : Service() {
         return try {
             android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "unknown"
         } catch (e: Exception) { "unknown" }
+    }
+
+    private fun getAndroidIdForApi(): String? {
+        // 隐私合规检查：仅在用户同意隐私政策后才返回
+        val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+        val agreed = prefs.getBoolean("flutter.privacy_policy_agreed", false)
+        if (!agreed) return null
+        return try {
+            android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID)
+        } catch (e: Exception) { null }
     }
 
     private fun generateSignForApi(headers: Map<String, String>, bodyParams: Map<String, String>): String {

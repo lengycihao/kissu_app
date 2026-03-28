@@ -69,6 +69,15 @@ import 'package:kissu_app/pages/check_in_188/views/check_in_188_activity_binding
 import 'package:kissu_app/pages/mine/lock_screen/lock_screen_page.dart';
 import 'package:kissu_app/pages/mine/lock_screen/lock_screen_binding.dart';
 import 'package:kissu_app/pages/mine/lock_screen/lock_screen_question_page.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_page.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_binding.dart';
+import 'package:kissu_app/pages/guess_game/guess_game_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_home_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/bindings/game_home_binding.dart';
+import 'package:kissu_app/pages/guess_game_v2/topic_selection_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/bindings/topic_selection_binding.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_play_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/bindings/game_play_binding.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -411,6 +420,36 @@ class KissuRoute {
     GetPage(
       name: KissuRoutePath.lockScreenQuestion,
       page: () => const LockScreenQuestionPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.widgetCenter,
+      page: () => const WidgetCenterPage(),
+      binding: WidgetCenterBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGame,
+      page: () => const GuessGamePage(),
+      transition: Transition.rightToLeft,
+    ),
+    // ===== 你说我猜 V2 =====
+    GetPage(
+      name: KissuRoutePath.guessGameV2Home,
+      page: () => const GameHomePage(),
+      binding: GameHomeBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2TopicSelection,
+      page: () => const TopicSelectionPage(),
+      binding: TopicSelectionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2Play,
+      page: () => const GamePlayPage(),
+      binding: GamePlayBinding(),
       transition: Transition.rightToLeft,
     ),
   ];

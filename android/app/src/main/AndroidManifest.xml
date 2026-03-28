@@ -1448,6 +1448,33 @@
 
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
+        <!-- ================= Kissu 桌面小组件 ================= -->
+        <!-- 4×2 详情小组件 -->
+        <receiver
+            android:name="com.yuluo.kissu.widget.KissuWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_kissu_info" />
+        </receiver>
+
+        <!-- 2×2 相伴天数小组件 -->
+        <receiver
+            android:name="com.yuluo.kissu.widget.KissuWidgetDaysProvider"
+            android:exported="true"
+            android:label="@string/widget_days_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_kissu_days" />
+        </receiver>
+
     </application>
 
 

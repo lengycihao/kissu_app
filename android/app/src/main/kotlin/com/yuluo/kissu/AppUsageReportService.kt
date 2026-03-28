@@ -592,6 +592,12 @@ class AppUsageReportService(private val context: Context) {
                 headers["userid"] = userId
             }
             
+            // 添加 Android ID（隐私合规后才添加）
+            val androidIdForUpload = getAndroidId()
+            if (!androidIdForUpload.isNullOrEmpty()) {
+                headers["androidid"] = androidIdForUpload
+            }
+            
             val sign = generateSign(headers, emptyMap())
             headers["sign"] = sign
             
@@ -836,6 +842,12 @@ class AppUsageReportService(private val context: Context) {
                     headers["userid"] = userId
                 }
                 
+                // 添加 Android ID（隐私合规后才添加）
+                val androidId = getAndroidId()
+                if (!androidId.isNullOrEmpty()) {
+                    headers["androidid"] = androidId
+                }
+                
                 // 准备请求体参数（用于签名）
                 val bodyParams = mapOf(
                     "app_use_record_data" to appUsageArray.toString(),
@@ -964,6 +976,22 @@ class AppUsageReportService(private val context: Context) {
         }
     }
     
+    /**
+     * 获取 Android ID（仅在隐私政策同意后返回）
+     */
+    private fun getAndroidId(): String? {
+        if (!isPrivacyPolicyAgreed()) return null
+        return try {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "获取Android ID失败", e)
+            null
+        }
+    }
+
     /**
      * 获取当前网络头部信息
      */

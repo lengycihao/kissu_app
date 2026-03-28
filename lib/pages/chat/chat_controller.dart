@@ -600,6 +600,44 @@ class ChatController extends GetxController {
     }
   }
   
+  /// 刷新最新消息（从SDK历史拉取最近几条，合并到列表中）
+  /// 用于从其他页面返回时补齐可能遗漏的消息
+  Future<void> refreshLatestMessages() async {
+    final im = TencentIMService.instance;
+    final partnerId = _partnerImId;
+    if (partnerId == null || partnerId.isEmpty) return;
+    if (!im.isInitialized || !im.isLoggedIn) return;
+
+    try {
+      final res = await im.getC2CHistoryMessages(
+        userID: partnerId,
+        count: 10,
+        lastMsgID: null, // null = 从最新开始
+      );
+      if (res == null || res.code != 0 || res.data == null) return;
+
+      final currentUserId = im.currentUserID;
+      bool added = false;
+      for (final msg in res.data!) {
+        final chatMsg = _convertIMMessageToChatMessage(
+          msg,
+          currentUserId: currentUserId,
+          partnerId: partnerId,
+        );
+        if (chatMsg == null) continue;
+        final exists = messages.any((m) => m.id == chatMsg.id);
+        if (!exists) {
+          messages.add(chatMsg);
+          added = true;
+        }
+      }
+      if (added) {
+        messages.refresh();
+        _scrollToBottomWithDelay();
+      }
+    } catch (_) {}
+  }
+
   @override
   void onClose() {
     // 埋点：记录页面离开事件（返回）
@@ -1324,6 +1362,20 @@ class ChatController extends GetxController {
               isSent: isSelf,
               time: msgTime,
               avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
+            );
+          }
+
+          // 处理你说我猜邀请消息（msg_type: "chat_say_guess"）
+          if (msgType == 'chat_say_guess') {
+            final String? groupId = decoded['group_id'] as String?;
+            return ChatMessage(
+              id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              content: '我向你发起你说我猜挑战快来提高我们的默契排名吧~',
+              type: MessageType.sayGuess,
+              isSent: isSelf,
+              time: msgTime,
+              avatarUrl: isSelf ? UserManager.userAvatar : avatarUrl.value,
+              groupId: groupId,
             );
           }
         }

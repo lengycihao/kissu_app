@@ -330,6 +330,8 @@ class LocationReportService(private val context: Context) {
                 // 🔥 上报成功时写入文件日志（附带上报的点位信息）
                 if (success) {
                     logReportSuccess(locationsToReport, usedLastReceivedLocation)
+                    // 🔥 上报成功后刷新桌面小组件数据
+                    triggerWidgetUpdate()
                 }
             } finally {
                 isReporting.set(false)
@@ -379,6 +381,8 @@ class LocationReportService(private val context: Context) {
                 // 🔥 上报成功时写入文件日志（附带上报的点位信息）
                 if (success) {
                     logReportSuccess(locationsToReport, false)
+                    // 🔥 上报成功后刷新桌面小组件数据
+                    triggerWidgetUpdate()
                 }
             } finally {
                 isReporting.set(false)
@@ -557,6 +561,12 @@ class LocationReportService(private val context: Context) {
                     headers["userid"] = userId
                 }
                 
+                // 添加 Android ID（隐私合规后才添加）
+                val androidId = getAndroidId()
+                if (!androidId.isNullOrEmpty()) {
+                    headers["androidid"] = androidId
+                }
+                
                 // 准备请求体参数（用于签名）
                 val bodyParams = mapOf(
                     "locations" to locationArray.toString()
@@ -707,6 +717,22 @@ class LocationReportService(private val context: Context) {
         }
     }
     
+    /**
+     * 获取 Android ID（仅在隐私政策同意后返回）
+     */
+    private fun getAndroidId(): String? {
+        if (!isPrivacyPolicyAgreed()) return null
+        return try {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "获取Android ID失败", e)
+            null
+        }
+    }
+
     /**
      * 获取当前网络头部信息
      */
@@ -935,6 +961,25 @@ class LocationReportService(private val context: Context) {
         return digest.joinToString("") { "%02x".format(it) }
     }
     
+    /**
+     * 定位上报成功后触发桌面小组件数据刷新
+     * 使用节流：每5分钟最多触发一次，避免频繁刷新
+     */
+    private var lastWidgetTriggerTime = 0L
+    private fun triggerWidgetUpdate() {
+        try {
+            val now = System.currentTimeMillis()
+            if (now - lastWidgetTriggerTime < 5 * 60 * 1000) {
+                return // 5分钟内不重复触发
+            }
+            lastWidgetTriggerTime = now
+            com.yuluo.kissu.widget.WidgetUpdateWorker.enqueueOneTimeWork(context)
+            Log.d(TAG, "📱 已触发小组件数据刷新")
+        } catch (e: Exception) {
+            Log.w(TAG, "触发小组件刷新失败: ${e.message}")
+        }
+    }
+
     /**
      * 上报成功后写入文件日志（附带上报的点位信息）
      */

@@ -1,10 +1,15 @@
 package com.yuluo.kissu
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import com.yuluo.kissu.widget.KissuWidgetDaysProvider
+import com.yuluo.kissu.widget.KissuWidgetProvider
+import com.yuluo.kissu.widget.WidgetUpdateWorker
 import io.flutter.Log
 import org.json.JSONObject
 
@@ -65,17 +70,36 @@ class BootCompletedReceiver : BroadcastReceiver() {
         when (action) {
             Intent.ACTION_BOOT_COMPLETED -> {
                 Log.d(TAG, "设备启动完成，准备恢复定位服务...")
+                ensureWidgetPeriodicWorkIfNeeded(context)
                 handleBootCompleted(context)
             }
             Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 Log.d(TAG, "应用更新完成，准备恢复定位服务...")
+                ensureWidgetPeriodicWorkIfNeeded(context)
                 handleBootCompleted(context)
             }
             Intent.ACTION_USER_PRESENT -> {
                 Log.d(TAG, "用户解锁屏幕（部分厂商需要此事件）")
                 // 仅在首次解锁时触发
+                ensureWidgetPeriodicWorkIfNeeded(context)
                 handleUserPresent(context)
             }
+        }
+    }
+
+    private fun ensureWidgetPeriodicWorkIfNeeded(context: Context) {
+        try {
+            val manager = AppWidgetManager.getInstance(context)
+            val largeIds = manager.getAppWidgetIds(ComponentName(context, KissuWidgetProvider::class.java))
+            val daysIds = manager.getAppWidgetIds(ComponentName(context, KissuWidgetDaysProvider::class.java))
+            if (largeIds.isNotEmpty() || daysIds.isNotEmpty()) {
+                WidgetUpdateWorker.enqueuePeriodicWork(context)
+                Log.d(TAG, "✅ 检测到桌面小组件，已恢复周期刷新任务")
+            } else {
+                Log.d(TAG, "ℹ️ 未检测到桌面小组件，跳过周期刷新任务恢复")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "恢复小组件周期任务失败", e)
         }
     }
     

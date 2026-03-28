@@ -129,13 +129,14 @@ class KissuApplication : TencentCloudChatPushApplication() {
                     Log.d(TAG, "🔔 收到推送: title=$title, content=$content, ext=$ext")
                     Log.d(TAG, "🔔 App状态: ${if (appInForeground) "前台" else "后台"}")
 
-                    // 🔥 App在后台时，手动创建通知确保用户能看到
-                    // SDK 的 disablePostNotificationInForeground(true) 只禁用了前台通知
-                    // 后台场景需要在此回调中手动创建通知
-                    if (!appInForeground) {
-                        showBackgroundNotification(title, content, ext)
-                    } else {
+                    // 🔥 修复重复通知：不再手动创建通知！
+                    // 腾讯IM Push SDK 已经通过厂商通道（小米/OPPO/vivo等）自动投递了通知，
+                    // 这里再调用 showBackgroundNotification 会导致用户收到两条一样的通知。
+                    // 此回调仅用于日志记录和业务逻辑处理，不应创建通知。
+                    if (appInForeground) {
                         Log.d(TAG, "🔔 App在前台，由Flutter层处理消息展示")
+                    } else {
+                        Log.d(TAG, "🔔 App在后台，由SDK厂商通道处理通知展示")
                     }
                 }
             })

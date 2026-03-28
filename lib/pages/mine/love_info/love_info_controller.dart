@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
@@ -9,7 +10,7 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
- import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
@@ -17,9 +18,8 @@ import 'dart:io';
 import 'dart:math';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:kissu_app/services/permission_service.dart';
-import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
+import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
@@ -29,9 +29,6 @@ import 'package:kissu_app/network/tools/logging/logging.dart';
 class LoveInfoController extends GetxController {
   // 绑定状态
   var isBindPartner = false.obs;
-  
-  // 权限服务
-  final PermissionService _permissionService = PermissionService();
 
   // 用户信息
   var myAvatar = "".obs;
@@ -256,57 +253,15 @@ class LoveInfoController extends GetxController {
   /// 选择头像
   Future<void> pickImage() async {
     try {
-      // 检查是否已有相册和相机权限
-      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      final hasCameraPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
-      
-      // 如果两个权限都有，直接显示选择来源对话框
-      if (hasPhotoPermission && hasCameraPermission) {
-        final result = await ImageSourceDialog.show(Get.context!);
-        if (result == null) return;
-        
-        // 处理选择结果
-        if (result.systemAvatarPath != null) {
-          // 选择了系统头像，直接使用
-          await _updateAvatarWithPath(result.systemAvatarPath!);
-        } else if (result.imageSource != null) {
-          // 选择了相册或相机
-          await _pickImageFromSource(result.imageSource!);
-        }
-        return;
-      }
-      
-      // 如果没有权限，先显示权限说明弹窗
-      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
-      if (shouldContinue != true) return;
-      
-      // 申请权限
-      bool photoPermissionGranted = hasPhotoPermission;
-      bool cameraPermissionGranted = hasCameraPermission;
-      
-      if (!hasPhotoPermission) {
-        photoPermissionGranted = await _permissionService.requestPhotosPermission();
-      }
-      
-      if (!hasCameraPermission) {
-        cameraPermissionGranted = await _permissionService.requestCameraPermission();
-      }
-      
-      // 如果至少有一个权限被授予，显示选择来源对话框
-      if (photoPermissionGranted || cameraPermissionGranted) {
-        final result = await ImageSourceDialog.show(Get.context!);
-        if (result == null) return;
-        
-        // 处理选择结果
-        if (result.systemAvatarPath != null) {
-          // 选择了系统头像，直接使用
-          await _updateAvatarWithPath(result.systemAvatarPath!);
-        } else if (result.imageSource != null) {
-          // 选择了相册或相机
-          await _pickImageFromSource(result.imageSource!);
-        }
-      } else {
-        CustomToast.show(Get.context!, '权限未授予，无法选择图片');
+      // 直接显示选择来源对话框（系统头像/相册/拍照）
+      // 权限由 ChatImagePickerPage 和 MediaPickerUtil 内部处理
+      final result = await ImageSourceDialog.show(Get.context!);
+      if (result == null) return;
+
+      if (result.systemAvatarPath != null) {
+        await _updateAvatarWithPath(result.systemAvatarPath!);
+      } else if (result.imageSource != null) {
+        await _pickImageFromSource(result.imageSource!);
       }
     } catch (e) {
       logError('选择头像失败: $e', tag: 'LoveInfo', error: e);
@@ -442,29 +397,18 @@ class LoveInfoController extends GetxController {
   /// 从指定来源选择图片
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
-      // 再次检查权限状态（防止用户在选择来源时权限被撤销）
-      bool hasPermission = false;
-      if (source == ImageSource.camera) {
-        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      if (source == ImageSource.gallery) {
+        // 使用统一的图片选择器（和聊天页一致），权限由 ChatImagePickerPage 内部处理
+        final files = await ChatImagePickerPage.open(Get.context!, maxCount: 1);
+        if (files != null && files.isNotEmpty) {
+          await _navigateToCropPage(files.first.path);
+        }
       } else {
-        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      }
-
-      if (!hasPermission) {
-        CustomToast.show(Get.context!, '权限未授予，无法选择图片');
-        return;
-      }
-
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: source,
-        // 不设置imageQuality和maxWidth/maxHeight，保持原始图片质量
-        // 压缩将在裁剪后上传时进行
-      );
-
-      if (pickedFile != null) {
-        // 直接进入图片裁剪页面（会预加载图片，裁剪页面有自己的loading）
-        await _navigateToCropPage(pickedFile.path);
+        // 使用统一的拍照工具（和聊天页一致），权限由 MediaPickerUtil 内部处理
+        final file = await MediaPickerUtil.takePhoto(imageQuality: 92);
+        if (file != null) {
+          await _navigateToCropPage(file.path);
+        }
       }
     } catch (e) {
       logError('选择图片失败: $e');

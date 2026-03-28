@@ -402,13 +402,7 @@ class ShareService extends GetxService {
         };
       }
       
-      // 打印调试信息
-      logger.debug('📤 QQ分享参数:', tag: 'ShareService');
-      logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
-      logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
-      logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
-      logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
-      logger.debug('🔗 分享链接域名需要在QQ开放平台配置白名单', tag: 'ShareService');
+ 
       
       // 3. 调用底层分享方法
       final result = await shareToQQ(
@@ -470,12 +464,7 @@ class ShareService extends GetxService {
       if (params.containsKey('error')) {
         return {'success': false, 'message': params['error']};
       }
-      
-      logger.debug(' 微信分享参数:', tag: 'ShareService');
-      logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
-      logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
-      logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
-      logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
+ 
       
       // 3. 调用底层分享方法并返回结果
       final result = await shareToWeChat(

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:amap_flutter_location/amap_flutter_location.dart';
@@ -269,7 +271,10 @@ class PrivacyComplianceManager extends GetxService {
       // 8. 🔒 隐私合规：初始化OAID（用于埋点虚拟用户ID）
       await _enableOaidCollection();
       
-      // 9. 通知其他服务隐私政策已同意
+      // 9. 初始化巨量引擎SDK（Android端）
+      await _initBDConvert();
+      
+      // 10. 通知其他服务隐私政策已同意
       _notifyPrivacyAgreement();
       
       if (kDebugMode) {
@@ -651,6 +656,26 @@ class PrivacyComplianceManager extends GetxService {
     } catch (e) {
       if (kDebugMode) {
         DebugUtil.error('启用敏感数据收集失败: $e');
+      }
+    }
+  }
+  
+  /// 初始化巨量引擎SDK（通过MethodChannel通知原生层）
+  Future<void> _initBDConvert() async {
+    if (!Platform.isAndroid) return;
+    try {
+      const channel = MethodChannel('kissu_app/whitelist');
+      final success = await channel.invokeMethod<bool>('initBDConvert');
+      if (kDebugMode) {
+        if (success == true) {
+          DebugUtil.success('巨量引擎SDK初始化成功');
+        } else {
+          DebugUtil.warning('巨量引擎SDK初始化返回false');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('巨量引擎SDK初始化失败: $e');
       }
     }
   }

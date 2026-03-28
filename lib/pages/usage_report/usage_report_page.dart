@@ -113,16 +113,6 @@ class _UsageReportPageState extends State<UsageReportPage> with WidgetsBindingOb
     );
   }
 
-  /// 格式化时间（对外给 item 复用）
-  static String formatTime(String createTime) {
-    try {
-      final dateTime = DateTime.parse(createTime);
-      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return createTime;
-    }
-  }
-
   // 构建记录列表
   Widget _buildRecordList() {
     return Obx(() {

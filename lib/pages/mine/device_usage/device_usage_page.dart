@@ -20,7 +20,7 @@ export 'widgets/circular_progress_painters.dart';
 class DeviceUsagePage extends StatefulWidget {
   /// 来源事件（用于绑定弹窗埋点）
   final String? sourceEvent;
-  
+
   const DeviceUsagePage({super.key, this.sourceEvent});
 
   @override
@@ -31,7 +31,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     with WidgetsBindingObserver {
   late DeviceUsageController controller;
   bool _hasInitialized = false;
-  
+
   /// 首次进入页面时的来源事件（优先使用构造函数参数，其次使用路由参数）
   String? get _initialSourceEvent {
     // 优先使用构造函数传入的参数
@@ -110,7 +110,8 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
       CustomBottomDialog.show(
         context: context,
         caller: SourcePageUtilsCaller.deviceUsage,
-        sourceEvent: sourceEvent ?? _initialSourceEvent ?? PhoneHistoryEvents.page,
+        sourceEvent:
+            sourceEvent ?? _initialSourceEvent ?? PhoneHistoryEvents.page,
         onClose: () {
           // 绑定弹窗关闭后，刷新状态并重新加载数据
           controller.updateBindStatus();
@@ -153,40 +154,63 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                       ),
                       child: Column(
                         children: [
-                          // 权限提示横幅（只有在尚未授权使用情况访问权限时显示）
-                          Obx(() => controller.hasUsagePermission.value
-                              ? const SizedBox.shrink()
-                              : _buildPermissionBanner(controller)),
-                          // 手机使用记录模块
+                          // 权限提示横幅（对方权限未开启时显示）
+                          Obx(
+                            () => controller.isLoadingPartnerPermission.value ||
+                                    controller.isPartnerPermissionGranted.value
+                                ? const SizedBox.shrink()
+                                : _buildPermissionBanner(controller),
+                          ),
+                          Text(
+                            "Tip:为确保数据及时准确，请提醒对方把Kissu保持在后台运行请勿关闭后台",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xb3000000),
+                            ),
+                          ), // 手机使用记录模块
+                          SizedBox(
+                            height: 12,
+                          ),
                           DevicePhoneUsageCard(
                             controller: controller,
                             onTap: () {
                               // 埋点：手机使用记录模块点击（不管是否会员都记录）
-                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
-                              AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
-                              
+                              final btnName = !controller.isUserBound.value
+                                  ? 'bind'
+                                  : (!controller.isUserVip.value ? 'vip' : '');
+                              AnalyticsHelper.trackPhoneUseModule(
+                                btnName: btnName,
+                              );
+
                               _handleVipFeatureTap(
                                 sourceEvent: PhoneHistoryEvents.phoneUseModule,
                                 onVipUserNavigate: () {
                                   // 埋点：页面离开（进入下一页）
                                   controller.onNavigateToNextPage?.call();
-                                  Get.toNamed(
-                                    KissuRoutePath.appUsageInfo,
-                                  );
+                                  Get.toNamed(KissuRoutePath.appUsageInfo);
                                 },
                               );
                             },
                             onVipTap: () {
                               // 埋点：页面离开（进入下一页）
                               controller.onNavigateToNextPage?.call();
-                               final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
+                              final btnName = !controller.isUserBound.value
+                                  ? 'bind'
+                                  : (!controller.isUserVip.value ? 'vip' : '');
                               if (btnName.isNotEmpty) {
-                                AnalyticsHelper.trackPhoneUseModule(btnName: btnName);
+                                AnalyticsHelper.trackPhoneUseModule(
+                                  btnName: btnName,
+                                );
                               }
                               // 未开通会员时点击跳转开通会员页面
                               Get.toNamed(
                                 KissuRoutePath.vip,
-                               arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, 'source_event': PhoneHistoryEvents.phoneUseModule},
+                                arguments: {
+                                  'source_page':
+                                      SourcePageUtilsCaller.deviceUsage,
+                                  'source_event':
+                                      PhoneHistoryEvents.phoneUseModule,
+                                },
                               );
                             },
                           ),
@@ -196,15 +220,19 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                             controller: controller,
                             onTap: () {
                               // 埋点：App使用记录模块点击（不管是否会员都记录）
-                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
-                               AnalyticsHelper.trackAppUseModule(btnName: btnName);
-                              
+                              final btnName = !controller.isUserBound.value
+                                  ? 'bind'
+                                  : (!controller.isUserVip.value ? 'vip' : '');
+                              AnalyticsHelper.trackAppUseModule(
+                                btnName: btnName,
+                              );
+
                               _handleVipFeatureTap(
                                 sourceEvent: PhoneHistoryEvents.appUseModule,
                                 onVipUserNavigate: () {
                                   // 埋点：页面离开（进入下一页）
                                   controller.onNavigateToNextPage?.call();
-                                  
+
                                   Get.toNamed(KissuRoutePath.appUsage);
                                 },
                               );
@@ -216,16 +244,23 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                             controller: controller,
                             onTap: () {
                               // 埋点：敏感操作记录模块点击（不管是否会员都记录）
-                              final btnName = !controller.isUserBound.value ? 'bind' : (!controller.isUserVip.value ? 'vip' : '');
-                                AnalyticsHelper.trackSensitiveOperationModule(btnName: btnName);
-                              
+                              final btnName = !controller.isUserBound.value
+                                  ? 'bind'
+                                  : (!controller.isUserVip.value ? 'vip' : '');
+                              AnalyticsHelper.trackSensitiveOperationModule(
+                                btnName: btnName,
+                              );
+
                               if (!controller.isUserBound.value) {
-                                _checkAndShowBindingDialog(sourceEvent: PhoneHistoryEvents.sensitiveOperationModule);
+                                _checkAndShowBindingDialog(
+                                  sourceEvent: PhoneHistoryEvents
+                                      .sensitiveOperationModule,
+                                );
                                 return;
                               }
                               // 埋点：页面离开（进入下一页）
                               controller.onNavigateToNextPage?.call();
-                              
+
                               Get.to(
                                 () => const UsageReportPage(),
                                 binding: UsageReportBinding(),
@@ -307,10 +342,10 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               onTap: () {
                 // 埋点：设置按钮点击
                 AnalyticsHelper.trackPhoneHistorySetting();
-                
+
                 // 埋点：页面离开（进入下一页）
                 controller.onNavigateToNextPage?.call();
-                
+
                 // 复用用机记录设置入口，跳转到通知设置页面
                 Get.toNamed(KissuRoutePath.notificationSettings);
               },
@@ -348,10 +383,13 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     if (!controller.isUserVip.value) {
       // 埋点：页面离开（进入下一页）
       controller.onNavigateToNextPage?.call();
-      
+
       Get.toNamed(
         KissuRoutePath.vip,
-        arguments: {'source_page': SourcePageUtilsCaller.deviceUsage, 'source_event': sourceEvent},
+        arguments: {
+          'source_page': SourcePageUtilsCaller.deviceUsage,
+          'source_event': sourceEvent,
+        },
       )?.then((_) {
         // 从VIP页面返回后，刷新绑定状态
         controller.updateBindStatus();
@@ -362,8 +400,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
     // 已绑定且是会员：执行对应模块的跳转
     onVipUserNavigate();
   }
- 
- 
+
   /// 构建用机记录引导图覆盖层
   Widget _buildGuideOverlay() {
     if (!controller.showGuideOverlay.value) {
@@ -399,7 +436,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                   fit: BoxFit.contain,
                 ),
               ),
-               Positioned(
+              Positioned(
                 top: 120,
                 right: 240,
                 child: // 竖线
@@ -418,47 +455,46 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    // 气泡 + 提示文字
-                    Text(
-                      '敏感信息接收设置都在这里哦~',
-                      textAlign: TextAlign.left,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'AlimamaShuHeiTi',
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.asset(
-                          'assets/setting/kissu_guide_tips.webp',
-                          width: 53,
-                          height: 18,
-                          fit: BoxFit.contain,
-                        ),
-                        SizedBox(width: 8),
-                        const Text(
-                          '可以手动设置提示的类型',
-                          textAlign: TextAlign.right,
+                        const SizedBox(height: 4),
+                        // 气泡 + 提示文字
+                        Text(
+                          '敏感信息接收设置都在这里哦~',
+                          textAlign: TextAlign.left,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 16,
+                            fontFamily: 'AlimamaShuHeiTi',
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                             height: 1.4,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/setting/kissu_guide_tips.webp',
+                              width: 53,
+                              height: 18,
+                              fit: BoxFit.contain,
+                            ),
+                            SizedBox(width: 8),
+                            const Text(
+                              '可以手动设置提示的类型',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                   
-                  ],
-                ),
-               const SizedBox(height: 20),
-                 GestureDetector(
+                    const SizedBox(height: 20),
+                    GestureDetector(
                       onTap: () => controller.hideGuideOverlay(),
                       child: Image.asset(
                         'assets/setting/kissu_guide_know.webp',
@@ -468,7 +504,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
                       ),
                     ),
                   ],
-                )
+                ),
               ),
             ],
           ),
@@ -480,7 +516,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
   /// 权限提示横幅
   Widget _buildPermissionBanner(DeviceUsageController controller) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10, ),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
         color: const Color(0xFFFFE1F4),
@@ -507,7 +543,7 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                '目前必要权限还未开启，会造成数据显示错误',
+                '对方相关权限未开启，造成数据异常，请提醒对方',
                 style: TextStyle(color: const Color(0xb3000000), fontSize: 12),
                 maxLines: 1,
               ),
@@ -518,12 +554,12 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
             onTap: () {
               // 埋点：权限引导按钮点击
               AnalyticsHelper.trackPermissionGuideBtn();
-              controller.openUsageSettings();
+              controller.sendUsagePermissionReminder();
             },
             child: Row(
               children: const [
                 Text(
-                  '去开启',
+                  '去提醒',
                   style: TextStyle(
                     color: Color(0xe6000000),
                     fontSize: 12,
@@ -543,5 +579,4 @@ class _DeviceUsagePageState extends State<DeviceUsagePage>
       ),
     );
   }
-
 }

@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/mine/device_usage/models/phone_record_stat_model.dart' as api_model;
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
@@ -56,6 +60,16 @@ class DeviceUsageController extends GetxController {
   // 权限状态
   var hasUsagePermission = false.obs;
 
+  // 对方权限状态（通过 /get/lock/permission 接口获取）
+  final isPartnerPermissionGranted = true.obs; // 默认 true 避免闪烁
+  final isLoadingPartnerPermission = true.obs;
+  final Rxn<Map<String, dynamic>> _partnerPermissionData = Rxn();
+
+  /// 对方系统："ios" | "android"
+  String get _partnerOs =>
+      (_partnerPermissionData.value?['os'] as String? ?? 'android').toLowerCase();
+  bool get _isPartnerIos => _partnerOs == 'ios';
+
   // 另一半用户设备信息
   var halfUserData = Rxn<api_model.HalfUserData>();
 
@@ -63,6 +77,7 @@ class DeviceUsageController extends GetxController {
   final RxBool showGuideOverlay = false.obs;
 
   final _usageRecordApi = UsageRecordApi();
+  final _lockPermissionApi = LockPermissionApi();
   final _logoCacheService = AppLogoCacheService();
   
   // 埋点相关
@@ -107,6 +122,8 @@ class DeviceUsageController extends GetxController {
     _checkAndShowGuide();
     // 启动使用情况访问权限监听（轮询检测，直到授权或页面关闭）
     _startUsagePermissionMonitor();
+    // 获取对方权限状态
+    _fetchPartnerPermission();
   }
   
   /// 检查并显示用机记录引导图
@@ -459,6 +476,62 @@ class DeviceUsageController extends GetxController {
       await permissionService.openUsageAccessSettings();
     } catch (e) {
       logError('打开使用情况设置失败: $e', tag: 'DeviceUsage', error: e);
+    }
+  }
+
+  // ==================== 对方权限 ====================
+
+  /// 获取对方权限状态
+  Future<void> _fetchPartnerPermission() async {
+    // 优先使用全局缓存（避免闪烁）
+    final cached = LockPermissionApi.cachedPartnerPermission;
+    if (cached != null) {
+      _partnerPermissionData.value = cached;
+      isPartnerPermissionGranted.value = _computePartnerPermission();
+      isLoadingPartnerPermission.value = false;
+    }
+    // 后台静默刷新
+    try {
+      final result = await _lockPermissionApi.getLockPermission();
+      if (result.isSuccess && result.data != null) {
+        _partnerPermissionData.value = result.data;
+        isPartnerPermissionGranted.value = _computePartnerPermission();
+        LockPermissionApi.cachedPartnerPermission = result.data;
+      }
+    } catch (e) {
+      logError('获取对方权限状态失败: $e', tag: 'DeviceUsage', error: e);
+    } finally {
+      isLoadingPartnerPermission.value = false;
+    }
+  }
+
+  /// 计算对方权限是否满足
+  /// Android: 只需 is_open_screen_use == 1
+  /// iOS: 需要 is_open_screen_use == 1
+  bool _computePartnerPermission() {
+    final data = _partnerPermissionData.value;
+    if (data == null) return true; // 没数据时默认不显示横幅
+    final screenUse = data['is_open_screen_use'] as int? ?? 0;
+    if (_isPartnerIos) {
+      return screenUse == 1;
+    } else {
+      return screenUse == 1;
+    }
+  }
+
+  /// 发送 app 使用记录权限提醒消息给对方
+  Future<void> sendUsagePermissionReminder() async {
+    final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+    if (partnerId == null || partnerId.isEmpty) return;
+    try {
+      final im = TencentIMService.instance;
+      await im.sendCustomMessage(
+        receiverID: partnerId,
+        customData: jsonEncode({'msg_lock': 'phone_use'}),
+      );
+      OKToastUtil.showSuccess('已通过聊天通知Ta');
+    } catch (e) {
+      logError('发送权限提醒失败: $e', tag: 'DeviceUsage', error: e);
     }
   }
 }

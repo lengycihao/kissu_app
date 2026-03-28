@@ -22,6 +22,7 @@ import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:kissu_app/services/permission_upload_service.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/network/tools/config/app_configN.dart';
 
 class LoginController extends GetxController {
   var isChecked = false.obs;
@@ -77,6 +78,11 @@ class LoginController extends GetxController {
   /// 加载协议同意状态
   Future<void> _loadAgreementStatus() async {
     try {
+      // 抖音渠道要求：退出登录后不默认勾选用户协议
+      if (AppConfigN.appChannel == 'kissu_douyin') {
+        isChecked.value = false;
+        return;
+      }
       final prefs = await SharedPreferences.getInstance();
       // 检查是否曾经同意过协议（退出登录时保持同意状态）
       final hasAgreedBefore =

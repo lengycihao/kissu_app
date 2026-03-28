@@ -8,6 +8,7 @@ import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/version_service.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 
 /// 应用生命周期服务
 class AppLifecycleService extends GetxService with WidgetsBindingObserver {
@@ -103,6 +104,9 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     
     // 🔥 新增：后台切回前台时检查版本更新
     _checkVersionUpdate();
+    
+    // 🔥 新增：同步小组件数据
+    _syncWidgetData();
     
     try {
       final simpleLocationService = SimpleLocationService.instance;
@@ -311,6 +315,16 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       }
     } catch (e) {
       logger.error('❌ 前台恢复版本检查失败: $e');
+    }
+  }
+  
+  /// 同步小组件数据
+  Future<void> _syncWidgetData() async {
+    try {
+      await WidgetCenterController.syncWidgetDataOnResume();
+      logger.debug('✅ 小组件数据已同步');
+    } catch (e) {
+      logger.error('❌ 同步小组件数据失败: $e');
     }
   }
   

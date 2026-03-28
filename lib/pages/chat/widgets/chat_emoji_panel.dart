@@ -3,29 +3,28 @@ import 'package:flutter/material.dart';
 /// 表情面板组件
 class ChatEmojiPanel extends StatelessWidget {
   final Function(String)? onEmojiSelected;
+  final VoidCallback? onDelete;
 
   const ChatEmojiPanel({
     super.key,
     this.onEmojiSelected,
+    this.onDelete,
   });
 
   static const List<String> _systemEmojis = [
     '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
     '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
-    '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+    '😘', '😗', '😚', '❤️', '😋', '💣', '💩', '🔪',
     '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
     '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
     '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
-    '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯',
+    '🤢', '🤮', '🤧', '🥵', '🥶', '😓', '😩', '😫',
     '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁',
     '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨',
     '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞',
-    '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬',
-    '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙',
-    '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💪', '🦾',
-    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
-    '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘',
-    '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️',
+    '🥱', '😤', '😡', '😠', '🤬','👍', '👎', '👌',
+    '✌️', '🤞', '🤟', '🤘', '🤙','💘','🤲', '🤝', 
+    '👏', '🤲', '🤝', '🙏', '💪',
   ];
 
   @override
@@ -40,24 +39,58 @@ class ChatEmojiPanel extends StatelessWidget {
       ),
       child: SafeArea(
         top: false, // 顶部不使用SafeArea，避免上方空白
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: GridView.builder(
-            padding: EdgeInsets.zero, // 移除顶部padding
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: GridView.builder(
+                padding: EdgeInsets.zero.copyWith(bottom: 40), // 移除顶部padding
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1,
+                ),
+                itemCount: _systemEmojis.length,
+                itemBuilder: (context, index) {
+                  return _EmojiItem(
+                    emoji: _systemEmojis[index],
+                    onTap: onEmojiSelected,
+                  );
+                },
+              ),
             ),
-            itemCount: _systemEmojis.length,
-            itemBuilder: (context, index) {
-              return _EmojiItem(
-                emoji: _systemEmojis[index],
-                onTap: onEmojiSelected,
-              );
-            },
-          ),
+            // 删除按钮 - 右下角
+            Positioned(
+              right: 16,
+              bottom: 12,
+              child: GestureDetector(
+                onTap: onDelete,
+                child: Container(
+                  width: 50,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/chat/kissu_chat_reback.png',
+                      width: 22,
+                      height: 22,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

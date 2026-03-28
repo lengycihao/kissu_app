@@ -214,6 +214,12 @@ class SensitiveEventReportService(private val context: Context) {
                 headers["oaid"] = oaid
             }
 
+            // 添加 Android ID（隐私合规后才添加）
+            val androidId = getAndroidId()
+            if (!androidId.isNullOrEmpty()) {
+                headers["androidid"] = androidId
+            }
+
             // 生成签名（与 AppUsageReportService.generateSign 规则保持一致）
             val sign = generateSign(
                 headers = headers,
@@ -370,6 +376,22 @@ class SensitiveEventReportService(private val context: Context) {
         } catch (e: Exception) {
             logError("获取设备ID失败", extra = mapOf("error" to (e.message ?: "unknown")))
             "unknown"
+        }
+    }
+
+    /**
+     * 获取 Android ID（仅在隐私政策同意后返回）
+     */
+    private fun getAndroidId(): String? {
+        if (!isPrivacyPolicyAgreed()) return null
+        return try {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "获取Android ID失败", e)
+            null
         }
     }
 

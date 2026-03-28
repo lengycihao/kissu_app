@@ -202,18 +202,15 @@ class JPushReceiver : BroadcastReceiver() {
             Log.d(TAG, "附加数据: $extrasStr")
             Log.d(TAG, "Bundle所有Key: ${extras.keySet().joinToString()}")
             
-            // 🔥 关键修复：在后台时总是创建通知作为兜底
-            // 即使走厂商通道，也创建通知确保用户能看到（厂商通道可能因为权限等问题未生效）
-            // 如果厂商通道生效，可能会有两个通知，但总比没有通知好
-            if (!isAppInForeground) {
-                Log.d(TAG, "应用在后台，创建自定义通知以确保用户能看到")
-                if (isFromVendor) {
-                    Log.d(TAG, "注意：检测到可能是厂商通道，但仍创建通知作为兜底")
-                }
+            // 🔥 修复重复通知：厂商通道已经自动创建了通知，不要再重复创建
+            // 只有非厂商通道（JPush自有通道）且App在后台时才手动创建通知
+            if (!isAppInForeground && !isFromVendor) {
+                Log.d(TAG, "应用在后台且非厂商通道，创建自定义通知")
                 createCustomNotification(context, title, content, extrasStr)
+            } else if (isFromVendor) {
+                Log.d(TAG, "厂商通道推送，由厂商系统处理通知展示，不重复创建")
             } else {
-                Log.d(TAG, "应用在前台，极光推送会自动处理通知")
-                // 前台时不需要创建通知，极光推送会自动处理
+                Log.d(TAG, "应用在前台，由应用内逻辑处理消息展示")
             }
         }
     }

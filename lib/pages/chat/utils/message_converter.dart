@@ -142,6 +142,20 @@ class MessageConverter {
             avatarUrl: isSelf ? UserManager.userAvatar : partnerAvatarUrl,
           );
         }
+
+        // 处理你说我猜邀请消息（msg_type: "chat_say_guess"）
+        if (msgType == 'chat_say_guess') {
+          final String? groupId = decoded['group_id'] as String?;
+          return ChatMessage(
+            id: msg.msgID ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            content: '我向你发起你说我猜挑战快来提高我们的默契排名吧~',
+            type: MessageType.sayGuess,
+            isSent: isSelf,
+            time: msgTime,
+            avatarUrl: isSelf ? UserManager.userAvatar : partnerAvatarUrl,
+            groupId: groupId,
+          );
+        }
       }
     } catch (_) {
       // 自定义消息解析异常时忽略，继续按其他类型处理

@@ -3,12 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/network/public/setting_api.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
 import '../../../network/public/file_upload_api.dart';
 import '../../../utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
-import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/log_upload_service.dart';
@@ -31,10 +30,8 @@ class FeedbackController extends GetxController {
   final FocusNode contactFocusNode = FocusNode();
   final TextEditingController contactTextController = TextEditingController();
 
-  final picker = ImagePicker();
   final fileUploadApi = FileUploadApi();
   final settingApi = SettingApi();
-  final PermissionService _permissionService = PermissionService();
 
   @override
   void onInit() {
@@ -173,40 +170,13 @@ class FeedbackController extends GetxController {
     }
 
     try {
-      // 直接检查权限状态
-      final hasPermission = await _permissionService.checkPermissionStatus(
-        PermissionType.photos,
-      );
+      final context = Get.context;
+      if (context == null) return;
 
-      if (hasPermission) {
-        // 有权限，直接选择图片
-        // logDebug('✅ 意见反馈: 已有权限，直接选择图片', tag: 'Feedback');
-        final picked = await picker.pickImage(source: ImageSource.gallery);
-        if (picked != null) {
-          selectedImages.add(File(picked.path));
-          // logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
-        } else {
-          // logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
-        }
-      } else {
-        // 没有权限，申请权限（会弹出系统权限弹窗）
-        // logDebug('⚠️ 意见反馈: 没有权限，申请权限', tag: 'Feedback');
-        final permissionGranted = await _permissionService
-            .requestPhotosPermission();
-
-        if (permissionGranted) {
-          // logDebug('✅ 意见反馈: 权限申请成功，开始选择图片', tag: 'Feedback');
-          final picked = await picker.pickImage(source: ImageSource.gallery);
-          if (picked != null) {
-            selectedImages.add(File(picked.path));
-            // logDebug('✅ 意见反馈: 图片选择成功 path=${picked.path}', tag: 'Feedback');
-          } else {
-            // logDebug('⚠️ 意见反馈: 用户取消了图片选择', tag: 'Feedback');
-          }
-        } else {
-          logWarning('❌ 意见反馈: 权限申请被拒绝', tag: 'Feedback');
-          OKToastUtil.show('需要相册权限才能选择图片');
-        }
+      // 使用统一的图片选择器（和聊天页一致），权限由 ChatImagePickerPage 内部处理
+      final files = await ChatImagePickerPage.open(context, maxCount: 1);
+      if (files != null && files.isNotEmpty) {
+        selectedImages.add(files.first);
       }
     } catch (e) {
       logError('❌ 意见反馈: 选择图片失败 - $e', tag: 'Feedback', error: e);

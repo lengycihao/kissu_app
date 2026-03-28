@@ -20,6 +20,7 @@ import '../chat_controller.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
 import 'chat_permission_card.dart';
+import 'chat_say_guess_card.dart';
 
 // 导出模型类，保持向后兼容
 export '../models/chat_message.dart';
@@ -68,6 +69,12 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
     final bool isOtherDefecateMessage =
         !widget.message.isSent && widget.message.type == MessageType.defecate;
 
+    // 你说我猜邀请卡片消息（类似便便消息，无气泡背景）
+    final bool isSelfSayGuessMessage =
+        widget.message.isSent && widget.message.type == MessageType.sayGuess;
+    final bool isOtherSayGuessMessage =
+        !widget.message.isSent && widget.message.type == MessageType.sayGuess;
+
     // 预先计算图片高度，用于对齐头像（仅图片消息时使用）
     Size? imageSize;
     if (isSelfImageMessage || isOtherImageMessage) {
@@ -90,19 +97,22 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
           child:
               (imageSize != null &&
                       (isSelfImageMessage || isOtherImageMessage)) ||
-                  (isSelfDefecateMessage || isOtherDefecateMessage)
+                  (isSelfDefecateMessage || isOtherDefecateMessage) ||
+                  (isSelfSayGuessMessage || isOtherSayGuessMessage)
               ? Row(
                   mainAxisAlignment: widget.message.isSent
                       ? MainAxisAlignment.end
                       : MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 对方图片/一起便便消息：左侧头像与消息顶部对齐
-                    if (isOtherImageMessage || isOtherDefecateMessage) ...[
+                    // 对方图片/一起便便/你说我猜消息：左侧头像与消息顶部对齐
+                    if (isOtherImageMessage || isOtherDefecateMessage || isOtherSayGuessMessage) ...[
                       SizedBox(
                         height: isOtherImageMessage
                             ? imageSize!.height
-                            : defecateMessageHeight,
+                            : isOtherSayGuessMessage
+                                ? 180.0
+                                : defecateMessageHeight,
                         child: Align(
                           alignment: Alignment.topCenter,
                           child: _buildAvatar(),
@@ -118,13 +128,15 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                         child: _buildMessageBubble(context),
                       ),
                     ),
-                    // 自己图片/一起便便消息：右侧头像与消息顶部对齐
-                    if (isSelfImageMessage || isSelfDefecateMessage) ...[
+                    // 自己图片/一起便便/你说我猜消息：右侧头像与消息顶部对齐
+                    if (isSelfImageMessage || isSelfDefecateMessage || isSelfSayGuessMessage) ...[
                       const SizedBox(width: 8),
                       SizedBox(
                         height: isSelfImageMessage
                             ? imageSize!.height
-                            : defecateMessageHeight,
+                            : isSelfSayGuessMessage
+                                ? 180.0
+                                : defecateMessageHeight,
                         child: Align(
                           alignment: Alignment.topCenter,
                           child: _buildAvatar(),
@@ -1049,6 +1061,9 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
       case MessageType.phoneUse:
       case MessageType.connectApp:
         return ChatPermissionCard(message: widget.message);
+
+      case MessageType.sayGuess:
+        return ChatSayGuessCard(message: widget.message);
     }
   }
 

@@ -11,7 +11,7 @@ import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
 import 'package:kissu_app/services/vip_service.dart';
 import 'package:kissu_app/services/payment_service.dart';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/pages/vip/vip_fallback_data.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/dialogs/discount_bottom_sheet.dart';
@@ -187,11 +187,7 @@ class VipController extends GetxController {
       return;
     }
 
-    // 只在首次初始化时重置状态
-    if (!_isInitialized) {
-      _resetControllerState();
-    }
-
+    _resetControllerState();
     _isInitialized = true;
 
     // 标记页面为可见状态
@@ -199,20 +195,6 @@ class VipController extends GetxController {
 
     // 初始化会员状态
     isVipStatus.value = UserManager.isVip;
-
-    // 添加支付状态监听（通过定时器检查状态变化）
-    Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (_isDisposed) {
-        timer.cancel();
-        return;
-      }
-
-      // 检查支付状态，如果支付完成则重置UI状态
-      if (!_paymentService.paymentInProgress && isPurchasing.value) {
-        _logger.i('检测到支付状态重置，同步UI状态');
-        isPurchasing.value = false;
-      }
-    });
 
     // 添加延迟确保页面完全渲染
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -227,8 +209,7 @@ class VipController extends GetxController {
 
   /// 重置控制器状态
   void _resetControllerState() {
-    _logger.i('重置控制器状态');
-
+ 
     // 重置状态标记
     _isInitialized = false;
     _isDisposed = false;
@@ -396,39 +377,20 @@ class VipController extends GetxController {
   Future<void> _handleUnlockFromRetention() async {
     debugPrint('💫 从挽留弹窗点击"全部解锁"，开始购买流程');
 
-    // 检查是否正在购买
-    if (isPurchasing.value) {
-       return;
-    }
-
-    // 检查是否有套餐
     if (vipPackages.isEmpty) {
       OKToastUtil.show('暂无可用套餐');
       return;
     }
 
-    // 使用当前选中的套餐（而不是固定的默认套餐）
     final currentPackage = selectedPackage;
     if (currentPackage == null) {
       OKToastUtil.show('请先选择套餐');
       return;
     }
- 
+
     // 设置支付方式为微信
     selectedPaymentMethod.value = 0;
- 
-    // 设置正在购买标志
-    isPurchasing.value = true;
-
-    try {
-      // 执行支付
-      await _processPurchase(currentPackage);
-    } catch (e) {
-      logError('❌ 从挽留弹窗购买失败: $e');
-      // 错误提示已在_processPurchase中处理
-    } finally {
-      isPurchasing.value = false;
-    }
+    await _executePurchase(currentPackage);
   }
 
   /// 加载VIP横幅数据
@@ -459,112 +421,7 @@ class VipController extends GetxController {
   /// 加载备用数据（当API调用失败时使用）
   void _loadFallbackData() {
     try {
-       final testData = {
-        "desc": "想TA就立刻知道TA在哪儿",
-        "comment_list": [
-          {
-            "date": "11月13日",
-            "nickname": "嘟噜噜",
-            "content": "让恋爱更有仪式感的小工具，我们都超爱！已经安利给身边所有情侣朋友了！",
-            "avatar":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/5c2f222276748148038a2ada2d18c5d7.png",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/4cddff093726fd1219fe2dc378a3c2a5.png",
-            "star_image":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/e94205d837c5e5c9801caefe7b5e962b.png",
-          },
-          {
-            "date": "11月13日",
-            "nickname": "铁锤妹妹",
-            "content": "再也不用因为失联而胡思乱想了。看他忙碌的记录就知道他安全，心里特别踏实",
-            "avatar":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/93b9b4885c2371fee01ad3ef1159e06f.png",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/4cddff093726fd1219fe2dc378a3c2a5.png",
-            "star_image":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/e94205d837c5e5c9801caefe7b5e962b.png",
-          },
-          {
-            "date": "11月13日",
-            "nickname": "我爱吃毛豆",
-            "content": "哇塞！这个软件太好用了，好有安全感，太爱了！！！！！",
-            "avatar":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/3175b598716e580b17649bc8632d4473.png",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/4cddff093726fd1219fe2dc378a3c2a5.png",
-            "star_image":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/e94205d837c5e5c9801caefe7b5e962b.png",
-          },
-          {
-            "date": "11月13日",
-            "nickname": "再也不熬夜",
-            "content": "看着我们两颗紧挨着的小头像，哪怕在各自上班，也感觉心是在一起的。",
-            "avatar":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/bde98c4782e7dfd1297fbbaab5724ca6.png",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/6141af551b5c8fd2bfe2dbcc4a660f7e.png",
-            "star_image":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/e94205d837c5e5c9801caefe7b5e962b.png",
-          },
-          {
-            "date": "11月13日",
-            "nickname": "小羊咩咩",
-            "content": "爱无需多说。这份随时可知彼此安好的默契，就足以让心里暖暖的。",
-            "avatar":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/bde98c4782e7dfd1297fbbaab5724ca6.png",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/8006a24d9aa8d4b63360e76f2288b540.png",
-            "star_image":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/e94205d837c5e5c9801caefe7b5e962b.png",
-          },
-        ],
-        "vip_icon_banner": [
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/419caafc9f8a2e9618ffd3056c95aa4b.png",
-            "vip_icon_banner_desc": "想TA就立刻知道TA在哪儿",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/c7be636aa438b45bdbe8fd1e85d4ac43.png",
-            "vip_icon_select":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/948fedaaa5354bcd29c84817ec004fd5.png",
-          },
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/bbf0a150cce5145422cf1395d7e591d6.png",
-            "vip_icon_banner_desc": "自动通知报备黑科技",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/e8b72050147d870fd2b3a2adbea23874.png",
-            "vip_icon_select":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/9b795e45a318bcb2e56dfa1952cf72bf.png",
-          },
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/484527c3db8be369f4e3bff91c1661cb.png",
-            "vip_icon_banner_desc": "全自动记录轨迹行程",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/4ceb463778db186f2071341aa0a837ba.png",
-            "vip_icon_select":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/2e79a0578eca0f066712a933b1224f2a.png",
-          },
-          {
-            "vip_icon_video": "",
-            "vip_icon_banner":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/6728a3051c38ac49ebea71c537c16b47.png",
-            "vip_icon_banner_desc": "一键get手机使用全记录",
-            "vip_icon":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/b14b155e2f400adc8b7d2e21ed3cf6c4.png",
-            "vip_icon_select":
-                "https://kissustatic.yuluojishu.com/uploads/2025/11/12/c2dc929b01c15814e530e355e19a71fe.png",
-          },
-        ],
-      };
-
-      bannerData.value = VipBannerModel.fromJson(testData);
- 
-      // 启动自动轮播
+      bannerData.value = VipBannerModel.fromJson(kVipFallbackData);
       _startAutoCarousel();
     } catch (e) {
       _logger.e('备用数据加载也失败: $e');
@@ -667,16 +524,8 @@ class VipController extends GetxController {
 
     if (index >= 0 && index < vipPackages.length) {
       final package = vipPackages[index];
-      int vipType;
-    if (package.isForever) {
-      vipType = 3; // 永久会员
-    } else if (package.type == 3) {
-      vipType = 2; // 年度会员
-    } else {
-      vipType = 1; // 月度会员
-    }
       // 埋点：记录会员套餐点击
-      AnalyticsHelper.trackMembershipTypeClick(clickStatus: vipType);
+      AnalyticsHelper.trackMembershipTypeClick(clickStatus: _getVipType(package));
 
       // 先选中套餐
       selectedPriceIndex.value = index;
@@ -750,7 +599,7 @@ class VipController extends GetxController {
 
   /// 显示协议警告提示
   void showAgreementWarning() {
-     CustomToast.show(Get.context!, '请先同意《会员服务协议》');
+     OKToastUtil.show('请先同意《会员服务协议》');
   }
 
   /// 显示折扣底部弹窗
@@ -842,11 +691,11 @@ class VipController extends GetxController {
           }
         }
       } else {
-        CustomToast.show(Get.context!, result.msg ?? '加载套餐数据失败');
+        OKToastUtil.show(result.msg ?? '加载套餐数据失败');
         _updateLifetimeActivity(null);
       }
     } catch (e) {
-      CustomToast.show(Get.context!, '加载套餐数据失败: $e');
+      OKToastUtil.show('加载套餐数据失败');
       _updateLifetimeActivity(null);
     } finally {
       isLoadingPackages.value = false;
@@ -861,21 +710,6 @@ class VipController extends GetxController {
     return null;
   }
 
-  // /// 获取默认套餐或null（如果没有套餐则返回null）
-  // VipPackageModel? _getDefaultPackageOrNull() {
-  //   if (vipPackages.isEmpty) {
-  //     return null;
-  //   }
-  //   // 查找 type = 4 的套餐
-  //   for (final package in vipPackages) {
-  //     if (package.type == 4) {
-  //       return package;
-  //     }
-  //   }
-  //   // 如果没有 type = 4 的套餐，返回第一个
-  //   return vipPackages.first;
-  // }
-
   /// 获取当前选中的价格文本
   String getCurrentPrice() {
     final package = selectedPackage;
@@ -889,93 +723,42 @@ class VipController extends GetxController {
   }
 
   /// 从弹窗购买VIP（不需要协议检查）
-  void _purchaseVipFromDialog() async { 
-
-    if (isPurchasing.value) {
-       return;
-    }
-
-    // 检查是否选择了套餐
+  void _purchaseVipFromDialog() async {
     final package = selectedPackage;
     if (package == null) {
-      CustomToast.show(Get.context!, '请选择一个套餐');
+      OKToastUtil.show('请选择一个套餐');
       return;
     }
-
-    try {
-      isPurchasing.value = true;
-
-      // 彻底检查并重置异常支付状态
-      _paymentService.thoroughCheckAndResetPaymentState();
-
-      
-
-  
-      // 处理购买过程
-      await _processPurchase(package);
-    } catch (e) {
-      // 购买失败提示已在_processPurchase中处理
-    } finally {
-      isPurchasing.value = false;
-    }
+    await _executePurchase(package);
   }
 
-  /// 购买VIP
-  void purchaseVip() async { 
-    if (isPurchasing.value) {
-       return;
-    }
-
-    // 协议检查已在UI层面处理，这里可以省略
-    // 但为了安全起见，仍然保留检查
+  /// 购买VIP（主按钮入口）
+  void purchaseVip() async {
     if (!agreementChecked.value) {
-       showAgreementWarning();
+      showAgreementWarning();
       return;
     }
 
-    // 检查是否选择了套餐
     final package = selectedPackage;
     if (package == null) {
-      CustomToast.show(Get.context!, '请选择一个套餐');
+      OKToastUtil.show('请选择一个套餐');
       return;
     }
+    await _executePurchase(package);
+  }
+
+  /// 统一购买执行入口
+  Future<void> _executePurchase(VipPackageModel package) async {
+    if (isPurchasing.value) return;
 
     try {
       isPurchasing.value = true;
-
-      // 彻底检查并重置异常支付状态
       _paymentService.thoroughCheckAndResetPaymentState();
-
-  
-  
-  
-      // 处理购买过程
       await _processPurchase(package);
-
-      // // 延迟后刷新我的页面并返回上一页
-      // Future.delayed(const Duration(seconds: 1), () {
-      //   _refreshMinePageAndReturn();
-      // });
     } catch (e) {
-      // 购买失败提示
-      // CustomToast.show(
-      //   Get.context!,
-      //   '购买过程中出现错误，请重试',
-      // );
+      // 购买失败提示已在 _processPurchase 中处理
     } finally {
       isPurchasing.value = false;
-    }
-  }
-
-  /// 获取选中的支付方式
-  String _getSelectedPaymentMethod() {
-    switch (selectedPaymentMethod.value) {
-      case 0:
-        return '微信支付';
-      case 1:
-        return '支付宝支付';
-      default:
-        return '微信支付';
     }
   }
 
@@ -1138,14 +921,12 @@ class VipController extends GetxController {
       }
 
  
-      // 注意：对于微信支付，result 只表示是否成功唤起微信，不表示支付结果
-      // 实际支付结果通过 PaymentService 的回调处理
-      // 对于支付宝，result 表示实际支付结果
-      if (selectedPaymentMethod.value == 0) {
+       // 实际支付结果通过 PaymentService 的回调处理
+       if (selectedPaymentMethod.value == 0) {
         // 微信支付
         if (result) {
           // 成功唤起微信，等待回调
-           // 不做任何处理，让 PaymentService 的回调来处理结果
+           
         } else {
           // 🔥 微信支付唤起失败（可能是微信未安装或版本过低）
           logError('💫 微信支付唤起失败（可能未安装微信）');
@@ -1190,14 +971,13 @@ class VipController extends GetxController {
       }
       
       OKToastUtil.show("支付失败");
-      rethrow; // 重新抛出异常，让上层处理
+      rethrow;  
     }
   }
 
   /// 更新VIP状态
   void _updateVipStatus(VipPackageModel package) {
-    // 这里应该更新用户的VIP状态
-    // 例如保存到本地存储或更新用户管理器中的状态
+ 
      // 更新响应式会员状态
     isVipStatus.value = UserManager.isVip;
   }
@@ -1206,10 +986,7 @@ class VipController extends GetxController {
   Future<void> _handlePaymentSuccess(VipPackageModel package) async {
     try {
  
-      // 显示支付成功提示
-      // OKToastUtil.show('支付成功');
-
-      // 等待用户信息刷新完成（支付服务中已经处理）
+ 
       // 这里稍等片刻，让支付服务的刷新操作完成
       await Future.delayed(const Duration(milliseconds: 500));
 
@@ -1222,8 +999,7 @@ class VipController extends GetxController {
           context: Get.context!,
           barrierDismissible: false, // 不允许点击背景关闭
           onExperience: () async {
-            // 点击"去体验"后刷新页面数据并返回上一页
-            await _refreshMinePageAndReturn();
+             await _refreshMinePageAndReturn();
           },
         );
       } else {
@@ -1232,8 +1008,7 @@ class VipController extends GetxController {
       }
     } catch (e) {
       logError('支付成功后处理异常: $e');
-      // 即使出现异常，也要尝试返回上一页
-      Get.back();
+       Get.back();
     }
   }
 
@@ -1408,25 +1183,6 @@ class VipController extends GetxController {
     }
   }
 
-  /// 获取套餐描述文本
-  String getPriceDescription(int index) {
-    switch (index) {
-      case 0:
-        return '适合短期体验用户';
-      case 1:
-        return '性价比之选，省¥39.8';
-      case 2:
-        return '最划算选择，省¥190.8';
-      default:
-        return '';
-    }
-  }
-
-  /// 检查是否是推荐套餐
-  bool isRecommendedPrice(int index) {
-    return index == 2; // 年卡为推荐套餐
-  }
-
   /// 上报支付结果埋点
   /// [package] 套餐信息
   /// [payStatus] 支付状态：0=支付失败, 1=支付成功, 2=取消支付
@@ -1435,18 +1191,8 @@ class VipController extends GetxController {
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final payDuration = _payStartTime != null ? currentTime - _payStartTime! : 0;
 
-    // 获取会员类型：1=月度会员, 2=年度会员, 3=永久会员
-    int vipType;
-    if (package.isForever) {
-      vipType = 3; // 永久会员
-    } else if (package.type == 3) {
-      vipType = 2; // 年度会员
-    } else {
-      vipType = 1; // 月度会员
-    }
-
-    // 获取支付方式：1=支付宝, 2=微信, 3=苹果
-    final payType = selectedPaymentMethod.value == 1 ? 1 : 2; // 0=微信(2), 1=支付宝(1)
+    final vipType = _getVipType(package);
+    final payType = _getPayType();
 
     
 
@@ -1474,20 +1220,24 @@ class VipController extends GetxController {
   /// [payStatus] 支付状态：0=支付失败, 1=支付成功, 2=取消支付
   /// [payDuration] 支付用时（秒）
   void _track99PayEvent(VipPackageModel package, {required int payStatus, required int payDuration}) {
-    // 获取支付方式：1=支付宝, 2=微信, 3=苹果
-    final payType = selectedPaymentMethod.value == 1 ? 1 : 2; // 0=微信(2), 1=支付宝(1)
-
-    // 按钮名称
-    final btnName = package.title;
-
- 
-    // 调用99元支付埋点
     AnalyticsHelper.track99PayEvent(
-      vipType: 3, // 永久会员
-      payType: payType,
+      vipType: 3,
+      payType: _getPayType(),
       payStatus: payStatus,
-      btnName: btnName,
+      btnName: package.title,
       payDuration: payDuration,
     );
+  }
+
+  /// 获取会员类型：1=月度会员, 2=年度会员, 3=永久会员
+  int _getVipType(VipPackageModel package) {
+    if (package.isForever) return 3;
+    if (package.type == 3) return 2;
+    return 1;
+  }
+
+  /// 获取支付方式：1=支付宝, 2=微信
+  int _getPayType() {
+    return selectedPaymentMethod.value == 1 ? 1 : 2;
   }
 }

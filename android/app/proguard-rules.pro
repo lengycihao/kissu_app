@@ -282,6 +282,10 @@
 -keep class com.zui.opendeviceidlibrary.**{*;}
 -keep public class com.netease.nis.sdkwrapper.Utils {public <methods>;}
 
+# ============ 巨量引擎转化SDK（BDConvert）混淆规则 ============
+-keep class com.bytedance.ads.** { *; }
+-dontwarn com.bytedance.ads.**
+
 # ============ Lottie动画混淆规则 ============
 # Lottie核心类
 -keep class com.airbnb.lottie.** { *; }

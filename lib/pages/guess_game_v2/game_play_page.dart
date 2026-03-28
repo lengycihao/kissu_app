@@ -1,0 +1,776 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'controllers/game_play_controller.dart';
+import 'models/game_models.dart';
+import 'widgets/privilege_popup.dart';
+import 'widgets/answer_dialog.dart';
+
+/// 你说我猜V2 游戏进行页面
+class GamePlayPage extends GetView<GamePlayController> {
+  const GamePlayPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _showExitDialog(context);
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        body: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/say_guess/kissu_say_guess_bg.webp'),
+              alignment: AlignmentGeometry.topCenter,
+            ),
+            color: Colors.white,
+          ),
+          child: SafeArea(
+            child: Obx(
+              () => Stack(
+                children: [
+                  Column(
+                    children: [
+                      _buildAppBar(context),
+                      const SizedBox(height: 4),
+                      _buildProgressBar(),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildTvArea(),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(child: _buildChatArea()),
+                      _buildBottomArea(context),
+                    ],
+                  ),
+                  // 特权弹窗
+                  if (controller.showPrivilegePopup.value)
+                    PrivilegePopupV2(
+                      remainingCount: controller.privilegeCount.value,
+                      onExtraAttempt: () =>
+                          controller.usePrivilegeExtraAttempt(),
+                      onSkip: () => controller.usePrivilegeSkip(),
+                      onDismiss: () =>
+                          controller.showPrivilegePopup.value = false,
+                    ),
+                  // 提示字选择弹窗（出题者用）
+                  if (controller.waitingForHintSelection.value &&
+                      controller.isInitiator)
+                    _buildHintSelectionPopup(),
+                  // 结果动画覆盖层
+                  if (controller.showResultAnimation.value)
+                    _buildResultOverlay(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 2,
+      ).copyWith(left: 6),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => _showExitDialog(context),
+            child: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              child: Image.asset(
+                "assets/images/kissu_mine_back.webp",
+                width: 22,
+                height: 22,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Image(
+                image: AssetImage(
+                  'assets/say_guess/kissu_say_guess_title.webp',
+                ),
+                width: 102,
+                height: 24,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {},
+            child: Align(
+              alignment: AlignmentGeometry.topRight,
+              child: Image(
+                image: AssetImage('assets/say_guess/kissu_say_guess_tips.webp'),
+                width: 24,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 进度条：答对绿色、答错红色、未答灰色
+  Widget _buildProgressBar() {
+    return Obx(() {
+      final idx = controller.currentIndex.value;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: "本轮进度  ${idx + 1}/",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  TextSpan(
+                    text: "5",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFaaaaaa),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 6),
+            Row(
+              children: List.generate(5, (i) {
+                Color color;
+                final status = i < controller.questionStatuses.length
+                    ? controller.questionStatuses[i]
+                    : QuestionStatus.pending;
+                switch (status) {
+                  case QuestionStatus.correct:
+                    color = const Color(0xFF4CAF50);
+                    break;
+                  case QuestionStatus.wrong:
+                    color = const Color(0xFFFF4444);
+                    break;
+                  case QuestionStatus.skipped:
+                    color = const Color(0xFFFF9800);
+                    break;
+                  case QuestionStatus.pending:
+                    color = const Color(0xFFffffff);
+                    break;
+                }
+                return Container(
+                  height: 6,
+                  width: 15,
+                  margin: EdgeInsets.only(right: i < 4 ? 6 : 0),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  /// 电视机展示区
+  Widget _buildTvArea() {
+    return Obx(() {
+      final topic = controller.currentTopic;
+      final hint = controller.currentHint.value;
+
+      // 出题者看答案，答题者看提示词或???
+      final displayText = controller.isInitiator
+          ? (topic?.answer ?? '???')
+          : (hint != null ? '提示字：$hint' : '???');
+      final descText = topic?.description ?? '';
+
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: double.infinity,
+            height: 200,
+            // constraints: const BoxConstraints(minHeight: 150),
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/say_guess/kissu_say_guess_tv.webp'),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(height: 20),
+                // 接收方显示剩余答题次数
+                if (!controller.isInitiator) ...[
+                  Text(
+                    '剩余答题次数：${controller.maxAttempts - controller.wrongAttempts.value}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFFF9AD9),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                // 主显示内容
+                Text(
+                  displayText,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                if (descText.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 60,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8E0FF).withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '描述词:$descText',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF333333),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  /// 聊天区域
+  Widget _buildChatArea() {
+    return Obx(() {
+      final msgs = controller.messages;
+      return ListView.builder(
+        controller: controller.scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        itemCount: msgs.length,
+        itemBuilder: (context, index) {
+          final msg = msgs[index];
+          if (msg.type == GameChatMessageType.system) {
+            return _buildSystemMsg(msg);
+          }
+          return _buildChatBubble(msg);
+        },
+      );
+    });
+  }
+
+  Widget _buildSystemMsg(GameChatMessage msg) {
+    // 特殊处理：回答者提示消息（包含关键词高亮）
+    if (msg.content.contains('特权') && msg.content.contains('提示请求')) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text.rich(
+            textAlign: TextAlign.center,
+            TextSpan(
+              style: const TextStyle(fontSize: 11, height: 1.5),
+              children: _buildHighlightedTextSpans(msg.content),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 普通系统消息
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            msg.content,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatBubble(GameChatMessage msg) {
+    final isAnswer = msg.type == GameChatMessageType.answer;
+    final isHintReq = msg.type == GameChatMessageType.hintRequest;
+    final isHintResp = msg.type == GameChatMessageType.hintResponse;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: msg.isSelf
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!msg.isSelf) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: const Color(0xFFE8E8E8),
+              backgroundImage: msg.senderAvatar.isNotEmpty
+                  ? NetworkImage(msg.senderAvatar)
+                  : null,
+              child: msg.senderAvatar.isEmpty
+                  ? Text(
+                      msg.senderName.isNotEmpty ? msg.senderName[0] : '?',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF999999),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 230),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: msg.isSelf
+                    ? const Color(0xFFFFE4E9)
+                    : const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(12),
+                  topRight: const Radius.circular(12),
+                  bottomLeft: Radius.circular(msg.isSelf ? 12 : 2),
+                  bottomRight: Radius.circular(msg.isSelf ? 2 : 12),
+                ),
+              ),
+              child: Text(
+                msg.content,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isHintReq || isHintResp
+                      ? const Color(0xFFFF6A68)
+                      : isAnswer
+                      ? const Color(0xFFFF6B00)
+                      : const Color(0xFF333333),
+                  fontWeight: (isAnswer || isHintReq || isHintResp)
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                ),
+              ),
+            ),
+          ),
+          if (msg.isSelf) ...[
+            const SizedBox(width: 8),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: const Color(0xFFFFD4E5),
+              backgroundImage: msg.senderAvatar.isNotEmpty
+                  ? NetworkImage(msg.senderAvatar)
+                  : null,
+              child: msg.senderAvatar.isEmpty
+                  ? Text(
+                      msg.senderName.isNotEmpty ? msg.senderName[0] : '?',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFFF90CA),
+                      ),
+                    )
+                  : null,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 底部操作区：特权/提示按钮 + 答案按钮 + 输入框 + 发送按钮
+  Widget _buildBottomArea(BuildContext context) {
+    return Obx(() {
+      final isGuesser = !controller.isInitiator; // 接收方=答题者
+
+      return Container(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: MediaQuery.of(context).viewInsets.bottom > 0
+              ? 8
+              : MediaQuery.of(context).padding.bottom + 8,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          // border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 答题者：特权/提示按钮
+            if (isGuesser)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    _buildActionBtn(
+                      icon: 'assets/say_guess/kissu_say_guess_hat.webp',
+                      label: '使用特权${controller.privilegeCount.value}次',
+                      color: const Color(0xFFF9E2FF),
+                      onTap: controller.privilegeCount.value > 0
+                          ? () => controller.showPrivilegePopup.value = true
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildActionBtn(
+                      icon: 'assets/say_guess/kissu_say_guess_light.webp',
+                      label: '提示请求${controller.hintRequestCount.value}次',
+                      color: const Color(0xFFDCF0FF),
+                      onTap: controller.hintRequestedThisQ.value
+                          ? null
+                          : () => controller.requestHint(),
+                    ),
+                    Spacer(),
+                    GestureDetector(
+                      onTap: () => _showAnswerDialog(context),
+                      child: Container(
+                        height: 28,
+                        width: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(21),
+                         ),
+                        child: const Center(
+                          child: Text(
+                            '填写答案',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFffffff),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // 聊天输入框（发送按钮在内部）
+            _buildInputRow(),
+            SizedBox(height: 15,)
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildInputRow() {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: const Color(0xFF000000)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller.inputController,
+              decoration: const InputDecoration(
+                hintText: '输入消息内容...',
+                hintStyle: TextStyle(fontSize: 13, color: Color(0xFFCCCCCC)),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 11,
+                ),
+                isDense: true,
+              ),
+              style: const TextStyle(fontSize: 14),
+              onSubmitted: (text) {
+                _handleSendChat(text);
+                controller.inputController.clear();
+              },
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              _handleSendChat(controller.inputController.text);
+              controller.inputController.clear();
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Text(
+                '发送',
+                style: TextStyle(color: Color(0xFF000000), fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSendChat(String text) {
+    if (text.trim().isEmpty) return;
+    controller.sendChatText(text);
+  }
+
+  void _showAnswerDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AnswerDialog(
+        remainingAttempts: 4 - controller.wrongAttempts.value,
+        onSubmit: (answer) => controller.submitAnswer(answer),
+      ),
+    );
+  }
+
+  Widget _buildActionBtn({
+    required String icon,
+    required String label,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    final disabled = onTap == null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            height: 28,
+            decoration: BoxDecoration(
+              color: disabled ? const Color(0xFFF5F5F5) : color,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 25),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: disabled
+                        ? const Color(0xFFCCCCCC)
+                        : const Color(0xFF333333),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Transform.translate(
+            offset: Offset(0, -5),
+            child: Image(image: AssetImage(icon), width: 30, height: 30),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 结果动画覆盖层
+  Widget _buildResultOverlay() {
+    final isSuccess = controller.resultAnimationType.value == 1;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black54,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/say_guess/kissu_say_guess_failed.webp',
+                width: 160,
+                height: 160,
+                errorBuilder: (_, __, ___) => Icon(
+                  isSuccess ? Icons.check_circle : Icons.cancel,
+                  size: 80,
+                  color: isSuccess
+                      ? const Color(0xFF4CAF50)
+                      : const Color(0xFFFF4444),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isSuccess ? '挑战成功！' : '挑战失败',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 提示字选择弹窗（出题者用）
+  Widget _buildHintSelectionPopup() {
+    final topic = controller.currentTopic;
+    if (topic == null) return const SizedBox.shrink();
+
+    final chars = topic.answerChars;
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: () {}, // 阻止穿透
+        child: Container(
+          color: Colors.black54,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '选择一个字作为提示',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: List.generate(chars.length, (i) {
+                      return GestureDetector(
+                        onTap: () => controller.sendHintChar(i),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0F5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFF90CA)),
+                          ),
+                          child: Center(
+                            child: Text(
+                              chars[i],
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF333333),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建高亮文本片段（用于系统提示消息）
+  List<TextSpan> _buildHighlightedTextSpans(String text) {
+    final List<TextSpan> spans = [];
+    final keywords = ['特权', '提示请求'];
+
+    int lastIndex = 0;
+    for (final keyword in keywords) {
+      final index = text.indexOf(keyword, lastIndex);
+      if (index != -1) {
+        // 添加关键词前的普通文本
+        if (index > lastIndex) {
+          spans.add(
+            TextSpan(
+              text: text.substring(lastIndex, index),
+              style: const TextStyle(color: Color(0xFFaaaaaa), fontSize: 11),
+            ),
+          );
+        }
+        // 添加高亮关键词
+        spans.add(
+          TextSpan(
+            text: keyword,
+            style: const TextStyle(
+              color: Color(0xFFFFA9E0),
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
+            ),
+          ),
+        );
+        lastIndex = index + keyword.length;
+      }
+    }
+
+    // 添加剩余的普通文本
+    if (lastIndex < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastIndex),
+          style: const TextStyle(color: Color(0xFFaaaaaa), fontSize: 11),
+        ),
+      );
+    }
+
+    return spans;
+  }
+
+  void _showExitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('退出游戏'),
+        content: const Text('确定要退出吗？'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('继续', style: TextStyle(color: Color(0xFFFF90CA))),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Get.back();
+            },
+            child: const Text('退出', style: TextStyle(color: Color(0xFF999999))),
+          ),
+        ],
+      ),
+    );
+  }
+}

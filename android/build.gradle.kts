@@ -81,8 +81,14 @@ allprojects {
         // OpenInstall 官方仓库
         maven { url = uri("https://maven.openinstall.io/repository/maven-public/") }
         
-        //巨量
-        maven { url = uri("https://artifact.bytedance.com/repository/Volcengine/") }
+        //巨量（使用mavenPom避免Gradle Module Metadata导致的API可见性限制）
+        maven {
+            url = uri("https://artifact.bytedance.com/repository/Volcengine/")
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
         // 友盟官方仓库 - 完全移除，因为POM文件格式有问题
         // maven { 
         //     url = uri("https://developer.umeng.com/repo/")

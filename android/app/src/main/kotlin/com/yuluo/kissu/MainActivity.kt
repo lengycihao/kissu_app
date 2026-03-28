@@ -88,6 +88,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         private const val LOCK_SCREEN_OVERLAY_CHANNEL = "kissu_app/lock_screen_overlay"
 
+        private const val WIDGET_CHANNEL = "com.yuluo.kissu/widget"
+
     }
 
     
@@ -109,6 +111,10 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
     private lateinit var foregroundServiceHandler: ForegroundServiceHandler
 
     private lateinit var lockScreenHandler: LockScreenHandler
+
+    // 小组件导航通道 & 待处理的跳转目标
+    private var widgetChannel: MethodChannel? = null
+    private var pendingWidgetTargetPage: String? = null
 
     
 
@@ -166,6 +172,21 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         handleLockScreenRoute(intent)
 
+        // 处理小组件点击跳转
+        handleWidgetNavigation(intent)
+
+        // 确保小组件后台刷新任务已注册（如果有小组件存在）
+        try {
+            val awm = android.appwidget.AppWidgetManager.getInstance(this)
+            val largeIds = awm.getAppWidgetIds(android.content.ComponentName(this, com.yuluo.kissu.widget.KissuWidgetProvider::class.java))
+            val daysIds = awm.getAppWidgetIds(android.content.ComponentName(this, com.yuluo.kissu.widget.KissuWidgetDaysProvider::class.java))
+            if (largeIds.isNotEmpty() || daysIds.isNotEmpty()) {
+                com.yuluo.kissu.widget.WidgetUpdateWorker.enqueuePeriodicWork(this)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "检查小组件状态失败: ${e.message}")
+        }
+
     }
 
     
@@ -175,6 +196,9 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         super.onNewIntent(intent)
 
         handleLockScreenRoute(intent)
+
+        // 处理小组件点击跳转
+        handleWidgetNavigation(intent)
 
     }
 
@@ -206,6 +230,24 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         }
 
+    }
+
+    /**
+     * 处理小组件点击跳转
+     * 读取 widget_target_page extra，通过 MethodChannel 通知 Flutter 跳转到对应页面
+     */
+    private fun handleWidgetNavigation(intent: Intent?) {
+        val targetPage = intent?.getStringExtra("widget_target_page") ?: return
+        intent.removeExtra("widget_target_page")
+        Log.d(TAG, "handleWidgetNavigation: targetPage=$targetPage")
+
+        // 尝试立即发送给 Flutter
+        if (widgetChannel != null) {
+            widgetChannel?.invokeMethod("navigateToPage", targetPage)
+        } else {
+            // Flutter 引擎还没初始化完成，暂存等通道建立后发送
+            pendingWidgetTargetPage = targetPage
+        }
     }
 
     
@@ -429,7 +471,6 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                 Log.d(TAG, "✅ 高德地图隐私合规初始化成功（用户已同意隐私政策）")
 
                 
-
                 // 🔥 巨量引擎SDK初始化（需要在用户同意隐私政策后调用）
 
                 try {
@@ -844,6 +885,33 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         }
 
+        // 小组件通道
+        widgetChannel = MethodChannel(messenger, WIDGET_CHANNEL)
+        widgetChannel!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "requestPinWidget" -> {
+                    val widgetType = call.argument<String>("widgetType") ?: "large"
+                    handleRequestPinWidget(widgetType, result)
+                }
+                "updateWidgetData" -> {
+                    val data = call.arguments as? Map<*, *>
+                    handleUpdateWidgetData(data, result)
+                }
+                "getWidgetTargetPage" -> {
+                    val page = pendingWidgetTargetPage
+                    pendingWidgetTargetPage = null
+                    result.success(page)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // 如果有待处理的小组件跳转，立即发送给 Flutter
+        pendingWidgetTargetPage?.let { page ->
+            widgetChannel?.invokeMethod("navigateToPage", page)
+            pendingWidgetTargetPage = null
+        }
+
     }
 
     
@@ -1136,45 +1204,127 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
     
 
-    override fun onResume() {
+    // ==================== 小组件相关方法 ====================
 
-        super.onResume() 
-
+    /**
+     * 请求将小组件固定到桌面（Android 8.0+ 支持 requestPinAppWidget）
+     */
+    private fun handleRequestPinWidget(widgetType: String, result: MethodChannel.Result) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(this)
+                val providerClass = when (widgetType) {
+                    "days" -> com.yuluo.kissu.widget.KissuWidgetDaysProvider::class.java
+                    else -> com.yuluo.kissu.widget.KissuWidgetProvider::class.java
+                }
+                val widgetProvider = ComponentName(this, providerClass)
+                if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                    appWidgetManager.requestPinAppWidget(widgetProvider, null, null)
+                    Log.d(TAG, "✅ 请求固定小组件成功: type=$widgetType")
+                    result.success(true)
+                } else {
+                    Log.w(TAG, "⚠️ 当前启动器不支持固定小组件")
+                    result.success(false)
+                }
+            } else {
+                Log.w(TAG, "⚠️ Android 版本低于 8.0，不支持固定小组件")
+                result.success(false)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 请求固定小组件失败", e)
+            result.error("PIN_WIDGET_ERROR", e.message, null)
+        }
     }
 
-    
+    /**
+     * 从 Flutter 侧更新小组件数据（写入 SharedPreferences，然后触发小组件刷新）
+     */
+    private fun handleUpdateWidgetData(data: Map<*, *>?, result: MethodChannel.Result) {
+
+        try {
+
+            if (data == null) {
+
+                result.error("INVALID_ARGS", "data is null", null)
+
+                return
+
+            }
+
+            val prefs = getSharedPreferences(com.yuluo.kissu.widget.KissuWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
+
+            prefs.edit().apply {
+
+                // 共用数据
+
+                data["distance"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_DISTANCE, it) }
+
+                data["together_days"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_DAYS, it) }
+
+                data["bind_date"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_BIND_DATE, it) }
+
+                // 另一半数据
+
+                data["partner_location"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_LOCATION, it) }
+
+                data["partner_battery"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_BATTERY, it) }
+
+                data["partner_avatar"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_AVATAR, it) }
+
+                // 自己数据
+
+                data["self_location"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_LOCATION, it) }
+
+                data["self_battery"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_BATTERY, it) }
+
+                data["self_avatar"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_AVATAR, it) }
+
+                // VIP 状态
+                val isVip = data["is_vip"] as? Boolean ?: false
+                putBoolean(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_IS_VIP, isVip)
+
+                // 保存刷新时间（调试用）
+                val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_LAST_REFRESH, sdf.format(java.util.Date()))
+
+                apply()
+
+            }
+
+            com.yuluo.kissu.widget.KissuWidgetProvider.updateAllWidgets(this)
+
+             com.yuluo.kissu.widget.KissuWidgetDaysProvider.updateAllWidgets(this)
+
+            Log.d(TAG, "✅ 小组件数据已更新(3种)")
+
+            result.success(true)
+
+        } catch (e: Exception) {
+
+            Log.e(TAG, "❌ 更新小组件数据失败", e)
+            result.error("UPDATE_WIDGET_ERROR", e.message, null)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+    }
 
     override fun onPause() {
-
-        super.onPause() 
-
+        super.onPause()
     }
-
-    
 
     override fun onDestroy() {
-
         super.onDestroy()
 
-        
-
         // 清理所有处理器
-
         paymentHandler.cleanup()
-
         locationHandler.cleanup()
-
         systemHandler.cleanup()
 
-        
-
         isFlutterEngineAlive = false
-
         Log.d(TAG, "MainActivity onDestroy")
-
     }
-
-    
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 

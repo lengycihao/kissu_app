@@ -568,6 +568,14 @@ class MineController extends GetxController {
         },
       ),
       SettingItem(
+        icon: "assets/4.0/kissu4_mine_app_time.webp",
+        title: "组件中心",
+        onTap: () async {
+          onNavigateToNextPage?.call();
+          Get.toNamed(KissuRoutePath.widgetCenter);
+        },
+      ),
+      SettingItem(
         icon: "assets/4.0/kissu4_share.webp",
         title: "分享APP",
         onTap: () => _onShareAppTap(),
