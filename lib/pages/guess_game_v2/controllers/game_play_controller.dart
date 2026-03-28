@@ -52,6 +52,9 @@ class GamePlayController extends GetxController {
   final showResultAnimation = false.obs; // 答错/答对动画
   final resultAnimationType = 0.obs; // 0=错误, 1=正确
 
+  // ===== 游戏事件弹窗 =====
+  final currentEventDialog = Rxn<String>(); // 当前要显示的事件弹窗类型
+
   // ===== 当前题目 =====
   GameTopic? get currentTopic =>
       currentIndex.value < topics.length ? topics[currentIndex.value] : null;
@@ -193,6 +196,9 @@ class GamePlayController extends GetxController {
       topics[currentIndex.value].status = QuestionStatus.correct;
       _addSystemMessage('🎉 回答正确！答案是「${topic.answer}」');
 
+      // 显示正确弹窗
+      currentEventDialog.value = 'right';
+
       // 只有本地答题才发送状态（避免重复）
       if (isSelf) {
         imService.sendAnswerState(1);
@@ -214,6 +220,9 @@ class GamePlayController extends GetxController {
         questionStatuses[currentIndex.value] = QuestionStatus.wrong;
         topics[currentIndex.value].status = QuestionStatus.wrong;
         _addSystemMessage('💔 回答错误，答案是「${topic.answer}」');
+
+        // 显示错误弹窗
+        currentEventDialog.value = 'wrong';
 
         // 只有本地答题才发送状态（避免重复）
         if (isSelf) {
