@@ -104,9 +104,18 @@ class GameHomePage extends GetView<GameHomeController> {
             bottom: 0,
             child: Row(
               children: [
-                Text(
-                  "惩罚记录",
-                  style: TextStyle(fontSize: 12, color: Color(0xff777777)),
+                GestureDetector(
+                  onTap: () {
+                    Get.toNamed(KissuRoutePath.guessGameV2PenaltyRecord);
+                  },
+                  child: Container(
+                    height: 40,
+                     alignment: Alignment.center,
+                    child: Text(
+                      "惩罚记录",
+                      style: TextStyle(fontSize: 12, color: Color(0xff777777)),
+                    ),
+                  ),
                 ),
                 SizedBox(width: 10),
                 Image(
@@ -152,14 +161,14 @@ class GameHomePage extends GetView<GameHomeController> {
           () => Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.star, size: 22, color: Color(0xFFFFD700)),
+              Image(image: AssetImage('assets/say_guess/kissu_say_guess_star.webp'),width: 35,),
               const SizedBox(width: 4),
               Text(
                 'X${controller.totalScore.value}',
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF333333),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF000000),
                 ),
               ),
             ],

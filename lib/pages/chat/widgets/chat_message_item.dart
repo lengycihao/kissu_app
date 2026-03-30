@@ -111,7 +111,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                         height: isOtherImageMessage
                             ? imageSize!.height
                             : isOtherSayGuessMessage
-                                ? 180.0
+                                ? 145.0
                                 : defecateMessageHeight,
                         child: Align(
                           alignment: Alignment.topCenter,
@@ -135,7 +135,7 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
                         height: isSelfImageMessage
                             ? imageSize!.height
                             : isSelfSayGuessMessage
-                                ? 180.0
+                                ? 145.0
                                 : defecateMessageHeight,
                         child: Align(
                           alignment: Alignment.topCenter,
@@ -829,6 +829,11 @@ class _ChatMessageItemState extends State<ChatMessageItem> {
         ),
         child: _buildMessageContent(context),
       );
+    }
+
+    // 你说我猜邀请消息不需要气泡背景
+    if (widget.message.type == MessageType.sayGuess) {
+      return _buildMessageContent(context);
     }
 
     // 权限卡片消息不需要气泡背景，自带容器样式

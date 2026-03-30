@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import '../models/game_models.dart';
 import '../services/game_im_service.dart';
+import '../widgets/game_event_dialog.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 
 /// 核心游戏逻辑控制器
 /// 管理：题目进度、答题(4次机会)、聊天/答案模式切换、特权、提示、在线检测、数据同步
@@ -55,6 +57,13 @@ class GamePlayController extends GetxController {
   // ===== 游戏事件弹窗 =====
   final currentEventDialog = Rxn<String>(); // 当前要显示的事件弹窗类型
 
+  // ===== 答题弹窗状态 =====
+  final isAnswerDialogOpen = false.obs; // 答题弹窗打开时禁止Scaffold随键盘resize
+
+  // ===== 惩罚 =====
+  final receivedPenaltyType = Rxn<String>(); // 回答者收到的惩罚类型
+  final receivedPenaltyProof = Rxn<String>(); // 回答者收到的惩罚凭证（URL）
+
   // ===== 当前题目 =====
   GameTopic? get currentTopic =>
       currentIndex.value < topics.length ? topics[currentIndex.value] : null;
@@ -78,6 +87,13 @@ class GamePlayController extends GetxController {
     // 设置IM
     imService = GameIMServiceV2();
     _setupIM();
+
+    // 统一在 controller 里监听弹窗事件，避免 build() 里多次注册 Worker
+    ever(currentEventDialog, (String? eventType) {
+      if (eventType == null || eventType.isEmpty) return;
+      currentEventDialog.value = null; // 立即清空防止重入
+      _handleEventDialog(eventType);
+    });
 
     // 添加系统消息
     _addSystemMessage('游戏开始！共5题');
@@ -196,16 +212,22 @@ class GamePlayController extends GetxController {
       topics[currentIndex.value].status = QuestionStatus.correct;
       _addSystemMessage('🎉 回答正确！答案是「${topic.answer}」');
 
-      // 显示正确弹窗
-      currentEventDialog.value = 'right';
+      // 显示正确弹窗（最后一题不弹，因为马上会显示游戏结束弹窗）
+      if (currentIndex.value < 4) {
+        currentEventDialog.value = 'right';
+      }
 
       // 只有本地答题才发送状态（避免重复）
       if (isSelf) {
         imService.sendAnswerState(1);
       }
 
-      // 延迟进入下一题
-      Future.delayed(const Duration(seconds: 2), () => _nextQuestion());
+      // 最后一题直接结算；其余题等2秒让弹窗展示完
+      if (currentIndex.value >= 4) {
+        _nextQuestion();
+      } else {
+        Future.delayed(const Duration(seconds: 2), () => _nextQuestion());
+      }
     } else {
       // 答错
       wrongAttempts.value++;
@@ -221,21 +243,27 @@ class GamePlayController extends GetxController {
         topics[currentIndex.value].status = QuestionStatus.wrong;
         _addSystemMessage('💔 回答错误，答案是「${topic.answer}」');
 
-        // 显示错误弹窗
-        currentEventDialog.value = 'wrong';
+        // 显示错误弹窗（最后一题不弹，因为马上会显示游戏结束弹窗）
+        if (currentIndex.value < 4) {
+          currentEventDialog.value = 'wrong';
+        }
 
         // 只有本地答题才发送状态（避免重复）
         if (isSelf) {
           imService.sendAnswerState(0);
         }
 
-        // 展示错误动画，3秒后下一题
+        // 展示错误动画，3秒后下一题（最后一题直接结算）
         showResultAnimation.value = true;
         resultAnimationType.value = 0;
-        Future.delayed(const Duration(seconds: 3), () {
-          showResultAnimation.value = false;
+        if (currentIndex.value >= 4) {
           _nextQuestion();
-        });
+        } else {
+          Future.delayed(const Duration(seconds: 3), () {
+            showResultAnimation.value = false;
+            _nextQuestion();
+          });
+        }
       }
     }
   }
@@ -265,6 +293,9 @@ class GamePlayController extends GetxController {
     final passed = correctCount.value >= 3;
     showResultAnimation.value = true;
     resultAnimationType.value = passed ? 1 : 0;
+
+    // 显示结果弹窗
+    currentEventDialog.value = passed ? 'success' : 'failed';
 
     // 发送游戏结果
     imService.sendGameResult(
@@ -310,6 +341,7 @@ class GamePlayController extends GetxController {
     privilegeCount.value--;
     wrongAttempts.value = (wrongAttempts.value - 1).clamp(0, maxAttempts);
     _addSystemMessage('🌟 使用特权：答题次数+1');
+    currentEventDialog.value = 'addTimesSelf';
     showPrivilegePopup.value = false;
     await imService.sendPrivilegeUse('extra_attempt');
   }
@@ -326,6 +358,7 @@ class GamePlayController extends GetxController {
     questionStatuses[currentIndex.value] = QuestionStatus.skipped;
     topics[currentIndex.value].status = QuestionStatus.skipped;
     _addSystemMessage('🌟 使用特权：跳过本题');
+    currentEventDialog.value = 'skipSelf';
     showPrivilegePopup.value = false;
     await imService.sendPrivilegeUse('skip');
     Future.delayed(const Duration(seconds: 1), () => _nextQuestion());
@@ -468,6 +501,47 @@ class GamePlayController extends GetxController {
     }
   }
 
+  // ==================== 事件弹窗处理 ====================
+
+  void _handleEventDialog(String eventType) {
+    GameEventType? type;
+    switch (eventType) {
+      case 'addTimes':     type = GameEventType.addTimes; break;
+      case 'addTimesSelf': type = GameEventType.addTimesSelf; break;
+      case 'skip':         type = GameEventType.skip; break;
+      case 'skipSelf':     type = GameEventType.skipSelf; break;
+      case 'wrong':        type = GameEventType.wrong; break;
+      case 'right':        type = GameEventType.right; break;
+      case 'success':      type = GameEventType.success; break;
+      case 'failed':       type = GameEventType.failed; break;
+    }
+    if (type == null) return;
+
+    if (eventType == 'success' || eventType == 'failed') {
+      showGameEventDialogGet(type).then((_) => _navigateAfterGameEnd(eventType));
+    } else {
+      showGameEventDialogGet(type);
+    }
+  }
+
+  void _navigateAfterGameEnd(String resultType) {
+    if (resultType == 'success') {
+      Get.toNamed(
+        KissuRoutePath.guessGameV2Success,
+        arguments: {'correctCount': correctCount.value, 'isInitiator': isInitiator},
+      );
+    } else {
+      if (isPartnerOnline.value) {
+        Get.toNamed(
+          KissuRoutePath.guessGameV2Failed,
+          arguments: {'isInitiator': isInitiator, 'isPartnerOnline': true},
+        );
+      } else {
+        Get.until((route) => route.settings.name == KissuRoutePath.chat);
+      }
+    }
+  }
+
   // ==================== IM消息处理 ====================
 
   void _onGameMessage(Map<String, dynamic> data, String senderID) {
@@ -489,6 +563,9 @@ class GamePlayController extends GetxController {
         break;
 
       case 'game_answer':
+        // 收到自己发出的消息，忽略（本地已通过 _checkAnswer(isSelf:true) 处理）
+        if (senderID == imService.myIMUserID) break;
+
         _addMessage(
           content,
           GameChatMessageType.answer,
@@ -497,7 +574,7 @@ class GamePlayController extends GetxController {
           avatar: senderAvatar,
           sid: senderID,
         );
-        // 双方都判断答案（确保即时反馈）
+        // 对方发来的答案，判断结果
         _checkAnswer(content.trim(), isSelf: false);
         break;
 
@@ -515,12 +592,20 @@ class GamePlayController extends GetxController {
               questionStatuses[currentIndex.value] = QuestionStatus.correct;
             }
             _addSystemMessage('🎉 回答正确！');
+            // 显示正确弹窗（最后一题不弹）
+            if (currentIndex.value < 4) {
+              currentEventDialog.value = 'right';
+            }
             Future.delayed(const Duration(seconds: 2), () => _nextQuestion());
           } else {
             if (currentIndex.value < questionStatuses.length) {
               questionStatuses[currentIndex.value] = QuestionStatus.wrong;
             }
             _addSystemMessage('💔 回答错误');
+            // 显示错误弹窗（最后一题不弹）
+            if (currentIndex.value < 4) {
+              currentEventDialog.value = 'wrong';
+            }
             showResultAnimation.value = true;
             resultAnimationType.value = 0;
             Future.delayed(const Duration(seconds: 3), () {
@@ -561,25 +646,51 @@ class GamePlayController extends GetxController {
         break;
 
       case 'game_privilege':
+        // 收到自己发出的消息，忽略（本地已弹窗）
+        if (senderID == imService.myIMUserID) break;
+
         final privType = data['privilegeType'] as String? ?? '';
         if (privType == 'extra_attempt') {
           wrongAttempts.value = (wrongAttempts.value - 1).clamp(0, maxAttempts);
           _addSystemMessage('🌟 对方使用特权：答题次数+1');
+          // 显示特权弹窗
+          currentEventDialog.value = 'addTimes';
         } else if (privType == 'skip') {
           if (currentIndex.value < questionStatuses.length) {
             questionStatuses[currentIndex.value] = QuestionStatus.skipped;
           }
           _addSystemMessage('🌟 对方使用特权：跳过本题');
+          // 显示特权弹窗
+          currentEventDialog.value = 'skip';
           Future.delayed(const Duration(seconds: 1), () => _nextQuestion());
         }
         break;
 
+      case 'game_failed_guesser':
+        // 发起者选择了惩罚，回答者收到此消息
+        final penaltyType = data['penaltyType'] as String? ?? '';
+        receivedPenaltyType.value = penaltyType;
+        break;
+
+      case 'game_penalty_guesser':
+        // 发起者完成了惩罚凭证，回答者收到此消息
+        final pType = data['penaltyType'] as String? ?? '';
+        final proofUrl = data['proofUrl'] as String? ?? '';
+        receivedPenaltyType.value = pType;
+        receivedPenaltyProof.value = proofUrl;
+        break;
+
       case 'game_result':
+        // 如果游戏已经结束，说明是收到自己发送的消息，忽略避免重复弹窗
+        if (isGameOver.value) break;
+        
         final result = data['result'] as int? ?? 0;
         isGameOver.value = true;
         phase.value = GamePhase.result;
         showResultAnimation.value = true;
         resultAnimationType.value = result;
+        // 显示结果弹窗
+        currentEventDialog.value = result == 1 ? 'success' : 'failed';
         _addSystemMessage(result == 1 ? '🎉 挑战成功！' : '😢 挑战失败！');
         break;
 
@@ -660,8 +771,9 @@ class GamePlayController extends GetxController {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollController.hasClients) {
+        // reverse:true时，pixels=0是底部（最新消息）
         scrollController.animateTo(
-          scrollController.position.maxScrollExtent,
+          0.0,
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
         );

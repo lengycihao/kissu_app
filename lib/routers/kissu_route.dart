@@ -71,13 +71,18 @@ import 'package:kissu_app/pages/mine/lock_screen/lock_screen_binding.dart';
 import 'package:kissu_app/pages/mine/lock_screen/lock_screen_question_page.dart';
 import 'package:kissu_app/pages/widget_center/widget_center_page.dart';
 import 'package:kissu_app/pages/widget_center/widget_center_binding.dart';
-import 'package:kissu_app/pages/guess_game/guess_game_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/game_home_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/bindings/game_home_binding.dart';
 import 'package:kissu_app/pages/guess_game_v2/topic_selection_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/bindings/topic_selection_binding.dart';
 import 'package:kissu_app/pages/guess_game_v2/game_play_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/bindings/game_play_binding.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_success_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_failed_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_penalty_photo_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_penalty_audio_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_penalty_wait_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_penalty_record_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -428,11 +433,7 @@ class KissuRoute {
       binding: WidgetCenterBinding(),
       transition: Transition.rightToLeft,
     ),
-    GetPage(
-      name: KissuRoutePath.guessGame,
-      page: () => const GuessGamePage(),
-      transition: Transition.rightToLeft,
-    ),
+   
     // ===== 你说我猜 V2 =====
     GetPage(
       name: KissuRoutePath.guessGameV2Home,
@@ -450,6 +451,36 @@ class KissuRoute {
       name: KissuRoutePath.guessGameV2Play,
       page: () => const GamePlayPage(),
       binding: GamePlayBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2Success,
+      page: () => const GameSuccessPage(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2Failed,
+      page: () => const GameFailedPage(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2PenaltyPhoto,
+      page: () => const GamePenaltyPhotoPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2PenaltyAudio,
+      page: () => const GamePenaltyAudioPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2PenaltyWait,
+      page: () => const GamePenaltyWaitPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2PenaltyRecord,
+      page: () => const GamePenaltyRecordPage(),
       transition: Transition.rightToLeft,
     ),
   ];

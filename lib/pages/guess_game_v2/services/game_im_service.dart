@@ -332,6 +332,15 @@ class GameIMServiceV2 {
   Future<bool> sendGameSync(Map<String, dynamic> syncData) =>
       sendGameMessage(type: 'game_sync', extra: syncData);
 
+  Future<bool> sendPenaltySelected(String penaltyType) =>
+      sendGameMessage(type: 'game_failed_guesser', extra: {'penaltyType': penaltyType});
+
+  Future<bool> sendPenaltyProof({required String penaltyType, required String proofUrl}) =>
+      sendGameMessage(type: 'game_penalty_guesser', extra: {
+        'penaltyType': penaltyType,
+        'proofUrl': proofUrl,
+      });
+
   // ===== 群消息监听 =====
 
   V2TimAdvancedMsgListener? _advancedMsgListener;

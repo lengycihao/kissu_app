@@ -25,7 +25,7 @@ class PrivilegePopupV2 extends StatelessWidget {
         child: Align(
           alignment: Alignment.bottomLeft,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 110, left: 30),
+            padding: const EdgeInsets.only(bottom: 120, left: 30),
             child: GestureDetector(
               onTap: () {}, // 阻止穿透
               child: Column(

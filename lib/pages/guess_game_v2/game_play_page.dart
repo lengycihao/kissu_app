@@ -11,23 +11,25 @@ class GamePlayPage extends GetView<GamePlayController> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
+    return Obx(() => PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _showExitDialog(context);
       },
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
-        body: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/say_guess/kissu_say_guess_bg.webp'),
-              alignment: AlignmentGeometry.topCenter,
+        resizeToAvoidBottomInset: !controller.isAnswerDialogOpen.value,
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/say_guess/kissu_say_guess_bg.webp'),
+                alignment: AlignmentGeometry.topCenter,
+              ),
+              color: Colors.white,
             ),
-            color: Colors.white,
-          ),
-          child: SafeArea(
-            child: Obx(
+            child: SafeArea(
+              child: Obx(
               () => Stack(
                 children: [
                   Column(
@@ -35,12 +37,25 @@ class GamePlayPage extends GetView<GamePlayController> {
                       _buildAppBar(context),
                       const SizedBox(height: 4),
                       _buildProgressBar(),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _buildTvArea(),
+                      // 键盘弹起时平滑折叠电视机，聊天区自动扩张
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        child: MediaQuery.of(context).viewInsets.bottom > 0 &&
+                              !controller.isAnswerDialogOpen.value
+                            ? const SizedBox.shrink()
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: _buildTvArea(),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                              ),
                       ),
-                      const SizedBox(height: 8),
                       Expanded(child: _buildChatArea()),
                       _buildBottomArea(context),
                     ],
@@ -59,16 +74,17 @@ class GamePlayPage extends GetView<GamePlayController> {
                   if (controller.waitingForHintSelection.value &&
                       controller.isInitiator)
                     _buildHintSelectionPopup(),
-                  // 结果动画覆盖层
-                  if (controller.showResultAnimation.value)
-                    _buildResultOverlay(),
+                  // // 结果动画覆盖层
+                  // if (controller.showResultAnimation.value)
+                  //   _buildResultOverlay(),
                 ],
               ),
+            ),
             ),
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildAppBar(BuildContext context) {
@@ -270,17 +286,23 @@ class GamePlayPage extends GetView<GamePlayController> {
   Widget _buildChatArea() {
     return Obx(() {
       final msgs = controller.messages;
-      return ListView.builder(
-        controller: controller.scrollController,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        itemCount: msgs.length,
-        itemBuilder: (context, index) {
-          final msg = msgs[index];
-          if (msg.type == GameChatMessageType.system) {
-            return _buildSystemMsg(msg);
-          }
-          return _buildChatBubble(msg);
-        },
+      return Align(
+        alignment: Alignment.topCenter,
+        child: ListView.builder(
+          controller: controller.scrollController,
+          reverse: true,
+          shrinkWrap: true,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          itemCount: msgs.length,
+          itemBuilder: (context, index) {
+            final msg = msgs[msgs.length - 1 - index];
+            if (msg.type == GameChatMessageType.system) {
+              return _buildSystemMsg(msg);
+            }
+            return _buildChatBubble(msg);
+          },
+        ),
       );
     });
   }
@@ -415,80 +437,77 @@ class GamePlayPage extends GetView<GamePlayController> {
 
   /// 底部操作区：特权/提示按钮 + 答案按钮 + 输入框 + 发送按钮
   Widget _buildBottomArea(BuildContext context) {
-    return Obx(() {
-      final isGuesser = !controller.isInitiator; // 接收方=答题者
+    final isGuesser = !controller.isInitiator; // 接收方=答题者（不变，plain bool）
 
-      return Container(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 8,
-          bottom: MediaQuery.of(context).viewInsets.bottom > 0
-              ? 8
-              : MediaQuery.of(context).padding.bottom + 8,
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          // border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 答题者：特权/提示按钮
-            if (isGuesser)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    _buildActionBtn(
-                      icon: 'assets/say_guess/kissu_say_guess_hat.webp',
-                      label: '使用特权${controller.privilegeCount.value}次',
-                      color: const Color(0xFFF9E2FF),
-                      onTap: controller.privilegeCount.value > 0
-                          ? () => controller.showPrivilegePopup.value = true
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionBtn(
-                      icon: 'assets/say_guess/kissu_say_guess_light.webp',
-                      label: '提示请求${controller.hintRequestCount.value}次',
-                      color: const Color(0xFFDCF0FF),
-                      onTap: controller.hintRequestedThisQ.value
-                          ? null
-                          : () => controller.requestHint(),
-                    ),
-                    Spacer(),
-                    GestureDetector(
-                      onTap: () => _showAnswerDialog(context),
-                      child: Container(
-                        height: 28,
-                        width: 70,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(21),
-                         ),
-                        child: const Center(
-                          child: Text(
-                            '填写答案',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFffffff),
-                            ),
+    return Container(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom > 0
+            ? 8
+            : MediaQuery.of(context).padding.bottom + 8,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 答题者：特权/提示按钮（包含observable，用Obx单独包裹）
+          if (isGuesser)
+            Obx(() => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  _buildActionBtn(
+                    icon: 'assets/say_guess/kissu_say_guess_hat.webp',
+                    label: '使用特权${controller.privilegeCount.value}次',
+                    color: const Color(0xFFF9E2FF),
+                    onTap: controller.privilegeCount.value > 0
+                        ? () => controller.showPrivilegePopup.value = true
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildActionBtn(
+                    icon: 'assets/say_guess/kissu_say_guess_light.webp',
+                    label: '提示请求${controller.hintRequestCount.value}次',
+                    color: const Color(0xFFDCF0FF),
+                    onTap: controller.hintRequestedThisQ.value
+                        ? null
+                        : () => controller.requestHint(),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showAnswerDialog(context),
+                    child: Container(
+                      height: 28,
+                      width: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(21),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '填写答案',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFffffff),
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            )),
 
-            // 聊天输入框（发送按钮在内部）
-            _buildInputRow(),
-            SizedBox(height: 15,)
-          ],
-        ),
-      );
-    });
+          // 聊天输入框（发送按钮在内部）
+          _buildInputRow(),
+          const SizedBox(height: 15),
+        ],
+      ),
+    );
   }
 
   Widget _buildInputRow() {
@@ -527,8 +546,8 @@ class GamePlayPage extends GetView<GamePlayController> {
               controller.inputController.clear();
             },
             child: Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: const Text(
                 '发送',
                 style: TextStyle(color: Color(0xFF000000), fontSize: 12),
@@ -546,13 +565,17 @@ class GamePlayPage extends GetView<GamePlayController> {
   }
 
   void _showAnswerDialog(BuildContext context) {
+    controller.isAnswerDialogOpen.value = true;
     showDialog(
       context: context,
       builder: (ctx) => AnswerDialog(
         remainingAttempts: 4 - controller.wrongAttempts.value,
         onSubmit: (answer) => controller.submitAnswer(answer),
       ),
-    );
+    ).then((_) {
+      controller.isAnswerDialogOpen.value = false;
+      FocusScope.of(context).unfocus();
+    });
   }
 
   Widget _buildActionBtn({

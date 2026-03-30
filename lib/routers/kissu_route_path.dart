@@ -72,4 +72,10 @@ class KissuRoutePath {
   static const guessGameV2Home = '/kisssu_app/guess_game_v2/home';
   static const guessGameV2TopicSelection = '/kisssu_app/guess_game_v2/topic_selection';
   static const guessGameV2Play = '/kisssu_app/guess_game_v2/game_play';
+  static const guessGameV2Success = '/kisssu_app/guess_game_v2/success';
+  static const guessGameV2Failed = '/kisssu_app/guess_game_v2/failed';
+  static const guessGameV2PenaltyPhoto = '/kisssu_app/guess_game_v2/penalty_photo';
+  static const guessGameV2PenaltyAudio = '/kisssu_app/guess_game_v2/penalty_audio';
+  static const guessGameV2PenaltyWait = '/kisssu_app/guess_game_v2/penalty_wait';
+  static const guessGameV2PenaltyRecord = '/kisssu_app/guess_game_v2/penalty_record';
 }

@@ -27,6 +27,7 @@ class _AnswerDialogState extends State<AnswerDialog> {
   void _handleSubmit() {
     final answer = _controller.text.trim();
     if (answer.isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     Navigator.of(context).pop();
     widget.onSubmit(answer);
   }
