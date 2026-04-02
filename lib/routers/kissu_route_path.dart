@@ -78,4 +78,5 @@ class KissuRoutePath {
   static const guessGameV2PenaltyAudio = '/kisssu_app/guess_game_v2/penalty_audio';
   static const guessGameV2PenaltyWait = '/kisssu_app/guess_game_v2/penalty_wait';
   static const guessGameV2PenaltyRecord = '/kisssu_app/guess_game_v2/penalty_record';
+  static const guessGameV2PenaltySelect = '/kisssu_app/guess_game_v2/penalty_select';
 }

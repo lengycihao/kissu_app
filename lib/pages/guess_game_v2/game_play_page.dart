@@ -120,7 +120,7 @@ class GamePlayPage extends GetView<GamePlayController> {
             ),
           ),
           GestureDetector(
-            onTap: () {},
+            onTap: () => _showRulesDialog(context),
             child: Align(
               alignment: AlignmentGeometry.topRight,
               child: Image(
@@ -236,7 +236,7 @@ class GamePlayPage extends GetView<GamePlayController> {
                 // 接收方显示剩余答题次数
                 if (!controller.isInitiator) ...[
                   Text(
-                    '剩余答题次数：${controller.maxAttempts - controller.wrongAttempts.value}',
+                    '剩余答题次数：${controller.maxAttempts.value - controller.wrongAttempts.value}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFFFF9AD9),
@@ -471,7 +471,7 @@ class GamePlayPage extends GetView<GamePlayController> {
                   const SizedBox(width: 8),
                   _buildActionBtn(
                     icon: 'assets/say_guess/kissu_say_guess_light.webp',
-                    label: '提示请求${controller.hintRequestCount.value}次',
+                    label: '提示请求${controller.hintRequestedThisQ.value ? 0 : 1}次',
                     color: const Color(0xFFDCF0FF),
                     onTap: controller.hintRequestedThisQ.value
                         ? null
@@ -569,7 +569,7 @@ class GamePlayPage extends GetView<GamePlayController> {
     showDialog(
       context: context,
       builder: (ctx) => AnswerDialog(
-        remainingAttempts: 4 - controller.wrongAttempts.value,
+        remainingAttempts: controller.maxAttempts.value - controller.wrongAttempts.value,
         onSubmit: (answer) => controller.submitAnswer(answer),
       ),
     ).then((_) {
@@ -776,23 +776,186 @@ class GamePlayPage extends GetView<GamePlayController> {
   void _showExitDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('退出游戏'),
-        content: const Text('确定要退出吗？'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('继续', style: TextStyle(color: Color(0xFFFF90CA))),
+      barrierDismissible: true,
+      builder: (ctx) => Center(
+        child: Container(
+          width: 270,
+          height: 145,
+          decoration: BoxDecoration(
+            image: const DecorationImage(
+              image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
+              fit: BoxFit.fill,
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Get.back();
-            },
-            child: const Text('退出', style: TextStyle(color: Color(0xFF999999))),
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                '确定要退出游戏吗？',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF333333),
+                  fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 25),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Get.back();
+                    },
+                    child: Container(
+                      width: 106,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Color(0xFF999999), width: 1),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '确认',
+                          style: TextStyle(fontSize: 14, color: Color(0xFF999999), decoration: TextDecoration.none),
+                        ),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      width: 106,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Color(0xffFFA9E0),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '继续游戏',
+                          style: TextStyle(fontSize: 14, color: Color(0xFFffffff), decoration: TextDecoration.none),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  void _showRulesDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+                  child: Text(
+                    '游戏规则',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xff333333),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    physics: const BouncingScrollPhysics(),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: '基本规则\n',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xff333333),
+                              fontWeight: FontWeight.w500,
+                              height: 2.5,
+                            ),
+                          ),
+                          const TextSpan(
+                            text:
+                                '每轮游戏由5道题组成，支持发起者自定义题目和描述\n'
+                                '每轮游戏通过定义：每轮总答题数≥3题即通过本轮\n'
+                                '游戏组合难度采用逐轮进行制，通过一轮+1⭐，每轮全部答对+2⭐（不含特权跳过的），由简单到难；难度逐步增加；如失败下次进入游戏仍为上次停留难度，成功下次进入为下一轮难度\n'
+                                '\n'
+                                '本次游戏支持双人/单人模式，单人模式即一方出完题，另一方根据已出题的描述语进行猜题\n',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff777777),
+                              fontWeight: FontWeight.w400,
+                              height: 1.5,
+                            ),
+                          ),
+                         
+                          const TextSpan(
+                            text: '游戏玩法\n',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xff333333),
+                              fontWeight: FontWeight.w500,
+                              height: 2.5,
+                            ),
+                          ),
+                          const TextSpan(
+                            text:
+                                '我要猜一方根据对方的描述进行回答，每道题有4次答案提交机会（聊天不占用机会），到指定次数仍未答对则本题失败，自动进入下一题；每道题可使用一次提示'
+                                '每轮可使用一次特权，可选择直接跳过本题（按答对计算）或增加一次答题机会\n'
+                                '每轮失败即进入情侣惩罚，描述者可选择不同惩罚给猜题者完成，需线下完成的会产生二维码，需双方线下扫码核验\n',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff777777),
+                              fontWeight: FontWeight.w400,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(6),
+                  child: Image.asset(
+                    'assets/lock/kissu_lock_close.webp',
+                    width: 16,
+                    height: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

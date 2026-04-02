@@ -74,6 +74,9 @@ class HomePopupService {
   /// VIP购买弹窗是否已在本次会话显示过
   static bool _hasShownVipDialogThisSession = false;
   
+  /// 本次会话是否刚完成绑定（绑定成功后会自动跳转会员页，不再弹VIP弹窗）
+  static bool _justCompletedBinding = false;
+  
   /// VIP到期弹窗是否已在本次会话检查过
   static bool _hasCheckedVipOuttimeDialogThisSession = false;
   
@@ -200,6 +203,7 @@ class HomePopupService {
         });
         
         // logDebug('💑 绑定弹窗已关闭，结果: $result');
+        _justCompletedBinding = true;
         Future.delayed(const Duration(milliseconds: 300), () {
           onRefreshAfterBinding();
         });
@@ -231,6 +235,11 @@ class HomePopupService {
 
       if (_hasShownVipDialogThisSession) {
         // logDebug('💎 本次会话已显示过VIP购买弹窗，不再显示');
+        return;
+      }
+
+      if (_justCompletedBinding) {
+        // logDebug('💎 刚完成绑定，跳过VIP购买弹窗（绑定成功已自动跳转会员页）');
         return;
       }
 

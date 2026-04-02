@@ -83,6 +83,7 @@ import 'package:kissu_app/pages/guess_game_v2/game_penalty_photo_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/game_penalty_audio_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/game_penalty_wait_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/game_penalty_record_page.dart';
+import 'package:kissu_app/pages/guess_game_v2/game_penalty_select_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:get/get.dart';
 
@@ -481,6 +482,11 @@ class KissuRoute {
     GetPage(
       name: KissuRoutePath.guessGameV2PenaltyRecord,
       page: () => const GamePenaltyRecordPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.guessGameV2PenaltySelect,
+      page: () => const GamePenaltySelectPage(),
       transition: Transition.rightToLeft,
     ),
   ];

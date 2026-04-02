@@ -316,6 +316,7 @@ class _IMMessageHandler {
         final customDataMap = jsonDecode(customData) as Map<String, dynamic>;
         extData.addAll(customDataMap);
         String? msgType = customDataMap['type'] as String?;
+        msgType ??= customDataMap['msg_type'] as String?;
         msgType ??= customDataMap['msg_lock'] as String?;
         // 🔥 根据消息类型自定义推送文案
         if (msgType == 'lock_screen_command') {
@@ -328,6 +329,8 @@ class _IMMessageHandler {
           pushDesc = '[对方提醒您开启应用使用权限啦~]';
         }else if(msgType == 'connect_app'){
           pushDesc = '[对方提醒您去关联app啦~]';
+        }else if(msgType == 'chat_say_guess'){
+          pushDesc = '[快来和我一起玩你说我猜游戏吧~]';
         }
         logger.debug('🔔 离线推送ext已合并customData: type=$msgType, desc=$pushDesc', tag: 'TencentIMService');
       } catch (e) {

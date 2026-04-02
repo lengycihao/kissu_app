@@ -18,6 +18,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
 import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
@@ -314,6 +315,7 @@ class LoveInfoController extends GetxController {
       
       if (result.isSuccess) {
         myAvatar.value = networkAvatarUrl;
+        WidgetCenterController.syncWidgetDataOnResume();
 
         // 更新本地用户信息
         final currentUser = UserManager.currentUser;
@@ -1150,6 +1152,7 @@ class LoveInfoController extends GetxController {
             DebugUtil.info('Break relationship controller not found: $e');
           }
 
+          WidgetCenterController.syncWidgetDataOnResume();
           CustomToast.show(Get.context!, '相恋时间更新成功');
         } else {
           DebugUtil.warning('用户信息刷新失败，但仍更新本地显示');

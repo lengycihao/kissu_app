@@ -35,13 +35,16 @@ class KissuWidgetDaysProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(KissuWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
 
             val days = prefs.getString(KissuWidgetProvider.KEY_DAYS, "0") ?: "0"
-            val bindDate = prefs.getString(KissuWidgetProvider.KEY_BIND_DATE, "") ?: ""
+            val loveTime = prefs.getString(KissuWidgetProvider.KEY_LOVE_TIME, "") ?: ""
+            val isSetLoverTime = prefs.getInt(KissuWidgetProvider.KEY_IS_SET_LOVER_TIME, 0) == 1
 
             val views = RemoteViews(context.packageName, R.layout.widget_kissu_days)
 
+            val titleText = if (isSetLoverTime) "我们相伴" else "Kissu相伴"
+            views.setTextViewText(R.id.tv_title, titleText)
             views.setTextViewText(R.id.tv_days, days)
-            if (bindDate.isNotEmpty()) {
-                views.setTextViewText(R.id.tv_bind_date, bindDate)
+            if (loveTime.isNotEmpty()) {
+                views.setTextViewText(R.id.tv_bind_date, loveTime)
             }
 
             // 点击小组件打开 App → 跳转到恋爱信息页面
@@ -56,7 +59,7 @@ class KissuWidgetDaysProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
-            Log.d(TAG, "天数小组件已更新: id=$appWidgetId, days=$days, bindDate=$bindDate")
+            Log.d(TAG, "天数小组件已更新: id=$appWidgetId, days=$days, loveTime=$loveTime")
         }
     }
 

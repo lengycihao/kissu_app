@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:oktoast/oktoast.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'controllers/game_home_controller.dart';
 import 'models/game_models.dart';
+import 'services/game_api_service.dart';
 
 /// 你说我猜V2 首页：开始游戏 + 历史记录列表
 class GameHomePage extends GetView<GameHomeController> {
@@ -28,24 +30,47 @@ class GameHomePage extends GetView<GameHomeController> {
                 alignment: AlignmentGeometry.topRight,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 16),
-                  child: Image(
-                    image: AssetImage(
-                      'assets/say_guess/kissu_say_guess_tips.webp',
+                  child: GestureDetector(
+                    onTap: () => _showRulesDialog(context),
+                    child: Image(
+                      image: AssetImage(
+                        'assets/say_guess/kissu_say_guess_tips.webp',
+                      ),
+                      width: 24,
                     ),
-                    width: 24,
                   ),
                 ),
               ),
+              // const SizedBox(height: 30),
+              _buildIconArea(),
+              const SizedBox(height: 10),
+              _buildStartButton(),
+              const SizedBox(height: 20),
               Expanded(
                 child: Column(
                   children: [
-                    const SizedBox(height: 60),
-                    _buildIconArea(),
-                    const SizedBox(height: 30),
-                    _buildStartButton(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 6),
+                    Obx(() => _buildHistoryTabs(controller.selectedTab.value)),
+                    const SizedBox(height: 20),
                     Expanded(
-                      child: _buildHistoryList(),
+                      child: PageView(
+                        controller: controller.pageController,
+                        onPageChanged: (i) => controller.switchTab(i),
+                        children: [
+                          Obx(
+                            () => _buildHistoryPage(
+                              controller.myInitiatedRecords,
+                              isMy: true,
+                            ),
+                          ),
+                          Obx(
+                            () => _buildHistoryPage(
+                              controller.taInitiatedRecords,
+                              isMy: false,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -57,14 +82,12 @@ class GameHomePage extends GetView<GameHomeController> {
     );
   }
 
-  /// 顶部导航栏
-  _buildAppBar() {
+  Widget _buildAppBar() {
     return Container(
       height: 44,
       color: Colors.transparent,
       child: Stack(
         children: [
-          // 返回按钮
           Positioned(
             left: 5,
             child: GestureDetector(
@@ -81,7 +104,6 @@ class GameHomePage extends GetView<GameHomeController> {
               ),
             ),
           ),
-          // 标题 - 绝对居中
           Positioned(
             left: 0,
             right: 0,
@@ -97,34 +119,22 @@ class GameHomePage extends GetView<GameHomeController> {
               ),
             ),
           ),
-          // 标题 - 绝对居中
           Positioned(
             right: 16,
             top: 0,
             bottom: 0,
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    Get.toNamed(KissuRoutePath.guessGameV2PenaltyRecord);
-                  },
-                  child: Container(
-                    height: 40,
-                     alignment: Alignment.center,
-                    child: Text(
-                      "惩罚记录",
-                      style: TextStyle(fontSize: 12, color: Color(0xff777777)),
-                    ),
-                  ),
+            child: GestureDetector(
+              onTap: () {
+                Get.toNamed(KissuRoutePath.guessGameV2PenaltyRecord);
+              },
+              child: Container(
+                height: 40,
+                alignment: Alignment.center,
+                child: Text(
+                  "惩罚记录",
+                  style: TextStyle(fontSize: 12, color: Color(0xff777777)),
                 ),
-                SizedBox(width: 10),
-                Image(
-                  image: AssetImage(
-                    'assets/say_guess/kissu_say_guess_share.webp',
-                  ),
-                  width: 24,
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -161,7 +171,10 @@ class GameHomePage extends GetView<GameHomeController> {
           () => Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image(image: AssetImage('assets/say_guess/kissu_say_guess_star.webp'),width: 35,),
+              Image(
+                image: AssetImage('assets/say_guess/kissu_say_guess_star.webp'),
+                width: 35,
+              ),
               const SizedBox(width: 4),
               Text(
                 'X${controller.totalScore.value}',
@@ -190,9 +203,10 @@ class GameHomePage extends GetView<GameHomeController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: GestureDetector(
-        onTap: () {
+        onTap: () async {
           // 跳转到选题页面
-          Get.toNamed(KissuRoutePath.guessGameV2TopicSelection);
+          await Get.toNamed(KissuRoutePath.guessGameV2TopicSelection);
+          controller.refreshData();
         },
         child: Container(
           width: 280,
@@ -214,39 +228,6 @@ class GameHomePage extends GetView<GameHomeController> {
         ),
       ),
     );
-  }
-
-  /// 历史记录列表
-  Widget _buildHistoryList() {
-    return Obx(() {
-      if (controller.isLoading.value) {
-        return const Padding(
-          padding: EdgeInsets.all(40),
-          child: Center(
-            child: CircularProgressIndicator(color: Color(0xFFFF90CA)),
-          ),
-        );
-      }
-
-      final selected = controller.selectedTab.value;
-      return Column(
-        children: [
-          const SizedBox(height: 6),
-          _buildHistoryTabs(selected),
-          const SizedBox(height: 20),
-          Expanded(
-            child: PageView(
-              controller: controller.pageController,
-              onPageChanged: (i) => controller.switchTab(i),
-              children: [
-                _buildHistoryPage(controller.myInitiatedRecords),
-                _buildHistoryPage(controller.taInitiatedRecords),
-              ],
-            ),
-          ),
-        ],
-      );
-    });
   }
 
   Widget _buildHistoryTabs(int selected) {
@@ -294,7 +275,7 @@ class GameHomePage extends GetView<GameHomeController> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF111111) : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
@@ -311,7 +292,7 @@ class GameHomePage extends GetView<GameHomeController> {
     );
   }
 
-  Widget _buildHistoryPage(List<GameRecord> records) {
+  Widget _buildHistoryPage(List<GameRecord> records, {required bool isMy}) {
     if (records.isEmpty) {
       return const Center(
         child: Column(
@@ -331,11 +312,48 @@ class GameHomePage extends GetView<GameHomeController> {
       );
     }
 
-    return ListView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: records.length,
-      itemBuilder: (context, index) => _buildRecordItem(records[index]),
+    final hasMore = isMy
+        ? controller.hasMoreMy.value
+        : controller.hasMoreTa.value;
+
+    return RefreshIndicator(
+      color: const Color(0xFFFF90CA),
+      onRefresh: () => controller.refreshData(),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (scroll) {
+          if (scroll.metrics.pixels >= scroll.metrics.maxScrollExtent - 100 &&
+              hasMore &&
+              !controller.isLoadingMore.value) {
+            controller.loadMore();
+          }
+          return false;
+        },
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: records.length + (hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= records.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFFF90CA),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return _buildRecordItem(records[index]);
+          },
+        ),
+      ),
     );
   }
 
@@ -346,23 +364,25 @@ class GameHomePage extends GetView<GameHomeController> {
 
     if (record.status == GameRecordStatus.ongoing) {
       statusWidget = GestureDetector(
-        onTap: () {
-          Get.toNamed(
+        onTap: () async {
+          await Get.toNamed(
             KissuRoutePath.guessGameV2Play,
             arguments: {
               'groupId': record.groupId,
               'isInitiator': record.isMeInitiator,
             },
           );
+          controller.refreshData();
         },
         child: Container(
-          height: 58, width: 58,
+          height: 58,
+          width: 58,
           alignment: Alignment.center,
           child: const Text(
-            '查看',
+            '进行中',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w500,
               color: Color(0xffFF9AD9),
             ),
           ),
@@ -399,19 +419,13 @@ class GameHomePage extends GetView<GameHomeController> {
     }
 
     return GestureDetector(
-      onTap: () {
-        // 点击记录进入游戏页面
-        Get.toNamed(
-          KissuRoutePath.guessGameV2Play,
-          arguments: {
-            'groupId': record.groupId,
-            'isInitiator': record.isMeInitiator,
-          },
-        );
-      },
+      onTap: () => _onRecordTap(record),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15).copyWith(right: 20),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 15,
+        ).copyWith(right: 20),
         decoration: BoxDecoration(
           image: const DecorationImage(
             image: AssetImage(
@@ -435,7 +449,7 @@ class GameHomePage extends GetView<GameHomeController> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '发起方：${record.initiator}',
+                    '发起方：${record.isMeInitiator ? '我' : '亲爱的'}',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF333333),
@@ -445,6 +459,146 @@ class GameHomePage extends GetView<GameHomeController> {
               ),
             ),
             statusWidget,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onRecordTap(GameRecord record) async {
+    if (record.status == GameRecordStatus.passed) {
+      // 通关 → 调对局详情接口获取数据，跳转成功页
+      final info = await GameApiService().getGameInfo(record.groupId);
+      if (info != null) {
+        Get.toNamed(
+          KissuRoutePath.guessGameV2Success,
+          arguments: {
+            'correctCount': info.correctAnswerNums,
+            'tacitPercent': info.tacitPercent,
+            'isInitiator': record.isMeInitiator,
+          },
+        );
+      } else {
+        showToast('获取对局详情失败');
+      }
+    } else if (record.status == GameRecordStatus.failed) {
+      // 失败 → 提示去惩罚记录查看
+      showToast('请去惩罚记录中查看详情');
+    } else {
+      // 进行中 → 进入游戏页面
+      await Get.toNamed(
+        KissuRoutePath.guessGameV2Play,
+        arguments: {
+          'groupId': record.groupId,
+          'isInitiator': record.isMeInitiator,
+        },
+      );
+      controller.refreshData();
+    }
+  }
+
+  void _showRulesDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+                  child: Text(
+                    '游戏规则',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xff333333),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    physics: const BouncingScrollPhysics(),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: '基本规则\n',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xff333333),
+                              fontWeight: FontWeight.w500,
+                              height: 2.5,
+                            ),
+                          ),
+                          const TextSpan(
+                            text:
+                                '每轮游戏由5道题组成，支持发起者自定义题目和描述\n'
+                                '每轮游戏通过定义：每轮总答题数≥3题即通过本轮\n'
+                                '游戏组合难度采用逐轮进行制，通过一轮+1⭐，每轮全部答对+2⭐（不含特权跳过的），由简单到难；难度逐步增加；如失败下次进入游戏仍为上次停留难度，成功下次进入为下一轮难度\n'
+                                '\n'
+                                '本次游戏支持双人/单人模式，单人模式即一方出完题，另一方根据已出题的描述语进行猜题\n',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff777777),
+                              fontWeight: FontWeight.w400,
+                              height: 1.5,
+                            ),
+                          ),
+                          
+                          const TextSpan(
+                            text: '游戏玩法\n',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xff333333),
+                              fontWeight: FontWeight.w500,
+                              height: 2.5,
+                            ),
+                          ),
+                          const TextSpan(
+                            text:
+                                '我要猜一方根据对方的描述进行回答，每道题有4次答案提交机会（聊天不占用机会），到指定次数仍未答对则本题失败，自动进入下一题；每道题可使用一次提示'
+                                '每轮可使用一次特权，可选择直接跳过本题（按答对计算）或增加一次答题机会\n'
+                                '每轮失败即进入情侣惩罚，描述者可选择不同惩罚给猜题者完成，需线下完成的会产生二维码，需双方线下扫码核验\n',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff777777),
+                              fontWeight: FontWeight.w400,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(6),
+                  child: Image.asset(
+                    'assets/lock/kissu_lock_close.webp',
+                    width: 16,
+                    height: 16,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

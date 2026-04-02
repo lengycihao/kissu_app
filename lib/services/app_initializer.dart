@@ -39,7 +39,6 @@ import 'package:kissu_app/services/smart_background_location_reminder.dart';
 
 import 'package:kissu_app/services/foreground_location_service.dart';
 
-import 'package:kissu_app/services/geofence_monitoring_service.dart';
 
 import 'package:kissu_app/services/city_storage_service.dart';
 
@@ -444,12 +443,6 @@ class AppInitializer {
       DebugUtil.check('前台定位服务初始化完成');
 
       
-
-      // 步骤20: 初始化电子围栏监测服务
-
-      Get.put(GeofenceMonitoringService(), permanent: true);
-
-      DebugUtil.check('电子围栏监测服务初始化完成');
 
       
 

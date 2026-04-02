@@ -25,6 +25,7 @@ import 'package:kissu_app/services/analytics/analytics_helper.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 
 
 class InfoSettingController extends GetxController {
@@ -587,6 +588,10 @@ class InfoSettingController extends GetxController {
       // }
 
       if (result.isSuccess) {
+
+        if (_hasChangedAvatar) {
+          WidgetCenterController.syncWidgetDataOnResume();
+        }
 
         // 先本地更新用户数据
         await _updateLocalUserInfo(currentNickname, gender, birthday);

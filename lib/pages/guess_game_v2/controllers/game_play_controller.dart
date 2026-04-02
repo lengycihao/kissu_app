@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import '../models/game_models.dart';
+import '../services/game_api_service.dart';
 import '../services/game_im_service.dart';
 import '../widgets/game_event_dialog.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
@@ -23,9 +24,12 @@ class GamePlayController extends GetxController {
   final phase = GamePhase.playing.obs;
   final isGameOver = false.obs;
 
+  // ===== API 服务 =====
+  final _apiService = GameApiService();
+
   // ===== 答题 =====
-  final wrongAttempts = 0.obs; // 当前题错误次数
-  final maxAttempts = 4; // 每题最多4次
+  final wrongAttempts = 0.obs; // 当前题已答次数
+  final maxAttempts = 4.obs; // 每题最大答题次数（可被特权改变）
   final correctCount = 0.obs; // 答对总数
 
   // ===== 进度条状态 =====
@@ -63,6 +67,12 @@ class GamePlayController extends GetxController {
   // ===== 惩罚 =====
   final receivedPenaltyType = Rxn<String>(); // 回答者收到的惩罚类型
   final receivedPenaltyProof = Rxn<String>(); // 回答者收到的惩罚凭证（URL）
+
+  // ===== 结算数据（从 getGameInfo 接口获取） =====
+  String _tacitPercent = '0%';   // 默契度
+  int _starNums = 0;             // 星星数量
+  String get tacitPercent => _tacitPercent;
+  int get starNums => _starNums;
 
   // ===== 当前题目 =====
   GameTopic? get currentTopic =>
@@ -124,6 +134,8 @@ class GamePlayController extends GetxController {
         } else {
           _addSystemMessage('等待对方同步游戏数据...');
         }
+        // 从接口同步最新状态（重入场景恢复进度）
+        _syncStateFromApi();
       } else {
         // 接收方：加入群
         final ok = await imService.joinGameGroup(groupId);
@@ -138,6 +150,8 @@ class GamePlayController extends GetxController {
         if (topics.isNotEmpty) {
           _sendFullStateToPartner();
         }
+        // 从接口同步当前游戏状态
+        _syncStateFromApi();
       }
     } else {
       imService.onGameMessage = _onGameMessage;
@@ -184,7 +198,7 @@ class GamePlayController extends GetxController {
     }
 
     // 检查是否还有答题机会
-    if (wrongAttempts.value >= maxAttempts) {
+    if (wrongAttempts.value >= maxAttempts.value) {
       _addSystemMessage('本题答题机会已用完');
       return;
     }
@@ -192,10 +206,13 @@ class GamePlayController extends GetxController {
     // 添加本地答案消息
     _addMessage(answer, GameChatMessageType.answer, isSelf: true);
 
-    // 通过IM发送
+    // 先调接口记录答案（不阻塞本地判断）
+    _apiService.submitAnswer(groupId, answer.trim());
+
+    // 通过IM发送（对方看到聊天消息）
     await imService.sendGameAnswer(answer.trim());
 
-    // 本地判断答案（双方都判断，确保即使消息延迟也有即时反馈）
+    // 本地判断答案（即时反馈，双方都判断）
     _checkAnswer(answer.trim(), isSelf: true);
   }
 
@@ -232,9 +249,9 @@ class GamePlayController extends GetxController {
       // 答错
       wrongAttempts.value++;
       topics[currentIndex.value].wrongAttempts = wrongAttempts.value;
-      final remaining = maxAttempts - wrongAttempts.value;
+      final remaining = maxAttempts.value - wrongAttempts.value;
 
-      if (wrongAttempts.value < maxAttempts) {
+      if (wrongAttempts.value < maxAttempts.value) {
         // 前3次错误：系统提示
         _addSystemMessage('❌ 回答错误，还剩$remaining次机会');
       } else {
@@ -276,6 +293,7 @@ class GamePlayController extends GetxController {
     }
     currentIndex.value++;
     wrongAttempts.value = 0;
+    maxAttempts.value = 4; // 重置为默认值，避免上题特权影响
     hintRequestedThisQ.value = false;
     currentHint.value = null;
     waitingForHintSelection.value = false;
@@ -283,14 +301,23 @@ class GamePlayController extends GetxController {
 
     // 发送同步消息
     _sendSyncMessage();
+    // 从接口同步当前题的 limit_answer_nums 和 answer_nums
+    _syncStateFromApi();
   }
 
-  /// 游戏结束
-  void _endGame() {
+  /// 游戏结束：调接口获取最终状态
+  Future<void> _endGame() async {
     isGameOver.value = true;
     phase.value = GamePhase.result;
 
-    final passed = correctCount.value >= 3;
+    // 从接口获取最终对局状态
+    final info = await _apiService.getGameInfo(groupId);
+    if (info != null) {
+      _applyGameInfo(info);
+    }
+
+    // status: 0=失败 1=进行中 2=成功
+    final passed = info != null ? info.status == 2 : correctCount.value >= 3;
     showResultAnimation.value = true;
     resultAnimationType.value = passed ? 1 : 0;
 
@@ -338,11 +365,18 @@ class GamePlayController extends GetxController {
   /// 使用特权：答题次数+1
   Future<void> usePrivilegeExtraAttempt() async {
     if (privilegeCount.value <= 0) return;
-    privilegeCount.value--;
-    wrongAttempts.value = (wrongAttempts.value - 1).clamp(0, maxAttempts);
-    _addSystemMessage('🌟 使用特权：答题次数+1');
-    currentEventDialog.value = 'addTimesSelf';
     showPrivilegePopup.value = false;
+
+    // 先调接口 privilege_type=2
+    final ok = await _apiService.usePrivilege(groupId, privilegeType: 2);
+    if (!ok) {
+      _addSystemMessage('使用特权失败，请重试');
+      return;
+    }
+
+    privilegeCount.value--;
+    maxAttempts.value += 1;
+    _addSystemMessage('🌟 使用特权：答题次数+1');
     await imService.sendPrivilegeUse('extra_attempt');
   }
 
@@ -354,12 +388,20 @@ class GamePlayController extends GetxController {
       showPrivilegePopup.value = false;
       return;
     }
-    privilegeCount.value--;
-    questionStatuses[currentIndex.value] = QuestionStatus.skipped;
-    topics[currentIndex.value].status = QuestionStatus.skipped;
-    _addSystemMessage('🌟 使用特权：跳过本题');
-    currentEventDialog.value = 'skipSelf';
     showPrivilegePopup.value = false;
+
+    // 先调接口 privilege_type=1
+    final ok = await _apiService.usePrivilege(groupId, privilegeType: 1);
+    if (!ok) {
+      _addSystemMessage('使用特权失败，请重试');
+      return;
+    }
+
+    privilegeCount.value--;
+    questionStatuses[currentIndex.value] = QuestionStatus.correct;
+    topics[currentIndex.value].status = QuestionStatus.correct;
+    correctCount.value++;
+    _addSystemMessage('🌟 使用特权：跳过本题');
     await imService.sendPrivilegeUse('skip');
     Future.delayed(const Duration(seconds: 1), () => _nextQuestion());
   }
@@ -378,12 +420,21 @@ class GamePlayController extends GetxController {
     hintRequestedThisQ.value = true;
     hintRequestCount.value++;
 
+    // 无论对方是否在线，都先调接口
+    final ok = await _apiService.requestHint(groupId);
+    if (!ok) {
+      hintRequestedThisQ.value = false;
+      hintRequestCount.value--;
+      _addSystemMessage('请求提示失败，请重试');
+      return;
+    }
+
     if (isPartnerOnline.value) {
-      // 对方在线：发送请求，等对方选择
+      // 对方在线：通过 IM 通知对方选字
       _addMessage('请求提示', GameChatMessageType.hintRequest, isSelf: true);
       await imService.sendHintRequest();
     } else {
-      // 对方离线：本地随机选一个提示字
+      // 对方离线：接口已成功，本地随机选一个提示字
       final chars = currentTopic!.answerChars;
       if (chars.isNotEmpty) {
         final idx = Random().nextInt(chars.length);
@@ -429,20 +480,12 @@ class GamePlayController extends GetxController {
   }
 
   void _sendSyncMessage() {
-    final topic = currentTopic;
-    imService.sendGameSync({
-      'syncType': 'state',
-      'currentIndex': currentIndex.value,
-      'correctCount': correctCount.value,
-      'wrongAttempts': wrongAttempts.value,
-      'statuses': questionStatuses.map((s) => s.index).toList(),
-      'currentAnswer': topic?.answer ?? '',
-      'currentDescription': topic?.description ?? '',
-    });
+    // IM 只作通知，对方收到后通过接口获取实际状态
+    imService.sendGameSync({'syncType': 'notify'});
   }
 
   void _handleSyncMessage(Map<String, dynamic> data) {
-    final syncType = data['syncType'] as String? ?? 'state';
+    final syncType = data['syncType'] as String? ?? 'notify';
 
     if (syncType == 'topics') {
       // 处理题目数据同步（首次同步或重入同步都接受）
@@ -458,7 +501,6 @@ class GamePlayController extends GetxController {
               ),
             )
             .toList();
-        // 初始化/更新进度条
         if (questionStatuses.length != topics.length) {
           questionStatuses.value = List.generate(
             topics.length,
@@ -474,30 +516,109 @@ class GamePlayController extends GetxController {
       return;
     }
 
-    // 处理状态同步
-    final idx = data['currentIndex'] as int?;
-    final correct = data['correctCount'] as int?;
-    final wrong = data['wrongAttempts'] as int?;
-    final statuses = data['statuses'] as List<dynamic>?;
-    final currentAnswer = data['currentAnswer'] as String?;
-    final currentDesc = data['currentDescription'] as String?;
+    // notify 类型：从接口获取最新状态
+    if (groupId.isNotEmpty) {
+      _syncStateFromApi();
+    }
+  }
 
-    if (idx != null) currentIndex.value = idx;
-    if (correct != null) correctCount.value = correct;
-    if (wrong != null) wrongAttempts.value = wrong;
-    if (statuses != null) {
-      for (int i = 0; i < statuses.length && i < questionStatuses.length; i++) {
-        questionStatuses[i] = QuestionStatus.values[statuses[i] as int];
+  /// 从接口同步当前游戏状态（对方发 notify 或重入时调用）
+  Future<void> _syncStateFromApi() async {
+    if (groupId.isEmpty) return;
+    final info = await _apiService.getGameInfo(groupId);
+    if (info == null) return;
+    _applyGameInfo(info);
+  }
+
+  /// 将接口返回的对局详情应用到本地状态
+  void _applyGameInfo(GameInfoResult info) {
+    // 从历史记录进入时 topics 为空，直接从接口初始化
+    if (topics.isEmpty && info.answers.isNotEmpty) {
+      topics = info.answers.map((a) => GameTopic(
+            answer: a.answer,
+            description: a.desc,
+          )).toList();
+      // 同步进度条长度
+      if (questionStatuses.length != topics.length) {
+        questionStatuses.value =
+            List.generate(topics.length, (_) => QuestionStatus.pending);
+      }
+      _addSystemMessage('游戏数据已同步');
+    }
+
+    // 当前题目索引（1-based → 0-based，限制在 0-4）
+    final idx = (info.answerStage - 1).clamp(0, 4);
+
+    // 题目状态列表
+    for (int i = 0; i < info.answers.length && i < questionStatuses.length; i++) {
+      final apiStatus = info.answers[i].status;
+      QuestionStatus qs;
+      switch (apiStatus) {
+        case 2:
+          qs = QuestionStatus.correct;
+          break;
+        case 0:
+          qs = i < idx ? QuestionStatus.wrong : QuestionStatus.pending;
+          break;
+        default:
+          qs = QuestionStatus.pending;
+      }
+      questionStatuses[i] = qs;
+
+      // 同步 topics[i] 的 status 和 wrongAttempts
+      if (i < topics.length) {
+        topics[i].status = qs;
+        topics[i].wrongAttempts = info.answers[i].answerNums;
       }
     }
-    // 更新当前题目信息（接收方用）
-    if (currentAnswer != null &&
-        currentAnswer.isNotEmpty &&
-        currentIndex.value < topics.length) {
-      topics[currentIndex.value] = GameTopic(
-        answer: currentAnswer,
-        description: currentDesc ?? '',
-      );
+
+    // 更新当前索引（只在比本地更新时才更新，避免回退）
+    if (idx != currentIndex.value) {
+      currentIndex.value = idx;
+      wrongAttempts.value = 0;
+      hintRequestedThisQ.value = false;
+      currentHint.value = null;
+    }
+
+    // 当前题剩余答题次数（剩余 = limitAnswerNums - answerNums）
+    if (idx < info.answers.length) {
+      final curAnswer = info.answers[idx];
+      maxAttempts.value = curAnswer.limitAnswerNums;
+      wrongAttempts.value = curAnswer.answerNums;
+      hintRequestedThisQ.value = curAnswer.isUseHint;
+    }
+
+    // 特权状态
+    if (info.isUsePrivilege) {
+      privilegeCount.value = 0;
+    }
+
+    // 答对题数（用接口返回的准确值）
+    correctCount.value = info.correctAnswerNums;
+
+    // 存储结算数据（默契度、星星数）
+    _tacitPercent = info.tacitPercent;
+    _starNums = info.starNums;
+
+    // 更新题目描述（接口同步最新 desc，适用于重入场景）
+    if (topics.isNotEmpty) {
+      for (int i = 0; i < info.answers.length && i < topics.length; i++) {
+        if (info.answers[i].desc.isNotEmpty) {
+          topics[i] = GameTopic(
+            answer: topics[i].answer,
+            description: info.answers[i].desc,
+            isCustom: topics[i].isCustom,
+            status: questionStatuses[i],
+            wrongAttempts: info.answers[i].answerNums,
+          );
+        }
+      }
+    }
+
+    // 整局游戏结束
+    if (info.status != 1 && !isGameOver.value) {
+      isGameOver.value = true;
+      phase.value = GamePhase.result;
     }
   }
 
@@ -528,7 +649,7 @@ class GamePlayController extends GetxController {
     if (resultType == 'success') {
       Get.toNamed(
         KissuRoutePath.guessGameV2Success,
-        arguments: {'correctCount': correctCount.value, 'isInitiator': isInitiator},
+        arguments: {'correctCount': correctCount.value, 'tacitPercent': tacitPercent, 'isInitiator': isInitiator},
       );
     } else {
       if (isPartnerOnline.value) {
@@ -651,17 +772,15 @@ class GamePlayController extends GetxController {
 
         final privType = data['privilegeType'] as String? ?? '';
         if (privType == 'extra_attempt') {
-          wrongAttempts.value = (wrongAttempts.value - 1).clamp(0, maxAttempts);
           _addSystemMessage('🌟 对方使用特权：答题次数+1');
-          // 显示特权弹窗
-          currentEventDialog.value = 'addTimes';
+          // 回答者同步一次游戏数据，获取更新后的答题次数
+          _syncStateFromApi();
         } else if (privType == 'skip') {
           if (currentIndex.value < questionStatuses.length) {
-            questionStatuses[currentIndex.value] = QuestionStatus.skipped;
+            questionStatuses[currentIndex.value] = QuestionStatus.correct;
+            correctCount.value++;
           }
           _addSystemMessage('🌟 对方使用特权：跳过本题');
-          // 显示特权弹窗
-          currentEventDialog.value = 'skip';
           Future.delayed(const Duration(seconds: 1), () => _nextQuestion());
         }
         break;

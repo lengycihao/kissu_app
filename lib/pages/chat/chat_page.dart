@@ -229,17 +229,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           height: 15,
                         ),
                       )
-                    // else if (!controller.hasEnteredLockScreen.value)
-                    else 
-                      Positioned(
-                        top: -15,
-                        left: 44,
-                        child: Image.asset(
-                          'assets/4.0/kissu_change_logo_new.webp',
-                          width: 28,
-                          height: 20,
-                        ),
-                      ),
+                    // // else if (!controller.hasEnteredLockScreen.value)
+                    // else 
+                    //   Positioned(
+                    //     top: -15,
+                    //     left: 44,
+                    //     child: Image.asset(
+                    //       'assets/4.0/kissu_change_logo_new.webp',
+                    //       width: 28,
+                    //       height: 20,
+                    //     ),
+                    //   ),
                   ],
                 ),
                 const SizedBox(width: 4),
@@ -278,12 +278,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           );
           return;
         }
-        // 2. 已绑定但非会员：弹出VIP弹窗
-        if (!UserManager.isVip) {
-          await LockScreenVipDialog.show(context, isFromChat: true);
-          return;
-        }
-        // 3. 已绑定且是会员：进入你说我猜页面
+        // 2. 已绑定：进入你说我猜页面
         await Get.toNamed(KissuRoutePath.guessGameV2Home);
       },
       child: Container(

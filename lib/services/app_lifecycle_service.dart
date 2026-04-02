@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
@@ -19,6 +20,9 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   // 通知权限状态（用于监听变化）
   bool? _lastNotificationPermissionStatus;
+
+  // 前台期间 5 分钟定期刷新小组件的计时器
+  Timer? _widgetRefreshTimer;
   
   @override
   void onInit() {
@@ -42,6 +46,7 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   @override
   void onClose() {
+    _widgetRefreshTimer?.cancel();
     // 移除生命周期观察者
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
@@ -107,6 +112,7 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     
     // 🔥 新增：同步小组件数据
     _syncWidgetData();
+    _startWidgetRefreshTimer();
     
     try {
       final simpleLocationService = SimpleLocationService.instance;
@@ -191,6 +197,7 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   /// 应用进入后台
   void _onAppPaused() {
+    _widgetRefreshTimer?.cancel();
     logger.debug('📱 应用进入后台，启动增强后台策略');
     
     // 继续使用SimpleLocationService进行后台定位
@@ -318,6 +325,14 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     }
   }
   
+  /// 启动前台期间小组件 5 分钟定期刷新计时器
+  void _startWidgetRefreshTimer() {
+    _widgetRefreshTimer?.cancel();
+    _widgetRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      _syncWidgetData();
+    });
+  }
+
   /// 同步小组件数据
   Future<void> _syncWidgetData() async {
     try {

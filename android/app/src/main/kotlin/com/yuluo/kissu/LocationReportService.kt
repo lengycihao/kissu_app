@@ -83,6 +83,19 @@ class LocationReportService(private val context: Context) {
         private var lastReceivedLocationTime: Long = 0
         // 协程作用域 - 静态确保全局唯一
         private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+        // === WiFi 静止锚点：连WiFi且真实未移动时，锁定上报初始位置，避免室内GPS漂移 ===
+        // 判断移动的速度阈值 (m/s)，超过此值认为用户在移动（含热点驾车场景）
+        // 1.5 m/s ≈ 5.4 km/h，低速步行触发需结合位置偏差双重确认
+        private const val WIFI_MOVING_SPEED_MS = 1.5f
+        // 距锚点超过此距离(米)时，认为用户真实移动，重置锚点
+        private const val WIFI_STATIONARY_DISTANCE_M = 80.0
+        // 需要连续这么多次低速+近锚点才确认静止，防止启动瞬间误判
+        private const val WIFI_STATIONARY_CONFIRM_COUNT = 3
+        // WiFi 静止锚点位置
+        @Volatile private var wifiAnchorLocation: AMapLocation? = null
+        // 连续静止确认计数
+        @Volatile private var wifiStationaryCount: Int = 0
     }
     
     private val sharedPreferences: SharedPreferences = 
@@ -106,6 +119,9 @@ class LocationReportService(private val context: Context) {
                     lastReceivedLocation = location
                     lastReceivedLocationTime = System.currentTimeMillis()
                 }
+
+                // WiFi+静止锚点：当连接WiFi且用户真实未移动时，用锚点替换漂移的GPS位置
+                val effectiveLocation = if (location.errorCode == 0) resolveReportLocation(location) else location
                 
                 // 先判网络；断网则清空缓冲并跳过收集，避免离线旧数据循环
                 if (!isNetworkAvailable()) {
@@ -121,7 +137,7 @@ class LocationReportService(private val context: Context) {
                 }
 
                 // 检查是否需要收集定位
-                if (!shouldCollectLocation(location)) {
+                if (!shouldCollectLocation(effectiveLocation)) {
                     return@launch
                 }
                 
@@ -139,7 +155,7 @@ class LocationReportService(private val context: Context) {
                 }
                 
                 // 构建定位数据并加入收集缓冲区
-                val locationData = buildLocationData(location)
+                val locationData = buildLocationData(effectiveLocation)
                 synchronized(collectionBuffer) {
                     pruneStaleLocationsLocked()
                     // 防御性上限：超过容量时丢弃最旧，防止无限增长
@@ -161,7 +177,7 @@ class LocationReportService(private val context: Context) {
                 startReportTimer(token)
                 
                 // 更新最后收集的位置信息
-                updateLastCollectionInfo(location)
+                updateLastCollectionInfo(effectiveLocation)
                 
             } catch (e: Exception) {
                 Log.e(TAG, "💥 定位处理异常", e)
@@ -390,6 +406,85 @@ class LocationReportService(private val context: Context) {
         }
     }
     
+    /**
+     * 解析实际应上报的位置
+     *
+     * WiFi+静止场景：室内 GPS 受多径干扰容易漂移，导致轨迹乱跳。
+     * 当检测到用户连接 WiFi 且真实未移动时，锁定到最初的锚点位置上报，
+     * 而非持续漂移的 GPS 坐标。
+     *
+     * 移动判断双重保险：
+     * 1. GPS 速度 > WIFI_MOVING_SPEED_MS（覆盖手机热点+驾车场景）
+     * 2. 累积位移 > WIFI_STATIONARY_DISTANCE_M（兜底慢速移动）
+     * 只要任意一项超出阈值，立即释放锚点，切回真实位置上报。
+     */
+    private fun resolveReportLocation(location: AMapLocation): AMapLocation {
+        if (!isWifiConnected()) {
+            if (wifiAnchorLocation != null) {
+                Log.d(TAG, "📶 WiFi 已断开，清除静止锚点")
+                wifiAnchorLocation = null
+                wifiStationaryCount = 0
+            }
+            return location
+        }
+
+        // 速度检测：超过阈值说明用户真实在移动（含热点驾车）
+        val speed = location.speed // AMap SDK 提供，单位 m/s
+        if (speed > WIFI_MOVING_SPEED_MS) {
+            Log.d(TAG, "🚗 WiFi 环境但速度 ${speed}m/s > ${WIFI_MOVING_SPEED_MS}m/s，判定移动中，清除锚点")
+            wifiAnchorLocation = null
+            wifiStationaryCount = 0
+            return location
+        }
+
+        val anchor = wifiAnchorLocation
+        if (anchor == null) {
+            // 首次进入 WiFi+低速，建立锚点候选
+            wifiAnchorLocation = location
+            wifiStationaryCount = 1
+            Log.d(TAG, "📍 WiFi+低速，建立初始锚点: ${location.latitude}, ${location.longitude}")
+            return location
+        }
+
+        val distFromAnchor = calculateDistance(
+            anchor.latitude, anchor.longitude,
+            location.latitude, location.longitude
+        )
+
+        return if (distFromAnchor < WIFI_STATIONARY_DISTANCE_M) {
+            // 距锚点很近，累积静止确认次数
+            wifiStationaryCount++
+            if (wifiStationaryCount >= WIFI_STATIONARY_CONFIRM_COUNT) {
+                Log.d(TAG, "🔒 WiFi+静止锁定(${wifiStationaryCount}次)，上报锚点 " +
+                    "[${anchor.latitude},${anchor.longitude}]，GPS 实际偏差 ${distFromAnchor.toInt()}m")
+                anchor // 上报锚点位置，而非漂移的 GPS 位置
+            } else {
+                Log.d(TAG, "📍 WiFi+静止待确认(${wifiStationaryCount}/${WIFI_STATIONARY_CONFIRM_COUNT})")
+                location
+            }
+        } else {
+            // 距锚点超阈值：用户真实移动，重置锚点
+            Log.d(TAG, "🚶 WiFi 下位移 ${distFromAnchor.toInt()}m >= ${WIFI_STATIONARY_DISTANCE_M.toInt()}m，重置锚点")
+            wifiAnchorLocation = location
+            wifiStationaryCount = 1
+            location
+        }
+    }
+
+    /**
+     * 检查当前是否连接 WiFi（含手机热点，不区分是否为固定路由）
+     * 热点场景通过速度+位移双重检测来识别，此处仅判断传输层类型
+     */
+    private fun isWifiConnected(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork ?: return false) ?: return false
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /**
      * 检查是否需要收集定位
      * 策略：
@@ -991,11 +1086,11 @@ class LocationReportService(private val context: Context) {
                 if (i > 0) locationsSummary.append("; ")
                 locationsSummary.append("${loc.optString("latitude")},${loc.optString("longitude")},精度:${loc.optString("accuracy")}")
             }
-            writeNativeLog("INFO", "📤 定位上报成功", "LocationReport", mapOf(
-                "count" to locationsToReport.length(),
-                "usedLastLocation" to usedLastLocation,
-                "locations" to locationsSummary.toString()
-            ))
+            // writeNativeLog("INFO", "📤 定位上报成功", "LocationReport", mapOf(
+            //     "count" to locationsToReport.length(),
+            //     "usedLastLocation" to usedLastLocation,
+            //     "locations" to locationsSummary.toString()
+            // ))
         } catch (e: Exception) {
             Log.e(TAG, "记录上报成功日志失败", e)
         }

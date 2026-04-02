@@ -35,6 +35,8 @@ import 'package:kissu_app/pages/mine/app_usage/app_usage_binding.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io' show Platform;
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_params.dart';
@@ -498,11 +500,11 @@ class MineController extends GetxController {
     if (isPartnerLocked.value) {
       lockSubIcon = 'assets/lock/kissu_locking.webp';
     } 
-    // else if (!hasEnteredLockScreen)
-    else
-     {
-      lockSubIcon = 'assets/4.0/kissu_change_logo_new.webp';
-    }
+    // // else if (!hasEnteredLockScreen)
+    // else
+    //  {
+    //   lockSubIcon = 'assets/4.0/kissu_change_logo_new.webp';
+    // }
 
     commonFunctionItems.value = [
       CommonFunctionItem(
@@ -739,16 +741,76 @@ class MineController extends GetxController {
     // 企业微信配置信息
     const String corpId = 'ww5c345e5aa1a2a697'; // 企业微信ID (ww开头)
     const String kfId = 'kfcf77b8b4a2a2a61d9'; // 客服 ID
+    const String kfUrl = 'https://work.weixin.qq.com/kfid/$kfId';
 
     try {
-      // logDebug('📞 开始拉起企业微信客服', tag: 'Mine');
-      // 直接使用客服ID拉起会话
+      // 鸿蒙系统上微信SDK无法正常拉起客服，直接走浏览器
+      if (await _isHarmonyOS()) {
+        final launched = await launchUrl(
+          Uri.parse(kfUrl),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched) {
+          OKToastUtil.show('无法打开客服链接');
+        }
+        return;
+      }
+
+      // 非鸿蒙系统：使用微信SDK拉起客服
       await PermissionHelper.openWeComKfWithParams(corpId: corpId, kfId: kfId);
-      // logDebug('✅ 企业微信客服拉起成功', tag: 'Mine');
     } catch (e) {
       logError('❌ 拉起企业微信客服失败: $e', tag: 'Mine', error: e);
-      OKToastUtil.show('拉起企业微信客服失败: $e');
+      // 降级：尝试浏览器打开
+      try {
+        await launchUrl(Uri.parse(kfUrl), mode: LaunchMode.externalApplication);
+      } catch (_) {
+        OKToastUtil.show('拉起企业微信客服失败，请手动联系客服');
+      }
     }
+  }
+
+  /// 检测是否为鸿蒙系统
+  Future<bool> _isHarmonyOS() async {
+    try {
+      if (!Platform.isAndroid) return false;
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final brand = androidInfo.brand.toLowerCase();
+      final displayLower = androidInfo.display.toLowerCase();
+      final fingerprintLower = androidInfo.fingerprint.toLowerCase();
+      final hostLower = androidInfo.host.toLowerCase();
+      final osVersion = Platform.operatingSystemVersion.toLowerCase();
+      final versionRelease = androidInfo.version.release;
+
+      // 方式1：包含 harmony / ohos 关键字
+      if (displayLower.contains('harmony') ||
+          fingerprintLower.contains('harmony') ||
+          hostLower.contains('harmony') ||
+          displayLower.contains('ohos') ||
+          fingerprintLower.contains('ohos') ||
+          osVersion.contains('harmony') ||
+          osVersion.contains('ohos')) {
+        return true;
+      }
+
+      // 方式2：华为/荣耀设备 display/osVersion 以 "system" 开头
+      final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+      if (isHuaweiOrHonor &&
+          (displayLower.startsWith('system') || osVersion.startsWith('system'))) {
+        return true;
+      }
+
+      // 方式3：华为/荣耀设备 version.release 为 "5.x.x" 或更高格式
+      if (isHuaweiOrHonor) {
+        final parts = versionRelease.split('.');
+        final majorVersion = int.tryParse(parts[0]) ?? 0;
+        if (majorVersion >= 5 && parts.length > 1) {
+          return true;
+        }
+      }
+    } catch (e) {
+      logError('检测鸿蒙系统失败: $e', tag: 'Mine', error: e);
+    }
+    return false;
   }
 
   // 顶部返回

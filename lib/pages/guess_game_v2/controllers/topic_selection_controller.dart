@@ -3,14 +3,16 @@ import 'package:get/get.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import '../models/game_models.dart';
+import '../services/game_api_service.dart';
 import '../services/game_im_service.dart';
 import 'game_home_controller.dart';
 
 /// 选题页面控制器
 class TopicSelectionController extends GetxController {
   final GameIMServiceV2 imService = GameIMServiceV2();
+  final GameApiService _apiService = GameApiService();
 
-  // 候选题目池（后期从接口获取）
+  // 候选题目池（从 GameHomeController.answerData 获取，来自接口）
   final candidates = <CandidateTopic>[].obs;
 
   // 已选题目（固定5个）
@@ -28,33 +30,6 @@ class TopicSelectionController extends GetxController {
   int get selectedCount => selectedTopics.length;
   bool get canProceed => selectedCount == maxSelectCount;
 
-  /// 题库（后期走接口，现在本地）
-  static final List<Map<String, String>> _questionBank = [
-    {'answer': '西瓜', 'description': '一种绿皮红瓤的水果'},
-    {'answer': '熊猫', 'description': '中国的国宝动物'},
-    {'answer': '钢琴', 'description': '黑白键的乐器'},
-    {'answer': '长城', 'description': '中国古代的防御建筑'},
-    {'answer': '月亮', 'description': '夜晚天空最亮的天体'},
-    {'answer': '筷子', 'description': '中国人吃饭用的餐具'},
-    {'answer': '蝴蝶', 'description': '会飞的美丽昆虫'},
-    {'answer': '篮球', 'description': '一项投篮运动'},
-    {'answer': '冰淇淋', 'description': '夏天最爱的冷饮甜品'},
-    {'answer': '彩虹', 'description': '雨后天空的七色弧'},
-    {'answer': '口红', 'description': '女生常用的化妆品'},
-    {'answer': '拥抱', 'description': '一种表达爱意的动作'},
-    {'answer': '初恋', 'description': '人生第一次恋爱'},
-    {'answer': '日出', 'description': '太阳从地平线升起'},
-    {'answer': '棉花糖', 'description': '蓬松甜蜜的小零食'},
-    {'answer': '摩天轮', 'description': '游乐场的大转盘'},
-    {'answer': '水晶球', 'description': '透明的球形装饰品'},
-    {'answer': '路飞', 'description': '海贼王的主角'},
-    {'answer': '雾淞', 'description': '冬天树枝上的冰晶'},
-    {'answer': '薰衣草', 'description': '紫色的芳香植物'},
-    {'answer': '线条小狗', 'description': '一种简笔画风格的卡通狗'},
-    {'answer': '绿洲', 'description': '沙漠中的水源地'},
-    {'answer': '奶茶鼠', 'description': '一种可爱的奶茶色仓鼠'},
-  ];
-
   @override
   void onInit() {
     super.onInit();
@@ -63,14 +38,22 @@ class TopicSelectionController extends GetxController {
 
   void _loadCandidates() {
     isLoading.value = true;
-    // 打乱顺序
-    final shuffled = List<Map<String, String>>.from(_questionBank)..shuffle(Random());
-    candidates.value = shuffled
-        .map((q) => CandidateTopic(
-              answer: q['answer']!,
-              description: q['description'] ?? '',
-            ))
-        .toList();
+    List<CandidateTopic> source = [];
+
+    // 优先从 GameHomeController 获取接口返回的 answer_data
+    if (Get.isRegistered<GameHomeController>()) {
+      final homeCtrl = Get.find<GameHomeController>();
+      if (homeCtrl.answerData.isNotEmpty) {
+        source = List<CandidateTopic>.from(homeCtrl.answerData);
+      }
+    }
+
+    if (source.isNotEmpty) {
+      source.shuffle(Random());
+      candidates.value = source
+          .map((t) => CandidateTopic(answer: t.answer, description: t.description))
+          .toList();
+    }
     isLoading.value = false;
   }
 
@@ -127,7 +110,7 @@ class TopicSelectionController extends GetxController {
     customTopics.removeAt(index);
   }
 
-  /// 下一步：创建群聊 + 发送邀请 + 进入游戏页面
+  /// 下一步：发起游戏（API） + 创建 TIM 群聊 + 发送邀请 + 进入游戏页面
   Future<void> onNextStep() async {
     if (!canProceed) {
       OKToastUtil.showError('请选择${maxSelectCount}个题目');
@@ -136,38 +119,39 @@ class TopicSelectionController extends GetxController {
 
     isSending.value = true;
     try {
-      // 1. 创建群聊
-      final groupId = await imService.createGameGroup();
-      if (groupId == null) {
-        OKToastUtil.showError('创建游戏房间失败，请检查网络');
+      // 1. 调接口发起游戏，获取服务端生成的 group_id
+      final groupId = await _apiService.launchGame(selectedTopics);
+      if (groupId == null || groupId.isEmpty) {
+        OKToastUtil.showError('创建游戏失败，请检查网络');
         return;
       }
 
-      // 2. 发送邀请消息到聊天页面
+      // 2. 设置群 ID（服务端已建群）并加入群聊监听
+      imService.setGroupId(groupId);
+      final joined = await imService.joinGameGroup(groupId);
+      if (!joined) {
+        OKToastUtil.showError('加入游戏房间失败，请检查网络');
+        return;
+      }
+
+      // 3. 发送邀请消息到聊天页面
       final sent = await imService.sendInviteMessage();
       if (!sent) {
         OKToastUtil.showError('发送邀请失败');
         return;
       }
 
-      // 3. 注入邀请消息到聊天页面
-      _injectInviteToChat(groupId);
-
-      // 4. 添加记录到首页
-      _addGameRecord(groupId);
-
-      // 5. 标记游戏已启动（必须在 Get.offNamed 之前设置，防止 onClose 误删群）
+      // 4. 标记游戏已启动（必须在 Get.offNamed 之前设置，防止 onClose 误删群）
       _gameStarted = true;
 
-      // 6. 构建题目列表
+      // 5. 构建题目列表
       final topics = selectedTopics.map((t) => GameTopic(
             answer: t.answer,
             description: t.description,
             isCustom: customTopics.contains(t),
           )).toList();
 
-      // 7. 跳转到游戏页面（替换当前页面）
-      // 注意：不再在这里发送 senderJoined，由 GamePlayController._setupIM 负责
+      // 8. 跳转到游戏页面（替换当前页面）
       Get.offNamed(KissuRoutePath.guessGameV2Play, arguments: {
         'groupId': groupId,
         'isInitiator': true,
@@ -180,32 +164,6 @@ class TopicSelectionController extends GetxController {
     }
   }
 
-  void _injectInviteToChat(String groupId) {
-    try {
-      // 参考老版本的注入逻辑
-      if (Get.isRegistered<dynamic>(tag: 'ChatController')) {
-        // 如果 ChatController 已注册，注入消息
-      }
-    } catch (_) {}
-  }
-
-  void _addGameRecord(String groupId) {
-    try {
-      if (Get.isRegistered<GameHomeController>()) {
-        final homeCtrl = Get.find<GameHomeController>();
-        homeCtrl.addRecord(GameRecord(
-          id: groupId,
-          groupId: groupId,
-          initiator: imService.myNickname,
-          initiatorId: imService.myIMUserID,
-          createTime: DateTime.now(),
-          status: GameRecordStatus.ongoing,
-          isMeInitiator: true,
-        ));
-      }
-    } catch (_) {}
-  }
-
   @override
   void onClose() {
     // 只有游戏未启动时才清理（用户中途退出选题页）
@@ -215,3 +173,4 @@ class TopicSelectionController extends GetxController {
     super.onClose();
   }
 }
+ 

@@ -235,7 +235,7 @@ class ChatController extends GetxController {
   /// 绑定滚动监听，用于上拉加载更多历史消息和检测是否在底部
   void _setupScrollForHistory() {
     scrollController.addListener(() {
-      if (!scrollController.hasClients) return;
+      if (!scrollController.hasClients || scrollController.positions.length != 1) return;
 
       final pos = scrollController.position;
       

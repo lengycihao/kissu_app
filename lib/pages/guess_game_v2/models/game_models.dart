@@ -123,6 +123,47 @@ enum GameChatMessageType {
   gameResult,     // 游戏结果 (game_result)
 }
 
+/// ==================== 惩罚记录（惩罚列表用） ====================
+class GamePenaltyRecordItem {
+  final String id;
+  final int status;        // 游戏状态
+  final int isPenalty;     // 0=未完成 1=已完成
+  final int penaltyType;   // 1=自拍 2=语音 3=吃饭 4=承诺
+  final String verifyQrCode;
+  final String penaltyFile;
+  final DateTime createTime;
+  final String createTimeRaw;
+
+  GamePenaltyRecordItem({
+    required this.id,
+    required this.status,
+    required this.isPenalty,
+    required this.penaltyType,
+    required this.verifyQrCode,
+    required this.penaltyFile,
+    required this.createTime,
+    required this.createTimeRaw,
+  });
+}
+
+class GamePenaltyListResult {
+  final int total;
+  final int perPage;
+  final int currentPage;
+  final int lastPage;
+  final bool hasMore;
+  final List<GamePenaltyRecordItem> records;
+
+  GamePenaltyListResult({
+    required this.total,
+    required this.perPage,
+    required this.currentPage,
+    required this.lastPage,
+    required this.hasMore,
+    required this.records,
+  });
+}
+
 /// ==================== 候选题目（选题页面用） ====================
 class CandidateTopic {
   final String answer;

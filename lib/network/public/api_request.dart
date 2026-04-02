@@ -18,6 +18,8 @@ class ApiRequest {
  
   static const getLocation = '/get/location';
 
+  static const getComponentInfo = '/get/component/info';
+
   static const reportLocation = '/location/report';
 
   // VIP 相关 API
@@ -94,4 +96,15 @@ class ApiRequest {
   static const oneKeyLockQuestion = '/get/lock/phone/question';
   static const oneKeyLockPermission = '/get/lock/permission';
   static const setPermission = '/set/permission';
-  }
+
+  // 你说我猜游戏相关 API
+  static const guessRecordList = '/interaction/guess/get/record/list';
+  static const guessPenaltyList = '/interaction/guess/get/penalty/list';
+  static const guessLaunchGame = '/interaction/guess/launch/game';
+  static const guessGetInfo = '/interaction/guess/get/info';
+  static const guessRequestHint = '/interaction/guess/request/hint';
+  static const guessSubmitAnswer = '/interaction/guess/submit/answer';
+  static const guessUsePrivilege = '/interaction/guess/use/privilege';
+  static const guessSelectPenalty = '/interaction/guess/select/penalty';
+  static const guessVerifyPenalty = '/interaction/guess/verify/penalty';
+}

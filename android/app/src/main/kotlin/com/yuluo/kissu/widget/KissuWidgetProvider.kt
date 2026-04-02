@@ -34,20 +34,20 @@ class KissuWidgetProvider : AppWidgetProvider() {
         // 共用数据
         const val KEY_DISTANCE = "distance"
         const val KEY_DAYS = "together_days"
-        const val KEY_BIND_DATE = "bind_date"
+        const val KEY_LOVE_TIME = "love_time"
 
         // 另一半数据
-        const val KEY_PARTNER_LOCATION = "partner_location"
         const val KEY_PARTNER_BATTERY = "partner_battery"
         const val KEY_PARTNER_AVATAR = "partner_avatar"
 
         // 自己数据
-        const val KEY_SELF_LOCATION = "self_location"
         const val KEY_SELF_BATTERY = "self_battery"
         const val KEY_SELF_AVATAR = "self_avatar"
 
-        // VIP 状态
+        // VIP / 绑定状态
         const val KEY_IS_VIP = "is_vip"
+        const val KEY_IS_BIND = "is_bind"
+        const val KEY_IS_SET_LOVER_TIME = "is_set_lover_time"
 
         // 最后刷新时间（调试用）
         const val KEY_LAST_REFRESH = "last_refresh_time"
@@ -107,49 +107,48 @@ class KissuWidgetProvider : AppWidgetProvider() {
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-            // 读取 VIP 状态
-            val isVip = prefs.getBoolean(KEY_IS_VIP, false)
-
-            // 读取共用数据
-            val days = prefs.getString(KEY_DAYS, "0") ?: "0"
-
-            // 根据 VIP 状态决定显示内容
-            val distance: String
-            val selfLocation: String
-            val selfBattery: String
-            val partnerLocation: String
-            val partnerBattery: String
-
-            if (isVip) {
-                distance = prefs.getString(KEY_DISTANCE, "---") ?: "---"
-                selfLocation = prefs.getString(KEY_SELF_LOCATION, "定位中") ?: "定位中"
-                selfBattery = prefs.getString(KEY_SELF_BATTERY, "--%") ?: "--%"
-                partnerLocation = prefs.getString(KEY_PARTNER_LOCATION, "定位中") ?: "定位中"
-                partnerBattery = prefs.getString(KEY_PARTNER_BATTERY, "--%") ?: "--%"
-            } else {
-                distance = "VIP可见"
-                selfBattery = "--%"
-                selfLocation = "***"
-                partnerBattery = "--%"
-                partnerLocation = "***"
-            }
-
-            val selfAvatarUrl = prefs.getString(KEY_SELF_AVATAR, "") ?: ""
-            val partnerAvatarUrl = prefs.getString(KEY_PARTNER_AVATAR, "") ?: ""
+            val isVip  = prefs.getInt(KEY_IS_VIP,  0) == 1
+            val isBind = prefs.getInt(KEY_IS_BIND, 0) == 1
+            val days   = prefs.getString(KEY_DAYS, "0") ?: "0"
 
             val views = RemoteViews(context.packageName, R.layout.widget_kissu_large)
 
-            // 设置文字数据
-            views.setTextViewText(R.id.tv_distance, distance)
-            views.setTextViewText(R.id.tv_days, days)
-            views.setTextViewText(R.id.tv_self_battery, selfBattery.replace("%", "") + "%")
-            views.setTextViewText(R.id.tv_self_location, selfLocation)
-            views.setTextViewText(R.id.tv_partner_battery, partnerBattery.replace("%", "") + "%")
-            views.setTextViewText(R.id.tv_partner_location, partnerLocation)
+            // 未绑定：显示未绑定覆盖图，隐藏其他内容
+            if (!isBind) {
+                views.setViewVisibility(R.id.iv_unbound_overlay, android.view.View.VISIBLE)
+                views.setViewVisibility(R.id.tv_last_refresh,    android.view.View.GONE)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+                return
+            }
 
-            // 显示最后刷新时间（调试用）
+            views.setViewVisibility(R.id.iv_unbound_overlay, android.view.View.GONE)
+
+            // 已绑定：根据 VIP 状态决定显示内容
+            val distance: String
+            val selfBattery: String
+            val partnerBattery: String
+
+            if (isVip) {
+                distance      = prefs.getString(KEY_DISTANCE,        "未知") ?: "未知"
+                selfBattery   = prefs.getString(KEY_SELF_BATTERY,    "--%")  ?: "--%"
+                partnerBattery = prefs.getString(KEY_PARTNER_BATTERY, "--%") ?: "--%"
+            } else {
+                distance       = "VIP可见"
+                selfBattery    = "--%"
+                partnerBattery = "--%"
+            }
+
+            val selfAvatarUrl    = prefs.getString(KEY_SELF_AVATAR,    "") ?: ""
+            val partnerAvatarUrl = prefs.getString(KEY_PARTNER_AVATAR, "") ?: ""
+
+            views.setTextViewText(R.id.tv_distance,        distance)
+            views.setTextViewText(R.id.tv_days,            days)
+            views.setTextViewText(R.id.tv_self_battery,    selfBattery.replace("%", "") + "%")
+            views.setTextViewText(R.id.tv_partner_battery, partnerBattery.replace("%", "") + "%")
+
             val lastRefresh = prefs.getString(KEY_LAST_REFRESH, "--:--:--") ?: "--:--:--"
-            views.setTextViewText(R.id.tv_last_refresh, "刷新: $lastRefresh")
+            views.setTextViewText(R.id.tv_last_refresh, "最近刷新 $lastRefresh")
+            views.setViewVisibility(R.id.tv_last_refresh, android.view.View.VISIBLE)
 
             // 点击小组件打开 App → 跳转到定位页面
             val launchIntent = Intent(context, MainActivity::class.java).apply {
@@ -161,6 +160,17 @@ class KissuWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+
+            // 点击未绑定覆盖图 → 打开 App 并弹出绑定弹窗
+            val bindIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("widget_target_page", "show_bind_dialog")
+            }
+            val bindPendingIntent = PendingIntent.getActivity(
+                context, 1, bindIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.iv_unbound_overlay, bindPendingIntent)
 
             // 先用文字数据更新一次（头像用默认占位）
             appWidgetManager.updateAppWidget(appWidgetId, views)

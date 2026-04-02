@@ -1255,35 +1255,21 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
             prefs.edit().apply {
 
-                // 共用数据
+                putInt(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_IS_VIP,
+                    (data["is_vip"] as? Number)?.toInt() ?: 0)
+                putInt(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_IS_BIND,
+                    (data["is_bind"] as? Number)?.toInt() ?: 0)
+                putInt(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_IS_SET_LOVER_TIME,
+                    (data["is_set_lover_time"] as? Number)?.toInt() ?: 0)
 
+                data["user_head_portrait"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_AVATAR, it) }
+                data["half_head_portrait"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_AVATAR, it) }
                 data["distance"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_DISTANCE, it) }
+                data["user_power"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_BATTERY, it) }
+                data["half_power"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_BATTERY, it) }
+                data["love_days"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_DAYS, it) }
+                data["love_time"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_LOVE_TIME, it) }
 
-                data["together_days"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_DAYS, it) }
-
-                data["bind_date"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_BIND_DATE, it) }
-
-                // 另一半数据
-
-                data["partner_location"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_LOCATION, it) }
-
-                data["partner_battery"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_BATTERY, it) }
-
-                data["partner_avatar"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_PARTNER_AVATAR, it) }
-
-                // 自己数据
-
-                data["self_location"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_LOCATION, it) }
-
-                data["self_battery"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_BATTERY, it) }
-
-                data["self_avatar"]?.toString()?.let { putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_SELF_AVATAR, it) }
-
-                // VIP 状态
-                val isVip = data["is_vip"] as? Boolean ?: false
-                putBoolean(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_IS_VIP, isVip)
-
-                // 保存刷新时间（调试用）
                 val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
                 putString(com.yuluo.kissu.widget.KissuWidgetProvider.KEY_LAST_REFRESH, sdf.format(java.util.Date()))
 

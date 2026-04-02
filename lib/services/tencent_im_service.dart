@@ -937,11 +937,14 @@ class TencentIMService extends GetxService {
           if (decoded is Map<String, dynamic>) {
             final String? msgBubble = decoded['msg_bubble'] as String?;
             final String? msgLock = decoded['msg_lock'] as String?;
+            final String? msgType = decoded['msg_type'] as String?;
             if (msgBubble == 'defecate' || msgBubble == 'endDefecate') {
               preview = '对方发来一条新消息，点击查看';
             } else if (msgLock == 'lock_phone' || msgLock == 'phone_use' || msgLock == 'connect_app') {
               // 🔥 锁机提醒消息也要增加未读数和显示Banner
               preview = '对方发来一条新消息，点击查看';
+            } else if (msgType == 'chat_say_guess') {
+              preview = '[快来和我一起玩你说我猜游戏吧~]';
             } else {
               return; // 其它自定义消息暂不展示
             }

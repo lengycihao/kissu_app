@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:oktoast/oktoast.dart';
+import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'controllers/game_play_controller.dart';
+import 'services/game_api_service.dart';
 
 /// 拍照惩罚执行页（发起者拍一张搞怪自拍发给对方）
 class GamePenaltyPhotoPage extends StatefulWidget {
@@ -17,6 +19,18 @@ class _GamePenaltyPhotoPageState extends State<GamePenaltyPhotoPage> {
   File? _photoFile;
   bool _isSending = false;
   final ImagePicker _picker = ImagePicker();
+  late final String _groupId;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments as Map<String, dynamic>? ?? {};
+    var gId = args['groupId'] as String? ?? '';
+    if (gId.isEmpty) {
+      try { gId = Get.find<GamePlayController>().groupId; } catch (_) {}
+    }
+    _groupId = gId;
+  }
 
   Future<void> _takePhoto() async {
     final picked = await _picker.pickImage(
@@ -35,16 +49,43 @@ class _GamePenaltyPhotoPageState extends State<GamePenaltyPhotoPage> {
     }
     setState(() => _isSending = true);
     try {
-      final ctrl = Get.find<GamePlayController>();
-      // 通过IM发送图片（先上传到腾讯IM，获取URL后发送game_penalty_guesser消息）
-      // 这里暂用file路径，后续接入接口替换
-      await ctrl.imService.sendPenaltyProof(
-        penaltyType: 'photo',
-        proofUrl: _photoFile!.path,
+      // 1. 上传图片到服务器
+      final uploadRes = await FileUploadApi().uploadFile(_photoFile!);
+      if (!uploadRes.isSuccess || uploadRes.data == null) {
+        showToast('图片上传失败，请重试');
+        setState(() => _isSending = false);
+        return;
+      }
+      final imageUrl = uploadRes.data!;
+
+      // 2. 调用核验惩罚接口
+      final api = GameApiService();
+      final ok = await api.verifyPenalty(
+        groupId: _groupId,
+        penaltyFile: imageUrl,
       );
-      // 发送完成，退出到聊天页
-      Get.until((route) => route.settings.name == KissuRoutePath.chat);
+      if (!ok) {
+        showToast('提交失败，请重试');
+        setState(() => _isSending = false);
+        return;
+      }
+
+      // 3. 如果在游戏流程中（GamePlayController存在），通过IM发送凭证
+      try {
+        final ctrl = Get.find<GamePlayController>();
+        await ctrl.imService.sendPenaltyProof(
+          penaltyType: 'photo',
+          proofUrl: imageUrl,
+        );
+      } catch (_) {
+        // 从惩罚记录页进入时无GamePlayController，跳过IM
+      }
+
+      if (!mounted) return;
+      showToast('惩罚已完成');
+      Get.back(result: true);
     } catch (e) {
+      showToast('操作失败: $e');
       setState(() => _isSending = false);
     }
   }

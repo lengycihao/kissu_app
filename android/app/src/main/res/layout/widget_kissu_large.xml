@@ -79,36 +79,9 @@
             </LinearLayout>
         </FrameLayout>
 
-        <!-- 位置（只展示市） -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-
-            <ImageView
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:src="@drawable/kissu_compoent_location"
-                android:scaleType="fitCenter"
-                android:contentDescription="位置" />
-
-            <TextView
-                android:id="@+id/tv_self_location"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:text="定位中"
-                android:textSize="10sp"
-                android:textColor="#FF802145"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:maxWidth="70dp" />
-        </LinearLayout>
     </LinearLayout>
 
-    <!-- ========== 右侧：另一半头像 + 电量 + 位置 ========== -->
+    <!-- ========== 右侧：另一半头像 + 电量 ========== -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -170,33 +143,6 @@
             </LinearLayout>
         </FrameLayout>
 
-        <!-- 位置（只展示市） -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-
-            <ImageView
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:src="@drawable/kissu_compoent_location"
-                android:scaleType="fitCenter"
-                android:contentDescription="位置" />
-
-            <TextView
-                android:id="@+id/tv_partner_location"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:text="定位中"
-                android:textSize="10sp"
-                android:textColor="#FF802145"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:maxWidth="70dp" />
-        </LinearLayout>
     </LinearLayout>
 
     <!-- ========== 中间上方：距离标签（在连线上） ========== -->
@@ -276,11 +222,22 @@
         android:id="@+id/tv_last_refresh"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="4dp"
-        android:text="刷新: --:--:--"
+        android:layout_gravity="bottom|start"
+        android:layout_marginBottom="8dp"
+        android:layout_marginStart="20dp"
+        android:text="最近刷新 --:--:--"
         android:textSize="8sp"
         android:textColor="#80802145"
         android:singleLine="true" />
+
+    <!-- ========== 未绑定覆盖图（全屏，未绑定时显示） ========== -->
+    <ImageView
+        android:id="@+id/iv_unbound_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/kissu_compent_unbind"
+        android:scaleType="fitXY"
+        android:visibility="gone"
+        android:contentDescription="未绑定状态" />
 
 </FrameLayout>

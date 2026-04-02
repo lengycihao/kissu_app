@@ -1593,7 +1593,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     pi
                 )
             }
-            logInfo("❤️ 心跳闹钟已设置，3分钟后触发")
+            // logInfo("❤️ 心跳闹钟已设置，3分钟后触发")
         } catch (e: Exception) {
             logError("设置心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
@@ -1666,7 +1666,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             // 2. 设置息屏心跳闹钟（每120秒唤醒一次，平衡保活与耗电）
             ensureScreenOffHeartbeatAlarm()
             
-            logInfo("🌙 息屏保活机制已启动（60秒检查 + 120秒心跳）")
+            // logInfo("🌙 息屏保活机制已启动（60秒检查 + 120秒心跳）")
         } catch (e: Exception) {
             logError("启动息屏保活机制失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }

@@ -34,6 +34,18 @@ class TrackPointFilter {
   /// 连续点都在此范围内视为用户静止，压缩为少量代表点
   static const double _stationaryClusterRadius = 100.0;
 
+  /// DBSCAN 邻域半径 (米)
+  /// 在时间窗口内，距离小于此值的点互为近邻
+  /// 需覆盖最高速场景：高铁350km/h × 5s间隔 ≈ 486m，取800m留有余量
+  static const double _dbscanEpsilon = 800.0;
+
+  /// DBSCAN 最小近邻数
+  /// 一个点至少需要这么多近邻才不被视为噪声（飘点）
+  static const int _dbscanMinPts = 2;
+
+  /// DBSCAN 时间窗口大小（每侧检查的点数）
+  static const int _dbscanWindowSize = 8;
+
   /// 聚类压缩的最小点数
   /// 至少这么多连续点在聚类半径内才触发压缩
   static const int _minClusterSize = 4;
@@ -60,14 +72,19 @@ class TrackPointFilter {
     final clusterCompressed = _compressStationaryClusters(spikeFiltered);
     final clusterRemoved = spikeFiltered.length - clusterCompressed.length;
 
-    final totalRemoved = spikeRemoved + clusterRemoved;
+    // === 第三阶段：DBSCAN 密度异常点过滤 ===
+    final dbscanFiltered = _dbscanOutlierFilter(clusterCompressed);
+    final dbscanRemoved = clusterCompressed.length - dbscanFiltered.length;
+
+    final totalRemoved = spikeRemoved + clusterRemoved + dbscanRemoved;
     if (totalRemoved > 0) {
       logWarning('📍 [飘点过滤] 原始: $totalCount, '
           '飘点移除: $spikeRemoved, 静止压缩: $clusterRemoved, '
-          '最终: ${clusterCompressed.length}');
+          'DBSCAN移除: $dbscanRemoved, '
+          '最终: ${dbscanFiltered.length}');
     }
 
-    return clusterCompressed;
+    return dbscanFiltered;
   }
 
   /// 第一阶段：逐点尖刺和抖动过滤
@@ -161,6 +178,46 @@ class TrackPointFilter {
         // 不构成聚类，正常前进
         i++;
       }
+    }
+
+    return result;
+  }
+
+  /// 第三阶段：DBSCAN 密度异常点过滤
+  /// 在时间窗口内统计每个点的近邻数，近邻不足的孤立点视为飘点
+  static List<TrackLocation> _dbscanOutlierFilter(List<TrackLocation> locations) {
+    if (locations.length <= _dbscanMinPts + 2) return locations;
+
+    final n = locations.length;
+    final result = <TrackLocation>[];
+
+    for (int i = 0; i < n; i++) {
+      // 首尾点始终保留
+      if (i == 0 || i == n - 1) {
+        result.add(locations[i]);
+        continue;
+      }
+
+      int neighborCount = 0;
+      final windowStart = (i - _dbscanWindowSize).clamp(0, n - 1);
+      final windowEnd = (i + _dbscanWindowSize).clamp(0, n - 1);
+
+      for (int j = windowStart; j <= windowEnd; j++) {
+        if (j == i) continue;
+        final dist = _haversineDistance(
+          locations[i].lat, locations[i].lng,
+          locations[j].lat, locations[j].lng,
+        );
+        if (dist <= _dbscanEpsilon) {
+          neighborCount++;
+          if (neighborCount >= _dbscanMinPts) break;
+        }
+      }
+
+      if (neighborCount >= _dbscanMinPts) {
+        result.add(locations[i]);
+      }
+      // else: 孤立点，视为飘点丢弃
     }
 
     return result;

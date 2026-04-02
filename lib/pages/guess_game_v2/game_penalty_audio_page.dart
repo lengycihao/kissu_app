@@ -1,8 +1,14 @@
+import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:oktoast/oktoast.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'controllers/game_play_controller.dart';
+import 'services/game_api_service.dart';
 
 /// 录音惩罚执行页（发起者录一条语音发给对方）
 class GamePenaltyAudioPage extends StatefulWidget {
@@ -20,9 +26,9 @@ class _GamePenaltyAudioPageState extends State<GamePenaltyAudioPage>
   int _recordSeconds = 0;
   Timer? _timer;
   late AnimationController _waveController;
-
-  // TODO: 接入真实录音功能（需要 flutter_sound 或 record 包）
+  final _audioRecorder = AudioRecorder();
   String? _recordedFilePath;
+  late final String _groupId;
 
   @override
   void initState() {
@@ -31,11 +37,18 @@ class _GamePenaltyAudioPageState extends State<GamePenaltyAudioPage>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+    final args = Get.arguments as Map<String, dynamic>? ?? {};
+    var gId = args['groupId'] as String? ?? '';
+    if (gId.isEmpty) {
+      try { gId = Get.find<GamePlayController>().groupId; } catch (_) {}
+    }
+    _groupId = gId;
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _audioRecorder.dispose();
     _waveController.dispose();
     super.dispose();
   }
@@ -54,40 +67,79 @@ class _GamePenaltyAudioPageState extends State<GamePenaltyAudioPage>
     }
   }
 
-  void _startRecording() {
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      showToast('请授权麦克风权限');
+      return;
+    }
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/penalty_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
     setState(() {
       _isRecording = true;
       _recordSeconds = 0;
+      _hasRecording = false;
+      _recordedFilePath = null;
     });
     _waveController.repeat(reverse: true);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _recordSeconds++);
     });
-    // TODO: 调用真实录音 API
   }
 
-  void _stopRecording() {
+  Future<void> _stopRecording() async {
     _timer?.cancel();
     _waveController.stop();
+    final path = await _audioRecorder.stop();
     setState(() {
       _isRecording = false;
-      _hasRecording = _recordSeconds > 0;
-      // TODO: 获取真实录音文件路径
-      _recordedFilePath = 'mock_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      _hasRecording = path != null && _recordSeconds > 0;
+      _recordedFilePath = path;
     });
   }
 
   Future<void> _onDone() async {
-    if (!_hasRecording) return;
+    if (!_hasRecording || _recordedFilePath == null) return;
     setState(() => _isSending = true);
     try {
-      final ctrl = Get.find<GamePlayController>();
-      await ctrl.imService.sendPenaltyProof(
-        penaltyType: 'audio',
-        proofUrl: _recordedFilePath ?? '',
+      // 1. 上传音频文件
+      final uploadRes = await FileUploadApi().uploadFile(File(_recordedFilePath!));
+      if (!uploadRes.isSuccess || uploadRes.data == null) {
+        showToast('音频上传失败，请重试');
+        setState(() => _isSending = false);
+        return;
+      }
+      final audioUrl = uploadRes.data!;
+
+      // 2. 调用核验惩罚接口
+      final api = GameApiService();
+      final ok = await api.verifyPenalty(
+        groupId: _groupId,
+        penaltyFile: audioUrl,
       );
-      Get.until((route) => route.settings.name == KissuRoutePath.chat);
+      if (!ok) {
+        showToast('提交失败，请重试');
+        setState(() => _isSending = false);
+        return;
+      }
+
+      // 3. 如果在游戏流程中（GamePlayController存在），通过IM发送凭证
+      try {
+        final ctrl = Get.find<GamePlayController>();
+        await ctrl.imService.sendPenaltyProof(
+          penaltyType: 'audio',
+          proofUrl: audioUrl,
+        );
+      } catch (_) {
+        // 从惩罚记录页进入时无GamePlayController，跳过IM
+      }
+
+      if (!mounted) return;
+      showToast('惩罚已完成');
+      Get.back(result: true);
     } catch (e) {
+      showToast('操作失败: $e');
       setState(() => _isSending = false);
     }
   }

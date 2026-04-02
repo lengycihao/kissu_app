@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:oktoast/oktoast.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'controllers/game_play_controller.dart';
+import 'services/game_api_service.dart';
 
 /// 挑战失败惩罚页
 /// 发起者：可选择惩罚并确认；回答者：查看实时惩罚选择
@@ -63,9 +65,21 @@ class _GameFailedPageState extends State<GameFailedPage> {
     // 其他惩罚类型，停留在此页展示，显示再次游戏/退出按钮
   }
 
-  void _onConfirm() {
+  Future<void> _onConfirm() async {
     if (_selectedPenalty == null) return;
-    // 发送惩罚选择给对方
+
+    // 先调用选择惩罚接口
+    final api = GameApiService();
+    final ok = await api.selectPenalty(
+      groupId: _ctrl.groupId,
+      penaltyType: _penaltyTypeToInt(_selectedPenalty!),
+    );
+    if (!ok) {
+      showToast('选择惩罚失败，请重试');
+      return;
+    }
+
+    // 接口成功后再发送IM消息通知对方
     _ctrl.imService.sendPenaltySelected(_selectedPenalty!);
 
     if (_selectedPenalty == 'photo' || _selectedPenalty == 'audio') {
@@ -77,6 +91,16 @@ class _GameFailedPageState extends State<GameFailedPage> {
     } else {
       // 晚餐/承诺：选完直接回聊天
       Get.until((route) => route.settings.name == KissuRoutePath.chat);
+    }
+  }
+
+  int _penaltyTypeToInt(String type) {
+    switch (type) {
+      case 'photo':   return 1;
+      case 'audio':   return 2;
+      case 'dinner':  return 3;
+      case 'promise': return 4;
+      default:        return 0;
     }
   }
 

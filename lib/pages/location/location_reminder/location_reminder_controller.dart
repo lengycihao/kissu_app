@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/services/geofence_monitoring_service.dart';
 import 'package:kissu_app/network/public/geofence_api.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart'; 
@@ -33,8 +32,6 @@ class LocationReminderController extends GetxController {
      
     // 从服务端加载位置提醒
     loadRemindersFromServer();
-    // 启动围栏监测
-    _startGeofenceMonitoring();
     // 检查通知权限
     _checkNotificationPermission();
     // 初始化弹窗显示标志
@@ -104,9 +101,6 @@ class LocationReminderController extends GetxController {
   
   @override
   void onClose() {
-    
-    // 停止围栏监测
-    _stopGeofenceMonitoring();
     super.onClose();
   }
   
@@ -115,28 +109,6 @@ class LocationReminderController extends GetxController {
     // 仅作为占位实现，具体埋点统计在需要时实现
   }
   
-  
-  /// 启动围栏监测
-  void _startGeofenceMonitoring() {
-    try {
-      final service = Get.find<GeofenceMonitoringService>();
-      service.startMonitoring();
-      // logDebug('✅ 围栏监测已启动');
-    } catch (e) {
-      logError('❌ 启动围栏监测失败: $e');
-    }
-  }
-  
-  /// 停止围栏监测
-  void _stopGeofenceMonitoring() {
-    try {
-      final service = Get.find<GeofenceMonitoringService>();
-      service.stopMonitoring();
-      // logDebug('⏹️ 围栏监测已停止');
-    } catch (e) {
-      logError('❌ 停止围栏监测失败: $e');
-    }
-  }
   
   /// 从服务端加载位置提醒列表
   Future<void> loadRemindersFromServer() async {

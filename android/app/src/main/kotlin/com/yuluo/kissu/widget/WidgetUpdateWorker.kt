@@ -57,11 +57,11 @@ class WidgetUpdateWorker(
         private const val LOGO_CACHE_KEY = "flutter.app_logo_cache"
 
         /**
-         * 注册周期性小组件刷新任务（每 15 分钟）
+         * 注册周期性小组件刷新任务（每 5 分钟）
          */
         fun enqueuePeriodicWork(context: Context) {
             val workRequest = PeriodicWorkRequestBuilder<WidgetUpdateWorker>(
-                15, TimeUnit.MINUTES
+                5, TimeUnit.MINUTES
             )
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
                 .build()
@@ -71,7 +71,7 @@ class WidgetUpdateWorker(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest
             )
-            Log.d(TAG, "✅ 小组件周期刷新任务已注册（每15分钟）")
+            Log.d(TAG, "✅ 小组件周期刷新任务已注册（每5分钟）")
         }
 
         /**
@@ -127,17 +127,16 @@ class WidgetUpdateWorker(
                 return Result.success()
             }
 
-            // 任务 1：获取定位数据并更新小组件 UI
+            // 任务 1：获取小组件数据并更新 UI
             try {
-                val data = fetchLocationData(token, baseUrl, userId)
+                val data = fetchComponentInfo(token, baseUrl, userId)
                 if (data != null) {
                     updateWidgetPrefs(data)
                     KissuWidgetProvider.updateAllWidgets(context)
                     KissuWidgetDaysProvider.updateAllWidgets(context)
                     Log.d(TAG, "✅ 小组件数据刷新成功")
                 } else {
-                    Log.w(TAG, "⚠️ 获取定位数据返回空")
-                    // 仍然更新一次刷新时间（worker 已运行但接口无数据）
+                    Log.w(TAG, "⚠️ 获取小组件数据返回空")
                     touchWidgetRefreshTime()
                     KissuWidgetProvider.updateAllWidgets(context)
                     KissuWidgetDaysProvider.updateAllWidgets(context)
@@ -193,12 +192,12 @@ class WidgetUpdateWorker(
     }
 
     /**
-     * 从服务器获取定位数据
+     * 从服务器获取小组件数据（/get/component/info）
      */
-    private fun fetchLocationData(token: String, baseUrl: String, userId: String?): JSONObject? {
+    private fun fetchComponentInfo(token: String, baseUrl: String, userId: String?): JSONObject? {
         var connection: HttpURLConnection? = null
         try {
-            val apiUrl = "$baseUrl/get/location"
+            val apiUrl = "$baseUrl/get/component/info"
 
             // 构建请求头（复用通用方法，与 POST 请求保持一致）
             val headers = buildHeaders(token, userId)
@@ -242,52 +241,27 @@ class WidgetUpdateWorker(
     }
 
     /**
-     * 将获取到的数据写入小组件 SharedPreferences
+     * 将 /get/component/info 返回的扁平数据写入小组件 SharedPreferences
      */
     private fun updateWidgetPrefs(data: JSONObject) {
         val widgetPrefs = context.getSharedPreferences(
             KissuWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE
         )
-
-        val userDevice = data.optJSONObject("user_location_mobile_device")
-        val halfDevice = data.optJSONObject("half_location_mobile_device")
-
         widgetPrefs.edit().apply {
-            // 自己的数据
-            if (userDevice != null) {
-                val power = userDevice.optString("power", "")
-                putString(KissuWidgetProvider.KEY_SELF_BATTERY, power)
-                putString(KissuWidgetProvider.KEY_SELF_LOCATION, userDevice.optString("location", ""))
-                putString(KissuWidgetProvider.KEY_SELF_AVATAR, userDevice.optString("head_portrait", ""))
-
-                // 距离
-                val distance = userDevice.optString("distance", "")
-                if (distance.isNotEmpty()) {
-                    putString(KissuWidgetProvider.KEY_DISTANCE, distance)
-                }
-            }
-
-            // 另一半的数据
-            if (halfDevice != null) {
-                val power = halfDevice.optString("power", "")
-                putString(KissuWidgetProvider.KEY_PARTNER_BATTERY, power)
-                putString(KissuWidgetProvider.KEY_PARTNER_LOCATION, halfDevice.optString("location", ""))
-                putString(KissuWidgetProvider.KEY_PARTNER_AVATAR, halfDevice.optString("head_portrait", ""))
-
-                // 距离（备用）
-                val distance = halfDevice.optString("distance", "")
-                if (distance.isNotEmpty() && !widgetPrefs.contains(KissuWidgetProvider.KEY_DISTANCE)) {
-                    putString(KissuWidgetProvider.KEY_DISTANCE, distance)
-                }
-            }
-
-            // 保存最后刷新时间
+            putInt(KissuWidgetProvider.KEY_IS_VIP,           data.optInt("is_vip", 0))
+            putInt(KissuWidgetProvider.KEY_IS_BIND,          data.optInt("is_bind", 0))
+            putInt(KissuWidgetProvider.KEY_IS_SET_LOVER_TIME,data.optInt("is_set_lover_time", 0))
+            putString(KissuWidgetProvider.KEY_SELF_AVATAR,    data.optString("user_head_portrait", ""))
+            putString(KissuWidgetProvider.KEY_PARTNER_AVATAR, data.optString("half_head_portrait", ""))
+            putString(KissuWidgetProvider.KEY_DISTANCE,       data.optString("distance", ""))
+            putString(KissuWidgetProvider.KEY_SELF_BATTERY,   data.optString("user_power", ""))
+            putString(KissuWidgetProvider.KEY_PARTNER_BATTERY,data.optString("half_power", ""))
+            putString(KissuWidgetProvider.KEY_DAYS,           data.optInt("love_days", 0).toString())
+            putString(KissuWidgetProvider.KEY_LOVE_TIME,      data.optString("love_time", ""))
             val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-            putString(KissuWidgetProvider.KEY_LAST_REFRESH, sdf.format(Date()))
-
+            putString(KissuWidgetProvider.KEY_LAST_REFRESH,   sdf.format(Date()))
             apply()
         }
-
         Log.d(TAG, "✅ 小组件 SharedPreferences 已更新")
     }
 

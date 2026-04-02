@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -992,6 +993,7 @@ class VipController extends GetxController {
 
       // 更新会员状态
       isVipStatus.value = UserManager.isVip;
+      WidgetCenterController.syncWidgetDataOnResume();
 
       // 显示VIP开通成功弹窗，点击"去体验"后再返回
       if (Get.context != null) {

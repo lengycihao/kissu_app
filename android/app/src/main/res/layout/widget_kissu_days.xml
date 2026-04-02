@@ -5,14 +5,15 @@
     android:layout_height="match_parent"
     android:background="@drawable/kissu_compoent22_bg">
 
-    <!-- 我们相伴 - 左上角 -->
+    <!-- 我们相伴 / Kissu相伴 - 左上角（动态文本） -->
     <TextView
+        android:id="@+id/tv_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="start|top"
         android:layout_marginStart="16dp"
         android:layout_marginTop="14dp"
-        android:text="我们相伴"
+        android:text="Kissu相伴"
         android:textSize="14sp"
         android:textColor="#FF802145"
         android:textStyle="bold" />

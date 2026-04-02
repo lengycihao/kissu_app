@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
-import 'package:tencent_cloud_chat_sdk/enum/group_type.dart';
-import 'package:tencent_cloud_chat_sdk/enum/group_member_role_enum.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimAdvancedMsgListener.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
-import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member.dart';
 import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/user_manager.dart';
@@ -66,44 +63,10 @@ class GameIMServiceV2 {
 
   // ===== 群聊管理 =====
 
-  Future<String?> createGameGroup() async {
-    if (!TencentIMService.instance.isLoggedIn) {
-      logger.error('IM未登录，无法创建游戏群', tag: _tag);
-      return null;
-    }
-    final partnerID = partnerIMUserID;
-    if (partnerID.isEmpty) {
-      logger.error('未绑定另一半，无法创建游戏群', tag: _tag);
-      return null;
-    }
-    try {
-      final groupName = '你说我猜_${DateTime.now().millisecondsSinceEpoch}';
-      final result = await TencentImSDKPlugin.v2TIMManager
-          .getGroupManager()
-          .createGroup(
-        groupType: GroupType.Work,
-        groupName: groupName,
-        notification: '你说我猜游戏房间',
-        memberList: [
-          V2TimGroupMember(
-            userID: partnerID,
-            role: GroupMemberRoleTypeEnum.V2TIM_GROUP_MEMBER_ROLE_MEMBER,
-          ),
-        ],
-      );
-      if (result.code == 0 && result.data != null) {
-        _groupID = result.data!;
-        logger.debug('✅ 游戏群创建成功: $_groupID', tag: _tag);
-        // 注意：不在这里注册监听器，由 joinGameGroup 负责
-        return _groupID;
-      } else {
-        logger.error('❌ 创建游戏群失败: code=${result.code}', tag: _tag);
-        return null;
-      }
-    } catch (e) {
-      logger.error('创建游戏群异常: $e', tag: _tag);
-      return null;
-    }
+  /// 设置服务端已创建的群 ID（服务端建群，客户端只需持有 ID）
+  void setGroupId(String groupId) {
+    _groupID = groupId;
+    logger.debug('✅ 已设置游戏群 ID: $_groupID', tag: _tag);
   }
 
   Future<bool> joinGameGroup(String groupID) async {
@@ -381,9 +344,11 @@ class GameIMServiceV2 {
       final type = data['type'] as String? ?? '';
       final senderID = message.sender ?? '';
 
-      // 心跳消息单独处理，不回调给上层
+      // 收到对方任何游戏消息都视为在线（隐式心跳）
+      _onHeartbeatReceived();
+
+      // 心跳消息不回调给上层
       if (type == 'game_heart') {
-        _onHeartbeatReceived();
         return;
       }
 

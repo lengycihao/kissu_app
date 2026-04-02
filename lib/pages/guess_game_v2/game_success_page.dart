@@ -10,6 +10,7 @@ class GameSuccessPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final args = Get.arguments as Map<String, dynamic>? ?? {};
     final correctCount = args['correctCount'] as int? ?? 0;
+    final tacitPercent = args['tacitPercent'] as String? ?? '0%';
 
     return Scaffold(
       body: Container(
@@ -67,7 +68,7 @@ class GameSuccessPage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      _buildResultCard(correctCount),
+                      _buildResultCard(correctCount, tacitPercent),
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -90,7 +91,7 @@ class GameSuccessPage extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: () => Get.until(
-              (route) => route.settings.name == KissuRoutePath.chat,
+              (route) => route.settings.name == KissuRoutePath.guessGameV2Home,
             ),
             child: const Icon(
               Icons.chevron_left,
@@ -101,7 +102,7 @@ class GameSuccessPage extends StatelessWidget {
           const Expanded(
             child: Center(
               child: Text(
-                '分享',
+                '结算',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
@@ -116,7 +117,7 @@ class GameSuccessPage extends StatelessWidget {
     );
   }
 
-  Widget _buildResultCard(int correctCount) {
+  Widget _buildResultCard(int correctCount, String tacitPercent) {
     return Container(
       width: 275,
       height: 245,
@@ -149,12 +150,12 @@ class GameSuccessPage extends StatelessWidget {
             child: Column(
               children: [
                 _buildStatRow('回答正确', '$correctCount'),
-                const SizedBox(height: 14),
-                _buildStatRow('连胜暴击', 'X${correctCount * 12}'),
+                // const SizedBox(height: 14),
+                // _buildStatRow('连胜暴击', 'X${correctCount * 12}'),
                 const SizedBox(height: 14),
                 _buildStatRow(
                   '默契度',
-                  '${(correctCount * 20 + 38).clamp(0, 100)}%',
+                  tacitPercent,
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -226,30 +227,12 @@ class GameSuccessPage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          GestureDetector(
-            onTap: _onShare,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF9AD9),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: const Icon(Icons.share, color: Colors.white, size: 22),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            '分享到朋友圈',
-            style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
-          ),
+           SizedBox(height: 40,)
+           
         ],
       ),
     );
   }
 
-  void _onShare() {
-    // TODO: 实现分享功能
-  }
+ 
 }

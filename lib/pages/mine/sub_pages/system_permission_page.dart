@@ -32,7 +32,7 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
         }
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xFFFfffff),
       body: Stack(
         children: [
           // 背景图
@@ -146,7 +146,7 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
   }
 
 
-  /// 构建权限列表
+  /// 构建权限列表（分组显示）
   Widget _buildPermissionList() {
     return Obx(() {
       if (controller.isLoading.value) {
@@ -154,20 +154,160 @@ class _SystemPermissionPageState extends State<SystemPermissionPage> {
       }
 
       final items = controller.permissionItems;
-      return ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        physics: const BouncingScrollPhysics(),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return _PermissionItemCard(
-            item: item,
-            index: index,
-            controller: controller,
-          );
-        },
+
+      // 按 guideType 分组
+      final coreTypes = {
+        SystemPermissionGuideType.location,
+        SystemPermissionGuideType.preventSleep,
+        SystemPermissionGuideType.allowBackgroundRun,
+        SystemPermissionGuideType.lockInBackground,
+      };
+
+      final appUseTypes = {
+        SystemPermissionGuideType.appUsage,
+        SystemPermissionGuideType.overlayWindow,
+      };
+
+      final coreItems =
+          items.where((i) => coreTypes.contains(i['guideType'])).toList();
+          final appUsageItems =
+          items.where((i) => appUseTypes.contains(i['guideType'])).toList();
+ 
+      final notificationItems = items
+          .where((i) =>
+              i['guideType'] == SystemPermissionGuideType.notification)
+          .toList();
+
+      return Container(
+        color: Colors.white,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          
+          physics: const BouncingScrollPhysics(),
+          children: [
+            if (coreItems.isNotEmpty)
+              _buildPermissionGroup(
+                title: ' 核心权限，必须开启 ',
+                subTitle: "★",
+                items: coreItems,
+                titleInside: true,
+              ),
+            if (appUsageItems.isNotEmpty)
+              _buildPermissionGroup(
+                title: 'App使用记录权限和一键锁机权限',
+                items: appUsageItems,
+                titleInside: true,
+              ),
+            // if (overlayItems.isNotEmpty)
+            //   _buildPermissionGroup(
+            //     title: '一键锁机权限',
+            //     items: overlayItems,
+            //   ),
+            if (notificationItems.isNotEmpty)
+              _buildPermissionGroup(
+                title: '消息通知权限',
+                items: notificationItems,
+                titleInside: true,
+              ),
+            const SizedBox(height: 20),
+          ],
+        ),
       );
     });
+  }
+
+  /// 构建权限分组卡片
+  Widget _buildPermissionGroup({
+    required String title,
+     String subTitle = "",
+    required List<Map<String, dynamic>> items,
+    bool titleInside = false,
+  }) {
+    const gradient = LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: [
+        Color(0xFFFFDDFD),
+        Color(0xFFFAF0FB),
+        Color(0xFFF6F6F6),
+      ],
+    );
+
+    Widget groupCard = Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 2,
+              offset: const Offset(0, 2),
+            ),
+          ],
+      ),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 4),
+      child: Column(
+        children: [
+          if (titleInside)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(subTitle,style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,
+                ), ),
+                  Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF000000),
+                ),
+              ), Text(subTitle,style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,
+                ), ),
+                ],
+              ),
+            ),
+          ...items.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return _PermissionItemCard(
+              item: item,
+              index: index,
+              controller: controller,
+              inGroup: true,
+            );
+          }),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        children: [
+          if (!titleInside)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ),
+          groupCard,
+        ],
+      ),
+    );
   }
 }
 
@@ -200,11 +340,13 @@ class _PermissionItemCard extends StatefulWidget {
   final Map<String, dynamic> item;
   final int index;
   final SystemPermissionController controller;
+  final bool inGroup;
 
   const _PermissionItemCard({
     required this.item,
     required this.index,
     required this.controller,
+    this.inGroup = false,
   });
 
   @override
@@ -331,8 +473,8 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
           final bool isGranted = widget.controller.isGuideCompleted(guideType);
           final String buttonText = isGranted ? "已开启" : "去设置";
           final Color buttonColor = isGranted
-              ? const Color(0xFF999999)
-              : const Color(0xFFFFA9E0);
+              ? const Color(0xFFC5C5C5)
+              : const Color(0xFF000000);
           
           // 点击整个卡片进入二级页面
           final VoidCallback buttonAction = () {
@@ -378,6 +520,7 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
                         'assets/lock/kissu_touch.png',
                         width: 60,
                         height: 60,
+                        color: Color(0xffFF6792),
                       ),
                     );
                   },
@@ -400,13 +543,14 @@ class _PermissionItemCardState extends State<_PermissionItemCard>
     required VoidCallback? onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: EdgeInsets.only(bottom: widget.inGroup ? 8 : 14),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        // 权限已开启时没有边框，未开启时显示粉色边框
-        border: isGranted ? null : Border.all(color: const Color(0xFFFF97CE)),
+        border: widget.inGroup
+            ? null
+            : (isGranted ? null : Border.all(color: const Color(0xFFFF97CE))),
       ),
       child: Row(
         children: [

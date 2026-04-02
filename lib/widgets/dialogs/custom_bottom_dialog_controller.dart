@@ -17,6 +17,7 @@ import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/services/analytics/analytics_helper.dart';
@@ -208,6 +209,7 @@ class CustomBottomDialogController extends GetxController {
 
         // 刷新当前页面数据（等待完成）
         await _refreshCurrentPageData();
+        WidgetCenterController.syncWidgetDataOnResume();
 
         // 注意：绑定成功后的动画播放和VIP页面跳转由 TencentIMService._handleBindMessage 统一处理
         // TencentIMService 会在收到 bindAndroid 消息后：
