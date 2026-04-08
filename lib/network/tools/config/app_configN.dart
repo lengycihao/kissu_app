@@ -8,7 +8,7 @@ class AppConfigN {
   /// kissu_xiaomi  kissu_huawei  kissu_rongyao
   /// kissu_vivo  kissu_oppo  kissu_meizu
   /// kissu_yyb  kissu_wdj  kissu_douyin   kissu_default
-  static const String appChannel = 'kissu_huawei';
+  static const String appChannel = 'kissu_oppo';
   
 
 

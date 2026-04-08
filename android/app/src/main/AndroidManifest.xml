@@ -1505,7 +1505,10 @@
 
     <uses-permission android:name="android.permission.CAMERA"/>
 
-    <!-- 存储权限已移除：图片/视频选取通过系统Picker实现，无需READ_EXTERNAL_STORAGE -->
+    <!-- 存储权限强制移除：图片/视频选取通过系统Picker实现，无需传统存储权限 -->
+    <!-- 第三方插件(photo_manager/image_picker等)会自动合并这些权限，必须显式移除 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
 
     
 
