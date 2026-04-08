@@ -45,6 +45,9 @@ class UnbindReasonModel {
   
   /// 是否是价格挽留类型
   bool get isPriceType => operationType == 'price';
+
+  /// 是否是吵架聊天类型
+  bool get isQuarrelChatType => operationType == 'quarrel_chat';
 }
 
 /// 解绑原因列表响应模型

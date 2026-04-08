@@ -7,6 +7,7 @@ class MineUserInfo extends StatelessWidget {
   final bool isBound;
   final String days;
   final VoidCallback onLabelTap;
+  final VoidCallback? onQuarrelChatTap;
   final Widget avatarSection;
 
   const MineUserInfo({
@@ -16,6 +17,7 @@ class MineUserInfo extends StatelessWidget {
     required this.isBound,
     required this.days,
     required this.onLabelTap,
+    this.onQuarrelChatTap,
     required this.avatarSection,
   });
 
@@ -53,74 +55,88 @@ class MineUserInfo extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 3),
-              if (isBound)
-                Row(
-                  children: [
-                    Text(
-                      "在一起",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0x99333333),
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12,vertical: 3).copyWith(top: 4),
-                      decoration: BoxDecoration(
-                        color: Color(0xffFF94D6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        days,
+                if (isBound)
+                  Row(
+                    children: [
+                      Text(
+                        "在一起",
                         style: TextStyle(
-                          fontSize: 15,
-                          fontFamily: 'Resource-Han-Rounded',
-                          fontWeight: FontWeight.bold,
-                          height: 1,
-                          color: Color(0xffffffff),
+                          fontSize: 12,
+                          color: Color(0x99333333),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      "天",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0x99333333),
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 3,
+                        ).copyWith(top: 4),
+                        decoration: BoxDecoration(
+                          color: Color(0xffFF94D6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          days,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontFamily: 'Resource-Han-Rounded',
+                            fontWeight: FontWeight.bold,
+                            height: 1,
+                            color: Color(0xffffffff),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                )
-              else
-                Text(
-                  "未绑定另一半",
-                  style: TextStyle(fontSize: 12, color: Color(0x99333333)),
-                ),
-              // SizedBox(height: 5),
-              GestureDetector(
-                onTap: onLabelTap,
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 5),
-                  color: Colors.transparent,
-                  child: Row(
-                  children: [
-                    Text(
-                      "恋爱信息",
-                      style: TextStyle(fontSize: 12, color: Color(0x99333333)),
-                    ),
-                    SizedBox(width: 3),
-                    Image(
-                      image: AssetImage(
-                        "assets/4.0/kissu4_mine_arrow_right_small.webp",
+                      SizedBox(width: 6),
+                      Text(
+                        "天",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0x99333333),
+                        ),
                       ),
-                      width: 10,
-                      height: 10,
+                    ],
+                  )
+                else
+                  Text(
+                    "未绑定另一半",
+                    style: TextStyle(fontSize: 12, color: Color(0x99333333)),
+                  ),
+                // SizedBox(height: 5),
+                GestureDetector(
+                  onTap: onLabelTap,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 5),
+                    color: Colors.transparent,
+                    child: Row(
+                      children: [
+                        Text(
+                          "恋爱信息",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0x99333333),
+                          ),
+                        ),
+                        SizedBox(width: 3),
+                        Image(
+                          image: AssetImage(
+                            "assets/4.0/kissu4_mine_arrow_right_small.webp",
+                          ),
+                          width: 10,
+                          height: 10,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                ),
-              ),
-            ],
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onQuarrelChatTap,
+            child: Image(
+              image: AssetImage('assets/images/mine_quarrel_chat.webp'),
+              width: 46,
+              height: 52,
             ),
           ),
         ],
@@ -128,4 +144,3 @@ class MineUserInfo extends StatelessWidget {
     );
   }
 }
-

@@ -29,6 +29,9 @@ class SystemHandler(private val activity: Activity) {
     // 屏幕锁定监听器（使用原生增强版 ScreenLockReceiver）
     private var screenLockReceiver: NativeScreenLockReceiver? = null
     
+    // 是否已注册 Receiver
+    private var isReceiverRegistered = false
+    
     /**
      * 初始化系统处理器
      */
@@ -39,14 +42,20 @@ class SystemHandler(private val activity: Activity) {
                 screenLockEventSink = events
                 // 将 EventSink 传递给原生增强版 ScreenLockReceiver
                 NativeScreenLockReceiver.setEventSink(events)
-                registerScreenLockReceiver()
+                // 复用已注册的 Receiver，避免重复注册
+                if (!isReceiverRegistered) {
+                    registerScreenLockReceiver()
+                } else {
+                    Log.d(TAG, "Receiver 已注册，复用现有实例，仅更新 EventSink")
+                }
             }
             
             override fun onCancel(arguments: Any?) {
-                unregisterScreenLockReceiver()
-                // 清理原生增强版 ScreenLockReceiver 的 EventSink
+                // ✅ 不注销 Receiver，仅清空 EventSink
+                // Receiver 继续在后台跟踪锁屏状态，下次 onListen 时恢复上报
                 NativeScreenLockReceiver.setEventSink(null)
                 screenLockEventSink = null
+                Log.d(TAG, "EventSink 已清空，Receiver 保持活跃")
             }
         })
         
@@ -123,27 +132,37 @@ class SystemHandler(private val activity: Activity) {
     private fun registerScreenLockReceiver() {
         if (screenLockReceiver == null) {
             screenLockReceiver = NativeScreenLockReceiver()
-            val filter = IntentFilter().apply {
-                // 锁屏 / 亮屏 / 解锁相关广播
-                addAction(Intent.ACTION_SCREEN_OFF)
-                addAction(Intent.ACTION_SCREEN_ON)
-                addAction(Intent.ACTION_USER_PRESENT)
-                // Android 7.0+：包含设备启动后首次解锁等场景
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    addAction(Intent.ACTION_USER_UNLOCKED)
-                }
-            }
+        }
+        if (isReceiverRegistered) {
+            Log.d(TAG, "Receiver 已注册，跳过")
+            return
+        }
 
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    activity.registerReceiver(screenLockReceiver, filter, Activity.RECEIVER_NOT_EXPORTED)
-                } else {
-                    activity.registerReceiver(screenLockReceiver, filter)
-                }
-                Log.d(TAG, "屏幕锁定监听器已注册（增强版）")
-            } catch (e: Exception) {
-                Log.e(TAG, "注册屏幕锁定监听器失败", e)
+        val filter = IntentFilter().apply {
+            // 锁屏 / 亮屏 / 解锁相关广播
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+            // Android 7.0+：包含设备启动后首次解锁等场景
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                addAction(Intent.ACTION_USER_UNLOCKED)
             }
+        }
+
+        try {
+            // ✅ 使用 applicationContext 注册，脱离 Activity 生命周期
+            val appContext = activity.applicationContext
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // ✅ 系统广播使用 RECEIVER_EXPORTED，确保能收到
+                appContext.registerReceiver(screenLockReceiver, filter, Activity.RECEIVER_EXPORTED)
+            } else {
+                appContext.registerReceiver(screenLockReceiver, filter)
+            }
+            isReceiverRegistered = true
+            Log.d(TAG, "屏幕锁定监听器已注册（applicationContext + 增强版）")
+        } catch (e: Exception) {
+            Log.e(TAG, "注册屏幕锁定监听器失败", e)
+            isReceiverRegistered = false
         }
     }
     
@@ -153,11 +172,14 @@ class SystemHandler(private val activity: Activity) {
     private fun unregisterScreenLockReceiver() {
         screenLockReceiver?.let {
             try {
-                activity.unregisterReceiver(it)
+                // ✅ 使用 applicationContext 注销（和注册时保持一致）
+                activity.applicationContext.unregisterReceiver(it)
                 screenLockReceiver = null
+                isReceiverRegistered = false
                 Log.d(TAG, "屏幕锁定监听器已注销")
             } catch (e: Exception) {
                 Log.e(TAG, "注销屏幕锁定监听器失败", e)
+                isReceiverRegistered = false
             }
         }
     }

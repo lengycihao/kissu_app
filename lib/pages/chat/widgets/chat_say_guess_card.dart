@@ -28,9 +28,9 @@ class ChatSayGuessCard extends StatelessWidget {
     final groupId = message.groupId;
     if (groupId == null || groupId.isEmpty) return;
 
-    final info = await GameApiService().getGameInfo(groupId);
+    var info = await GameApiService().getGameInfo(groupId);
     if (info == null) {
-      showToast('获取对局信息失败');
+      showToast('获取对局信息失败，请稍后重试');
       return;
     }
 
@@ -46,6 +46,7 @@ class ChatSayGuessCard extends StatelessWidget {
         arguments: {
           'groupId': groupId,
           'isInitiator': message.isSent,
+          'gameInfo': info,
         },
       );
     }

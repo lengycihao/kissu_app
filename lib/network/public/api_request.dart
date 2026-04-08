@@ -58,7 +58,6 @@ class ApiRequest {
   
   // 用机记录 API
   static const getSensitiveRecord = '/v4/get/sensitive/record';
-  static const getMobileUsageRecordSta = '/v4/mobileUsage/recordSta'; // 废弃，使用 getPhoneRecordStat
   static const getScreenUnlockStat = '/v4/get/today/screen/unlock/stat'; // 废弃
   static const getPhoneRecordStat = '/use/phone/record/stat'; // 新接口，替代 getMobileUsageRecordSta
   

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-// import 'package:fl_chart/fl_chart.dart'; // 已替换为自定义实现
 import 'app_usage_detail_controller.dart';
 import 'dart:math' as math;
 import 'package:kissu_app/widgets/selector/date_selector.dart';

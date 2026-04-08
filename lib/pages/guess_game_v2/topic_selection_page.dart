@@ -211,7 +211,7 @@ class TopicSelectionPage extends GetView<TopicSelectionController> {
           controller.addCustomTopic(answer, description);
         },
       ),
-      barrierDismissible: true,
+      barrierDismissible: false,
     );
   }
 

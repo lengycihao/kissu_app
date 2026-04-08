@@ -381,33 +381,44 @@ class GamePlayPage extends GetView<GamePlayController> {
             const SizedBox(width: 8),
           ],
           Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 230),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: msg.isSelf
-                    ? const Color(0xFFFFE4E9)
-                    : const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(12),
-                  topRight: const Radius.circular(12),
-                  bottomLeft: Radius.circular(msg.isSelf ? 12 : 2),
-                  bottomRight: Radius.circular(msg.isSelf ? 2 : 12),
-                ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 57,
+                minHeight: 50,
+                maxWidth: 230,
               ),
-              child: Text(
-                msg.content,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isHintReq || isHintResp
-                      ? const Color(0xFFFF6A68)
-                      : isAnswer
-                      ? const Color(0xFFFF6B00)
-                      : const Color(0xFF333333),
-                  fontWeight: (isAnswer || isHintReq || isHintResp)
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      msg.isSelf
+                          ? 'assets/chat/kissu_chat_bubble_self_1.webp'
+                          : 'assets/chat/kissu_chat_bubble_other_1.webp',
+                      fit: BoxFit.fill,
+                      centerSlice: const Rect.fromLTRB(23, 28, 30, 30),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ).copyWith(bottom: 8, top: 20),
+                    child: Text(
+                      msg.content,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isHintReq || isHintResp
+                            ? const Color(0xFFFF6A68)
+                            : isAnswer
+                            ? const Color(0xFFFF6B00)
+                            : const Color(0xFF333333),
+                        fontWeight: (isAnswer || isHintReq || isHintResp)
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

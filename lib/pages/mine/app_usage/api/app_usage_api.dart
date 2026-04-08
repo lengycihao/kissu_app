@@ -51,15 +51,6 @@ class AppUsageApi {
     }
   }
   
-  /// 上报单个应用的使用记录（已废弃，请使用新的上报格式）
-  /// [record] 单个应用使用记录
-  @Deprecated('请使用新的上报格式，需要先转换数据格式')
-  static Future<HttpResultN<dynamic>> reportSingleAppUsage(AppUsageRecord record) async {
-    // 此方法已废弃，因为新的上报接口需要不同的数据格式
-    // 请使用 reportAppUsage 方法，并先转换数据格式
-    throw UnimplementedError('请使用新的上报格式');
-  }
-  
   /// 获取应用使用记录历史
   /// [startDate] 开始日期 yyyy-MM-dd
   /// [endDate] 结束日期 yyyy-MM-dd

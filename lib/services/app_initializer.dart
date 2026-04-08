@@ -15,10 +15,6 @@ import 'package:kissu_app/services/analytics/analytics_manager.dart';
 
 import 'package:kissu_app/services/payment_service.dart';
 
-// 🔥 已废弃：极光推送（推送现在走腾讯IM）
-
-// import 'package:kissu_app/services/jpush_service.dart';
-
 import 'package:kissu_app/services/share_service.dart';
 
 import 'package:kissu_app/services/permission_state_service.dart';
@@ -303,14 +299,6 @@ class AppInitializer {
       DebugUtil.check('支付服务初始化完成');
 
 
-
-      // 🔥 已废弃：极光推送（推送现在走腾讯IM）
-
-      // Get.put(JPushService(), permanent: true);
-
-      // DebugUtil.info('极光推送服务已注册（等待隐私授权后初始化）');
-
-      
 
       // 步骤9: 注册腾讯IM服务
 

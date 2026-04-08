@@ -88,8 +88,7 @@ public class GifMarkerController {
     public void loadGifFromAssetAsync(String assetPath) {
         // 🎯 每次加载都增加版本号，用于取消旧的加载
         final int currentLoadVersion = ++loadVersion;
-        LogUtil.i(TAG, "开始加载GIF，版本号: " + currentLoadVersion);
-        
+         
         // 🎯 不再跳过重复请求，而是让新的加载取代旧的
         // if (isLoading) {
         //     LogUtil.i(TAG, "GIF正在加载中，跳过重复请求");
@@ -99,14 +98,12 @@ public class GifMarkerController {
         // 先检查缓存
         GifFrameCache cache = GifFrameCache.getInstance();
         if (cache.isCached(assetPath, targetWidth, targetHeight)) {
-            LogUtil.i(TAG, "✅ 使用缓存的GIF帧数据，版本号: " + currentLoadVersion);
-            GifFrameCache.CachedGif cached = cache.getCached(assetPath, targetWidth, targetHeight);
+             GifFrameCache.CachedGif cached = cache.getCached(assetPath, targetWidth, targetHeight);
             if (cached != null) {
                 synchronized (this) {
                     // 🎯 检查版本号，如果已经有新的加载，跳过
                     if (currentLoadVersion != loadVersion) {
-                        LogUtil.i(TAG, "缓存加载被新版本取代，跳过: " + currentLoadVersion + " vs " + loadVersion);
-                        return;
+                         return;
                     }
                     frames.clear();
                     delays.clear();
@@ -120,8 +117,7 @@ public class GifMarkerController {
                 handler.post(() -> {
                     // 🎯 再次检查版本号
                     if (currentLoadVersion != loadVersion) {
-                        LogUtil.i(TAG, "缓存播放被新版本取代，跳过");
-                        return;
+                         return;
                     }
                     if (loadCompleteListener != null) {
                         loadCompleteListener.onLoadComplete(true);
@@ -142,38 +138,34 @@ public class GifMarkerController {
         executor.execute(() -> {
             // 🎯 在加载前检查版本号
             if (currentLoadVersion != loadVersion) {
-                LogUtil.i(TAG, "异步加载被新版本取代，跳过加载: " + currentLoadVersion + " vs " + loadVersion);
-                isLoading = false;
+                 isLoading = false;
                 return;
             }
             
             boolean success = loadGifFromAssetInternal(assetPath, currentLoadVersion);
             long elapsed = System.currentTimeMillis() - startTime;
-            LogUtil.i(TAG, "GIF异步加载完成，版本号: " + currentLoadVersion + ", 耗时: " + elapsed + "ms, 成功: " + success);
             
             isLoading = false;
             
             // 🎯 检查版本号，如果已经有新的加载，跳过
             if (currentLoadVersion != loadVersion) {
-                LogUtil.i(TAG, "加载完成但被新版本取代，跳过播放: " + currentLoadVersion + " vs " + loadVersion);
                 return;
             }
             
             // 🎯 如果控制器已被释放，不要继续操作
             if (isReleased) {
-                LogUtil.i(TAG, "控制器已被释放，跳过播放");
-                return;
+                 return;
             }
             
             // 在主线程回调
             handler.post(() -> {
                 // 🎯 再次检查版本号和释放状态
                 if (currentLoadVersion != loadVersion) {
-                    LogUtil.i(TAG, "播放回调被新版本取代，跳过");
+
                     return;
                 }
                 if (isReleased) {
-                    LogUtil.i(TAG, "控制器已被释放，跳过播放回调");
+
                     return;
                 }
                 if (loadCompleteListener != null) {
@@ -205,13 +197,11 @@ public class GifMarkerController {
             int status = decoder.read(inputStream);
             
             if (status != GifDecoder.STATUS_OK) {
-                LogUtil.e(TAG, "GIF解析失败，状态码: " + status, null);
                 return false;
             }
             
             // 🎯 解析完成后检查版本号
             if (expectedVersion != loadVersion) {
-                LogUtil.i(TAG, "GIF解析完成但版本号已变化，跳过帧提取: " + expectedVersion + " vs " + loadVersion);
                 inputStream.close();
                 return false;
             }
@@ -221,12 +211,10 @@ public class GifMarkerController {
             List<Integer> newDelays = new ArrayList<>();
             
             int frameCount = decoder.getFrameCount();
-            LogUtil.i(TAG, "GIF帧数: " + frameCount + ", 版本号: " + expectedVersion);
             
             for (int i = 0; i < frameCount; i++) {
                 // 🎯 每隔一段时间检查版本号，避免浪费资源
                 if (i % 50 == 0 && expectedVersion != loadVersion) {
-                    LogUtil.i(TAG, "帧提取过程中版本号变化，停止提取: " + expectedVersion + " vs " + loadVersion);
                     // 回收已提取的帧
                     for (Bitmap bitmap : newFrames) {
                         if (bitmap != null && !bitmap.isRecycled()) {
@@ -262,7 +250,6 @@ public class GifMarkerController {
             
             // 🎯 最终检查版本号
             if (expectedVersion != loadVersion) {
-                LogUtil.i(TAG, "帧提取完成但版本号已变化，丢弃帧: " + expectedVersion + " vs " + loadVersion);
                 for (Bitmap bitmap : newFrames) {
                     if (bitmap != null && !bitmap.isRecycled()) {
                         bitmap.recycle();
@@ -277,7 +264,7 @@ public class GifMarkerController {
             synchronized (this) {
                 // 🎯 在同步块内再次检查版本号
                 if (expectedVersion != loadVersion) {
-                    LogUtil.i(TAG, "替换帧数据时版本号已变化，丢弃帧");
+
                     for (Bitmap bitmap : newFrames) {
                         if (bitmap != null && !bitmap.isRecycled()) {
                             bitmap.recycle();
@@ -304,7 +291,7 @@ public class GifMarkerController {
             }
             oldFrames.clear();
             
-            LogUtil.i(TAG, "GIF加载成功，共 " + frames.size() + " 帧，版本号: " + expectedVersion);
+
             return frames.size() > 0;
             
         } catch (Exception e) {
@@ -401,7 +388,6 @@ public class GifMarkerController {
         isReleased = true;
         // 🎯 增加版本号，取消正在进行的异步加载
         loadVersion++;
-        LogUtil.i(TAG, "释放资源，版本号增加到: " + loadVersion);
         
         stopAnimation();
         
@@ -416,13 +402,13 @@ public class GifMarkerController {
                 frames.clear();
                 delays.clear();
             }
-            LogUtil.i(TAG, "已回收非缓存GIF帧资源");
+
         } else {
             synchronized (this) {
                 frames.clear();
                 delays.clear();
             }
-            LogUtil.i(TAG, "使用缓存帧，跳过回收（由GifFrameCache管理）");
+
         }
         
         isUsingCachedFrames = false;

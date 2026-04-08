@@ -94,7 +94,8 @@ class BootCompletedReceiver : BroadcastReceiver() {
             val daysIds = manager.getAppWidgetIds(ComponentName(context, KissuWidgetDaysProvider::class.java))
             if (largeIds.isNotEmpty() || daysIds.isNotEmpty()) {
                 WidgetUpdateWorker.enqueuePeriodicWork(context)
-                Log.d(TAG, "✅ 检测到桌面小组件，已恢复周期刷新任务")
+                WidgetUpdateWorker.scheduleAlarmBackup(context)
+                Log.d(TAG, "✅ 检测到桌面小组件，已恢复周期刷新任务和AlarmManager备份")
             } else {
                 Log.d(TAG, "ℹ️ 未检测到桌面小组件，跳过周期刷新任务恢复")
             }

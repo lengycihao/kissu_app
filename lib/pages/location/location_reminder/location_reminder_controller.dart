@@ -8,7 +8,6 @@ import 'package:kissu_app/network/public/geofence_api.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/widgets/dialogs/self_notification_permission_dialog.dart'; 
 import 'package:kissu_app/widgets/dialogs/partner_location_permission_dialog.dart';
-// import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 
 /// 位置提醒Controller

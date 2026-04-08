@@ -49,7 +49,7 @@ class WidgetCenterController extends GetxController {
 
   void _startPeriodicRefresh() {
     _periodicTimer?.cancel();
-    _periodicTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+    _periodicTimer = Timer.periodic(const Duration(minutes: 15), (_) {
       _loadData();
     });
   }

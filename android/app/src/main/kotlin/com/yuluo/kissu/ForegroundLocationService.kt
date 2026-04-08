@@ -303,11 +303,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             }
             Log.d(TAG, "WakeLock 创建成功")
             
-            // 🔥 立即获取 WakeLock，确保服务启动时就开始保活
+            // 🔥 立即获取 WakeLock（带超时），由健康检查每60秒滚动续期
             try {
                 if (!wakeLock!!.isHeld) {
-                    wakeLock!!.acquire()
-                    Log.d(TAG, "WakeLock 已立即获取（服务启动时）")
+                    wakeLock!!.acquire(90_000L) // 90秒超时，健康检查会在60秒时续期
+                    Log.d(TAG, "WakeLock 已立即获取（服务启动时，90秒超时）")
                 }
             } catch (e: Exception) {
                 logError("立即获取 WakeLock 失败", extra = mapOf("error" to (e.message ?: "unknown")))
@@ -1028,12 +1028,12 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val notificationManager = NotificationManagerCompat.from(this)
             notificationManager.notify(notificationId, notification)
             
-            // 🔥 获取 WAKE_LOCK，确保息屏时仍能定位
+            // 🔥 获取 WAKE_LOCK（带超时），息屏时仍能定位，由健康检查滚动续期
             try {
                 wakeLock?.let {
                     if (!it.isHeld) {
-                        it.acquire()
-                        Log.d(TAG, "WakeLock 已获取，息屏时将保持定位活跃")
+                        it.acquire(90_000L) // 90秒超时，健康检查会在60秒时续期
+                        Log.d(TAG, "WakeLock 已获取（息屏时，90秒超时）")
                     }
                 }
             } catch (e: Exception) {
@@ -1412,7 +1412,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                     locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
                     isGpsFirst = true
                     httpTimeOut = 30000
-                    // ✅ 关键修复：与Flutter层统一为5秒，避免APP被杀后定位频率骤降
+                    // ✅ 与Flutter层统一为10秒，平衡定位精度与省电
                     interval = 5000 // 5秒定位一次（与Flutter层保持一致）
                     isNeedAddress = false
                     isOnceLocation = false
@@ -1494,19 +1494,37 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         ))
                         
                         // 定位客户端存活且在运行
-                        synchronized(locationClientLock) {
-                            if (locationClient == null) {
-                                initLocationClient()
+                        // 🔋 室内WiFi暂停中：主动验证WiFi是否变化，防止广播丢失导致永远无法恢复
+                        val isPausedForWifi = locationReportService?.isLocationPausedForStationaryWifi() == true
+                        if (isPausedForWifi) {
+                            val (curState, curWifiName) = getCurrentNetworkInfo(this@ForegroundLocationService)
+                            val wifiChanged = curState != NetworkState.WIFI ||
+                                (curWifiName != null && curWifiName != lastWifiName)
+                            if (wifiChanged) {
+                                Log.w(TAG, "💡 保活检查：检测到网络变化（$lastNetworkState→$curState, wifi=$lastWifiName→$curWifiName），恢复定位")
+                                locationReportService?.resumeFromStationaryWifi("保活检查发现网络变化: $curState, wifi=$curWifiName")
+                                // 恢复后走下面正常的客户端检查逻辑
+                            } else {
+                                Log.d(TAG, "💡 保活检查：室内WiFi暂停中，网络未变化，继续暂停")
                             }
                         }
-                        locationClient?.let { client ->
-                            if (!client.isStarted) {
-                                if (!hasLocationPermissions()) {
-                                     logWarning("💡 保活检查：缺少定位权限，等待授权")
-                                    return
+                        // 非暂停 或 刚恢复 → 确保定位客户端正常运行
+                        val stillPaused = locationReportService?.isLocationPausedForStationaryWifi() == true
+                        if (!stillPaused) {
+                            synchronized(locationClientLock) {
+                                if (locationClient == null) {
+                                    initLocationClient()
                                 }
-                                client.startLocation()
-                                 logInfo("💡 保活检查：重新启动定位客户端")
+                            }
+                            locationClient?.let { client ->
+                                if (!client.isStarted) {
+                                    if (!hasLocationPermissions()) {
+                                         logWarning("💡 保活检查：缺少定位权限，等待授权")
+                                        return
+                                    }
+                                    client.startLocation()
+                                     logInfo("💡 保活检查：重新启动定位客户端")
+                                }
                             }
                         }
 
@@ -1531,16 +1549,14 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         // 确保心跳闹钟已设置
                         ensureHeartbeatAlarm()
                         
-                        // � 检查锁屏状态，如果有锁屏数据且锁屏服务未运行，则启动锁屏服务
+                        // 检查锁屏状态，如果有锁屏数据且锁屏服务未运行，则启动锁屏服务
                         checkAndStartLockScreenService()
                         
-                        // � 息屏时确保 WAKE_LOCK 持续持有（防止被系统回收）
+                        // 滚动续期 WAKE_LOCK（90秒超时，下次健康检查会再次续期）
                         try {
                             wakeLock?.let {
-                                if (!it.isHeld) {
-                                    it.acquire()
-                                    Log.d(TAG, "💪 保活：重新获取 WAKE_LOCK（可能被系统回收）")
-                                }
+                                it.acquire(90_000L) // 滚动续期90秒
+                                Log.d(TAG, "💪 保活：滚动续期 WAKE_LOCK（90秒）")
                             }
                         } catch (e: Exception) {
                             logError("保活时获取 WAKE_LOCK 失败", extra = mapOf("error" to (e.message ?: "unknown")))
@@ -1624,12 +1640,10 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 schedule(object : TimerTask() {
                     override fun run() {
                         try {
-                            // 确保 WAKE_LOCK 持续持有
+                            // 滚动续期 WAKE_LOCK（90秒超时）
                             wakeLock?.let {
-                                if (!it.isHeld) {
-                                    it.acquire()
-                                    Log.d(TAG, "🌙 息屏保活：重新获取 WAKE_LOCK")
-                                }
+                                it.acquire(90_000L) // 滚动续期90秒
+                                Log.d(TAG, "🌙 息屏保活：滚动续期 WAKE_LOCK（90秒）")
                             }
                             
                             // 检查定位客户端是否存活
@@ -1767,13 +1781,52 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             return
         }
         
-        Log.d(TAG, "📍 原生定位成功: ${location.latitude}, ${location.longitude}, 精度: ${location.accuracy}m")
+        // 详细定位诊断日志（含定位类型：1=GPS, 2=前次缓存, 4=基站, 5=高德缓存, 6=离线/WiFi, 8=离线+基站）
+        val locTypeDesc = when (location.locationType) {
+            1 -> "GPS"
+            2 -> "前次缓存"
+            4 -> "基站"
+            5 -> "高德缓存"
+            6 -> "离线WiFi"
+            8 -> "离线基站"
+            else -> "未知(${location.locationType})"
+        }
+        Log.w(TAG, "📍 原生定位回调: [${locTypeDesc}] ${location.latitude},${location.longitude} " +
+            "精度:${location.accuracy}m 速度:${location.speed}m/s 错误码:${location.errorCode}")
         
         // 统一走原生上报通道（前台/后台/被杀）
         locationReportService?.reportLocation(location)
         
+        // 🔋 室内WiFi省电：确认室内后暂停定位客户端，节省GPS/网络资源
+        if (locationReportService?.isLocationPausedForStationaryWifi() == true) {
+            Log.w(TAG, "⏸️ 室内WiFi确认，暂停定位客户端（省电模式）")
+            locationClient?.stopLocation()
+            return
+        }
+        
         // 更新通知内容
         updateLocationNotification(location)
+        
+        // 🔋 省电优化：将定位数据推送给 Flutter 层（替代 Flutter 自己的 AMapFlutterLocation 双引擎）
+        try {
+            if (location.errorCode == 0) {
+                val locationData = mapOf<String, Any?>(
+                    "latitude" to location.latitude,
+                    "longitude" to location.longitude,
+                    "accuracy" to location.accuracy.toDouble(),
+                    "speed" to location.speed.toDouble(),
+                    "altitude" to location.altitude,
+                    "timestamp" to location.time,
+                    "address" to location.address
+                )
+                // 必须在主线程调用 MethodChannel
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    MainActivity.sendLocationToFlutter(locationData)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "推送定位数据给Flutter失败: ${e.message}")
+        }
     }
     
     /**
@@ -1966,13 +2019,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                             
                             logInfo("🌙 收到锁屏广播")
                             
-                            // 🔥 息屏时加强保活：确保 WAKE_LOCK 持续持有
+                            // 🔥 息屏时滚动续期 WAKE_LOCK
                             try {
                                 wakeLock?.let {
-                                    if (!it.isHeld) {
-                                        it.acquire()
-                                        Log.d(TAG, "💪 息屏保活：重新获取 WAKE_LOCK")
-                                    }
+                                    it.acquire(90_000L) // 滚动续期90秒
+                                    Log.d(TAG, "💪 息屏保活：滚动续期 WAKE_LOCK（90秒）")
                                 }
                             } catch (e: Exception) {
                                 logError("息屏时获取 WAKE_LOCK 失败", extra = mapOf("error" to (e.message ?: "unknown")))
@@ -2207,6 +2258,24 @@ class ForegroundLocationService : Service(), AMapLocationListener {
 
     private fun handleNetworkChange(context: Context) {
         val (newState, wifiName) = getCurrentNetworkInfo(context)
+        
+        // 🔋 室内WiFi省电恢复：仅在网络真正发生变化时恢复定位
+        if (locationReportService?.isLocationPausedForStationaryWifi() == true) {
+            // 判断是否真正切换了网络：不再是WiFi / 或切换到了不同的WiFi
+            val wifiChanged = newState != NetworkState.WIFI || 
+                (wifiName != null && wifiName != lastWifiName)
+            if (wifiChanged) {
+                locationReportService?.resumeFromStationaryWifi("网络变化: $lastNetworkState→$newState, wifi=$lastWifiName→$wifiName")
+                // 重新启动定位客户端
+                locationClient?.let { client ->
+                    if (!client.isStarted) {
+                        client.startLocation()
+                        Log.w(TAG, "▶️ 网络变化，恢复定位客户端")
+                    }
+                }
+            }
+        }
+        
         processNetworkChange(newState, wifiName)
     }
 

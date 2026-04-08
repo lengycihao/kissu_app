@@ -56,9 +56,13 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         var isFlutterEngineAlive = false
 
-        
+        // 🔋 省电优化：原生定位数据推送给 Flutter 的通道引用
+        @Volatile
+        var nativeLocationChannel: MethodChannel? = null
+            private set
 
         // 通道名称
+        private const val NATIVE_LOCATION_CHANNEL = "kissu_app/native_location"
 
         private const val CHANNEL = "app.location/settings"
 
@@ -90,6 +94,17 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         private const val WIDGET_CHANNEL = "com.yuluo.kissu/widget"
 
+        /**
+         * 🔋 供 ForegroundLocationService 调用：将原生定位数据推送给 Flutter
+         */
+        fun sendLocationToFlutter(locationData: Map<String, Any?>) {
+            if (!isFlutterEngineAlive) return
+            try {
+                nativeLocationChannel?.invokeMethod("onNativeLocationUpdate", locationData)
+            } catch (e: Exception) {
+                Log.e(TAG, "推送定位数据给Flutter失败: ${e.message}")
+            }
+        }
     }
 
     
@@ -537,7 +552,8 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
 
         registerChannels(flutterEngine)
 
-        
+        // 🔋 省电优化：初始化原生定位推送通道
+        nativeLocationChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NATIVE_LOCATION_CHANNEL)
 
         Log.d(TAG, "Flutter引擎配置完成")
 
@@ -903,6 +919,16 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
                     result.success(page)
                 }
                 else -> result.notImplemented()
+            }
+        }
+
+        // 回到桌面（不销毁 Activity）
+        MethodChannel(messenger, "kissu_app/move_to_back").setMethodCallHandler { call, result ->
+            if (call.method == "moveToBack") {
+                moveTaskToBack(true)
+                result.success(null)
+            } else {
+                result.notImplemented()
             }
         }
 
@@ -1308,6 +1334,7 @@ class MainActivity : FlutterActivity(), IWXAPIEventHandler {
         locationHandler.cleanup()
         systemHandler.cleanup()
 
+        nativeLocationChannel = null
         isFlutterEngineAlive = false
         Log.d(TAG, "MainActivity onDestroy")
     }

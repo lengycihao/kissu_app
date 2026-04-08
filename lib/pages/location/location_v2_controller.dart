@@ -2537,7 +2537,7 @@ class LocationV2Controller extends GetxController
         _cachedIsBindPartner = isBindPartner.value;
       }
 
-      // final markerDuration = DateTime.now().difference(markerStartTime);
+  
       // logDebug('📊 Marker创建/缓存耗时: ${markerDuration.inMilliseconds}ms');
     } catch (e) {
       logError('Update icon cache error: $e');
@@ -2545,18 +2545,7 @@ class LocationV2Controller extends GetxController
   }
 
   /// 启动原生呼吸动画（iOS原版实现）
-  ///
-  /// iOS原版效果：
-  /// - 横向拉伸：X=1.03, Y=0.98（横向拉伸，纵向压缩）
-  /// - 纵向拉伸：X=0.98, Y=1.03（横向压缩，纵向拉伸）
-  /// - 两种状态交替变换，产生自然的“呼吸”效果
-  /// - 动画时长：0.4秒（与iOS原版完全一致）
-  ///
-  /// 性能优势：
-  /// - 使用Android原生ScaleAnimation（GPU加速）
-  /// - 60fps流畅运行
-  /// - 零跨平台通信开销（只调用一次）
-  /// - 完全在原生层执行，不占用Flutter线程
+ 
   void _startNativeBreathAnimation() async {
     if (mapController == null) {
       logDebug('⚠️ MapController未初始化，跳过启动动画');

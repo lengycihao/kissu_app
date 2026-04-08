@@ -6,8 +6,6 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
-// 🔥 已废弃：极光推送（推送现在走腾讯IM）
-// import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/native_location_report_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';

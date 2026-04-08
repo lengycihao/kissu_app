@@ -39,34 +39,14 @@ class GameSuccessPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        '第231名',
+                        '第10000+名',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF333333),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Image(
-                            image: AssetImage(
-                              'assets/say_guess/kissu_say_guess_star.webp',
-                            ),
-                            width: 18,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'x12',
-                            style: TextStyle(
-                              fontSize: 8,
-                              color: Color(0xFF333333),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+                       
                       const SizedBox(height: 20),
                       _buildResultCard(correctCount, tacitPercent),
                       const SizedBox(height: 32),
@@ -155,13 +135,9 @@ class GameSuccessPage extends StatelessWidget {
                 const SizedBox(height: 14),
                 _buildStatRow(
                   '默契度',
-                  tacitPercent,
+                  "$tacitPercent%",
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  '使用默契特权不计入+2星范围',
-                  style: TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
-                ),
+                 
               ],
             ),
           ),

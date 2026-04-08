@@ -9,8 +9,6 @@ import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/services/home_scroll_service.dart';
 import 'package:kissu_app/services/first_launch_service.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
-// 🔥 已废弃：极光推送（推送现在走腾讯IM）
-// import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/app_activation_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/pages/login/agree_richtext_page.dart';

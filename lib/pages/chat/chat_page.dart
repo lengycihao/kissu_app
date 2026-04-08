@@ -303,7 +303,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 clipBehavior: Clip.none,
                 children: [
                   Image.asset(
-                    'assets/lock/kissu_lock_icon.webp',
+                    'assets/say_guess/kissu_chat_compent.webp',
                     width: 16,
                     height: 16,
                   ),
@@ -319,8 +319,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
               const SizedBox(width: 4),
-              // 一键锁机文字
-              const Text(
+               const Text(
                 '你说我猜（竞技版）',
                 style: TextStyle(
                   fontSize: 10,

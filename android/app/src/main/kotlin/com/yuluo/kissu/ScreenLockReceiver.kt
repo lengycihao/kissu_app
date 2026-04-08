@@ -61,19 +61,30 @@ class ScreenLockReceiver : BroadcastReceiver() {
         // 设备锁屏状态跟踪
         private var lastKeyguardLocked: Boolean? = null
         
+        // ✅ 缓存待发事件（EventSink 为 null 时暂存）
+        private var pendingEvent: Map<String, Any>? = null
+        
         /**
          * 设置EventSink
          */
         fun setEventSink(sink: EventChannel.EventSink?) {
             eventSink = sink
             if (sink == null) {
-                // 清理状态
-                lastEventType = null
-                lastKeyguardLocked = null
-                handler.removeCallbacksAndMessages(null)
+                // ✅ 不清理状态，保持跟踪，Receiver 继续工作
+                Log.d(TAG, "EventSink 置空，保持状态跟踪")
             } else {
-                // 初始化时获取当前锁屏状态
-                // 注意：这里无法直接获取context，所以在onReceive中初始化
+                // ✅ 恢复时补发缓存事件
+                pendingEvent?.let { event ->
+                    Log.d(TAG, "✅ 补发缓存事件: $event")
+                    handler.post {
+                        try {
+                            sink.success(event)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ 补发缓存事件失败: ${e.message}", e)
+                        }
+                    }
+                    pendingEvent = null
+                }
             }
         }
         
@@ -105,19 +116,25 @@ class ScreenLockReceiver : BroadcastReceiver() {
                 Log.d(TAG, "🔍 完整数据: $eventData")
                 Log.d(TAG, "🔍 EventSink状态: ${if (eventSink != null) "可用" else "null"}")
                 
+                // ✅ 无论 EventSink 是否可用，都更新状态跟踪
+                lastEventType = eventType
+                
                 if (eventSink != null) {
                     // 确保在主线程发送
                     handler.post {
                         try {
                             eventSink!!.success(eventData)
-                            lastEventType = eventType
+                            pendingEvent = null // 已成功发送，清除缓存
                             Log.d(TAG, "✅ 屏幕事件已发送: ${if (isUnlocked) "解锁" else "锁屏"}")
                         } catch (e: Exception) {
                             Log.e(TAG, "❌ 发送事件时异常: ${e.message}", e)
+                            pendingEvent = eventData // 发送失败，缓存待补发
                         }
                     }
                 } else {
-                    Log.w(TAG, "❌ EventSink为null，无法发送事件")
+                    // ✅ EventSink 为 null 时缓存事件，等恢复后补发
+                    pendingEvent = eventData
+                    Log.w(TAG, "⚠️ EventSink为null，事件已缓存待补发: $eventType")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 发送屏幕事件失败: ${e.message}", e)

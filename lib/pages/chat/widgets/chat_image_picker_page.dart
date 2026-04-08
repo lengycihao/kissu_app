@@ -3,7 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// 常见相册名中文映射
 const Map<String, String> _albumNameZhMap = {
@@ -105,6 +108,15 @@ class _ChatImagePickerPageState extends State<ChatImagePickerPage> {
   }
 
   Future<void> _loadAlbums() async {
+    // 先检查存储权限是否已授权，未授权则弹自定义弹窗告知用途
+    final photosStatus = await Permission.photos.status;
+    if (!photosStatus.isGranted) {
+      final userConfirmed = await PermissionRequestDialog.showPhotosPermissionDialog(context);
+      if (userConfirmed != true) {
+        await _fallbackToSystemPicker();
+        return;
+      }
+    }
     // 触发系统权限弹窗（不检查返回值，部分设备授权后仍返回 denied）
     await PhotoManager.requestPermissionExtend();
 
@@ -120,19 +132,15 @@ class _ChatImagePickerPageState extends State<ChatImagePickerPage> {
           orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
         ),
       );
-    } catch (e) {
-      if (mounted) {
-        OKToastUtil.showError('无法访问相册，请检查权限设置');
-        Navigator.of(context).pop();
-      }
+    } catch (_) {
+      // 权限不足或加载失败，降级到系统 Picker
+      await _fallbackToSystemPicker();
       return;
     }
 
     if (albums.isEmpty) {
-      if (mounted) {
-        OKToastUtil.showError('无法访问相册，请检查权限设置');
-        Navigator.of(context).pop();
-      }
+      // 相册为空（可能无权限），降级到系统 Picker
+      await _fallbackToSystemPicker();
       return;
     }
 
@@ -151,6 +159,35 @@ class _ChatImagePickerPageState extends State<ChatImagePickerPage> {
     });
 
     await _loadAssets();
+  }
+
+  /// 降级到系统图片选择器（无需 READ_EXTERNAL_STORAGE）
+  Future<void> _fallbackToSystemPicker() async {
+    if (!mounted) return;
+    try {
+      final picker = ImagePicker();
+      if (widget.maxCount == 1) {
+        final xFile = await picker.pickImage(source: ImageSource.gallery);
+        if (xFile != null && mounted) {
+          Navigator.of(context).pop(<File>[File(xFile.path)]);
+        } else if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } else {
+        final xFiles = await picker.pickMultiImage(limit: widget.maxCount);
+        if (xFiles.isNotEmpty && mounted) {
+          final files = xFiles.map((x) => File(x.path)).toList();
+          Navigator.of(context).pop(files);
+        } else if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        OKToastUtil.showError('无法访问相册，请检查权限设置');
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   Future<void> _loadAssets() async {

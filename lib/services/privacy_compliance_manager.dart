@@ -8,8 +8,6 @@ import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
-// 🔥 已废弃：极光推送（推送现在走腾讯IM）
-// import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';

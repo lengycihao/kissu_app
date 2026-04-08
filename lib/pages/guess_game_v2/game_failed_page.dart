@@ -46,20 +46,28 @@ class _GameFailedPageState extends State<GameFailedPage> {
     if (!mounted) return;
     setState(() => _selectedPenalty = penaltyType);
 
-    // 回答者：跳转到对应执行页完成惩罚
+    // 回答者：跳转到对应执行页完成惩罚，完成后自动返回聊天页
     if (penaltyType == 'photo') {
       Future.delayed(const Duration(milliseconds: 500), () {
         Get.toNamed(
           KissuRoutePath.guessGameV2PenaltyPhoto,
           arguments: {'penaltyType': penaltyType},
-        );
+        )?.then((result) {
+          if (result == true) {
+            Get.until((route) => route.settings.name == KissuRoutePath.chat);
+          }
+        });
       });
     } else if (penaltyType == 'audio') {
       Future.delayed(const Duration(milliseconds: 500), () {
         Get.toNamed(
           KissuRoutePath.guessGameV2PenaltyAudio,
           arguments: {'penaltyType': penaltyType},
-        );
+        )?.then((result) {
+          if (result == true) {
+            Get.until((route) => route.settings.name == KissuRoutePath.chat);
+          }
+        });
       });
     }
     // 其他惩罚类型，停留在此页展示，显示再次游戏/退出按钮

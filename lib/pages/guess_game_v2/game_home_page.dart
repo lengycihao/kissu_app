@@ -6,6 +6,7 @@ import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'controllers/game_home_controller.dart';
 import 'models/game_models.dart';
 import 'services/game_api_service.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 
 /// 你说我猜V2 首页：开始游戏 + 历史记录列表
 class GameHomePage extends GetView<GameHomeController> {
@@ -165,28 +166,28 @@ class GameHomePage extends GetView<GameHomeController> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        // 星星 + 得分
-        Obx(
-          () => Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image(
-                image: AssetImage('assets/say_guess/kissu_say_guess_star.webp'),
-                width: 35,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'X${controller.totalScore.value}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF000000),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: 1),
+        // // 星星 + 得分
+        // Obx(
+        //   () => Row(
+        //     mainAxisAlignment: MainAxisAlignment.center,
+        //     children: [
+        //       Image(
+        //         image: AssetImage('assets/say_guess/kissu_say_guess_star.webp'),
+        //         width: 35,
+        //       ),
+        //       const SizedBox(width: 4),
+        //       Text(
+        //         'X${controller.totalScore.value}',
+        //         style: const TextStyle(
+        //           fontSize: 12,
+        //           fontWeight: FontWeight.w500,
+        //           color: Color(0xFF000000),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
         const SizedBox(height: 12),
         Obx(
           () => Text(
@@ -378,9 +379,9 @@ class GameHomePage extends GetView<GameHomeController> {
           height: 58,
           width: 58,
           alignment: Alignment.center,
-          child: const Text(
-            '进行中',
-            style: TextStyle(
+          child: Text(
+            record.isMeInitiator ? '进行中' : '去挑战',
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
               color: Color(0xffFF9AD9),
@@ -449,7 +450,7 @@ class GameHomePage extends GetView<GameHomeController> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '发起方：${record.isMeInitiator ? '我' : '亲爱的'}',
+                    '发起方：${record.isMeInitiator ? '我' : (UserManager.getUserBasicInfo()['partnerNickname'] as String? ?? 'Ta')}',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF333333),

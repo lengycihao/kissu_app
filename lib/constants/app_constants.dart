@@ -39,4 +39,11 @@ class AppConstants {
   // ==================== 第三方信息共享页 ====================
   static const String thirdPartySharingUrl =
       'https://www.ikissu.cn/agreement/thirdPartyShare.html';
+
+  // ==================== 企业微信客服 ====================
+  static const String weComCorpId = 'ww5c345e5aa1a2a697';
+  static const String weComKfId = 'kfcf77b8b4a2a2a61d9';
+  static const String weComQuarrelChatKfId = 'kfc0eb2d6af0e120b3a';
+  static String weComKfUrl(String kfId) =>
+      'https://work.weixin.qq.com/kfid/$kfId';
 }

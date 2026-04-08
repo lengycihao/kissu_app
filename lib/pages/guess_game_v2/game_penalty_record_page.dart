@@ -17,7 +17,9 @@ class GamePenaltyRecordPage extends StatefulWidget {
 
 class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
   final _api = GameApiService();
-  final _scrollController = ScrollController();
+  final _myScrollController = ScrollController();
+  final _taScrollController = ScrollController();
+  final _pageController = PageController();
 
   int _tabIndex = 0; // 0=我的惩罚 1=Ta的惩罚
 
@@ -33,29 +35,28 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
   int _myTotal = 0;
   int _taTotal = 0;
 
-  List<GamePenaltyRecordItem> get _currentList =>
-      _tabIndex == 0 ? _myRecords : _taRecords;
-  bool get _currentLoading => _tabIndex == 0 ? _myLoading : _taLoading;
-  bool get _currentHasMore => _tabIndex == 0 ? _myHasMore : _taHasMore;
-  int get _currentTotal => _tabIndex == 0 ? _myTotal : _taTotal;
 
   @override
   void initState() {
     super.initState();
     _loadPage(isRefresh: true, tabIndex: 0);
     _loadPage(isRefresh: true, tabIndex: 1);
-    _scrollController.addListener(_onScroll);
+    _myScrollController.addListener(() => _onScroll(0));
+    _taScrollController.addListener(() => _onScroll(1));
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _myScrollController.dispose();
+    _taScrollController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 80) {
+  void _onScroll(int tabIndex) {
+    if (tabIndex != _tabIndex) return;
+    final sc = tabIndex == 0 ? _myScrollController : _taScrollController;
+    if (sc.position.pixels >= sc.position.maxScrollExtent - 80) {
       _loadMore();
     }
   }
@@ -110,10 +111,6 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
     });
   }
 
-  Future<void> _onRefresh() async {
-    await _loadPage(isRefresh: true, tabIndex: _tabIndex);
-  }
-
   void _loadMore() {
     _loadPage(isRefresh: false, tabIndex: _tabIndex);
   }
@@ -121,7 +118,18 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
   void _onTabTap(int i) {
     if (_tabIndex == i) return;
     setState(() => _tabIndex = i);
-    _scrollController.jumpTo(0);
+    _pageController.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
+    _loadPage(isRefresh: true, tabIndex: i);
+  }
+
+  void _onPageChanged(int i) {
+    if (_tabIndex == i) return;
+    setState(() => _tabIndex = i);
+    _loadPage(isRefresh: true, tabIndex: i);
   }
 
   void _onItemTap(GamePenaltyRecordItem item) {
@@ -155,7 +163,7 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
         case 3:
         case 4: // 晚餐/许诺 — 我的惩罚：展示二维码让对方扫
           if (item.verifyQrCode.isNotEmpty) {
-            _showQrCodeDialog(item.verifyQrCode);
+            _showQrCodeDialog(item.verifyQrCode, title: '请让对方点击[惩罚核验]进行扫码');
           }
           break;
       }
@@ -178,7 +186,7 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
           if (isDone) {
             // 已完成 → 展示惩罚凭证二维码
             if (item.verifyQrCode.isNotEmpty) {
-              _showQrCodeDialog(item.verifyQrCode);
+              _showQrCodeDialog(item.verifyQrCode, title: '请让对方使用Kissu扫描此二维码');
             }
           } else {
             // 未完成 → 扫码核验
@@ -223,7 +231,7 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
   }
 
   /// 展示二维码弹窗（参考绑定弹窗 viewQRCode 样式）
-  void _showQrCodeDialog(String qrCodeUrl) {
+  void _showQrCodeDialog(String qrCodeUrl, {String title = '请让对方使用Kissu扫描此二维码'}) {
     Get.dialog(
       Dialog(
         backgroundColor: Colors.transparent,
@@ -239,9 +247,9 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    '请让对方使用Kissu扫描此二维码',
-                    style: TextStyle(fontSize: 16, color: Color(0xffFF0A6C)),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 16, color: Color(0xffFF0A6C)),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -283,7 +291,11 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
   Future<void> _scanAndVerify() async {
     final result = await Get.toNamed(KissuRoutePath.qrScanPage);
     if (result is String && result.isNotEmpty) {
-      final groupId = result.trim();
+      var groupId = result.trim();
+      // 扫码结果格式为 "ysig://xxxxx"，去掉前缀取群id
+      if (groupId.startsWith('ysig://')) {
+        groupId = groupId.substring(7);
+      }
       final ok = await _api.verifyPenalty(groupId: groupId);
       if (ok) {
         showToast('核验成功');
@@ -312,7 +324,16 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
               const SizedBox(height: 12),
               _buildTabs(),
               const SizedBox(height: 12),
-              Expanded(child: _buildList()),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  children: [
+                    _buildListForTab(0),
+                    _buildListForTab(1),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -376,9 +397,13 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
     );
   }
 
-  Widget _buildList() {
-    final records = _currentList;
-    if (_currentLoading && records.isEmpty) {
+  Widget _buildListForTab(int tabIndex) {
+    final records = tabIndex == 0 ? _myRecords : _taRecords;
+    final loading = tabIndex == 0 ? _myLoading : _taLoading;
+    final hasMore = tabIndex == 0 ? _myHasMore : _taHasMore;
+    final sc = tabIndex == 0 ? _myScrollController : _taScrollController;
+
+    if (loading && records.isEmpty) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (records.isEmpty) {
@@ -393,12 +418,12 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
       );
     }
     return RefreshIndicator(
-      onRefresh: _onRefresh,
+      onRefresh: () => _loadPage(isRefresh: true, tabIndex: tabIndex),
       child: ListView.separated(
-        controller: _scrollController,
+        controller: sc,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        itemCount: records.length + (_currentHasMore ? 1 : 0),
+        itemCount: records.length + (hasMore ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (_, i) {
           if (i == records.length) {
@@ -423,13 +448,13 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
             item.penaltyType == 0 ||
             (item.penaltyType == 1 && (!isDone || item.penaltyFile.isNotEmpty)) ||
             (item.penaltyType == 2 && !isDone) ||
-            ((item.penaltyType == 3 || item.penaltyType == 4) && item.verifyQrCode.isNotEmpty)
+            ((item.penaltyType == 3 || item.penaltyType == 4) && !isDone && item.verifyQrCode.isNotEmpty)
           )
         : (
             // Ta的惩罚：type==0跳选择页 / type==1已完成预览 / type==3,4有按钮
             (item.penaltyType == 0 && !isDone) ||
             (item.penaltyType == 1 && isDone && item.penaltyFile.isNotEmpty) ||
-            (item.penaltyType == 3 || item.penaltyType == 4)
+            ((item.penaltyType == 3 || item.penaltyType == 4) && !isDone)
           );
 
     return GestureDetector(
@@ -467,7 +492,7 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '第${_currentTotal - index}轮挑战',
+                        '第${(_tabIndex == 0 ? _myTotal : _taTotal) - index}轮挑战',
                         style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
                       ),
                     ],
@@ -483,7 +508,7 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
               children: [
                 _buildStatusBadge(isDone),
                 Text(
-                  '${isDone ? '完成时间' : '惩罚时间'}: ${item.createTimeRaw}',
+                  '${isDone ? '发起时间' : '发起时间'}: ${item.createTimeRaw}',
                   style: const TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
                 ),
               ],
@@ -529,11 +554,13 @@ class _GamePenaltyRecordPageState extends State<GamePenaltyRecordPage> {
 
       case 3: // 吃饭
       case 4: // 承诺
-        if (isDone) {
-          return _pinkButton('惩罚凭证');
+        if (isMine) {
+          // 我的惩罚：未完成显示"惩罚凭证"（展示二维码让对方扫）
+          return isDone ? const SizedBox.shrink() : _pinkButton('惩罚凭证');
+        } else {
+          // Ta的惩罚：未完成显示"惩罚核验"，已完成不显示
+          return isDone ? const SizedBox.shrink() : _pinkButton('惩罚核验');
         }
-        // 未完成：接收方(Ta的惩罚)显示扫码核验
-        return isMine ? const SizedBox.shrink() : _pinkButton('扫码核验');
 
       default:
         return const SizedBox.shrink();

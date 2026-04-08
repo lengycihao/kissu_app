@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/network/public/index_api.dart';
 import 'package:kissu_app/pages/mine/lock_screen/lock_screen_binding.dart';
@@ -11,7 +11,6 @@ import 'package:kissu_app/pages/mine/sub_pages/question_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/setting_about_us_page.dart';
 import 'package:kissu_app/pages/mine/personal_info_collection_page.dart';
 import 'package:kissu_app/pages/mine/third_party_sharing_page.dart';
-// import 'package:kissu_app/pages/mine/sub_pages/system_permission_page.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
@@ -491,9 +490,8 @@ class MineController extends GetxController {
 
   Future<void> _initCommonFunctionItems() async {
     // 读取是否已进入过各模块
-    final prefs = await SharedPreferences.getInstance();
-    final hasEnteredLockScreen =
-        prefs.getBool(_hasEnteredLockScreenKey) ?? false;
+    // final prefs = await SharedPreferences.getInstance();
+    final compentIcon = 'assets/4.0/kissu_change_logo_new.webp';
 
     // 一键锁机角标逻辑：锁机中显示kissu_locking，未进入过且未锁机显示new角标
     String? lockSubIcon;
@@ -525,6 +523,15 @@ class MineController extends GetxController {
         onTap: () => _onAppUsageRecordTap(),
       ),
       CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_compent.webp",
+        title: "组件中心",
+        subIcon: compentIcon,
+        onTap: () {
+          onNavigateToNextPage?.call();
+          Get.toNamed(KissuRoutePath.widgetCenter);
+        },
+      ),
+      CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_history.webp",
         title: "用机记录",
         onTap: () => onHisstoryTap(),
@@ -534,11 +541,7 @@ class MineController extends GetxController {
         title: "足迹",
         onTap: () => onTrackTap(),
       ),
-      CommonFunctionItem(
-        icon: "assets/4.0/kissu4_mine_scan.webp",
-        title: "酒店防偷拍",
-        onTap: () => _onAntiSpyTap(),
-      ),
+     
 
       CommonFunctionItem(
         icon: "assets/4.0/kissu4_mine_minganjilu.webp",
@@ -549,6 +552,11 @@ class MineController extends GetxController {
         icon: "assets/4.0/kissu4_mine_change_logo.webp",
         title: "更换app图标",
         onTap: () => _onChangeAppIconTap(),
+      ),
+       CommonFunctionItem(
+        icon: "assets/4.0/kissu4_mine_scan.webp",
+        title: "酒店防偷拍",
+        onTap: () => _onAntiSpyTap(),
       ),
       // CommonFunctionItem(
       //   icon: "assets/4.0/kissu4_mine_app_time.webp",
@@ -569,14 +577,7 @@ class MineController extends GetxController {
           AgreementUtils.toPrivacySecurity();
         },
       ),
-      SettingItem(
-        icon: "assets/4.0/kissu4_mine_app_time.webp",
-        title: "组件中心",
-        onTap: () async {
-          onNavigateToNextPage?.call();
-          Get.toNamed(KissuRoutePath.widgetCenter);
-        },
-      ),
+     
       SettingItem(
         icon: "assets/4.0/kissu4_share.webp",
         title: "分享APP",
@@ -739,9 +740,9 @@ class MineController extends GetxController {
   /// 打开联系渠道（企业微信客服）
   Future<void> openContact() async {
     // 企业微信配置信息
-    const String corpId = 'ww5c345e5aa1a2a697'; // 企业微信ID (ww开头)
-    const String kfId = 'kfcf77b8b4a2a2a61d9'; // 客服 ID
-    const String kfUrl = 'https://work.weixin.qq.com/kfid/$kfId';
+    const corpId = AppConstants.weComCorpId;
+    const kfId = AppConstants.weComKfId;
+    final kfUrl = AppConstants.weComKfUrl(kfId);
 
     try {
       // 鸿蒙系统上微信SDK无法正常拉起客服，直接走浏览器

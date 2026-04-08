@@ -946,8 +946,7 @@ public class MarkersController
             // 设置GIF尺寸（如果提供了）
             if (width != null && height != null && width > 0 && height > 0) {
                 gifController.setSize(width, height);
-                LogUtil.i(CLASS_NAME, "GIF尺寸设置: " + width + "x" + height);
-            }
+             }
             
             // 保存控制器引用
             gifControllers.put(markerId, gifController);

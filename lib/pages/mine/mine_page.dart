@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 import 'mine_controller.dart';
 import 'widgets/mine_top_bar.dart';
 import 'widgets/mine_user_info.dart';
@@ -36,8 +37,9 @@ class _MinePageState extends State<MinePage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       controller.onAppPaused();
     } else if (state == AppLifecycleState.resumed) {
       controller.onAppResumed();
@@ -67,7 +69,7 @@ class _MinePageState extends State<MinePage> with WidgetsBindingObserver {
         onPermissionSettingTap: () async {
           // 埋点：记录权限模块点击
           controller.trackPermissionModuleClick();
-          
+
           controller.onNavigateToNextPage?.call();
           await Get.to(
             () => const SystemPermissionPage(),
@@ -106,55 +108,61 @@ class _MinePageState extends State<MinePage> with WidgetsBindingObserver {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: controller.onRefresh,
-                    child:SingleChildScrollView(
-                         physics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: 15),
-                            Obx(() => MineUserInfo(
-                                  nickname: controller.nickname.value,
-                                  partnerNickname:
-                                      controller.partnerNickname.value,
-                                  isBound: controller.isBound.value,
-                                  days: controller.days.value,
-                                  onLabelTap: controller.onLabelTap,
-                                  avatarSection: Obx(() => MineAvatarSection(
-                                        userAvatar: controller.userAvatar.value,
-                                        partnerAvatar:
-                                            controller.partnerAvatar.value,
-                                        isBound: controller.isBound.value,
-                                        onAvatarTap: controller.onAvatarTap,
-                                        onPartnerAvatarTap:
-                                            controller.onPartnerAvatarTap,
-                                      )),
-                                )),
-                            const SizedBox(height: 16),
-                            _buildVipCard(),
-                            const SizedBox(height: 16),
-                            // 常用功能模块
-                            Obx(() => MineCommonFunctions(
-                              items: controller.commonFunctionItems.toList(),
-                            )),
-                            const SizedBox(height: 16),
-                            MineSettings(
-                              items: controller.settingItems,
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
                       ),
-                   
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: 15),
+                          Obx(
+                            () => MineUserInfo(
+                              nickname: controller.nickname.value,
+                              partnerNickname: controller.partnerNickname.value,
+                              isBound: controller.isBound.value,
+                              days: controller.days.value,
+                              onLabelTap: controller.onLabelTap,
+                              onQuarrelChatTap: () => _showQuarrelChatDialog(),
+                              avatarSection: Obx(
+                                () => MineAvatarSection(
+                                  userAvatar: controller.userAvatar.value,
+                                  partnerAvatar: controller.partnerAvatar.value,
+                                  isBound: controller.isBound.value,
+                                  onAvatarTap: controller.onAvatarTap,
+                                  onPartnerAvatarTap:
+                                      controller.onPartnerAvatarTap,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildVipCard(),
+                          const SizedBox(height: 16),
+                          // 常用功能模块
+                          Obx(
+                            () => MineCommonFunctions(
+                              items: controller.commonFunctionItems.toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          MineSettings(items: controller.settingItems),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+          
         ],
       ),
     );
   }
+
+  void _showQuarrelChatDialog() {
+    QuarrelChatDialog.show();
+  }
 }
- 

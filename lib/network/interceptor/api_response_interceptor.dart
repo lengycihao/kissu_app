@@ -22,7 +22,6 @@ class ApiResponseInterceptor extends Interceptor {
   static void resetUnauthorizedState() {
     _isHandlingUnauthorized = false;
     _lastUnauthorizedTime = null;
-    _hasNavigatedToLogin = false;
     LoginNavigationLock.forceReset(); // 重置登录页导航锁
     logDebug('token失效处理状态和跳转状态已重置', tag: 'ApiInterceptor');
   }
@@ -155,15 +154,8 @@ class ApiResponseInterceptor extends Interceptor {
     _handleUnauthorized();
   }
 
-  // 标记是否已经跳转到登录页（防止重复跳转）- 已废弃，使用LoginNavigationLock代替
-  // 保留此字段以保持向后兼容，但不再使用
-  @Deprecated('使用LoginNavigationLock代替')
-  // ignore: unused_field
-  static bool _hasNavigatedToLogin = false;
-  
   /// 重置跳转状态（应用启动时调用）
   static void resetNavigationState() {
-    _hasNavigatedToLogin = false;
     LoginNavigationLock.forceReset(); // 重置登录页导航锁
     logDebug('跳转状态已重置', tag: 'ApiInterceptor');
   }

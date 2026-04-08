@@ -79,7 +79,7 @@ class TopicSelectionController extends GetxController {
 
   /// 添加自定义题目
   void addCustomTopic(String answer, String description) {
-    if (answer.trim().isEmpty) return;
+    if (answer.trim().isEmpty || description.trim().isEmpty) return;
     if (selectedCount >= maxSelectCount) {
       OKToastUtil.showError('最多选择${maxSelectCount}个题目');
       return;

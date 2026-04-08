@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.app.NotificationChannel
@@ -96,6 +97,25 @@ class LocationReportService(private val context: Context) {
         @Volatile private var wifiAnchorLocation: AMapLocation? = null
         // 连续静止确认计数
         @Volatile private var wifiStationaryCount: Int = 0
+
+        // === WiFi 学习机制：记住每个 WiFi 是室内固定还是移动WiFi ===
+        private const val WIFI_TYPE_UNKNOWN = 0      // 未知，需要学习
+        private const val WIFI_TYPE_STATIONARY = 1   // 室内固定WiFi → 走锚点逻辑
+        private const val WIFI_TYPE_MOBILE = 2       // 移动WiFi（车载/便携）→ 走正常上报
+        private const val KEY_WIFI_CLASSIFICATIONS = "wifi_classifications"
+        private const val WIFI_MAX_STORED = 50       // 最多记录50个WiFi，防止无限增长
+        // 连续检测到移动多少次才标记为移动WiFi
+        private const val WIFI_LEARN_MOVING_THRESHOLD = 3
+        // 已标记为室内的WiFi，连续多少次高速移动后降级为UNKNOWN重新学习（纠错机制）
+        private const val WIFI_RECLASSIFY_THRESHOLD = 5
+        // 当前正在观察的 WiFi BSSID
+        @Volatile private var currentLearningBssid: String? = null
+        // 连续移动观察计数（用于学习未知WiFi + 纠错已知WiFi）
+        @Volatile private var wifiLearnMovingCount: Int = 0
+
+        // === 室内WiFi省电暂停：确认室内WiFi后停止定位收集和上报，节省资源 ===
+        @Volatile private var isStationaryWifiPaused: Boolean = false
+        @Volatile private var pausedWifiBssid: String? = null
     }
     
     private val sharedPreferences: SharedPreferences = 
@@ -113,6 +133,18 @@ class LocationReportService(private val context: Context) {
     fun reportLocation(location: AMapLocation) {
         coroutineScope.launch {
             try {
+                // === 室内WiFi省电暂停检查 ===
+                if (isStationaryWifiPaused) {
+                    val currentBssid = getConnectedWifiBssid()
+                    val stillOnSameWifi = isWifiConnected() && currentBssid != null && currentBssid == pausedWifiBssid
+                    if (stillOnSameWifi) {
+                        // 仍在同一个室内WiFi，跳过所有定位处理（省电）
+                        return@launch
+                    }
+                    // WiFi已变化或断开，恢复定位
+                    resumeFromStationaryWifi("WiFi变化: $pausedWifiBssid → $currentBssid")
+                }
+
                 // 🔥 关键修复：无论是否收集到缓冲区，都保存最后收到的位置
                 // 这样定时上报时即使缓冲区为空，也能上报当前位置
                 if (location.errorCode == 0) {
@@ -123,17 +155,16 @@ class LocationReportService(private val context: Context) {
                 // WiFi+静止锚点：当连接WiFi且用户真实未移动时，用锚点替换漂移的GPS位置
                 val effectiveLocation = if (location.errorCode == 0) resolveReportLocation(location) else location
                 
-                // 先判网络；断网则清空缓冲并跳过收集，避免离线旧数据循环
-                if (!isNetworkAvailable()) {
-                    synchronized(collectionBuffer) {
-                        if (collectionBuffer.isNotEmpty()) {
-                            collectionBuffer.clear()
-                            Log.w(TAG, "📡 无网络，已清空缓冲区并跳过收集")
-                        } else {
-                            Log.w(TAG, "📡 无网络，跳过收集")
-                        }
-                    }
+                // 🔥 关键检查：resolveReportLocation 内部可能刚触发了室内WiFi暂停，此时必须跳过后续收集和上报
+                if (isStationaryWifiPaused) {
+                    Log.w(TAG, "⏸️ 室内WiFi暂停已激活，跳过收集和上报")
                     return@launch
+                }
+                
+                // 检查网络状态（仅用于日志和控制是否尝试立即上报，不再阻断收集）
+                val networkAvailable = isNetworkAvailable()
+                if (!networkAvailable) {
+                    Log.d(TAG, "📡 当前无网络，继续收集定位数据到缓冲区，等待网络恢复后上报")
                 }
 
                 // 检查是否需要收集定位
@@ -166,15 +197,17 @@ class LocationReportService(private val context: Context) {
                     collectionBuffer.add(locationData)
                     Log.d(TAG, "📦 位置已收集到缓冲区 (${collectionBuffer.size}/${MAX_COLLECTION_BUFFER_SIZE}): ${location.latitude}, ${location.longitude}")
                     
-                    // 如果缓冲区满了，立即上报
-                    if (collectionBuffer.size >= MAX_COLLECTION_BUFFER_SIZE) {
+                    // 如果缓冲区满了且有网络，立即上报；无网络时跳过（数据保留在缓冲区，等网络恢复）
+                    if (collectionBuffer.size >= MAX_COLLECTION_BUFFER_SIZE && networkAvailable) {
                         Log.d(TAG, "⚠️ 缓冲区已满，触发立即上报")
                         performImmediateReport(token)
                     }
                 }
                 
-                // 启动定时上报器（60秒主频）
-                startReportTimer(token)
+                // 有网络时启动/维持定时上报器；无网络时跳过（下次有网络的 reportLocation 调用会启动）
+                if (networkAvailable) {
+                    startReportTimer(token)
+                }
                 
                 // 更新最后收集的位置信息
                 updateLastCollectionInfo(effectiveLocation)
@@ -230,6 +263,11 @@ class LocationReportService(private val context: Context) {
      * 如果定时器未运行且有 token，则重新启动定时器
      */
     fun ensureReportTimerRunning() {
+        // 室内WiFi暂停中，不需要定时器
+        if (isStationaryWifiPaused) {
+            Log.d(TAG, "🔍 保活检查：室内WiFi暂停中，跳过定时器检查")
+            return
+        }
         val token = sharedPreferences.getString(KEY_USER_TOKEN, null)
         if (token.isNullOrEmpty()) {
             Log.d(TAG, "🔍 保活检查：无 token，跳过定时器检查")
@@ -286,6 +324,11 @@ class LocationReportService(private val context: Context) {
      */
     private fun performScheduledReport(token: String) {
         coroutineScope.launch {
+            // 🔥 室内WiFi暂停中，跳过定时上报
+            if (isStationaryWifiPaused) {
+                Log.d(TAG, "⏰ 定时上报跳过：室内WiFi暂停中")
+                return@launch
+            }
             // 避免并发重复发送
             if (!isReporting.compareAndSet(false, true)) {
                 Log.w(TAG, "⏰ 定时上报跳过：已有上报进行中")
@@ -425,24 +468,88 @@ class LocationReportService(private val context: Context) {
                 wifiAnchorLocation = null
                 wifiStationaryCount = 0
             }
+            currentLearningBssid = null
+            wifiLearnMovingCount = 0
             return location
         }
 
-        // 速度检测：超过阈值说明用户真实在移动（含热点驾车）
-        val speed = location.speed // AMap SDK 提供，单位 m/s
+        // 获取当前 WiFi BSSID，用于学习机制
+        val bssid = getConnectedWifiBssid()
+        resetWifiLearningState(bssid) // WiFi 切换时重置学习计数
+
+        // ====== 已学习的 WiFi：直接走对应逻辑，跳过学习阶段 ======
+        if (bssid != null) {
+            val classification = getWifiClassification(bssid)
+
+            // 已知移动WiFi → 跳过锚点，走正常定位上报
+            if (classification == WIFI_TYPE_MOBILE) {
+                if (wifiAnchorLocation != null) {
+                    Log.d(TAG, "📶 已知移动WiFi[$bssid]，清除锚点，走正常上报")
+                    wifiAnchorLocation = null
+                    wifiStationaryCount = 0
+                }
+                return location
+            }
+
+            // 已知室内WiFi → 但仍需先检查速度（纠错：防止误标记的热点被永远当室内处理）
+            if (classification == WIFI_TYPE_STATIONARY) {
+                val speed = location.speed
+                if (speed > WIFI_MOVING_SPEED_MS) {
+                    // 已知"室内"WiFi 却在高速移动 → 可能是误判，累积纠错计数
+                    wifiLearnMovingCount++
+                    if (wifiLearnMovingCount >= WIFI_RECLASSIFY_THRESHOLD) {
+                        // 连续多次高速移动 → 降级为UNKNOWN，重新学习
+                        setWifiClassification(bssid, WIFI_TYPE_UNKNOWN)
+                        wifiLearnMovingCount = 0
+                        Log.d(TAG, "🔄 室内WiFi[$bssid]连续${WIFI_RECLASSIFY_THRESHOLD}次高速移动，降级为未知重新学习")
+                    } else {
+                        Log.d(TAG, "⚠️ 室内WiFi但速度${speed}m/s，纠错观察($wifiLearnMovingCount/$WIFI_RECLASSIFY_THRESHOLD)")
+                    }
+                    wifiAnchorLocation = null
+                    wifiStationaryCount = 0
+                    return location // 高速移动时始终上报真实位置
+                }
+                wifiLearnMovingCount = 0 // 低速时重置纠错计数
+                return resolveStationaryWifi(location, skipConfirm = true, pauseBssid = bssid)
+            }
+        }
+
+        // ====== 未知WiFi：边上报边学习 ======
+        val speed = location.speed
         if (speed > WIFI_MOVING_SPEED_MS) {
-            Log.d(TAG, "🚗 WiFi 环境但速度 ${speed}m/s > ${WIFI_MOVING_SPEED_MS}m/s，判定移动中，清除锚点")
+            // 正在移动 → 累积移动计数
+            wifiLearnMovingCount++
+            if (bssid != null && wifiLearnMovingCount >= WIFI_LEARN_MOVING_THRESHOLD) {
+                setWifiClassification(bssid, WIFI_TYPE_MOBILE)
+            }
+            Log.d(TAG, "🚗 WiFi+移动(${speed}m/s)，学习中($wifiLearnMovingCount/$WIFI_LEARN_MOVING_THRESHOLD)")
             wifiAnchorLocation = null
             wifiStationaryCount = 0
             return location
         }
 
+        // 低速 → 走锚点逻辑（含学习）
+        wifiLearnMovingCount = 0 // 低速时重置移动计数
+        return resolveStationaryWifi(location, skipConfirm = false, learnBssid = bssid, pauseBssid = bssid)
+    }
+
+    /**
+     * 处理 WiFi 静止锚点逻辑
+     * @param skipConfirm 已知室内WiFi时跳过确认阶段，直接锁定锚点
+     * @param learnBssid 非null时，确认静止后将该WiFi标记为室内固定
+     */
+    private fun resolveStationaryWifi(
+        location: AMapLocation,
+        skipConfirm: Boolean,
+        learnBssid: String? = null,
+        pauseBssid: String? = null
+    ): AMapLocation {
         val anchor = wifiAnchorLocation
         if (anchor == null) {
-            // 首次进入 WiFi+低速，建立锚点候选
             wifiAnchorLocation = location
             wifiStationaryCount = 1
             Log.d(TAG, "📍 WiFi+低速，建立初始锚点: ${location.latitude}, ${location.longitude}")
+            // 已知室内WiFi且是首次建锚点，直接返回该位置（不需等确认）
             return location
         }
 
@@ -452,14 +559,22 @@ class LocationReportService(private val context: Context) {
         )
 
         return if (distFromAnchor < WIFI_STATIONARY_DISTANCE_M) {
-            // 距锚点很近，累积静止确认次数
             wifiStationaryCount++
-            if (wifiStationaryCount >= WIFI_STATIONARY_CONFIRM_COUNT) {
+            val confirmNeeded = if (skipConfirm) 1 else WIFI_STATIONARY_CONFIRM_COUNT
+            if (wifiStationaryCount >= confirmNeeded) {
+                // 确认静止 → 学习该WiFi为室内固定
+                if (learnBssid != null && wifiStationaryCount == confirmNeeded) {
+                    setWifiClassification(learnBssid, WIFI_TYPE_STATIONARY)
+                }
+                // 确认静止 → 进入省电暂停模式（停止后续定位收集和上报）
+                if (!isStationaryWifiPaused && pauseBssid != null && wifiStationaryCount > confirmNeeded) {
+                    enterStationaryWifiPause(pauseBssid)
+                }
                 Log.d(TAG, "🔒 WiFi+静止锁定(${wifiStationaryCount}次)，上报锚点 " +
                     "[${anchor.latitude},${anchor.longitude}]，GPS 实际偏差 ${distFromAnchor.toInt()}m")
-                anchor // 上报锚点位置，而非漂移的 GPS 位置
+                anchor
             } else {
-                Log.d(TAG, "📍 WiFi+静止待确认(${wifiStationaryCount}/${WIFI_STATIONARY_CONFIRM_COUNT})")
+                Log.d(TAG, "📍 WiFi+静止待确认(${wifiStationaryCount}/${confirmNeeded})")
                 location
             }
         } else {
@@ -472,18 +587,125 @@ class LocationReportService(private val context: Context) {
     }
 
     /**
-     * 检查当前是否连接 WiFi（含手机热点，不区分是否为固定路由）
-     * 热点场景通过速度+位移双重检测来识别，此处仅判断传输层类型
+     * 检查当前是否连接固定 WiFi（排除手机热点）
+     * 手机热点虽然走 TRANSPORT_WIFI，但通常是计费网络（metered）
+     * 只有非计费的固定 WiFi（家庭/办公）才启用静止锚点防漂移
      */
     private fun isWifiConnected(): Boolean {
         return try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val caps = cm.getNetworkCapabilities(cm.activeNetwork ?: return false) ?: return false
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return false
+            // 排除手机热点：热点通常是计费网络（metered），固定WiFi通常非计费
+            if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) {
+                Log.d(TAG, "📶 检测到计费WiFi（可能是手机热点），跳过静止锚点")
+                return false
+            }
+            true
         } catch (e: Exception) {
             false
         }
     }
+
+    /**
+     * 获取当前连接的 WiFi BSSID（MAC地址，唯一标识一个WiFi接入点）
+     */
+    @Suppress("deprecation")
+    private fun getConnectedWifiBssid(): String? {
+        return try {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val info = wifiManager.connectionInfo
+            val bssid = info?.bssid
+            if (bssid != null && bssid != "02:00:00:00:00:00") bssid else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 查询 WiFi BSSID 的已学习分类
+     * @return WIFI_TYPE_UNKNOWN / WIFI_TYPE_STATIONARY / WIFI_TYPE_MOBILE
+     */
+    private fun getWifiClassification(bssid: String): Int {
+        return try {
+            val json = sharedPreferences.getString(KEY_WIFI_CLASSIFICATIONS, null) ?: return WIFI_TYPE_UNKNOWN
+            val map = JSONObject(json)
+            map.optInt(bssid, WIFI_TYPE_UNKNOWN)
+        } catch (e: Exception) {
+            WIFI_TYPE_UNKNOWN
+        }
+    }
+
+    /**
+     * 保存 WiFi BSSID 的分类（持久化到 SharedPreferences）
+     * 超过 WIFI_MAX_STORED 条时淘汰最早的记录
+     */
+    private fun setWifiClassification(bssid: String, type: Int) {
+        try {
+            val json = sharedPreferences.getString(KEY_WIFI_CLASSIFICATIONS, null)
+            val map = if (json != null) JSONObject(json) else JSONObject()
+            map.put(bssid, type)
+            // 超过上限时，删除最前面的 key（简单 FIFO 淘汰）
+            if (map.length() > WIFI_MAX_STORED) {
+                val firstKey = map.keys().next()
+                map.remove(firstKey)
+            }
+            sharedPreferences.edit().putString(KEY_WIFI_CLASSIFICATIONS, map.toString()).apply()
+            val typeName = when (type) {
+                WIFI_TYPE_STATIONARY -> "室内固定"
+                WIFI_TYPE_MOBILE -> "移动"
+                else -> "未知"
+            }
+            Log.d(TAG, "🧠 WiFi学习完成: $bssid → $typeName")
+        } catch (e: Exception) {
+            Log.e(TAG, "保存WiFi分类失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 当WiFi切换时重置学习状态
+     */
+    private fun resetWifiLearningState(newBssid: String?) {
+        if (newBssid != currentLearningBssid) {
+            currentLearningBssid = newBssid
+            wifiLearnMovingCount = 0
+        }
+    }
+
+    // === 室内WiFi省电暂停相关方法 ===
+
+    /**
+     * 进入室内WiFi省电暂停模式
+     * 停止定位收集、上报定时器，等待网络变化后恢复
+     */
+    private fun enterStationaryWifiPause(bssid: String) {
+        isStationaryWifiPaused = true
+        pausedWifiBssid = bssid
+        // 停止上报定时器
+        reportTimer?.cancel()
+        reportTimer = null
+        isReportTimerRunning = false
+        Log.w(TAG, "⏸️ 室内WiFi确认[$bssid]，进入省电暂停模式（停止定位收集和上报）")
+    }
+
+    /**
+     * 从室内WiFi暂停中恢复（WiFi断开或切换时调用）
+     */
+    fun resumeFromStationaryWifi(reason: String = "") {
+        if (!isStationaryWifiPaused) return
+        isStationaryWifiPaused = false
+        pausedWifiBssid = null
+        wifiAnchorLocation = null
+        wifiStationaryCount = 0
+        wifiLearnMovingCount = 0
+        Log.w(TAG, "▶️ 室内WiFi暂停已解除${if (reason.isNotEmpty()) "（$reason）" else ""}，恢复定位和上报")
+    }
+
+    /**
+     * 查询当前是否处于室内WiFi省电暂停状态
+     */
+    fun isLocationPausedForStationaryWifi(): Boolean = isStationaryWifiPaused
 
     /**
      * 检查是否需要收集定位

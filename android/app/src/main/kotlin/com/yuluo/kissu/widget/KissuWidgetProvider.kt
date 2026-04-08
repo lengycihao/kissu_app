@@ -188,8 +188,7 @@ class KissuWidgetProvider : AppWidgetProvider() {
                             val circularBitmap = getCircularBitmap(bitmap)
                             updatedViews.setImageViewBitmap(R.id.iv_self_avatar, circularBitmap)
                             hasUpdate = true
-                            Log.d(TAG, "自己头像加载成功: id=$appWidgetId")
-                        }
+                         }
                     }
 
                     // 加载另一半头像
@@ -199,8 +198,7 @@ class KissuWidgetProvider : AppWidgetProvider() {
                             val circularBitmap = getCircularBitmap(bitmap)
                             updatedViews.setImageViewBitmap(R.id.iv_partner_avatar, circularBitmap)
                             hasUpdate = true
-                            Log.d(TAG, "另一半头像加载成功: id=$appWidgetId")
-                        }
+                         }
                     }
 
                     if (hasUpdate) {
@@ -225,12 +223,16 @@ class KissuWidgetProvider : AppWidgetProvider() {
         // 系统触发的 onUpdate → 立即入队一次性 Worker 拉取最新数据
         // 这是最可靠的后台刷新路径，因为由 Android 系统根据 updatePeriodMillis 触发
         WidgetUpdateWorker.enqueueOneTimeWork(context)
+        // 🔥 启动 AlarmManager 备份链，防止 WorkManager 被国产ROM冻结
+        WidgetUpdateWorker.scheduleAlarmBackup(context)
     }
 
     override fun onEnabled(context: Context) {
         Log.d(TAG, "onEnabled: 第一个小组件被添加")
         // 注册 WorkManager 周期刷新任务
         WidgetUpdateWorker.enqueuePeriodicWork(context)
+        // 🔥 启动 AlarmManager 备份链
+        WidgetUpdateWorker.scheduleAlarmBackup(context)
     }
 
     override fun onDisabled(context: Context) {

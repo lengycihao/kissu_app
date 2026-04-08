@@ -33,7 +33,6 @@ import 'package:kissu_app/pages/interaction_message/interaction_message_page.dar
 import 'package:kissu_app/pages/interaction_message/interaction_message_binding.dart';
 import 'package:kissu_app/pages/track/track_page.dart';
 import 'package:kissu_app/pages/track/track_binding.dart';
- import 'package:kissu_app/pages/dialog_showcase/dialog_showcase_page.dart';
 import 'package:kissu_app/pages/app_icon_selector/app_icon_selector_page.dart';
 import 'package:kissu_app/pages/app_icon_selector/app_icon_selector_binding.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_page.dart';
@@ -71,6 +70,7 @@ import 'package:kissu_app/pages/mine/lock_screen/lock_screen_binding.dart';
 import 'package:kissu_app/pages/mine/lock_screen/lock_screen_question_page.dart';
 import 'package:kissu_app/pages/widget_center/widget_center_page.dart';
 import 'package:kissu_app/pages/widget_center/widget_center_binding.dart';
+import 'package:kissu_app/pages/widget_center/widget_add_guide_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/game_home_page.dart';
 import 'package:kissu_app/pages/guess_game_v2/bindings/game_home_binding.dart';
 import 'package:kissu_app/pages/guess_game_v2/topic_selection_page.dart';
@@ -287,11 +287,6 @@ class KissuRoute {
       transition: Transition.rightToLeft,
     ),
     GetPage(
-      name: KissuRoutePath.dialogShowcase,
-      page: () => const DialogShowcasePage(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
       name: KissuRoutePath.appIconSelector,
       page: () => const AppIconSelectorPage(),
       binding: AppIconSelectorBinding(),
@@ -432,6 +427,11 @@ class KissuRoute {
       name: KissuRoutePath.widgetCenter,
       page: () => const WidgetCenterPage(),
       binding: WidgetCenterBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: KissuRoutePath.widgetAddGuide,
+      page: () => const WidgetAddGuidePage(),
       transition: Transition.rightToLeft,
     ),
    

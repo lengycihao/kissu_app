@@ -111,12 +111,12 @@ class _CustomTopicDialogState extends State<CustomTopicDialog> {
                 ),
                 child: TextField(
                   controller: _descController,
-                  maxLength: 5,
+                  maxLength: 7,
                   inputFormatters: [
-                    LengthLimitingTextInputFormatter(5),
+                    LengthLimitingTextInputFormatter(7),
                   ],
                   decoration: const InputDecoration(
-                    hintText: '描述词不能包含答案任一个字',
+                    hintText: '请输入描述(2-7个字，不含答案字)',
                     hintStyle: TextStyle(fontSize: 14, color: Color(0xFFaaaaaa)),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -135,19 +135,19 @@ class _CustomTopicDialogState extends State<CustomTopicDialog> {
                   final desc = _descController.text.trim();
                   
                   if (answer.isEmpty || answer.length < 2) {
-                    OKToastUtil.showError('题目至少需要2个字');
+                    OKToastUtil.showError('题目需要2-5个字');
                     return;
                   }
                   if (answer.length > 5) {
-                    OKToastUtil.showError('题目最多5个字');
+                    OKToastUtil.showError('题目需要2-5个字');
                     return;
                   }
-                  if (desc.isNotEmpty && desc.length < 1) {
-                    OKToastUtil.showError('描述至少需要1个字');
+                  if (desc.isEmpty || desc.length < 2) {
+                    OKToastUtil.showError('描述需要2-7个字');
                     return;
                   }
-                  if (desc.length > 5) {
-                    OKToastUtil.showError('描述最多5个字');
+                  if (desc.length > 7) {
+                    OKToastUtil.showError('描述需要2-7个字');
                     return;
                   }
                   

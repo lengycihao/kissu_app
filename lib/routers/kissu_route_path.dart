@@ -47,7 +47,6 @@ class KissuRoutePath {
   static const interactionMessage = '/kisssu_app/interaction_message';
   static const track = '/kisssu_app/track';
   static const trackPlayTest = '/kisssu_app/track_play_test';
-  static const dialogShowcase = '/kisssu_app/dialog_showcase';
   static const appIconSelector = '/kisssu_app/app_icon_selector';
   static const deviceUsage = '/kisssu_app/device_usage';
   static const appUsageDetail = '/kisssu_app/app_usage_detail';
@@ -68,6 +67,7 @@ class KissuRoutePath {
   static const lockScreen = '/kisssu_app/lock_screen';
   static const lockScreenQuestion = '/kisssu_app/lock_screen_question';
   static const widgetCenter = '/kisssu_app/widget_center';
+  static const widgetAddGuide = '/kisssu_app/widget_add_guide';
   static const guessGame = '/kisssu_app/guess_game';
   static const guessGameV2Home = '/kisssu_app/guess_game_v2/home';
   static const guessGameV2TopicSelection = '/kisssu_app/guess_game_v2/topic_selection';

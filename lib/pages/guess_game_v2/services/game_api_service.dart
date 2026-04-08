@@ -121,7 +121,7 @@ class GameApiService {
       queryParam: {
         'is_oneself': isOneself,
         'page': page,
-        'page_size': pageSize,
+        'page_size': pageSize,  
       },
     );
 
@@ -214,14 +214,15 @@ class GameApiService {
   // ===== 3. 对局详情（同步用） =====
 
   /// 获取对局详情，用于同步游戏状态
-  /// 内置重试机制：失败时最多重试2次（共3次），每次间隔500ms
+  /// 内置重试机制：失败时最多重试2次（共3次），递增间隔 1s/2s
   Future<GameInfoResult?> getGameInfo(String groupId) async {
     const maxRetries = 2;
 
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
-        logger.debug('获取对局详情第${attempt + 1}次重试...', tag: _tag);
-        await Future.delayed(const Duration(milliseconds: 500));
+        final delayMs = 1000 * attempt; // 1s, 2s
+        logger.debug('获取对局详情第${attempt + 1}次重试(${delayMs}ms后)...', tag: _tag);
+        await Future.delayed(Duration(milliseconds: delayMs));
       }
 
       final result = await HttpManagerN.instance.executeGet(

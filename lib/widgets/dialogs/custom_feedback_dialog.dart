@@ -1,10 +1,15 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 import 'package:kissu_app/model/unbind_reason_model.dart';
 import 'package:kissu_app/model/unbind_result.dart';
 import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/analytics/analytics_manager.dart';
 import 'package:kissu_app/services/analytics/analytics_events.dart';
@@ -123,6 +128,13 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
       ),
       barrierDismissible: false,
     );
+  }
+
+  /// 显示吵架聊天挽留弹窗
+  void _showQuarrelChatDialog() {
+    final reasons = widget.reasons;
+    Get.back();
+    QuarrelChatDialog.showFromFeedback(reasons);
   }
 
   /// 取消按钮
@@ -401,11 +413,13 @@ class _CustomFeedbackDialogState extends State<CustomFeedbackDialog> {
           _textController.clear(); // 清空输入框
         });
 
-        // 如果是 privacy 或 price 类型，立即弹出对应弹窗
+        // 如果是特殊类型，立即弹出对应弹窗
         if (reason.isPrivacyType) {
           _showPrivacySecurityDialog();
         } else if (reason.isPriceType) {
           _showVipRetentionDialog();
+        } else if (reason.isQuarrelChatType) {
+          _showQuarrelChatDialog();
         }
       },
       child: Row(
@@ -727,6 +741,193 @@ class _VipRetentionDialogState extends State<VipRetentionDialog> {
               ),
               child: const Icon(Icons.close, color: Colors.white, size: 15),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 吵架聊天挽留弹窗
+/// 当用户选择 operation_type=quarrel_chat 的选项时显示
+class QuarrelChatDialog extends StatelessWidget {
+  final VoidCallback onClose;
+  final VoidCallback onContact;
+
+  const QuarrelChatDialog({
+    super.key,
+    required this.onClose,
+    required this.onContact,
+  });
+
+  /// 直接显示弹窗（从我的页面等独立入口调用）
+  static void show() {
+    Get.dialog<bool>(
+      QuarrelChatDialog(
+        onClose: () => Get.back(),
+        onContact: () async {
+          Get.back();
+          await _openQuarrelChatKf();
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  /// 从解绑反馈弹窗中调用（关闭后返回反馈弹窗）
+  static void showFromFeedback(List<UnbindReasonModel> reasons) {
+    Get.dialog<bool>(
+      QuarrelChatDialog(
+        onClose: () {
+          Get.back();
+          CustomFeedbackDialogUtil.show(reasons: reasons);
+        },
+        onContact: () async {
+          Get.back();
+          await _openQuarrelChatKf();
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  /// 打开情感客服（含鸿蒙系统兼容处理）
+  static Future<void> _openQuarrelChatKf() async {
+    const corpId = AppConstants.weComCorpId;
+    const kfId = AppConstants.weComQuarrelChatKfId;
+    final kfUrl = AppConstants.weComKfUrl(kfId);
+
+    try {
+      if (Platform.isAndroid && await _isHarmonyOS()) {
+        final launched = await launchUrl(
+          Uri.parse(kfUrl),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched) {
+          CustomToast.show(Get.context!, '无法打开客服链接');
+        }
+        return;
+      }
+
+      if (Platform.isAndroid) {
+        await PermissionHelper.openWeComKfWithParams(corpId: corpId, kfId: kfId);
+      } else {
+        await launchUrl(Uri.parse(kfUrl), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      try {
+        await launchUrl(Uri.parse(kfUrl), mode: LaunchMode.externalApplication);
+      } catch (_) {
+        CustomToast.show(Get.context!, '拉起客服失败，请稍后重试');
+      }
+    }
+  }
+
+  /// 检测是否为鸿蒙系统
+  static Future<bool> _isHarmonyOS() async {
+    try {
+      if (!Platform.isAndroid) return false;
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final brand = androidInfo.brand.toLowerCase();
+      final displayLower = androidInfo.display.toLowerCase();
+      final fingerprintLower = androidInfo.fingerprint.toLowerCase();
+      final hostLower = androidInfo.host.toLowerCase();
+      final osVersion = Platform.operatingSystemVersion.toLowerCase();
+      final versionRelease = androidInfo.version.release;
+
+      if (displayLower.contains('harmony') ||
+          fingerprintLower.contains('harmony') ||
+          hostLower.contains('harmony') ||
+          displayLower.contains('ohos') ||
+          fingerprintLower.contains('ohos') ||
+          osVersion.contains('harmony') ||
+          osVersion.contains('ohos')) {
+        return true;
+      }
+
+      final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+      if (isHuaweiOrHonor &&
+          (displayLower.startsWith('system') || osVersion.startsWith('system'))) {
+        return true;
+      }
+
+      if (isHuaweiOrHonor) {
+        final parts = versionRelease.split('.');
+        final majorVersion = int.tryParse(parts[0]) ?? 0;
+        if (majorVersion >= 5 && parts.length > 1) {
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 图片 + 右上角关闭按钮 + 底部按钮
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // 主体图片
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/images/kissu_fenshou.webp',
+                  width: 260,
+                  height: 355,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // 右上角关闭按钮
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: onClose,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                     
+                    child: const Icon(Icons.close, color: Color(0xffaaaaaa), size: 22),
+                  ),
+                ),
+              ),
+              // 底部按钮
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 34,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: onContact,
+                    child: Container(
+                      width: 180,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF90CA),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '找人聊聊',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

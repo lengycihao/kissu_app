@@ -57,6 +57,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   List<double> _magnetometerValues = [0, 0, 0];
   List<double> _accelerometerValues = [0, 0, 0];
 
+  // 🔋 传感器节流：最少200ms计算一次heading，避免每秒100次无意义计算
+  DateTime _lastHeadingCalcTime = DateTime.fromMillisecondsSinceEpoch(0);
+
   /// 简单启动定位（参考用户示例）
   void start() => _locationPlugin.startLocation();
 
@@ -84,6 +87,12 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   static const EventChannel _gpsStatusChannel = EventChannel(
     'kissu_app/gps_status',
   );
+
+  // 🔋 省电优化：原生定位数据推送通道（替代 Flutter 层双引擎）
+  static const MethodChannel _nativeLocationChannel = MethodChannel(
+    'kissu_app/native_location',
+  );
+  bool _isUsingNativeLocation = false; // 是否正在使用原生定位数据
   StreamSubscription<dynamic>? _gpsStatusSubscription;
   bool? _lastGpsEnabledStatus; // 上次的GPS开关状态（null表示未初始化）
 
@@ -115,7 +124,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   // 🚀 核心策略参数
   static const double _distanceFilter = -1; // 不做距离过滤，由上报层处理
-  static const int _locationInterval = 5000; // 5秒定位间隔
+  static const int _locationInterval = 5000; // 5秒定位间隔（省电优化）
 
 
   @override
@@ -163,6 +172,54 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
     }
     // 启动手机方向传感器监听
     _startSensorListeners();
+    // 🔋 省电优化：监听原生层推送的定位数据（Android）
+    if (Platform.isAndroid) {
+      _setupNativeLocationListener();
+    }
+  }
+
+  /// 🔋 省电优化：监听原生层推送的定位数据（替代 Flutter 自己的 GPS 引擎）
+  void _setupNativeLocationListener() {
+    _nativeLocationChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onNativeLocationUpdate') {
+        final data = Map<String, dynamic>.from(call.arguments as Map);
+        _handleNativeLocationData(data);
+      }
+    });
+  }
+
+  /// 处理原生层推送的定位数据
+  void _handleNativeLocationData(Map<String, dynamic> data) {
+    try {
+      final double? latitude = (data['latitude'] as num?)?.toDouble();
+      final double? longitude = (data['longitude'] as num?)?.toDouble();
+      final double? accuracy = (data['accuracy'] as num?)?.toDouble();
+      final double? speed = (data['speed'] as num?)?.toDouble();
+      final double? altitude = (data['altitude'] as num?)?.toDouble();
+      final String? address = data['address'] as String?;
+      final int? timestamp = (data['timestamp'] as num?)?.toInt();
+
+      if (latitude == null || longitude == null) return;
+
+      final location = LocationReportModel(
+        longitude: longitude.toString(),
+        latitude: latitude.toString(),
+        locationTime: timestamp != null
+            ? (timestamp ~/ 1000).toString()
+            : (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString(),
+        speed: (speed ?? 0.0).toStringAsFixed(2),
+        altitude: (altitude ?? 0.0).toStringAsFixed(2),
+        locationName:
+            address ?? '位置 ${latitude.toString()}, ${longitude.toString()}',
+        accuracy: (accuracy ?? 0.0).toStringAsFixed(2),
+      );
+
+      // 更新当前位置（与 _onLocationUpdate 相同逻辑）
+      currentLocation.value = location;
+      _isUsingNativeLocation = true;
+    } catch (e) {
+      logger.error('处理原生定位数据失败: $e', tag: 'Location');
+    }
   }
 
   /// 设置高德地图隐私合规和API Key
@@ -385,45 +442,47 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
        } catch (e) {
         logger.warning('清理监听器时出现异常: $e', tag: 'Location');
       }
-      AMapLocationOption locationOption = AMapLocationOption();
 
-      locationOption.locationMode =
-          AMapLocationMode.Hight_Accuracy; // 高精度模式，包含GPS
+      // 🔋 省电优化：Android 上由原生 ForegroundLocationService 提供定位数据
+      // Flutter 层不再启动自己的 AMapFlutterLocation 持续定位，避免双引擎同时跑 GPS
+      // 仅保留插件初始化，供单次定位 fallback 使用
+      if (!Platform.isAndroid) {
+        // iOS 或其他平台：保持原有逻辑
+        AMapLocationOption locationOption = AMapLocationOption();
+        locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
+        locationOption.locationInterval = _locationInterval;
+        locationOption.distanceFilter = -1;
+        locationOption.needAddress = false;
+        locationOption.onceLocation = false;
+        try {
+          _locationPlugin.setLocationOption(locationOption);
+        } catch (e) {
+          logger.error('设置高德定位参数失败: ', tag: 'Location');
+          throw e;
+        }
 
-      locationOption.locationInterval = _locationInterval; // 5秒间隔，平衡响应性与耗电
- 
-      // ✅ 关键修复：取消距离过滤，让定位层保证数据完整性
-      locationOption.distanceFilter = -1;
-      // logger.debug('- 距离过滤: ${_distanceFilter}米（设为0以避免与时间间隔冲突）', tag: 'Location');
-      // 设置地址信息
-      locationOption.needAddress = false;
-      // 设置持续定位
-      locationOption.onceLocation = false;
-      try {
-        _locationPlugin.setLocationOption(locationOption);
-       } catch (e) {
-        logger.error('设置高德定位参数失败: ', tag: 'Location');
-        throw e;
-      }
+        if (!_isGlobalListenerSetup) {
+          _setupGlobalLocationListener();
+        }
 
-      // 确保全局监听器已设置
-      if (!_isGlobalListenerSetup) {
-        _setupGlobalLocationListener();
+        try {
+          _locationPlugin.startLocation();
+        } catch (e) {
+          logger.error('启动高德定位失败: ', tag: 'Location');
+          throw e;
+        }
       } else {
-        // logger.info('全局监听器已激活，直接启动定位', tag: 'Location');
+        // Android：确保全局监听器已设置（供单次定位 fallback 使用）
+        if (!_isGlobalListenerSetup) {
+          _setupGlobalLocationListener();
+        }
+        logger.info('🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据', tag: 'Location');
       }
 
-      try {
-        _locationPlugin.startLocation();
-       } catch (e) {
-        logger.error('启动高德定位失败: ', tag: 'Location');
-        throw e;
-      }
-
-      // 添加延迟检查
-      Future.delayed(Duration(seconds: 5), () {
-         if (currentLocation.value == null) {
-          logger.warning('5秒后仍未收到定位数据，尝试单次定位...', tag: 'Location');
+      // 添加延迟检查（Android 上等原生推送，其他平台等 AMapFlutterLocation）
+      Future.delayed(Duration(seconds: 10), () {
+         if (currentLocation.value == null && !_isUsingNativeLocation) {
+          logger.warning('10秒后仍未收到定位数据，尝试单次定位...', tag: 'Location');
           _requestSingleLocation();
         }
       });
@@ -666,7 +725,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
   /// 为收集池专门的单次定位请求
   Future<void> _requestSingleLocationForCollection() async {
     try {
- 
+      // 🔋 Android 省电优化：原生层已推送定位数据，不需要 Flutter 单次定位
+      if (Platform.isAndroid) return;
+
       // 如果已经在进行单次定位，不重复执行
       if (_isSingleLocationInProgress) {
         logger.warning('单次定位已在进行中，跳过重复请求', tag: 'Location');
@@ -810,6 +871,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 切换到高精度定位模式
   Future<void> _switchToHighAccuracyMode() async {
+    // 🔋 Android 省电优化：原生层已处理定位，Flutter 不需要切换模式
+    if (Platform.isAndroid) return;
+
     try {
  
       // 停止当前定位
@@ -819,7 +883,7 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
       // 设置高精度定位参数
       AMapLocationOption locationOption = AMapLocationOption();
       locationOption.locationMode = AMapLocationMode.Hight_Accuracy;
-      locationOption.locationInterval = 5000; // 减少间隔到2秒
+      locationOption.locationInterval = _locationInterval; // 10秒间隔（与全局统一）
       locationOption.distanceFilter = _distanceFilter; // 保持50米距离过滤（与iOS一致）
       // 优化已实现
       locationOption.needAddress = false;
@@ -859,6 +923,9 @@ class SimpleLocationService extends GetxService with WidgetsBindingObserver {
 
   /// 重启持续定位
   Future<void> _restartContinuousLocation() async {
+    // 🔋 Android 省电优化：原生层已处理定位，Flutter 不需要重启持续定位
+    if (Platform.isAndroid) return;
+
     try {
  
       _locationPlugin.stopLocation();
@@ -1020,6 +1087,9 @@ extension AppLifecycleExtension on SimpleLocationService {
     // 2. 增强位置采集频率（后台模式）
     _enableBackgroundLocationMode();
 
+    // 3. 🔋 省电优化：后台关闭传感器（磁力计+加速度计），后台不需要手机朝向
+    _stopSensorListeners();
+
     // 4. 显示后台运行通知
     _showBackgroundNotification();
   }
@@ -1030,12 +1100,18 @@ extension AppLifecycleExtension on SimpleLocationService {
     // 2. 恢复正常位置采集
     _enableForegroundLocationMode();
 
+    // 3. 🔋 省电优化：前台恢复传感器监听
+    _startSensorListeners();
+
     // 4. 隐藏后台运行通知
     _hideBackgroundNotification();
   }
 
   /// 启用后台位置模式
   void _enableBackgroundLocationMode() {
+    // 🔋 Android 省电优化：原生层已处理定位，Flutter 不需要重启 GPS
+    if (Platform.isAndroid) return;
+
     // 在后台时，降低采集频率以节省电量，同时保证一定的更新
     try {
       // 若后台定位权限未授予，避免触发网络/WIFI基站采集导致错误13
@@ -1082,6 +1158,9 @@ extension AppLifecycleExtension on SimpleLocationService {
 
   /// 启用前台位置模式
   void _enableForegroundLocationMode() {
+    // 🔋 Android 省电优化：原生层已处理定位，Flutter 不需要重启 GPS
+    if (Platform.isAndroid) return;
+
     // 前台时恢复正常的采集频率与高精度
     try {
       _locationPlugin.stopLocation();
@@ -1453,7 +1532,9 @@ extension SensorListenerExtension on SimpleLocationService {
   /// 启动传感器监听（磁力计 + 加速度计）
   void _startSensorListeners() {
     try {
- 
+      // 如果已经在监听，先停止避免重复订阅
+      _stopSensorListeners();
+
       // 监听磁力计
       _magnetometerSubscription = magnetometerEventStream().listen(
         (MagnetometerEvent event) {
@@ -1481,9 +1562,23 @@ extension SensorListenerExtension on SimpleLocationService {
     }
   }
 
+  /// 🔋 省电优化：停止传感器监听（后台时不需要手机朝向）
+  void _stopSensorListeners() {
+    _magnetometerSubscription?.cancel();
+    _magnetometerSubscription = null;
+    _accelerometerSubscription?.cancel();
+    _accelerometerSubscription = null;
+  }
+
   /// 计算手机方向角度（根据磁力计和加速度计数据）
+  /// 🔋 节流优化：最少200ms计算一次，避免每秒50-100次无意义三角函数运算
   void _calculateHeading() {
     try {
+      // 🔋 节流：200ms内不重复计算
+      final now = DateTime.now();
+      if (now.difference(_lastHeadingCalcTime).inMilliseconds < 200) return;
+      _lastHeadingCalcTime = now;
+
       // 使用磁力计和加速度计数据计算方向角
       final mx = _magnetometerValues[0];
       final my = _magnetometerValues[1];

@@ -1,9 +1,10 @@
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kissu_app/utils/permission_helper.dart';
 import 'package:kissu_app/services/location_permission_manager.dart';
+import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:get/get.dart';
 import 'dart:io';
 
 /// 权限类型枚举
@@ -24,8 +25,6 @@ class PermissionService {
   factory PermissionService() => _instance;
   PermissionService._internal();
 
-  final DeviceInfoPlugin _deviceInfoPlugin = DeviceInfoPlugin();
-  int? _cachedAndroidSdkInt;
 
   /// 检查位置权限状态
   Future<bool> isLocationPermissionGranted() async {
@@ -79,18 +78,6 @@ class PermissionService {
   /// 检查相册权限状态
   Future<bool> isPhotosPermissionGranted() async {
     try {
-      // 🔧 仅在需要时才检查传统存储权限，避免 Android 13+ 出现兼容性提示
-      if (await _shouldRequestLegacyStoragePermission()) {
-        final storagePermission = _getStoragePermission();
-        final storageStatus = await storagePermission.status;
-
-        if (storageStatus.isGranted) {
-          logger.debug("存储权限已授予（Android 12及以下）", tag: 'PermissionService');
-          return true;
-        }
-      }
-
-      // Android 13+ 检查 Permission.photos
       final permission = _getPhotosPermission();
       final status = await permission.status;
       logger.debug("相册权限检查: $status", tag: 'PermissionService');
@@ -112,47 +99,8 @@ class PermissionService {
     // Android 和 iOS 都使用 Permission.photos
     // permission_handler 会根据 Android 版本自动处理：
     // - Android 13+ (API 33+): 使用 READ_MEDIA_IMAGES
-    // - Android 10-12: 使用 READ_EXTERNAL_STORAGE
+    // - Android 12及以下: 通过系统Picker选取，无需额外权限
     return Permission.photos;
-  }
-
-  /// 获取存储权限（Android 9及以下使用）
-  Permission _getStoragePermission() {
-    return Permission.storage;
-  }
-
-  Future<int?> _getAndroidSdkInt() async {
-    if (!Platform.isAndroid) {
-      return null;
-    }
-
-    if (_cachedAndroidSdkInt != null) {
-      return _cachedAndroidSdkInt;
-    }
-
-    try {
-      final androidInfo = await _deviceInfoPlugin.androidInfo;
-      _cachedAndroidSdkInt = androidInfo.version.sdkInt;
-      return _cachedAndroidSdkInt;
-    } catch (e) {
-      logger.warning("获取 Android 版本失败，回退到旧版权限策略", tag: 'PermissionService', error: e);
-      return null;
-    }
-  }
-
-  Future<bool> _shouldRequestLegacyStoragePermission() async {
-    if (!Platform.isAndroid) {
-      return false;
-    }
-
-    final sdkInt = await _getAndroidSdkInt();
-    if (sdkInt == null) {
-      // 版本信息获取失败时，保持旧逻辑以确保低版本设备可用
-      return true;
-    }
-
-    // Android 13(API 33)+ 使用 READ_MEDIA_*，低版本继续使用 READ_EXTERNAL_STORAGE
-    return sdkInt <= 32;
   }
 
   /// 根据权限类型检查权限状态
@@ -258,27 +206,6 @@ class PermissionService {
   /// 请求相册权限
   Future<bool> requestPhotosPermission() async {
     try {
-      // 🔧 Android 12及以下需要使用 Permission.storage 权限
-      if (await _shouldRequestLegacyStoragePermission()) {
-        final storagePermission = _getStoragePermission();
-        final storageStatus = await storagePermission.status;
-
-        if (!storageStatus.isGranted && !storageStatus.isPermanentlyDenied) {
-          logger.debug("开始申请存储权限（Android 12及以下）", tag: 'PermissionService');
-          final storageResult = await storagePermission.request();
-
-          if (storageResult.isGranted) {
-            logger.debug("存储权限已获取（适用于Android 12及以下）", tag: 'PermissionService');
-            return true;
-          }
-        } else if (storageStatus.isGranted) {
-          logger.debug("存储权限已经获得（Android 12及以下）", tag: 'PermissionService');
-          return true;
-        }
-      }
-
-      // 然后尝试 Permission.photos（适用于Android 13+）
-
       final permission = _getPhotosPermission();
       logger.debug("开始申请相册权限，权限类型: $permission", tag: 'PermissionService');
 
@@ -293,7 +220,18 @@ class PermissionService {
 
       if (currentStatus.isPermanentlyDenied) {
         logger.warning("相册权限被永久拒绝，需要跳转到设置页面", tag: 'PermissionService');
-        await openAppSettings();
+        // 先弹自定义弹窗告知用途
+        final userConfirmed = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
+        if (userConfirmed == true) {
+          await openAppSettings();
+        }
+        return false;
+      }
+
+      // 先弹自定义弹窗告知用途，再弹系统权限申请
+      final userConfirmed = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
+      if (userConfirmed != true) {
+        logger.warning("用户在自定义弹窗中拒绝了相册权限申请", tag: 'PermissionService');
         return false;
       }
 
@@ -321,16 +259,42 @@ class PermissionService {
 
   /// 请求相机权限
   Future<bool> requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    if (status.isGranted) {
-      logger.debug("相机权限已获取", tag: 'PermissionService');
-      return true;
-    } else if (status.isPermanentlyDenied) {
-      // 权限被永久拒绝，需要跳转到设置页面
-      await openAppSettings();
+    try {
+      // 先检查当前状态
+      final currentStatus = await Permission.camera.status;
+      if (currentStatus.isGranted) {
+        return true;
+      }
+
+      if (currentStatus.isPermanentlyDenied) {
+        // 先弹自定义弹窗告知用途
+        final userConfirmed = await PermissionRequestDialog.showCameraPermissionDialog(Get.context!);
+        if (userConfirmed == true) {
+          await openAppSettings();
+        }
+        return false;
+      }
+
+      // 先弹自定义弹窗告知用途，再弹系统权限申请
+      final userConfirmed = await PermissionRequestDialog.showCameraPermissionDialog(Get.context!);
+      if (userConfirmed != true) {
+        logger.warning("用户在自定义弹窗中拒绝了相机权限申请", tag: 'PermissionService');
+        return false;
+      }
+
+      final status = await Permission.camera.request();
+      if (status.isGranted) {
+        logger.debug("相机权限已获取", tag: 'PermissionService');
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        await openAppSettings();
+        return false;
+      }
+      return false;
+    } catch (e) {
+      logger.error("申请相机权限时发生错误: $e", tag: 'PermissionService', error: e);
       return false;
     }
-    return false;
   }
 
   /// 跳转到应用设置页面

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'widget_center_controller.dart'; 
 
 class WidgetCenterPage extends StatelessWidget {
@@ -122,13 +123,6 @@ class WidgetCenterPage extends StatelessWidget {
               child: Image(image: AssetImage('assets/images/kissu_component22.webp')),
             ),
           ),
-          // 2×2 方形小卡片: 居中显示
-          // Padding(
-          //   padding: const EdgeInsets.symmetric(horizontal: 60),
-          //   child: Center(
-          //     child: WidgetCardDays(controller: controller),
-          //   ),
-          // ),
         ],
       ),
     );
@@ -156,11 +150,7 @@ class WidgetCenterPage extends StatelessWidget {
 
   Widget _buildAddButton(WidgetCenterController controller) {
     return GestureDetector(
-      onTap: () {
-        const types = ['large', 'days'];
-        final type = types[controller.currentPage.value.clamp(0, 2)];
-        controller.requestAddWidget(widgetType: type);
-      },
+      onTap: () => _showAddWidgetDialog(),
       child: Container(
         height: 40,
         width: 110,
@@ -179,5 +169,9 @@ class WidgetCenterPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showAddWidgetDialog() {
+    Get.toNamed(KissuRoutePath.widgetAddGuide);
   }
 }

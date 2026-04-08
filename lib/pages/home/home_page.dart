@@ -6,6 +6,7 @@ import 'package:kissu_app/utils/screen_adaptation.dart';
 import 'package:kissu_app/widgets/guide_overlay_widget.dart';
 import 'package:kissu_app/pages/home/widget/home_avatar_section.dart';
 import 'package:kissu_app/widgets/dialogs/image_dialog_util.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:lottie/lottie.dart';
 
 class KissuHomePage extends StatefulWidget {
@@ -327,6 +328,62 @@ class _KissuHomePageState extends State<KissuHomePage>
             );
           }),
 
+          // 小组件入口浮动按钮
+          Obx(() {
+            if (!controller.showWidgetEntryButton.value) {
+              return const SizedBox.shrink();
+            }
+            // 种草按钮可见时往上偏移，避免重叠
+            final seedingVisible = controller.showSeedingButton.value && controller.seedingIcon.value.isNotEmpty;
+            final bottomOffset = seedingVisible ? (30.0 + 64 + 40 + 60 + 10) : (30.0 + 64 + 15);
+            return Positioned(
+              bottom: bottomOffset,
+              right: 20,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // 按钮主体
+                  GestureDetector(
+                    onTap: () => Get.toNamed(KissuRoutePath.widgetCenter),
+                    child: Image.asset(
+                      'assets/say_guess/home_compent.webp',
+                      width: 56,
+                      height: 56,
+                    ),
+                  ),
+                  // 关闭按钮 - 右上方
+                  Positioned(
+                    right: -4,
+                    top: -12,
+                    child: GestureDetector(
+                      onTap: () {
+                        controller.showWidgetEntryButton.value = false;
+                      },
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xff666666),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Color(0xff666666),
+                          weight: 4,
+                          size: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
           // 底部按钮栏（自定义悬浮tabbar）
           Positioned(
             bottom: 30,
@@ -411,32 +468,7 @@ class _KissuHomePageState extends State<KissuHomePage>
             }),
           ),
 
-          // 🧪 测试按钮 - 触发截屏反馈按钮显示
-          // // 调试按钮 - 显示VIP开通弹窗
-          // Positioned(
-          //   top: 100,
-          //   left: 25,
-          //   child: GestureDetector(
-          //     onTap: () {
-          //       controller.showVipPurchaseDialog();
-          //     },
-          //     child: Container(
-          //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          //       decoration: BoxDecoration(
-          //         color: Colors.pink.withOpacity(0.8),
-          //         borderRadius: BorderRadius.circular(20),
-          //       ),
-          //       child: const Text(
-          //         '测试VIP弹窗',
-          //         style: TextStyle(
-          //           color: Colors.white,
-          //           fontSize: 12,
-          //           fontWeight: FontWeight.bold,
-          //         ),
-          //       ),
-          //     ),
-          //   ),
-          // ),
+         
 
           // 头像显示区域 - 根据绑定状态显示不同内容
           HomeAvatarSection(controller: controller),

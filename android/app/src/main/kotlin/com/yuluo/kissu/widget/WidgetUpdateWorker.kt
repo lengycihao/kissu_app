@@ -1,9 +1,12 @@
 package com.yuluo.kissu.widget
 
 import android.Manifest
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.ConnectivityManager
@@ -61,9 +64,9 @@ class WidgetUpdateWorker(
          */
         fun enqueuePeriodicWork(context: Context) {
             val workRequest = PeriodicWorkRequestBuilder<WidgetUpdateWorker>(
-                5, TimeUnit.MINUTES
+                15, TimeUnit.MINUTES
             )
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
@@ -71,7 +74,7 @@ class WidgetUpdateWorker(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest
             )
-            Log.d(TAG, "✅ 小组件周期刷新任务已注册（每5分钟）")
+            Log.d(TAG, "✅ 小组件周期刷新任务已注册（每15分钟）")
         }
 
         /**
@@ -96,7 +99,60 @@ class WidgetUpdateWorker(
          */
         fun cancelPeriodicWork(context: Context) {
             WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK_NAME)
+            cancelAlarmBackup(context)
             Log.d(TAG, "🗑️ 小组件周期刷新任务已取消")
+        }
+
+        // ==================== AlarmManager 备份机制 ====================
+        private const val ALARM_REQUEST_CODE = 19920801
+        private const val ALARM_INTERVAL_MS = 20 * 60 * 1000L // 20分钟
+
+        /**
+         * 调度 AlarmManager 备份闹钟（自我续命链）
+         * 当 WorkManager 被国产ROM省电策略冻结时，AlarmManager 作为可靠备份
+         * setExactAndAllowWhileIdle 即使在 Doze 模式下也能触发
+         */
+        fun scheduleAlarmBackup(context: Context) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(context, WidgetAlarmReceiver::class.java)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context, ALARM_REQUEST_CODE, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val triggerAt = System.currentTimeMillis() + ALARM_INTERVAL_MS
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent
+                    )
+                }
+                Log.d(TAG, "⏰ AlarmManager 备份已调度（${ALARM_INTERVAL_MS / 60000}分钟后触发）")
+            } catch (e: Exception) {
+                Log.e(TAG, "调度 AlarmManager 备份失败: ${e.message}")
+            }
+        }
+
+        /**
+         * 取消 AlarmManager 备份闹钟
+         */
+        fun cancelAlarmBackup(context: Context) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(context, WidgetAlarmReceiver::class.java)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context, ALARM_REQUEST_CODE, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                alarmManager.cancel(pendingIntent)
+                Log.d(TAG, "🗑️ AlarmManager 备份已取消")
+            } catch (e: Exception) {
+                Log.e(TAG, "取消 AlarmManager 备份失败: ${e.message}")
+            }
         }
     }
 
@@ -159,9 +215,16 @@ class WidgetUpdateWorker(
                 Log.e(TAG, "💥 App使用记录上报失败", e)
             }
 
+            Log.d(TAG, "🎉 Worker 全部任务执行完毕")
+
+            // 🔥 调度 AlarmManager 备份（自我续命链），防止 WorkManager 被系统冻结
+            scheduleAlarmBackup(context)
+
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "💥 Worker 执行异常", e)
+            // 即使失败也调度备份闹钟
+            scheduleAlarmBackup(context)
             Result.retry()
         }
     }
@@ -273,7 +336,7 @@ class WidgetUpdateWorker(
      */
     private fun reportLocationToServer(token: String, baseUrl: String, userId: String?) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val maxAge = 30 * 60 * 1000L // 30分钟
+        val maxAge = 60 * 60 * 1000L // 60分钟（杀死状态下缓存可能较旧，放宽限制）
 
         // ===== 策略 1：优先读取 LocationReportService 缓存的高德坐标（已经是 GCJ-02） =====
         val cachedLat = prefs.getString("last_report_latitude", null)?.toDoubleOrNull()
@@ -319,8 +382,7 @@ class WidgetUpdateWorker(
 
         val locationAge = System.currentTimeMillis() - lastLocation.time
         if (locationAge > maxAge) {
-            Log.w(TAG, "⚠️ 位置过期(${locationAge / 1000}秒前)，跳过上报")
-            return
+            Log.w(TAG, "⚠️ 位置较旧(${locationAge / 1000}秒前)，仍尝试上报（杀死状态下的最佳数据）")
         }
 
         // WGS-84 → GCJ-02 坐标转换

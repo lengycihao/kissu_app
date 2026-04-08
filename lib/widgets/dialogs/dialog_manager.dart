@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'confirm_dialog.dart';
 import 'gender_select_dialog.dart';
 import 'input_dialog.dart';
@@ -9,7 +8,6 @@ import 'vip_purchase_dialog.dart';
 import 'unbind_relationship_dialog.dart';
 import 'vip_cancel_retention_dialog.dart';
 import 'bind_request_dialog.dart';
-import '../../pages/dialog_showcase/dialog_showcase_page.dart';
 
 /// 导出所有弹窗组件
 export 'base_dialog.dart';
@@ -171,14 +169,6 @@ class DialogManager {
       context: context,
       onConfirm: onConfirm,
       barrierDismissible: barrierDismissible,
-    );
-  }
-
-  /// 显示弹窗展示页面
-  static void showDialogShowcase(BuildContext context) {
-    Get.to(
-      () => const DialogShowcasePage(),
-      transition: Transition.rightToLeft,
     );
   }
 

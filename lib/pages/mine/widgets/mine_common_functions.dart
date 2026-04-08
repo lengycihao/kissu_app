@@ -15,6 +15,12 @@ class _MineCommonFunctionsState extends State<MineCommonFunctions>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  static const int _itemsPerPage = 8; // 每页 2行×4列
+
+  int get _pageCount => (widget.items.length / _itemsPerPage).ceil();
 
   @override
   void initState() {
@@ -32,6 +38,7 @@ class _MineCommonFunctionsState extends State<MineCommonFunctions>
 
   @override
   void dispose() {
+    _pageController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -59,7 +66,7 @@ class _MineCommonFunctionsState extends State<MineCommonFunctions>
           children: [
             // 顶部标题
             Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 28),
+              padding: const EdgeInsets.only(left: 16, bottom: 15),
               child: Text(
                 "常用功能",
                 style: TextStyle(
@@ -69,44 +76,88 @@ class _MineCommonFunctionsState extends State<MineCommonFunctions>
                 ),
               ),
             ),
-            // 功能图标网格（两排，每排4个）
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 0),
-              child: Column(
-                children: [
-                  // 第一排
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(4, (index) {
-                      if (index < widget.items.length) {
-                        return _AnimatedFunctionItem(
-                          item: widget.items[index],
-                          delay: index * 60,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }),
-                  ),
-                  const SizedBox(height: 23),
-                  // 第二排
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(4, (index) {
-                      final itemIndex = index + 4;
-                      if (itemIndex < widget.items.length) {
-                        return _AnimatedFunctionItem(
-                          item: widget.items[itemIndex],
-                          delay: itemIndex * 60,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }),
-                  ),
-                ],
+            // 横向滚动的功能页
+            SizedBox(
+              // 两行图标高度: 图标44 + 间距4 + 文字行高~16 = ~64 每行, 两行 + 间距23 + subIcon上溢12
+              height: 64 * 2 + 30 + 12,
+              child: PageView.builder(
+                clipBehavior: Clip.none,
+                controller: _pageController,
+                itemCount: _pageCount,
+                onPageChanged: (index) {
+                  setState(() => _currentPage = index);
+                },
+                itemBuilder: (context, pageIndex) {
+                  final startIndex = pageIndex * _itemsPerPage;
+                  final pageItems = widget.items.skip(startIndex).take(_itemsPerPage).toList();
+                  return _buildPage(pageItems, pageIndex);
+                },
               ),
             ),
+            // 页面指示器（仅多页时显示）
+            if (_pageCount > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_pageCount, (index) {
+                    final isActive = index == _currentPage;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: isActive ? 16 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFF333333)
+                            : const Color(0xFFDDDDDD),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    );
+                  }),
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建单页内容（2行×4列网格）
+  Widget _buildPage(List<CommonFunctionItem> pageItems, int pageIndex) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        children: [
+          // 第一排
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(4, (index) {
+              if (index < pageItems.length) {
+                return _AnimatedFunctionItem(
+                  item: pageItems[index],
+                  delay: pageIndex == 0 ? index * 60 : 0,
+                );
+              }
+              return const SizedBox(width: 80);
+            }),
+          ),
+          const SizedBox(height: 23),
+          // 第二排
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(4, (index) {
+              final itemIndex = index + 4;
+              if (itemIndex < pageItems.length) {
+                return _AnimatedFunctionItem(
+                  item: pageItems[itemIndex],
+                  delay: pageIndex == 0 ? itemIndex * 60 : 0,
+                );
+              }
+              return const SizedBox(width: 80);
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -171,6 +222,7 @@ class _AnimatedFunctionItemState extends State<_AnimatedFunctionItem>
           onTap: widget.item.onTap,
           behavior: HitTestBehavior.opaque,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               SizedBox(
                 width: 80,

@@ -1462,6 +1462,12 @@
                 android:resource="@xml/widget_kissu_info" />
         </receiver>
 
+        <!-- 小组件 AlarmManager 备份接收器 -->
+        <receiver
+            android:name="com.yuluo.kissu.widget.WidgetAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- 2×2 相伴天数小组件 -->
         <receiver
             android:name="com.yuluo.kissu.widget.KissuWidgetDaysProvider"
@@ -1499,13 +1505,7 @@
 
     <uses-permission android:name="android.permission.CAMERA"/>
 
-    <!-- 存储权限：用于读取和保存图片、文件等（Android 12及以下） -->
-
-    <uses-permission
-
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-
-        android:maxSdkVersion="32" />
+    <!-- 存储权限已移除：图片/视频选取通过系统Picker实现，无需READ_EXTERNAL_STORAGE -->
 
     
 

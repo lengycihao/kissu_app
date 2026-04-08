@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import '../models/game_models.dart';
 import '../services/game_api_service.dart';
@@ -18,6 +19,7 @@ class GamePlayController extends GetxController {
   late final String groupId;
   late final bool isInitiator; // 是否发起方（出题者）
   List<GameTopic> topics = [];
+  GameInfoResult? _initialGameInfo; // 外部带入的对局详情，用后置空
 
   // ===== 游戏状态 =====
   final currentIndex = 0.obs; // 当前题目索引 0-4
@@ -60,6 +62,7 @@ class GamePlayController extends GetxController {
 
   // ===== 游戏事件弹窗 =====
   final currentEventDialog = Rxn<String>(); // 当前要显示的事件弹窗类型
+  bool _isShowingEventDialog = false; // 防止事件弹窗重复弹出
 
   // ===== 答题弹窗状态 =====
   final isAnswerDialogOpen = false.obs; // 答题弹窗打开时禁止Scaffold随键盘resize
@@ -69,8 +72,8 @@ class GamePlayController extends GetxController {
   final receivedPenaltyProof = Rxn<String>(); // 回答者收到的惩罚凭证（URL）
 
   // ===== 结算数据（从 getGameInfo 接口获取） =====
-  String _tacitPercent = '0%';   // 默契度
-  int _starNums = 0;             // 星星数量
+  String _tacitPercent = '0%'; // 默契度
+  int _starNums = 0; // 星星数量
   String get tacitPercent => _tacitPercent;
   int get starNums => _starNums;
 
@@ -90,6 +93,9 @@ class GamePlayController extends GetxController {
     if (topicArgs is List<GameTopic>) {
       topics = topicArgs;
     }
+
+    // 从外部带入的对局详情（如邀请卡片已调接口），避免重复请求
+    _initialGameInfo = args['gameInfo'] as GameInfoResult?;
 
     // 初始化进度条
     questionStatuses.value = List.generate(5, (_) => QuestionStatus.pending);
@@ -134,8 +140,8 @@ class GamePlayController extends GetxController {
         } else {
           _addSystemMessage('等待对方同步游戏数据...');
         }
-        // 从接口同步最新状态（重入场景恢复进度）
-        _syncStateFromApi();
+        // 同步游戏状态（优先用外部带入的数据）
+        _applyInitialOrSync();
       } else {
         // 接收方：加入群
         final ok = await imService.joinGameGroup(groupId);
@@ -150,8 +156,8 @@ class GamePlayController extends GetxController {
         if (topics.isNotEmpty) {
           _sendFullStateToPartner();
         }
-        // 从接口同步当前游戏状态
-        _syncStateFromApi();
+        // 同步游戏状态（优先用外部带入的数据）
+        _applyInitialOrSync();
       }
     } else {
       imService.onGameMessage = _onGameMessage;
@@ -439,6 +445,7 @@ class GamePlayController extends GetxController {
       if (chars.isNotEmpty) {
         final idx = Random().nextInt(chars.length);
         currentHint.value = chars[idx];
+        _saveHint(currentIndex.value, chars[idx]);
         _addSystemMessage('💡 系统提示：${chars[idx]}');
       }
     }
@@ -450,6 +457,7 @@ class GamePlayController extends GetxController {
     if (charIndex < 0 || charIndex >= currentTopic!.answerChars.length) return;
     final hint = currentTopic!.answerChars[charIndex];
     currentHint.value = hint;
+    _saveHint(currentIndex.value, hint);
     waitingForHintSelection.value = false;
     _addMessage('提示已回复，上方查看', GameChatMessageType.hintResponse, isSelf: true);
     await imService.sendHintResponse(hint);
@@ -534,14 +542,15 @@ class GamePlayController extends GetxController {
   void _applyGameInfo(GameInfoResult info) {
     // 从历史记录进入时 topics 为空，直接从接口初始化
     if (topics.isEmpty && info.answers.isNotEmpty) {
-      topics = info.answers.map((a) => GameTopic(
-            answer: a.answer,
-            description: a.desc,
-          )).toList();
+      topics = info.answers
+          .map((a) => GameTopic(answer: a.answer, description: a.desc))
+          .toList();
       // 同步进度条长度
       if (questionStatuses.length != topics.length) {
-        questionStatuses.value =
-            List.generate(topics.length, (_) => QuestionStatus.pending);
+        questionStatuses.value = List.generate(
+          topics.length,
+          (_) => QuestionStatus.pending,
+        );
       }
       _addSystemMessage('游戏数据已同步');
     }
@@ -550,7 +559,11 @@ class GamePlayController extends GetxController {
     final idx = (info.answerStage - 1).clamp(0, 4);
 
     // 题目状态列表
-    for (int i = 0; i < info.answers.length && i < questionStatuses.length; i++) {
+    for (
+      int i = 0;
+      i < info.answers.length && i < questionStatuses.length;
+      i++
+    ) {
       final apiStatus = info.answers[i].status;
       QuestionStatus qs;
       switch (apiStatus) {
@@ -586,6 +599,10 @@ class GamePlayController extends GetxController {
       maxAttempts.value = curAnswer.limitAnswerNums;
       wrongAttempts.value = curAnswer.answerNums;
       hintRequestedThisQ.value = curAnswer.isUseHint;
+      // 重入时恢复已使用的提示
+      if (curAnswer.isUseHint && currentHint.value == null) {
+        _loadHint(idx);
+      }
     }
 
     // 特权状态
@@ -622,26 +639,85 @@ class GamePlayController extends GetxController {
     }
   }
 
+  // ==================== 初始数据应用 ====================
+
+  /// 优先使用外部带入的 gameInfo，否则调接口同步
+  void _applyInitialOrSync() {
+    if (_initialGameInfo != null) {
+      _applyGameInfo(_initialGameInfo!);
+      _initialGameInfo = null; // 用后置空，后续同步走接口
+    } else {
+      _syncStateFromApi();
+    }
+  }
+
+  // ==================== 提示持久化 ====================
+
+  String _hintKey(int questionIndex) => 'game_hint_${groupId}_$questionIndex';
+
+  Future<void> _saveHint(int questionIndex, String hint) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_hintKey(questionIndex), hint);
+    } catch (_) {}
+  }
+
+  Future<void> _loadHint(int questionIndex) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hint = prefs.getString(_hintKey(questionIndex));
+      if (hint != null && hint.isNotEmpty && currentHint.value == null) {
+        currentHint.value = hint;
+        _addSystemMessage('💡 提示：$hint');
+      }
+    } catch (_) {}
+  }
+
   // ==================== 事件弹窗处理 ====================
 
   void _handleEventDialog(String eventType) {
+    // 防止同一时间弹出多个事件弹窗
+    if (_isShowingEventDialog) return;
+
     GameEventType? type;
     switch (eventType) {
-      case 'addTimes':     type = GameEventType.addTimes; break;
-      case 'addTimesSelf': type = GameEventType.addTimesSelf; break;
-      case 'skip':         type = GameEventType.skip; break;
-      case 'skipSelf':     type = GameEventType.skipSelf; break;
-      case 'wrong':        type = GameEventType.wrong; break;
-      case 'right':        type = GameEventType.right; break;
-      case 'success':      type = GameEventType.success; break;
-      case 'failed':       type = GameEventType.failed; break;
+      case 'addTimes':
+        type = GameEventType.addTimes;
+        break;
+      case 'addTimesSelf':
+        type = GameEventType.addTimesSelf;
+        break;
+      case 'skip':
+        type = GameEventType.skip;
+        break;
+      case 'skipSelf':
+        type = GameEventType.skipSelf;
+        break;
+      case 'wrong':
+        type = GameEventType.wrong;
+        break;
+      case 'right':
+        type = GameEventType.right;
+        break;
+      case 'success':
+        type = GameEventType.success;
+        break;
+      case 'failed':
+        type = GameEventType.failed;
+        break;
     }
     if (type == null) return;
 
+    _isShowingEventDialog = true;
     if (eventType == 'success' || eventType == 'failed') {
-      showGameEventDialogGet(type).then((_) => _navigateAfterGameEnd(eventType));
+      showGameEventDialogGet(type).then((_) {
+        _isShowingEventDialog = false;
+        _navigateAfterGameEnd(eventType);
+      });
     } else {
-      showGameEventDialogGet(type);
+      showGameEventDialogGet(type).then((_) {
+        _isShowingEventDialog = false;
+      });
     }
   }
 
@@ -649,7 +725,11 @@ class GamePlayController extends GetxController {
     if (resultType == 'success') {
       Get.toNamed(
         KissuRoutePath.guessGameV2Success,
-        arguments: {'correctCount': correctCount.value, 'tacitPercent': tacitPercent, 'isInitiator': isInitiator},
+        arguments: {
+          'correctCount': correctCount.value,
+          'tacitPercent': tacitPercent,
+          'isInitiator': isInitiator,
+        },
       );
     } else {
       if (isPartnerOnline.value) {
@@ -700,6 +780,8 @@ class GamePlayController extends GetxController {
         break;
 
       case 'game_answer_state':
+        // 忽略自己发出的 answer_state（本地已通过 _checkAnswer 处理）
+        if (senderID == imService.myIMUserID) break;
         // 注意：双方都在 game_answer 中本地 _checkAnswer 了，
         // 这里只作为备用（当本地 _checkAnswer 因 topics 未同步而跳过时）
         final state = data['state'] as int? ?? 0;
@@ -756,6 +838,7 @@ class GamePlayController extends GetxController {
       case 'game_hint_response':
         final hint = data['hintChar'] as String? ?? '';
         currentHint.value = hint;
+        _saveHint(currentIndex.value, hint);
         _addMessage(
           '提示已回复，上方查看',
           GameChatMessageType.hintResponse,
@@ -802,7 +885,7 @@ class GamePlayController extends GetxController {
       case 'game_result':
         // 如果游戏已经结束，说明是收到自己发送的消息，忽略避免重复弹窗
         if (isGameOver.value) break;
-        
+
         final result = data['result'] as int? ?? 0;
         isGameOver.value = true;
         phase.value = GamePhase.result;
