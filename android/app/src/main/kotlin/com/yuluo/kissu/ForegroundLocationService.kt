@@ -185,7 +185,6 @@ class ForegroundLocationService : Service(), AMapLocationListener {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "前台定位服务创建")
-        logInfo("🚀 原生前台定位服务创建")
         // ⚡ 关键修复：onCreate 中不做任何耗时操作，避免5秒超时
         // 所有初始化将在 onStartCommand 中的 startForeground() 之后进行
     }
@@ -1055,7 +1054,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             // 🔥 启动App使用记录上报
             startAppUsageReporting()
             
-             logInfo("✅ 原生前台定位服务启动成功")
+ 
             
         } catch (e: Exception) {
              logError("❌ 启动前台服务失败", extra = mapOf("error" to (e.message ?: "unknown")))
@@ -1324,7 +1323,6 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         try {
             val prefs = getSharedPreferences("kissu_location_prefs", Context.MODE_PRIVATE)
             prefs.edit().putBoolean("location_service_enabled", enabled).apply()
-            logInfo("服务期望状态已更新: $enabled")
         } catch (e: Exception) {
             logError("更新服务期望状态失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
@@ -1445,7 +1443,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 }
                 if (!client.isStarted) {
                     client.startLocation()
-                     logInfo("🚀 原生定位监听已启动")
+ 
                 } else {
                     Log.d(TAG, "原生定位监听已在运行中")
                 }
@@ -1487,11 +1485,11 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                         val clientStatus = locationClient?.isStarted ?: false
                         val reportServiceStatus = locationReportService != null
                         val wakeLockStatus = wakeLock?.isHeld ?: false
-                        logInfo("💓 保活心跳", extra = mapOf(
-                            "locationClient" to clientStatus,
-                            "reportService" to reportServiceStatus,
-                            "wakeLock" to wakeLockStatus
-                        ))
+                        // logInfo("💓 保活心跳", extra = mapOf(
+                        //     "locationClient" to clientStatus,
+                        //     "reportService" to reportServiceStatus,
+                        //     "wakeLock" to wakeLockStatus
+                        // ))
                         
                         // 定位客户端存活且在运行
                         // 🔋 室内WiFi暂停中：主动验证WiFi是否变化，防止广播丢失导致永远无法恢复
@@ -1567,7 +1565,6 @@ class ForegroundLocationService : Service(), AMapLocationListener {
                 }
             }, 60_000L, 60_000L) // 60秒检查一次，降低被判高频唤醒风险
         }
-        logInfo("🚑 原生保活健康检查已启动（60秒）")
     }
 
     /**
@@ -1623,8 +1620,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             heartbeatIntent?.let { am.cancel(it) }
             heartbeatIntent = null
-            logInfo("❤️ 心跳闹钟已停止")
-        } catch (e: Exception) {
+         } catch (e: Exception) {
             logError("停止心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
@@ -1766,8 +1762,7 @@ class ForegroundLocationService : Service(), AMapLocationListener {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             screenOffHeartbeatIntent?.let { am.cancel(it) }
             screenOffHeartbeatIntent = null
-            Log.d(TAG, "🌙 息屏心跳闹钟已停止")
-        } catch (e: Exception) {
+         } catch (e: Exception) {
             logError("停止息屏心跳闹钟失败", extra = mapOf("error" to (e.message ?: "unknown")))
         }
     }
@@ -1794,12 +1789,21 @@ class ForegroundLocationService : Service(), AMapLocationListener {
         Log.w(TAG, "📍 原生定位回调: [${locTypeDesc}] ${location.latitude},${location.longitude} " +
             "精度:${location.accuracy}m 速度:${location.speed}m/s 错误码:${location.errorCode}")
         
+        // 🔥 写入文件日志（用户上传日志时可诊断定位问题）
+        if (location.errorCode != 0) {
+            logWarning("📍 定位失败: 错误码=${location.errorCode} 类型=${locTypeDesc}", tag = "NativeLocation")
+        } else {
+            logInfo("📍 定位: [${locTypeDesc}] ${location.latitude},${location.longitude} " +
+                "精度:${String.format("%.0f", location.accuracy)}m 速度:${String.format("%.1f", location.speed)}m/s",
+                tag = "NativeLocation")
+        }
+        
         // 统一走原生上报通道（前台/后台/被杀）
         locationReportService?.reportLocation(location)
         
         // 🔋 室内WiFi省电：确认室内后暂停定位客户端，节省GPS/网络资源
         if (locationReportService?.isLocationPausedForStationaryWifi() == true) {
-            Log.w(TAG, "⏸️ 室内WiFi确认，暂停定位客户端（省电模式）")
+            logInfo("⏸️ 室内WiFi确认，暂停定位客户端（省电模式）", tag = "NativeLocation")
             locationClient?.stopLocation()
             return
         }

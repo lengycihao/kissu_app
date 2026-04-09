@@ -116,6 +116,8 @@ class LocationReportService(private val context: Context) {
         // === 室内WiFi省电暂停：确认室内WiFi后停止定位收集和上报，节省资源 ===
         @Volatile private var isStationaryWifiPaused: Boolean = false
         @Volatile private var pausedWifiBssid: String? = null
+        // 延迟暂停：确保至少完成一次上报后才真正进入暂停（防止收集了数据却永远不上报）
+        @Volatile private var pendingWifiPauseBssid: String? = null
     }
     
     private val sharedPreferences: SharedPreferences = 
@@ -182,6 +184,7 @@ class LocationReportService(private val context: Context) {
                 
                 if (token.isNullOrEmpty()) {
                     Log.w(TAG, "⚠️ 用户未登录，无法收集定位数据")
+                    writeNativeLog("WARNING", "⚠️ 用户未登录，无法收集定位数据", "NativeLocation")
                     return@launch
                 }
                 
@@ -383,6 +386,7 @@ class LocationReportService(private val context: Context) {
                         Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
                     } else {
                         Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
+                        writeNativeLog("WARNING", "❌ 定时上报失败，缓冲区保留数据($bufferSize)个点", "NativeLocation")
                     }
                 }
                 
@@ -391,6 +395,8 @@ class LocationReportService(private val context: Context) {
                     logReportSuccess(locationsToReport, usedLastReceivedLocation)
                     // 🔥 上报成功后刷新桌面小组件数据
                     triggerWidgetUpdate()
+                    // 🔥 上报成功后检查是否有待执行的WiFi暂停
+                    executePendingWifiPauseIfNeeded()
                 }
             } finally {
                 isReporting.set(false)
@@ -442,6 +448,8 @@ class LocationReportService(private val context: Context) {
                     logReportSuccess(locationsToReport, false)
                     // 🔥 上报成功后刷新桌面小组件数据
                     triggerWidgetUpdate()
+                    // 🔥 上报成功后检查是否有待执行的WiFi暂停
+                    executePendingWifiPauseIfNeeded()
                 }
             } finally {
                 isReporting.set(false)
@@ -566,9 +574,9 @@ class LocationReportService(private val context: Context) {
                 if (learnBssid != null && wifiStationaryCount == confirmNeeded) {
                     setWifiClassification(learnBssid, WIFI_TYPE_STATIONARY)
                 }
-                // 确认静止 → 进入省电暂停模式（停止后续定位收集和上报）
+                // 确认静止 → 请求进入省电暂停模式（延迟到首次上报成功后才真正暂停）
                 if (!isStationaryWifiPaused && pauseBssid != null && wifiStationaryCount > confirmNeeded) {
-                    enterStationaryWifiPause(pauseBssid)
+                    requestStationaryWifiPause(pauseBssid)
                 }
                 Log.d(TAG, "🔒 WiFi+静止锁定(${wifiStationaryCount}次)，上报锚点 " +
                     "[${anchor.latitude},${anchor.longitude}]，GPS 实际偏差 ${distFromAnchor.toInt()}m")
@@ -676,23 +684,59 @@ class LocationReportService(private val context: Context) {
     // === 室内WiFi省电暂停相关方法 ===
 
     /**
-     * 进入室内WiFi省电暂停模式
-     * 停止定位收集、上报定时器，等待网络变化后恢复
+     * 请求进入室内WiFi省电暂停模式（延迟执行）
+     * 不立即暂停，而是等待下一次上报成功后再真正进入暂停
+     * 这样确保缓冲区中已收集的定位数据不会丢失
+     */
+    private fun requestStationaryWifiPause(bssid: String) {
+        if (isStationaryWifiPaused) return
+        if (pendingWifiPauseBssid != null) return // 已经有待执行的暂停请求
+        pendingWifiPauseBssid = bssid
+        Log.w(TAG, "⏳ 室内WiFi确认[$bssid]，等待上报完成后进入省电暂停")
+        writeNativeLog("INFO", "⏳ 室内WiFi确认[$bssid]，等待上报完成后进入省电暂停", "NativeLocation")
+
+        // 🔥 立即触发上报，不等60秒定时器（服务可能在60秒内被系统杀死）
+        val token = sharedPreferences.getString(KEY_USER_TOKEN, null)
+        val hasBufferedData: Boolean
+        synchronized(collectionBuffer) {
+            hasBufferedData = collectionBuffer.isNotEmpty()
+        }
+        if (!token.isNullOrEmpty() && hasBufferedData) {
+            Log.w(TAG, "⚡ WiFi暂停前立即触发上报，确保缓冲数据不丢失")
+            writeNativeLog("INFO", "⚡ WiFi暂停前立即触发上报", "NativeLocation")
+            performImmediateReport(token)
+        }
+    }
+
+    /**
+     * 真正进入室内WiFi省电暂停模式
+     * 仅在上报成功后由 executePendingWifiPauseIfNeeded 调用
      */
     private fun enterStationaryWifiPause(bssid: String) {
         isStationaryWifiPaused = true
         pausedWifiBssid = bssid
+        pendingWifiPauseBssid = null
         // 停止上报定时器
         reportTimer?.cancel()
         reportTimer = null
         isReportTimerRunning = false
-        Log.w(TAG, "⏸️ 室内WiFi确认[$bssid]，进入省电暂停模式（停止定位收集和上报）")
+        Log.w(TAG, "⏸️ 室内WiFi[$bssid]上报完成，正式进入省电暂停模式")
+        writeNativeLog("WARNING", "⏸️ 室内WiFi[$bssid]上报完成，正式进入省电暂停模式", "NativeLocation")
+    }
+
+    /**
+     * 上报成功后检查并执行待定的WiFi暂停
+     */
+    private fun executePendingWifiPauseIfNeeded() {
+        val bssid = pendingWifiPauseBssid ?: return
+        enterStationaryWifiPause(bssid)
     }
 
     /**
      * 从室内WiFi暂停中恢复（WiFi断开或切换时调用）
      */
     fun resumeFromStationaryWifi(reason: String = "") {
+        pendingWifiPauseBssid = null // 清除待定的暂停请求
         if (!isStationaryWifiPaused) return
         isStationaryWifiPaused = false
         pausedWifiBssid = null
@@ -700,6 +744,7 @@ class LocationReportService(private val context: Context) {
         wifiStationaryCount = 0
         wifiLearnMovingCount = 0
         Log.w(TAG, "▶️ 室内WiFi暂停已解除${if (reason.isNotEmpty()) "（$reason）" else ""}，恢复定位和上报")
+        writeNativeLog("WARNING", "▶️ 室内WiFi暂停已解除${if (reason.isNotEmpty()) "（$reason）" else ""}", "NativeLocation")
     }
 
     /**
@@ -818,24 +863,7 @@ class LocationReportService(private val context: Context) {
         }
     }
     
-    /**
-     * 构建地点名称
-     */
-    private fun buildLocationName(location: AMapLocation): String {
-        return when {
-            !location.address.isNullOrEmpty() -> location.address
-            !location.description.isNullOrEmpty() -> location.description
-            else -> {
-                val parts = mutableListOf<String>()
-                if (!location.province.isNullOrEmpty()) parts.add(location.province)
-                if (!location.city.isNullOrEmpty()) parts.add(location.city)
-                if (!location.district.isNullOrEmpty()) parts.add(location.district)
-                if (!location.street.isNullOrEmpty()) parts.add(location.street)
-                if (!location.streetNum.isNullOrEmpty()) parts.add(location.streetNum + "号")
-                parts.joinToString("")
-            }
-        }
-    }
+ 
     
     /**
      * 发送定位数据到服务器
@@ -1308,11 +1336,11 @@ class LocationReportService(private val context: Context) {
                 if (i > 0) locationsSummary.append("; ")
                 locationsSummary.append("${loc.optString("latitude")},${loc.optString("longitude")},精度:${loc.optString("accuracy")}")
             }
-            // writeNativeLog("INFO", "📤 定位上报成功", "LocationReport", mapOf(
-            //     "count" to locationsToReport.length(),
-            //     "usedLastLocation" to usedLastLocation,
-            //     "locations" to locationsSummary.toString()
-            // ))
+            writeNativeLog("INFO", "📤 定位上报成功", "NativeLocation", mapOf(
+                "count" to locationsToReport.length(),
+                "usedLastLocation" to usedLastLocation,
+                "locations" to locationsSummary.toString()
+            ))
         } catch (e: Exception) {
             Log.e(TAG, "记录上报成功日志失败", e)
         }
@@ -1332,11 +1360,11 @@ class LocationReportService(private val context: Context) {
             val today = todayFormat.format(Date())
             
             val existingLogFile = logDir.listFiles()?.find { 
-                it.name.startsWith(today) && it.name.endsWith("_app.log") 
+                it.name.startsWith(today) && it.name.endsWith("_location.log") 
             }
             
             val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.getDefault())
-            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_app.log")
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_location.log")
             
             val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault()).format(Date())
             val logJson = JSONObject().apply {
