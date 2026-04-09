@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// ShareService: unified WeChat / QQ share entry points via UMeng U-Share
 class ShareService extends GetxService {
@@ -13,14 +14,14 @@ class ShareService extends GetxService {
     // 🔒 隐私合规：不在服务初始化时自动启动友盟SDK
     // 等待隐私政策同意后再启动
     // _initUMengShare(); // 移除自动初始化
-    logger.info('友盟分享服务已注册（等待隐私政策同意后初始化）', tag: 'ShareService');
+    logger.debug('友盟分享服务已注册（等待隐私政策同意后初始化）', tag: 'ShareService');
   }
 
   /// 隐私合规启动方法 - 只有在用户同意隐私政策后才调用
   Future<void> startPrivacyCompliantService() async {
-    logger.info('🔒 启动隐私合规友盟分享服务', tag: 'ShareService');
+    logger.debug('🔒 启动隐私合规友盟分享服务', tag: 'ShareService');
     await _initUMengShare();
-    logger.info('✅ 隐私合规友盟分享服务启动完成', tag: 'ShareService');
+    logger.debug('✅ 隐私合规友盟分享服务启动完成', tag: 'ShareService');
   }
 
   /// 初始化友盟分享SDK
@@ -28,21 +29,21 @@ class ShareService extends GetxService {
     try {
       // 初始化友盟SDK（包含合规预初始化和隐私授权）
       await _channel.invokeMethod('umInit', {
-        'appKey': '6879fba679267e0210b67bde',
-        'channel': 'umengshare',
+        'appKey': AppConstants.umengAppKey,
+        'channel': AppConstants.umengChannel,
         'logEnabled': true,
       });
       
       // 配置支持的平台
       await _channel.invokeMethod('platformConfig', {
-        'qqAppKey': '102797447',
-        'qqAppSecret': 'c5KJ2VipiMRMCpJf',
-         'weChatAppId': 'wxca15128b8c388c13',
-        'weChatUniversalLink': 'https://ulink.ikissu.cn/',
-        'weChatFileProvider': 'com.yuluo.kissu.fileprovider', // 微信FileProvider配置
+        'qqAppKey': AppConstants.qqAppKey,
+        'qqAppSecret': AppConstants.qqAppSecret,
+        'weChatAppId': AppConstants.weChatAppId,
+        'weChatUniversalLink': AppConstants.weChatUniversalLink,
+        'weChatFileProvider': AppConstants.weChatFileProvider,
       });
       
-      logger.info('友盟分享SDK初始化成功', tag: 'ShareService');
+      logger.debug('友盟分享SDK初始化成功', tag: 'ShareService');
     } catch (e) {
       logger.error('友盟分享SDK初始化失败: $e', tag: 'ShareService', error: e);
     }
@@ -53,7 +54,7 @@ class ShareService extends GetxService {
   Future<void> setPrivacyPolicyGranted(bool granted) async {
     try {
       await _channel.invokeMethod('setPrivacyPolicy', {'granted': granted});
-      logger.info('友盟隐私政策授权状态已设置: $granted', tag: 'ShareService');
+      logger.debug('友盟隐私政策授权状态已设置: $granted', tag: 'ShareService');
     } catch (e) {
       logger.error('设置友盟隐私政策授权失败: $e', tag: 'ShareService', error: e);
     }
@@ -111,13 +112,15 @@ class ShareService extends GetxService {
   }
 
   // 分享到微信好友
-  Future<void> shareToWeChat({
+  Future<Map<String, dynamic>> shareToWeChat({
     required String title,
     required String description,
     String? imageUrl,
     required String webpageUrl,
   }) async {
-    await _channel.invokeMethod('umShare', {
+    logger.debug('🔍 开始微信分享（使用配置）...', tag: 'ShareService');
+    
+    final result = await _channel.invokeMethod('umShare', {
       'title': title,
       'text': description,
       'img': imageUrl ?? '',
@@ -125,6 +128,15 @@ class ShareService extends GetxService {
       
       'sharemedia': 0, // 0 = 微信好友
     });
+
+    logger.debug('微信好友分享结果: $result', tag: 'ShareService');
+
+    // 🔥 修复：原生层返回的是Map<Object?, Object?>，需要正确转换
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    } else {
+      return {'success': false, 'message': '分享失败'};
+    }
   }
 
   // 分享到微信朋友圈
@@ -156,7 +168,7 @@ class ShareService extends GetxService {
       // 先检查QQ是否安装
       final isInstalled = await isQQInstalled();
       if (!isInstalled) {
-        logger.warning('QQ未安装，无法分享', tag: 'ShareService');
+        logger.debug('QQ未安装，无法分享', tag: 'ShareService');
         return {'success': false, 'message': 'QQ未安装'};
       }
       
@@ -170,8 +182,9 @@ class ShareService extends GetxService {
       
       logger.info('QQ好友分享结果: $result', tag: 'ShareService');
       
-      if (result is Map<String, dynamic>) {
-        return result;
+      // 🔥 修复：原生层返回的是Map<Object?, Object?>，需要正确转换
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
       } else {
         return {'success': false, 'message': '分享失败'};
       }
@@ -201,8 +214,9 @@ class ShareService extends GetxService {
       
       logger.info('QQ空间分享结果: $result', tag: 'ShareService');
       
-      if (result is Map<String, dynamic>) {
-        return result;
+      // 🔥 修复：原生层返回的是Map<Object?, Object?>，需要正确转换
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
       } else {
         return {'success': false, 'message': '分享结果格式错误'};
       }
@@ -313,7 +327,7 @@ class ShareService extends GetxService {
         
         // 获取基础页面URL
         final basePage = shareConfig?.sharePage ?? 
-          (useDefaultFallback ? 'https://www.ikissu.cn/share/matchingcode.html' : null);
+          (useDefaultFallback ? AppConstants.defaultSharePage : null);
         
         if (basePage == null) {
           return {'error': '分享链接未配置'};
@@ -388,13 +402,7 @@ class ShareService extends GetxService {
         };
       }
       
-      // 打印调试信息
-      logger.debug('📤 QQ分享参数:', tag: 'ShareService');
-      logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
-      logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
-      logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
-      logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
-      logger.info('🔗 分享链接域名需要在QQ开放平台配置白名单', tag: 'ShareService');
+ 
       
       // 3. 调用底层分享方法
       final result = await shareToQQ(
@@ -404,7 +412,7 @@ class ShareService extends GetxService {
         webpageUrl: params['url'],
       );
       
-      logger.info('✅ QQ分享结果: $result', tag: 'ShareService');
+      logger.debug('✅ QQ分享结果: $result', tag: 'ShareService');
       return result;
       
     } catch (e) {
@@ -426,7 +434,7 @@ class ShareService extends GetxService {
   /// - [customDescription] 自定义描述，如果为null则使用配置中的描述
   /// - [customUrl] 自定义分享链接，如果为null则自动构建链接
   /// - [useDefaultFallback] 当配置不存在时是否使用默认值（默认true）
-  Future<void> shareToWeChatWithConfig({
+  Future<Map<String, dynamic>> shareToWeChatWithConfig({
     String? bindCode,
     String? customTitle,
     String? customDescription,
@@ -434,13 +442,13 @@ class ShareService extends GetxService {
     bool useDefaultFallback = true,
   }) async {
     try {
-      logger.info('🔍 开始微信分享（使用配置）...', tag: 'ShareService');
+      logger.debug(' 开始微信分享（使用配置）...', tag: 'ShareService');
       
       // 1. 先检查微信是否安装
       final isInstalled = await isWeChatInstalled();
       if (!isInstalled) {
-        logger.warning('❌ 微信未安装', tag: 'ShareService');
-        throw Exception('微信未安装');
+        logger.warning(' 微信未安装', tag: 'ShareService');
+        return {'success': false, 'message': '微信未安装'};
       }
       
       // 2. 构建分享参数（使用提取的公共方法）
@@ -454,28 +462,23 @@ class ShareService extends GetxService {
       
       // 检查是否有错误
       if (params.containsKey('error')) {
-        throw Exception(params['error']);
+        return {'success': false, 'message': params['error']};
       }
+ 
       
-      logger.debug('📤 微信分享参数:', tag: 'ShareService');
-      logger.debug('  - 标题: ${params['title']}', tag: 'ShareService');
-      logger.debug('  - 描述: ${params['description']}', tag: 'ShareService');
-      logger.debug('  - 封面: ${params['cover']}', tag: 'ShareService');
-      logger.debug('  - 链接: ${params['url']}', tag: 'ShareService');
-      
-      // 3. 调用底层分享方法
-      await shareToWeChat(
+      // 3. 调用底层分享方法并返回结果
+      final result = await shareToWeChat(
         title: params['title'],
         description: params['description'],
         imageUrl: params['cover'],
         webpageUrl: params['url'],
       );
       
-      logger.info('✅ 微信分享已调起', tag: 'ShareService');
-      
+      logger.debug(' 微信分享结果: $result', tag: 'ShareService');
+      return result;
     } catch (e) {
-      logger.error('❌ 微信分享异常: $e', tag: 'ShareService', error: e);
-      rethrow;
+      logger.error(' 微信分享失败: $e', tag: 'ShareService', error: e);
+      return {'success': false, 'message': '分享失败: $e'};
     }
   }
 }

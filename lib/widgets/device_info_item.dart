@@ -38,12 +38,12 @@ class DeviceInfoItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(iconPath, width: 22, height: 22),
-            const SizedBox(height: 2),
+            // const SizedBox(height: 2),
             Text(
               text,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF666666),
+                color: Color(0xFF333333),
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,

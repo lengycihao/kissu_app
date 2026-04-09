@@ -1,7 +1,7 @@
 /// 定位参数设置
 class AMapLocationOption {
   /// 是否需要地址信息，默认true
-  bool needAddress = true;
+  bool needAddress = false;
 
   ///逆地理信息语言类型<br>
   ///默认[GeoLanguage.DEFAULT] 自动适配<br>

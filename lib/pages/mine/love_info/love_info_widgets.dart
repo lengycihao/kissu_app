@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
-import 'package:kissu_app/widgets/dash_line_widget.dart';
 import 'love_info_controller.dart';
 
 // 信息项组件 - 性能优化版本
@@ -29,6 +28,7 @@ class InfoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 15),
         child: Row(
@@ -36,7 +36,7 @@ class InfoItem extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF333333),fontWeight: FontWeight.w500),
             ),
             Row(
               children: [
@@ -49,7 +49,7 @@ class InfoItem extends StatelessWidget {
                       fontSize: 14,
                       color: value.contains('未') || value.contains('输入')
                           ? const Color(0xFF999999)
-                          : const Color(0xFF666666),
+                          : const Color(0xFF333333),
                     ),
                   ),
                 if (showArrow || (!isPartner && !hasImage)) ...[
@@ -57,7 +57,7 @@ class InfoItem extends StatelessWidget {
                   const Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
-                    color: Color(0xFF999999),
+                    color: Color(0xFF777777),
                   ),
                 ],
               ],
@@ -108,6 +108,7 @@ class InfoItem extends StatelessWidget {
 // 在一起天数卡片组件 - 性能优化版本
 class TogetherCard extends StatelessWidget {
   final LoveInfoController controller;
+  
 
   const TogetherCard({Key? key, required this.controller}) : super(key: key);
 
@@ -127,60 +128,45 @@ class TogetherCard extends StatelessWidget {
             ),
           );
         },
-        child: Container(
-          width: double.infinity,
-          height: 83,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
-          decoration: BoxDecoration(
-            image: const DecorationImage(
-              image: AssetImage('assets/images/kissu_loveinfo_day_bg.png'),
-              fit: BoxFit.fill,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFEA39C).withOpacity(0.2),
-                blurRadius: 15,
-                offset: const Offset(0, 4),
+        child: GestureDetector(
+          onTap: controller.isBindPartner.value 
+              ? () => controller.onLoveTimeTap(context)
+              : null,
+          child: Container(
+            width: double.infinity,
+            // height: 60,
+            // color: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30).copyWith(bottom: 20),
+            
+          //相爱信息ROW
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+               
+              const Text(
+                '在一起',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontFamily: "Resource-Han-Rounded",
+                  color: Color(0xFF333333),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              const SizedBox(width: 12),
+              _buildDaysDisplay(),
+              const SizedBox(width: 12),
+              const Text(
+                '天',
+                style: TextStyle(
+                  fontSize: 20, fontFamily: "Resource-Han-Rounded",
+                  color: Color(0xFF333333),
+                  // fontWeight: FontWeight.w600,
+                ),
+              ),
+              
             ],
           ),
-        //相爱信息ROW
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/kissu_loveinfo_day_left.png',
-              width: 28,
-              height: 32,
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              '在一起',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF333333),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            _buildDaysDisplay(),
-            const SizedBox(width: 4),
-            const Text(
-              '天',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF333333),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Image.asset(
-              'assets/images/kissu_loveinfo_day_right.png',
-              width: 28,
-              height: 32,
-            ),
-          ],
-        ),
+          ),
         ),
       ),
     );
@@ -192,33 +178,10 @@ class TogetherCard extends StatelessWidget {
         : '-';
 
     // 计算数字位数，根据位数调整字体大小和容器大小
-    final digitCount = daysStr.length;
-    double fontSize = 20.0;  // 基础字体大小（1-3位数字）
-    double containerSize = 30.0;  // 基础容器大小
-    double horizontalMargin = 2.0;  // 基础间距
-
-    // 根据数字位数逐步缩小
-    if (digitCount >= 6) {
-      // 6位数字及以上，最小
-      fontSize = 12.0;
-      containerSize = 20.0;
-      horizontalMargin = 0.8;
-    } else if (digitCount >= 5) {
-      // 5位数字，较小
-      fontSize = 14.0;
-      containerSize = 22.0;
-      horizontalMargin = 1.0;
-    } else if (digitCount >= 4) {
-      // 4位数字，稍微缩小
-      fontSize = 16.0;
-      containerSize = 24.0;
-      horizontalMargin = 1.2;
-    } else if (digitCount >= 3) {
-      // 3位数字，基础大小
-      fontSize = 18.0;
-      containerSize = 26.0;
-      horizontalMargin = 1.5;
-    }
+     double fontSize = 20.0;  // 基础字体大小（1-3位数字）
+    double containerSize = 28.0;  // 基础容器大小
+    double horizontalMargin = 3.0;  // 基础间距
+ 
 
     return Flexible(
       child: Row(
@@ -226,22 +189,22 @@ class TogetherCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: daysStr.split("").map((d) {
           return Container(
-            margin: EdgeInsets.symmetric(horizontal: horizontalMargin),
+            margin: EdgeInsets.symmetric(horizontal: horizontalMargin,),
+        
             width: containerSize,
             height: containerSize,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/kissu_loveinfo_num_bg.webp'),
-                fit: BoxFit.cover,
-              ),
+            decoration:   BoxDecoration(
+               color: Colors.white,
+               borderRadius: BorderRadius.circular(4)
             ),
             alignment: Alignment.center,
             child: Text(
               d,
               style: TextStyle(
                 fontSize: fontSize,
+                fontFamily: "Resource-Han-Rounded",
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFFFF69B4),
+                color: const Color(0xFFFF8AFA),
               ),
             ),
           );
@@ -279,25 +242,19 @@ class LoveTimeSection extends StatelessWidget {
               : null,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: const Color(0xffFFD4D1)),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+             
+              borderRadius: BorderRadius.circular(12),
+              
             ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 '相恋时间',
-                style: TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                style: TextStyle(fontSize: 14, color: Color(0xFF333333),fontWeight: FontWeight.w500),
               ),
               controller.isBindPartner.value
                   ? Row(
@@ -305,15 +262,15 @@ class LoveTimeSection extends StatelessWidget {
                         Text(
                           controller.loveTime.value,
                           style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF666666),
+                            fontSize: 12,
+                            color: Color(0xFF333333),
                           ),
                         ),
                         const SizedBox(width: 5),
                         const Icon(
                           Icons.arrow_forward_ios,
                           size: 16,
-                          color: Color(0xFF999999),
+                          color: Color(0xFF777777),
                         ),
                       ],
                     )
@@ -358,21 +315,12 @@ class MyInfoSection extends StatelessWidget {
         },
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(14).copyWith(left: 10,right: 10,bottom: 4),
           decoration: BoxDecoration(
             color: Colors.white,
-            image: const DecorationImage(
-              image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
-              fit: BoxFit.fill,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
+             
+            borderRadius: BorderRadius.circular(12),
+             
           ),
         child: Column(
           children: [
@@ -384,37 +332,25 @@ class MyInfoSection extends StatelessWidget {
               imageUrl: controller.myAvatar.value,
               onTap: () => controller.onAvatarTap(context),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+            InfoItemLine(),
             InfoItem(
               title: '我的昵称',
               value: controller.myNickname.value,
               onTap: () => controller.onNicknameTap(context),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+            InfoItemLine(),
             InfoItem(
               title: '性别',
               value: controller.myGender.value,
               onTap: () => controller.onGenderTap(context),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+            InfoItemLine(),
             InfoItem(
               title: '我的生日',
               value: controller.myBirthday.value,
               onTap: () => controller.onBirthdayTap(context),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+            InfoItemLine(),
             InfoItem(
               title: '我的手机号',
               value: controller.formatPhone(controller.myPhone.value),
@@ -426,6 +362,21 @@ class MyInfoSection extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class InfoItemLine extends StatelessWidget {
+  const InfoItemLine({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return  Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Container(
+                height: 0.5,
+                color: const Color(0xFFE8E8E8),
+              ),
+            );
   }
 }
 
@@ -454,21 +405,12 @@ class PartnerInfoSection extends StatelessWidget {
         },
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(14).copyWith(left: 10,right: 10,bottom: 0),
           decoration: BoxDecoration(
             color: Colors.white,
-            image: const DecorationImage(
-              image: AssetImage('assets/images/kissu_love_info_item_bg.webp'),
-              fit: BoxFit.fill,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
+             
+            borderRadius: BorderRadius.circular(12),
+            
           ),
         child: Column(
           children: [
@@ -479,10 +421,7 @@ class PartnerInfoSection extends StatelessWidget {
               isPartner: true,
               imageUrl: controller.partnerAvatar.value,
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+            InfoItemLine(),
             InfoItem(
               title: 'TA的昵称',
               value: controller.partnerNickname.value.isEmpty
@@ -490,28 +429,19 @@ class PartnerInfoSection extends StatelessWidget {
                   : controller.partnerNickname.value,
               isPartner: true,
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+           InfoItemLine(),
             InfoItem(
               title: '性别',
               value: controller.partnerGender.value,
               isPartner: true,
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+           InfoItemLine(),
             InfoItem(
               title: 'TA的生日',
               value: controller.partnerBirthday.value,
               isPartner: true,
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: DashedLine(),
-            ),
+            InfoItemLine(),
             InfoItem(
               title: 'TA的手机号',
               value: controller.formatPhone(controller.partnerPhone.value),

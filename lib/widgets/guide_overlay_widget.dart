@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 
 /// 引导图类型枚举
@@ -117,20 +118,39 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
 
   /// 隐藏引导层
   void _hideGuide() {
-    if (_isVisible) {
-      _fadeController.reverse();
-      _scaleController.reverse();
+    if (!_isVisible) return;
+    
+    logDebug('📱 开始隐藏引导图...');
+    
+    // 🔥 修复：立即调用回调，确保状态更新
+    final onDismissCallback = widget.onDismiss;
+    
+    // 🔥 修复：立即停止所有动画，防止卡死
+    try {
       _slideController.stop();
       _slideController.reset();
-      _scaleController.reverse().then((_) {
-        if (mounted) {
-          setState(() {
-            _isVisible = false;
-          });
-          widget.onDismiss?.call();
-        }
+    } catch (e) {
+      logDebug('⚠️ 停止滑动动画失败: $e');
+    }
+
+    // 🔥 修复：使用更可靠的关闭逻辑
+    try {
+      _fadeController.reverse();
+      _scaleController.reverse();
+    } catch (e) {
+      logError('⚠️ 停止淡入淡出/缩放动画失败: $e');
+    }
+
+    // 🔥 修复：立即更新状态，不等待动画完成
+    if (mounted) {
+      setState(() {
+        _isVisible = false;
       });
     }
+    
+    // 🔥 修复：立即调用回调，不要延迟
+    logDebug('📱 引导图已隐藏，调用回调');
+    onDismissCallback?.call();
   }
 
   @override
@@ -154,6 +174,11 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
         _slideAnimation,
       ]),
       builder: (context, child) {
+        // 🔥 修复：如果透明度为0，直接返回空组件，避免残留覆盖层
+        if (_fadeAnimation.value <= 0.01) {
+          return const SizedBox.shrink();
+        }
+
         return Opacity(
           opacity: _fadeAnimation.value,
           child: Material(
@@ -162,10 +187,16 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
               width: double.infinity,
               height: double.infinity,
               color: Colors.black.withOpacity(0.6),
-              child: Center(
-                child: Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: _buildGuideContent(),
+              child: GestureDetector(
+                // 🔥 修复：允许点击背景关闭引导图，防止卡死
+                onTap: widget.dismissible ? _hideGuide : null,
+                // 🔥 修复：添加行为属性，确保事件能够正确传递
+                behavior: HitTestBehavior.opaque,
+                child: Center(
+                  child: Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: _buildGuideContent(),
+                  ),
                 ),
               ),
             ),
@@ -245,25 +276,43 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
 
   /// 构建相恋时间引导内容（引导图2）
   Widget _buildDatingTimeGuide() {
-    return GetBuilder<HomeController>(
-      builder: (controller) {
-        return Stack(
+    // 🔥 修复：使用 Obx 替代 GetBuilder，因为使用的是 Rx 变量
+    return Obx(() {
+      final controller = Get.find<HomeController>();
+      final loveDays = controller.loveDays.value;
+      
+      // 🔥 修复：使用 SizedBox.expand 确保 Stack 填满父容器
+      return SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,  // 🔥 修复：确保 Stack 填满父容器
           children: [
+            // 🔥 修复：添加透明层接收点击事件，防止穿透
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  debugPrint('📱 点击了引导图2背景');
+                  // 点击背景也可以关闭引导图
+                  if (widget.dismissible) {
+                    _hideGuide();
+                  }
+                },
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            // 相爱天数标签
             Positioned(
-              top: 94,
-              right: 17,
+              top: 92,
+              right: 20,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-                 decoration: BoxDecoration(
-                          color: Color(0xff5CC0FF),
-                          border: Border.all(color: Color(0xffffffff),width: 2),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(15),
-                          ),
-                        ),
+                padding: EdgeInsets.symmetric(horizontal: 15, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Color(0xffFFD9F1),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                ),
                 child: Text(
-                  "在一起${controller.loveDays.value}天",
-                  style: TextStyle(color: Color(0xff666666), fontSize: 12),
+                  "相爱$loveDays天",
+                  style: TextStyle(color: Color(0xffFF92D7), fontSize: 12),
                 ),
               ),
             ),
@@ -273,45 +322,71 @@ class _GuideOverlayWidgetState extends State<GuideOverlayWidget>
               right: 44,
               child: Image.asset(
                 'assets/3.0/kissu3_guide_line.webp',
-                width: 14,
-                height: 58,
+                width: 48,
+                height: 38,
                 fit: BoxFit.contain,
               ),
             ),
 
             // 文字和我知道了按钮
             Positioned(
-              top: 174,
-              right: 16,
+              top: 164,
+              right: 43,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // 引导文字
-                  const Text(
-                    '相恋时间在这里设置哦~',
-                    style: TextStyle(fontSize: 20, color: Color(0xFFffffff)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Transform.translate(
+                        offset: Offset(-2, -10),
+                        child: Image(
+                          image: AssetImage(
+                            'assets/setting/kissu_guide_laba.webp',
+                          ),
+                          width: 14,
+                          height: 14,
+                        ),
+                      ),
+                      const Text(
+                        '相恋时间在这里设置哦~',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: "AlimamaShuHeiTi",
+                          color: Color(0xFFffffff),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
 
-                  // 我知道了按钮
+                  // 🔥 修复：我知道了按钮 - 增大点击区域
                   GestureDetector(
-                    onTap: _hideGuide,
-                    child: Image.asset(
-                      'assets/3.0/kissu3_guide_konw.webp',
-                      width: 108,
-                      height: 40,
-                      fit: BoxFit.contain,
+                    onTap: () {
+                      debugPrint('📱 点击了引导图2的"我知道了"按钮');
+                      _hideGuide();
+                    },
+                    behavior: HitTestBehavior.opaque,  // 🔥 修复：确保点击事件被正确处理
+                    child: Container(
+                      padding: const EdgeInsets.all(8),  // 🔥 修复：增大点击区域
+                      child: Image.asset(
+                        'assets/3.0/kissu3_guide_konw.webp',
+                        width: 90,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-        );
-      },
-    );
+        ),
+      );
+    });
   }
 }
 

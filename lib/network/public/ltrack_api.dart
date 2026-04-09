@@ -35,7 +35,7 @@ class TrackApi {
       if (useCache) {
         final cachedData = await TrackCacheManager.instance.getCachedTrackData(targetDate, isOneself);
         if (cachedData != null) {
-          logDebug('✅ TrackApi: 使用缓存数据: $targetDate, isOneself=$isOneself', tag: 'TrackApi');
+          // logDebug('✅ TrackApi: 使用缓存数据: $targetDate, isOneself=$isOneself', tag: 'TrackApi');
           return HttpResultN<LocationResponse>(
             isSuccess: true,
             code: 0,
@@ -45,7 +45,7 @@ class TrackApi {
       }
       
       // 缓存未命中，从API获取数据
-      logDebug('🔄 TrackApi: 缓存未命中，请求API数据: $targetDate, isOneself=$isOneself', tag: 'TrackApi');
+      // logDebug('🔄 TrackApi: 缓存未命中，请求API数据: $targetDate, isOneself=$isOneself', tag: 'TrackApi');
 
       final params = {
         'date': targetDate,
@@ -66,7 +66,7 @@ class TrackApi {
           }
           
           // 检查必要字段
-          logDebug('🔍 Track API 返回数据结构: ${jsonData.keys.toList()}', tag: 'TrackApi');
+          // logDebug('🔍 Track API 返回数据结构: ${jsonData.keys.toList()}', tag: 'TrackApi');
           
           final locationResponse = LocationResponse.fromJson(jsonData);
           
@@ -75,7 +75,7 @@ class TrackApi {
             await TrackCacheManager.instance.cacheTrackData(targetDate, isOneself, locationResponse);
           }
           
-          logInfo('✅ TrackApi: 获取到最新数据${useCache ? "，已缓存历史数据" : ""}', tag: 'TrackApi');
+          // logInfo('✅ TrackApi: 获取到最新数据${useCache ? "，已缓存历史数据" : ""}', tag: 'TrackApi');
           
           return HttpResultN<LocationResponse>(
             isSuccess: true,
@@ -86,10 +86,10 @@ class TrackApi {
           
         } catch (e) {
           logError('🚨 Track API 数据解析失败: $e', tag: 'TrackApi', error: e);
-          logDebug('📝 原始数据类型: ${result.dataJson.runtimeType}', tag: 'TrackApi');
-          if (result.dataJson is Map) {
-            logDebug('📝 数据字段: ${(result.dataJson as Map).keys.toList()}', tag: 'TrackApi');
-          }
+          // logDebug('📝 原始数据类型: ${result.dataJson.runtimeType}', tag: 'TrackApi');
+          // if (result.dataJson is Map) {
+          //   logDebug('📝 数据字段: ${(result.dataJson as Map).keys.toList()}', tag: 'TrackApi');
+          // }
           
           return HttpResultN<LocationResponse>(
             isSuccess: false,

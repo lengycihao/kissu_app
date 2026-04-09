@@ -236,6 +236,7 @@ class AuthApi {
   }
 
   /// App启动接口
+  /// androidid 已由 BusinessHeaderInterceptor 自动添加到所有请求头中
   Future<HttpResultN> appStart() async {
     final result = await HttpManagerN.instance.executePost(
       ApiRequest.appStart,

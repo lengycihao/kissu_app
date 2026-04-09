@@ -117,5 +117,5 @@ class NetworkAnalyzer {
   // 111: Connection refused
   // 113: No route to host
   // <empty>: SocketException: Connection timed out
-  static final _errorCodes = [13, 49, 61, 64, 65, 101, 111, 113];
+  static final _errorCodes = [13, 49, 61, 64, 65, 101, 110, 111, 113];
 }

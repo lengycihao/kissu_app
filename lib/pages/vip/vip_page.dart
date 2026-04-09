@@ -1,23 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
-import 'package:kissu_app/models/vip_package_model.dart';
 import 'package:kissu_app/models/vip_banner_model.dart';
 import 'package:kissu_app/pages/vip/vip_controller.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
-import 'components/vip_comment_item.dart';
 import 'components/vip_payment_component.dart';
+import 'components/vip_price_section.dart';
+import 'components/vip_top_feature_section.dart';
+import 'components/vip_comment_section.dart';
 
-class VipPage extends GetView<VipController> {
+class VipPage extends StatefulWidget {
   const VipPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // 监听页面可见性变化
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupPageVisibilityListener();
-    });
+  State<VipPage> createState() => _VipPageState();
+}
 
+class _VipPageState extends State<VipPage> with WidgetsBindingObserver {
+  late VipController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<VipController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+      controller.pauseAutoCarousel();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+      controller.resumeAutoCarousel();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // 计算底部支付组件的实际高度
     // 包括：支付方式选项(~44) + 间距(10) + 按钮(50) + 间距(15) + 协议文字(~20) + 顶部padding(10) + 底部padding(25) + 底部安全区域
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -27,23 +56,19 @@ class VipPage extends GetView<VipController> {
     final paymentComponentHeight =
         paymentBaseHeight + bottomPadding + paymentExtraBuffer;
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false, // 统一由 onBackTap 控制返回行为
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         // 拦截物理返回键，显示挽留弹窗
         await controller.onBackTap();
-        return false; // 阻止默认返回行为
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFffffff),
         body: Stack(
           children: [
             // 主要内容区域 - 添加底部padding为支付组件留出空间
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                controller.handleScroll(notification);
-                return false;
-              },
-              child: SingleChildScrollView(
+            SingleChildScrollView(
                 controller: controller.mainScrollController,
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
@@ -70,56 +95,11 @@ class VipPage extends GetView<VipController> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
                             children: [
-                              const SizedBox(height: 5),
-                              Obx(() {
-                                final bannerData = controller.bannerData.value;
-                                final banners = bannerData?.vipIconBanner ?? [];
+                              // 顶部说明 + 指示条 + 图标按钮
+                              VipTopFeatureSection(controller: controller),
 
-                                String displayDesc = '';
-                                if (banners.isNotEmpty) {
-                                  final currentIndex =
-                                      controller.currentIndex.value %
-                                      banners.length;
-                                  displayDesc =
-                                      banners[currentIndex].vipIconBannerDesc;
-                                }
-
-                                if (displayDesc.isEmpty) {
-                                  displayDesc =
-                                      (bannerData?.desc ?? '想TA就立刻知道TA在哪儿')
-                                          .trim();
-                                }
-
-                                if (displayDesc.isEmpty) {
-                                  displayDesc = '想TA就立刻知道TA在哪儿';
-                                }
-
-                                return Text(
-                                  displayDesc,
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                );
-                              }),
-                              const SizedBox(height: 5),
-                              // 顶部轮播图指示条 - 位置在图片按钮组件顶部外15px处
-                              _buildTopCarouselIndicators(),
-                              // 图片按钮组件 - 与轮播图底部重合，高度102px
-                              _buildIconButtons(),
-                              // 开通提示图片
-                              // Image.asset(
-                              //   "assets/images/kissu_vip_top_tip.webp",
-                              //   height: 20,
-                              //   fit: BoxFit.fitHeight,
-                              // ),
-
-                              // const SizedBox(height: 15),
-
-                              // 价格组件
-                              _buildPriceComponents(),
+                              // 价格组件（首屏位置）
+                              VipPriceSection(controller: controller),
 
                               // const SizedBox(height: 15),
                               // const Align(
@@ -149,19 +129,8 @@ class VipPage extends GetView<VipController> {
 
                               const SizedBox(height: 20),
 
-                              // 用户评价标题
-                              _buildUserCommonTitle(),
-
-                              const SizedBox(height: 15),
-
-                              // 用户评价轮播图
-                              _buildCommentCarousel(),
-
-                              const SizedBox(height: 30),
-                              _buildPriceComponents(),
-                              // // 评价轮播图指示条
-                              // _buildCommentCarouselIndicators(),
-                              const SizedBox(height: 15),
+                              // 用户评价 + 底部再次展示套餐
+                              VipCommentSection(controller: controller),
                             ],
                           ),
                         ),
@@ -170,22 +139,22 @@ class VipPage extends GetView<VipController> {
                   ),
                 ),
               ),
-            ),
+           
 
-            // 固定的返回按钮 - 距离顶部55px，距离左边20px
+            // 固定的返回按钮
             Positioned(
-              left: 20,
-              top: 55,
+              left: 5,
+              top: MediaQuery.of(context).padding.top,
               child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
                 onTap: controller.onBackTap,
-                child: Padding(
-                  padding: EdgeInsets.all(8.0).copyWith(top: 0),
-                  child: Image(
-                    image: AssetImage('assets/images/kissu_mine_back.webp'),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/images/kissu_mine_back.webp',
                     width: 22,
                     height: 22,
-                    fit: BoxFit.cover,
                   ),
                 ),
               ),
@@ -267,91 +236,6 @@ class VipPage extends GetView<VipController> {
     );
   }
 
-  // 图片按钮组件
-  Widget _buildIconButtons() {
-    final fallbackIcons = [
-      {
-        'selected': 'assets/images/kissu_vip_banner_1sel.webp',
-        'unselected': 'assets/images/kissu_vip_banner_1unsel.webp',
-      },
-      {
-        'selected': 'assets/images/kissu_vip_banner_2sel.webp',
-        'unselected': 'assets/images/kissu_vip_banner_2unsel.webp',
-      },
-      {
-        'selected': 'assets/images/kissu_vip_banner_3sel.webp',
-        'unselected': 'assets/images/kissu_vip_banner_3unsel.webp',
-      },
-      {
-        'selected': 'assets/images/kissu_vip_banner_4sel.webp',
-        'unselected': 'assets/images/kissu_vip_banner_4unsel.webp',
-      },
-    ];
-
-    return Obx(() {
-      final banners = controller.bannerData.value?.vipIconBanner ?? [];
-      final hasRemoteData = banners.isNotEmpty;
-      final itemCount = hasRemoteData ? banners.length : fallbackIcons.length;
-
-      return Container(
-        height: 77,
-        margin: const EdgeInsets.only(top: 10, bottom: 36),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(itemCount, (index) {
-            final isSelected = controller.currentIndex.value == index;
-            final double size = 77;
-            final iconUrl = hasRemoteData
-                ? _resolveIconUrl(banners[index], isSelected)
-                : '';
-            final fallbackPair = fallbackIcons[index % fallbackIcons.length];
-
-            return GestureDetector(
-              onTap: () => controller.selectTab(index),
-              child: SizedBox(
-                width: size,
-                height: size,
-                child: hasRemoteData && iconUrl.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: NetworkImageHelper.loadImage(
-                          imageUrl: iconUrl,
-                          fit: BoxFit.cover,
-                          errorWidget: Image.asset(
-                            isSelected
-                                ? fallbackPair['selected']!
-                                : fallbackPair['unselected']!,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      )
-                    : Image.asset(
-                        isSelected
-                            ? fallbackPair['selected']!
-                            : fallbackPair['unselected']!,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-            );
-          }),
-        ),
-      );
-    });
-  }
-
-  String _resolveIconUrl(VipIconBanner banner, bool isSelected) {
-    if (isSelected && banner.vipIconSelect.isNotEmpty) {
-      return banner.vipIconSelect;
-    }
-    if (banner.vipIcon.isNotEmpty) {
-      return banner.vipIcon;
-    }
-    if (banner.vipIconSelect.isNotEmpty) {
-      return banner.vipIconSelect;
-    }
-    return '';
-  }
-
   // 开通提示图片
   Widget _buildOpenTipImage() {
     return Image.asset(
@@ -360,407 +244,6 @@ class VipPage extends GetView<VipController> {
       width: double.infinity,
       fit: BoxFit.cover,
     );
-  }
-
-  // 价格组件 - 支持横向滑动，解决对齐问题
-  Widget _buildPriceComponents() {
-    return Obx(() {
-      if (controller.isLoadingPackages.value) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
-      if (controller.vipPackages.isEmpty) {
-        return const Center(child: Text('暂无套餐数据'));
-      }
-
-      final planList = controller.vipPackages
-          .asMap()
-          .entries
-          .map((entry) => _VipPlanData(entry.value, entry.key))
-          .toList();
-
-      final _VipPlanData? lifetimePlan = _extractPlan(
-        planList,
-        (plan) => plan.package.isForever,
-      );
-
-      final List<_VipPlanData> remainingPlans =
-          planList.where((plan) => !plan.package.isForever).toList()
-            ..sort((a, b) => a.package.vipDays.compareTo(b.package.vipDays));
-
-      final List<_VipPlanData> selectablePlans = List<_VipPlanData>.from(
-        remainingPlans,
-      );
-
-      _VipPlanData? monthlyPlan = _extractPlan(
-        selectablePlans,
-        (plan) => plan.package.title.contains('月'),
-      );
-      _VipPlanData? annualPlan = _extractPlan(
-        selectablePlans,
-        (plan) => plan.package.title.contains('年'),
-      );
-
-      if (monthlyPlan == null && selectablePlans.isNotEmpty) {
-        monthlyPlan = selectablePlans.removeAt(0);
-      }
-      if (annualPlan == null && selectablePlans.isNotEmpty) {
-        annualPlan = selectablePlans.removeAt(0);
-      }
-
-      final currentSelectedIndex = controller.selectedPriceIndex.value;
-
-      final List<Widget> children = [];
-
-      if (lifetimePlan != null) {
-        children.add(
-          _buildLifetimePlanCard(lifetimePlan, currentSelectedIndex),
-        );
-        children.add(const SizedBox(height: 10));
-      }
-
-      final List<Widget> rowChildren = [];
-      if (monthlyPlan != null) {
-        rowChildren.add(
-          Expanded(
-            child: _buildPeriodPlanCard(
-              monthlyPlan,
-              currentSelectedIndex,
-              isMonthly: true,
-            ),
-          ),
-        );
-      }
-      if (monthlyPlan != null && annualPlan != null) {
-        rowChildren.add(const SizedBox(width: 10));
-      }
-      if (annualPlan != null) {
-        rowChildren.add(
-          Expanded(
-            child: _buildPeriodPlanCard(
-              annualPlan,
-              currentSelectedIndex,
-              isMonthly: false,
-            ),
-          ),
-        );
-      }
-
-      if (rowChildren.isNotEmpty) {
-        children.add(Row(children: rowChildren));
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      );
-    });
-  }
-
-  _VipPlanData? _extractPlan(
-    List<_VipPlanData> list,
-    bool Function(_VipPlanData) test,
-  ) {
-    for (var i = 0; i < list.length; i++) {
-      if (test(list[i])) {
-        return list.removeAt(i);
-      }
-    }
-    return null;
-  }
-
-  Widget _buildLifetimePlanCard(_VipPlanData plan, int currentSelectedIndex) {
-    final priceParts = _splitPriceParts(plan.package.vipPrice);
-    final hasOriginalPrice = _hasOriginalPrice(plan.package.vipOriginalPrice);
-    final originalPrice = _formatPriceWithSymbol(plan.package.vipOriginalPrice);
-    final isSelected = currentSelectedIndex == plan.index;
-
-    final backgroundAsset = isSelected
-        ? "assets/4.0/kissu4_vip_open_bg.webp"
-        : "assets/4.0/kissu4_vip_open_bg_sel.webp";
-
-    return GestureDetector(
-      onTap: () {
-        if (plan.index >= 0) {
-          controller.selectPrice(plan.index);
-        }
-      },
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 105,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(backgroundAsset),
-                fit: BoxFit.contain,
-              ),
-              // border: Border.all(
-              //   color: isSelected
-              //       ? const Color(0xffFF6885)
-              //       : Colors.transparent,
-              //   width: 2,
-              // ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: priceParts[0],
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: Color(0xffFF6885),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(
-                            text: priceParts[1],
-                            style: const TextStyle(
-                              fontSize: 24,
-                              color: Color(0xffFF6885),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (hasOriginalPrice)
-                      Text(
-                        originalPrice,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0x66000000),
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: Color(0x66000000),
-                        ),
-                      ),
-                  ],
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      plan.package.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xcc000000),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Text(
-                      '永久在一起，久久不分离',
-                      style: TextStyle(fontSize: 11, color: Color(0x66000000)),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () {
-                    final packages = controller.vipPackages;
-                    if (packages.isEmpty) {
-                      return;
-                    }
-                    final index =
-                        packages.indexWhere((element) => element.type == 4);
-                    if (index == -1) {
-                      return;
-                    }
-                    controller.selectedPriceIndex.value = index;
-                    controller.purchaseVip();
-                  },
-                  child: Container(
-                    width: 80,
-                    height: 26,
-                    decoration: const BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage("assets/4.0/kissu4_vip_open_bt.webp"),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: -15,
-            left: 0,
-            child: Image.asset(
-              "assets/4.0/kissu4_vip_open_bg_tip.webp",
-              width: 110,
-              height: 34,
-              fit: BoxFit.contain,
-            ),
-          ),
-          Positioned(
-            top: 6,
-            right: 5,
-            child: Obx(() {
-              final desc = controller.lifetimeActivityDesc.value;
-              final countdown = controller.lifetimeCountdownText;
-              if (desc.isEmpty && countdown.isEmpty) {
-                return const SizedBox.shrink();
-              }
-
-              final parts = <String>[];
-              if (desc.isNotEmpty) {
-                parts.add(desc);
-              }
-              if (countdown.isNotEmpty) {
-                parts.add(countdown);
-              }
-              final displayText = parts.join(' ');
-
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: const BoxDecoration(
-                  color: Color(0xffF6F275),
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(10),
-                    bottomLeft: Radius.circular(10),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  displayText,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xff000000),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPeriodPlanCard(
-    _VipPlanData plan,
-    int currentSelectedIndex, {
-    required bool isMonthly,
-  }) {
-    final priceParts = _splitPriceParts(plan.package.vipPrice);
-    final isSelected = currentSelectedIndex == plan.index;
-    final perDayPriceText = plan.package.perDayPriceText;
-    final backgroundAsset = isSelected
-        ? "assets/4.0/kissu4_vip_open_second_bg_sel.webp"
-        : "assets/4.0/kissu4_vip_open_second_bg.webp";
-
-    return GestureDetector(
-      onTap: () {
-        if (plan.index >= 0) {
-          controller.selectPrice(plan.index);
-        }
-      },
-      child: Container(
-        height: 113,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(backgroundAsset),
-            fit: BoxFit.fill,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            if (isMonthly)
-              Transform.translate(
-                offset: const Offset(0, -5),
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Image.asset(
-                    "assets/4.0/kissu4_vip_open_second_tip.webp",
-                    width: 78,
-                    height: 19,
-                  ),
-                ),
-              ),
-            SizedBox(height: isMonthly ? 5 : 24),
-            Text(
-              plan.package.title,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xcc000000),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: priceParts[0],
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Color(0xffFF6885),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextSpan(
-                    text: priceParts[1],
-                    style: const TextStyle(
-                      fontSize: 24,
-                      color: Color(0xffFF6885),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(width: 80, height: 0.5, color: const Color(0xff22000000)),
-            const SizedBox(height: 5),
-            if (perDayPriceText.isNotEmpty)
-              Text(
-                perDayPriceText,
-                style: const TextStyle(fontSize: 11, color: Color(0x66000000)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<String> _splitPriceParts(String? price) {
-    final clean = _stripCurrencySymbol(price);
-    final display = clean.isEmpty ? '0.00' : clean;
-    return ['￥', display];
-  }
-
-  bool _hasOriginalPrice(String? price) {
-    final clean = _stripCurrencySymbol(price);
-    if (clean.isEmpty) return false;
-    final value = double.tryParse(clean);
-    if (value == null) {
-      return true;
-    }
-    return value > 0;
-  }
-
-  String _formatPriceWithSymbol(String? price) {
-    final clean = _stripCurrencySymbol(price);
-    if (clean.isEmpty) return '';
-    return '￥$clean';
-  }
-
-  String _stripCurrencySymbol(String? price) {
-    final raw = price?.trim() ?? '';
-    if (raw.isEmpty) return '';
-    return raw.replaceFirst(RegExp(r'^[¥￥]'), '');
   }
 
   // 信息背景图片
@@ -798,13 +281,12 @@ class VipPage extends GetView<VipController> {
     // 根据渠道判断是否显示定位提示
     // 这里可以根据具体需求调整哪些渠道不显示定位功能
     switch (channel.toLowerCase()) {
-      case 'huawei': // 华为渠道
-      case '3': // 华为渠道代码
-      case 'xiaomi': // 小米渠道
+     
+      case 'kissu_xiaomi': // 小米渠道
       case '2': // 小米渠道代码
-      case 'vivo': // VIVO渠道
+      case 'kissu_vivo': // VIVO渠道
       case '4': // VIVO渠道代码
-      case 'oppo': // OPPO渠道
+      case 'kissu_oppo': // OPPO渠道
       case '5': // OPPO渠道代码
         return false; // 这些渠道不显示定位功能提示
       default:
@@ -812,161 +294,4 @@ class VipPage extends GetView<VipController> {
     }
   }
 
-  // 用户评价标题
-  Widget _buildUserCommonTitle() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: const Text(
-        '会员用户五星评价',
-        style: TextStyle(
-          color: Color(0xff000000),
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'AlimamaShuHeiTi',
-        ),
-      ),
-    );
-  }
-
-  // 用户评价轮播图
-  Widget _buildCommentCarousel() {
-    return Obx(() {
-      final List<CommentItem> commentList =
-          controller.bannerData.value?.commentList ?? [];
-      if (commentList.isEmpty) {
-        return const SizedBox();
-      }
-
-      return SizedBox(
-        height: 115,
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            controller.onCommentScroll();
-            return false;
-          },
-          child: ListView.builder(
-            controller: controller.commentScrollController,
-            scrollDirection: Axis.horizontal,
-            itemCount: commentList.length,
-            itemBuilder: (context, index) {
-              final comment = commentList[index];
-              return Container(
-                width: 266,
-                margin: EdgeInsets.only(
-                  left: index == 0 ? 0 : 13,
-                ),
-                child: VipCommentItem(comment: comment),
-              );
-            },
-          ),
-        ),
-      );
-    });
-  }
-
-
-  // 顶部轮播图指示条
-  Widget _buildTopCarouselIndicators() {
-    return Obx(() {
-      final remoteCount =
-          controller.bannerData.value?.vipIconBanner.length ?? 0;
-      final itemCount = remoteCount > 0 ? remoteCount : 4;
-
-      if (itemCount <= 1) {
-        return const SizedBox();
-      }
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          itemCount,
-          (index) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: controller.currentIndex.value == index
-                  ? Color(0xffFF89D9)
-                  : Color(0xFFFECFE9),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-
-  // 评价轮播图指示条
-  // ignore: unused_element
-  Widget _buildCommentCarouselIndicators() {
-    return Obx(() {
-      final commentList = controller.bannerData.value?.commentList ?? [];
-      if (commentList.isEmpty) {
-        return const SizedBox();
-      }
-
-      final itemCount = commentList.length;
-      if (itemCount <= 1) {
-        return const SizedBox(); // 只有一个项目时不显示指示条
-      }
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          itemCount,
-          (index) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: controller.commentCurrentIndex.value == index
-                  ? const Color(0xFFFF408D)
-                  : const Color(0xFFE0E0E0),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-
-  /// 设置页面可见性监听
-  void _setupPageVisibilityListener() {
-    WidgetsBinding.instance.addObserver(_PageVisibilityObserver(controller));
-  }
-}
-
-class _VipPlanData {
-  final VipPackageModel package;
-  final int index;
-
-  _VipPlanData(this.package, this.index);
-}
-
-/// 页面可见性观察者
-class _PageVisibilityObserver extends WidgetsBindingObserver {
-  final VipController controller;
-
-  _PageVisibilityObserver(this.controller);
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.inactive:
-        controller.pauseAutoCarousel(); // 暂停自动轮播
-        break;
-      case AppLifecycleState.resumed:
-        controller.resumeAutoCarousel(); // 恢复自动轮播
-        break;
-      case AppLifecycleState.detached:
-        controller.pauseAutoCarousel(); // 暂停自动轮播
-        break;
-      case AppLifecycleState.hidden:
-        controller.pauseAutoCarousel(); // 暂停自动轮播
-        break;
-    }
-  }
 }

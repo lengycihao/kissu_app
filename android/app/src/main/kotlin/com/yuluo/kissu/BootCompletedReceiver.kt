@@ -1,10 +1,17 @@
 package com.yuluo.kissu
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
+import com.yuluo.kissu.widget.KissuWidgetDaysProvider
+import com.yuluo.kissu.widget.KissuWidgetProvider
+import com.yuluo.kissu.widget.WidgetUpdateWorker
 import io.flutter.Log
+import org.json.JSONObject
 
 /**
  * 开机自启动广播接收器
@@ -63,17 +70,37 @@ class BootCompletedReceiver : BroadcastReceiver() {
         when (action) {
             Intent.ACTION_BOOT_COMPLETED -> {
                 Log.d(TAG, "设备启动完成，准备恢复定位服务...")
+                ensureWidgetPeriodicWorkIfNeeded(context)
                 handleBootCompleted(context)
             }
             Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 Log.d(TAG, "应用更新完成，准备恢复定位服务...")
+                ensureWidgetPeriodicWorkIfNeeded(context)
                 handleBootCompleted(context)
             }
             Intent.ACTION_USER_PRESENT -> {
                 Log.d(TAG, "用户解锁屏幕（部分厂商需要此事件）")
                 // 仅在首次解锁时触发
+                ensureWidgetPeriodicWorkIfNeeded(context)
                 handleUserPresent(context)
             }
+        }
+    }
+
+    private fun ensureWidgetPeriodicWorkIfNeeded(context: Context) {
+        try {
+            val manager = AppWidgetManager.getInstance(context)
+            val largeIds = manager.getAppWidgetIds(ComponentName(context, KissuWidgetProvider::class.java))
+            val daysIds = manager.getAppWidgetIds(ComponentName(context, KissuWidgetDaysProvider::class.java))
+            if (largeIds.isNotEmpty() || daysIds.isNotEmpty()) {
+                WidgetUpdateWorker.enqueuePeriodicWork(context)
+                WidgetUpdateWorker.scheduleAlarmBackup(context)
+                Log.d(TAG, "✅ 检测到桌面小组件，已恢复周期刷新任务和AlarmManager备份")
+            } else {
+                Log.d(TAG, "ℹ️ 未检测到桌面小组件，跳过周期刷新任务恢复")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "恢复小组件周期任务失败", e)
         }
     }
     
@@ -104,6 +131,9 @@ class BootCompletedReceiver : BroadcastReceiver() {
             // 🔥 启动前台定位服务
             startForegroundLocationService(context)
             
+            // 🔥 检查是否有未过期的锁屏，立即恢复锁屏
+            checkAndRestoreLockScreen(context)
+            
         } catch (e: Exception) {
             Log.e(TAG, "❌ 处理开机启动失败", e)
         }
@@ -128,10 +158,68 @@ class BootCompletedReceiver : BroadcastReceiver() {
     }
     
     /**
+     * 🔥 检查是否有未过期的锁屏，立即恢复锁屏服务
+     * 防止被锁方通过重启手机逃避锁定
+     */
+    private fun checkAndRestoreLockScreen(context: Context) {
+        try {
+            val lockPrefs = context.getSharedPreferences(
+                LockScreenOverlayService.PREFS_NAME, Context.MODE_PRIVATE
+            )
+            val screenLockJson = lockPrefs.getString(LockScreenOverlayService.KEY_SCREEN_LOCK, null)
+            
+            if (screenLockJson.isNullOrEmpty()) {
+                Log.d(TAG, "🔒 没有锁屏数据，跳过锁屏恢复")
+                return
+            }
+            
+            val obj = JSONObject(screenLockJson)
+            val endTime = obj.optLong("endTime", 0)
+            val currentTime = System.currentTimeMillis()
+            
+            if (currentTime >= endTime) {
+                Log.d(TAG, "🔒 锁屏已过期，清除锁屏数据")
+                lockPrefs.edit().remove(LockScreenOverlayService.KEY_SCREEN_LOCK).apply()
+                return
+            }
+            
+            // 检查悬浮窗权限
+            if (!Settings.canDrawOverlays(context)) {
+                Log.w(TAG, "🔒 缺少悬浮窗权限，无法恢复锁屏")
+                return
+            }
+            
+            Log.d(TAG, "🔒 发现未过期的锁屏，立即恢复！剩余: ${(endTime - currentTime) / 1000}秒")
+            
+            // 立即启动锁屏服务
+            val serviceIntent = Intent(context, LockScreenOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+            
+            Log.d(TAG, "🔒 锁屏服务已在开机后快速恢复")
+        } catch (e: Exception) {
+            Log.e(TAG, "🔒 检查锁屏恢复失败", e)
+        }
+    }
+    
+    /**
      * 启动前台定位服务
+     * 🔥 修复：检查隐私政策是否已同意，避免在用户未同意时获取位置信息和 ANDROID ID
      */
     private fun startForegroundLocationService(context: Context) {
         try {
+            // 🔥 关键修复：检查隐私政策是否已同意（从 SharedPreferences 读取 Flutter 保存的状态）
+            val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val privacyAgreed = flutterPrefs.getBoolean("flutter.privacy_policy_agreed", false)
+            
+            if (!privacyAgreed) {
+                Log.w(TAG, "⚠️ 用户未同意隐私政策，跳过开机自启动定位服务（隐私合规）")
+                return
+            }
+            
             // 🔥 检查用户 Token 是否存在（用于定位上报）
             val prefs = context.getSharedPreferences("kissu_preferences", Context.MODE_PRIVATE)
             val token = prefs.getString("user_token", null)

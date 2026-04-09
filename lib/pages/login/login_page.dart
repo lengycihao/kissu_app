@@ -10,15 +10,16 @@ class LoginPage extends StatefulWidget {
   _LoginPageState createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   final LoginController controller = Get.put(LoginController());
   final ScrollController _scrollController = ScrollController();
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _codeFocusNode = FocusNode();
-
+ 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     // 添加焦点监听
     _phoneFocusNode.addListener(() {
@@ -31,7 +32,24 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 埋点逻辑统一在 LoginController 中处理，避免重复上报
+    switch (state) {
+      case AppLifecycleState.paused:
+        controller.onAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        controller.onAppResumed();
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // 埋点在 LoginController.onClose() 中处理
     _scrollController.dispose();
     _phoneFocusNode.dispose();
     _codeFocusNode.dispose();
@@ -49,7 +67,7 @@ class _LoginPageState extends State<LoginPage> {
     controller.context = context;
     return Scaffold(
       resizeToAvoidBottomInset: false, // 禁用自动调整，手动控制
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xfff6f6f6),
       body: GestureDetector(
         onTap: () {
           // 释放所有焦点
@@ -123,6 +141,8 @@ class _LoginPageState extends State<LoginPage> {
                         onTap: () {
                           // 释放所有焦点并收起键盘
                           _unfocusAll();
+                          // 埋点：标记进入下一页（登录成功后会跳转）
+                          controller.onNavigateToNextPage?.call();
                           controller.login();
                         },
                         child: Container(
@@ -159,88 +179,91 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 36),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Obx(
-                        () => GestureDetector(
-                          onTap: () {
-                            // 切换勾选状态
-                            final newValue = !controller.isChecked.value;
-                            controller.isChecked.value = newValue;
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Obx(
+                          () => GestureDetector(
+                            onTap: () {
+                              // 切换勾选状态
+                              final newValue = !controller.isChecked.value;
+                              controller.isChecked.value = newValue;
 
-                            // 发送埋点：勾选=同意，取消勾选=不同意
-                            controller.trackAgreementCheckbox(newValue);
-                          },
-                          child: Container(
-                            width: 16, // 设置圆的宽度
-                            height: 16, // 设置圆的高度
-                            decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(
-                                  controller.isChecked.value
-                                      ? 'assets/images/kissu_login_privite_sel.webp'
-                                      : 'assets/images/kissu_login_privite_unsel.webp',
+                              // 埋点：隐私协议勾选状态变化
+                            },
+                            child: Container(
+                              width: 16, // 设置圆的宽度
+                              height: 16, // 设置圆的高度
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(
+                                    controller.isChecked.value
+                                        ? 'assets/images/kissu_login_privite_sel.webp'
+                                        : 'assets/images/kissu_login_privite_unsel.webp',
+                                  ),
                                 ),
+                                // color: controller.isChecked.value
+                                //     ? Color(0xFFFF839E) // 勾选时的颜色
+                                //     : Colors.white,
+                                // shape: BoxShape.circle,
+                                // border: Border.all(
+                                //   color: Color(0xFF666666), // 未勾选时的边框颜色
+                                //   width: 1.5,
+                                // ),
                               ),
-                              // color: controller.isChecked.value
-                              //     ? Color(0xFFFF839E) // 勾选时的颜色
-                              //     : Colors.white,
-                              // shape: BoxShape.circle,
-                              // border: Border.all(
-                              //   color: Color(0xFF666666), // 未勾选时的边框颜色
-                              //   width: 1.5,
-                              // ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 7),
-                      const Text(
-                        '登录即代表同意 ',
-                        style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-                      ),
-                      
-                      GestureDetector(
-                        onTap: () {
-                          AgreementUtils.toPrivacyAgreement();
-                        },
-                        child: const Text(
-                          '《隐私政策》',
-                          style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+                        const SizedBox(width: 7),
+                        const Text(
+                          '登录即代表同意 ',
+                          style: TextStyle(color: Color(0xFF666666), fontSize: 12),
                         ),
-                      ),
-                      const Text(
-                        '和',
-                        style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-                      ),
-                      
-                      GestureDetector(
-                        onTap: () {
-                          AgreementUtils.toUserAgreement();
-                        },
-                        child: const Text(
-                          '《用户协议》',
-                          style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+
+                        GestureDetector(
+                          onTap: () {
+                            // 埋点：页面离开（进入下一页）
+                            controller.onNavigateToNextPage?.call();
+                            AgreementUtils.toPrivacyAgreement();
+                          },
+                          child: const Text(
+                            '《隐私政策》',
+                            style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+                          ),
                         ),
-                      ),
-                    ],
+                        const Text(
+                          '和',
+                          style: TextStyle(color: Color(0xFF666666), fontSize: 12),
+                        ),
+
+                        GestureDetector(
+                          onTap: () {
+                            // 埋点：页面离开（进入下一页）
+                            controller.onNavigateToNextPage?.call();
+                            AgreementUtils.toUserAgreement();
+                          },
+                          child: const Text(
+                            '《用户协议》',
+                            style: TextStyle(color: Color(0xFFFF97CE), fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          
-          ],
+            ],
+          ),
         ),
-      ),
+      
     );
   }
 
@@ -376,4 +399,5 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
 }

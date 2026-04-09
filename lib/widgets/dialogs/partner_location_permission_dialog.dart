@@ -15,8 +15,9 @@ class PartnerLocationPermissionDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 320,
-        height: 300,
+        width: 275,
+        height: 270,
+        margin: EdgeInsets.only(bottom: 100),
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/location/kissu3_notice_middle_bg.webp'),
@@ -25,35 +26,13 @@ class PartnerLocationPermissionDialog extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(25)),
         ),
         child: Padding(
-          padding: const EdgeInsets.only(left: 18,right: 18,top: 115,bottom: 25),
+          padding: const EdgeInsets.only(left: 20,right: 20,top: 95),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 标题行：提示 + 关闭按钮
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '提示',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF333333),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: const Icon(
-                      Icons.close,
-                        size: 20,
-                      color: Color(0xFF999999),
-                    ),
-                  ),
-                ],
-              ),
               
-              const SizedBox(height: 12),
+              const SizedBox(height: 15),
               
               // 副标题
               const Align(
@@ -68,7 +47,7 @@ class PartnerLocationPermissionDialog extends StatelessWidget {
                 ),
               ),
               
-              const SizedBox(height: 12),
+              const SizedBox(height: 15),
               
               // 内容
               const Text(
@@ -80,7 +59,7 @@ class PartnerLocationPermissionDialog extends StatelessWidget {
                 ),
               ),
               
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               
               // 知道了按钮
               GestureDetector(
@@ -92,7 +71,7 @@ class PartnerLocationPermissionDialog extends StatelessWidget {
                   width: double.infinity,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Color(0xFFFF408D),
+                    color: Color(0xFFFFA9E0),
                     borderRadius: BorderRadius.circular(22),
                   ),
                   alignment: Alignment.center,

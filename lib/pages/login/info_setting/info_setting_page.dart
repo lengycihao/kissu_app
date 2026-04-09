@@ -4,8 +4,41 @@ import 'package:intl/intl.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/pages/login/info_setting/info_setting_controller.dart';
 
-class InfoSettingPage extends StatelessWidget {
+class InfoSettingPage extends StatefulWidget {
+  @override
+  _InfoSettingPageState createState() => _InfoSettingPageState();
+}
+
+class _InfoSettingPageState extends State<InfoSettingPage> with WidgetsBindingObserver {
   final controller = Get.put(InfoSettingController());
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // 埋点在 InfoSettingController.onClose() 中处理
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 埋点逻辑统一在 InfoSettingController 中处理，避免重复上报
+    switch (state) {
+      case AppLifecycleState.paused:
+        controller.onAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        controller.onAppResumed();
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +78,8 @@ class InfoSettingPage extends StatelessWidget {
                       child: Text(
                         '完善信息',
                         style: TextStyle(
-                          color: Color(0xdd000000),
-                          fontSize: 18,
+                          color: Color(0xff333333),
+                          fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -288,8 +321,11 @@ class InfoSettingPage extends StatelessWidget {
               bottom: 36,
               child: Obx(() {
                 return GestureDetector(
-                  onTap:
-                      controller.isLoading.value ? null : controller.onSubmit,
+                  onTap: controller.isLoading.value ? null : () {
+                    // 埋点：标记进入下一页
+                    controller.onNavigateToNextPage?.call();
+                    controller.onSubmit();
+                  },
                   child: Container(
                     height: 50,
                     width: double.infinity,

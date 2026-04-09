@@ -154,9 +154,25 @@
 -keep class * extends cn.jpush.android.helpers.JPushMessageReceiver { *; }
 -dontwarn cn.jpush.**
 
-# 友盟分享SDK保护规则
+# ============ 友盟分享SDK完整混淆规则 ============
+# 友盟核心类
 -keep class com.umeng.** {*;}
 -keep class com.uc.** {*;}
+-dontwarn com.umeng.**
+-dontwarn com.uc.**
+
+# 友盟分享回调接口（关键！）
+-keep interface com.umeng.socialize.UMShareListener {*;}
+-keep class * implements com.umeng.socialize.UMShareListener {*;}
+
+# 友盟分享相关类
+-keep class com.umeng.socialize.** {*;}
+-keep class com.umeng.socialize.bean.** {*;}
+-keep class com.umeng.socialize.media.** {*;}
+-keep class com.umeng.socialize.handler.** {*;}
+-keep class com.umeng.socialize.net.** {*;}
+
+# 友盟通用规则
 -keepclassmembers class * {
    public <init> (org.json.JSONObject);
 }
@@ -165,13 +181,35 @@
     public static ** valueOf(java.lang.String);
 }
 
-# 腾讯QQ SDK
+# ============ 腾讯QQ SDK完整混淆规则 ============
+# QQ SDK核心类（关键！）
+-keep class com.tencent.tauth.** {*;}
+-keep class com.tencent.connect.** {*;}
+-keep class com.tencent.open.** {*;}
+-dontwarn com.tencent.tauth.**
+-dontwarn com.tencent.connect.**
+-dontwarn com.tencent.open.**
+
+# QQ SDK对话框类
 -keep class com.tencent.open.TDialog$*
 -keep class com.tencent.open.TDialog$* {*;}
 -keep class com.tencent.open.PKDialog
 -keep class com.tencent.open.PKDialog {*;}
 -keep class com.tencent.open.PKDialog$*
 -keep class com.tencent.open.PKDialog$* {*;}
+
+# QQ SDK回调Activity（关键！）
+-keep class com.tencent.tauth.AuthActivity {*;}
+-keep class com.tencent.connect.common.AssistActivity {*;}
+
+# QQ SDK反射调用的类和方法（关键！）
+-keep class com.tencent.tauth.Tencent {
+    public *;
+    public static *;
+}
+-keepclassmembers class com.tencent.tauth.Tencent {
+    public static void setIsPermissionGranted(boolean);
+}
 
 # Gson规则（如果使用）
 -keepattributes Signature
@@ -200,6 +238,29 @@
 -dontwarn com.tencent.imsdk.**
 -dontwarn com.tencent.qcloud.**
 
+# ============ 华为HMS推送SDK混淆规则 ============
+-ignorewarnings
+-keepattributes *Annotation*
+-keepattributes Exceptions
+-keepattributes InnerClasses
+-keepattributes Signature
+-keepattributes SourceFile,LineNumberTable
+
+# HMS Core SDK
+-keep class com.huawei.hianalytics.**{*;}
+-keep class com.huawei.updatesdk.**{*;}
+-keep class com.huawei.hms.**{*;}
+-dontwarn com.huawei.hms.**
+
+# HMS Push SDK
+-keep class com.huawei.hms.push.**{*;}
+-keep class com.huawei.agconnect.**{*;}
+-dontwarn com.huawei.agconnect.**
+
+# 腾讯IM华为推送通道
+-keep class com.tencent.qcloud.tim.push.huawei.**{*;}
+-keep class com.tencent.timpush.huawei.**{*;}
+
 # ============ OpenInstall SDK混淆规则 ============
 -keep class com.openinstall.** { *; }
 -dontwarn com.openinstall.**
@@ -220,6 +281,10 @@
 -keep class com.samsung.android.deviceidservice.**{*;}
 -keep class com.zui.opendeviceidlibrary.**{*;}
 -keep public class com.netease.nis.sdkwrapper.Utils {public <methods>;}
+
+# ============ 巨量引擎转化SDK（BDConvert）混淆规则 ============
+-keep class com.bytedance.ads.** { *; }
+-dontwarn com.bytedance.ads.**
 
 # ============ Lottie动画混淆规则 ============
 # Lottie核心类

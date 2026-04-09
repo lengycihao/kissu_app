@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:flutter/material.dart'; 
 import 'base_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 绑定弹窗关闭确认弹窗
 class BindingCloseConfirmDialog extends BaseDialog {
@@ -59,12 +59,8 @@ class BindingCloseConfirmDialog extends BaseDialog {
                   // 左按钮 - "再想想"
                   GestureDetector(
                     onTap: () async {
-                      // 只有来自首页的绑定弹窗才上报埋点
-                      if (isFromHomePage) {
-                        await TrackingService.trackBindingReback(
-                          buttonName: '再想想',
-                        );
-                      }
+                      // 埋点：返回弹窗 - 再想想按钮
+                      AnalyticsHelper.trackBindRebackDialog(btnStatus: 0); // 0=再想想
 
                       Navigator.of(context).pop(true); // 返回true表示允许关闭绑定弹窗
                       onCancel?.call();
@@ -101,12 +97,8 @@ class BindingCloseConfirmDialog extends BaseDialog {
                   // 右按钮 - "立即绑定"
                   GestureDetector(
                     onTap: () async {
-                      // 只有来自首页的绑定弹窗才上报埋点
-                      if (isFromHomePage) {
-                        await TrackingService.trackBindingReback(
-                          buttonName: '立即绑定',
-                        );
-                      }
+                      // 埋点：返回弹窗 - 立马绑定按钮
+                      AnalyticsHelper.trackBindRebackDialog(btnStatus: 1); // 1=立马绑定
 
                       Navigator.of(context).pop(false); // 返回false表示不关闭绑定弹窗
                       onConfirm?.call();
@@ -150,6 +142,11 @@ class BindingCloseConfirmDialog extends BaseDialog {
     bool barrierDismissible = true,
     bool isFromHomePage = false, // 默认不是首页
   }) {
+    // 埋点：挽留弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackBindRebackDialogExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     return BaseDialog.show<bool>(
       context: context,
       barrierDismissible: barrierDismissible,

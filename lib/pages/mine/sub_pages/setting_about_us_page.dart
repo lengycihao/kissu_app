@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:kissu_app/services/version_service.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
+import 'package:kissu_app/utils/image_saver_util.dart';
 
 class AboutUsPage extends StatefulWidget {
   const AboutUsPage({super.key});
@@ -28,60 +29,35 @@ class _AboutUsPageState extends State<AboutUsPage> {
         _version = packageInfo.version;
       });
     } catch (e) {
+      logError('加载版本信息失败: $e', tag: 'AboutUsPage', error: e);
       setState(() {
         _version = '1.0.1'; // 默认版本号
       });
     }
   }
 
-  Widget _buildDashedDivider() {
-    return Container(
-      height: 1,
-      margin: const EdgeInsets.symmetric(vertical: 7),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final boxWidth = constraints.constrainWidth();
-          const dashWidth = 2.0;
-          const dashSpace = 1.0;
-          final dashCount = (boxWidth / (dashWidth + dashSpace)).floor();
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(dashCount, (_) {
-              return SizedBox(
-                width: dashWidth,
-                height: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xffE6E2E3)),
-                ),
-              );
-            }),
-          );
-        },
-      ),
-    );
-  }
 
   Widget _buildItem(String title, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 15),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF333333),
-                  fontWeight: FontWeight.w500,
-                ),
+                  fontSize: 13,
+                  color: Color(0xFF000000),
+                 ),
               ),
             ),
             const SizedBox(width: 8),
             Image.asset(
               "assets/images/kissu_mine_arrow.webp",
+              // color: Color(0x66000000),
               width: 16,
               height: 16,
             ),
@@ -94,7 +70,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xFFF6F6F6),
       body: Stack(
         children: [
           // 背景图
@@ -109,26 +85,46 @@ class _AboutUsPageState extends State<AboutUsPage> {
           Column(
             children: [
               // 自定义导航栏
-              Padding(
-                padding:   EdgeInsets.only(top: MediaQuery.of(context).padding.top+12, left: 6, right: 16),
-                child: Row(
+              SizedBox(
+                height: 44 + MediaQuery.of(context).padding.top,
+                child: Stack(
                   children: [
-                    CommonBackButton(
-                      onTap: () => Get.back(),
-                      assetPath: "assets/images/kissu_mine_back.webp",
-                      iconSize: 22,
-                    ),
-                    const Spacer(),
-                    const Text(
-                      "关于我们",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF333333),
+                    // 返回按钮
+                    Positioned(
+                      left: 5,
+                      top: MediaQuery.of(context).padding.top,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    const SizedBox(width: 24),
+                    // 标题 - 绝对居中
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: MediaQuery.of(context).padding.top,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          "关于我们",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -201,20 +197,11 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage("assets/images/kissu_setting_aboutus.webp"),
-                        fit: BoxFit.fill,
-                      ),
+                       color: Color(0xffffffff),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 15,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                       
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,14 +209,15 @@ class _AboutUsPageState extends State<AboutUsPage> {
                         _buildItem("隐私协议", () {
                           AgreementUtils.toPrivacyAgreement();
                         }),
-                        _buildDashedDivider(),
-                        _buildItem("用户协议", () {
+                         _buildItem("用户协议", () {
                           AgreementUtils.toUserAgreement();
                         }),
-                        _buildDashedDivider(),
-                        _buildItem("检查更新", () {
+                         _buildItem("检查更新", () {
                           final versionService = Get.find<VersionService>();
                           versionService.checkVersionForAboutPage(context);
+                        }),
+                         _buildItem("kissu福利官", () {
+                          _showFuliDialog(context);
                         }),
                       ],
                     ),
@@ -240,6 +228,72 @@ class _AboutUsPageState extends State<AboutUsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 显示福利官弹窗
+  void _showFuliDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true, // 允许点击背景关闭弹窗
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (BuildContext context) {
+        return GestureDetector(
+          // 点击背景关闭弹窗
+          onTap: () => Navigator.of(context).pop(),
+          behavior: HitTestBehavior.opaque,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.zero,
+            child: GestureDetector(
+              // 阻止点击事件向上传递，防止点击图片时关闭弹窗
+              onTap: () {},
+              child: Center(
+                child: SizedBox(
+                  width: 294,
+                  height: 443,
+                  child: Stack(
+                    children: [
+                      // 主图片（固定大小 294 * 443）
+                      Image.asset(
+                        'assets/setting/kissu_fuli_dialog.webp',
+                        width: 294,
+                        height: 443,
+                        fit: BoxFit.cover,
+                      ),
+                      // 保存按钮（叠加在图片底部）
+                      Positioned(
+                        bottom: 40,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () async {
+                              // 保存图片到相册
+                              final success = await ImageSaverUtil.saveAssetImageToGallery(
+                                'assets/setting/kissu_fuli_dialog.webp',
+                              );
+                              if (success) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                            child: Image.asset(
+                              'assets/setting/kissu_fuli_save.webp',
+                              width: 222,
+                              height: 50,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

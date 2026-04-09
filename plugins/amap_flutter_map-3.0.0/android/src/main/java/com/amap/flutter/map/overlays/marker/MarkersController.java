@@ -1,6 +1,8 @@
 package com.amap.flutter.map.overlays.marker;
 
+import android.animation.ValueAnimator;
 import android.text.TextUtils;
+import android.view.animation.AccelerateDecelerateInterpolator;
 
 import androidx.annotation.NonNull;
 
@@ -20,6 +22,7 @@ import com.amap.flutter.map.utils.LogUtil;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -40,9 +43,19 @@ public class MarkersController
     private static final String CLASS_NAME = "MarkersController";
     private String selectedMarkerDartId;
     private CustomInfoWindowAdapter customInfoWindowAdapter;
+    private android.content.Context appContext;
+    private final Map<String, GifMarkerController> gifControllers = new ConcurrentHashMap<>();
+    
+    // 🎯 共享摆动动画器（确保两个marker完全同步）
+    private ValueAnimator sharedSwingAnimator;
+    private MarkerController syncSwingMarker1;
+    private MarkerController syncSwingMarker2;
+    private float syncMarker1FromAngle, syncMarker1ToAngle;
+    private float syncMarker2FromAngle, syncMarker2ToAngle;
 
     public MarkersController(MethodChannel methodChannel, AMap amap, android.content.Context context) {
         super(methodChannel, amap);
+        this.appContext = context;
         amap.addOnMarkerClickListener(this);
         amap.addOnMarkerDragListener(this);
         amap.addOnMapClickListener(this);
@@ -83,6 +96,24 @@ public class MarkersController
                 break;
             case Const.METHOD_MARKER_MOVE_SMOOTHLY:
                 moveMarkerSmoothly(call, result);
+                break;
+            case Const.METHOD_MARKER_START_GIF_ANIMATION:
+                startGifAnimation(call, result);
+                break;
+            case Const.METHOD_MARKER_STOP_GIF_ANIMATION:
+                stopGifAnimation(call, result);
+                break;
+            case Const.METHOD_MARKER_PRELOAD_GIF:
+                preloadGif(call, result);
+                break;
+            case Const.METHOD_MARKER_START_SWING_ANIMATION:
+                startSwingAnimation(call, result);
+                break;
+            case Const.METHOD_MARKER_STOP_SWING_ANIMATION:
+                stopSwingAnimation(call, result);
+                break;
+            case Const.METHOD_MARKER_START_SYNC_SWING_ANIMATION:
+                startSyncSwingAnimation(call, result);
                 break;
         }
     }
@@ -598,6 +629,217 @@ public class MarkersController
     }
 
     /**
+     * 🔄 启动Marker摆动动画（雨刷器效果）
+     * 
+     * 以Marker的锚点（尖尖）为圆心，左右摆动
+     * 效果类似雨刷器，两个头像先靠拢再分开
+     * 
+     * @param call 包含markerId、fromAngle、toAngle、duration的参数
+     * @param result 回调结果
+     */
+    private void startSwingAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+            Double fromAngle = call.argument("fromAngle");
+            Double toAngle = call.argument("toAngle");
+            Integer duration = call.argument("duration");
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+            if (fromAngle == null || toAngle == null) {
+                result.error("INVALID_ARGUMENT", "fromAngle和toAngle不能为空", null);
+                return;
+            }
+
+            // 设置默认值（800ms）
+            long durationMs = duration != null ? duration.longValue() : 800L;
+
+            // 获取MarkerController
+            MarkerController controller = controllerMapByDartId.get(markerId);
+            if (controller == null) {
+                result.error("MARKER_NOT_FOUND", "未找到markerId对应的Marker: " + markerId, null);
+                return;
+            }
+
+            // 启动摆动动画
+            controller.startSwingAnimation(fromAngle.floatValue(), toAngle.floatValue(), durationMs);
+            
+            LogUtil.i(CLASS_NAME, String.format(
+                "✅ 启动Marker摆动动画: markerId=%s, from=%.1f°, to=%.1f°, duration=%dms",
+                markerId, fromAngle, toAngle, durationMs));
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "启动摆动动画失败", e);
+            result.error("ANIMATION_ERROR", "启动动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 停止Marker摆动动画
+     * 
+     * @param call 包含markerId的参数
+     * @param result 回调结果
+     */
+    private void stopSwingAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+
+            // 🎯 如果是共享动画的marker，停止共享动画器
+            if (syncSwingMarker1 != null || syncSwingMarker2 != null) {
+                MarkerController controller = controllerMapByDartId.get(markerId);
+                if (controller == syncSwingMarker1 || controller == syncSwingMarker2) {
+                    stopSharedSwingAnimator();
+                    LogUtil.i(CLASS_NAME, "✅ 停止共享摆动动画: markerId=" + markerId);
+                    result.success(true);
+                    return;
+                }
+            }
+
+            // 获取MarkerController
+            MarkerController controller = controllerMapByDartId.get(markerId);
+            if (controller == null) {
+                result.error("MARKER_NOT_FOUND", "未找到markerId对应的Marker: " + markerId, null);
+                return;
+            }
+
+            // 停止动画
+            controller.stopSwingAnimation();
+            
+            LogUtil.i(CLASS_NAME, "✅ 停止Marker摆动动画: markerId=" + markerId);
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "停止摆动动画失败", e);
+            result.error("ANIMATION_ERROR", "停止动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 🔄 同步启动两个Marker的摆动动画（使用共享ValueAnimator确保完全同步）
+     * 
+     * 使用单一ValueAnimator驱动两个marker，确保它们在任何时刻都保持完全同步
+     * 
+     * @param call 包含marker1Id、marker1FromAngle、marker1ToAngle、
+     *             marker2Id、marker2FromAngle、marker2ToAngle、duration的参数
+     * @param result 回调结果
+     */
+    private void startSyncSwingAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String marker1Id = call.argument("marker1Id");
+            Double marker1FromAngle = call.argument("marker1FromAngle");
+            Double marker1ToAngle = call.argument("marker1ToAngle");
+            String marker2Id = call.argument("marker2Id");
+            Double marker2FromAngle = call.argument("marker2FromAngle");
+            Double marker2ToAngle = call.argument("marker2ToAngle");
+            Integer duration = call.argument("duration");
+
+            // 参数校验
+            if (marker1Id == null || marker1Id.isEmpty() || marker2Id == null || marker2Id.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "marker1Id和marker2Id不能为空", null);
+                return;
+            }
+            if (marker1FromAngle == null || marker1ToAngle == null || 
+                marker2FromAngle == null || marker2ToAngle == null) {
+                result.error("INVALID_ARGUMENT", "角度参数不能为空", null);
+                return;
+            }
+
+            // 设置默认值（800ms）
+            long durationMs = duration != null ? duration.longValue() : 800L;
+
+            // 获取两个MarkerController
+            MarkerController controller1 = controllerMapByDartId.get(marker1Id);
+            MarkerController controller2 = controllerMapByDartId.get(marker2Id);
+            
+            if (controller1 == null) {
+                result.error("MARKER_NOT_FOUND", "未找到marker1Id对应的Marker: " + marker1Id, null);
+                return;
+            }
+            if (controller2 == null) {
+                result.error("MARKER_NOT_FOUND", "未找到marker2Id对应的Marker: " + marker2Id, null);
+                return;
+            }
+
+            // 🎯 停止之前的共享动画（如果有）
+            stopSharedSwingAnimator();
+
+            // 保存参数
+            syncSwingMarker1 = controller1;
+            syncSwingMarker2 = controller2;
+            syncMarker1FromAngle = marker1FromAngle.floatValue();
+            syncMarker1ToAngle = marker1ToAngle.floatValue();
+            syncMarker2FromAngle = marker2FromAngle.floatValue();
+            syncMarker2ToAngle = marker2ToAngle.floatValue();
+
+            // 🎯 创建共享的ValueAnimator（0到1的进度值）
+            sharedSwingAnimator = ValueAnimator.ofFloat(0f, 1f);
+            sharedSwingAnimator.setDuration(durationMs);
+            sharedSwingAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            sharedSwingAnimator.setRepeatMode(ValueAnimator.REVERSE);
+            sharedSwingAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+            
+            // 🎯 使用同一个动画进度同时更新两个marker的旋转角度
+            sharedSwingAnimator.addUpdateListener(animation -> {
+                float progress = (float) animation.getAnimatedValue();
+                
+                // 计算两个marker的当前角度
+                float angle1 = syncMarker1FromAngle + (syncMarker1ToAngle - syncMarker1FromAngle) * progress;
+                float angle2 = syncMarker2FromAngle + (syncMarker2ToAngle - syncMarker2FromAngle) * progress;
+                
+                // 同时更新两个marker的旋转角度
+                if (syncSwingMarker1 != null) {
+                    syncSwingMarker1.setRotation(angle1);
+                }
+                if (syncSwingMarker2 != null) {
+                    syncSwingMarker2.setRotation(angle2);
+                }
+            });
+            
+            // 启动动画
+            sharedSwingAnimator.start();
+            
+            LogUtil.i(CLASS_NAME, String.format(
+                "✅ 共享动画器同步启动两个Marker摆动: marker1=%s (%.1f°→%.1f°), marker2=%s (%.1f°→%.1f°), duration=%dms",
+                marker1Id, marker1FromAngle, marker1ToAngle, 
+                marker2Id, marker2FromAngle, marker2ToAngle, durationMs));
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "同步启动摆动动画失败", e);
+            result.error("ANIMATION_ERROR", "同步启动动画失败: " + e.getMessage(), null);
+        }
+    }
+    
+    /**
+     * 停止共享摆动动画器
+     */
+    private void stopSharedSwingAnimator() {
+        if (sharedSwingAnimator != null) {
+            sharedSwingAnimator.cancel();
+            sharedSwingAnimator.removeAllUpdateListeners();
+            sharedSwingAnimator = null;
+        }
+        syncSwingMarker1 = null;
+        syncSwingMarker2 = null;
+    }
+
+    /**
      * 🎯 平滑移动Marker到目标位置（原生动画）
      * 
      * 使用高德地图原生平滑移动API，实现60fps流畅移动
@@ -655,4 +897,162 @@ public class MarkersController
         }
     }
 
+    /**
+     * 启动GIF动画Marker
+     * 
+     * 🎬 GIF动画效果：
+     * 1. 从Flutter assets加载GIF文件
+     * 2. 解析GIF的所有帧和延迟信息
+     * 3. 在Marker上循环播放帧动画
+     * 
+     * @param call 包含markerId、assetPath的参数
+     * @param result 回调结果
+     */
+    private void startGifAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+            String assetPath = call.argument("assetPath");
+            Integer width = call.argument("width");   // 可选：GIF宽度（像素）
+            Integer height = call.argument("height"); // 可选：GIF高度（像素）
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+            if (assetPath == null || assetPath.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "assetPath不能为空", null);
+                return;
+            }
+
+            // 获取MarkerController
+            MarkerController controller = controllerMapByDartId.get(markerId);
+            if (controller == null) {
+                result.error("MARKER_NOT_FOUND", "未找到markerId对应的Marker: " + markerId, null);
+                return;
+            }
+
+            // 停止已有的GIF动画
+            GifMarkerController existingGif = gifControllers.get(markerId);
+            if (existingGif != null) {
+                existingGif.release();
+                gifControllers.remove(markerId);
+            }
+
+            // 创建新的GIF控制器
+            GifMarkerController gifController = new GifMarkerController(appContext, controller.getMarker());
+            
+            // 设置GIF尺寸（如果提供了）
+            if (width != null && height != null && width > 0 && height > 0) {
+                gifController.setSize(width, height);
+             }
+            
+            // 保存控制器引用
+            gifControllers.put(markerId, gifController);
+            
+            // 异步加载GIF（加载完成后自动开始播放）
+            gifController.loadGifFromAssetAsync(assetPath);
+            
+            LogUtil.i(CLASS_NAME, "✅ 启动GIF异步加载: markerId=" + markerId + ", assetPath=" + assetPath);
+            
+            // 立即返回成功，不等待加载完成
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "启动GIF动画失败", e);
+            result.error("GIF_ERROR", "启动GIF动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 停止GIF动画Marker
+     * 
+     * @param call 包含markerId的参数
+     * @param result 回调结果
+     */
+    private void stopGifAnimation(MethodCall call, MethodChannel.Result result) {
+        try {
+            // 获取参数
+            String markerId = call.argument("markerId");
+
+            // 参数校验
+            if (markerId == null || markerId.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "markerId不能为空", null);
+                return;
+            }
+
+            // 获取并停止GIF控制器
+            GifMarkerController gifController = gifControllers.get(markerId);
+            if (gifController != null) {
+                gifController.release();
+                gifControllers.remove(markerId);
+                LogUtil.i(CLASS_NAME, "✅ 停止GIF动画: markerId=" + markerId);
+            }
+            
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "停止GIF动画失败", e);
+            result.error("GIF_ERROR", "停止GIF动画失败: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 释放所有GIF资源
+     */
+    public void releaseAllGifAnimations() {
+        for (GifMarkerController gifController : gifControllers.values()) {
+            gifController.release();
+        }
+        gifControllers.clear();
+        LogUtil.i(CLASS_NAME, "✅ 已释放所有GIF动画资源");
+    }
+
+    /**
+     * 预加载GIF到缓存
+     * 
+     * 在首页等位置提前调用，预加载GIF帧数据到内存缓存
+     * 后续使用时可以直接从缓存读取，无需重新解码
+     * 
+     * @param call 包含assetPath、width、height的参数
+     * @param result 回调结果
+     */
+    private void preloadGif(MethodCall call, MethodChannel.Result result) {
+        try {
+            String assetPath = call.argument("assetPath");
+            Integer width = call.argument("width");
+            Integer height = call.argument("height");
+
+            if (assetPath == null || assetPath.isEmpty()) {
+                result.error("INVALID_ARGUMENT", "assetPath不能为空", null);
+                return;
+            }
+
+            int w = (width != null && width > 0) ? width : 0;
+            int h = (height != null && height > 0) ? height : 0;
+
+            // 检查是否已缓存
+            GifFrameCache cache = GifFrameCache.getInstance();
+            if (cache.isCached(assetPath, w, h)) {
+                LogUtil.i(CLASS_NAME, "GIF已缓存，跳过预加载: " + assetPath);
+                result.success(true);
+                return;
+            }
+
+            // 异步预加载
+            cache.preload(appContext, assetPath, w, h, success -> {
+                LogUtil.i(CLASS_NAME, "GIF预加载完成: " + assetPath + ", 成功: " + success);
+            });
+
+            LogUtil.i(CLASS_NAME, "✅ 启动GIF预加载: " + assetPath + ", 尺寸: " + w + "x" + h);
+            result.success(true);
+
+        } catch (Exception e) {
+            LogUtil.e(CLASS_NAME, "预加载GIF失败", e);
+            result.error("PRELOAD_ERROR", "预加载GIF失败: " + e.getMessage(), null);
+        }
+    }
+
 }
+

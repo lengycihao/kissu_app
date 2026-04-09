@@ -1,0 +1,377 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/network/public/setting_api.dart';
+
+/// App图标选择控制器
+class AppIconSelectorController extends GetxController {
+  static const platform = MethodChannel('app_icon_channel');
+  final SettingApi _settingApi = SettingApi();
+
+  // 当前正在使用的图标（已应用的）
+  var currentUsedIcon = 'default'.obs;
+  // 当前选中的图标（用于预览）
+  var selectedIconId = 'default'.obs;
+  var isLoading = false.obs;
+
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false;
+
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
+
+  // 可用的图标列表（使用RxList以便动态更新）
+  final RxList<AppIconItem> iconItems = <AppIconItem>[
+    AppIconItem(
+      id: 'default',
+      name: '默认',
+      logoName: '最美时光',
+      previewPath: 'assets/setting/kissu_icon.webp',
+      description: '最美时光',
+      numStr: '默认图标',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_2',
+      name: '幸福加马',
+      logoName: '幸福加马',
+      previewPath: 'assets/setting/kissu_logo_2.png',
+      description: '幸福加马',
+      numStr: '新春限定款',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_3',
+      name: 'YEAH哥',
+      logoName: 'YEAH哥',
+      previewPath: 'assets/setting/kissu_logo_3.png',
+      description: 'YEAH哥',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_4',
+      name: '好运来',
+      logoName: '好运来',
+      previewPath: 'assets/setting/kissu_logo_4.png',
+      description: '好运来',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_5',
+      name: '怦然心动',
+      logoName: '怦然心动',
+      previewPath: 'assets/setting/kissu_logo_5.png',
+      description: '怦然心动',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_6',
+      name: '缠绵',
+      logoName: '缠绵',
+      previewPath: 'assets/setting/kissu_logo_6.png',
+      description: '缠绵',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_7',
+      name: '情书',
+      logoName: '情书',
+      previewPath: 'assets/setting/kissu_logo_7.png',
+      description: '情书',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_8',
+      name: '心跳频率',
+      logoName: '心跳频率',
+      previewPath: 'assets/setting/kissu_logo_8.png',
+      description: '心跳频率',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_9',
+      name: '初恋',
+      logoName: '初恋',
+      previewPath: 'assets/setting/kissu_logo_9.png',
+      description: '初恋',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_10',
+      name: 'Wink仔',
+      logoName: 'Wink仔',
+      previewPath: 'assets/setting/kissu_logo_10.png',
+      description: 'Wink仔',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_11',
+      name: 'Kissu酱',
+      logoName: 'Kissu酱',
+      previewPath: 'assets/setting/kissu_logo_11.png',
+      description: 'Kissu酱',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_12',
+      name: '心动讯号',
+      logoName: '心动讯号',
+      previewPath: 'assets/setting/kissu_logo_12.png',
+      description: '心动讯号',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_13',
+      name: '晕晕菇',
+      logoName: '晕晕菇',
+      previewPath: 'assets/setting/kissu_logo_13.png',
+      description: '晕晕菇',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_14',
+      name: '闪闪菇',
+      logoName: '闪闪菇',
+      previewPath: 'assets/setting/kissu_logo_14.png',
+      description: '闪闪菇',
+      numStr: '2000人使用',
+      needVip: 1,
+    ),
+    AppIconItem(
+      id: 'logo_15',
+      name: '想见你',
+      logoName: '想见你',
+      previewPath: 'assets/setting/kissu_logo_15.png',
+      description: '想见你',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_16',
+      name: '一见钟情',
+      logoName: '一见钟情',
+      previewPath: 'assets/setting/kissu_logo_16.png',
+      description: '一见钟情',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_17',
+      name: '初心悸动',
+      logoName: '初心悸动',
+      previewPath: 'assets/setting/kissu_logo_17.png',
+      description: '初心悸动',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+    AppIconItem(
+      id: 'logo_18',
+      name: '浪漫挚爱',
+      logoName: '浪漫挚爱',
+      previewPath: 'assets/setting/kissu_logo_18.png',
+      description: '浪漫挚爱',
+      numStr: '2000人使用',
+      needVip: 0,
+    ),
+  ].obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+
+    getCurrentIcon();
+    // 加载图标列表数据
+    _loadLogoList();
+  }
+
+  /// 加载图标列表数据（从接口获取并更新本地数据）
+  Future<void> _loadLogoList() async {
+    try {
+      final result = await _settingApi.getLogoList();
+      
+      if (result.isSuccess && result.data != null) {
+        // 根据logo_id更新本地数据的description和needVip字段
+        for (var apiItem in result.data!) {
+          final logoId = apiItem['logo_id'] as String?;
+          final description = apiItem['description'] as String?;
+          final needVip = apiItem['need_vip'] as int?;
+          
+          if (logoId != null) {
+            // 查找本地对应的图标项
+            final index = iconItems.indexWhere((item) => item.id == logoId);
+            if (index != -1) {
+              // 更新description和needVip字段
+              final oldItem = iconItems[index];
+              iconItems[index] = AppIconItem(
+                id: oldItem.id,
+                name: oldItem.name,
+                logoName: oldItem.logoName,
+                previewPath: oldItem.previewPath,
+                description: description ?? oldItem.description,
+                numStr: description ?? oldItem.numStr,
+                needVip: needVip ?? oldItem.needVip,
+              );
+            }
+          }
+        }
+        // logDebug('图标列表数据加载成功，共更新 ${result.data!.length} 个图标');
+      } else {
+        logWarning('图标列表数据加载失败: ${result.msg}');
+      }
+    } catch (e) {
+      logError('加载图标列表数据异常: $e');
+    }
+  }
+
+  /// 获取当前使用的图标
+  Future<void> getCurrentIcon() async {
+    try {
+      final String result = await platform.invokeMethod('getCurrentIcon');
+      currentUsedIcon.value = result;
+      selectedIconId.value = result; // 默认选中当前使用的图标
+    } catch (e) {
+      logError('获取当前图标失败: $e');
+    }
+  }
+
+  /// 选中图标（用于预览）
+  void selectIcon(String iconId) {
+    selectedIconId.value = iconId;
+  }
+
+  /// 获取选中的图标项
+  AppIconItem? getSelectedItem() {
+    try {
+      return iconItems.firstWhere((item) => item.id == selectedIconId.value);
+    } catch (e) {
+      return iconItems.first;
+    }
+  }
+
+  /// 检查选中的图标是否是当前正在使用的
+  bool get isSelectedCurrentUsed => selectedIconId.value == currentUsedIcon.value;
+
+  /// 切换图标
+  Future<void> changeIcon(String iconId, String logoName) async {
+    if (currentUsedIcon.value == iconId) {
+      OKToastUtil.show('当前已是该图标');
+      return;
+    }
+
+    // 埋点：在调用原生方法前立即上报（因为切换logo后app会被杀掉）
+    await AnalyticsHelper.trackChangeLogoItemBtn(logoName: logoName);
+
+    isLoading.value = true;
+
+    try {
+      final bool success = await platform.invokeMethod('changeIcon', {
+        'iconId': iconId,
+      });
+
+      if (success) {
+        currentUsedIcon.value = iconId;
+        OKToastUtil.show('切换成功，稍等几秒后重启生效');
+      } else {
+        OKToastUtil.show('图标切换失败，请重试');
+      }
+    } catch (e) {
+      logError('切换图标失败: $e');
+      OKToastUtil.show('切换失败: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+
+    AnalyticsManager.instance.trackPageView(
+      pageId: ChangeLogoEvents.pageId,
+      eventId: ChangeLogoEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+
+    // 如果是进入下一页，立即重置状态
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+
+  /// 应用切换到后台
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+
+  /// 应用从后台返回
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+
+  @override
+  void onClose() {
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
+
+    super.onClose();
+  }
+}
+
+/// 图标项数据模型
+class AppIconItem {
+  final String id;
+  final String name;
+  final String logoName; // 埋点用的logo名称（最美时光-初恋）
+  final String previewPath;
+  final String description;
+  final String numStr;
+  final int needVip;
+
+  AppIconItem({
+    required this.id,
+    required this.name,
+    required this.logoName,
+    required this.previewPath,
+    required this.description,
+    required this.numStr,
+    required this.needVip,
+  });
+}

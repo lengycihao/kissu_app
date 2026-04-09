@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'base_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// VIP到期弹窗
 class VipOuttimeDialog extends BaseDialog {
@@ -84,6 +85,9 @@ class VipOuttimeDialog extends BaseDialog {
                 left: (backgroundWidth - renewButtonWidth) / 2, // 水平居中
                 child: GestureDetector(
                   onTap: () {
+                    // 埋点：续费弹窗立即续费按钮点击
+                    AnalyticsHelper.trackRenewalReminderDialog(btnStatus: 1); // 1=进入
+                    
                     Navigator.of(context).pop(true); // 返回true表示用户选择续费
                     onRenew?.call();
                   },
@@ -115,6 +119,9 @@ class VipOuttimeDialog extends BaseDialog {
         // "下次再说"按钮 - 纯文字按钮
         GestureDetector(
           onTap: () {
+            // 埋点：续费弹窗下次再说按钮点击
+            AnalyticsHelper.trackRenewalReminderDialog(btnStatus: 0); // 0=关闭
+            
             Navigator.of(context).pop(false); // 返回false表示用户选择下次再说
             onLater?.call();
           },
@@ -156,6 +163,11 @@ class VipOuttimeDialog extends BaseDialog {
     VoidCallback? onLater,
     bool barrierDismissible = true,
   }) {
+    // 埋点：续费提醒弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackRenewalReminderDialogExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     return BaseDialog.show<bool>(
       context: context,
       barrierDismissible: barrierDismissible,

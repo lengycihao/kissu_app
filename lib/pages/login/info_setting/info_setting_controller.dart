@@ -3,33 +3,35 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/auth_service.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/network/public/service_locator.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
+import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/services/permission_service.dart';
-import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 
 
 class InfoSettingController extends GetxController {
   final AuthApi _authApi = AuthApi();
   final FileUploadApi _fileUploadApi = FileUploadApi();
   final AuthService _authService = getIt<AuthService>();
-  final PermissionService _permissionService = PermissionService();
 
   // 初始化变量
   var avatarUrl = RxString(''); // 头像URL
@@ -38,6 +40,16 @@ class InfoSettingController extends GetxController {
   var selectedDate = Rx<DateTime>(DateTime(2007, 1, 1)); // 默认2007年1月1日，后续会根据用户数据更新
   var isLoading = false.obs;
   var uploadedHeadPortrait = RxString(''); // 上传后的头像URL
+  
+  // 埋点相关：追踪是否修改过
+  bool _hasChangedAvatar = false; // 是否修改过头像
+  String _initialNickname = ''; // 初始昵称
+  bool _hasSelectedGender = false; // 是否手动选择过性别
+  
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false;
+  VoidCallback? onNavigateToNextPage;
 
   // 昵称输入框控制器
   late TextEditingController nicknameController;
@@ -46,13 +58,53 @@ class InfoSettingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+    
     nicknameController = TextEditingController();
     nicknameFocusNode = FocusNode();
     _initUserData();
   }
 
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: LoginInfoEvents.pageId,
+      eventId: LoginInfoEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
+    _trackPageExit(_exitType);
     nicknameController.dispose();
     nicknameFocusNode.dispose();
     super.onClose();
@@ -78,27 +130,35 @@ class InfoSettingController extends GetxController {
       }
 
       // 设置性别 (1男2女)
-      if (user.gender != null) {
-        selectedGender.value = user.gender == 1 ? '男' : '女';
+      if (user.gender == 1) {
+        selectedGender.value = '男';
+      } else if (user.gender == 2) {
+        selectedGender.value = '女';
+      } else {
+        // 如果用户性别为null或0或其他值，默认为男
+        selectedGender.value = '男';
       }
+      
+      // 记录初始昵称
+      _initialNickname = nickname.value;
 
       // 设置生日
       if (user.birthday?.isNotEmpty == true) {
         try {
           selectedDate.value = DateTime.parse(user.birthday!);
-          logDebug('用户生日已设置: ${user.birthday}', tag: 'InfoSetting');
+          // logDebug('用户生日已设置: ${user.birthday}', tag: 'InfoSetting');
         } catch (e) {
           logWarning('生日解析失败: $e，使用默认生日', tag: 'InfoSetting', error: e);
           // 如果解析失败，设置为2007年1月1日作为合理的默认值
           selectedDate.value = DateTime(2007, 1, 1);
         }
       } else {
-        logDebug('用户生日为空，使用默认生日', tag: 'InfoSetting');
+        // logDebug('用户生日为空，使用默认生日', tag: 'InfoSetting');
         // 如果没有生日信息，设置为2007年1月1日作为合理的默认值
         selectedDate.value = DateTime(2007, 1, 1);
       }
     } else {
-      logDebug('用户信息为空，使用默认值', tag: 'InfoSetting');
+      // logDebug('用户信息为空，使用默认值', tag: 'InfoSetting');
       // 如果没有用户信息，设置默认值
       avatarUrl.value = 'assets/3.0/kissu3_love_avater.webp';
       selectedDate.value = DateTime(2007, 1, 1);
@@ -109,7 +169,7 @@ class InfoSettingController extends GetxController {
   void previewAvatar() {
     // 如果头像是默认头像（assets路径），不进行预览
     if (avatarUrl.value.startsWith('assets/')) {
-      logDebug('❌ 头像预览: 默认头像，无法预览', tag: 'InfoSetting');
+      logWarning('❌ 头像预览: 默认头像，无法预览', tag: 'InfoSetting');
       return;
     }
     
@@ -120,7 +180,7 @@ class InfoSettingController extends GetxController {
         imageUrl: avatarUrl.value,
       );
     } else {
-      logDebug('❌ 头像预览: 无有效头像可预览', tag: 'InfoSetting');
+      logWarning('❌ 头像预览: 无有效头像可预览', tag: 'InfoSetting');
     }
   }
 
@@ -196,59 +256,15 @@ class InfoSettingController extends GetxController {
   /// 选择头像
   Future<void> pickImage() async {
     try {
-      // 检查是否已有相册和相机权限
-      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      final hasCameraPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
-      
-      // 如果两个权限都有，直接显示选择来源对话框
-      if (hasPhotoPermission && hasCameraPermission) {
-        final result = await ImageSourceDialog.show(Get.context!);
-        if (result == null) return;
-        
-        // 处理选择结果
-        if (result.systemAvatarPath != null) {
-          // 选择了系统头像，需要先上传到服务器
-          logDebug('🎨 选择了系统头像: ${result.systemAvatarPath}', tag: 'InfoSetting');
-          await _updateAvatarWithPath(result.systemAvatarPath!);
-        } else if (result.imageSource != null) {
-          // 选择了相册或相机
-          await _pickImageFromSource(result.imageSource!);
-        }
-        return;
-      }
-      
-      // 如果没有权限，先显示权限说明弹窗
-      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
-      if (shouldContinue != true) return;
-      
-      // 申请权限
-      bool photoPermissionGranted = hasPhotoPermission;
-      bool cameraPermissionGranted = hasCameraPermission;
-      
-      if (!hasPhotoPermission) {
-        photoPermissionGranted = await _permissionService.requestPhotosPermission();
-      }
-      
-      if (!hasCameraPermission) {
-        cameraPermissionGranted = await _permissionService.requestCameraPermission();
-      }
-      
-      // 如果至少有一个权限被授予，显示选择来源对话框
-      if (photoPermissionGranted || cameraPermissionGranted) {
-        final result = await ImageSourceDialog.show(Get.context!);
-        if (result == null) return;
-        
-        // 处理选择结果
-        if (result.systemAvatarPath != null) {
-          // 选择了系统头像，需要先上传到服务器
-          logDebug('🎨 选择了系统头像: ${result.systemAvatarPath}', tag: 'InfoSetting');
-          await _updateAvatarWithPath(result.systemAvatarPath!);
-        } else if (result.imageSource != null) {
-          // 选择了相册或相机
-          await _pickImageFromSource(result.imageSource!);
-        }
-      } else {
-        OKToastUtil.show('权限未授予，无法选择图片');
+      // 直接显示选择来源对话框（系统头像/相册/拍照）
+      // 权限由 ChatImagePickerPage 和 MediaPickerUtil 内部处理
+      final result = await ImageSourceDialog.show(Get.context!);
+      if (result == null) return;
+
+      if (result.systemAvatarPath != null) {
+        await _updateAvatarWithPath(result.systemAvatarPath!);
+      } else if (result.imageSource != null) {
+        await _pickImageFromSource(result.imageSource!);
       }
     } catch (e) {
       logError('选择头像失败: $e', tag: 'InfoSetting', error: e);
@@ -259,31 +275,21 @@ class InfoSettingController extends GetxController {
   /// 从指定来源选择图片
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
-      // 再次检查权限状态（防止用户在选择来源时权限被撤销）
-      bool hasPermission = false;
-      if (source == ImageSource.camera) {
-        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      if (source == ImageSource.gallery) {
+        // 使用统一的图片选择器（和聊天页一致），权限由 ChatImagePickerPage 内部处理
+        final files = await ChatImagePickerPage.open(Get.context!, maxCount: 1);
+        if (files != null && files.isNotEmpty) {
+          await _navigateToCropPage(files.first.path);
+        }
       } else {
-        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      }
-
-      if (!hasPermission) {
-        OKToastUtil.show('权限未授予，无法选择图片');
-        return;
-      }
-
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: source,
-        // 不设置imageQuality和maxWidth/maxHeight，保持原始图片质量
-        // 压缩将在裁剪后上传时进行
-      );
-
-      if (pickedFile != null) {
-        // 直接进入图片裁剪页面（会预加载图片，裁剪页面有自己的loading）
-        await _navigateToCropPage(pickedFile.path);
+        // 使用统一的拍照工具（和聊天页一致），权限由 MediaPickerUtil 内部处理
+        final file = await MediaPickerUtil.takePhoto(imageQuality: 92);
+        if (file != null) {
+          await _navigateToCropPage(file.path);
+        }
       }
     } catch (e) {
+      logError('❌选择图片失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('选择图片失败: $e');
     } finally {
       isLoading.value = false;
@@ -321,6 +327,7 @@ class InfoSettingController extends GetxController {
       if (result.isSuccess && result.data != null) {
         avatarUrl.value = result.data!;
         uploadedHeadPortrait.value = result.data!;
+        _hasChangedAvatar = true; // 标记已修改头像
         OKToastUtil.show('头像上传成功');
       } else {
         OKToastUtil.show(result.msg ?? '头像上传失败');
@@ -357,7 +364,7 @@ class InfoSettingController extends GetxController {
         
         if (uploadResult.isSuccess && uploadResult.data != null) {
           networkAvatarUrl = uploadResult.data!;
-          logDebug('✅ 系统头像上传成功: $networkAvatarUrl', tag: 'InfoSetting');
+          // logDebug('✅ 系统头像上传成功: $networkAvatarUrl', tag: 'InfoSetting');
         } else {
           // 关闭加载指示器
           isLoading.value = false;
@@ -372,7 +379,8 @@ class InfoSettingController extends GetxController {
       // 更新本地显示
       avatarUrl.value = networkAvatarUrl;
       uploadedHeadPortrait.value = networkAvatarUrl;
-      logDebug('✅ 头像已更新: avatarUrl=${avatarUrl.value}, uploadedHeadPortrait=${uploadedHeadPortrait.value}', tag: 'InfoSetting');
+      _hasChangedAvatar = true; // 标记已修改头像
+      // logDebug('✅ 头像已更新: avatarUrl=${avatarUrl.value}, uploadedHeadPortrait=${uploadedHeadPortrait.value}', tag: 'InfoSetting');
       
       OKToastUtil.show('头像已选择');
     } catch (e) {
@@ -391,8 +399,7 @@ class InfoSettingController extends GetxController {
     nicknameFocusNode.unfocus();
     FocusScope.of(Get.context!).unfocus();
     
-    // 上报生日选择埋点
-    _trackBirthdaySelection();
+  
 
     await showModalBottomSheet(
       context: Get.context!,
@@ -434,6 +441,9 @@ class InfoSettingController extends GetxController {
                         child: const Text("确定"),
                         onPressed: () {
                           selectedDate.value = tempPicked;
+                          // 埋点：生日选择
+                          final dateStr = DateFormat('yyyy-MM-dd').format(tempPicked);
+                          AnalyticsHelper.trackBirthdaySelect(date: dateStr);
                           Navigator.of(context).pop();
                         },
                       ),
@@ -534,13 +544,24 @@ class InfoSettingController extends GetxController {
     if (currentNickname.isEmpty) {
       currentNickname = nickname.value;
      }
+    
+    // 埋点：开启陪伴按钮点击
+    // 判断是否修改了昵称
+    final hasChangedNickname = currentNickname != _initialNickname;
+    AnalyticsHelper.trackLoginInfoSure(
+      changeAvatar: _hasChangedAvatar,
+      changeNickname: hasChangedNickname,
+    );
+    
+    // 埋点：如果用户未手动选择性别，补埋性别事件（默认男性）
+    if (!_hasSelectedGender) {
+      AnalyticsHelper.trackGenderSelect(gender: GenderValue.defaultMale);
+    }
 
     try {
       isLoading.value = true;
       
-      // 上报开启陪伴按钮埋点
-      await _trackEnableCompanionButton(currentNickname);
-
+     
       // 格式化生日为 YYYY-MM-DD 格式
       final birthday = DateFormat('yyyy-MM-dd').format(selectedDate.value);
       final loveTime = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -561,12 +582,16 @@ class InfoSettingController extends GetxController {
         loveTime: loveTime,
       );
 
-      logDebug('📥 服务器响应: ${result.isSuccess ? "成功" : "失败"}', tag: 'InfoSetting');
-      if (result.msg != null) {
-        logDebug('   消息: ${result.msg}', tag: 'InfoSetting');
-      }
+      // logDebug('📥 服务器响应: ${result.isSuccess ? "成功" : "失败"}', tag: 'InfoSetting');
+      // if (result.msg != null) {
+      //   logDebug('   消息: ${result.msg}', tag: 'InfoSetting');
+      // }
 
       if (result.isSuccess) {
+
+        if (_hasChangedAvatar) {
+          WidgetCenterController.syncWidgetDataOnResume();
+        }
 
         // 先本地更新用户数据
         await _updateLocalUserInfo(currentNickname, gender, birthday);
@@ -576,27 +601,31 @@ class InfoSettingController extends GetxController {
           final refreshSuccess = await _authService.refreshUserInfoFromServer();
 
           if (refreshSuccess) {
-            logDebug('✅ 用户信息刷新成功', tag: 'InfoSetting');
+            // logDebug('✅ 用户信息刷新成功', tag: 'InfoSetting');
             // 检查刷新后的头像
-            final refreshedUser = UserManager.currentUser;
-            logDebug('   刷新后的头像: ${refreshedUser?.headPortrait}', tag: 'InfoSetting');
+            // final refreshedUser = UserManager.currentUser;
+            // logDebug('   刷新后的头像: ${refreshedUser?.headPortrait}', tag: 'InfoSetting');
             // 通知其他Controller刷新数据（使用最新的缓存数据）
             _notifyControllersToRefresh();
           } else {
-            logWarning('❌ 用户信息刷新失败，但本地数据已更新', tag: 'InfoSetting');
+            logWarning('⚠️ 用户信息刷新失败，但本地数据已更新', tag: 'InfoSetting');
             // 即使服务器刷新失败，我们仍然有本地更新的数据
           }
         } catch (e) {
-          logError('⚠️ 刷新用户信息时发生异常: $e', tag: 'InfoSetting', error: e);
+          logError('❌ 刷新用户信息时发生异常: $e', tag: 'InfoSetting', error: e);
           // 异常情况下也继续执行，因为更新操作已经成功且本地数据已更新
         }
 
         // 注册完成后直接跳转到首页
+        // 注意：埋点已在点击按钮时通过onNavigateToNextPage上报，标记已上报避免onClose中重复上报
+        _hasTrackedExit = true;
         Get.offAllNamed(KissuRoutePath.home);
       } else {
+        logError('❌ 更新失败: ${result.msg}', tag: 'InfoSetting', error: result.msg);
          OKToastUtil.show(result.msg ?? '更新失败');
       }
     } catch (e) {
+      logError('❌ 更新失败: $e', tag: 'InfoSetting', error: e);
       OKToastUtil.show('更新失败: $e');
     } finally {
       isLoading.value = false;
@@ -606,95 +635,16 @@ class InfoSettingController extends GetxController {
   /// 选择性别
   void selectGender(String gender) {
     selectedGender.value = gender;
+    _hasSelectedGender = true; // 标记用户已手动选择性别
     
-    // 上报性别选择埋点
-    _trackGenderSelection(gender);
+    // 埋点：性别选择
+    final sexValue = gender == '男' ? GenderValue.male : GenderValue.female;
+    AnalyticsHelper.trackGenderSelect(gender: sexValue);
   }
   
-  /// 上报性别选择埋点事件
-  Future<void> _trackGenderSelection(String gender) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('gender', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-        'gender': gender,
-      });
-      
-      logDebug('📊 性别选择埋点 - device_id: $deviceId, click_time: $clickTime, gender: $gender', tag: 'InfoSetting');
-    } catch (e) {
-      logError('❌ 性别选择埋点失败: $e', tag: 'InfoSetting', error: e);
-    }
-  }
+ 
   
-  /// 上报生日选择埋点事件
-  Future<void> _trackBirthdaySelection() async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('select_birthday', {
-        'device_id': deviceId,
-        'click_time': clickTime,
-      });
-      
-      logDebug('📊 生日选择埋点 - device_id: $deviceId, click_time: $clickTime', tag: 'InfoSetting');
-    } catch (e) {
-      logError('❌ 生日选择埋点失败: $e', tag: 'InfoSetting', error: e);
-    }
-  }
-  
-  /// 上报开启陪伴按钮埋点事件
-  Future<void> _trackEnableCompanionButton(String currentNickname) async {
-    try {
-      // 获取虚拟用户ID（设备ID）
-      final deviceId = await UmengAnalytics.getOrCreateVirtualUserId();
-      
-      // 获取用户ID
-      final userId = UserManager.userId ?? 'unknown';
-      
-      // 获取当前时间（格式：年/月/日 时:分:秒）
-      final clickTime = intl.DateFormat('yyyy/MM/dd HH:mm:ss').format(DateTime.now());
-      
-      // 判断是否更换了头像
-      // 如果头像不为空且不是默认头像（assets路径），说明更换了头像
-      final user = UserManager.currentUser;
-      final originalAvatar = user?.headPortrait ?? '';
-      final hasChangedAvatar = uploadedHeadPortrait.value.isNotEmpty && 
-                               !uploadedHeadPortrait.value.startsWith('assets/') &&
-                               uploadedHeadPortrait.value != originalAvatar;
-      final isAvatar = hasChangedAvatar ? '是' : '否';
-      
-      // 判断是否修改了昵称
-      final originalNickname = user?.nickname ?? '';
-      final hasChangedNickname = currentNickname.isNotEmpty && currentNickname != originalNickname;
-      final isNickname = hasChangedNickname ? '是' : '否';
-      
-      // 上报事件
-      await UmengAnalytics.logEventWithParams('enable_companion_button', {
-        'device_id': deviceId,
-        'user_id': userId,
-        'click_time': clickTime,
-        'is_avatar': isAvatar,
-        'is_nickname': isNickname,
-      });
-      
-      logDebug('📊 开启陪伴按钮埋点 - device_id: $deviceId, user_id: $userId, click_time: $clickTime, is_avatar: $isAvatar, is_nickname: $isNickname', tag: 'InfoSetting');
-    } catch (e) {
-      logError('❌ 开启陪伴按钮埋点失败: $e', tag: 'InfoSetting', error: e);
-    }
-  }
-
+   
   /// 更新昵称（从TextEditingController同步到响应式变量）
   void updateNickname(String value) {
     nickname.value = value;
@@ -706,21 +656,21 @@ class InfoSettingController extends GetxController {
     try {
       final homeController = Get.find<HomeController>();
       homeController.loadUserInfo();
-      logDebug('✅ 首页Controller已刷新', tag: 'InfoSetting');
+      // logDebug('✅ 首页Controller已刷新', tag: 'InfoSetting');
     } catch (e) {
-      logWarning('❌ 首页Controller未找到: $e', tag: 'InfoSetting', error: e);
+      logWarning('⚠️ 首页Controller未找到: $e', tag: 'InfoSetting', error: e);
     }
     
     // 通知我的页面刷新
     try {
       final mineController = Get.find<MineController>();
       mineController.loadUserInfo();
-      logDebug('✅ 我的页面Controller已刷新', tag: 'InfoSetting');
+      // logDebug('✅ 我的页面Controller已刷新', tag: 'InfoSetting');
     } catch (e) {
-      logWarning('❌ 我的页面Controller未找到: $e', tag: 'InfoSetting', error: e);
+      logWarning('⚠️ 我的页面Controller未找到: $e', tag: 'InfoSetting', error: e);
     }
     
-    logDebug('通知其他Controller使用最新的用户数据', tag: 'InfoSetting');
+    // logDebug('通知其他Controller使用最新的用户数据', tag: 'InfoSetting');
   }
 
   /// 本地更新用户信息（在服务器更新成功后立即更新本地缓存）
@@ -779,10 +729,10 @@ class InfoSettingController extends GetxController {
 
         // 更新本地缓存
         await _authService.updateCurrentUser(updatedUser);
-        logDebug(
-          '本地用户信息已更新: nickname=$nickname, gender=$gender, birthday=$birthday',
-          tag: 'InfoSetting',
-        );
+        // logDebug(
+        //   '本地用户信息已更新: nickname=$nickname, gender=$gender, birthday=$birthday',
+        //   tag: 'InfoSetting',
+        // );
       }
     } catch (e) {
       logError('更新本地用户信息失败: $e', tag: 'InfoSetting', error: e);

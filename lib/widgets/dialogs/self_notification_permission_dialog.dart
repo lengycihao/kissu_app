@@ -32,6 +32,7 @@ class SelfNotificationPermissionDialog extends StatelessWidget {
       child: Container(
         width: 320,
         height: 308,
+        margin: EdgeInsets.only(bottom: 100),
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/location/kissu3_notice_big_bg.webp'),
@@ -40,35 +41,12 @@ class SelfNotificationPermissionDialog extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(25)),
         ),
         child: Padding(
-          padding: const EdgeInsets.only(left: 18,right: 18,top: 115,bottom: 25),
+          padding: const EdgeInsets.only(left: 20,right: 20,top: 115,bottom: 25),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 标题行：提示 + 关闭按钮
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '提示',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF333333),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: const Icon(
-                      Icons.close,
-                      size: 20,
-                      color: Color(0xFF999999),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 3),
+            
               
               // 副标题
               const Align(
@@ -83,7 +61,7 @@ class SelfNotificationPermissionDialog extends StatelessWidget {
                 ),
               ),
               
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               
               // 内容
               const Text(
@@ -95,11 +73,36 @@ class SelfNotificationPermissionDialog extends StatelessWidget {
                 ),
               ),
               
-              const SizedBox(height: 18),
+              const SizedBox(height: 25),
               
               // 按钮区域
               Row(
                 children: [
+                   // 去开启按钮
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        Get.back(result: true);
+                        await _goToNotificationSettings();
+                      },
+                      child: Container(
+                        height: 36,
+                         decoration: BoxDecoration(
+                          // color: Color(0xFFFF408D),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Color(0xff999999),width: 1)
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '去开启',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xff999999),
+                           ),
+                        ),
+                      ),
+                    ),
+                  ), const SizedBox(width: 15),
                   // 知道了按钮
                   Expanded(
                     child: GestureDetector(
@@ -110,51 +113,25 @@ class SelfNotificationPermissionDialog extends StatelessWidget {
                       child: Container(
                         height: 36,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFFFFF),
+                          color: const Color(0xFFFFA9E0),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: const Color(0xFF999999),
-                            width: 1,
-                          ),
+                          
                         ),
                         alignment: Alignment.center,
                         child: const Text(
                           '知道了',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF999999),
+                            color: Color(0xFFffffff),
                            ),
                         ),
                       ),
                     ),
                   ),
                   
-                  const SizedBox(width: 12),
+                 
                   
-                  // 去开启按钮
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () async {
-                        Get.back(result: true);
-                        await _goToNotificationSettings();
-                      },
-                      child: Container(
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFFF408D),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          '去开启',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                           ),
-                        ),
-                      ),
-                    ),
-                  ),
+                 
                 ],
               ),
             ],

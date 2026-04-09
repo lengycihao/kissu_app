@@ -5,9 +5,8 @@ import 'package:kissu_app/pages/location/location_reminder/location_picker/locat
 import 'package:kissu_app/widgets/location_map_snapshot.dart';
 import 'package:kissu_app/widgets/dialogs/delete_location_reminder_dialog.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
-import 'package:kissu_app/utils/agreement_utils.dart';
-import 'package:kissu_app/services/tracking_service.dart';
-import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/utils/agreement_utils.dart'; 
+import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/widgets/common_back_button.dart';
 
 /// 位置提醒页面
@@ -28,83 +27,129 @@ class LocationReminderPage extends GetView<LocationReminderController> {
       fenix: false,
     );
 
+    // 读取来自定位页面传入的参数，判断是否需要提示另一半开启定位权限
+    final args = Get.arguments;
+    final bool partnerLocationOpen =
+        (args is Map && args['partnerLocationOpen'] is bool)
+            ? args['partnerLocationOpen'] as bool
+            : true;
+    final bool fromAddLocationEntry =
+        (args is Map && args['fromAddLocationEntry'] is bool)
+            ? args['fromAddLocationEntry'] as bool
+            : false;
+
+    // 仅在从“添加地点”入口进入时才触发另一半权限弹窗（控制器内部避免重复弹出）
+    if (fromAddLocationEntry) {
+      Future.microtask(() {
+        try {
+          final ctrl = Get.find<LocationReminderController>();
+          ctrl.showPartnerPermissionIfNeeded(partnerLocationOpen);
+        } catch (_) {}
+      });
+    }
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6EF),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: 'assets/images/kissu_mine_back.webp',
-            iconSize: 24,
+      backgroundColor: const Color(0xFFf6f6f6),
+      body: Stack(
+        children: [
+          // 背景图片（与顶部对齐）
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topCenter,
+            ),
           ),
-        ),
-        title: const Text(
-          '地点提醒',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
-        actions: [
-          GestureDetector(
-            onTap: () {
-              // 跳转到位置须知页面
-              AgreementUtils.toLocationNotice();
-            },
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              child: const Center(
-                child: Row(
-                  children: [
-                    // Icon(Icons.map, size: 18, color: Color(0xFF666666)),
-                    // SizedBox(width: 4),
-                    Text(
-                      '使用须知',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
-                    ),
-                  ],
+          SafeArea(
+            child: Column(
+              children: [
+                // 自定义顶部导航栏（与推送设置保持一致）
+                Container(
+                  height: 44,
+                  child: Stack(
+                    children: [
+                      // 返回按钮
+                      Positioned(
+                        left: 6,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: CommonBackButton(
+                            onTap: () => Get.back(),
+                            assetPath: 'assets/images/kissu_mine_back.webp',
+                            iconSize: 24,
+                          ),
+                        ),
+                      ),
+                      // 居中标题
+                      const Center(
+                        child: Text(
+                          '位置提醒',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                      ),
+                      // 右侧使用须知入口
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () => AgreementUtils.toLocationNotice(),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 16),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              '使用须知',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                // 内容区域（保持原 ListView 逻辑）
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    child: Obx(() {
+                      // 当达到20个时，不显示添加按钮
+                      final showAddButton = controller.reminders.length < 20;
+                      return NotificationListener<ScrollNotification>(
+                        onNotification: (scrollNotification) {
+                          // 监听滑动更新事件
+                          if (scrollNotification is ScrollUpdateNotification) {
+                            controller.incrementScrollCount();
+                          }
+                          return false;
+                        },
+                        child: ListView.builder(
+                          // 添加缓存extent，提升性能
+                          cacheExtent: 500, // 缓存屏幕外500像素的内容
+                          itemCount: controller.reminders.length + (showAddButton ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            // 最后一个item是"添加地点"按钮
+                            if (showAddButton && index == controller.reminders.length) {
+                              return _buildAddLocationItem(context);
+                            }
+
+                            // 显示已保存的位置提醒
+                            final reminder = controller.reminders[index];
+                            // 使用 key 来优化 Widget 复用
+                            return _buildLocationItem(context, reminder, index);
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      body: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Obx(() {
-          // 当达到20个时，不显示添加按钮
-          final showAddButton = controller.reminders.length < 20;
-          return NotificationListener<ScrollNotification>(
-            onNotification: (scrollNotification) {
-              // 监听滑动更新事件
-              if (scrollNotification is ScrollUpdateNotification) {
-                controller.incrementScrollCount();
-              }
-              return false;
-            },
-            child: ListView.builder(
-              // 添加缓存extent，提升性能
-              cacheExtent: 500, // 缓存屏幕外500像素的内容
-              itemCount: controller.reminders.length + (showAddButton ? 1 : 0),
-              itemBuilder: (context, index) {
-                // 最后一个item是"添加地点"按钮
-                if (showAddButton && index == controller.reminders.length) {
-                  return _buildAddLocationItem(context);
-                }
-
-                // 显示已保存的位置提醒
-                final reminder = controller.reminders[index];
-                // 使用 key 来优化 Widget 复用
-                return _buildLocationItem(context, reminder, index);
-              },
-            ),
-          );
-        }),
       ),
     );
   }
@@ -153,24 +198,24 @@ class LocationReminderPage extends GetView<LocationReminderController> {
                       child: Text(
                         reminder.note,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                           color: Color(0xFF333333),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      reminder.type == ReminderType.arrive ? "到达" : "离开",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: reminder.type == ReminderType.arrive
-                            ? const Color(0xFF1976D2)
-                            : const Color(0xFFF57C00),
-                      ),
-                    ),
+                    // const SizedBox(width: 8),
+                    // Text(
+                    //   reminder.type == ReminderType.arrive ? "到达" : "离开",
+                    //   style: TextStyle(
+                    //     fontSize: 11,
+                    //     color: reminder.type == ReminderType.arrive
+                    //         ? const Color(0xFF1976D2)
+                    //         : const Color(0xFFF57C00),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -180,7 +225,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
                   _showDeleteDialog(context, reminder.id);
                 },
                 child: Image.asset(
-                  'assets/location/kissu3_delete_icon.webp',
+                  'assets/setting/kissu_navbar_delete.webp',
                   width: 20,
                   height: 20,
                 ),
@@ -293,19 +338,15 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   Widget _buildAddLocationItem(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        // 上报添加地点埋点
-        try {
-          await TrackingService.trackLocationKnockAdd();
-          DebugUtil.info('✅ 位置提醒列表-添加地点埋点上报成功');
-        } catch (e) {
-          DebugUtil.error('❌ 位置提醒列表-添加地点埋点上报失败: $e');
-        }
+        // 获取从定位页面传入的城市信息
+        final arguments = Get.arguments as Map<String, dynamic>?;
+        final partnerCity = arguments?['partnerCity'] as CityModel?;
         
         // 🔧 新建位置提醒时不传入初始位置，让用户在地图上自由选择
         // 只在编辑已有提醒时才传入位置
         final result = await Get.to(
           () => LocationPickerPage(
-            // 不传入任何初始位置参数
+            initialCity: partnerCity, // 传递另一半的城市信息
           ),
           transition: Transition.rightToLeft,
         );
@@ -322,8 +363,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFffffff),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFFFD4D0), width: 1),
+              borderRadius: BorderRadius.circular(12), 
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
@@ -403,28 +443,29 @@ class LocationReminderPage extends GetView<LocationReminderController> {
     String assetPath;
     switch (iconId) {
       case 1: // 公司
-        assetPath = 'assets/location/kissu3_gongsi_sel.webp';
+        assetPath = 'assets/location/kissu3_shangchang_list.webp';
         break;
       case 2: // 家
-        assetPath = 'assets/location/kissu3_jia_sel.webp';
+        assetPath = 'assets/location/kissu3_jia_list.webp';
         break;
       case 3: // 娱乐
-        assetPath = 'assets/location/kissu3_yule_sel.webp';
+        assetPath = 'assets/location/kissu3_gongsi_list.webp';
         break;
       case 4: // 健身房
-        assetPath = 'assets/location/kissu3_jianshen_sel.webp';
+        assetPath = 'assets/location/kissu3_jianshen_list.webp';
         break;
       case 5: // 商场
-        assetPath = 'assets/location/kissu3_shangchang_sel.webp';
+        assetPath = 'assets/location/kissu3_zidingyi_list.webp';
         break;
       default:
-        assetPath = 'assets/location/kissu3_jia_sel.webp'; // 默认使用家的图标
+        assetPath = 'assets/location/kissu3_zidingyi_list.webp'; // 默认使用家的图标
     }
 
     return Image.asset(
       assetPath,
-      width: 24,
-      height: 24,
+      width: 15,
+      height: 15,
+      fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
         // 如果图标加载失败，显示默认图标
         return const Icon(
@@ -440,13 +481,7 @@ class LocationReminderPage extends GetView<LocationReminderController> {
   void _showDeleteDialog(BuildContext context, String reminderId) async {
     await DeleteLocationReminderDialogUtil.show(
       onConfirm: () async {
-        // 上报删除操作埋点
-        try {
-          await TrackingService.trackLocationKnockDelete();
-          DebugUtil.info('✅ 位置提醒列表-删除操作埋点上报成功');
-        } catch (e) {
-          DebugUtil.error('❌ 位置提醒列表-删除操作埋点上报失败: $e');
-        }
+         
         
         // 执行原来的删除方法
         final success = await controller.removeReminder(reminderId);

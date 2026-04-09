@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:get/get.dart';
 import '../widgets/dialogs/location_permission_dialog.dart';
@@ -27,25 +28,25 @@ class LocationPermissionManager {
     try {
       // 防重复弹窗检查
       if (_isShowingDialog) {
-        debugPrint('⚠️ 权限弹窗已在显示中，跳过重复请求');
+        // logger.debug('⚠️ 权限弹窗已在显示中，跳过重复请求');
         return false;
       }
 
-      debugPrint('🔐 开始定位权限申请流程...');
+      // logger.debug('🔐 开始定位权限申请流程...');
 
       // 1. 检查当前权限状态
       var locationStatus = await Permission.location.status;
-      debugPrint('🔐 当前定位权限状态: $locationStatus');
+      // logger.debug('🔐 当前定位权限状态: $locationStatus');
 
       // 如果已经授权，直接返回成功
       if (locationStatus.isGranted) {
-        debugPrint('✅ 定位权限已授权');
+        // logger.debug('✅ 定位权限已授权');
         return true;
       }
 
       // 如果被永久拒绝，引导用户去设置页面
       if (locationStatus.isPermanentlyDenied) {
-        debugPrint('❌ 定位权限被永久拒绝，引导用户去设置');
+        logger.error('❌ 定位权限被永久拒绝，引导用户去设置');
         _isShowingDialog = true;
         bool userConfirmed = await _showCustomPermissionDialog();
         _isShowingDialog = false;
@@ -59,7 +60,7 @@ class LocationPermissionManager {
 
       // 2. 如果未授权且需要显示自定义弹窗
       if (showCustomDialog) {
-        debugPrint('💬 显示自定义权限申请弹窗...');
+        // logger.debug('💬 显示自定义权限申请弹窗...');
         
         _isShowingDialog = true;
         // 显示自定义弹窗
@@ -68,31 +69,31 @@ class LocationPermissionManager {
         
         // 如果用户拒绝自定义弹窗，直接返回失败
         if (customResult != true) {
-          debugPrint('❌ 用户在自定义弹窗中拒绝了权限申请');
+          logger.warning('❌ 用户在自定义弹窗中拒绝了权限申请');
           return false;
         }
         
-        debugPrint('✅ 用户同意自定义弹窗，继续系统权限申请...');
+        // logger.debug('✅ 用户同意自定义弹窗，继续系统权限申请...');
       }
 
       // 3. 申请系统权限
-      debugPrint('🔐 申请系统定位权限...');
+      // logger.debug('🔐 申请系统定位权限...');
       locationStatus = await Permission.location.request();
-      debugPrint('🔐 系统权限申请结果: $locationStatus');
+      // logger.debug('🔐 系统权限申请结果: $locationStatus');
 
       // 4. 处理权限申请结果
       if (locationStatus.isGranted) {
-        debugPrint('✅ 定位权限申请成功');
+        // logger.debug('✅ 定位权限申请成功');
         return true;
       } else if (locationStatus.isDenied) {
-        debugPrint('❌ 定位权限被拒绝');
+        logger.warning('❌ 定位权限被拒绝');
         CustomToast.show(
           Get.context!,
           '定位权限被拒绝，无法使用定位功能',
         );
         return false;
       } else if (locationStatus.isPermanentlyDenied) {
-        debugPrint('❌ 定位权限被永久拒绝');
+        logger.warning('❌ 定位权限被永久拒绝');
         // 🔧 修复：移除重复弹窗，已经在上面处理过永久拒绝的情况
         CustomToast.show(
           Get.context!,
@@ -104,7 +105,7 @@ class LocationPermissionManager {
       return false;
     } catch (e) {
       _isShowingDialog = false; // 确保异常时重置状态
-      debugPrint('❌ 定位权限申请失败: $e');
+      logger.error('❌ 定位权限申请失败: $e');
       CustomToast.show(
         Get.context!,
         '定位权限申请失败，请重试',
@@ -130,7 +131,7 @@ class LocationPermissionManager {
       var status = await Permission.location.status;
       return status.isPermanentlyDenied;
     } catch (e) {
-      debugPrint('❌ 检查定位权限永久拒绝状态失败: $e');
+      logger.error('❌ 检查定位权限永久拒绝状态失败: $e');
       return false;
     }
   }
@@ -141,14 +142,14 @@ class LocationPermissionManager {
     try {
       // 检查是否已在显示弹窗
       if (_isShowingDialog) {
-        debugPrint('⚠️ 权限弹窗已在显示中，跳过重复请求');
+        // logger.debug('⚠️ 权限弹窗已在显示中，跳过重复请求');
         return false;
       }
 
       final result = await LocationPermissionDialog.show(Get.context!);
       return result == true;
     } catch (e) {
-      debugPrint('❌ 显示自定义权限弹窗失败: $e');
+      logger.error('❌ 显示自定义权限弹窗失败: $e');
       return false;
     }
   }
@@ -159,7 +160,7 @@ class LocationPermissionManager {
       var status = await Permission.location.status;
       return status.isGranted;
     } catch (e) {
-      debugPrint('❌ 静默检查定位权限失败: $e');
+      logger.error('❌ 静默检查定位权限失败: $e');
       return false;
     }
   }

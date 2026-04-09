@@ -11,7 +11,7 @@ class PhoneVerificationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xFFffffff),
       body: Stack(
         children: [
           // 背景图
@@ -40,24 +40,23 @@ class PhoneVerificationPage extends StatelessWidget {
                     const SizedBox(height: 40),
 
                     const SizedBox(height: 50),
-                    Image(
-                      image: AssetImage(
-                        "assets/images/kissu_delete_phone_lable_bg.webp",
-                      ),
-                      width: 96,
-                      height: 21,
-                    ),
-                    const SizedBox(height: 25),
+                    Text("手机号验证",style: TextStyle(
+                      color: Color(0xff333333),fontSize: 16,fontWeight: FontWeight.w500
+                    ),),
+                    const SizedBox(height: 12),
                     // 输入框组
                     _buildInputSection(),
 
-                    const SizedBox(height: 30),
-
-                    // 注销按钮
-                    _buildCancelButton(),
+                    const SizedBox(height: 100), // 增加底部间距，为底部按钮留空间
                   ],
                 ),
               ),
+            ),
+
+            // 底部注销按钮
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 43, vertical: 30),
+              child: _buildCancelButton(),
             ),
           ],
         ),
@@ -69,36 +68,46 @@ class PhoneVerificationPage extends StatelessWidget {
 
   // 顶部导航栏
   Widget _buildAppBar() {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+    return SizedBox(
+      height: 44,
+      child: Stack(
         children: [
-          GestureDetector(
-            onTap: controller.goBack,
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.arrow_back_ios,
-                size: 20,
-                color: Color(0xFF333333),
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: controller.goBack,
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/images/kissu_mine_back.webp',
+                  width: 22,
+                  height: 22,
+                ),
               ),
             ),
           ),
-          const Expanded(
-            child: Text(
-              '注销账户',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF333333),
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text(
+                '注销账户',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333),
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 40),
         ],
       ),
     );
@@ -111,13 +120,11 @@ class PhoneVerificationPage extends StatelessWidget {
         children: [
           // 验证码输入框（带获取验证码按钮）
           Container(
-            height: 58,
+            height: 44,
             decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage("assets/images/kissu_setting_account_code_bg.webp"),
-                fit: BoxFit.fill,
-              ),
-            ),
+              color: Color(0xfff8f8f8),
+              borderRadius: BorderRadius.circular(22)
+             ),
             child: Row(
               children: [
                 Expanded(
@@ -127,14 +134,15 @@ class PhoneVerificationPage extends StatelessWidget {
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly, // 验证码只能输入数字，无位数限制
                     ],
-                    decoration: const InputDecoration(
+                    decoration:   InputDecoration(
                       hintText: '请输入验证码',
                       hintStyle: TextStyle(
                         color: Color(0xFF999999),
                         fontSize: 14,
                       ),
+
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 20),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 5),
                     ),
                   ),
                 ),
@@ -150,7 +158,7 @@ class PhoneVerificationPage extends StatelessWidget {
                           : '${controller.countdown.value}s',
                       style: TextStyle(
                         color: controller.canResend.value
-                            ? const Color(0xFFFF69B4)
+                            ? const Color(0xFFFF9AD9)
                             : const Color(0xFF999999),
                         fontSize: 14,
                       ),
@@ -173,12 +181,10 @@ class PhoneVerificationPage extends StatelessWidget {
             ? null
             : controller.confirmCancellation,
         child: Container(
-          height: 50,
+          height: 44,
           decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage("assets/images/kissu_delete_btn_bg.webp"),
-              fit: BoxFit.fill,
-            ),
+            color: Color(0xffFFA9E0),
+            borderRadius: BorderRadius.circular(22)
           ),
           alignment: Alignment.center,
           child: controller.isLoading.value
@@ -193,9 +199,9 @@ class PhoneVerificationPage extends StatelessWidget {
               : const Text(
                   '注销',
                   style: TextStyle(
-                    color: Color(0xffA29D9D),
+                    color: Color(0xffffffff),
                     fontSize: 16,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
         ),

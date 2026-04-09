@@ -1,16 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-// import 'package:fl_chart/fl_chart.dart'; // 已替换为自定义实现
 import 'app_usage_detail_controller.dart';
 import 'dart:math' as math;
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
 
 /// App使用记录详情页面
-class AppUsageDetailPage extends GetView<AppUsageDetailController> {
+class AppUsageDetailPage extends StatefulWidget {
   const AppUsageDetailPage({super.key});
+
+  @override
+  State<AppUsageDetailPage> createState() => _AppUsageDetailPageState();
+}
+
+class _AppUsageDetailPageState extends State<AppUsageDetailPage> with WidgetsBindingObserver {
+  late AppUsageDetailController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<AppUsageDetailController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,29 +74,23 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
                         horizontal: 16,
                         vertical: 16,
                       ),
-                      child: Obx(() {
-                        // if (!controller.hasTodayData) {
-                        //   return _buildEmptyState();
-                        // }
-
-                        return Column(
-                          children: [
-                            // 日期选择器（已有自己的margin，不需要额外padding）
-                            _buildDateSelector(),
-                            const SizedBox(height: 16),
-                            // 标题行（使用与主页面相同的样式）
-                            _buildModuleTitle("屏幕使用时间"),
-                            const SizedBox(height: 12),
-                            // 屏幕使用时间
-                            _buildScreenUsageChart(),
-                            const SizedBox(height: 16),
-                            _buildModuleTitle("手机解锁次数"),
-                            const SizedBox(height: 12),
-                            // 手机解锁次数
-                            _buildUnlockCountChart(),
-                          ],
-                        );
-                      }),
+                      child: Column(
+                        children: [
+                          // 日期选择器（已有自己的margin，不需要额外padding）
+                          _buildDateSelector(),
+                          const SizedBox(height: 16),
+                          // 标题行（使用与主页面相同的样式）
+                          _buildModuleTitle("屏幕使用时间"),
+                          const SizedBox(height: 12),
+                          // 屏幕使用时间
+                          _buildScreenUsageChart(),
+                          const SizedBox(height: 16),
+                          _buildModuleTitle("手机解锁次数"),
+                          const SizedBox(height: 12),
+                          // 手机解锁次数
+                          _buildUnlockCountChart(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -83,31 +106,46 @@ class AppUsageDetailPage extends GetView<AppUsageDetailController> {
 
   /// 顶部导航栏
   Widget _buildTopBar() {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
+      child: Stack(
         children: [
-          // 返回按钮（统一封装，点击区域更大且更灵敏）
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: "assets/4.0/kissu4_back.webp",
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          // 标题
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 "Ta的手机使用记录",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16, // 用户特别要求改为16
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 40),
         ],
       ),
     );

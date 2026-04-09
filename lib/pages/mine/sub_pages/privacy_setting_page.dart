@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_page.dart';
 import 'package:kissu_app/pages/mine/sub_pages/account_cancellation_page.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
@@ -10,9 +9,23 @@ import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/utils/login_navigation_lock.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/utils/agreement_utils.dart';
+import 'package:kissu_app/pages/mine/sub_pages/cache_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
-class PrivacySettingPage extends StatelessWidget {
+class PrivacySettingPage extends StatefulWidget {
   const PrivacySettingPage({super.key});
+
+  @override
+  State<PrivacySettingPage> createState() => _PrivacySettingPageState();
+}
+
+class _PrivacySettingPageState extends State<PrivacySettingPage> {
+  @override
+  void initState() {
+    super.initState();
+    // 计算缓存大小
+    CacheManager.calculateCacheSize();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,48 +47,74 @@ class PrivacySettingPage extends StatelessWidget {
             ),
           ),
           SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(22).copyWith(left: 6,right: 6,top: 12),
-          child: Column(
+        child:Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // 标题
-              Row(
-                children: [
-                  CommonBackButton(
-                    onTap: () => Get.back(),
-                    assetPath: "assets/images/kissu_mine_back.webp",
-                    iconSize: 22,
-                  ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        "设置",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
+              SizedBox(
+                height: 44,
+                child: Stack(
+                  children: [
+                    // 返回按钮
+                    Positioned(
+                      left: 5,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 30), // 占位保持居中
-                ],
+                    // 标题 - 绝对居中
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          "设置",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 30),
 
-              // Item 列表 - 带动画
-              _AnimatedSettingItem(
-                delay: 0,
-                iconPath: "assets/images/kissu_setting_account_ysaq.webp",
-                title: "隐私安全",
-                onTap: () => AgreementUtils.toPrivacySecurity(),
+              // // Item 列表 - 带动画
+              // _AnimatedSettingItem(
+              //   delay: 0,
+              //   iconPath: "assets/images/kissu_setting_account_ysaq.webp",
+              //   title: "隐私安全",
+              //   onTap: () => AgreementUtils.toPrivacySecurity(),
+              // ),
+              // const SizedBox(height: 14),
+              _AnimatedCacheItem(
+                delay: 50,
+                iconPath: "assets/images/kissu_setting_account_qchc.webp",
+                title: "存储空间",
+                onTap: () => CacheManager.clearCache(),
               ),
               const SizedBox(height: 14),
               // 根据绑定状态显示解除关系选项
               _buildBreakRelationshipItem(),
               _AnimatedSettingItem(
-                delay: 100,
+                delay: 150,
                 iconPath: "assets/images/kissu_setting_account_zxzh.webp",
                 title: "注销账号",
                 onTap: () => Get.to(
@@ -91,16 +130,17 @@ class PrivacySettingPage extends StatelessWidget {
                 trailingText: phoneNumber,
                 onTap: () => _handlePhoneChange(context, phoneNumber),
               ),
+              
 
               const Spacer(),
 
               // 退出登录按钮
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 10),child: SizedBox(
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 45),child: SizedBox(
                 width: double.maxFinite,
-                height: 50,
+                height: 44,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFAFAF),
+                    backgroundColor: const Color(0xFfFFA9E0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(25),
                     ),
@@ -111,7 +151,7 @@ class PrivacySettingPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -119,7 +159,7 @@ class PrivacySettingPage extends StatelessWidget {
               SizedBox(height: 60),
             ],
           ),
-        ),
+      
       ),
         ],
       ),
@@ -138,13 +178,18 @@ class PrivacySettingPage extends StatelessWidget {
       return Column(
         children: [
           _AnimatedSettingItem(
-            delay: 50,
+            delay: 100,
             iconPath: "assets/images/kissu_setting_account_jcgx.webp",
             title: "解除关系",
-            onTap: () => Get.to(
-              () => const BreakRelationshipPage(),
-              transition: Transition.rightToLeft,
-            ),
+            onTap: () {
+              // 埋点：设置页面点击解除关系item
+              AnalyticsHelper.trackUnbindItem();
+              
+              Get.to(
+                () => const BreakRelationshipPage(),
+                transition: Transition.rightToLeft,
+              );
+            },
           ),
           const SizedBox(height: 14),
         ],
@@ -285,7 +330,7 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
             margin: const EdgeInsets.symmetric(horizontal: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFFFD4D1),width: 1),
+              // border: Border.all(color: const Color(0xFFFFD4D1),width: 1),
               borderRadius: BorderRadius.circular(16),
               color: Colors.white,
               
@@ -317,6 +362,112 @@ class _AnimatedSettingItemState extends State<_AnimatedSettingItem>
                   Icons.arrow_forward_ios,
                   size: 16,
                   color: Color(0xFF6D383E),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 带缓存大小显示的动画设置项
+class _AnimatedCacheItem extends StatefulWidget {
+  final String iconPath;
+  final String title;
+  final VoidCallback? onTap;
+  final int delay;
+
+  const _AnimatedCacheItem({
+    required this.iconPath,
+    required this.title,
+    this.onTap,
+    this.delay = 0,
+  });
+
+  @override
+  State<_AnimatedCacheItem> createState() => _AnimatedCacheItemState();
+}
+
+class _AnimatedCacheItemState extends State<_AnimatedCacheItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            height: 54,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                Image.asset(widget.iconPath, width: 34, height: 34),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                // 显示缓存大小
+                Obx(() => Text(
+                  CacheManager.cacheSize.value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0x46777777),
+                  ),
+                )),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Color(0xFF333333),
                 ),
               ],
             ),

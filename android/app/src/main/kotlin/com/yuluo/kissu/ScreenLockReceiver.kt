@@ -8,6 +8,11 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import io.flutter.plugin.common.EventChannel
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import org.json.JSONObject
 
 /**
  * 手机锁屏/解锁状态监听器 (增强版)
@@ -33,6 +38,7 @@ class ScreenLockReceiver : BroadcastReceiver() {
     
     companion object {
         private const val TAG = "ScreenLockReceiver"
+        private const val NATIVE_LOG_TAG = "NativeScreenLock"
         
         // EventChannel相关
         private const val CHANNEL_NAME = "com.yuluo.kissu/screen_lock_events"
@@ -51,6 +57,12 @@ class ScreenLockReceiver : BroadcastReceiver() {
         
         // 上次事件类型，避免重复发送
         private var lastEventType: String? = null
+
+        // 设备锁屏状态跟踪
+        private var lastKeyguardLocked: Boolean? = null
+        
+        // ✅ 缓存待发事件（EventSink 为 null 时暂存）
+        private var pendingEvent: Map<String, Any>? = null
         
         /**
          * 设置EventSink
@@ -58,9 +70,21 @@ class ScreenLockReceiver : BroadcastReceiver() {
         fun setEventSink(sink: EventChannel.EventSink?) {
             eventSink = sink
             if (sink == null) {
-                // 清理状态
-                lastEventType = null
-                handler.removeCallbacksAndMessages(null)
+                // ✅ 不清理状态，保持跟踪，Receiver 继续工作
+                Log.d(TAG, "EventSink 置空，保持状态跟踪")
+            } else {
+                // ✅ 恢复时补发缓存事件
+                pendingEvent?.let { event ->
+                    Log.d(TAG, "✅ 补发缓存事件: $event")
+                    handler.post {
+                        try {
+                            sink.success(event)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ 补发缓存事件失败: ${e.message}", e)
+                        }
+                    }
+                    pendingEvent = null
+                }
             }
         }
         
@@ -92,19 +116,25 @@ class ScreenLockReceiver : BroadcastReceiver() {
                 Log.d(TAG, "🔍 完整数据: $eventData")
                 Log.d(TAG, "🔍 EventSink状态: ${if (eventSink != null) "可用" else "null"}")
                 
+                // ✅ 无论 EventSink 是否可用，都更新状态跟踪
+                lastEventType = eventType
+                
                 if (eventSink != null) {
                     // 确保在主线程发送
                     handler.post {
                         try {
                             eventSink!!.success(eventData)
-                            lastEventType = eventType
+                            pendingEvent = null // 已成功发送，清除缓存
                             Log.d(TAG, "✅ 屏幕事件已发送: ${if (isUnlocked) "解锁" else "锁屏"}")
                         } catch (e: Exception) {
                             Log.e(TAG, "❌ 发送事件时异常: ${e.message}", e)
+                            pendingEvent = eventData // 发送失败，缓存待补发
                         }
                     }
                 } else {
-                    Log.w(TAG, "❌ EventSink为null，无法发送事件")
+                    // ✅ EventSink 为 null 时缓存事件，等恢复后补发
+                    pendingEvent = eventData
+                    Log.w(TAG, "⚠️ EventSink为null，事件已缓存待补发: $eventType")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 发送屏幕事件失败: ${e.message}", e)
@@ -121,67 +151,184 @@ class ScreenLockReceiver : BroadcastReceiver() {
 
         /**
          * 在一段时间窗口内重复检查是否已解锁，首个检测到解锁即上报
+         * 优化后的检查策略：更快的检查间隔，更智能的超时处理
          */
         private fun repeatCheckUntilUnlocked(context: Context) {
             val startAt = System.currentTimeMillis()
+            var checkCount = 0
             handler.removeCallbacksAndMessages(null)
 
             fun loop() {
                 try {
-                    if (isDeviceUnlocked(context)) {
-                        Log.d(TAG, "🔓 连续检查：检测到设备已解锁 (KeyguardManager)")
+                    checkCount++
+                    // 🔥 修复逻辑错误：isDeviceUnlocked 返回 true 表示已解锁，变量名改为 isUnlocked
+                    val isUnlocked = isDeviceUnlocked(context)
+                    val elapsed = System.currentTimeMillis() - startAt
+
+                    Log.d(TAG, "🔄 连续检查 #$checkCount: isUnlocked=$isUnlocked, elapsed=${elapsed}ms")
+
+                    if (isUnlocked) {
+                        Log.d(TAG, "🔓 连续检查 #$checkCount：检测到设备已解锁 (KeyguardManager)")
+                        lastKeyguardLocked = false
                         sendScreenEvent(true)
                         return
                     }
-                    val elapsed = System.currentTimeMillis() - startAt
+
+                    // 动态调整检查间隔：前1秒更频繁检查，后续放缓
+                    val nextInterval = if (elapsed < 1000L) 100L else if (elapsed < 2000L) 200L else UNLOCK_CHECK_INTERVAL
+
                     if (elapsed < UNLOCK_CHECK_TOTAL_DURATION) {
-                        handler.postDelayed({ loop() }, UNLOCK_CHECK_INTERVAL)
+                        handler.postDelayed({ loop() }, nextInterval)
                     } else {
-                        Log.d(TAG, "⌛ 连续检查结束：仍处于锁屏状态 (elapsed=${elapsed}ms)")
+                        Log.d(TAG, "⌛ 连续检查结束：${checkCount}次检查后仍处于锁屏状态 (elapsed=${elapsed}ms)")
+                        // 超时后更新状态，但不发送解锁事件
+                        lastKeyguardLocked = true
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ 连续检查解锁状态失败: ${e.message}", e)
                 }
             }
 
-            // 先做一次初始延迟再进入循环，兼容极快亮屏后立即解锁的设备
-            handler.postDelayed({ loop() }, UNLOCK_CHECK_DELAY)
+            // 立即开始第一次检查，而不是延迟
+            Log.d(TAG, "🚀 开始连续检查解锁状态...")
+            handler.post { loop() }
         }
     }
     
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
-        
+
         try {
+            // 初始化锁屏状态跟踪（只在第一次调用时）
+            if (lastKeyguardLocked == null) {
+                val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                lastKeyguardLocked = keyguardManager?.isKeyguardLocked ?: true
+                Log.d(TAG, "🔄 初始化锁屏状态跟踪: lastKeyguardLocked=$lastKeyguardLocked")
+            }
+
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
                     // 屏幕关闭（锁屏）- 立即发送锁屏事件
                     Log.d(TAG, "🔒 检测到屏幕关闭事件 (ACTION_SCREEN_OFF)")
                     handler.removeCallbacksAndMessages(null) // 取消之前的延迟检查
+
+                    // 更新状态跟踪
+                    lastKeyguardLocked = true
+
                     sendScreenEvent(false, force = true)
                 }
-                
+
                 Intent.ACTION_SCREEN_ON -> {
-                    // 屏幕亮起 - 连续检查是否已解锁，兼容指纹/面部识别较慢或未触发USER_PRESENT的设备
+                    // 屏幕亮起 - 立即进行快速检查，然后连续检查是否已解锁
                     Log.d(TAG, "💡 检测到屏幕亮起事件 (ACTION_SCREEN_ON)")
-                    handler.removeCallbacksAndMessages(null)
-                    repeatCheckUntilUnlocked(context)
+
+                    // 立即进行一次快速检查（兼容极快解锁）
+                    val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                    val currentLocked = keyguardManager?.isKeyguardLocked ?: true
+                    val wasLocked = lastKeyguardLocked ?: true
+
+                    Log.d(TAG, "🔍 快速检查: wasLocked=$wasLocked, currentLocked=$currentLocked")
+
+                    // 如果之前是锁屏状态，现在检测到解锁，说明在屏幕亮起的瞬间已经解锁
+                    if (wasLocked && !currentLocked) {
+                        Log.d(TAG, "⚡ 检测到瞬间解锁 (快速解锁方式如指纹/面部识别)")
+                        lastKeyguardLocked = false
+                        handler.removeCallbacksAndMessages(null)
+                        sendScreenEvent(true)
+                        return
+                    }
+
+                    // 如果仍然处于锁屏状态，开始连续检查
+                    if (currentLocked) {
+                        lastKeyguardLocked = true
+                        handler.removeCallbacksAndMessages(null)
+                        repeatCheckUntilUnlocked(context)
+                    } else {
+                        // 设备已经解锁，可能是从其他途径解锁的
+                        Log.d(TAG, "ℹ️ 屏幕亮起时设备已处于解锁状态")
+                        lastKeyguardLocked = false
+                        // 这里不发送事件，避免重复
+                    }
                 }
-                
+
                 Intent.ACTION_USER_PRESENT, Intent.ACTION_USER_UNLOCKED -> {
                     // 用户解锁设备（传统方式：密码/图案）
                     // 立即发送解锁事件
                     Log.d(TAG, "🔓 检测到用户解锁事件 (${intent.action})")
+
+                    // 更新状态跟踪
+                    lastKeyguardLocked = false
+
                     handler.removeCallbacksAndMessages(null) // 取消延迟检查
                     sendScreenEvent(true)
                 }
-                
+
                 else -> {
-                    Log.w(TAG, "⚠️ 收到未知的Intent Action: ${intent.action}")
+                    logWarning(context, "⚠️ 收到未知的Intent Action: ${intent.action}")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ 处理屏幕事件时发生异常: ${e.message}", e)
+            logError(context, "❌ 处理屏幕事件时发生异常", mapOf("error" to (e.message ?: "unknown")))
         }
+    }
+    
+    // ================================
+    // 🔥 原生层文件日志功能
+    // ================================
+    
+    private fun writeNativeLog(
+        context: Context,
+        level: String,
+        message: String,
+        extra: Map<String, Any?>? = null
+    ) {
+        try {
+            // 使用与 Flutter 层相同的日志目录：filesDir/logs（对应 getApplicationSupportDirectory()/logs）
+            val logDir = File(context.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.US)
+            val now = Date()
+            val fileName = "${dateFormat.format(now)}_app.log"
+            val logFile = File(logDir, fileName)
+            
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
+            val timestamp = isoFormat.format(now)
+            
+            val logEntry = JSONObject().apply {
+                put("timestamp", timestamp)
+                put("level", level)
+                put("tag", NATIVE_LOG_TAG)
+                put("message", message)
+                extra?.let {
+                    val extraJson = JSONObject()
+                    it.forEach { (key, value) ->
+                        extraJson.put(key, value ?: JSONObject.NULL)
+                    }
+                    put("extra", extraJson)
+                }
+            }
+            
+            logFile.appendText(logEntry.toString() + "\n")
+        } catch (e: Exception) {
+            Log.e(TAG, "写入原生日志失败", e)
+        }
+    }
+    
+    private fun logInfo(context: Context, message: String, extra: Map<String, Any?>? = null) {
+        Log.d(TAG, message)
+        writeNativeLog(context, "INFO", message, extra)
+    }
+    
+    private fun logWarning(context: Context, message: String, extra: Map<String, Any?>? = null) {
+        Log.w(TAG, message)
+        writeNativeLog(context, "WARNING", message, extra)
+    }
+    
+    private fun logError(context: Context, message: String, extra: Map<String, Any?>? = null) {
+        Log.e(TAG, message)
+        writeNativeLog(context, "ERROR", message, extra)
     }
 }

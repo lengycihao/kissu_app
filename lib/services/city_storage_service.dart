@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/models/city_model.dart';
 
@@ -42,7 +43,7 @@ class CityStorageService extends GetxService {
           .map((item) => CityModel.fromJson(item as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint('❌ 获取最近城市失败: $e');
+      logger.error('❌ 获取最近城市失败: $e');
       return [];
     }
   }
@@ -73,7 +74,7 @@ class CityStorageService extends GetxService {
           json.encode(recentCities.map((c) => c.toJson()).toList());
       return await _prefs!.setString(_recentCitiesKey, jsonString);
     } catch (e) {
-      debugPrint('❌ 保存最近城市失败: $e');
+      logger.error('❌ 保存最近城市失败: $e');
       return false;
     }
   }
@@ -84,7 +85,7 @@ class CityStorageService extends GetxService {
     try {
       return await _prefs!.remove(_recentCitiesKey);
     } catch (e) {
-      debugPrint('❌ 清空最近城市失败: $e');
+      logger.error('❌ 清空最近城市失败: $e');
       return false;
     }
   }

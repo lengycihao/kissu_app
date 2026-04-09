@@ -26,8 +26,8 @@ class AppUsageApi {
         'date': date,
       };
       
-      logger.info('准备上报应用使用记录: ${appUseRecordData.length}个应用, 日期: $date', tag: 'AppUsageApi');
-      logger.debug('上报数据: ${jsonEncode(requestData)}', tag: 'AppUsageApi');
+      // logger.info('准备上报应用使用记录: ${appUseRecordData.length}个应用, 日期: $date', tag: 'AppUsageApi');
+      // logger.debug('上报数据: ${jsonEncode(requestData)}', tag: 'AppUsageApi');
       
       // 根据api.md说明，接口需要json格式，直接传递整个json对象
       // http_engine会自动将jsonParam转换为json字符串作为body
@@ -39,7 +39,7 @@ class AppUsageApi {
       );
       
       if (result.isSuccess) {
-        logger.info('应用使用记录上报成功', tag: 'AppUsageApi');
+        // logger.info('应用使用记录上报成功', tag: 'AppUsageApi');
       } else {
         logger.error('应用使用记录上报失败: ${result.msg}', tag: 'AppUsageApi');
       }
@@ -47,21 +47,8 @@ class AppUsageApi {
       return result;
     } catch (e) {
       logger.error('上报应用使用记录异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<dynamic>(
-        isSuccess: false,
-        code: -1,
-        msg: '上报失败: $e',
-      );
+      return _errorResult<dynamic>('上报失败: $e');
     }
-  }
-  
-  /// 上报单个应用的使用记录（已废弃，请使用新的上报格式）
-  /// [record] 单个应用使用记录
-  @Deprecated('请使用新的上报格式，需要先转换数据格式')
-  static Future<HttpResultN<dynamic>> reportSingleAppUsage(AppUsageRecord record) async {
-    // 此方法已废弃，因为新的上报接口需要不同的数据格式
-    // 请使用 reportAppUsage 方法，并先转换数据格式
-    throw UnimplementedError('请使用新的上报格式');
   }
   
   /// 获取应用使用记录历史
@@ -98,19 +85,14 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取使用记录失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<List<AppUsageRecord>>(
-          isSuccess: false,
+        return _errorResult<List<AppUsageRecord>>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取使用记录异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<List<AppUsageRecord>>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<List<AppUsageRecord>>('获取失败: $e');
     }
   }
   
@@ -121,7 +103,7 @@ class AppUsageApi {
     required String date,
   }) async {
     try {
-      logger.info('获取App使用统计数据: $date', tag: 'AppUsageApi');
+      // logger.info('获取App使用统计数据: $date', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.appUsageStat,
@@ -134,7 +116,7 @@ class AppUsageApi {
         final data = result.getDataJson();
         final statResponse = AppUsageStatResponse.fromJson(data);
         
-        logger.info('获取App使用统计数据成功: ${statResponse.appUseStatData.length}个App', tag: 'AppUsageApi');
+        // logger.info('获取App使用统计数据成功: ${statResponse.appUseStatData.length}个App', tag: 'AppUsageApi');
         
         return HttpResultN<AppUsageStatResponse>(
           isSuccess: true,
@@ -144,19 +126,14 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取App使用统计数据失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<AppUsageStatResponse>(
-          isSuccess: false,
+        return _errorResult<AppUsageStatResponse>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取App使用统计数据异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<AppUsageStatResponse>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<AppUsageStatResponse>('获取失败: $e');
     }
   }
   
@@ -169,7 +146,7 @@ class AppUsageApi {
     String? appPkg,
   }) async {
     try {
-      logger.info('获取App打开记录详情: date=$date, appPkg=$appPkg', tag: 'AppUsageApi');
+      // logger.info('获取App打开记录详情: date=$date, appPkg=$appPkg', tag: 'AppUsageApi');
       
       final queryParam = <String, dynamic>{
         'date': date,
@@ -189,7 +166,7 @@ class AppUsageApi {
         final data = result.getDataJson();
         
         // 调试：打印原始数据
-        logger.debug('API返回的原始数据: ${data.toString()}', tag: 'AppUsageApi');
+        // logger.debug('API返回的原始数据: ${data.toString()}', tag: 'AppUsageApi');
         
         final detailResponse = AppOpenRecordDetailResponse.fromJson(data);
         
@@ -206,26 +183,21 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取App打开记录详情失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<AppOpenRecordDetailResponse>(
-          isSuccess: false,
+        return _errorResult<AppOpenRecordDetailResponse>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取App打开记录详情异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<AppOpenRecordDetailResponse>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<AppOpenRecordDetailResponse>('获取失败: $e');
     }
   }
 
   /// 获取Ta当前授权过的App列表
   static Future<HttpResultN<List<HalfAuthApp>>> getHalfAuthorizedApps() async {
     try {
-      logger.info('获取Ta当前授权过的App列表', tag: 'AppUsageApi');
+      // logger.info('获取Ta当前授权过的App列表', tag: 'AppUsageApi');
 
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.getHalfAuthApp,
@@ -249,7 +221,7 @@ class AppUsageApi {
             )
             .toList();
 
-        logger.info('获取Ta当前授权过的App成功: ${apps.length}个', tag: 'AppUsageApi');
+        // logger.info('获取Ta当前授权过的App成功: ${apps.length}个', tag: 'AppUsageApi');
 
         return HttpResultN<List<HalfAuthApp>>(
           isSuccess: true,
@@ -259,20 +231,24 @@ class AppUsageApi {
         );
       } else {
         logger.error('获取Ta当前授权过的App失败: ${result.msg}', tag: 'AppUsageApi');
-        return HttpResultN<List<HalfAuthApp>>(
-          isSuccess: false,
+        return _errorResult<List<HalfAuthApp>>(
+          result.msg ?? '获取失败',
           code: result.code,
-          msg: result.msg,
         );
       }
     } catch (e) {
       logger.error('获取Ta当前授权过的App异常: $e', tag: 'AppUsageApi', error: e);
-      return HttpResultN<List<HalfAuthApp>>(
-        isSuccess: false,
-        code: -1,
-        msg: '获取失败: $e',
-      );
+      return _errorResult<List<HalfAuthApp>>('获取失败: $e');
     }
+  }
+
+  /// 构建通用错误结果，减少重复代码
+  static HttpResultN<T> _errorResult<T>(String msg, {int code = -1}) {
+    return HttpResultN<T>(
+      isSuccess: false,
+      code: code,
+      msg: msg,
+    );
   }
   
   /// 获取App使用记录统计（用于"统计"视图）
@@ -282,7 +258,7 @@ class AppUsageApi {
     required String date,
   }) async {
     try {
-      logger.info('获取App使用记录统计: date=$date', tag: 'AppUsageApi');
+      // logger.info('获取App使用记录统计: date=$date', tag: 'AppUsageApi');
       
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.appOpenRecordStat,
@@ -305,17 +281,17 @@ class AppUsageApi {
         }
         
         // 调试：打印原始数据
-        logger.debug('API返回的原始数据: ${recordsList.toString()}', tag: 'AppUsageApi');
-        logger.debug('API返回的数据类型: ${recordsList.runtimeType}', tag: 'AppUsageApi');
-        logger.debug('API返回的数据长度: ${recordsList.length}', tag: 'AppUsageApi');
+        // logger.debug('API返回的原始数据: ${recordsList.toString()}', tag: 'AppUsageApi');
+        // logger.debug('API返回的数据类型: ${recordsList.runtimeType}', tag: 'AppUsageApi');
+        // logger.debug('API返回的数据长度: ${recordsList.length}', tag: 'AppUsageApi');
         
         // 解析数据
         final statResponse = HourlyAppRecordResponse.fromJson(recordsList);
         
-        logger.info(
-          '获取App使用记录统计成功: ${statResponse.hourlyRecords.length}个小时的记录',
-          tag: 'AppUsageApi',
-        );
+        // logger.info(
+        //   '获取App使用记录统计成功: ${statResponse.hourlyRecords.length}个小时的记录',
+        //   tag: 'AppUsageApi',
+        // );
         
         return HttpResultN<HourlyAppRecordResponse>(
           isSuccess: true,

@@ -1,116 +1,420 @@
-1 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:24:22创建时间2025-12-09 02:25:22 精度：46点12与点11相距：0是否有效:无效
-编号：12 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:25:27创建时间2025-12-09 02:26:27 精度：46点13与点12相距：0是否有效:无效
-编号：13 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:26:32创建时间2025-12-09 02:27:32 精度：46点14与点13相距：0是否有效:无效
-编号：14 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:27:37创建时间2025-12-09 02:28:37 精度：46点15与点14相距：0是否有效:无效
-编号：15 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:28:42创建时间2025-12-09 02:29:42 精度：46点16与点15相距：0是否有效:无效
-编号：16 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:29:47创建时间2025-12-09 02:30:47 精度：46点17与点16相距：0是否有效:无效
-编号：17 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:30:52创建时间2025-12-09 02:31:52 精度：46点18与点17相距：0是否有效:无效
-编号：18 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:31:57创建时间2025-12-09 02:32:57 精度：46点19与点18相距：0是否有效:无效
-编号：19 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:33:02创建时间2025-12-09 02:34:02 精度：46点20与点19相距：0是否有效:无效
-编号：20 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:34:07创建时间2025-12-09 02:35:07 精度：46点21与点20相距：0是否有效:无效
-编号：21 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:35:12创建时间2025-12-09 02:36:12 精度：46点22与点21相距：0是否有效:无效
-编号：22 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:36:17创建时间2025-12-09 02:37:17 精度：46点23与点22相距：0是否有效:无效
-编号：23 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:37:22创建时间2025-12-09 02:38:22 精度：46点24与点23相距：0是否有效:无效
-编号：24 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:38:27创建时间2025-12-09 02:39:27 精度：46点25与点24相距：0是否有效:无效
-编号：25 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:39:32创建时间2025-12-09 02:40:33 精度：46点26与点25相距：0是否有效:无效
-编号：26 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:40:37创建时间2025-12-09 02:41:37 精度：46点27与点26相距：0是否有效:无效
-编号：27 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:41:42创建时间2025-12-09 02:42:43 精度：46点28与点27相距：0是否有效:无效
-编号：28 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:42:47创建时间2025-12-09 02:43:47 精度：46点29与点28相距：0是否有效:无效
-编号：29 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:43:52创建时间2025-12-09 02:44:53 精度：46点30与点29相距：0是否有效:无效
-编号：30 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:44:57创建时间2025-12-09 02:45:57 精度：46点31与点30相距：0是否有效:无效
-编号：31 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:46:02创建时间2025-12-09 02:47:03 精度：46点32与点31相距：0是否有效:无效
-编号：32 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:47:07创建时间2025-12-09 02:48:07 精度：46点33与点32相距：0是否有效:无效
-编号：33 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:48:12创建时间2025-12-09 02:49:13 精度：46点34与点33相距：0是否有效:无效
-编号：34 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:49:17创建时间2025-12-09 02:50:18 精度：46点35与点34相距：0是否有效:无效
-编号：35 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:50:22创建时间2025-12-09 02:51:23 精度：46点36与点35相距：0是否有效:无效
-编号：36 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:51:27创建时间2025-12-09 02:52:28 精度：46点37与点36相距：0是否有效:无效
-编号：37 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:52:32创建时间2025-12-09 02:53:33 精度：46点38与点37相距：0是否有效:无效
-编号：38 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:53:37创建时间2025-12-09 02:54:38 精度：46点39与点38相距：0是否有效:无效
-编号：39 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:54:42创建时间2025-12-09 02:55:43 精度：46点40与点39相距：0是否有效:无效
-编号：40 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:55:47创建时间2025-12-09 02:56:48 精度：46点41与点40相距：0是否有效:无效
-编号：41 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:56:52创建时间2025-12-09 02:57:53 精度：46点42与点41相距：0是否有效:无效
-编号：42 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:57:57创建时间2025-12-09 02:58:58 精度：46点43与点42相距：0是否有效:无效
-编号：43 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 02:59:02创建时间2025-12-09 03:00:03 精度：46点44与点43相距：0是否有效:无效
-编号：44 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:00:08创建时间2025-12-09 03:03:08 精度：46点45与点44相距：0是否有效:无效
-编号：45 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:03:13创建时间2025-12-09 03:04:13 精度：46点46与点45相距：0是否有效:无效
-编号：46 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:04:18创建时间2025-12-09 03:05:18 精度：46点47与点46相距：0是否有效:无效
-编号：47 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:05:23创建时间2025-12-09 03:06:23 精度：46点48与点47相距：0是否有效:无效
-编号：48 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:06:28创建时间2025-12-09 03:07:28 精度：46点49与点48相距：0是否有效:无效
-编号：49 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:07:33创建时间2025-12-09 03:08:33 精度：46点50与点49相距：0是否有效:无效
-编号：50 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:08:38创建时间2025-12-09 03:09:38 精度：46点51与点50相距：0是否有效:无效
-编号：51 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:09:43创建时间2025-12-09 03:10:43 精度：46点52与点51相距：0是否有效:无效
-编号：52 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:10:48创建时间2025-12-09 03:11:48 精度：46点53与点52相距：0是否有效:无效
-编号：53 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:11:53创建时间2025-12-09 03:12:53 精度：46点54与点53相距：0是否有效:无效
-编号：54 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:12:58创建时间2025-12-09 03:13:58 精度：46点55与点54相距：0是否有效:无效
-编号：55 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:14:03创建时间2025-12-09 03:15:03 精度：46点56与点55相距：0是否有效:无效
-编号：56 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:15:08创建时间2025-12-09 03:16:08 精度：46点57与点56相距：0是否有效:无效
-编号：57 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:16:13创建时间2025-12-09 03:17:13 精度：46点58与点57相距：0是否有效:无效
-编号：58 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:17:18创建时间2025-12-09 03:18:18 精度：46点59与点58相距：0是否有效:无效
-编号：59 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:18:23创建时间2025-12-09 03:19:23 精度：46点60与点59相距：0是否有效:无效
-编号：60 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:19:28创建时间2025-12-09 03:20:28 精度：46点61与点60相距：0是否有效:无效
-编号：61 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:20:33创建时间2025-12-09 03:21:33 精度：46点62与点61相距：0是否有效:无效
-编号：62 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:21:38创建时间2025-12-09 03:22:39 精度：46点63与点62相距：0是否有效:无效
-编号：63 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:22:43创建时间2025-12-09 03:23:43 精度：46点64与点63相距：0是否有效:无效
-编号：64 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:23:48创建时间2025-12-09 03:25:09 精度：46点65与点64相距：122.7是否有效:无效
-编号：65 维度：30.275141725937246经度：120.22190671148022 时速：0 定位时间：2025-12-09 03:24:09创建时间2025-12-09 03:25:09 精度：8.1点66与点65相距：15.8是否有效:无效
-编号：66 维度：30.27500006077646经度：120.2218917321164 时速：0 定位时间：2025-12-09 03:25:14创建时间2025-12-09 03:26:54 精度：8.8点67与点66相距：65.2是否有效:无效
-编号：67 维度：30.274426505717898经度：120.22203139385944 时速：0 定位时间：2025-12-09 03:25:54创建时间2025-12-09 03:26:54 精度：9.1点68与点67相距：15.2是否有效:无效
-编号：68 维度：30.274291464535544经度：120.22205466784808 时速：0 定位时间：2025-12-09 03:26:59创建时间2025-12-09 03:27:59 精度：9.3点69与点68相距：46.8是否有效:无效
-编号：69 维度：30.274512688088688经度：120.22246881758973 时速：0 定位时间：2025-12-09 03:28:04创建时间2025-12-09 03:30:31 精度：90.3点70与点69相距：59.2是否有效:无效
-编号：70 维度：30.27464004597253经度：120.22187008330722 时速：0 定位时间：2025-12-09 03:28:58创建时间2025-12-09 03:30:31 精度：98.7点71与点70相距：123.4是否有效:无效
-编号：71 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:29:31创建时间2025-12-09 03:30:31 精度：46点72与点71相距：0是否有效:无效
-编号：72 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:30:36创建时间2025-12-09 03:31:37 精度：46点73与点72相距：0是否有效:有效
-编号：73 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:31:41创建时间2025-12-09 03:32:42 精度：46点74与点73相距：0是否有效:无效
-编号：74 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:32:46创建时间2025-12-09 03:33:46 精度：46点75与点74相距：0是否有效:无效
-编号：75 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:33:51创建时间2025-12-09 03:34:51 精度：46点76与点75相距：0是否有效:无效
-编号：76 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:34:56创建时间2025-12-09 03:35:56 精度：46点77与点76相距：0是否有效:无效
-编号：77 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:36:01创建时间2025-12-09 03:37:02 精度：46点78与点77相距：0是否有效:无效
-编号：78 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:37:06创建时间2025-12-09 03:38:06 精度：46点79与点78相距：0是否有效:无效
-编号：79 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:38:11创建时间2025-12-09 03:39:12 精度：46点80与点79相距：0是否有效:无效
-编号：80 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:39:16创建时间2025-12-09 03:40:17 精度：46点81与点80相距：0是否有效:无效
-编号：81 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:40:22创建时间2025-12-09 03:41:22 精度：46点82与点81相距：0是否有效:无效
-编号：82 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:41:27创建时间2025-12-09 03:42:27 精度：46点83与点82相距：0是否有效:无效
-编号：83 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:42:32创建时间2025-12-09 03:43:32 精度：46点84与点83相距：0是否有效:无效
-编号：84 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:43:37创建时间2025-12-09 03:44:37 精度：46点85与点84相距：0是否有效:无效
-编号：85 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:44:42创建时间2025-12-09 03:45:42 精度：46点86与点85相距：0是否有效:无效
-编号：86 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:45:47创建时间2025-12-09 03:46:47 精度：46点87与点86相距：0是否有效:无效
-编号：87 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:46:52创建时间2025-12-09 03:47:52 精度：46点88与点87相距：0是否有效:无效
-编号：88 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:47:57创建时间2025-12-09 03:48:57 精度：46点89与点88相距：0是否有效:无效
-编号：89 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:49:02创建时间2025-12-09 03:50:02 精度：46点90与点89相距：0是否有效:无效
-编号：90 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:50:07创建时间2025-12-09 03:51:07 精度：46点91与点90相距：0是否有效:无效
-编号：91 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:51:12创建时间2025-12-09 03:52:12 精度：46点92与点91相距：0是否有效:无效
-编号：92 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:52:17创建时间2025-12-09 03:53:17 精度：46点93与点92相距：0是否有效:无效
-编号：93 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:53:22创建时间2025-12-09 03:54:22 精度：46点94与点93相距：0是否有效:无效
-编号：94 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:54:27创建时间2025-12-09 03:55:27 精度：46点95与点94相距：0是否有效:无效
-编号：95 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:55:32创建时间2025-12-09 03:56:32 精度：46点96与点95相距：0是否有效:无效
-编号：96 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:56:37创建时间2025-12-09 03:57:37 精度：46点97与点96相距：0是否有效:无效
-编号：97 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:57:42创建时间2025-12-09 03:58:42 精度：46点98与点97相距：0是否有效:无效
-编号：98 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:58:47创建时间2025-12-09 03:59:47 精度：46点99与点98相距：0是否有效:无效
-编号：99 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 03:59:52创建时间2025-12-09 04:00:52 精度：46点100与点99相距：0是否有效:无效
-编号：100 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:00:57创建时间2025-12-09 04:01:57 精度：46点101与点100相距：0是否有效:无效
-编号：101 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:02:02创建时间2025-12-09 04:03:02 精度：46点102与点101相距：0是否有效:无效
-编号：102 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:03:07创建时间2025-12-09 04:04:07 精度：46点103与点102相距：0是否有效:无效
-编号：103 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:04:12创建时间2025-12-09 04:05:12 精度：46点104与点103相距：0是否有效:无效
-编号：104 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:05:17创建时间2025-12-09 04:06:17 精度：46点105与点104相距：0是否有效:无效
-编号：105 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:06:22创建时间2025-12-09 04:07:22 精度：46点106与点105相距：0是否有效:无效
-编号：106 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:07:27创建时间2025-12-09 04:08:27 精度：46点107与点106相距：0是否有效:无效
-编号：107 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:08:32创建时间2025-12-09 04:09:32 精度：46点108与点107相距：0是否有效:无效
-编号：108 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:09:37创建时间2025-12-09 04:10:37 精度：46点109与点108相距：0是否有效:无效
-编号：109 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:10:42创建时间2025-12-09 04:11:42 精度：46点110与点109相距：0是否有效:无效
-编号：110 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:11:47创建时间2025-12-09 04:12:47 精度：46点111与点110相距：0是否有效:无效
-编号：111 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:12:52创建时间2025-12-09 04:13:52 精度：46点112与点111相距：0是否有效:无效
-编号：112 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:13:57创建时间2025-12-09 04:14:57 精度：46点113与点112相距：0是否有效:无效
-编号：113 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:15:02创建时间2025-12-09 04:16:02 精度：46点114与点113相距：0是否有效:无效
-编号：114 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:16:07创建时间2025-12-09 04:17:07 精度：46点115与点114相距：0是否有效:无效
-编号：115 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:17:12创建时间2025-12-09 04:18:12 精度：46点116与点115相距：0是否有效:无效
-编号：116 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:18:17创建时间2025-12-09 04:19:17 精度：46点117与点116相距：0是否有效:无效
-编号：117 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:19:22创建时间2025-12-09 04:20:22 精度：46点118与点117相距：0是否有效:无效
-编号：118 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:20:27创建时间2025-12-09 04:21:27 精度：46点119与点118相距：0是否有效:无效
-编号：119 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:21:32创建时间2025-12-09 04:22:33 精度：46点120与点119相距：0是否有效:无效
-编号：120 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:22:37创建时间2025-12-09 04:23:37 精度：46点121与点120相距：0是否有效:无效
-编号：121 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:23:42创建时间2025-12-09 04:24:43 精度：46点122与点121相距：0是否有效:无效
-编号：122 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:24:47创建时间2025-12-09 04:25:47 精度：46点123与点122相距：0是否有效:无效
-编号：123 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:25:52创建时间2025-12-09 04:26:53 精度：46点124与点123相距：0是否有效:无效
-编号：124 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:26:57创建时间2025-12-09 04:27:58 精度：46点125与点124相距：0是否有效:无效
-编号：125 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:28:02创建时间2025-12-09 04:29:03 精度：46点126与点125相距：0是否有效:无效
-编号：126 维度：30.274971经度：120.220644 时速：0 定位时间：2025-12-09 04:29:07创建时间2025-12-09 04:30:08 精度：46点127与点126相距：0是否有效:无效
+{"level":"ERROR","message":"定位权限检查失败，无法启动定位服务","tag":"Location","timestamp":"2026-04-09T18:02:55.769462","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"定位权限检查失败，无法启动定位服务","tag":"Location","timestamp":"2026-04-09T18:03:46.120206","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"定位权限检查失败，无法启动定位服务","tag":"Location","timestamp":"2026-04-09T18:04:20.030958","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:04:38.831034","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:08:10.279533","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:08:23.036144","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:16:10.140795","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:19:26.072599","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:24:07.851280","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:26:15.914204","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:32:02.480682","error":null,"stackTrace":null,"extra":null}
+live","timestamp":"2026-04-09T18:06:53.039000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:06:54.637000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:07:04.078000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:07.277000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:09.318000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:09.319000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:09.323000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:09.326000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:09.327000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:10.297000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:10.307000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:10.339000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:10.348000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:10.350000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:11.342000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:11.352000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:14.332000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:14.336000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:22.044000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:22.045000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:22.045000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:22.050000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:22.051000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:23.041000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:23.047000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:23.052000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:23.062000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:23.062000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:24.069000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:24.074000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:27.069000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:08:27.085000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:09:08.117000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:09:52.059000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:09:52.210000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:09:52.885000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:10:52.070000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:10:56.022000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:13:50.062000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:13:51.167000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:14:16.306000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:15:16.306000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:09.159000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:09.160000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:09.161000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:09.168000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:09.170000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:10.155000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:10.163000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:10.174000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:10.183000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:10.184000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:11.203000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:11.212000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:14.177000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:14.189000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:16.324000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:41.253000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:16:42.312000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:17:24.814000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:18:24.814000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:24.814000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:25.102000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:25.103000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:25.104000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:25.107000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:25.108000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:26.086000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:26.092000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:26.100000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:26.107000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:26.108000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:27.129000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:27.136000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:30.120000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:30.136000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:19:43.627000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:20:07.698000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:20:08.476000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:20:38.026000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:21:38.045000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:22:38.027000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:23:38.026000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:06.868000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:06.868000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:06.869000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:06.876000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:06.877000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:07.864000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:07.871000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:07.878000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:07.887000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:07.888000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:08.895000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:08.902000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:11.890000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:24:11.896000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:25:07.880000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:07.880000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:14.917000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:14.918000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:14.922000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:14.926000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:14.927000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:15.920000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:15.926000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:15.932000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:15.939000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:15.940000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:16.955000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:16.966000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:19.935000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:26:19.946000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:27:15.932000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:28:15.932000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:29:15.933000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:30:15.934000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:31:15.935000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:01.488000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:01.489000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:01.493000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:01.497000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:01.498000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:02.492000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:02.502000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:02.508000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:02.519000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:02.520000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:03.515000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:03.529000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:06.508000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:32:06.518000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:02.516000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:21.938000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 应用任务被移除（用户上滑清理），尝试重启服务","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:21.939000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onTaskRemoved），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:21.943000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onTaskRemoved）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:21.946000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:23.982000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:24.005000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:24.023000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:24.030000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:26.968000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:33:26.978000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:33:46.807438","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T18:33:56.808491","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:34:32.671804","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T18:34:42.672557","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:40:55.073538","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T18:41:05.075395","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:41:46.932696","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T18:41:56.933491","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T18:52:05.086371","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T18:52:25.535157","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:02:20.629601","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T19:02:30.630529","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:07:55.714910","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T19:08:05.715439","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:44:46.747408","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T19:44:56.748406","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:49:07.742112","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T19:49:17.743309","error":null,"stackTrace":null,"extra":null}
+ckTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:37:42.742000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:38:41.232000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:39:41.229000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:41.229000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:54.078000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:54.079000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:54.081000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:54.086000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:54.088000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:55.082000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:55.089000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:55.095000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:55.101000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:55.102000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:56.117000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:56.131000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:59.100000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:40:59.111000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:45.936000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:45.937000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:45.937000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:45.946000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:45.947000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:46.945000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:46.952000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:46.972000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:46.991000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:46.992000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:47.980000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:47.988000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:50.961000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:41:50.972000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:42:46.973000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:46:38.204000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:46:38.718000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:46:38.728000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:50:32.421000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":false}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:50:32.704000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:50:32.930000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:50:32.950000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:50:33.913000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:51:57.557000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:04.126000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:04.126000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:04.127000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:04.133000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:04.134000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:05.096000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:05.105000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:05.117000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:05.124000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:05.125000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:06.180000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:06.191000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:09.148000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:52:09.160000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:53:05.119000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:53:06.452000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:53:13.086000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:53:14.066000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:54:34.901000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:54:35.123000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:54:36.537000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:54:43.409000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T18:57:03.528000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:00:22.569000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:00:22.805000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:00:23.087000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:00:23.115000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:00:23.748000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:01:28.305000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:19.651000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:19.651000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:19.652000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:19.655000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:19.658000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:20.643000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:20.674000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:20.690000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:20.702000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:20.703000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:21.685000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:21.693000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:24.668000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:02:24.674000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:03:20.692000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:04:20.691000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:05:20.690000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:06:20.691000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:20.691000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:54.725000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:54.725000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:54.728000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:54.732000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:54.735000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:55.728000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:55.735000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:55.746000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:55.759000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:55.759000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:56.762000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:56.772000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:59.743000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:07:59.754000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:08:55.749000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:09:55.748000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:10:55.748000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:11:55.748000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:12:55.749000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:13:55.749000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:14:06.858000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:14:43.842000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:14:45.045000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:15:07.896000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:17:54.413000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:17:54.586000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:17:55.645000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:19:41.932000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":false}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:20:41.944000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:21:41.932000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:22:07.889000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:23:00.419000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:23:00.637000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:23:02.100000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:27:35.849000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:27:36.102000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:27:36.346000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:27:36.354000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:27:37.439000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:28:35.834000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:29:35.834000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:30:35.834000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:31:35.835000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:32:35.833000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:33:44.875000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:34:44.875000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:35:34.131000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:35:35.286000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:35:44.882000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:36:05.729000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:36:28.392000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:36:29.566000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:36:44.885000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:37:44.884000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:37:50.054000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:38:44.725000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:38:44.877000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:13.589000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:13.789000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:14.098000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:14.108000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:14.856000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:45.793000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:45.794000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:45.794000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:45.799000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:45.801000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:46.759000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:46.784000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:46.792000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:46.801000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:46.802000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:47.812000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:47.824000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:50.810000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:44:50.817000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🌙 收到锁屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:45:38.503000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:45:55.207000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:45:55.338000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:47:13.596000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💡 收到亮屏广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:48:03.943000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔓 收到解锁广播","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:48:03.982000","error":null,"stackTrace":null,"extra":{"action":"android.intent.action.USER_PRESENT"}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:48:16.536000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"WARNING","message":"⚠️ 原生前台定位服务被销毁，尝试自恢复","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:06.770000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏹️ 原生定位监听已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:06.770000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"❤️ 心跳闹钟已停止","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:06.771000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onDestroy），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:06.775000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onDestroy）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:06.777000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:07.754000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:07.760000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:07.775000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:07.781000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:07.782000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:08.798000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:08.806000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:11.784000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:49:11.794000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:50:09.229000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:51:57.674000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:51:57.685000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:51:57.737000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:51:57.762000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:51:57.781000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [基站] 36.995419,121.947879 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:51:58.026000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [GPS] 36.99545133287212,121.94792889346233 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:51:59.163000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⏸️ 室内WiFi确认[d8:76:ae:57:6d:84]，进入省电暂停模式","tag":"NativeLocation","timestamp":"2026-04-09T19:51:59.166000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [GPS] 36.99545133287212,121.94792889346233 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:52:03.329000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏸️ 室内WiFi确认，暂停定位客户端（省电模式）","tag":"NativeLocation","timestamp":"2026-04-09T19:52:03.329000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:52:04.977138","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:52:04.992000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:52:04.998000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:07.980000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:07.987000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:08.007000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:08.037000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:08.052000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [基站] 36.995456,121.947946 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:53:08.147000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [GPS] 36.99545133287212,121.94792889346233 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:53:08.338000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⏸️ 室内WiFi确认[d8:76:ae:57:6d:84]，进入省电暂停模式","tag":"NativeLocation","timestamp":"2026-04-09T19:53:08.341000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:09.274000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:09.289000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [GPS] 36.99545133287212,121.94792889346233 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:53:13.484000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏸️ 室内WiFi确认，暂停定位客户端（省电模式）","tag":"NativeLocation","timestamp":"2026-04-09T19:53:13.485000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:40.983000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:40.992000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:41.006000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:41.031000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:53:41.043000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [基站] 36.995465,121.947921 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:53:41.112000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [GPS] 36.99545133287212,121.94792889346233 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:53:41.321000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⏸️ 室内WiFi确认[d8:76:ae:57:6d:84]，进入省电暂停模式","tag":"NativeLocation","timestamp":"2026-04-09T19:53:41.324000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [GPS] 36.99545133287212,121.94792889346233 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:53:46.426000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏸️ 室内WiFi确认，暂停定位客户端（省电模式）","tag":"NativeLocation","timestamp":"2026-04-09T19:53:46.427000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:53:57.082966","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"10秒后仍未收到定位数据，尝试单次定位...","tag":"Location","timestamp":"2026-04-09T19:54:07.085418","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:54:41.019000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"🚀 原生前台定位服务创建","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:29.705000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 应用任务被移除（用户上滑清理），尝试重启服务","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:29.706000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔄 已安排重启（onTaskRemoved），delay=1200ms","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:29.710000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🛠️ WorkManager 兜底重启已安排（onTaskRemoved）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:29.713000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:31.758000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚑 原生保活健康检查已启动（60秒）","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:31.778000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🚀 原生定位监听已启动","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:31.789000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:31.792000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [基站] 36.995455,121.947944 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:55:31.867000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"服务期望状态已更新: true","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:34.753000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:34.765000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔋 Android 省电模式：Flutter 层不启动持续定位，由原生层推送数据","tag":"Location","timestamp":"2026-04-09T19:55:35.199535","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"GPS已关闭，上报定位关闭事件","tag":"Location","timestamp":"2026-04-09T19:56:41.043947","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"✅ 原生前台定位服务启动成功","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:55:35.247000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [高德缓存] 36.995431,121.947887 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:55:37.091000","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⏸️ 室内WiFi确认[d8:76:ae:57:6d:84]，进入省电暂停模式","tag":"NativeLocation","timestamp":"2026-04-09T19:55:37.093000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"📍 定位: [前次缓存] 36.995431,121.947887 精度:30m 速度:0.0m\/s","tag":"NativeLocation","timestamp":"2026-04-09T19:55:41.894000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"⏸️ 室内WiFi确认，暂停定位客户端（省电模式）","tag":"NativeLocation","timestamp":"2026-04-09T19:55:41.894000","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:56:34.419000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:57:34.421000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}
+{"level":"INFO","message":"💓 保活心跳","tag":"NativeKeepAlive","timestamp":"2026-04-09T19:58:34.421000","error":null,"stackTrace":null,"extra":{"locationClient":true,"reportService":true,"wakeLock":true}}

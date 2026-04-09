@@ -31,22 +31,14 @@ class MapMarkerUtil {
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, circleRadius, avatarPaint);
 
-    // 第一层：外层粉色边框 (#FF88AA, 4px) - 与定位页面完全一致
+    // 第一层：外层边框，改为白色以满足统一视觉
     final outerBorderPaint = Paint()
-      ..color = const Color(0xFFFF88AA)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-    canvas.drawCircle(center, circleRadius, outerBorderPaint);
-
-    // 第二层：内层白色边框 (白色, 9px) - 与定位页面完全一致
-    // 白色边框要在粉色边框内侧，不能覆盖粉色
-    // 粉色边框外半径 = circleRadius，内半径 = circleRadius - 2
-    // 白色边框应该从 circleRadius - 2 开始往内，宽度9px，所以中心线在 circleRadius - 2 - 4.5 = circleRadius - 6.5
-    final innerBorderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 9;
-    canvas.drawCircle(center, circleRadius - 6.5, innerBorderPaint);
+      ..strokeWidth = 2;
+    canvas.drawCircle(center, circleRadius, outerBorderPaint);
+
+    // 移除内层大白边，保留单层细白边框
 
     // 加载并绘制头像图片
     ui.Image? avatarImage;
@@ -61,9 +53,8 @@ class MapMarkerUtil {
 
     if (avatarImage != null) {
       canvas.save();
-      // 头像应该在白色边框内侧（与定位页面完全一致）
-      // 白色边框中心线在 circleRadius - 6.5，宽度9px，所以内半径 = circleRadius - 6.5 - 4.5 = circleRadius - 11
-      final avatarRadius = circleRadius - 11;
+      // 头像应该在白色边框内侧，留出少量内间距
+      final avatarRadius = circleRadius - 4;
       final avatarInnerRect = Rect.fromCenter(
         center: center,
         width: avatarRadius * 2,

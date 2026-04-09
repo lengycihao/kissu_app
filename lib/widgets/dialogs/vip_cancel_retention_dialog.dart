@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'base_dialog.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 取消开通会员挽留弹窗
 class VipCancelRetentionDialog extends BaseDialog {
@@ -61,6 +62,10 @@ class VipCancelRetentionDialog extends BaseDialog {
                 left: (backgroundWidth - unlockButtonWidth) / 2, // 水平居中
                 child: GestureDetector(
                   onTap: () {
+                    // 埋点：记录全部解锁按钮点击（1=全部解锁）
+                    AnalyticsHelper.trackMembershipRebackPopup(
+                      btnStatus: 1,
+                    );
                     Navigator.of(context).pop(true); // 返回true表示用户选择解锁
                     onUnlock?.call();
                   },
@@ -83,6 +88,10 @@ class VipCancelRetentionDialog extends BaseDialog {
         // "下次再说"按钮 - 纯文字按钮
         GestureDetector(
           onTap: () {
+            // 埋点：记录下次再说按钮点击（0=取消）
+            AnalyticsHelper.trackMembershipRebackPopup(
+              btnStatus: 0,
+            );
             Navigator.of(context).pop(false); // 返回false表示用户选择下次再说
             onCancel?.call();
           },
@@ -109,6 +118,11 @@ class VipCancelRetentionDialog extends BaseDialog {
     VoidCallback? onCancel,
     bool barrierDismissible = true,
   }) {
+    // 埋点：会员页挽留弹窗曝光（在show方法中调用，确保只触发一次）
+    AnalyticsHelper.trackMembershipRebackPopupExposure(
+      pageEnterTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    
     return BaseDialog.show<bool>(
       context: context,
       barrierDismissible: barrierDismissible,

@@ -54,7 +54,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
       } else {
         // 🔧 使用 flutter_image_compress 处理图片
         // 支持 HEIC/HEIF 格式，自动转换为 JPEG，并压缩大图
-        logDebug('开始压缩图片: ${widget.imagePath}', tag: 'ImageCrop');
+        // logDebug('开始压缩图片: ${widget.imagePath}', tag: 'ImageCrop');
         
         bytes = await FlutterImageCompress.compressWithFile(
           widget.imagePath,
@@ -69,7 +69,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
           final file = File(widget.imagePath);
           bytes = await file.readAsBytes();
         } else {
-          logDebug('图片压缩完成，JPEG 大小: ${bytes.length} bytes', tag: 'ImageCrop');
+          // logDebug('图片压缩完成，JPEG 大小: ${bytes.length} bytes', tag: 'ImageCrop');
         }
       }
       

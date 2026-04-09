@@ -27,7 +27,7 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
   uniqueId: json['unique_id'] as String?,
   provinceName: json['province_name'] as String?,
   cityName: json['city_name'] as String?,
-  bindStatus: json['bind_status'],
+  bindStatus: json['bind_status'] as String?,
   latelyBindTime: const StringToIntConverter().fromJson(
     json['lately_bind_time'],
   ),
@@ -54,6 +54,8 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
     json['is_perfect_information'],
   ),
   isGiveVip: const StringToIntConverter().fromJson(json['is_alert_give_vip']),
+  isCheckIn: const StringToIntConverter().fromJson(json['is_check_in']),
+  bindNum: const StringToIntConverter().fromJson(json['bind_num']),
   halfUserInfo: json['half_user_info'] == null
       ? null
       : HalfUserInfo.fromJson(json['half_user_info'] as Map<String, dynamic>),
@@ -63,6 +65,7 @@ LoginModel _$LoginModelFromJson(Map<String, dynamic> json) => LoginModel(
   shareConfig: json['share_config'] == null
       ? null
       : ShareConfig.fromJson(json['share_config'] as Map<String, dynamic>),
+  halfLockStatus: const StringToIntConverter().fromJson(json['half_lock_status']),
 );
 
 Map<String, dynamic> _$LoginModelToJson(
@@ -117,7 +120,10 @@ Map<String, dynamic> _$LoginModelToJson(
     instance.isPerfectInformation,
   ),
   'is_alert_give_vip': const StringToIntConverter().toJson(instance.isGiveVip),
+  'is_check_in': const StringToIntConverter().toJson(instance.isCheckIn),
+  'bind_num': const StringToIntConverter().toJson(instance.bindNum),
   'half_user_info': instance.halfUserInfo,
   'lover_info': instance.loverInfo,
   'share_config': instance.shareConfig,
+  'half_lock_status': const StringToIntConverter().toJson(instance.halfLockStatus),
 };

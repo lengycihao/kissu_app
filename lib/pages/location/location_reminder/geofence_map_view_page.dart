@@ -46,10 +46,10 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
     
     if (state == AppLifecycleState.paused) {
       // 应用进入后台，暂停地图更新（释放资源）
-      logDebug('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新', tag: 'GeofenceMapView');
+      // logDebug('🗺️ GeofenceMapViewPage: 应用进入后台，暂停地图更新', tag: 'GeofenceMapView');
     } else if (state == AppLifecycleState.resumed) {
       // 应用恢复前台，恢复地图更新
-      logDebug('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新', tag: 'GeofenceMapView');
+      // logDebug('🗺️ GeofenceMapViewPage: 应用恢复前台，恢复地图更新', tag: 'GeofenceMapView');
     }
   }
 
@@ -122,46 +122,71 @@ class _GeofenceMapViewPageState extends State<GeofenceMapViewPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: Container(
-            margin: const EdgeInsets.only(left: 16),
-            child: Center(
-              child: Image.asset(
-                'assets/images/kissu_mine_back.webp',
-                width: 24,
-                height: 24,
-              ),
-            ),
-          ),
-        ),
-        title: const Text(
-          '围栏地图',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
-        actions: [
-          GestureDetector(
-            onTap: _moveToCurrentLocation,
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              child: const Center(
-                child: Icon(
-                  Icons.my_location,
-                  size: 24,
-                  color: Color(0xFF666666),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(44 + MediaQuery.of(context).padding.top),
+        child: Container(
+          height: 44 + MediaQuery.of(context).padding.top,
+          color: Colors.white,
+          child: Stack(
+            children: [
+              // 返回按钮
+              Positioned(
+                left: 5,
+                top: MediaQuery.of(context).padding.top,
+                bottom: 0,
+                child: GestureDetector(
+                  onTap: () => Get.back(),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    child: Image.asset(
+                      "assets/images/kissu_mine_back.webp",
+                      width: 22,
+                      height: 22,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              // 标题 - 绝对居中
+              Positioned(
+                left: 0,
+                right: 0,
+                top: MediaQuery.of(context).padding.top,
+                bottom: 0,
+                child: Center(
+                  child: Text(
+                    '围栏地图',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                ),
+              ),
+              // 右侧定位按钮
+              Positioned(
+                right: 5,
+                top: MediaQuery.of(context).padding.top,
+                bottom: 0,
+                child: GestureDetector(
+                  onTap: _moveToCurrentLocation,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.my_location,
+                      size: 24,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: Obx(() {
         return SafeAMapWidget(

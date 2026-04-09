@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
 
 /// 前台定位服务管理器
 /// 
@@ -59,17 +60,17 @@ class ForegroundLocationService extends GetxService {
   /// 启动前台服务
   Future<bool> startForegroundService() async {
     if (!Platform.isAndroid) {
-      debugPrint('ℹ️ 前台服务仅支持Android平台');
+      // logger.debug('ℹ️ 前台服务仅支持Android平台');
       return false;
     }
     
     if (_isServiceRunning.value) {
-      debugPrint('ℹ️ 前台服务已在运行');
+      // logger.debug('ℹ️ 前台服务已在运行');
       return true;
     }
     
     try {
-      debugPrint('🚀 启动前台定位服务...');
+      // logger.debug('🚀 启动前台定位服务...');
       
       final result = await _methodChannel.invokeMethod('startForegroundService', {
         'channelId': _channelId,
@@ -91,14 +92,14 @@ class ForegroundLocationService extends GetxService {
         _isServiceRunning.value = true;
         _serviceStatus.value = '运行中';
         _serviceStartTime.value = DateTime.now();
-        debugPrint('✅ 前台定位服务启动成功');
+        // logger.debug('✅ 前台定位服务启动成功');
         return true;
       } else {
-        debugPrint('❌ 前台定位服务启动失败');
+        logger.error('❌ 前台定位服务启动失败');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ 启动前台服务异常: $e');
+      logger.error('❌ 启动前台服务异常: $e');
       _serviceStatus.value = '启动失败';
       return false;
     }
@@ -111,12 +112,12 @@ class ForegroundLocationService extends GetxService {
     }
     
     if (!_isServiceRunning.value) {
-      debugPrint('ℹ️ 前台服务未运行，无需停止');
+      // logger.debug('ℹ️ 前台服务未运行，无需停止');
       return true;
     }
     
     try {
-      debugPrint('🛑 停止前台定位服务...');
+      // logger.debug('🛑 停止前台定位服务...');
       
       final result = await _methodChannel.invokeMethod('stopForegroundService');
       
@@ -124,14 +125,14 @@ class ForegroundLocationService extends GetxService {
         _isServiceRunning.value = false;
         _serviceStatus.value = '已停止';
         _serviceStartTime.value = null;
-        debugPrint('✅ 前台定位服务停止成功');
+        // logger.debug('✅ 前台定位服务停止成功');
         return true;
       } else {
-        debugPrint('❌ 前台定位服务停止失败');
+        logger.error('❌ 前台定位服务停止失败');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ 停止前台服务异常: $e');
+      logger.error('❌ 停止前台服务异常: $e');
       return false;
     }
   }
@@ -157,7 +158,7 @@ class ForegroundLocationService extends GetxService {
       
       return result == true;
     } catch (e) {
-      debugPrint('❌ 更新前台服务通知失败: $e');
+      logger.error('❌ 更新前台服务通知失败: $e');
       return false;
     }
   }
@@ -184,7 +185,7 @@ class ForegroundLocationService extends GetxService {
       
       return isRunning;
     } catch (e) {
-      debugPrint('❌ 检查前台服务状态失败: $e');
+      logger.error('❌ 检查前台服务状态失败: $e');
       return false;
     }
   }
@@ -194,7 +195,7 @@ class ForegroundLocationService extends GetxService {
     _isServiceRunning.value = true;
     _serviceStatus.value = '运行中';
     _serviceStartTime.value = DateTime.now();
-    debugPrint('📢 前台服务启动回调');
+    // logger.debug('📢 前台服务启动回调');
   }
   
   /// 处理服务停止回调
@@ -202,13 +203,13 @@ class ForegroundLocationService extends GetxService {
     _isServiceRunning.value = false;
     _serviceStatus.value = '已停止';
     _serviceStartTime.value = null;
-    debugPrint('📢 前台服务停止回调');
+    // logger.debug('📢 前台服务停止回调');
   }
   
   /// 处理服务错误回调
   void _handleServiceError(dynamic error) {
     _serviceStatus.value = '错误: $error';
-    debugPrint('📢 前台服务错误回调: $error');
+    logger.error('📢 前台服务错误回调: $error');
   }
   
   /// 获取服务运行时长
@@ -239,12 +240,12 @@ class ForegroundLocationService extends GetxService {
   /// 打印服务状态
   void printServiceStatus() {
     final info = serviceInfo;
-    debugPrint('📊 前台定位服务状态:');
-    debugPrint('   运行状态: ${info['isRunning']}');
-    debugPrint('   服务状态: ${info['status']}');
-    debugPrint('   启动时间: ${info['startTime'] ?? '未启动'}');
-    debugPrint('   运行时长: ${info['runningDuration'] ?? 0}秒');
-    debugPrint('   平台支持: ${info['supported']}');
+    logger.debug('📊 前台定位服务状态:');
+    logger.debug('   运行状态: ${info['isRunning']}');
+    logger.debug('   服务状态: ${info['status']}');
+    logger.debug('   启动时间: ${info['startTime'] ?? '未启动'}');
+    logger.debug('   运行时长: ${info['runningDuration'] ?? 0}秒');
+    logger.debug('   平台支持: ${info['supported']}');
   }
 }
 
@@ -259,7 +260,7 @@ extension ForegroundServiceExtension on Object {
       final foregroundService = ForegroundLocationService.instance;
       return await foregroundService.startForegroundService();
     } catch (e) {
-      debugPrint('❌ 启用前台服务模式失败: $e');
+      logger.error('❌ 启用前台服务模式失败: $e');
       return false;
     }
   }
@@ -270,7 +271,7 @@ extension ForegroundServiceExtension on Object {
       final foregroundService = ForegroundLocationService.instance;
       return await foregroundService.stopForegroundService();
     } catch (e) {
-      debugPrint('❌ 禁用前台服务模式失败: $e');
+      logger.error('❌ 禁用前台服务模式失败: $e');
       return false;
     }
   }
@@ -286,7 +287,7 @@ extension ForegroundServiceExtension on Object {
         );
       }
     } catch (e) {
-      debugPrint('❌ 更新前台服务状态失败: $e');
+      logger.error('❌ 更新前台服务状态失败: $e');
     }
   }
 }
@@ -329,7 +330,7 @@ class ForegroundServiceUtils {
       // 例如检查 FOREGROUND_SERVICE 权限
       return true;
     } catch (e) {
-      debugPrint('❌ 检查前台服务权限失败: $e');
+      logger.error('❌ 检查前台服务权限失败: $e');
       return false;
     }
   }

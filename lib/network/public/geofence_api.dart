@@ -8,7 +8,7 @@ class GeofenceApi {
   /// 获取地理围栏列表
   /// 返回用户设置的所有位置提醒
   Future<HttpResultN<List<Map<String, dynamic>>>> getGeofencingList() async {
-    DebugUtil.info('🌐 开始获取地理围栏列表...');
+    // DebugUtil.info('🌐 开始获取地理围栏列表...');
     
     final result = await HttpManagerN.instance.executeGet(
       ApiRequest.getGeofencing,
@@ -17,7 +17,7 @@ class GeofenceApi {
     );
 
     if (result.isSuccess) {
-      DebugUtil.success('✅ 获取地理围栏列表成功');
+      // DebugUtil.success('✅ 获取地理围栏列表成功');
       
       List<Map<String, dynamic>> list = [];
       
@@ -25,23 +25,23 @@ class GeofenceApi {
       final listJsonData = result.getListJson();
       if (listJsonData.isNotEmpty) {
         list = listJsonData.map((e) => e as Map<String, dynamic>).toList();
-        DebugUtil.info('📍 从 listJson 获取了 ${list.length} 个地理围栏');
+        // DebugUtil.info('📍 从 listJson 获取了 ${list.length} 个地理围栏');
       } else {
         // 如果 listJson 为空，尝试从 dataJson 获取
         final dynamic rawData = result.getDataJson();
-        DebugUtil.info('📦 原始数据: $rawData');
+        // DebugUtil.info('📦 原始数据: $rawData');
         
         // 如果返回的是数组，直接转换
         if (rawData is List) {
           list = rawData.map((e) => e as Map<String, dynamic>).toList();
-          DebugUtil.info('📍 从 dataJson (数组) 获取了 ${list.length} 个地理围栏');
+          // DebugUtil.info('📍 从 dataJson (数组) 获取了 ${list.length} 个地理围栏');
         } 
         // 如果返回的是对象，尝试从data字段获取
         else if (rawData is Map) {
           final data = rawData['data'];
           if (data is List) {
             list = data.map((e) => e as Map<String, dynamic>).toList();
-            DebugUtil.info('📍 从 data 字段获取了 ${list.length} 个地理围栏');
+            // DebugUtil.info('📍 从 data 字段获取了 ${list.length} 个地理围栏');
           } else {
             DebugUtil.warning('⚠️ data字段不是数组');
           }
@@ -88,8 +88,8 @@ class GeofenceApi {
     int geoRadius = 100,
     String? remark,
   }) async {
-    DebugUtil.info('🌐 开始保存地理围栏...');
-    DebugUtil.info('📍 参数: icon=$geoIcon, action=$geoAction, lng=$longitude, lat=$latitude, radius=$geoRadius, remark=$remark');
+    // DebugUtil.info('🌐 开始保存地理围栏...');
+    // DebugUtil.info('📍 参数: icon=$geoIcon, action=$geoAction, lng=$longitude, lat=$latitude, radius=$geoRadius, remark=$remark');
     
     final params = {
       'geo_icon': geoIcon,
@@ -114,7 +114,7 @@ class GeofenceApi {
     if (result.isSuccess) {
       DebugUtil.success('✅ 保存地理围栏成功');
       final data = result.getDataJson();
-      DebugUtil.info('📦 返回数据: $data');
+      // DebugUtil.info('📦 返回数据: $data');
       return result.convert(data: data);
     } else {
       DebugUtil.error('❌ 保存地理围栏失败: ${result.msg}');
@@ -143,8 +143,8 @@ class GeofenceApi {
     required int geoRadius,
     String? remark,
   }) async {
-    DebugUtil.info('🌐 开始更新地理围栏: $geofencingId');
-    DebugUtil.info('📍 参数: icon=$geoIcon, action=$geoAction, lng=$longitude, lat=$latitude, radius=$geoRadius, remark=$remark');
+    // DebugUtil.info('🌐 开始更新地理围栏: $geofencingId');
+    // DebugUtil.info('📍 参数: icon=$geoIcon, action=$geoAction, lng=$longitude, lat=$latitude, radius=$geoRadius, remark=$remark');
     
     final params = {
       'geofencing_id': geofencingId,
@@ -168,9 +168,9 @@ class GeofenceApi {
     );
 
     if (result.isSuccess) {
-      DebugUtil.success('✅ 更新地理围栏成功');
+      // DebugUtil.success('✅ 更新地理围栏成功');
       final data = result.getDataJson();
-      DebugUtil.info('📦 返回数据: $data');
+      // DebugUtil.info('📦 返回数据: $data');
       return result.convert(data: data);
     } else {
       DebugUtil.error('❌ 更新地理围栏失败: ${result.msg}');
@@ -185,7 +185,7 @@ class GeofenceApi {
   Future<HttpResultN<void>> deleteGeofencing({
     required String geofencingId,
   }) async {
-    DebugUtil.info('🌐 开始删除地理围栏: $geofencingId');
+    // DebugUtil.info('🌐 开始删除地理围栏: $geofencingId');
     
     final params = {
       'geofencing_id': geofencingId,
@@ -199,7 +199,7 @@ class GeofenceApi {
     );
 
     if (result.isSuccess) {
-      DebugUtil.success('✅ 删除地理围栏成功');
+      // DebugUtil.success('✅ 删除地理围栏成功');
       return result.convert();
     } else {
       DebugUtil.error('❌ 删除地理围栏失败: ${result.msg}');

@@ -22,7 +22,6 @@ class ApiResponseInterceptor extends Interceptor {
   static void resetUnauthorizedState() {
     _isHandlingUnauthorized = false;
     _lastUnauthorizedTime = null;
-    _hasNavigatedToLogin = false;
     LoginNavigationLock.forceReset(); // 重置登录页导航锁
     logDebug('token失效处理状态和跳转状态已重置', tag: 'ApiInterceptor');
   }
@@ -155,15 +154,8 @@ class ApiResponseInterceptor extends Interceptor {
     _handleUnauthorized();
   }
 
-  // 标记是否已经跳转到登录页（防止重复跳转）- 已废弃，使用LoginNavigationLock代替
-  // 保留此字段以保持向后兼容，但不再使用
-  @Deprecated('使用LoginNavigationLock代替')
-  // ignore: unused_field
-  static bool _hasNavigatedToLogin = false;
-  
   /// 重置跳转状态（应用启动时调用）
   static void resetNavigationState() {
-    _hasNavigatedToLogin = false;
     LoginNavigationLock.forceReset(); // 重置登录页导航锁
     logDebug('跳转状态已重置', tag: 'ApiInterceptor');
   }
@@ -339,9 +331,9 @@ class ApiResponseInterceptor extends Interceptor {
       } catch (e) {
         // 记录详细的错误信息和原始数据
         logError('🚨 JSON解析失败:', tag: 'ApiInterceptor');
-        logDebug('📝 原始数据长度: ${data.length}', tag: 'ApiInterceptor');
-        logDebug('📝 原始数据前100字符: ${data.length > 100 ? '${data.substring(0, 100)}...' : data}', tag: 'ApiInterceptor');
-        logError('📝 错误详情: $e', tag: 'ApiInterceptor', error: e);
+        // logDebug('📝 原始数据长度: ${data.length}', tag: 'ApiInterceptor');
+        // logDebug('📝 原始数据前100字符: ${data.length > 100 ? '${data.substring(0, 100)}...' : data}', tag: 'ApiInterceptor');
+        // logError('📝 错误详情: $e', tag: 'ApiInterceptor', error: e);
         
         // 尝试修复常见的JSON问题
         try {
@@ -509,13 +501,13 @@ class ApiResponseInterceptor extends Interceptor {
       case DioExceptionType.unknown:
         // 🔍 详细记录 unknown 错误信息，帮助定位问题
         // 使用 debugPrint 确保在 Release 版本中也能输出关键错误信息
-        debugPrint('🔍 [Unknown Network Error] 详细信息:');
-        debugPrint('  📍 请求地址: ${e.requestOptions.uri}');
-        debugPrint('  📡 请求方法: ${e.requestOptions.method}');
-        debugPrint('  📋 请求头: ${e.requestOptions.headers}');
-        debugPrint('  💬 错误消息: ${e.message}');
-        debugPrint('  🔧 错误类型: ${e.error?.runtimeType}');
-        debugPrint('  📊 错误对象: ${e.error}');
+        logError('🔍 [Unknown Network Error] 详细信息:');
+        logError('  📍 请求地址: ${e.requestOptions.uri}');
+        logError('  📡 请求方法: ${e.requestOptions.method}');
+        logError('  📋 请求头: ${e.requestOptions.headers}');
+        logError('  💬 错误消息: ${e.message}');
+        logError('  🔧 错误类型: ${e.error?.runtimeType}');
+        logError('  📊 错误对象: ${e.error}');
         
         // 如果有响应，记录响应状态
         if (e.response != null) {
@@ -524,8 +516,8 @@ class ApiResponseInterceptor extends Interceptor {
         }
         
         // 记录堆栈跟踪（仅关键部分）
-        final stackLines = e.stackTrace.toString().split('\n').take(5).join('\n');
-        debugPrint('  📋 堆栈跟踪（前5行）:\n$stackLines');
+        // final stackLines = e.stackTrace.toString().split('\n').take(5).join('\n');
+        // debugPrint('  📋 堆栈跟踪（前5行）:\n$stackLines');
         
         // 根据错误消息内容返回更友好的提示
         final errorMsg = e.message?.toLowerCase() ?? '';
@@ -554,8 +546,8 @@ class ApiResponseInterceptor extends Interceptor {
         final shortError = e.message != null && e.message!.length > 50 
             ? '${e.message!.substring(0, 50)}...' 
             : e.message ?? '未知错误';
-        debugPrint('  ⚠️ 返回给用户的错误消息: 网络请求异常');
-        debugPrint('  🔍 实际错误: $shortError');
+        logError('  ⚠️ 返回给用户的错误消息: 网络请求异常');
+        logError('  🔍 实际错误: $shortError');
         return '$shortError网络请求异常，请检查网络后重试';
     }
   }
@@ -568,7 +560,7 @@ class ApiResponseInterceptor extends Interceptor {
         message,
       );
     } catch (e) {
-      debugPrint('显示消息失败: $e, 消息内容: $message');
+      logError('显示消息失败: $e, 消息内容: $message');
     }
   }
 }

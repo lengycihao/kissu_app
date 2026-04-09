@@ -1,17 +1,20 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:kissu_app/services/share_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
-import 'package:kissu_app/services/jpush_service.dart';
 import 'package:kissu_app/services/openinstall_service.dart';
 import 'package:kissu_app/services/screen_lock_service.dart';
-import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/utils/umeng_analytics_util.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/utils/debug_util.dart'; 
 import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/network/utils/device_util.dart';
 
 /// 安全的隐私合规管理器
 /// 采用渐进式初始化策略，确保第三方SDK功能不受影响
@@ -42,26 +45,60 @@ class PrivacyComplianceManager extends GetxService {
   
   /// 加载隐私政策同意状态
   /// 🔑 关键改进：只加载状态，不自动初始化SDK，等待用户明确同意
+  /// 🔥 隐私合规修复：即使用户之前同意过，也不在启动时自动初始化SDK
+  /// 应用市场要求：必须在用户每次明确点击同意后才能初始化SDK
   Future<void> _loadPrivacyStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final agreed = prefs.getBool(_privacyAgreedKey) ?? false;
+      var agreed = prefs.getBool(_privacyAgreedKey) ?? false;
       final version = prefs.getString(_privacyVersionKey) ?? '';
       
+      // 🔥 修复：兼容 FirstLaunchService 的 key，避免重复弹窗
+      // 如果 privacy_policy_agreed 为 false，但 has_agreed_first_agreement 为 true
+      // 说明用户之前通过 FirstLaunchService 同意过，需要同步状态
+      if (!agreed) {
+        final firstLaunchAgreed = prefs.getBool('has_agreed_first_agreement') ?? false;
+        if (firstLaunchAgreed) {
+          if (kDebugMode) {
+            DebugUtil.check('📋 检测到 FirstLaunchService 已同意，同步状态到 PrivacyComplianceManager');
+          }
+          // 同步状态
+          await prefs.setBool(_privacyAgreedKey, true);
+          await prefs.setString(_privacyVersionKey, _currentPrivacyVersion);
+          agreed = true;
+        }
+      }
+      
       if (kDebugMode) {
-        DebugUtil.info('📋 加载隐私政策状态 - agreed: $agreed, version: $version, 当前版本: $_currentPrivacyVersion');
+        DebugUtil.check('📋 加载隐私政策状态 - agreed: $agreed, version: $version, 当前版本: $_currentPrivacyVersion');
       }
       
       // 检查版本是否匹配，如果隐私政策更新了需要重新同意
-      if (agreed && version == _currentPrivacyVersion) {
+      if (agreed && (version == _currentPrivacyVersion || version.isEmpty)) {
         _isPrivacyAgreed.value = true;
         if (kDebugMode) {
-          DebugUtil.success('✅ 隐私政策已同意，版本: $version');
+          DebugUtil.check('✅ 隐私政策已同意，版本: $version');
         }
         
-        // 🔑 关键修复：即使已同意，也要在启动时重新初始化SDK
-        // 这样确保每次启动都是在用户已明确同意的前提下初始化
-        await initializeSdks();
+        // 🔥 修复：在用户已同意隐私政策的情况下，初始化真实的设备ID
+        try {
+          final deviceUtil = DeviceUtil.instance;
+          await deviceUtil.initializeDeviceId();
+          if (kDebugMode) {
+            DebugUtil.check('真实设备ID初始化完成（已同意隐私政策）');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            DebugUtil.warning('初始化真实设备ID失败: $e');
+          }
+        }
+        
+        // 🔥 隐私合规修复：不在启动时自动初始化SDK
+        // 即使用户之前同意过，也需要等待启动页检查后再决定是否初始化
+        // 这样确保符合应用市场的隐私合规要求
+        if (kDebugMode) {
+          DebugUtil.check('⚠️ 隐私政策已同意，但不在启动时自动初始化SDK（等待启动页检查）');
+        }
         
       } else {
         _isPrivacyAgreed.value = false;
@@ -87,7 +124,20 @@ class PrivacyComplianceManager extends GetxService {
       _isPrivacyAgreed.value = true;
       
       if (kDebugMode) {
-        DebugUtil.success('用户已同意隐私政策，版本: $_currentPrivacyVersion');
+        DebugUtil.check('用户已同意隐私政策，版本: $_currentPrivacyVersion');
+      }
+      
+      // 🔥 修复：在用户同意隐私政策后，初始化真实的设备ID
+      try {
+        final deviceUtil = DeviceUtil.instance;
+        await deviceUtil.initializeDeviceId();
+        if (kDebugMode) {
+          DebugUtil.check('真实设备ID初始化完成');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          DebugUtil.warning('初始化真实设备ID失败: $e');
+        }
       }
       
       // 自动初始化SDK
@@ -154,7 +204,7 @@ class PrivacyComplianceManager extends GetxService {
     
     if (isSdkInitialized || isInitializing) {
       if (kDebugMode) {
-        DebugUtil.warning('隐私相关功能已初始化或正在初始化中');
+        DebugUtil.check('隐私相关功能已初始化或正在初始化中');
       }
       return;
     }
@@ -174,7 +224,7 @@ class PrivacyComplianceManager extends GetxService {
       await _enablePrivacyFeatures();
       
       if (kDebugMode) {
-        DebugUtil.success('隐私相关功能启用完成');
+        DebugUtil.check('隐私相关功能启用完成');
       }
       
       // 上报APP打开事件
@@ -199,25 +249,34 @@ class PrivacyComplianceManager extends GetxService {
       await _enableAmapPrivacy();
       
       // 2. 启用极光推送初始化
-      await _enableJPushService();
+      // await _enableJPushService();
       
-      // 3. 启用友盟分享的隐私授权
+      // 3. 启用腾讯IM SDK初始化（延迟初始化，等待隐私政策同意）
+      await _enableTencentIMService();
+      
+      // 4. 启用友盟分享的隐私授权
       await _enableShareServicePrivacy();
       
-      // 4. 启用友盟统计初始化
-      await _enableUmengAnalytics();
+      // 5. 启用友盟统计初始化
+      // await _enableUmengAnalytics();
       
-      // 5. 启用OpenInstall的剪贴板功能（如果需要）
+      // 6. 启用OpenInstall的剪贴板功能（如果需要）
       await _enableOpenInstallClipboard();
       
-      // 6. 启用敏感数据收集
+      // 7. 启用敏感数据收集
       await _enableSensitiveDataCollection();
       
-      // 7. 通知其他服务隐私政策已同意
+      // 8. 🔒 隐私合规：初始化OAID（用于埋点虚拟用户ID）
+      await _enableOaidCollection();
+      
+      // 9. 初始化巨量引擎SDK（Android端）
+      await _initBDConvert();
+      
+      // 10. 通知其他服务隐私政策已同意
       _notifyPrivacyAgreement();
       
       if (kDebugMode) {
-        DebugUtil.success('隐私功能启用完成');
+        DebugUtil.check('隐私功能启用完成');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -242,21 +301,31 @@ class PrivacyComplianceManager extends GetxService {
     }
   }
   
-  /// 启用极光推送服务
+  /// 🔥 已废弃：启用极光推送服务（推送现在走腾讯IM）
   Future<void> _enableJPushService() async {
+    // 极光推送已废弃，推送功能现在统一走腾讯IM离线推送
+    if (kDebugMode) {
+      DebugUtil.check('极光推送已废弃，跳过初始化');
+    }
+  }
+  
+  /// 启用腾讯IM服务
+  /// 🔥 修复：延迟初始化腾讯IM SDK，等待用户同意隐私政策后再初始化
+  Future<void> _enableTencentIMService() async {
     try {
-      if (Get.isRegistered<JPushService>()) {
-        final jpushService = Get.find<JPushService>();
-        if (!jpushService.isInitialized) {
-          await jpushService.initJPush();
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = Get.find<TencentIMService>();
+        if (!imService.isInitialized) {
+          // 调用公开的初始化方法
+          await imService.initIM();
           if (kDebugMode) {
-            DebugUtil.success('极光推送服务已启用');
+            DebugUtil.check('腾讯IM服务已启用');
           }
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        DebugUtil.error('启用极光推送服务失败: $e');
+        DebugUtil.error('启用腾讯IM服务失败: $e');
       }
     }
   }
@@ -279,14 +348,11 @@ class PrivacyComplianceManager extends GetxService {
   }
   
   /// 启用友盟统计初始化
+  /// 🔥 隐私合规修复：在用户同意隐私政策后才初始化友盟SDK
   Future<void> _enableUmengAnalytics() async {
     try {
-      // 初始化友盟统计（包含 preInit）
-      await UmengAnalytics.init();
-      
-      // 提交隐私政策授权结果（用户已同意）
-      await UmengAnalytics.submitPolicyGrantResult(true);
-      
+      // 友盟SDK初始化已经在ShareService.startPrivacyCompliantService()中完成
+      // 这里只需要确认ShareService已经启动即可
       if (kDebugMode) {
         DebugUtil.success('友盟统计已初始化并授权隐私政策');
       }
@@ -307,7 +373,7 @@ class PrivacyComplianceManager extends GetxService {
       // 注意：唤醒处理器会在应用启动时被调用，但我们需要确保应用完全启动后再处理路由跳转
       OpenInstallService.registerWakeupHandler((Map<String, dynamic> data) {
         if (kDebugMode) {
-          DebugUtil.info('🔔 OpenInstall唤醒回调被触发（应用可能还在启动中）');
+          DebugUtil.check('🔔 OpenInstall唤醒回调被触发（应用可能还在启动中）');
         }
         _handleOpenInstallWakeup(data);
       });
@@ -317,7 +383,7 @@ class PrivacyComplianceManager extends GetxService {
         final inviteCode = await OpenInstallService.getInviteCode();
         if (inviteCode != null && inviteCode.isNotEmpty) {
           if (kDebugMode) {
-            DebugUtil.info('检测到OpenInstall邀请码: $inviteCode');
+            DebugUtil.check('检测到OpenInstall邀请码: $inviteCode');
           }
         }
       } catch (e) {
@@ -336,15 +402,41 @@ class PrivacyComplianceManager extends GetxService {
     }
   }
   
+  /// 🔒 隐私合规：初始化OAID收集（用于埋点虚拟用户ID）
+  /// 只有在用户同意隐私政策后才获取OAID
+  Future<void> _enableOaidCollection() async {
+    try {
+      final isRegistered = Get.isRegistered<AnalyticsManager>();
+      if (kDebugMode) {
+        DebugUtil.info('AnalyticsManager 是否注册: $isRegistered');
+      }
+      if (isRegistered) {
+        final analyticsManager = Get.find<AnalyticsManager>();
+        await analyticsManager.initMockUserIdAfterPrivacyAgreed();
+        if (kDebugMode) {
+          DebugUtil.success('OAID收集已启用（隐私政策同意后）');
+        }
+      } else {
+        if (kDebugMode) {
+          DebugUtil.warning('AnalyticsManager 未注册，跳过OAID收集');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('启用OAID收集失败: $e');
+      }
+    }
+  }
+  
   /// 处理OpenInstall唤醒参数
   /// [data] 唤醒参数，可能包含 path、channelCode、bindData 等字段
   void _handleOpenInstallWakeup(Map<String, dynamic> data) {
     try {
       if (kDebugMode) {
-        DebugUtil.info('🔔 OpenInstall唤醒参数: $data');
+        DebugUtil.success('🔔 OpenInstall唤醒参数: $data');
         // 打印所有键值对，方便调试
         data.forEach((key, value) {
-          DebugUtil.info('  - $key: $value');
+          DebugUtil.success('  - $key: $value');
         });
       }
       
@@ -397,20 +489,20 @@ class PrivacyComplianceManager extends GetxService {
       // 如果没有路径参数，直接返回（应用会正常启动到首页）
       if (path == null || path.isEmpty) {
         if (kDebugMode) {
-          DebugUtil.info('✅ OpenInstall唤醒参数中没有路径信息，应用正常启动到首页');
+          DebugUtil.success('✅ OpenInstall唤醒参数中没有路径信息，应用正常启动到首页');
         }
         return;
       }
       
       if (kDebugMode) {
-        DebugUtil.info('📋 从OpenInstall唤醒参数中提取到路径: $path');
+        DebugUtil.success('📋 从OpenInstall唤醒参数中提取到路径: $path');
       }
       
       // 根据路径跳转到对应页面
       String routePath = _convertOpenInstallPathToRoute(path);
       
       if (kDebugMode) {
-        DebugUtil.info('🔄 准备跳转到路由: $routePath (原始路径: $path)');
+        DebugUtil.success('🔄 准备跳转到路由: $routePath (原始路径: $path)');
       }
       
       // 检查路由是否存在
@@ -457,13 +549,12 @@ class PrivacyComplianceManager extends GetxService {
       
       if (kDebugMode) {
         if (exists) {
-          DebugUtil.info('✅ 路由存在: $routePath');
+          DebugUtil.success('✅ 路由存在: $routePath');
         } else {
           DebugUtil.warning('⚠️ 路由不存在: $routePath');
-          DebugUtil.info('可用路由列表:');
-          routes.forEach((route) {
-            DebugUtil.info('  - ${route.name}');
-          });
+           for (var route in routes) {
+            DebugUtil.check('  - ${route.name}');
+          }
         }
       }
       
@@ -563,6 +654,26 @@ class PrivacyComplianceManager extends GetxService {
     } catch (e) {
       if (kDebugMode) {
         DebugUtil.error('启用敏感数据收集失败: $e');
+      }
+    }
+  }
+  
+  /// 初始化巨量引擎SDK（通过MethodChannel通知原生层）
+  Future<void> _initBDConvert() async {
+    if (!Platform.isAndroid) return;
+    try {
+      const channel = MethodChannel('kissu_app/whitelist');
+      final success = await channel.invokeMethod<bool>('initBDConvert');
+      if (kDebugMode) {
+        if (success == true) {
+          DebugUtil.success('巨量引擎SDK初始化成功');
+        } else {
+          DebugUtil.warning('巨量引擎SDK初始化返回false');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        DebugUtil.error('巨量引擎SDK初始化失败: $e');
       }
     }
   }

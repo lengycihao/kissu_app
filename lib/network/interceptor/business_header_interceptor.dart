@@ -12,9 +12,11 @@ import 'package:kissu_app/network/utils/signature_utils.dart';
 import 'package:kissu_app/network/utils/device_util.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/services/privacy_compliance_manager.dart';
+import 'package:kissu_app/network/tools/config/app_configN.dart';
 import 'package:kissu_app/services/app_lifecycle_service.dart';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/utils/oaid_util.dart';
+import 'package:flutter/services.dart';
 
 /// 业务请求头拦截器
 /// 自动添加 token、sign、version、channel 等业务相关的请求头
@@ -38,6 +40,9 @@ class BusinessHeaderInterceptor extends Interceptor {
   
   // 缓存定位权限状态
   static String? _cachedLocationPermissionStatus; // '1' 或 '0'
+  
+  // 缓存 Android ID
+  static String? _cachedAndroidId;
 
   BusinessHeaderInterceptor(this._authService);
 
@@ -49,7 +54,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       if (value.runes.any((rune) => rune > 127)) {
         // 包含非ASCII字符，进行URL编码
         final encoded = Uri.encodeComponent(value);
-        DebugUtil.info('HTTP头部值已编码: $value -> $encoded');
+        // DebugUtil.info('HTTP头部值已编码: $value -> $encoded');
         return encoded;
       }
       return value;
@@ -78,8 +83,10 @@ class BusinessHeaderInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     try {
-      // 确保设备信息已初始化
-      await _initializeDeviceInfo();
+      // 🚀 优化：如果设备信息未初始化，才初始化（通常已在AppInitializer中预初始化）
+      if (_deviceInfo == null || _packageInfo == null) {
+        await _initializeDeviceInfo();
+      }
 
       // 添加 token（如果用户已登录）
       await _addTokenHeader(options);
@@ -100,7 +107,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       _addSignHeader(options);
       
       // 打印所有 header 字段的值
-      _printAllHeaders(options);
+      // _printAllHeaders(options);
     } catch (e) {
       // 如果获取信息失败，不影响请求继续
       DebugUtil.error('BusinessHeaderInterceptor error: $e');
@@ -109,14 +116,28 @@ class BusinessHeaderInterceptor extends Interceptor {
     handler.next(options);
   }
 
-  /// 初始化设备信息
-  Future<void> _initializeDeviceInfo() async {
+  /// 初始化设备信息（优化：预初始化，避免每次请求都初始化）
+  /// 公开方法，供AppInitializer调用
+  static Future<void> preInitializeDeviceInfo() async {
     if (_deviceInfo == null) {
       _deviceInfo = DeviceInfoPlugin();
     }
 
     if (_packageInfo == null) {
       _packageInfo = await PackageInfo.fromPlatform();
+      // 预缓存版本信息
+      if (_packageInfo != null) {
+        _cachedVersion = _packageInfo!.version;
+        _cachedPkg = _packageInfo!.packageName;
+      }
+    }
+  }
+
+  /// 初始化设备信息（兼容旧接口）
+  Future<void> _initializeDeviceInfo() async {
+    // 🚀 优化：如果设备信息未初始化，才初始化（通常已在AppInitializer中预初始化）
+    if (_deviceInfo == null || _packageInfo == null) {
+      await preInitializeDeviceInfo();
     }
   }
 
@@ -146,6 +167,9 @@ class BusinessHeaderInterceptor extends Interceptor {
       options.headers[HttpHeaderKey.version] = _cachedVersion;
       options.headers[HttpHeaderKey.pkg] = _cachedPkg;
     }
+    
+    // 添加操作系统类型：1=Android, 2=iOS
+    options.headers[HttpHeaderKey.os] = Platform.isAndroid ? '1' : '2';
   }
 
   /// 添加设备相关请求头（隐私合规版本）
@@ -159,6 +183,9 @@ class BusinessHeaderInterceptor extends Interceptor {
       
       // 动态获取 OAID（每次请求时实时检查隐私合规状态）
       await _addOaidHeader(options);
+      
+      // 添加 Android ID（隐私合规后才添加）
+      await _addAndroidIdHeader(options);
       
       // 设备型号和品牌信息相对不那么敏感，但也要检查隐私状态
       if (_canCollectSensitiveData()) {
@@ -174,7 +201,7 @@ class BusinessHeaderInterceptor extends Interceptor {
               final androidInfo = await _deviceInfo!.androidInfo;
               _cachedMobileModel = '${androidInfo.brand} ${androidInfo.model}';
               _cachedBrand = androidInfo.brand;
-              DebugUtil.info('设备信息已更新: $_cachedMobileModel');
+              // DebugUtil.info('设备信息已更新: $_cachedMobileModel');
             }
           } else if (Platform.isIOS) {
             // 🔧 修复：检查缓存是否是占位符值，如果是则强制刷新
@@ -187,7 +214,7 @@ class BusinessHeaderInterceptor extends Interceptor {
               final iosInfo = await _deviceInfo!.iosInfo;
               _cachedMobileModel = iosInfo.model;
               _cachedBrand = 'Apple';
-              DebugUtil.info('设备信息已更新: $_cachedMobileModel');
+              // DebugUtil.info('设备信息已更新: $_cachedMobileModel');
             }
           }
         }
@@ -216,10 +243,7 @@ class BusinessHeaderInterceptor extends Interceptor {
 
   /// 添加网络相关请求头
   Future<void> _addNetworkHeaders(RequestOptions options) async {
-    // 设置默认渠道（可以根据实际需求修改）
-    // 打包时请修改这里的渠道值：
-    // kissu_xiaomi   <小米>  kissu_huawei  <华为>  kissu_rongyao  <荣耀>  kissu_vivo  <vivo>  kissu_oppo  <oppo>  kissu_meizu  <魅族>  kissu_yyb  <应用宝> kissu_wdj  <豌豆荚>
-    _cachedChannel ??= Platform.isAndroid ? 'kissu_default' : 'kissu_default';
+      _cachedChannel ??= AppConfigN.appChannel;
     options.headers[HttpHeaderKey.channel] = _cachedChannel;
 
 
@@ -264,13 +288,13 @@ class BusinessHeaderInterceptor extends Interceptor {
   /// [isGranted] 定位权限是否已授予
   static void updateLocationPermissionStatus(bool isGranted) {
     _cachedLocationPermissionStatus = isGranted ? '1' : '0';
-    DebugUtil.info('定位权限状态缓存已更新: ${_cachedLocationPermissionStatus}');
+    // DebugUtil.info('定位权限状态缓存已更新: ${_cachedLocationPermissionStatus}');
   }
   
   /// 清除定位权限状态缓存（强制下次请求时重新检查）
   static void clearLocationPermissionCache() {
     _cachedLocationPermissionStatus = null;
-    DebugUtil.info('定位权限状态缓存已清除');
+    // DebugUtil.info('定位权限状态缓存已清除');
   }
 
   /// 获取网络信息（隐私合规版本 + 后台优化）
@@ -295,7 +319,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       
       // 🔧 优化：后台时强制使用缓存，避免因系统限制导致获取失败
       if (isInBackground && _cachedNetworkName != null) {
-        DebugUtil.info('应用在后台，使用缓存的网络信息: $_cachedNetworkName');
+        // DebugUtil.info('应用在后台，使用缓存的网络信息: $_cachedNetworkName');
         options.headers[HttpHeaderKey.networkName] = _safeHeaderValue(_cachedNetworkName!);
         return;
       }
@@ -323,7 +347,7 @@ class BusinessHeaderInterceptor extends Interceptor {
             try {
               final locationStatus = await Permission.location.status;
               if (!locationStatus.isGranted) {
-                DebugUtil.info('位置权限未授权，无法获取WiFi SSID，使用默认值');
+                DebugUtil.warning('位置权限未授权，无法获取WiFi SSID，使用默认值');
                 networkType = 'wifi';
               } else {
                 // 有位置权限，尝试获取WiFi SSID
@@ -391,7 +415,7 @@ class BusinessHeaderInterceptor extends Interceptor {
         
         _cachedNetworkName = networkType;
         _cachedNetworkTime = now;
-        DebugUtil.info('网络信息缓存已更新: $_cachedNetworkName (${isInBackground ? "后台" : "前台"})');
+        // DebugUtil.info('网络信息缓存已更新: $_cachedNetworkName (${isInBackground ? "后台" : "前台"})');
       }
       
       // 🔧 修复：使用安全处理函数确保HTTP头部值符合标准
@@ -442,7 +466,7 @@ class BusinessHeaderInterceptor extends Interceptor {
           final batteryLevel = await battery.batteryLevel;
           _cachedPower = batteryLevel.toString();
           _cachedPowerTime = now;
-          DebugUtil.info('电量缓存已更新: $_cachedPower% (${isInBackground ? "后台" : "前台"})');
+          // DebugUtil.info('电量缓存已更新: $_cachedPower% (${isInBackground ? "后台" : "前台"})');
         }
         options.headers[HttpHeaderKey.power] = _cachedPower;
       } else {
@@ -469,7 +493,7 @@ class BusinessHeaderInterceptor extends Interceptor {
 
     // 🔒 隐私合规检查
     if (!_canCollectSensitiveData()) {
-      DebugUtil.info('隐私政策未同意，跳过 OAID 获取');
+      // DebugUtil.info('隐私政策未同意，跳过 OAID 获取');
       return;
     }
 
@@ -478,7 +502,7 @@ class BusinessHeaderInterceptor extends Interceptor {
       final oaid = await OaidUtil.instance.getOaid();
       if (oaid != null && oaid.isNotEmpty) {
         options.headers[HttpHeaderKey.oaid] = oaid;
-        DebugUtil.info('OAID 已添加到请求头');
+        // DebugUtil.info('OAID 已添加到请求头');
       } else {
         DebugUtil.warning('OAID 不可用');
       }
@@ -488,6 +512,25 @@ class BusinessHeaderInterceptor extends Interceptor {
     }
   }
   
+  /// 添加 Android ID 到请求头（隐私合规版本）
+  Future<void> _addAndroidIdHeader(RequestOptions options) async {
+    // 只在 Android 平台且隐私合规后添加
+    if (!Platform.isAndroid) return;
+    if (!_canCollectSensitiveData()) return;
+
+    try {
+      if (_cachedAndroidId == null) {
+        const channel = MethodChannel('kissu_app/whitelist');
+        _cachedAndroidId = await channel.invokeMethod<String>('getAndroidId');
+      }
+      if (_cachedAndroidId != null && _cachedAndroidId!.isNotEmpty) {
+        options.headers[HttpHeaderKey.androidId] = _cachedAndroidId;
+      }
+    } catch (e) {
+      DebugUtil.error('获取 Android ID 失败: $e');
+    }
+  }
+
   /// 检查是否可以收集敏感数据
   bool _canCollectSensitiveData() {
     try {
@@ -530,6 +573,7 @@ class BusinessHeaderInterceptor extends Interceptor {
         HttpHeaderKey.version,
         HttpHeaderKey.channel,
         HttpHeaderKey.pkg,
+        HttpHeaderKey.os,
         HttpHeaderKey.networkName,
         HttpHeaderKey.deviceId,
         HttpHeaderKey.mobileModel,
@@ -582,6 +626,7 @@ class BusinessHeaderInterceptor extends Interceptor {
     _cachedPower = null;
     _cachedPowerTime = null;
     _cachedLocationPermissionStatus = null;
+    _cachedAndroidId = null;
     _packageInfo = null;
   }
   

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:permission_handler/permission_handler.dart';
-import '../../../services/tracking_service.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:permission_handler/permission_handler.dart'; 
 import '../../../utils/user_manager.dart';
 import '../../../utils/permission_helper.dart';
 import '../location_v2_controller.dart';
@@ -42,34 +42,34 @@ class LocationTipsManager extends GetxController {
   
   /// 检查所有提示
   void _checkAllTips() {
-    debugPrint('🔍 LocationTipsManager: 开始检查所有提示');
+    // logDebug('🔍 LocationTipsManager: 开始检查所有提示');
     _checkPermissionTip();
     _checkPartnerLocationTip();
     _checkVipExpiryTip();
-    debugPrint('🔍 LocationTipsManager: 所有提示检查完成');
+    // logDebug('🔍 LocationTipsManager: 所有提示检查完成');
   }
   
   /// 1. 检查用户"始终允许"定位权限提示
   void _checkPermissionTip() async {
     try {
-      debugPrint('🔍 LocationTipsManager: 开始检查始终允许定位权限');
+      // logDebug('🔍 LocationTipsManager: 开始检查始终允许定位权限');
       
       // 检查始终允许定位权限状态（后台定位权限）
       final alwaysStatus = await Permission.location.status;
       final shouldShow = !alwaysStatus.isGranted;
       
-      debugPrint('🔐 始终允许定位权限状态: $alwaysStatus');
-      debugPrint('🔐 是否应该显示权限提示: $shouldShow');
-      debugPrint('🔐 当前提示状态: ${showPermissionTip.value}');
+      // logDebug('🔐 始终允许定位权限状态: $alwaysStatus');
+      // logDebug('🔐 是否应该显示权限提示: $shouldShow');
+      // logDebug('🔐 当前提示状态: ${showPermissionTip.value}');
       
       if (showPermissionTip.value != shouldShow) {
         showPermissionTip.value = shouldShow;
-        debugPrint('🔐 始终允许定位权限提示状态更新: $shouldShow (状态: $alwaysStatus)');
+        // logDebug('🔐 始终允许定位权限提示状态更新: $shouldShow (状态: $alwaysStatus)');
       } else {
-        debugPrint('🔐 权限提示状态无变化，保持: ${showPermissionTip.value}');
+        // logDebug('🔐 权限提示状态无变化，保持: ${showPermissionTip.value}');
       }
     } catch (e) {
-      debugPrint('❌ 检查始终允许定位权限失败: $e');
+      logError('❌ 检查始终允许定位权限失败: $e');
     }
   }
   
@@ -81,12 +81,12 @@ class LocationTipsManager extends GetxController {
       if (locationData?.halfLocationMobileDevice?.isOpenLocation != null) {
         final isPartnerLocationOpen = locationData!.halfLocationMobileDevice!.isOpenLocation == 1;
         showPartnerLocationTip.value = !isPartnerLocationOpen;
-        debugPrint('📍 另一半定位开关提示状态: ${showPartnerLocationTip.value}');
+        // logDebug('📍 另一半定位开关提示状态: ${showPartnerLocationTip.value}');
       } else {
         showPartnerLocationTip.value = false;
       }
     } catch (e) {
-      debugPrint('❌ 检查另一半定位开关失败: $e');
+      logError('❌ 检查另一半定位开关失败: $e');
       showPartnerLocationTip.value = false;
     }
   }
@@ -103,14 +103,14 @@ class LocationTipsManager extends GetxController {
       // 永久会员不显示提示
       if (user.isForEverVip == 1) {
         showVipExpiryTip.value = false;
-        debugPrint('👑 永久会员，不显示到期提示');
+        // logDebug('👑 永久会员，不显示到期提示');
         return;
       }
       
       // 非会员不显示提示
       if (user.isVip != 1) {
         showVipExpiryTip.value = false;
-        debugPrint('👤 非会员，不显示到期提示');
+        // logDebug('👤 非会员，不显示到期提示');
         return;
       }
       
@@ -129,28 +129,28 @@ class LocationTipsManager extends GetxController {
             // 显示天数（1-5天）
             vipExpiryDays.value = difference.inDays;
             vipExpiryText.value = "你的会员还有${difference.inDays}天到期！";
-            debugPrint('⏰ 会员${difference.inDays}天后到期');
+            // logDebug('⏰ 会员${difference.inDays}天后到期');
           }  else {
             // 显示小时数（小于1天且大于0小时）
             vipExpiryHours.value = difference.inHours;
             vipExpiryText.value = "你的会员不足1天，请尽快续费！";
-            debugPrint('⏰ 会员不足1天，请尽快续费！');
+            // logDebug('⏰ 会员不足1天，请尽快续费！');
            }
         } else if (difference.inDays < 0) {
           // 已过期，仍然显示提示
           showVipExpiryTip.value = true;
           vipExpiryText.value = "你的会员已过期${difference.inDays.abs()}天！";
-          debugPrint('⏰ 会员已过期');
+          // logDebug('⏰ 会员已过期');
         } else {
           showVipExpiryTip.value = false;
-          debugPrint('✅ 会员到期时间充足（>${difference.inDays}天），不显示提示');
+          // logDebug('✅ 会员到期时间充足（>${difference.inDays}天），不显示提示');
         }
       } else {
         showVipExpiryTip.value = false;
-        debugPrint('⚠️ 会员到期时间为空');
+        logWarning('⚠️ 会员到期时间为空');
       }
     } catch (e) {
-      debugPrint('❌ 检查会员到期提示失败: $e');
+      logError('❌ 检查会员到期提示失败: $e');
       showVipExpiryTip.value = false;
     }
   }
@@ -170,37 +170,38 @@ class LocationTipsManager extends GetxController {
   
   /// 应用恢复前台时检查权限状态
   void onAppResumed() {
-    debugPrint('📱 LocationTipsManager: 应用恢复前台，重新检查权限状态');
+    // logDebug('📱 LocationTipsManager: 应用恢复前台，重新检查权限状态');
     _checkPermissionTip();
   }
   
   /// 点击权限提示 - 跳转到设置页面
   void onPermissionTipTap() async {
     try {
-      debugPrint('🔐 点击定位权限提示，跳转到设置页面');
+      // logDebug('🔐 点击定位权限提示，跳转到设置页面');
       
       // 开启自己定位按钮埋点
       // 注意：点击提示时说明当前是关闭状态，点击后希望开启
-      await TrackingService.trackEnableOwnLocation(isEnabled: true);
-      
+   
       await PermissionHelper.openLocationSettings();
     } catch (e) {
-      debugPrint('❌ 打开定位设置失败: $e');
+      logError('❌ 打开定位设置失败: $e');
     }
   }
   
   /// 关闭另一半定位提示
   void onPartnerLocationTipClose() {
-    // 对方开启定位状态提示埋点（关闭提示时记录）
-    TrackingService.trackPartnerLocationStatusPrompt();
-    
+  
     showPartnerLocationTip.value = false;
-    debugPrint('❌ 用户手动关闭另一半定位提示');
+    logWarning('❌ 用户手动关闭另一半定位提示');
   }
   
   /// 点击会员到期提示 - 跳转到会员页面
   void onVipExpiryTipTap() {
-    debugPrint('👑 点击会员到期提示，跳转到会员页面');
+    logDebug('👑 点击会员到期提示，跳转到会员页面');
+    
+    // 埋点：页面离开（进入下一页）
+    locationController.onNavigateToNextPage?.call();
+    
     // 使用项目路由常量保持一致性
     Get.toNamed('/kisssu_app/vip');
   }

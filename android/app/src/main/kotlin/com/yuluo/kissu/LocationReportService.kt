@@ -2,10 +2,13 @@ package com.yuluo.kissu
 
 import android.Manifest
 import android.content.Context
+import com.yuluo.kissu.constants.AppConstants
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.app.NotificationChannel
@@ -23,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -55,27 +59,72 @@ class LocationReportService(private val context: Context) {
         // 与Flutter层保持一致的上报策略参数
         const val COLLECTION_DISTANCE_METERS = 50 // 50米收集距离，与Flutter层 <50m 丢弃一致
         const val REPORT_INTERVAL_SECONDS = 60 // 1分钟上报间隔
+        const val FORCE_COLLECT_INTERVAL_SECONDS = 60 // 🔥 强制收集间隔：即使距离不足，超过此时间也必须收集
         const val MAX_COLLECTION_BUFFER_SIZE = 12 // 1分钟最多12个点(5秒一个)
         const val MAX_CACHE_POOL_SIZE = 200 // 防御性上限，避免失败时无限增长
         const val WORK_UNIQUE_NAME = "location_report_restart"
         // 与 ForegroundLocationService 保持一致的通知渠道与文案
         const val WORKER_CHANNEL_ID = "kissu_location_service"
         const val WORKER_CHANNEL_NAME = "定位服务"
+        
+        // 🔥 关键修复：将定时器和缓冲区改为静态变量，避免多实例导致多个定时器同时运行
+        // 收集缓冲区，与Flutter层策略保持一致
+        private val collectionBuffer = mutableListOf<JSONObject>()
+        // 序列化上报，避免并发重复发送
+        private val isReporting = AtomicBoolean(false)
+        // 定时器相关 - 静态确保全局唯一
+        private var reportTimer: Timer? = null
+        private var isReportTimerRunning = false
+        @Volatile
+        private var lastTimerFireTime: Long = 0L
+        // 保存最后收到的位置信息（无论是否收集到缓冲区）
+        @Volatile
+        private var lastReceivedLocation: AMapLocation? = null
+        @Volatile
+        private var lastReceivedLocationTime: Long = 0
+        // 协程作用域 - 静态确保全局唯一
+        private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+        // === WiFi 静止锚点：连WiFi且真实未移动时，锁定上报初始位置，避免室内GPS漂移 ===
+        // 判断移动的速度阈值 (m/s)，超过此值认为用户在移动（含热点驾车场景）
+        // 1.5 m/s ≈ 5.4 km/h，低速步行触发需结合位置偏差双重确认
+        private const val WIFI_MOVING_SPEED_MS = 1.5f
+        // 距锚点超过此距离(米)时，认为用户真实移动，重置锚点
+        private const val WIFI_STATIONARY_DISTANCE_M = 80.0
+        // 需要连续这么多次低速+近锚点才确认静止，防止启动瞬间误判
+        private const val WIFI_STATIONARY_CONFIRM_COUNT = 3
+        // WiFi 静止锚点位置
+        @Volatile private var wifiAnchorLocation: AMapLocation? = null
+        // 连续静止确认计数
+        @Volatile private var wifiStationaryCount: Int = 0
+
+        // === WiFi 学习机制：记住每个 WiFi 是室内固定还是移动WiFi ===
+        private const val WIFI_TYPE_UNKNOWN = 0      // 未知，需要学习
+        private const val WIFI_TYPE_STATIONARY = 1   // 室内固定WiFi → 走锚点逻辑
+        private const val WIFI_TYPE_MOBILE = 2       // 移动WiFi（车载/便携）→ 走正常上报
+        private const val KEY_WIFI_CLASSIFICATIONS = "wifi_classifications"
+        private const val WIFI_MAX_STORED = 50       // 最多记录50个WiFi，防止无限增长
+        // 连续检测到移动多少次才标记为移动WiFi
+        private const val WIFI_LEARN_MOVING_THRESHOLD = 3
+        // 已标记为室内的WiFi，连续多少次高速移动后降级为UNKNOWN重新学习（纠错机制）
+        private const val WIFI_RECLASSIFY_THRESHOLD = 5
+        // 当前正在观察的 WiFi BSSID
+        @Volatile private var currentLearningBssid: String? = null
+        // 连续移动观察计数（用于学习未知WiFi + 纠错已知WiFi）
+        @Volatile private var wifiLearnMovingCount: Int = 0
+
+        // === 室内WiFi省电暂停：确认室内WiFi后停止定位收集和上报，节省资源 ===
+        @Volatile private var isStationaryWifiPaused: Boolean = false
+        @Volatile private var pausedWifiBssid: String? = null
+        // 延迟暂停：确保至少完成一次上报后才真正进入暂停（防止收集了数据却永远不上报）
+        @Volatile private var pendingWifiPauseBssid: String? = null
     }
     
     private val sharedPreferences: SharedPreferences = 
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
-    // 收集缓冲区，与Flutter层策略保持一致
-    private val collectionBuffer = mutableListOf<JSONObject>()
     // 避免老数据循环：超过此时间窗口的旧点会在收集/上报前被清理
     private val staleDurationMs = TimeUnit.HOURS.toMillis(1)
-    // 序列化上报，避免并发重复发送
-    private val isReporting = AtomicBoolean(false)
-    private var reportTimer: Timer? = null
-    private var isReportTimerRunning = false
     
     /**
      * 处理定位数据（与Flutter层策略保持一致）
@@ -86,21 +135,42 @@ class LocationReportService(private val context: Context) {
     fun reportLocation(location: AMapLocation) {
         coroutineScope.launch {
             try {
-                // 先判网络；断网则清空缓冲并跳过收集，避免离线旧数据循环
-                if (!isNetworkAvailable()) {
-                    synchronized(collectionBuffer) {
-                        if (collectionBuffer.isNotEmpty()) {
-                            collectionBuffer.clear()
-                            Log.w(TAG, "📡 无网络，已清空缓冲区并跳过收集")
-                        } else {
-                            Log.w(TAG, "📡 无网络，跳过收集")
-                        }
+                // === 室内WiFi省电暂停检查 ===
+                if (isStationaryWifiPaused) {
+                    val currentBssid = getConnectedWifiBssid()
+                    val stillOnSameWifi = isWifiConnected() && currentBssid != null && currentBssid == pausedWifiBssid
+                    if (stillOnSameWifi) {
+                        // 仍在同一个室内WiFi，跳过所有定位处理（省电）
+                        return@launch
                     }
+                    // WiFi已变化或断开，恢复定位
+                    resumeFromStationaryWifi("WiFi变化: $pausedWifiBssid → $currentBssid")
+                }
+
+                // 🔥 关键修复：无论是否收集到缓冲区，都保存最后收到的位置
+                // 这样定时上报时即使缓冲区为空，也能上报当前位置
+                if (location.errorCode == 0) {
+                    lastReceivedLocation = location
+                    lastReceivedLocationTime = System.currentTimeMillis()
+                }
+
+                // WiFi+静止锚点：当连接WiFi且用户真实未移动时，用锚点替换漂移的GPS位置
+                val effectiveLocation = if (location.errorCode == 0) resolveReportLocation(location) else location
+                
+                // 🔥 关键检查：resolveReportLocation 内部可能刚触发了室内WiFi暂停，此时必须跳过后续收集和上报
+                if (isStationaryWifiPaused) {
+                    Log.w(TAG, "⏸️ 室内WiFi暂停已激活，跳过收集和上报")
                     return@launch
+                }
+                
+                // 检查网络状态（仅用于日志和控制是否尝试立即上报，不再阻断收集）
+                val networkAvailable = isNetworkAvailable()
+                if (!networkAvailable) {
+                    Log.d(TAG, "📡 当前无网络，继续收集定位数据到缓冲区，等待网络恢复后上报")
                 }
 
                 // 检查是否需要收集定位
-                if (!shouldCollectLocation(location)) {
+                if (!shouldCollectLocation(effectiveLocation)) {
                     return@launch
                 }
                 
@@ -114,11 +184,12 @@ class LocationReportService(private val context: Context) {
                 
                 if (token.isNullOrEmpty()) {
                     Log.w(TAG, "⚠️ 用户未登录，无法收集定位数据")
+                    writeNativeLog("WARNING", "⚠️ 用户未登录，无法收集定位数据", "NativeLocation")
                     return@launch
                 }
                 
                 // 构建定位数据并加入收集缓冲区
-                val locationData = buildLocationData(location)
+                val locationData = buildLocationData(effectiveLocation)
                 synchronized(collectionBuffer) {
                     pruneStaleLocationsLocked()
                     // 防御性上限：超过容量时丢弃最旧，防止无限增长
@@ -129,18 +200,20 @@ class LocationReportService(private val context: Context) {
                     collectionBuffer.add(locationData)
                     Log.d(TAG, "📦 位置已收集到缓冲区 (${collectionBuffer.size}/${MAX_COLLECTION_BUFFER_SIZE}): ${location.latitude}, ${location.longitude}")
                     
-                    // 如果缓冲区满了，立即上报
-                    if (collectionBuffer.size >= MAX_COLLECTION_BUFFER_SIZE) {
+                    // 如果缓冲区满了且有网络，立即上报；无网络时跳过（数据保留在缓冲区，等网络恢复）
+                    if (collectionBuffer.size >= MAX_COLLECTION_BUFFER_SIZE && networkAvailable) {
                         Log.d(TAG, "⚠️ 缓冲区已满，触发立即上报")
                         performImmediateReport(token)
                     }
                 }
                 
-                // 启动定时上报器（60秒主频）
-                startReportTimer(token)
+                // 有网络时启动/维持定时上报器；无网络时跳过（下次有网络的 reportLocation 调用会启动）
+                if (networkAvailable) {
+                    startReportTimer(token)
+                }
                 
                 // 更新最后收集的位置信息
-                updateLastCollectionInfo(location)
+                updateLastCollectionInfo(effectiveLocation)
                 
             } catch (e: Exception) {
                 Log.e(TAG, "💥 定位处理异常", e)
@@ -165,16 +238,19 @@ class LocationReportService(private val context: Context) {
         // 创建新的定时器
         // 🔥 关键修复：定时任务中每次都从SharedPreferences读取最新token，而不是使用创建时的token
         // 这样切换账号后，定时器会自动使用新token
+        // 🔥 捕获当前实例引用，确保定时器回调中能正确访问实例方法
+        val serviceInstance = this
         reportTimer = Timer().apply {
             schedule(object : TimerTask() {
                 override fun run() {
+                    lastTimerFireTime = System.currentTimeMillis()
                     // 每次都从SharedPreferences读取最新token，确保切换账号后使用新token
-                    val currentToken = sharedPreferences.getString(KEY_USER_TOKEN, null)
+                    val currentToken = serviceInstance.sharedPreferences.getString(KEY_USER_TOKEN, null)
                     if (currentToken.isNullOrEmpty()) {
                         Log.w(TAG, "⚠️ 定时上报：token为空，跳过上报")
                         return
                     }
-                    performScheduledReport(currentToken)
+                    serviceInstance.performScheduledReport(currentToken)
                 }
             }, REPORT_INTERVAL_SECONDS * 1000L, REPORT_INTERVAL_SECONDS * 1000L)
         }
@@ -190,6 +266,11 @@ class LocationReportService(private val context: Context) {
      * 如果定时器未运行且有 token，则重新启动定时器
      */
     fun ensureReportTimerRunning() {
+        // 室内WiFi暂停中，不需要定时器
+        if (isStationaryWifiPaused) {
+            Log.d(TAG, "🔍 保活检查：室内WiFi暂停中，跳过定时器检查")
+            return
+        }
         val token = sharedPreferences.getString(KEY_USER_TOKEN, null)
         if (token.isNullOrEmpty()) {
             Log.d(TAG, "🔍 保活检查：无 token，跳过定时器检查")
@@ -199,14 +280,22 @@ class LocationReportService(private val context: Context) {
         // 检查定时器是否真的在运行
         val timerRunning = reportTimer != null && isReportTimerRunning
         
-        if (!timerRunning) {
-            Log.w(TAG, "⚠️ 保活检查：定时器未运行，重新启动")
-            // 强制重启定时器（即使 isReportTimerRunning 为 true，也可能定时器已被系统回收）
+        // 🔥 关键修复：即使定时器标记为运行中，也检查是否真的在正常触发
+        // Android Doze 模式下 java.util.Timer 线程可能被系统冻结，导致定时器停滞
+        val timerStale = timerRunning && lastTimerFireTime > 0 && 
+            (System.currentTimeMillis() - lastTimerFireTime) > REPORT_INTERVAL_SECONDS * 2 * 1000L
+        
+        if (!timerRunning || timerStale) {
+            Log.w(TAG, "⚠️ 保活检查：定时器${if (timerStale) "已停滞（可能被Doze冻结）" else "未运行"}，重新启动")
+            // 强制重启定时器
             reportTimer?.cancel()
             reportTimer = null
             isReportTimerRunning = false
             startReportTimer(token)
             scheduleOneTimeRestartWork()
+            
+            // 🔥 定时器重启后立即尝试上报，避免数据长时间滞留在缓冲区
+            performScheduledReport(token)
         } else {
             Log.d(TAG, "✅ 保活检查：定时器运行正常")
         }
@@ -238,6 +327,11 @@ class LocationReportService(private val context: Context) {
      */
     private fun performScheduledReport(token: String) {
         coroutineScope.launch {
+            // 🔥 室内WiFi暂停中，跳过定时上报
+            if (isStationaryWifiPaused) {
+                Log.d(TAG, "⏰ 定时上报跳过：室内WiFi暂停中")
+                return@launch
+            }
             // 避免并发重复发送
             if (!isReporting.compareAndSet(false, true)) {
                 Log.w(TAG, "⏰ 定时上报跳过：已有上报进行中")
@@ -246,23 +340,39 @@ class LocationReportService(private val context: Context) {
             try {
                 val locationsToReport: JSONArray
                 val bufferSize: Int
+                var usedLastReceivedLocation = false
                 
                 // 在synchronized块内拷贝数据，避免在同步代码块内调用挂起函数
                 synchronized(collectionBuffer) {
                     pruneStaleLocationsLocked()
-                    if (collectionBuffer.isEmpty()) {
-                        Log.d(TAG, "📦 缓冲区为空，跳过定时上报")
-                        return@launch
-                    }
                     
-                    locationsToReport = JSONArray()
-                    collectionBuffer.forEach { locationData ->
-                        locationsToReport.put(locationData)
+                    // 🔥 关键修复：缓冲区为空时，使用最后收到的位置进行上报
+                    // 确保即使用户静止不动，也能定期上报当前位置
+                    if (collectionBuffer.isEmpty()) {
+                        val lastLocation = lastReceivedLocation
+                        val lastLocationAge = System.currentTimeMillis() - lastReceivedLocationTime
+                        
+                        // 检查最后位置是否有效（5分钟内收到的位置）
+                        if (lastLocation != null && lastLocation.errorCode == 0 && lastLocationAge < 5 * 60 * 1000L) {
+                            Log.d(TAG, "📦 缓冲区为空，使用最后收到的位置上报: ${lastLocation.latitude}, ${lastLocation.longitude}")
+                            locationsToReport = JSONArray()
+                            locationsToReport.put(buildLocationData(lastLocation))
+                            bufferSize = 1
+                            usedLastReceivedLocation = true
+                        } else {
+                            Log.d(TAG, "📦 缓冲区为空且无有效的最后位置（age=${lastLocationAge/1000}秒），跳过定时上报")
+                            return@launch
+                        }
+                    } else {
+                        locationsToReport = JSONArray()
+                        collectionBuffer.forEach { locationData ->
+                            locationsToReport.put(locationData)
+                        }
+                        bufferSize = collectionBuffer.size
                     }
-                    bufferSize = collectionBuffer.size
                 }
                 
-                Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize")
+                Log.d(TAG, "⏰ 执行定时上报，位置数量: $bufferSize${if (usedLastReceivedLocation) "（使用最后位置）" else ""}")
                 
                 // 在synchronized块外调用挂起函数
                 val success = sendLocationToServer(token, locationsToReport)
@@ -270,11 +380,23 @@ class LocationReportService(private val context: Context) {
                 // 根据结果处理缓冲区
                 synchronized(collectionBuffer) {
                     if (success) {
-                        collectionBuffer.clear()
+                        if (!usedLastReceivedLocation) {
+                            collectionBuffer.clear()
+                        }
                         Log.d(TAG, "✅ 定时上报成功，缓冲区已清空")
                     } else {
                         Log.w(TAG, "❌ 定时上报失败，缓冲区保留数据")
+                        writeNativeLog("WARNING", "❌ 定时上报失败，缓冲区保留数据($bufferSize)个点", "NativeLocation")
                     }
+                }
+                
+                // 🔥 上报成功时写入文件日志（附带上报的点位信息）
+                if (success) {
+                    logReportSuccess(locationsToReport, usedLastReceivedLocation)
+                    // 🔥 上报成功后刷新桌面小组件数据
+                    triggerWidgetUpdate()
+                    // 🔥 上报成功后检查是否有待执行的WiFi暂停
+                    executePendingWifiPauseIfNeeded()
                 }
             } finally {
                 isReporting.set(false)
@@ -320,12 +442,316 @@ class LocationReportService(private val context: Context) {
                         Log.w(TAG, "❌ 立即上报失败，缓冲区保留数据")
                     }
                 }
+                
+                // 🔥 上报成功时写入文件日志（附带上报的点位信息）
+                if (success) {
+                    logReportSuccess(locationsToReport, false)
+                    // 🔥 上报成功后刷新桌面小组件数据
+                    triggerWidgetUpdate()
+                    // 🔥 上报成功后检查是否有待执行的WiFi暂停
+                    executePendingWifiPauseIfNeeded()
+                }
             } finally {
                 isReporting.set(false)
             }
         }
     }
     
+    /**
+     * 解析实际应上报的位置
+     *
+     * WiFi+静止场景：室内 GPS 受多径干扰容易漂移，导致轨迹乱跳。
+     * 当检测到用户连接 WiFi 且真实未移动时，锁定到最初的锚点位置上报，
+     * 而非持续漂移的 GPS 坐标。
+     *
+     * 移动判断双重保险：
+     * 1. GPS 速度 > WIFI_MOVING_SPEED_MS（覆盖手机热点+驾车场景）
+     * 2. 累积位移 > WIFI_STATIONARY_DISTANCE_M（兜底慢速移动）
+     * 只要任意一项超出阈值，立即释放锚点，切回真实位置上报。
+     */
+    private fun resolveReportLocation(location: AMapLocation): AMapLocation {
+        if (!isWifiConnected()) {
+            if (wifiAnchorLocation != null) {
+                Log.d(TAG, "📶 WiFi 已断开，清除静止锚点")
+                wifiAnchorLocation = null
+                wifiStationaryCount = 0
+            }
+            currentLearningBssid = null
+            wifiLearnMovingCount = 0
+            return location
+        }
+
+        // 获取当前 WiFi BSSID，用于学习机制
+        val bssid = getConnectedWifiBssid()
+        resetWifiLearningState(bssid) // WiFi 切换时重置学习计数
+
+        // ====== 已学习的 WiFi：直接走对应逻辑，跳过学习阶段 ======
+        if (bssid != null) {
+            val classification = getWifiClassification(bssid)
+
+            // 已知移动WiFi → 跳过锚点，走正常定位上报
+            if (classification == WIFI_TYPE_MOBILE) {
+                if (wifiAnchorLocation != null) {
+                    Log.d(TAG, "📶 已知移动WiFi[$bssid]，清除锚点，走正常上报")
+                    wifiAnchorLocation = null
+                    wifiStationaryCount = 0
+                }
+                return location
+            }
+
+            // 已知室内WiFi → 但仍需先检查速度（纠错：防止误标记的热点被永远当室内处理）
+            if (classification == WIFI_TYPE_STATIONARY) {
+                val speed = location.speed
+                if (speed > WIFI_MOVING_SPEED_MS) {
+                    // 已知"室内"WiFi 却在高速移动 → 可能是误判，累积纠错计数
+                    wifiLearnMovingCount++
+                    if (wifiLearnMovingCount >= WIFI_RECLASSIFY_THRESHOLD) {
+                        // 连续多次高速移动 → 降级为UNKNOWN，重新学习
+                        setWifiClassification(bssid, WIFI_TYPE_UNKNOWN)
+                        wifiLearnMovingCount = 0
+                        Log.d(TAG, "🔄 室内WiFi[$bssid]连续${WIFI_RECLASSIFY_THRESHOLD}次高速移动，降级为未知重新学习")
+                    } else {
+                        Log.d(TAG, "⚠️ 室内WiFi但速度${speed}m/s，纠错观察($wifiLearnMovingCount/$WIFI_RECLASSIFY_THRESHOLD)")
+                    }
+                    wifiAnchorLocation = null
+                    wifiStationaryCount = 0
+                    return location // 高速移动时始终上报真实位置
+                }
+                wifiLearnMovingCount = 0 // 低速时重置纠错计数
+                return resolveStationaryWifi(location, skipConfirm = true, pauseBssid = bssid)
+            }
+        }
+
+        // ====== 未知WiFi：边上报边学习 ======
+        val speed = location.speed
+        if (speed > WIFI_MOVING_SPEED_MS) {
+            // 正在移动 → 累积移动计数
+            wifiLearnMovingCount++
+            if (bssid != null && wifiLearnMovingCount >= WIFI_LEARN_MOVING_THRESHOLD) {
+                setWifiClassification(bssid, WIFI_TYPE_MOBILE)
+            }
+            Log.d(TAG, "🚗 WiFi+移动(${speed}m/s)，学习中($wifiLearnMovingCount/$WIFI_LEARN_MOVING_THRESHOLD)")
+            wifiAnchorLocation = null
+            wifiStationaryCount = 0
+            return location
+        }
+
+        // 低速 → 走锚点逻辑（含学习）
+        wifiLearnMovingCount = 0 // 低速时重置移动计数
+        return resolveStationaryWifi(location, skipConfirm = false, learnBssid = bssid, pauseBssid = bssid)
+    }
+
+    /**
+     * 处理 WiFi 静止锚点逻辑
+     * @param skipConfirm 已知室内WiFi时跳过确认阶段，直接锁定锚点
+     * @param learnBssid 非null时，确认静止后将该WiFi标记为室内固定
+     */
+    private fun resolveStationaryWifi(
+        location: AMapLocation,
+        skipConfirm: Boolean,
+        learnBssid: String? = null,
+        pauseBssid: String? = null
+    ): AMapLocation {
+        val anchor = wifiAnchorLocation
+        if (anchor == null) {
+            wifiAnchorLocation = location
+            wifiStationaryCount = 1
+            Log.d(TAG, "📍 WiFi+低速，建立初始锚点: ${location.latitude}, ${location.longitude}")
+            // 已知室内WiFi且是首次建锚点，直接返回该位置（不需等确认）
+            return location
+        }
+
+        val distFromAnchor = calculateDistance(
+            anchor.latitude, anchor.longitude,
+            location.latitude, location.longitude
+        )
+
+        return if (distFromAnchor < WIFI_STATIONARY_DISTANCE_M) {
+            wifiStationaryCount++
+            val confirmNeeded = if (skipConfirm) 1 else WIFI_STATIONARY_CONFIRM_COUNT
+            if (wifiStationaryCount >= confirmNeeded) {
+                // 确认静止 → 学习该WiFi为室内固定
+                if (learnBssid != null && wifiStationaryCount == confirmNeeded) {
+                    setWifiClassification(learnBssid, WIFI_TYPE_STATIONARY)
+                }
+                // 确认静止 → 请求进入省电暂停模式（延迟到首次上报成功后才真正暂停）
+                if (!isStationaryWifiPaused && pauseBssid != null && wifiStationaryCount > confirmNeeded) {
+                    requestStationaryWifiPause(pauseBssid)
+                }
+                Log.d(TAG, "🔒 WiFi+静止锁定(${wifiStationaryCount}次)，上报锚点 " +
+                    "[${anchor.latitude},${anchor.longitude}]，GPS 实际偏差 ${distFromAnchor.toInt()}m")
+                anchor
+            } else {
+                Log.d(TAG, "📍 WiFi+静止待确认(${wifiStationaryCount}/${confirmNeeded})")
+                location
+            }
+        } else {
+            // 距锚点超阈值：用户真实移动，重置锚点
+            Log.d(TAG, "🚶 WiFi 下位移 ${distFromAnchor.toInt()}m >= ${WIFI_STATIONARY_DISTANCE_M.toInt()}m，重置锚点")
+            wifiAnchorLocation = location
+            wifiStationaryCount = 1
+            location
+        }
+    }
+
+    /**
+     * 检查当前是否连接固定 WiFi（排除手机热点）
+     * 手机热点虽然走 TRANSPORT_WIFI，但通常是计费网络（metered）
+     * 只有非计费的固定 WiFi（家庭/办公）才启用静止锚点防漂移
+     */
+    private fun isWifiConnected(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return false
+            // 排除手机热点：热点通常是计费网络（metered），固定WiFi通常非计费
+            if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) {
+                Log.d(TAG, "📶 检测到计费WiFi（可能是手机热点），跳过静止锚点")
+                return false
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 获取当前连接的 WiFi BSSID（MAC地址，唯一标识一个WiFi接入点）
+     */
+    @Suppress("deprecation")
+    private fun getConnectedWifiBssid(): String? {
+        return try {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val info = wifiManager.connectionInfo
+            val bssid = info?.bssid
+            if (bssid != null && bssid != "02:00:00:00:00:00") bssid else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 查询 WiFi BSSID 的已学习分类
+     * @return WIFI_TYPE_UNKNOWN / WIFI_TYPE_STATIONARY / WIFI_TYPE_MOBILE
+     */
+    private fun getWifiClassification(bssid: String): Int {
+        return try {
+            val json = sharedPreferences.getString(KEY_WIFI_CLASSIFICATIONS, null) ?: return WIFI_TYPE_UNKNOWN
+            val map = JSONObject(json)
+            map.optInt(bssid, WIFI_TYPE_UNKNOWN)
+        } catch (e: Exception) {
+            WIFI_TYPE_UNKNOWN
+        }
+    }
+
+    /**
+     * 保存 WiFi BSSID 的分类（持久化到 SharedPreferences）
+     * 超过 WIFI_MAX_STORED 条时淘汰最早的记录
+     */
+    private fun setWifiClassification(bssid: String, type: Int) {
+        try {
+            val json = sharedPreferences.getString(KEY_WIFI_CLASSIFICATIONS, null)
+            val map = if (json != null) JSONObject(json) else JSONObject()
+            map.put(bssid, type)
+            // 超过上限时，删除最前面的 key（简单 FIFO 淘汰）
+            if (map.length() > WIFI_MAX_STORED) {
+                val firstKey = map.keys().next()
+                map.remove(firstKey)
+            }
+            sharedPreferences.edit().putString(KEY_WIFI_CLASSIFICATIONS, map.toString()).apply()
+            val typeName = when (type) {
+                WIFI_TYPE_STATIONARY -> "室内固定"
+                WIFI_TYPE_MOBILE -> "移动"
+                else -> "未知"
+            }
+            Log.d(TAG, "🧠 WiFi学习完成: $bssid → $typeName")
+        } catch (e: Exception) {
+            Log.e(TAG, "保存WiFi分类失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 当WiFi切换时重置学习状态
+     */
+    private fun resetWifiLearningState(newBssid: String?) {
+        if (newBssid != currentLearningBssid) {
+            currentLearningBssid = newBssid
+            wifiLearnMovingCount = 0
+        }
+    }
+
+    // === 室内WiFi省电暂停相关方法 ===
+
+    /**
+     * 请求进入室内WiFi省电暂停模式（延迟执行）
+     * 不立即暂停，而是等待下一次上报成功后再真正进入暂停
+     * 这样确保缓冲区中已收集的定位数据不会丢失
+     */
+    private fun requestStationaryWifiPause(bssid: String) {
+        if (isStationaryWifiPaused) return
+        if (pendingWifiPauseBssid != null) return // 已经有待执行的暂停请求
+        pendingWifiPauseBssid = bssid
+        Log.w(TAG, "⏳ 室内WiFi确认[$bssid]，等待上报完成后进入省电暂停")
+        writeNativeLog("INFO", "⏳ 室内WiFi确认[$bssid]，等待上报完成后进入省电暂停", "NativeLocation")
+
+        // 🔥 立即触发上报，不等60秒定时器（服务可能在60秒内被系统杀死）
+        val token = sharedPreferences.getString(KEY_USER_TOKEN, null)
+        val hasBufferedData: Boolean
+        synchronized(collectionBuffer) {
+            hasBufferedData = collectionBuffer.isNotEmpty()
+        }
+        if (!token.isNullOrEmpty() && hasBufferedData) {
+            Log.w(TAG, "⚡ WiFi暂停前立即触发上报，确保缓冲数据不丢失")
+            writeNativeLog("INFO", "⚡ WiFi暂停前立即触发上报", "NativeLocation")
+            performImmediateReport(token)
+        }
+    }
+
+    /**
+     * 真正进入室内WiFi省电暂停模式
+     * 仅在上报成功后由 executePendingWifiPauseIfNeeded 调用
+     */
+    private fun enterStationaryWifiPause(bssid: String) {
+        isStationaryWifiPaused = true
+        pausedWifiBssid = bssid
+        pendingWifiPauseBssid = null
+        // 停止上报定时器
+        reportTimer?.cancel()
+        reportTimer = null
+        isReportTimerRunning = false
+        Log.w(TAG, "⏸️ 室内WiFi[$bssid]上报完成，正式进入省电暂停模式")
+        writeNativeLog("WARNING", "⏸️ 室内WiFi[$bssid]上报完成，正式进入省电暂停模式", "NativeLocation")
+    }
+
+    /**
+     * 上报成功后检查并执行待定的WiFi暂停
+     */
+    private fun executePendingWifiPauseIfNeeded() {
+        val bssid = pendingWifiPauseBssid ?: return
+        enterStationaryWifiPause(bssid)
+    }
+
+    /**
+     * 从室内WiFi暂停中恢复（WiFi断开或切换时调用）
+     */
+    fun resumeFromStationaryWifi(reason: String = "") {
+        pendingWifiPauseBssid = null // 清除待定的暂停请求
+        if (!isStationaryWifiPaused) return
+        isStationaryWifiPaused = false
+        pausedWifiBssid = null
+        wifiAnchorLocation = null
+        wifiStationaryCount = 0
+        wifiLearnMovingCount = 0
+        Log.w(TAG, "▶️ 室内WiFi暂停已解除${if (reason.isNotEmpty()) "（$reason）" else ""}，恢复定位和上报")
+        writeNativeLog("WARNING", "▶️ 室内WiFi暂停已解除${if (reason.isNotEmpty()) "（$reason）" else ""}", "NativeLocation")
+    }
+
+    /**
+     * 查询当前是否处于室内WiFi省电暂停状态
+     */
+    fun isLocationPausedForStationaryWifi(): Boolean = isStationaryWifiPaused
+
     /**
      * 检查是否需要收集定位
      * 策略：
@@ -337,7 +763,7 @@ class LocationReportService(private val context: Context) {
     private fun shouldCollectLocation(location: AMapLocation): Boolean {
         // 检查定位是否有效
         if (location.errorCode != 0) {
-            Log.d(TAG, "⚠️ 定位失败，错误码: ${location.errorCode}")
+            Log.w(TAG, "⚠️ 定位失败，错误码: ${location.errorCode}")
             return false
         }
         
@@ -359,6 +785,11 @@ class LocationReportService(private val context: Context) {
             return true
         }
         
+        // 🔥 关键修复：即使距离不足，超过强制收集间隔也必须收集
+        // 解决用户静止不动时位置不更新的问题
+        val timeSinceLastCollection = System.currentTimeMillis() - lastReportTime
+        val forceCollectDue = timeSinceLastCollection >= FORCE_COLLECT_INTERVAL_SECONDS * 1000L
+        
         // 检查与上次位置的距离
         val lastLat = sharedPreferences.getString(KEY_LAST_REPORT_LAT, null)?.toDoubleOrNull()
         val lastLng = sharedPreferences.getString(KEY_LAST_REPORT_LNG, null)?.toDoubleOrNull()
@@ -372,10 +803,20 @@ class LocationReportService(private val context: Context) {
             if (distance >= COLLECTION_DISTANCE_METERS) {
                 Log.d(TAG, "📍 距离触发收集: 移动${distance.toInt()}米 >= ${COLLECTION_DISTANCE_METERS}米 (精度: ${location.accuracy}m)")
                 return true
+            } else if (forceCollectDue) {
+                // 🔥 关键修复：距离不足但时间已到，强制收集
+                Log.d(TAG, "⏰ 时间触发强制收集: 距离${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米，但已超过${FORCE_COLLECT_INTERVAL_SECONDS}秒 (精度: ${location.accuracy}m)")
+                return true
             } else {
-                Log.d(TAG, "📍 距离不足，跳过收集: 移动${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米")
+                Log.d(TAG, "📍 距离不足且时间未到，跳过收集: 移动${distance.toInt()}米 < ${COLLECTION_DISTANCE_METERS}米，距上次收集${timeSinceLastCollection/1000}秒")
                 return false
             }
+        }
+        
+        // 🔥 如果没有上次位置记录但时间已到，也应该收集
+        if (forceCollectDue) {
+            Log.d(TAG, "⏰ 无上次位置记录，时间触发强制收集")
+            return true
         }
         
         return false
@@ -417,28 +858,12 @@ class LocationReportService(private val context: Context) {
             put("speed", location.speed.toString())
             put("altitude", location.altitude.toString())
             put("accuracy", location.accuracy.toString())
-            put("location_name", buildLocationName(location))
+            // put("location_name", buildLocationName(location))
+            put("location_name", "")
         }
     }
     
-    /**
-     * 构建地点名称
-     */
-    private fun buildLocationName(location: AMapLocation): String {
-        return when {
-            !location.address.isNullOrEmpty() -> location.address
-            !location.description.isNullOrEmpty() -> location.description
-            else -> {
-                val parts = mutableListOf<String>()
-                if (!location.province.isNullOrEmpty()) parts.add(location.province)
-                if (!location.city.isNullOrEmpty()) parts.add(location.city)
-                if (!location.district.isNullOrEmpty()) parts.add(location.district)
-                if (!location.street.isNullOrEmpty()) parts.add(location.street)
-                if (!location.streetNum.isNullOrEmpty()) parts.add(location.streetNum + "号")
-                parts.joinToString("")
-            }
-        }
-    }
+ 
     
     /**
      * 发送定位数据到服务器
@@ -464,7 +889,7 @@ class LocationReportService(private val context: Context) {
                     "version" to getAppVersion(),
                     "pkg" to context.packageName,
                     "deviceid" to getDeviceId(),
-                    "channel" to "kissu_android", // 渠道标识
+                    "channel" to (sharedPreferences.getString("app_channel", null) ?: "kissu_android"), // 渠道标识（优先从Flutter同步的配置读取）
                     "os" to "1", // 1 = Android
                     "model" to Build.MODEL,
                     "osversion" to Build.VERSION.RELEASE,
@@ -479,6 +904,12 @@ class LocationReportService(private val context: Context) {
                 // 添加 userId（如果存在）
                 if (!userId.isNullOrEmpty()) {
                     headers["userid"] = userId
+                }
+                
+                // 添加 Android ID（隐私合规后才添加）
+                val androidId = getAndroidId()
+                if (!androidId.isNullOrEmpty()) {
+                    headers["androidid"] = androidId
                 }
                 
                 // 准备请求体参数（用于签名）
@@ -597,9 +1028,29 @@ class LocationReportService(private val context: Context) {
     }
     
     /**
+     * 检查隐私政策是否已同意
+     */
+    private fun isPrivacyPolicyAgreed(): Boolean {
+        return try {
+            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.getBoolean("flutter.privacy_policy_agreed", false)
+        } catch (e: Exception) {
+            Log.w(TAG, "检查隐私政策状态失败", e)
+            false // 默认返回 false，确保合规
+        }
+    }
+    
+    /**
      * 获取设备 ID（使用 Android ID）
+     * 🔥 修复：在用户同意隐私政策前不获取 ANDROID ID，返回降级值
      */
     private fun getDeviceId(): String {
+        // 🔥 关键修复：检查隐私政策是否已同意
+        if (!isPrivacyPolicyAgreed()) {
+            Log.d(TAG, "用户未同意隐私政策，返回降级设备ID")
+            return "privacy_not_agreed_${System.currentTimeMillis()}"
+        }
+        
         return try {
             android.provider.Settings.Secure.getString(
                 context.contentResolver,
@@ -611,6 +1062,22 @@ class LocationReportService(private val context: Context) {
         }
     }
     
+    /**
+     * 获取 Android ID（仅在隐私政策同意后返回）
+     */
+    private fun getAndroidId(): String? {
+        if (!isPrivacyPolicyAgreed()) return null
+        return try {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "获取Android ID失败", e)
+            null
+        }
+    }
+
     /**
      * 获取当前网络头部信息
      */
@@ -787,7 +1254,7 @@ class LocationReportService(private val context: Context) {
         headers: Map<String, String>,
         bodyParams: Map<String, String>
     ): String {
-        val secretKey = "TYXHTRrGeP8xy095q0iY"
+        val secretKey = AppConstants.API_SIGNATURE_SECRET_KEY
         
         // 合并所有参数
         val allParams = mutableMapOf<String, String>()
@@ -837,6 +1304,88 @@ class LocationReportService(private val context: Context) {
         val md = MessageDigest.getInstance("MD5")
         val digest = md.digest(input.toByteArray())
         return digest.joinToString("") { "%02x".format(it) }
+    }
+    
+    /**
+     * 定位上报成功后触发桌面小组件数据刷新
+     * 使用节流：每5分钟最多触发一次，避免频繁刷新
+     */
+    private var lastWidgetTriggerTime = 0L
+    private fun triggerWidgetUpdate() {
+        try {
+            val now = System.currentTimeMillis()
+            if (now - lastWidgetTriggerTime < 5 * 60 * 1000) {
+                return // 5分钟内不重复触发
+            }
+            lastWidgetTriggerTime = now
+            com.yuluo.kissu.widget.WidgetUpdateWorker.enqueueOneTimeWork(context)
+            Log.d(TAG, "📱 已触发小组件数据刷新")
+        } catch (e: Exception) {
+            Log.w(TAG, "触发小组件刷新失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 上报成功后写入文件日志（附带上报的点位信息）
+     */
+    private fun logReportSuccess(locationsToReport: JSONArray, usedLastLocation: Boolean) {
+        try {
+            val locationsSummary = StringBuilder()
+            for (i in 0 until locationsToReport.length()) {
+                val loc = locationsToReport.getJSONObject(i)
+                if (i > 0) locationsSummary.append("; ")
+                locationsSummary.append("${loc.optString("latitude")},${loc.optString("longitude")},精度:${loc.optString("accuracy")}")
+            }
+            writeNativeLog("INFO", "📤 定位上报成功", "NativeLocation", mapOf(
+                "count" to locationsToReport.length(),
+                "usedLastLocation" to usedLastLocation,
+                "locations" to locationsSummary.toString()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "记录上报成功日志失败", e)
+        }
+    }
+    
+    /**
+     * 写入原生层日志到文件（与 Flutter 层日志目录一致）
+     */
+    private fun writeNativeLog(level: String, message: String, tag: String = TAG, extra: Map<String, Any>? = null) {
+        try {
+            val logDir = File(context.filesDir, "logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            
+            val todayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val today = todayFormat.format(Date())
+            
+            val existingLogFile = logDir.listFiles()?.find { 
+                it.name.startsWith(today) && it.name.endsWith("_location.log") 
+            }
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss.SSSSSS", Locale.getDefault())
+            val logFile = existingLogFile ?: File(logDir, "${dateFormat.format(Date())}_location.log")
+            
+            val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault()).format(Date())
+            val logJson = JSONObject().apply {
+                put("level", level)
+                put("message", message)
+                put("tag", tag)
+                put("timestamp", timestamp)
+                put("error", JSONObject.NULL)
+                put("stackTrace", JSONObject.NULL)
+                if (extra != null) {
+                    put("extra", JSONObject(extra))
+                } else {
+                    put("extra", JSONObject.NULL)
+                }
+            }
+            
+            logFile.appendText(logJson.toString() + "\n")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "写入日志文件失败", e)
+        }
     }
     
     /**
@@ -915,6 +1464,17 @@ class LocationReportWorker(appContext: Context, params: androidx.work.WorkerPara
             .build()
 
         // 使用与前台服务相同的通知 ID，避免生成额外通知
-        return ForegroundInfo(1001, notification)
+        // Android 14+ 需要显式声明前台服务类型，否则会抛 InvalidForegroundServiceTypeException
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val serviceType =
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            ForegroundInfo(1001, notification, serviceType)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ 支持 location 类型
+            ForegroundInfo(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            // 旧版 API 没有类型参数
+            ForegroundInfo(1001, notification)
+        }
     }
 }

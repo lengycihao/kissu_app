@@ -17,20 +17,18 @@ class LeftFloatingButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // 🔧 根据绑定状态动态计算按钮底部位置（与右侧按钮对齐）
-      final isBindPartner = controller.isBindPartner.value;
-      final deviceHeightDiff = -42.0; // 设备模块高度差
-      final firstButtonBottom = isBindPartner
-          ? screenHeight / 2 - deviceHeightDiff // 已绑定：屏幕中间
-          : screenHeight / 2 - deviceHeightDiff; // 未绑定：向下偏移42px
+      // 🔧 修改：与右侧按钮保持相同的距离底部高度
+      final sheetPercent = controller.sheetPercent.value;
+      final sheetHeight = screenHeight * sheetPercent;
+      final buttonBottom = sheetHeight + 50; // 与右侧按钮相同的偏移量
 
       // 使用与右侧按钮相同的透明度计算逻辑
-      final sheetPercent = controller.sheetPercent.value;
+      final isBindPartner = controller.isBindPartner.value;
 
       // 🔧 动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final middleSnapSize = isBindPartner
-          ? 0.5
-          : 0.5 + (deviceHeightDiff / screenHeight);
+          ? 0.5 + (21 / screenHeight) // 已绑定：屏幕中间 + 21px偏移
+          : 0.5 + (57 / screenHeight); // 未绑定：屏幕中间 + 57px偏移
 
       final maxPercent = (screenHeight - 100) / screenHeight;
 
@@ -47,44 +45,18 @@ class LeftFloatingButtons extends StatelessWidget {
 
       return Positioned(
         left: 16,
-        bottom: firstButtonBottom,
+        bottom: buttonBottom,
         child: Opacity(
           opacity: opacity,
           child: IgnorePointer(
             ignoring: opacity == 0.0,
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
+              
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 刷新按钮
-                  GestureDetector(
-                    onTap: () async {
-                      await controller.refreshLocationData();
-                    },
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Image(
-                        image: AssetImage(
-                          'assets/location/kissu_refresh_map.webp',
-                        ),
-                        width: 24,
-                        height: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-
-                  // 切换地图类型按钮
+                   // 切换地图类型按钮
                   GestureDetector(
                     onTap: () {
                       _showMapTypePicker(context);
@@ -105,7 +77,86 @@ class LeftFloatingButtons extends StatelessWidget {
                         height: 24,
                       ),
                     ),
+                  ), const SizedBox(height: 12),
+                  // 刷新按钮
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      await controller.refreshLocationDataWithToast();
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Image(
+                        image: AssetImage(
+                          'assets/location/kissu_refresh_map.webp',
+                        ),
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // 切换视图按钮
+                  GestureDetector(
+                    onTap: () {
+                      // 🎯 在点击时检查isCloseMode，而不是构建时
+                      if (controller.isCloseMode) {
+                        // 小于100米时：移动相机到我的坐标，缩放级别18，隐藏infowindow和圆圈
+                        controller.moveToMyLocationInCloseMode();
+                      } else {
+                        controller.cycleMapView();
+                      }
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Image(
+                        image: AssetImage(
+                          'assets/location/kissu_exchange_avair.webp',
+                        ),
+                        fit: BoxFit.contain,
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // // GIF测试入口按钮
+                  // GestureDetector(
+                  //   onTap: () {
+                  //     Get.to(() => const MapGifTestPage());
+                  //   },
+                  //   child: Container(
+                  //     width: 24,
+                  //     height: 24,
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.pink,
+                  //       borderRadius: BorderRadius.circular(22),
+                  //     ),
+                  //     child: const Center(
+                  //       child: Text(
+                  //         'GIF',
+                  //         style: TextStyle(
+                  //           color: Colors.white,
+                  //           fontSize: 8,
+                  //           fontWeight: FontWeight.bold,
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+               
                 ],
               ),
             ),

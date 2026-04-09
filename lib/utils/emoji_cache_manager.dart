@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// 表情数据缓存管理器
 /// 缓存表情分类数据和当前状态，提高加载速度
@@ -35,9 +35,9 @@ class EmojiCacheManager {
       await prefs.setString(_emojiDataKey, jsonData);
       await prefs.setString(_emojiMetaKey, jsonEncode(meta));
       
-      DebugUtil.info('💾 缓存表情分类数据成功，共 ${categories.length} 个分类');
+      logDebug('💾 缓存表情分类数据成功，共 ${categories.length} 个分类');
     } catch (e) {
-      DebugUtil.error('❌ 缓存表情分类数据失败: $e');
+      logError('❌ 缓存表情分类数据失败: $e');
     }
   }
   
@@ -50,7 +50,7 @@ class EmojiCacheManager {
       final metaData = prefs.getString(_emojiMetaKey);
       
       if (cachedData == null || metaData == null) {
-        DebugUtil.info('💾 无缓存的表情分类数据');
+        logDebug('💾 无缓存的表情分类数据');
         return null;
       }
       
@@ -61,7 +61,7 @@ class EmojiCacheManager {
       
       // 检查缓存是否过期（超过24小时）
       if (now.difference(cacheTime).inHours > _maxCacheAgeHours) {
-        DebugUtil.info('⏰ 表情分类缓存已过期，缓存时间: $cacheTime');
+        logDebug('⏰ 表情分类缓存已过期，缓存时间: $cacheTime');
         await _clearEmojiCache();
         return null;
       }
@@ -72,11 +72,11 @@ class EmojiCacheManager {
           .map((item) => EmojiCategory.fromJson(item))
           .toList();
       
-      DebugUtil.info('✅ 使用缓存的表情分类数据，共 ${categories.length} 个分类，缓存时间: $cacheTime');
+      logDebug('✅ 使用缓存的表情分类数据，共 ${categories.length} 个分类，缓存时间: $cacheTime');
       return categories;
       
     } catch (e) {
-      DebugUtil.error('❌ 获取缓存表情分类数据失败: $e');
+      logError('❌ 获取缓存表情分类数据失败: $e');
       await _clearEmojiCache(); // 清除损坏的缓存
       return null;
     }
@@ -100,9 +100,9 @@ class EmojiCacheManager {
       await prefs.setString(_currentStatusKey, jsonData);
       await prefs.setString(_currentStatusMetaKey, jsonEncode(meta));
       
-      DebugUtil.info('💾 缓存当前状态数据成功');
+      logDebug('💾 缓存当前状态数据成功');
     } catch (e) {
-      DebugUtil.error('❌ 缓存当前状态数据失败: $e');
+      logError('❌ 缓存当前状态数据失败: $e');
     }
   }
   
@@ -115,7 +115,7 @@ class EmojiCacheManager {
       final metaData = prefs.getString(_currentStatusMetaKey);
       
       if (cachedData == null || metaData == null) {
-        DebugUtil.info('💾 无缓存的当前状态数据');
+        logDebug('💾 无缓存的当前状态数据');
         return null;
       }
       
@@ -126,7 +126,7 @@ class EmojiCacheManager {
       
       // 检查缓存是否过期（超过24小时）
       if (now.difference(cacheTime).inHours > _maxCacheAgeHours) {
-        DebugUtil.info('⏰ 当前状态缓存已过期，缓存时间: $cacheTime');
+        logDebug('⏰ 当前状态缓存已过期，缓存时间: $cacheTime');
         await _clearCurrentStatusCache();
         return null;
       }
@@ -135,11 +135,11 @@ class EmojiCacheManager {
       final jsonData = jsonDecode(cachedData);
       final statusData = CurrentStatusData.fromJson(jsonData);
       
-      DebugUtil.info('✅ 使用缓存的当前状态数据，缓存时间: $cacheTime');
+      logDebug('✅ 使用缓存的当前状态数据，缓存时间: $cacheTime');
       return statusData;
       
     } catch (e) {
-      DebugUtil.error('❌ 获取缓存当前状态数据失败: $e');
+      logError('❌ 获取缓存当前状态数据失败: $e');
       await _clearCurrentStatusCache(); // 清除损坏的缓存
       return null;
     }
@@ -151,9 +151,9 @@ class EmojiCacheManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_emojiDataKey);
       await prefs.remove(_emojiMetaKey);
-      DebugUtil.info('🗑️ 清除表情分类缓存');
+      logDebug('🗑️ 清除表情分类缓存');
     } catch (e) {
-      DebugUtil.error('❌ 清除表情分类缓存失败: $e');
+      logError('❌ 清除表情分类缓存失败: $e');
     }
   }
   
@@ -163,9 +163,9 @@ class EmojiCacheManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_currentStatusKey);
       await prefs.remove(_currentStatusMetaKey);
-      DebugUtil.info('🗑️ 清除当前状态缓存');
+      logDebug('🗑️ 清除当前状态缓存');
     } catch (e) {
-      DebugUtil.error('❌ 清除当前状态缓存失败: $e');
+      logError('❌ 清除当前状态缓存失败: $e');
     }
   }
   
@@ -173,7 +173,7 @@ class EmojiCacheManager {
   Future<void> clearAllCache() async {
     await _clearEmojiCache();
     await _clearCurrentStatusCache();
-    DebugUtil.info('🗑️ 清除所有表情相关缓存');
+    logDebug('🗑️ 清除所有表情相关缓存');
   }
   
   /// 获取缓存统计信息

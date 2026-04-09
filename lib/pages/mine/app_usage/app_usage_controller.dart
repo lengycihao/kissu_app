@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_open_record_detail_data.dart';
@@ -16,6 +16,9 @@ import 'package:kissu_app/pages/mine/app_usage/services/app_usage_report_service
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
 import 'package:kissu_app/services/app_usage_auto_report_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// App使用时长控制器
 class AppUsageController extends GetxController with WidgetsBindingObserver {
@@ -78,6 +81,14 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   // 时间轴视图数据：App打开记录详情列表
   var appOpenRecordDetail = <AppOpenRecordDetail>[].obs;
 
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false;
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
+
   // Ta当前授权过的App列表
   var halfAuthorizedApps = <HalfAuthApp>[].obs;
   
@@ -129,6 +140,18 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
+    
+    // 埋点：记录页面进入时间
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+    
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
     // 监听应用生命周期，用于从系统设置返回后自动刷新权限与数据
     WidgetsBinding.instance.addObserver(this);
     _logoCacheService.initialize(); // 初始化logo缓存
@@ -173,9 +196,36 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       }
     });
   }
-
+  
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: AppUseEvents.pageId,
+      eventId: AppUseEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
   @override
   void onClose() {
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
+    
     // 移除生命周期监听，避免内存泄漏
     WidgetsBinding.instance.removeObserver(this);
     // 取消防抖Timer
@@ -191,7 +241,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
+    
+    // 埋点：切换到后台
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _exitType = ExitTypeValue.toBackground;
+      _trackPageExit(ExitTypeValue.toBackground);
+    } else if (state == AppLifecycleState.resumed) {
+      // 从后台返回，重置埋点状态
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+      
       // 稍微延迟，确保系统权限状态已更新
       Future.delayed(const Duration(milliseconds: 500), () async {
         await _checkPermission();
@@ -257,9 +317,9 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         totalOpenAppNumber.value = statResponse.totalOpenAppNumber;
         totalUseAppDuration.value = statResponse.totalUseAppDuration;
         
-        logger.info('加载App使用统计数据成功: ${appUsageStatData.length}个App', tag: 'AppUsage');
+        // logDebug('加载App使用统计数据成功: ${appUsageStatData.length}个App', tag: 'AppUsage');
       } else {
-        logger.error('加载App使用统计数据失败: ${result.msg}', tag: 'AppUsage');
+        logError('加载App使用统计数据失败: ${result.msg}', tag: 'AppUsage');
         // 失败时清空数据
         appUsageStatData.value = [];
         totalOpenAppNumber.value = 0;
@@ -270,124 +330,13 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 暂时保持为空列表，避免统计视图显示错误
       usageRecords.value = [];
     } catch (e) {
-      logger.error('加载使用数据失败: $e', tag: 'AppUsage', error: e);
+      logError('加载使用数据失败: $e', tag: 'AppUsage');
       // 异常时清空数据
       appUsageStatData.value = [];
       totalOpenAppNumber.value = 0;
       totalUseAppDuration.value = 0;
       usageRecords.value = [];
     }
-  }
-  
-  /// 生成模拟数据（用于UI展示）
-  // ignore: unused_element
-  List<AppUsageRecord> _generateMockData() {
-    final now = DateTime.now();
-    final targetDate = selectedDate.value;
-    final dayDiff = now.difference(targetDate).inDays;
-    
-    // 倒数第二天（今天往前数第二天）：显示空数据
-    if (dayDiff == 1) {
-      return [];
-    }
-    
-    // 倒数第三天：只显示3个App（少于5个）
-    if (dayDiff == 2) {
-      return _generateMockDataForApps(3, targetDate);
-    }
-    
-    // 其他日期：显示7个App
-    return _generateMockDataForApps(7, targetDate);
-  }
-  
-  /// 为指定数量的App生成模拟数据
-  List<AppUsageRecord> _generateMockDataForApps(int appCount, DateTime date) {
-    final mockApps = [
-      {'name': '微信', 'package': 'com.tencent.mm'},
-      {'name': '王者荣耀', 'package': 'com.tencent.tmgp.sgame'},
-      {'name': '抖音', 'package': 'com.ss.android.ugc.aweme'},
-      {'name': 'Bilibili', 'package': 'tv.danmaku.bili'},
-      {'name': '支付宝', 'package': 'com.eg.android.AlipayGphone'},
-      {'name': '淘宝', 'package': 'com.taobao.taobao'},
-      {'name': 'QQ', 'package': 'com.tencent.mobileqq'},
-    ];
-    
-    final records = <AppUsageRecord>[];
-    final selectedApps = mockApps.take(appCount).toList();
-    final isToday = _isSameDay(date, DateTime.now());
-    
-    // 确定最大小时：今天显示到当前小时，历史日期显示完整24小时
-    final maxHour = isToday ? DateTime.now().hour : 23;
-    
-    for (int i = 0; i < selectedApps.length; i++) {
-      final app = selectedApps[i];
-      final sessions = <AppUsageSession>[];
-      final hourlyMap = <int, List<AppUsageSession>>{};
-      
-      // 根据日期和App生成不同的使用时间段
-      final baseHour = 7 + (date.day % 3);  // 7-9点开始
-      // 历史日期生成更多会话记录
-      final sessionCount = isToday ? (5 + (i * 2)) : (8 + (i * 3) + (date.day % 5));
-      
-      for (int j = 0; j < sessionCount; j++) {
-        // 更分散的时间分布
-        int hour;
-        if (isToday) {
-          // 今天：从早上到现在
-          hour = (baseHour + (j * 2)) % (maxHour + 1);
-        } else {
-          // 历史日期：分布在全天
-          hour = (baseHour + (j * 2) + (date.day % 2)) % 24;
-        }
-        
-        final minute = (j * 13 + date.day * 7 + i * 5) % 60;
-        final openTime = DateTime(date.year, date.month, date.day, hour, minute);
-        final duration = ((10 + (j * 5) + date.day * 2 + i * 3) % 50 + 5) * 60 * 1000; // 5-55分钟
-        final closeTime = openTime.add(Duration(milliseconds: duration));
-        
-        final session = AppUsageSession(
-          openTime: openTime.millisecondsSinceEpoch,
-          closeTime: closeTime.millisecondsSinceEpoch,
-        );
-        sessions.add(session);
-        
-        if (!hourlyMap.containsKey(hour)) {
-          hourlyMap[hour] = [];
-        }
-        hourlyMap[hour]!.add(session);
-      }
-      
-      // 构建每小时记录
-      final hourlyRecords = <HourlyUsageRecord>[];
-      hourlyMap.forEach((hour, sessions) {
-        final totalDuration = sessions.fold<int>(0, (sum, s) => sum + s.duration);
-        hourlyRecords.add(HourlyUsageRecord(
-          hour: hour,
-          totalDuration: totalDuration,
-          sessionCount: sessions.length,
-          sessions: sessions,
-        ));
-      });
-      
-      hourlyRecords.sort((a, b) => a.hour.compareTo(b.hour));
-      
-      records.add(AppUsageRecord(
-        appName: app['name']!,
-        packageName: app['package']!,
-        date: '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-        hourlyRecords: hourlyRecords,
-        totalSessions: sessionCount,
-      ));
-    }
-    
-    return records;
-  }
-  
-  /// 判断是否是同一天
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year && 
-           date1.month == date2.month && 
-           date1.day == date2.day;
   }
   
   /// 切换日期选择器显示/隐藏
@@ -402,7 +351,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     final currentDateStr = '${selectedDate.value.year}-${selectedDate.value.month.toString().padLeft(2, '0')}-${selectedDate.value.day.toString().padLeft(2, '0')}';
     
     if (newDateStr == currentDateStr) {
-      logger.info('相同日期，跳过切换: $newDateStr', tag: 'AppUsage');
+      // logDebug('相同日期，跳过切换: $newDateStr', tag: 'AppUsage');
       return;
     }
     
@@ -414,7 +363,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     
     // 使用防抖加载数据，避免连续点击时多次请求
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      logger.info('防抖Timer触发，开始加载数据: $newDateStr', tag: 'AppUsage');
+      // logDebug('防抖Timer触发，开始加载数据: $newDateStr', tag: 'AppUsage');
       _loadUsageData();  // 重新加载数据
       
       // 如果当前显示的是时间轴视图，也需要重新加载时间轴数据
@@ -429,7 +378,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   /// 加载统计数据（公开方法，供外部调用）
   Future<void> loadStatisticsData() async {
-    logger.info('开始加载统计数据: date=${selectedDate.value}', tag: 'AppUsage');
+    // logDebug('开始加载统计数据: date=${selectedDate.value}', tag: 'AppUsage');
     await _loadStatisticsData();
   }
   
@@ -442,7 +391,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 格式化日期为 yyyy-MM-dd
       final dateStr = '${selectedDate.value.year}-${selectedDate.value.month.toString().padLeft(2, '0')}-${selectedDate.value.day.toString().padLeft(2, '0')}';
       
-      logger.info('调用API获取统计数据: date=$dateStr', tag: 'AppUsage');
+      // logDebug('调用API获取统计数据: date=$dateStr', tag: 'AppUsage');
       
       // 调用API获取统计数据
       final result = await AppUsageApi.getAppRecordStat(date: dateStr);
@@ -453,17 +402,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         // 更新数据并同步logo缓存
         hourlyAppRecords.value = _applyLogoCacheToHourlyRecords(statResponse.hourlyRecords);
         
-        logger.info(
-          '✅ 加载统计数据成功: ${hourlyAppRecords.length}个小时的记录',
-          tag: 'AppUsage',
-        );
+        // logDebug(
+        //   '✅ 加载统计数据成功: ${hourlyAppRecords.length}个小时的记录',
+        //   tag: 'AppUsage',
+        // );
       } else {
-        logger.error('❌ 加载统计数据失败: ${result.msg}', tag: 'AppUsage');
+        logError('❌ 加载统计数据失败: ${result.msg}', tag: 'AppUsage');
         // 失败时清空数据
         hourlyAppRecords.value = [];
       }
     } catch (e) {
-      logger.error('❌ 加载统计数据异常: $e', tag: 'AppUsage', error: e);
+      logError('❌ 加载统计数据异常: $e', tag: 'AppUsage');
       // 异常时清空数据
       hourlyAppRecords.value = [];
     } finally {
@@ -496,7 +445,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   
   /// 加载时间轴数据（公开方法，供外部调用）
   Future<void> loadTimelineData({String? appPkg}) async {
-    logger.info('开始加载时间轴数据: date=${selectedDate.value}, appPkg=$appPkg', tag: 'AppUsage');
+    // logDebug('开始加载时间轴数据: date=${selectedDate.value}, appPkg=$appPkg', tag: 'AppUsage');
     await _loadTimelineData(appPkg: appPkg);
   }
   
@@ -509,7 +458,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 格式化日期为 yyyy-MM-dd
       final dateStr = '${selectedDate.value.year}-${selectedDate.value.month.toString().padLeft(2, '0')}-${selectedDate.value.day.toString().padLeft(2, '0')}';
       
-      logger.info('调用API获取时间轴数据: date=$dateStr, appPkg=$appPkg', tag: 'AppUsage');
+      // logDebug('调用API获取时间轴数据: date=$dateStr, appPkg=$appPkg', tag: 'AppUsage');
       
       // 调用API获取时间轴数据
       final result = await AppUsageApi.getAppOpenRecordDetail(
@@ -526,23 +475,23 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         latelyUseAppData.value = processedLately;
         appOpenRecordDetail.value = processedDetails;
         
-        logger.info(
-          '✅ 加载时间轴数据成功: ${latelyUseAppData.length}个App, ${appOpenRecordDetail.length}条记录',
-          tag: 'AppUsage',
-        );
+        // logDebug(
+        //   '✅ 加载时间轴数据成功: ${latelyUseAppData.length}个App, ${appOpenRecordDetail.length}条记录',
+        //   tag: 'AppUsage',
+        // );
         
-        // 打印详细数据用于调试
-        if (latelyUseAppData.isNotEmpty) {
-          logger.info('最近使用的App列表: ${latelyUseAppData.map((e) => e.appName).join(", ")}', tag: 'AppUsage');
-        }
-        if (appOpenRecordDetail.isNotEmpty) {
-          logger.info('记录详情数量: ${appOpenRecordDetail.length}', tag: 'AppUsage');
-        }
+        // // 打印详细数据用于调试
+        // if (latelyUseAppData.isNotEmpty) {
+        //   logDebug('最近使用的App列表: ${latelyUseAppData.map((e) => e.appName).join(", ")}', tag: 'AppUsage');
+        // }
+        // if (appOpenRecordDetail.isNotEmpty) {
+        //   logDebug('记录详情数量: ${appOpenRecordDetail.length}', tag: 'AppUsage');
+        // }
         
         // 如果有数据且当前没有选中任何app，自动选中第一个app
         if (processedLately.isNotEmpty && selectedAppForTimeline.value.isEmpty) {
           final firstApp = processedLately.first;
-          logger.info('自动选中第一个App: ${firstApp.appName} (${firstApp.appPkg})', tag: 'AppUsage');
+          // logDebug('自动选中第一个App: ${firstApp.appName} (${firstApp.appPkg})', tag: 'AppUsage');
           selectedAppForTimeline.value = firstApp.appPkg;
           // 加载第一个app的详细记录
           await _loadTimelineData(appPkg: firstApp.appPkg);
@@ -682,16 +631,16 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       final list = prefs.getStringList('selected_apps_for_usage') ?? [];
       selectedApps.clear();
       selectedApps.addAll(list);
-      logger.info('已加载筛选应用列表: ${selectedApps.length}个', tag: 'AppUsage');
+      // logDebug('已加载筛选应用列表: ${selectedApps.length}个', tag: 'AppUsage');
     } catch (e) {
-      logger.error('加载筛选应用列表失败: $e', tag: 'AppUsage', error: e);
+      logError('加载筛选应用列表失败: $e', tag: 'AppUsage', error: e);
     }
   }
   
   /// 加载已安装应用列表
   Future<void> _loadInstalledApps() async {
     try {
-      logger.info('开始获取已安装应用列表（后台线程）', tag: 'AppUsage');
+      // logDebug('开始获取已安装应用列表（后台线程）', tag: 'AppUsage');
       
       // 🔧 添加超时保护（30秒超时）
       final List<dynamic> result = await platform
@@ -713,15 +662,15 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         );
       }).toList();
       
-      logger.info('✅ 已获取 ${apps.length} 个用户应用', tag: 'AppUsage');
+      // logDebug('✅ 已获取 ${apps.length} 个用户应用', tag: 'AppUsage');
     } on TimeoutException catch (e) {
-      logger.error('获取应用列表超时: $e', tag: 'AppUsage', error: e);
+      logError('获取应用列表超时: $e', tag: 'AppUsage', error: e);
       OKToastUtil.show('获取应用列表超时，请稍后重试');
     } on PlatformException catch (e) {
-      logger.error('获取应用列表失败: ${e.message}', tag: 'AppUsage', error: e);
+      logError('获取应用列表失败: ${e.message}', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取应用列表失败: ${e.message}');
     } catch (e) {
-      logger.error('获取应用列表异常: $e', tag: 'AppUsage', error: e);
+      logError('获取应用列表异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取应用列表失败');
     }
   }
@@ -733,17 +682,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       
       if (selectedApps.contains(packageName)) {
         selectedApps.remove(packageName);
-        logger.info('取消筛选应用: $packageName', tag: 'AppUsage');
+        // logDebug('取消筛选应用: $packageName', tag: 'AppUsage');
       } else {
         selectedApps.add(packageName);
-        logger.info('筛选应用: $packageName', tag: 'AppUsage');
+        // logDebug('筛选应用: $packageName', tag: 'AppUsage');
       }
       
       await prefs.setStringList('selected_apps_for_usage', selectedApps.toList());
       
       // 注意：上报服务不依赖筛选列表，这里的筛选只是用于调试页面显示
     } catch (e) {
-      logger.error('保存筛选状态失败: $e', tag: 'AppUsage', error: e);
+      logError('保存筛选状态失败: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('保存失败');
     }
   }
@@ -751,7 +700,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
   /// 显示应用使用时长
   Future<void> showUsageTime(String packageName, String appName) async {
     try {
-      logger.info('获取应用使用时长: $packageName', tag: 'AppUsage');
+      // logDebug('获取应用使用时长: $packageName', tag: 'AppUsage');
       final int millis = await platform.invokeMethod('getAppUsageTime', {'packageName': packageName});
       final duration = Duration(milliseconds: millis);
       final hours = duration.inHours;
@@ -765,11 +714,11 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       if (e.code == 'NO_PERMISSION') {
         _showPermissionDialog();
       } else {
-        logger.error('获取使用时长失败: ${e.message}', tag: 'AppUsage', error: e);
+        logError('获取使用时长失败: ${e.message}', tag: 'AppUsage', error: e);
         OKToastUtil.showError('获取使用时长失败: ${e.message}');
       }
     } catch (e) {
-      logger.error('获取使用时长异常: $e', tag: 'AppUsage', error: e);
+      logError('获取使用时长异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取使用时长失败');
     }
   }
@@ -788,7 +737,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     
     isReporting.value = true;
     try {
-      logger.info('开始采集 ${selectedApps.length} 个应用的使用数据', tag: 'AppUsage');
+      // logDebug('开始采集 ${selectedApps.length} 个应用的使用数据', tag: 'AppUsage');
       
       // 批量获取详细使用数据
       final List<dynamic> result = await platform.invokeMethod(
@@ -818,12 +767,12 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       }
       
       if (records.isEmpty) {
-        logger.info('没有需要上报的使用记录', tag: 'AppUsage');
+        // logDebug('没有需要上报的使用记录', tag: 'AppUsage');
         OKToastUtil.show('暂无使用记录需要上报');
         return;
       }
       
-      logger.info('准备上报 ${records.length} 个应用的使用记录', tag: 'AppUsage');
+      logDebug('准备上报 ${records.length} 个应用的使用记录', tag: 'AppUsage');
       
       // 处理每个应用的logo上传和数据转换
       final appUseRecordData = <Map<String, dynamic>>[];
@@ -837,7 +786,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
           iconBytes = appInfo.icon;
         } catch (e) {
           // 如果找不到应用，iconBytes保持为null
-          logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
+          logWarning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
         }
         
         // 获取或上传logo
@@ -867,16 +816,16 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       
       if (apiResult.isSuccess) {
         OKToastUtil.showSuccess('已成功上报 ${records.length} 个应用的使用记录');
-        logger.info('使用记录上报成功: ${records.length}个应用', tag: 'AppUsage');
+        // logDebug('使用记录上报成功: ${records.length}个应用', tag: 'AppUsage');
       } else {
         OKToastUtil.showError(apiResult.msg ?? '上报失败');
-        logger.error('使用记录上报失败: ${apiResult.msg}', tag: 'AppUsage');
+        logError('使用记录上报失败: ${apiResult.msg}', tag: 'AppUsage');
       }
     } on PlatformException catch (e) {
-      logger.error('采集使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
+      logError('采集使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
       OKToastUtil.showError('采集使用数据失败: ${e.message}');
     } catch (e) {
-      logger.error('采集并上报使用数据异常: $e', tag: 'AppUsage', error: e);
+      logError('采集并上报使用数据异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('操作失败: $e');
     } finally {
       isReporting.value = false;
@@ -909,11 +858,11 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         hourlyRecords: hourlyRecords,
       );
     } on PlatformException catch (e) {
-      logger.error('获取详细使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
+      logError('获取详细使用数据失败: ${e.message}', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取使用数据失败: ${e.message}');
       return null;
     } catch (e) {
-      logger.error('获取详细使用数据异常: $e', tag: 'AppUsage', error: e);
+      logError('获取详细使用数据异常: $e', tag: 'AppUsage', error: e);
       OKToastUtil.showError('获取使用数据失败');
       return null;
     }
@@ -968,7 +917,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
     try {
       await platform.invokeMethod('openUsageSettings');
     } catch (e) {
-      logger.error('打开使用情况设置失败: $e', tag: 'AppUsage', error: e);
+      logError('打开使用情况设置失败: $e', tag: 'AppUsage', error: e);
     }
   }
   
@@ -1098,65 +1047,59 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       final result = await AppUsageApi.getHalfAuthorizedApps();
       if (result.isSuccess && result.data != null) {
         halfAuthorizedApps.value = result.data!;
-        logger.info('加载半授权App成功: ${halfAuthorizedApps.length}', tag: 'AppUsage');
+        // logDebug('加载半授权App成功: ${halfAuthorizedApps.length}', tag: 'AppUsage');
       } else {
         halfAuthorizedApps.value = [];
-        logger.error('加载半授权App失败: ${result.msg}', tag: 'AppUsage');
+        logError('加载半授权App失败: ${result.msg}', tag: 'AppUsage');
       }
     } catch (e) {
       halfAuthorizedApps.value = [];
-      logger.error('加载半授权App异常: $e', tag: 'AppUsage', error: e);
+      logError('加载半授权App异常: $e', tag: 'AppUsage', error: e);
     }
   }
   
   // ==================== 调试方法 ====================
   
-  /// 安全地显示Toast（已废弃，使用OKToastUtil代替）
-  @Deprecated('使用OKToastUtil代替')
-  void _safeShowSnackbar(String title, String message, {Color? backgroundColor, Color? colorText}) {
-    // 直接使用OKToastUtil，不需要检查上下文
-    OKToastUtil.show(message);
-  }
   
   /// 初始化上报服务（自动采集所有应用）
   Future<void> initializeReportService() async {
     try {
       await _reportService.initialize();
-      logger.info('上报服务已初始化（自动采集所有应用）', tag: 'AppUsage');
+      // logDebug('上报服务已初始化（自动采集所有应用）', tag: 'AppUsage');
     } catch (e) {
-      logger.error('初始化上报服务失败: $e', tag: 'AppUsage', error: e);
+      logError('初始化上报服务失败: $e', tag: 'AppUsage', error: e);
     }
   }
   
-  /// 停止上报服务
-  void stopReportService() {
-    _reportService.stop();
-  }
+  // /// 停止上报服务
+  // void stopReportService() {
+  //   _reportService.stop();
+  // }
   
-  /// 查看待上报数据
-  Future<void> debugViewPendingData() async {
-    try {
-      final result = await _reportService.debugViewPendingData();
+  // /// 查看待上报数据
+  // Future<void> debugViewPendingData() async {
+  //   try {
+  //     final result = await _reportService.debugViewPendingData();
       
-      if (!result['success']) {
-        OKToastUtil.show(result['message']);
-        return;
-      }
+  //     if (!result['success']) {
+  //       OKToastUtil.show(result['message']);
+  //       return;
+  //     }
       
-      final allData = result['allData'] as List<AppUsageRecord>;
-      final incrementalData = result['incrementalData'] as List<AppUsageRecord>;
-      final lastReported = result['lastReportedSessions'] as Map<String, int>;
+  //     final allData = result['allData'] as List<AppUsageRecord>;
+  //     final incrementalData = result['incrementalData'] as List<AppUsageRecord>;
+  //     final lastReported = result['lastReportedSessions'] as Map<String, int>;
       
-      // 显示对话框
-      Get.dialog(
-        _buildDebugDataDialog(allData, incrementalData, lastReported),
-        barrierDismissible: true,
-      );
-    } catch (e) {
-      logger.error('查看待上报数据失败: $e', tag: 'AppUsage', error: e);
-      OKToastUtil.showError('查看失败: $e');
-    }
-  }
+  //     // 显示对话框
+  //     Get.dialog(
+  //       _buildDebugDataDialog(allData, incrementalData, lastReported),
+  //       barrierDismissible: true,
+  //     );
+  //   } catch (e) {
+  //     logger.error('查看待上报数据失败: $e', tag: 'AppUsage', error: e);
+  //     OKToastUtil.showError('查看失败: $e');
+  //   }
+  // }
   
   /// 获取或上传app logo URL
   /// [packageName] 应用包名
@@ -1167,15 +1110,15 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       // 先检查缓存
       final cachedUrl = _logoCacheService.getCachedLogoUrl(packageName);
       if (cachedUrl != null && cachedUrl.isNotEmpty) {
-        logger.info('✅ 使用缓存的logo: $packageName -> $cachedUrl', tag: 'AppUsage');
+        // logDebug('✅ 使用缓存的logo: $packageName -> $cachedUrl', tag: 'AppUsage');
         return cachedUrl;
       }
       
       // 缓存中没有，需要上传
-      logger.info('📤 缓存中没有logo，开始上传: $packageName', tag: 'AppUsage');
+      // logDebug('📤 缓存中没有logo，开始上传: $packageName', tag: 'AppUsage');
       
       if (iconBytes.isEmpty) {
-        logger.warning('⚠️ logo数据为空，无法上传: $packageName', tag: 'AppUsage');
+        logWarning('⚠️ logo数据为空，无法上传: $packageName', tag: 'AppUsage');
         return null;
       }
       
@@ -1196,17 +1139,17 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         try {
           await tempFile.delete();
         } catch (e) {
-          logger.warning('删除临时文件失败: $e', tag: 'AppUsage');
+          logWarning('删除临时文件失败: $e', tag: 'AppUsage');
         }
         
         if (result.isSuccess && result.data != null) {
           final logoUrl = result.data!;
           // 缓存URL
           await _logoCacheService.cacheLogoUrl(packageName, logoUrl);
-          logger.info('✅ logo上传成功: $packageName -> $logoUrl', tag: 'AppUsage');
+          // logDebug('✅ logo上传成功: $packageName -> $logoUrl', tag: 'AppUsage');
           return logoUrl;
         } else {
-          logger.error('logo上传失败: ${result.msg}', tag: 'AppUsage');
+          logError('logo上传失败: ${result.msg}', tag: 'AppUsage');
           return null;
         }
       } catch (e) {
@@ -1219,7 +1162,7 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
         rethrow;
       }
     } catch (e) {
-      logger.error('获取或上传logo失败: $packageName, $e', tag: 'AppUsage', error: e);
+      logError('获取或上传logo失败: $packageName, $e', tag: 'AppUsage', error: e);
       return null;
     }
   }
@@ -1258,446 +1201,8 @@ class AppUsageController extends GetxController with WidgetsBindingObserver {
       'record': recordList,
     };
   }
-  
-  /// 全量上报
-  Future<void> debugFullReport() async {
-    try {
-      isReporting.value = true;
-      
-      // 获取全量数据
-      final result = await _reportService.debugFullReport();
-      
-      if (!result['success']) {
-        OKToastUtil.show(result['message']);
-        return;
-      }
-      
-      final records = result['data'] as List<AppUsageRecord>;
-      
-      if (records.isEmpty) {
-        OKToastUtil.show('暂无使用记录需要上报');
-        return;
-      }
-      
-      logger.info('开始全量上报: ${records.length}个应用', tag: 'AppUsage');
-      
-      // 处理每个应用的logo上传和数据转换
-      final appUseRecordData = <Map<String, dynamic>>[];
-      int? dateInt;
-      
-      for (final record in records) {
-        // 获取应用的icon（从apps列表中查找）
-        Uint8List? iconBytes;
-        try {
-          final appInfo = apps.firstWhere((app) => app.packageName == record.packageName);
-          iconBytes = appInfo.icon;
-        } catch (e) {
-          // 如果找不到应用，iconBytes保持为null
-          logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
-        }
-        
-        // 获取或上传logo
-        String? logoUrl;
-        if (iconBytes != null && iconBytes.isNotEmpty) {
-          logoUrl = await _getOrUploadLogo(record.packageName, iconBytes);
-        }
-        
-        // 转换数据格式
-        final convertedData = _convertRecordToReportFormat(record, logoUrl);
-        appUseRecordData.add(convertedData);
-        
-        // 获取日期（使用第一个记录的日期）
-        if (dateInt == null) {
-          final dateParts = record.date.split('-');
-          dateInt = int.parse('${dateParts[0]}${dateParts[1].padLeft(2, '0')}${dateParts[2].padLeft(2, '0')}');
-        }
-      }
-      
-      if (appUseRecordData.isEmpty) {
-        _safeShowSnackbar('提示', '没有可上报的数据');
-        return;
-      }
-      
-      // 上报数据
-      final reportResult = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
-      
-      if (reportResult.isSuccess) {
-        _safeShowSnackbar(
-          '成功',
-          '全量上报成功: ${records.length}个应用',
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
-        logger.info('✅ 全量上报成功: ${records.length}个应用', tag: 'AppUsage');
-      } else {
-        _safeShowSnackbar('错误', reportResult.msg ?? '上报失败');
-        logger.error('全量上报失败: ${reportResult.msg}', tag: 'AppUsage');
-      }
-    } catch (e) {
-      logger.error('全量上报失败: $e', tag: 'AppUsage', error: e);
-      _safeShowSnackbar('错误', '上报失败: $e');
-    } finally {
-      isReporting.value = false;
-    }
-  }
-  
-  /// 增量上报
-  Future<void> debugIncrementalReport() async {
-    try {
-      isReporting.value = true;
-      
-      // 获取增量数据
-      final result = await _reportService.debugIncrementalReport();
-      
-      if (!result['success']) {
-        _safeShowSnackbar('提示', result['message']);
-        return;
-      }
-      
-      final records = result['data'] as List<AppUsageRecord>;
-      
-      if (records.isEmpty) {
-        _safeShowSnackbar('提示', '暂无新增使用记录需要上报');
-        return;
-      }
-      
-      logger.info('开始增量上报: ${records.length}个应用', tag: 'AppUsage');
-      
-      // 处理每个应用的logo上传和数据转换
-      final appUseRecordData = <Map<String, dynamic>>[];
-      int? dateInt;
-      
-      for (final record in records) {
-        // 获取应用的icon（从apps列表中查找）
-        Uint8List? iconBytes;
-        try {
-          final appInfo = apps.firstWhere((app) => app.packageName == record.packageName);
-          iconBytes = appInfo.icon;
-        } catch (e) {
-          // 如果找不到应用，iconBytes保持为null
-          logger.warning('未找到应用图标: ${record.packageName}', tag: 'AppUsage');
-        }
-        
-        // 获取或上传logo
-        String? logoUrl;
-        if (iconBytes != null && iconBytes.isNotEmpty) {
-          logoUrl = await _getOrUploadLogo(record.packageName, iconBytes);
-        }
-        
-        // 转换数据格式
-        final convertedData = _convertRecordToReportFormat(record, logoUrl);
-        appUseRecordData.add(convertedData);
-        
-        // 获取日期（使用第一个记录的日期）
-        if (dateInt == null) {
-          final dateParts = record.date.split('-');
-          dateInt = int.parse('${dateParts[0]}${dateParts[1].padLeft(2, '0')}${dateParts[2].padLeft(2, '0')}');
-        }
-      }
-      
-      if (appUseRecordData.isEmpty) {
-        _safeShowSnackbar('提示', '没有可上报的数据');
-        return;
-      }
-      
-      // 上报数据
-      final reportResult = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
-      
-      if (reportResult.isSuccess) {
-        _safeShowSnackbar(
-          '成功',
-          '增量上报成功: ${records.length}个应用',
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
-        logger.info('✅ 增量上报成功: ${records.length}个应用', tag: 'AppUsage');
-      } else {
-        _safeShowSnackbar('错误', reportResult.msg ?? '上报失败');
-        logger.error('增量上报失败: ${reportResult.msg}', tag: 'AppUsage');
-      }
-    } catch (e) {
-      logger.error('增量上报失败: $e', tag: 'AppUsage', error: e);
-      _safeShowSnackbar('错误', '上报失败: $e');
-    } finally {
-      isReporting.value = false;
-    }
-  }
+   
 
-  /// 上传图片（测试上传手机app logo）
-  /// 从已安装应用列表中获取第一个应用的logo，转换为文件格式后上传
-  Future<void> debugUploadImage() async {
-    try {
-      // 检查是否有已安装的应用
-      if (apps.isEmpty) {
-        OKToastUtil.show('暂无已安装应用，请先加载应用列表');
-        logger.warning('应用列表为空，无法上传logo', tag: 'AppUsage');
-        return;
-      }
-      
-      // 选择第一个应用进行测试
-      final testApp = apps.first;
-      logger.info('开始上传应用logo: ${testApp.appName} (${testApp.packageName})', tag: 'AppUsage');
-      
-      // 检查icon数据是否有效
-      if (testApp.icon.isEmpty) {
-        OKToastUtil.showError('应用logo数据为空');
-        logger.error('应用logo数据为空: ${testApp.appName}', tag: 'AppUsage');
-        return;
-      }
-      
-      // 创建临时文件
-      final tempDir = Directory.systemTemp;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      // 根据icon数据判断文件格式（Android应用图标通常是PNG格式）
-      final tempFile = File('${tempDir.path}/app_logo_${testApp.packageName}_$timestamp.png');
-      
-      try {
-        // 将Uint8List写入临时文件
-        await tempFile.writeAsBytes(testApp.icon);
-        logger.info('临时文件创建成功: ${tempFile.path}, 大小: ${testApp.icon.length} bytes', tag: 'AppUsage');
-        
-        // 上传文件
-        final fileUploadApi = FileUploadApi();
-        final result = await fileUploadApi.uploadFile(tempFile);
-        
-        // 删除临时文件
-        try {
-          await tempFile.delete();
-          logger.info('临时文件已删除: ${tempFile.path}', tag: 'AppUsage');
-        } catch (e) {
-          logger.warning('删除临时文件失败: $e', tag: 'AppUsage');
-        }
-        
-        // 处理上传结果
-        if (result.isSuccess && result.data != null) {
-           
-        } else {
-           
-          logger.error('应用logo上传失败: ${result.msg}', tag: 'AppUsage');
-        }
-      } catch (e) {
-        // 确保临时文件被删除
-        try {
-          if (await tempFile.exists()) {
-            await tempFile.delete();
-          }
-        } catch (_) {}
-        
-        rethrow;
-      }
-    } catch (e) {
-      logger.error('上传图片失败: $e', tag: 'AppUsage', error: e);
-      OKToastUtil.showError('上传失败: $e');
-    }
-  }
-  
-  /// 清空本地记录
-  Future<void> debugClearLocalData() async {
-    try {
-      await _reportService.debugClearLocalData();
-      OKToastUtil.showSuccess('本地记录已清空');
-    } catch (e) {
-      logger.error('清空本地记录失败: $e', tag: 'AppUsage', error: e);
-      OKToastUtil.showError('清空失败: $e');
-    }
-  }
-  
-  /// 构建调试数据对话框
-  Widget _buildDebugDataDialog(
-    List<AppUsageRecord> allData,
-    List<AppUsageRecord> incrementalData,
-    Map<String, int> lastReported,
-  ) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: double.maxFinite,
-        constraints: const BoxConstraints(maxHeight: 600),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF839E),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '待上报数据',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Get.back(),
-                  ),
-                ],
-              ),
-            ),
-            
-            // 统计信息
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFFFFF5F7),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildDebugStatCard('全量数据', '${allData.length}个'),
-                  Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
-                  _buildDebugStatCard('增量数据', '${incrementalData.length}个'),
-                  Container(width: 1, height: 40, color: const Color(0xFFFFD4DF)),
-                  _buildDebugStatCard('已上报', '${lastReported.length}个'),
-                ],
-              ),
-            ),
-            
-            // 数据列表
-            Expanded(
-              child: DefaultTabController(
-                length: 2,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const TabBar(
-                      labelColor: Color(0xFFFF839E),
-                      unselectedLabelColor: Color(0xFF999999),
-                      indicatorColor: Color(0xFFFF839E),
-                      tabs: [
-                        Tab(text: '全量数据'),
-                        Tab(text: '增量数据'),
-                      ],
-                    ),
-                    Flexible(
-                      child: TabBarView(
-                        children: [
-                          _buildDebugDataList(allData),
-                          _buildDebugDataList(incrementalData),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // 底部按钮
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Get.back(),
-                    child: const Text(
-                      '关闭',
-                      style: TextStyle(fontSize: 16, color: Color(0xFFFF839E)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildDebugStatCard(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFFF839E),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildDebugDataList(List<AppUsageRecord> records) {
-    if (records.isEmpty) {
-      return const Center(
-        child: Text(
-          '暂无数据',
-          style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
-        ),
-      );
-    }
-    
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: records.length,
-      separatorBuilder: (context, index) => const Divider(height: 16),
-      itemBuilder: (context, index) {
-        final record = records[index];
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                record.appName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF333333),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                record.packageName,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 14, color: Color(0xFF999999)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${(record.totalDuration / 60000).toStringAsFixed(1)}分钟',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.touch_app, size: 14, color: Color(0xFF999999)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${record.sessionCount}次',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
 /// 应用信息模型

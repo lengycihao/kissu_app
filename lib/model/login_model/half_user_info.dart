@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'login_model.dart';
 
 part 'half_user_info.g.dart';
 
@@ -27,6 +28,8 @@ class HalfUserInfo {
   @JsonKey(name: 'vip_end_time')
   int? vipEndTime;
   String? channel;
+  @JsonKey(name: 'current_channel')
+  String? currentChannel;
   @JsonKey(name: 'mobile_model')
   String? mobileModel;
   @JsonKey(name: 'device_id')
@@ -38,25 +41,35 @@ class HalfUserInfo {
   @JsonKey(name: 'city_name')
   String? cityName;
   @JsonKey(name: 'bind_status')
+  @StringToIntConverter()
   String? bindStatus;
   @JsonKey(name: 'lately_bind_time')
-  String? latelyBindTime;
+  @StringToIntConverter()
+  int? latelyBindTime;
   @JsonKey(name: 'lately_unbind_time')
-  String? latelyUnbindTime;
+  @StringToIntConverter()
+  int? latelyUnbindTime;
   @JsonKey(name: 'lately_login_time')
-  String? latelyLoginTime;
+  @StringToIntConverter()
+  int? latelyLoginTime;
   @JsonKey(name: 'lately_pay_time')
-  String? latelyPayTime;
+  @StringToIntConverter()
+  int? latelyPayTime;
   @JsonKey(name: 'login_nums')
-  String? loginNums;
+  @StringToIntConverter()
+  int? loginNums;
   @JsonKey(name: 'open_app_nums')
-  String? openAppNums;
+  @StringToIntConverter()
+  int? openAppNums;
   @JsonKey(name: 'lately_open_app_time')
-  String? latelyOpenAppTime;
+  @StringToIntConverter()
+  int? latelyOpenAppTime;
   @JsonKey(name: 'is_test')
-  String? isTest;
+  @StringToIntConverter()
+  int? isTest;
   @JsonKey(name: 'is_order_vip')
-  String? isOrderVip;
+  @StringToIntConverter()
+  int? isOrderVip;
   @JsonKey(name: 'vip_end_date')
   String? vipEndDate;
   @JsonKey(name: 'is_vip')
@@ -78,6 +91,7 @@ class HalfUserInfo {
     this.isForEverVip,
     this.vipEndTime,
     this.channel,
+    this.currentChannel,
     this.mobileModel,
     this.deviceId,
     this.uniqueId,

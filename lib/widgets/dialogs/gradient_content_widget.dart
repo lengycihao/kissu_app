@@ -18,15 +18,9 @@ class GradientContentWidget extends StatelessWidget {
     return Container(
       height: height,
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFE4F1), // #FFE4F1
-            Color(0xFFFFFFFF), // #FFFFFF
-            Color(0xFFFFF4DB), // #FFF4DB
-          ],
-          stops: [0.0, 0.5, 1.0],
+        image: DecorationImage(
+          image: AssetImage('assets/dialog/kissu_bind_dialog.webp'),
+          fit: BoxFit.cover,
         ),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),

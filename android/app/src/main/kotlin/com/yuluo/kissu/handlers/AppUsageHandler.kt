@@ -4,8 +4,10 @@ import android.app.Activity
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import io.flutter.plugin.common.MethodChannel
@@ -331,22 +333,36 @@ class AppUsageHandler(private val activity: Activity) {
             if (eventType == 1) {
                 lastOpenTime = timestamp
             } else if (eventType == 0 && lastOpenTime != null) {
-                rawSessions.add(mapOf(
-                    "openTime" to lastOpenTime,
-                    "closeTime" to timestamp,
-                    "duration" to (timestamp - lastOpenTime)
-                ))
+                // 🔥 跨天会话处理：如果openTime在今天0点之前，调整为今天0点
+                val adjustedOpenTime = if (lastOpenTime < startTime) startTime else lastOpenTime
+                val duration = timestamp - adjustedOpenTime
+                
+                // 只添加有效时长的会话（调整后时长>0）
+                if (duration > 0) {
+                    rawSessions.add(mapOf(
+                        "openTime" to adjustedOpenTime,
+                        "closeTime" to timestamp,
+                        "duration" to duration
+                    ))
+                }
                 lastOpenTime = null
             }
         }
         
         if (lastOpenTime != null) {
-            rawSessions.add(mapOf(
-                "openTime" to lastOpenTime,
-                "closeTime" to -1L,
-                "duration" to (endTime - lastOpenTime),
-                "isRunning" to true
-            ))
+            // 🔥 跨天会话处理：如果openTime在今天0点之前，调整为今天0点
+            val adjustedOpenTime = if (lastOpenTime < startTime) startTime else lastOpenTime
+            val duration = endTime - adjustedOpenTime
+            
+            // 只添加有效时长的会话
+            if (duration > 0) {
+                rawSessions.add(mapOf(
+                    "openTime" to adjustedOpenTime,
+                    "closeTime" to -1L,
+                    "duration" to duration,
+                    "isRunning" to true
+                ))
+            }
         }
         
         // 使用清理后的会话数据（过滤+合并）
@@ -355,16 +371,11 @@ class AppUsageHandler(private val activity: Activity) {
         // 按小时分组统计
         val hourlyRecords = buildHourlyRecords(sessions, endTime)
         
-         // 这样可以确保date字段与实际数据的日期一致
+        // 🔥 修复：date字段应该始终使用查询的目标日期（startTime对应的日期）
+        // 而不是根据会话的openTime来决定，避免跨天会话导致日期错乱
+        // 例如：凌晨0:01上报时，如果有昨晚23:50开始的会话，date不应该变成昨天
         val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val date = if (sessions.isNotEmpty()) {
-            // 找到最早的会话时间戳
-            val earliestTime = sessions.minOfOrNull { it["openTime"] as Long } ?: startTime
-            dateFormat.format(java.util.Date(earliestTime))
-        } else {
-            // 如果没有会话数据，使用当前日期（endTime对应的日期）
-            dateFormat.format(java.util.Date(endTime))
-        }
+        val date = dateFormat.format(java.util.Date(startTime))
         
         return mapOf(
             "appName" to appName,
@@ -445,9 +456,13 @@ class AppUsageHandler(private val activity: Activity) {
     /**
      * 获取所有有使用记录的应用数据
      * 自动获取当天所有有使用记录的应用，不需要传入包名列表
+     * 
+     * 🔥 优化：参考 new_lock 项目，使用 queryIntentActivities 获取所有启动器应用
+     * 避免过度过滤导致正常应用被排除
      */
     private fun getAllUsageData(): List<Map<String, Any>> {
         val usageStatsManager = activity.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val pm = activity.packageManager
         val calendar = java.util.Calendar.getInstance()
         calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
         calendar.set(java.util.Calendar.MINUTE, 0)
@@ -456,70 +471,55 @@ class AppUsageHandler(private val activity: Activity) {
         val startTime = calendar.timeInMillis
         val endTime = System.currentTimeMillis()
         
-        // 获取今天所有应用的使用统计
+        // 🔥 优化：使用 queryIntentActivities 获取所有有启动器图标的应用
+        val intent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        
+        val resolveInfoList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.queryIntentActivities(intent, android.content.pm.PackageManager.ResolveInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            pm.queryIntentActivities(intent, 0)
+        }
+        
+        // 获取今天所有应用的使用统计（用于过滤有使用记录的应用）
         val usageStats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY,
             startTime,
             endTime
         )
         
-        val result = mutableListOf<Map<String, Any>>()
-        val pm = activity.packageManager
+        // 创建使用统计的包名集合（只包含有使用记录的应用）
+        val usedPackages = usageStats
+            .filter { it.totalTimeInForeground > 0 }
+            .map { it.packageName }
+            .toSet()
         
-        // 遍历所有有使用记录的应用
-        for (stats in usageStats) {
-            // 只处理今天有使用记录的应用（总使用时长 > 0）
-            if (stats.totalTimeInForeground > 0) {
-                try {
-                    val packageName = stats.packageName
-                    
-                    // 检查应用是否仍然安装
-                    val appInfo = pm.getApplicationInfo(packageName, 0)
-                    
-                    // 🔧 过滤系统应用
-                    val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
-                    val isUpdatedSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-                    
-                    // 跳过纯系统应用
-                    if (isSystemApp && !isUpdatedSystemApp) {
-                        continue
-                    }
-                    
-                    // 🔧 额外过滤：跳过系统组件和服务
-                    // 1. 没有启动器入口的应用（用户无法直接打开）
-                    val launchIntent = pm.getLaunchIntentForPackage(packageName)
-                    if (launchIntent == null) {
-                        continue
-                    }
-                    
-                    // 2. 过滤常见的系统包名前缀
-                    val systemPrefixes = listOf(
-                        "com.android.",
-                        "com.google.android.",
-                        "android.",
-                        "com.miui.system",
-                        "com.xiaomi.system",
-                        "com.huawei.system",
-                        "com.oppo.system",
-                        "com.vivo.system",
-                        "com.samsung.android.app.system"
-                    )
-                    if (systemPrefixes.any { packageName.startsWith(it) }) {
-                        continue
-                    }
-                    
-                    // 获取详细使用数据
-                    val detailedData = getDetailedUsageData(packageName)
-                    
-                    // 只添加有hourlyRecords的应用
-                    val hourlyRecords = detailedData["hourlyRecords"] as? List<*>
-                    if (hourlyRecords != null && hourlyRecords.isNotEmpty()) {
-                        result.add(detailedData)
-                    }
-                } catch (e: Exception) {
-                    // 应用可能已被卸载，跳过
-                    Log.w(TAG, "跳过应用: ${stats.packageName}, 原因: ${e.message}")
+        val result = mutableListOf<Map<String, Any>>()
+        
+        // 遍历所有有启动器图标的应用
+        for (resolveInfo in resolveInfoList) {
+            val packageName = resolveInfo.activityInfo.packageName
+            
+            // 排除自己
+            if (packageName == activity.packageName) continue
+            
+            // 只处理今天有使用记录的应用
+            if (!usedPackages.contains(packageName)) continue
+            
+            try {
+                // 获取详细使用数据
+                val detailedData = getDetailedUsageData(packageName)
+                
+                // 只添加有hourlyRecords的应用
+                val hourlyRecords = detailedData["hourlyRecords"] as? List<*>
+                if (hourlyRecords != null && hourlyRecords.isNotEmpty()) {
+                    result.add(detailedData)
                 }
+            } catch (e: Exception) {
+                // 应用可能已被卸载，跳过
+                Log.w(TAG, "跳过应用: $packageName, 原因: ${e.message}")
             }
         }
         

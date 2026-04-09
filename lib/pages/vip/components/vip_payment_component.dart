@@ -117,7 +117,7 @@ class VipPaymentComponent extends GetView<VipController> {
                       final isVip = controller.isVipStatus.value;
                       final animationPath = isVip 
                           ? 'assets/json/renew.json' 
-                          : 'assets/json/recharge.json';
+                          : 'assets/json/recharge_new.json';
                       
                       return SizedBox(
                         width: 150,
@@ -177,7 +177,7 @@ class VipPaymentComponent extends GetView<VipController> {
                           ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () async {
-                              await controller.onServiceAgreementTap();
+                            
                               AgreementUtils.toVipAgreement();
                             },
                         ),

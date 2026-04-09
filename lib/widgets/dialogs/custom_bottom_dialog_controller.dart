@@ -6,10 +6,9 @@ import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/services/share_service.dart';
-import 'package:kissu_app/services/tracking_service.dart';
-import 'package:kissu_app/services/relationship_animation_service.dart';
 import 'package:kissu_app/services/tencent_im_service.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
@@ -18,22 +17,19 @@ import 'package:kissu_app/pages/usage_report/usage_report_controller.dart';
 import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 import 'package:kissu_app/pages/mine/device_usage/device_usage_controller.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
-
-/// 调用绑定弹窗的页面类型
-enum BindingDialogCaller {
-  home,        // 首页
-  mine,        // 我的页面
-  loveInfo,    // 恋爱信息页面
-  track,       // 足迹页面
-  location,    // 定位页面
-  usageReport, // 用机记录页面（敏感操作记录）
-  deviceUsage, // 用机记录页面（新的用机记录页面）
-}
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
 
 /// 自定义底部弹窗控制器
 class CustomBottomDialogController extends GetxController {
   // 调用者页面类型
-  BindingDialogCaller? caller;
+  SourcePageUtilsCaller? caller;
+  // 来源事件ID（触发绑定弹窗的事件ID）
+  String? sourceEvent;
   // 匹配码输入框控制器
   late TextEditingController matchCodeController;
 
@@ -48,12 +44,20 @@ class CustomBottomDialogController extends GetxController {
 
   // 输入的匹配码（用于响应式更新UI）
   var inputMatchCode = ''.obs;
-  
+
   // 是否应该关闭弹窗（用于IM绑定消息触发关闭）
   var shouldClose = false.obs;
 
-  // 页面浏览时长统计
-  DateTime? _pageEnterTime;
+  // 埋点相关：页面进入时间（十位时间戳）
+  int? _pageEnterTime;
+
+  // 埋点相关：离开方式
+  int _exitType = ExitTypeValue.back;
+  // 是否已记录页面离开
+  bool _hasTrackedPageExit = false;
+
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
 
   @override
   void onInit() {
@@ -69,15 +73,20 @@ class CustomBottomDialogController extends GetxController {
       );
     });
 
-    // 记录页面进入时间（用于计算停留时长）
-    _pageEnterTime = DateTime.now();
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
 
     _loadUserInfo();
-    
+
     // 监听IM绑定消息，当收到绑定消息时自动关闭弹窗
     _setupBindMessageListener();
   }
-  
+
   /// 设置绑定消息监听器
   /// 当收到IM绑定消息时，自动关闭绑定弹窗
   void _setupBindMessageListener() {
@@ -99,16 +108,16 @@ class CustomBottomDialogController extends GetxController {
 
   @override
   void onClose() {
-    // 上报页面浏览埋点
+    // 埋点：记录页面离开事件
     _trackPageView();
-    
+
     // 清除IM绑定消息监听器
     _removeBindMessageListener();
-    
+
     matchCodeController.dispose();
     super.onClose();
   }
-  
+
   /// 移除绑定消息监听器
   void _removeBindMessageListener() {
     try {
@@ -123,61 +132,35 @@ class CustomBottomDialogController extends GetxController {
     }
   }
 
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-    
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-      
-      // 获取上一个页面名称和ID
-      final pageInfo = _getPreviousPageInfo();
-      
-      // 上报埋点
-      await TrackingService.trackBindPageView(
-        stayDuration: stayDuration,
-        previousName: pageInfo['name']!,
-        previousId: pageInfo['id']!,
-      );
-      
-      logDebug('✅ 绑定页面浏览埋点上报成功: 停留时长=$stayDuration, 上一页=${pageInfo['name']}, 页面ID=${pageInfo['id']}', tag: 'BindingDialog');
-    } catch (e) {
-      logError('❌ 绑定页面浏览埋点上报失败: $e', tag: 'BindingDialog', error: e);
-    }
-  }
-
   /// 获取上一个页面信息（基于调用者类型）
-  Map<String, String> _getPreviousPageInfo() {
-    if (caller == null) {
-      return {'name': '未知页面', 'id': 'unknown'};
-    }
-    
-    switch (caller!) {
-      case BindingDialogCaller.home:
-        return {'name': '首页', 'id': 'home'};
-      case BindingDialogCaller.mine:
-        return {'name': '我的页面', 'id': 'mine'};
-      case BindingDialogCaller.loveInfo:
-        return {'name': '恋爱信息页面', 'id': 'love_info'};
-      case BindingDialogCaller.track:
-        return {'name': '足迹页面', 'id': 'track'};
-      case BindingDialogCaller.location:
-        return {'name': '定位页面', 'id': 'location'};
-      case BindingDialogCaller.usageReport:
-        return {'name': '用机记录页面', 'id': 'usage_report'};
-      case BindingDialogCaller.deviceUsage:
-        return {'name': '用机记录页面', 'id': 'device_usage'};
-    }
-  }
+  // Map<String, String> _getPreviousPageInfo() {
+  //   if (caller == null) {
+  //     return {'name': '未知页面', 'id': 'unknown'};
+  //   }
+
+  //   switch (caller!) {
+  //     case BindingDialogCaller.home:
+  //       return {'name': '首页', 'id': 'home'};
+  //     case BindingDialogCaller.mine:
+  //       return {'name': '我的页面', 'id': 'mine'};
+  //     case BindingDialogCaller.loveInfo:
+  //       return {'name': '恋爱信息页面', 'id': 'love_info'};
+  //     case BindingDialogCaller.track:
+  //       return {'name': '足迹页面', 'id': 'track'};
+  //     case BindingDialogCaller.location:
+  //       return {'name': '定位页面', 'id': 'location'};
+  //     case BindingDialogCaller.usageReport:
+  //       return {'name': '用机记录页面', 'id': 'usage_report'};
+  //     case BindingDialogCaller.deviceUsage:
+  //       return {'name': '用机记录页面', 'id': 'device_usage'};
+  //   }
+  // }
 
   /// 加载用户信息
   void _loadUserInfo() {
     // 使用 UserManager 统一获取用户信息
     userMatchCode.value = UserManager.friendCodeOrDefault;
-    
+
     final user = UserManager.currentUser;
     // 设置二维码
     if (user?.friendQrCode?.isNotEmpty == true) {
@@ -190,7 +173,7 @@ class CustomBottomDialogController extends GetxController {
   }
 
   /// 绑定另一半
-  Future<void> bindPartner() async {
+  Future<void> bindPartner({required int bindType}) async {
     final inputCode = matchCodeController.text.trim();
     if (inputCode.isEmpty) {
       OKToastUtil.show('请输入匹配码');
@@ -205,52 +188,59 @@ class CustomBottomDialogController extends GetxController {
     try {
       isLoading.value = true;
 
-      // 上报绑定按钮点击埋点
-      await TrackingService.trackBindCodeButton();
-
       // 调用绑定API
       final authApi = AuthApi();
       final result = await authApi.bindPartner(friendCode: inputCode);
 
       if (result.isSuccess) {
-        // 刷新用户信息
-        await _refreshUserInfo();
-
+        // 埋点：确认绑定事件
+        trackBindSure(
+          success: result.isSuccess,
+          bindType: bindType,
+          friendCode: inputCode,
+          errorMsg: '绑定成功',
+        );
         // 关闭弹窗
         Get.back();
         logDebug('绑定成功，关闭弹窗', tag: 'BindingDialog');
 
-        // 刷新当前页面数据
-        _refreshCurrentPageData();
+        // 刷新用户信息（确保本地缓存是最新的）
+        await _refreshUserInfo();
 
-        // 播放绑定成功动画，动画完成后跳转到VIP页面
-        try {
-          final animationService = RelationshipAnimationService.instance;
-          animationService.showBindAnimation(onComplete: () {
-            logDebug('🎯 绑定动画播放完成，准备跳转到VIP页面', tag: 'BindingDialog');
-            Get.toNamed(
-              KissuRoutePath.vip,
-              arguments: {
-                'previousPageName': '绑定弹窗',
-                'previousPageId': 'binding_dialog',
-              },
-            );
-          });
-        } catch (e) {
-          logError('❌ 播放绑定动画失败: $e', tag: 'BindingDialog', error: e);
-          // 如果动画服务失败，直接跳转到VIP页面
-          Get.toNamed(
-            KissuRoutePath.vip,
-            arguments: {
-              'previousPageName': '绑定弹窗',
-              'previousPageId': 'binding_dialog',
-            },
-          );
-        }
+        // 刷新当前页面数据（等待完成）
+        await _refreshCurrentPageData();
+        WidgetCenterController.syncWidgetDataOnResume();
+
+        // 注意：绑定成功后的动画播放和VIP页面跳转由 TencentIMService._handleBindMessage 统一处理
+        // TencentIMService 会在收到 bindAndroid 消息后：
+        // 1. 刷新用户信息
+        // 2. 刷新当前页面
+        // 3. 播放绑定动画
+        // 4. 动画完成后根据VIP状态决定是否跳转到VIP页面
+        //
+        // 这里不再播放动画，避免与 TencentIMService 产生竞态条件
+        logDebug(
+          '✅ BindingDialog处理完成，动画和VIP跳转由TencentIMService处理',
+          tag: 'BindingDialog',
+        );
       } else {
+        trackBindSure(
+          success: false,
+          bindType: bindType,
+          friendCode: inputCode,
+          errorMsg: result.msg ?? '绑定失败',
+        );
+        logError(result.msg ?? '绑定失败', tag: 'BindingDialog');
         OKToastUtil.show(result.msg ?? '绑定失败');
       }
     } catch (e) {
+      trackBindSure(
+        success: false,
+        bindType: bindType,
+        friendCode: inputCode,
+        errorMsg: '绑定失败: $e',
+      );
+      logError('绑定失败: $e', tag: 'BindingDialog', error: e);
       OKToastUtil.show('绑定失败: $e');
     } finally {
       isLoading.value = false;
@@ -283,7 +273,7 @@ class CustomBottomDialogController extends GetxController {
 
       // 根据调用者类型刷新对应的控制器
       switch (caller!) {
-        case BindingDialogCaller.home:
+        case SourcePageUtilsCaller.home:
           if (Get.isRegistered<HomeController>()) {
             try {
               final homeController = Get.find<HomeController>();
@@ -295,7 +285,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.mine:
+        case SourcePageUtilsCaller.mine:
           if (Get.isRegistered<MineController>()) {
             try {
               final mineController = Get.find<MineController>();
@@ -307,13 +297,12 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.loveInfo:
+        case SourcePageUtilsCaller.loveInfo:
           if (Get.isRegistered<LoveInfoController>()) {
             try {
               final loveInfoController = Get.find<LoveInfoController>();
-              // 延迟一下，确保UserManager的数据已经更新
-              await Future.delayed(const Duration(milliseconds: 100));
-              loveInfoController.refreshUserInfo();
+              // 🔥 修复：从服务器刷新用户信息，而不是只读取本地缓存
+              await loveInfoController.refreshFromServer();
               logDebug('✅ 恋爱信息页数据刷新完成', tag: 'BindingDialog');
             } catch (e) {
               logError('❌ 刷新恋爱信息页控制器失败: $e', tag: 'BindingDialog', error: e);
@@ -321,7 +310,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.track:
+        case SourcePageUtilsCaller.track:
           if (Get.isRegistered<TrackController>()) {
             try {
               final trackController = Get.find<TrackController>();
@@ -333,7 +322,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.location:
+        case SourcePageUtilsCaller.location:
           if (Get.isRegistered<LocationV2Controller>()) {
             try {
               final locationController = Get.find<LocationV2Controller>();
@@ -345,7 +334,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.usageReport:
+        case SourcePageUtilsCaller.usageReport:
           if (Get.isRegistered<UsageReportController>()) {
             try {
               final usageReportController = Get.find<UsageReportController>();
@@ -357,7 +346,7 @@ class CustomBottomDialogController extends GetxController {
           }
           break;
 
-        case BindingDialogCaller.deviceUsage:
+        case SourcePageUtilsCaller.deviceUsage:
           if (Get.isRegistered<DeviceUsageController>()) {
             try {
               final deviceUsageController = Get.find<DeviceUsageController>();
@@ -368,6 +357,17 @@ class CustomBottomDialogController extends GetxController {
               logError('❌ 刷新用机记录页（新）控制器失败: $e', tag: 'BindingDialog', error: e);
             }
           }
+          break;
+        case SourcePageUtilsCaller.chat:
+          // 聊天页面不需要刷新数据
+          break;
+        case SourcePageUtilsCaller.bind:
+          break;
+        case SourcePageUtilsCaller.changeLogo:
+          // 更换Logo页面不需要刷新数据
+          break;
+        case SourcePageUtilsCaller.unbindPage:
+          // 更换Logo页面不需要刷新数据
           break;
       }
 
@@ -385,27 +385,21 @@ class CustomBottomDialogController extends GetxController {
 
   /// 分享到QQ
   void shareToQQ() {
-    // 上报QQ邀请埋点
-    TrackingService.trackQQInvite();
-    
     Get.back(); // 关闭弹窗
     _shareInvite(target: 'QQ');
   }
 
   /// 分享到微信
   void shareToWechat() {
-    // 上报微信邀请埋点
-    TrackingService.trackWechatInvite();
-    
     Get.back(); // 关闭弹窗
     _shareInvite(target: '微信');
   }
 
   /// 扫描二维码
   void scanQRCode() {
-    // 上报扫码按钮埋点
-    TrackingService.trackScanToBind();
-    
+    // 埋点：页面离开（进入下一页）
+    _trackPageExit(ExitTypeValue.nextPage);
+
     Get.toNamed(KissuRoutePath.qrScanPage)?.then((value) {
       if (value is String && value.isNotEmpty) {
         // 根据扫码结果做处理
@@ -415,7 +409,7 @@ class CustomBottomDialogController extends GetxController {
           // 扫描成功，直接开始绑定流程
           matchCodeController.text = friendCode;
           // 自动执行绑定
-          bindPartner();
+          bindPartner(bindType: BindTypeValue.scan);
         } else {
           OKToastUtil.show('未识别到匹配码');
         }
@@ -467,7 +461,7 @@ class CustomBottomDialogController extends GetxController {
                   Get.back();
                 },
                 child: Container(
-                   decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -483,6 +477,7 @@ class CustomBottomDialogController extends GetxController {
         ),
       );
     } else {
+      logError('二维码未生成', tag: 'BindingDialog');
       OKToastUtil.show('二维码未生成');
     }
   }
@@ -536,7 +531,7 @@ class CustomBottomDialogController extends GetxController {
           logDebug('QQ分享结果: $shareResult', tag: 'BindingDialog');
 
           if (shareResult['success'] == true) {
-            OKToastUtil.show('QQ分享成功');
+            // OKToastUtil.show('QQ分享成功');
           } else {
             final errorMsg = shareResult['message'] ?? '分享失败';
             OKToastUtil.show('QQ分享失败: $errorMsg');
@@ -563,4 +558,107 @@ class CustomBottomDialogController extends GetxController {
   //     OKToastUtil.show('复制失败，请手动复制匹配码：${userMatchCode.value}');
   //   }
   // }
+
+  // ==================== 埋点方法 ====================
+
+  /// 根据 caller 获取来源页面ID
+  String? _getSourcePageFromCaller() {
+    if (caller == null) return PageSourceIds.home;
+
+    switch (caller!) {
+      case SourcePageUtilsCaller.home:
+        return PageSourceIds.home;
+      case SourcePageUtilsCaller.mine:
+        return PageSourceIds.myPage;
+      case SourcePageUtilsCaller.loveInfo:
+        return PageSourceIds.editProfile; // 恋爱信息页面归类到编辑资料
+      case SourcePageUtilsCaller.track:
+        return PageSourceIds.track;
+      case SourcePageUtilsCaller.location:
+        return PageSourceIds.location;
+      case SourcePageUtilsCaller.usageReport:
+        return PageSourceIds.sensitiveRecords; // 用机记录（敏感操作）
+      case SourcePageUtilsCaller.deviceUsage:
+        return PageSourceIds.phoneHistory; // 用机记录页面
+      case SourcePageUtilsCaller.chat:
+        return PageSourceIds.chat; // 聊天页面
+      case SourcePageUtilsCaller.bind:
+        return PageSourceIds.bind; // 绑定页面
+      case SourcePageUtilsCaller.changeLogo:
+        return PageSourceIds.changeLogo; // 更换Logo页面
+      case SourcePageUtilsCaller.unbindPage:
+        return PageSourceIds.unbindPage; // 更换Logo页面
+    }
+  }
+
+  /// 设置离开方式
+  void setExitType(int exitType) {
+    _exitType = exitType;
+  }
+
+  /// 记录页面浏览埋点
+  void _trackPageView() {
+    _trackPageExit(_exitType);
+  }
+
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_pageEnterTime == null || _hasTrackedPageExit) return;
+    _hasTrackedPageExit = true;
+
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+
+    AnalyticsManager.instance.trackPageView(
+      pageId: BindEvents.pageId,
+      eventId: BindEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      sourcePage: _getSourcePageFromCaller(),
+      sourceEvent: sourceEvent,
+      exitType: exitType,
+    );
+
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedPageExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedPageExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+
+  /// 记录输入匹配码事件
+  void trackBindInput() {
+    AnalyticsHelper.trackBindInput();
+  }
+
+  /// 记录确认绑定事件
+  void trackBindSure({
+    required bool success,
+    required int bindType,
+    required String friendCode,
+    required String errorMsg,
+  }) {
+    AnalyticsHelper.trackBindSure(
+      success: success,
+      bindType: bindType,
+      friendCode: friendCode,
+      errorMsg: errorMsg,
+    );
+  }
+
+  /// 记录取消绑定事件
+  void trackBindCancel() {
+    AnalyticsHelper.trackBindCancel();
+  }
 }

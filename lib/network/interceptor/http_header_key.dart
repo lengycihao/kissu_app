@@ -23,4 +23,6 @@ class HttpHeaderKey {
   static const String isOpenLocation = 'is-open-location';
   static const String brand = 'brand';
   static const String oaid = 'oaid';  // OAID（Open Anonymous Device Identifier）
+  static const String os = 'os';  // 操作系统类型（1=Android, 2=iOS）
+  static const String androidId = 'androidid';  // Android ID（Settings.Secure.ANDROID_ID）
 }

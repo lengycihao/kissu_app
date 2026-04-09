@@ -4,7 +4,7 @@ import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_stat_data.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/hourly_app_record_data.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
-import 'package:kissu_app/widgets/common_back_button.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 import 'app_usage_controller.dart';
 
@@ -18,16 +18,19 @@ class AppUsagePage extends StatefulWidget {
 
 class _AppUsagePageState extends State<AppUsagePage> {
   late final ScrollController _scrollController;
+  late final ScrollController _horizontalScrollController; // 横向列表滚动控制器
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _horizontalScrollController = ScrollController();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -79,7 +82,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
                       ),
                       slivers: [
                         // 顶部padding
-                         SliverPadding(
+                        SliverPadding(
                           padding: EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 16,
@@ -87,16 +90,6 @@ class _AppUsagePageState extends State<AppUsagePage> {
                         ),
 
                         // 权限提示（只在没权限时显示）
-                        SliverToBoxAdapter(
-                          child: Obx(() {
-                            final hasPermission =
-                                controller.hasUsagePermission.value;
-                            if (!hasPermission)
-                              return _buildPermissionBanner(controller);
-                            return const SizedBox();
-                          }),
-                        ),
-
                         // 日期选择器
                         SliverToBoxAdapter(
                           child: DateSelector(
@@ -119,18 +112,14 @@ class _AppUsagePageState extends State<AppUsagePage> {
                           );
                         }),
 
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 14),
-                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
                         // 最近使用App模块
                         SliverToBoxAdapter(
                           child: _buildRecentlyUsedApps(controller),
                         ),
 
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 16),
-                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
                         // 使用记录模块 - 吸顶标题栏
                         _buildUsageRecordsStickyHeader(controller),
@@ -148,7 +137,8 @@ class _AppUsagePageState extends State<AppUsagePage> {
                               ),
                             ),
                             child: Obx(() {
-                              final showTimeline = controller.showTimeline.value;
+                              final showTimeline =
+                                  controller.showTimeline.value;
                               return showTimeline
                                   ? _buildTimelineView(controller)
                                   : _buildStatisticsView(controller);
@@ -156,9 +146,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
                           ),
                         ),
 
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 20),
-                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 20)),
                       ],
                     ),
                   ),
@@ -173,107 +161,123 @@ class _AppUsagePageState extends State<AppUsagePage> {
 
   /// 顶部导航栏
   Widget _buildTopBar(AppUsageController controller) {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
+      child: Stack(
         children: [
-          // 返回按钮（统一封装，点击区域更大且更灵敏）
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: "assets/4.0/kissu4_back.webp",
-            iconSize: 22,
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  "assets/images/kissu_mine_back.webp",
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+            ),
           ),
-          // 标题
-          const Expanded(
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: Text(
                 "App使用统计",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF333333),
                 ),
               ),
             ),
           ),
-          SizedBox(width: 45,)
-          // // 测试页面入口按钮
-          // GestureDetector(
-          //   onTap: () => Get.toNamed(KissuRoutePath.dialogShowcase),
-          //   child: Container(
-          //     padding: const EdgeInsets.all(8),
-          //     child: const Icon(
-          //       Icons.science_outlined,
-          //       size: 24,
-          //       color: Color(0xFFFF839E),
-          //     ),
-          //   ),
-          // ),
+          // 右上角提示按钮（仅当对方是华为渠道时显示）
+          if (UserManager.currentUser?.halfUserInfo?.currentChannel ==
+              'kissu_huawei')
+            Positioned(
+              right: 5,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: () => _showHuaweiTipDialog(context),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 22,
+                    color: Color(0xFF888888),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  /// 权限提示横幅
-  Widget _buildPermissionBanner(AppUsageController controller) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10,left: 16,right: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFE1F4),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 14,
-            height: 14,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFF839E),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.info_outline,
-              color: Colors.white,
-              size: 14,
+  /// 显示华为鸿蒙系统提示弹窗
+  void _showHuaweiTipDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
+              fit: BoxFit.fill,
             ),
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '目前必要权限还未开启，会造成数据显示错误',
-                style: TextStyle(color: const Color(0xb3000000), fontSize: 12),
-                maxLines: 1,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '若对方是华为设备搭载鸿蒙5.0及以上系统，从「华为应用商店」下载的 App 受系统权限限制，暂无法获取App使用信息，仅从「卓易通」下载的可正常显示。',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF333333),
+                  height: 1.5,
+                ),
               ),
-            ),
-          ),
-          SizedBox(width: 5),
-          GestureDetector(
-            onTap: () => controller.openUsageSettings(),
-            child: Row(
-              children: const [
-                Text(
-                  '去开启',
-                  style: TextStyle(
-                    color: Color(0xe6000000),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  width: double.infinity,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Color(0xffFF90CA),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '知道了',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                SizedBox(width: 2),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Color(0xe6000000),
-                  size: 12,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -379,10 +383,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
                         gradient: LinearGradient(
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
-                          colors: [
-                            Colors.white.withOpacity(0),
-                            Colors.white,
-                          ],
+                          colors: [Colors.white.withOpacity(0), Colors.white],
                         ),
                       ),
                     ),
@@ -487,7 +488,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
       return Container(
         padding: const EdgeInsets.all(16).copyWith(bottom: 10),
         margin: EdgeInsets.symmetric(horizontal: 16),
-         decoration: BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -791,14 +792,15 @@ class _AppUsagePageState extends State<AppUsagePage> {
           controller: controller,
           showTimeline: showTimeline,
           scrollController: _scrollController,
+          horizontalScrollController: _horizontalScrollController,
           onSegmentedControlChanged: (index) {
             final isTimeline = index == 1;
-            
+
             // 如果切换的是当前视图，直接返回
             if (controller.showTimeline.value == isTimeline) {
               return;
             }
-            
+
             // 如果正在加载数据，不允许切换
             if (isTimeline && controller.isLoadingTimelineData.value) {
               return;
@@ -806,25 +808,29 @@ class _AppUsagePageState extends State<AppUsagePage> {
             if (!isTimeline && controller.isLoadingStatisticsData.value) {
               return;
             }
-            
+
             // 保存当前滚动位置
             final scrollCtrl = _scrollController;
-            final currentScrollOffset = scrollCtrl.hasClients 
-                ? scrollCtrl.offset 
+            final currentScrollOffset = scrollCtrl.hasClients
+                ? scrollCtrl.offset
                 : 0.0;
-            
+
             // 先切换视图状态
             controller.showTimeline.value = isTimeline;
-            
+
             // 然后加载数据
             if (isTimeline) {
               // 切换到时间轴视图时，重置选中状态为第一个App
               controller.resetTimelineSelection();
+              // 重置横向列表滚动位置到开头
+              if (_horizontalScrollController.hasClients) {
+                _horizontalScrollController.jumpTo(0);
+              }
               controller.loadTimelineData();
             } else {
               controller.loadStatisticsData();
             }
-            
+
             // 延迟恢复滚动位置，确保布局完成后再恢复
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (scrollCtrl.hasClients && currentScrollOffset > 0) {
@@ -837,7 +843,6 @@ class _AppUsagePageState extends State<AppUsagePage> {
       );
     });
   }
-
 
   /// 统计视图（从00:00到当前时间或24:00）
   Widget _buildStatisticsView(AppUsageController controller) {
@@ -887,17 +892,18 @@ class _AppUsagePageState extends State<AppUsagePage> {
         for (int i = 0; i < hoursWithData.length; i++) {
           final hour = hoursWithData[i];
           final hourData = hourDataMap[hour]!;
-          
+
           // 显示(hour+1):00结束点（小圆点）
           // 但如果下一个小时也有数据（即hour+1也在hoursWithData中），则跳过（避免重复显示）
           final endHour = hour + 1;
           // 结束点应该始终显示（除非超过maxHour或下一个小时也有数据）
           // 注意：即使endHour > maxHour，如果是历史日期，也应该显示（但这里maxHour已经是23了）
-          if (endHour <= 23) { // 使用固定的23，因为结束点最多到24:00（即23+1）
+          if (endHour <= 23) {
+            // 使用固定的23，因为结束点最多到24:00（即23+1）
             // 检查endHour是否也在hoursWithData中（即下一个小时也有数据）
             // 如果下一个小时也有数据，那么endHour会作为下一个小时的开始点显示，这里就不显示了
             bool nextHourHasData = hourDataMap.containsKey(endHour);
-            
+
             // 如果下一个小时没有数据，才显示结束点
             if (!nextHourHasData) {
               widgets.add(
@@ -908,10 +914,10 @@ class _AppUsagePageState extends State<AppUsagePage> {
               );
             }
           }
-          
+
           // 显示数据（大圆点）
           widgets.add(_buildAppListRowFromApi(hourData.recordList, hour));
-          
+
           // 显示hour:00开始点（小圆点）
           widgets.add(
             _buildTimePoint(hourData.hourKeyFormatted, isLast: false),
@@ -930,24 +936,24 @@ class _AppUsagePageState extends State<AppUsagePage> {
 
       // 空数据状态
       if (hourlyRecords.isEmpty) {
-        return   SizedBox(
+        return SizedBox(
           height: 200,
           child: Center(
-            child:  Column(
-                  children: [
-                    Image.asset(
-                      'assets/4.0/kissu4_use_app_empty.webp',
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      '暂无使用数据哦',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
-                    ),
-                  ],
+            child: Column(
+              children: [
+                Image.asset(
+                  'assets/4.0/kissu4_use_app_empty.webp',
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.contain,
                 ),
+                const SizedBox(height: 12),
+                const Text(
+                  '暂无使用数据哦',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -967,7 +973,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 40,
+            width: 46,
             child: Text(
               '23:59',
               style: const TextStyle(
@@ -989,12 +995,11 @@ class _AppUsagePageState extends State<AppUsagePage> {
                   child: Image(
                     image: AssetImage(
                       'assets/phone_history/kissu4_phone_history_circle.png',
-                     
                     ),
-                     width: 10,
-                      height: 10,
-                      fit: BoxFit.contain,
-                      color: Color(0xff7ACCFF),
+                    width: 10,
+                    height: 10,
+                    fit: BoxFit.contain,
+                    color: Color(0xff7ACCFF),
                   ),
                 ),
                 // 虚线（向下连接，从中心位置）
@@ -1019,14 +1024,14 @@ class _AppUsagePageState extends State<AppUsagePage> {
   Widget _buildTimePoint(String time, {bool isLast = false}) {
     // 00:00 是起点，不应该有向下的虚线
     final shouldShowDashedLine = !isLast && time != '00:00';
-    
+
     return SizedBox(
       height: 40,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 40,
+            width: 46,
             child: Text(
               time,
               style: const TextStyle(
@@ -1046,7 +1051,9 @@ class _AppUsagePageState extends State<AppUsagePage> {
                 // 小圆点居中
                 Center(
                   child: Image.asset(
-                   time == '00:00' ? 'assets/phone_history/kissu4_phone_history_circle.png': 'assets/4.0/kissu4_app_use_point.webp',
+                    time == '00:00'
+                        ? 'assets/phone_history/kissu4_phone_history_circle.png'
+                        : 'assets/4.0/kissu4_app_use_point.webp',
                     width: 10,
                     height: 10,
                     fit: BoxFit.contain,
@@ -1081,7 +1088,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 左侧空白（对齐时间）
-          const SizedBox(width: 43),
+          const SizedBox(width: 49),
 
           // 大圆点和虚线（20px宽度，虚线从中心位置）
           SizedBox(
@@ -1271,7 +1278,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
                 children: [
                   // 时间
                   SizedBox(
-                    width: 48,
+                    width: 54,
                     child: Text(
                       detail.openTime,
                       style: const TextStyle(
@@ -1312,34 +1319,47 @@ class _AppUsagePageState extends State<AppUsagePage> {
 
                   // App图标
                   detail.appLogo.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                        child: NetworkImageHelper.loadImage(
-                          imageUrl: detail.appLogo,
+                      ? Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xffdddddd),
+                                blurRadius: 2,
+                                offset: const Offset(1, 1),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: NetworkImageHelper.loadImage(
+                              imageUrl: detail.appLogo,
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.contain,
+                              errorWidget: Image.asset(
+                                'assets/images/kissu4_logo.png',
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
                           width: 24,
                           height: 24,
-                          fit: BoxFit.cover,
-                          errorWidget: Image.asset(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Image.asset(
                             'assets/images/kissu4_logo.png',
                             width: 24,
                             height: 24,
                             fit: BoxFit.cover,
                           ),
                         ),
-                        )
-                      : Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Image.asset(
-                          'assets/images/kissu4_logo.png',
-                          width: 24,
-                          height: 24,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
 
                   const SizedBox(width: 8),
 
@@ -1388,7 +1408,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 48,
+                  width: 54,
                   child: Text(
                     '00:00',
                     style: const TextStyle(
@@ -1447,13 +1467,10 @@ class _AppUsagePageState extends State<AppUsagePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 48,
+            width: 54,
             child: Text(
               '23:59',
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xdd333333),
-              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xdd333333)),
               textAlign: TextAlign.right,
             ),
           ),
@@ -1499,7 +1516,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
   double _calculateAppNameLength(String appName) {
     int chineseCharCount = 0;
     int otherCharCount = 0;
-    
+
     for (int i = 0; i < appName.length; i++) {
       final char = appName[i];
       final rune = char.runes.first;
@@ -1510,7 +1527,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
         otherCharCount++;
       }
     }
-    
+
     // 中文字符：1个 = 1单位，其他字符：2个 = 1单位
     return chineseCharCount + (otherCharCount / 2.0);
   }
@@ -1522,7 +1539,7 @@ class _AppUsagePageState extends State<AppUsagePage> {
   /// - 长度单位 <= 4：13pt（默认）
   double _getFontSizeForAppName(String appName) {
     final length = _calculateAppNameLength(appName);
-    
+
     if (length >= 7) {
       return 10.0;
     } else if (length == 6) {
@@ -1541,7 +1558,6 @@ class _AppUsagePageState extends State<AppUsagePage> {
     final length = _calculateAppNameLength(appName);
     return length > 6 ? 2 : 1;
   }
-
 }
 
 /// 虚线画笔
@@ -1580,16 +1596,19 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool showTimeline;
   final ValueChanged<int> onSegmentedControlChanged;
   final ScrollController? scrollController;
+  final ScrollController? horizontalScrollController; // 横向列表滚动控制器
 
   _UsageRecordsHeaderDelegate({
     required this.controller,
     required this.showTimeline,
     required this.onSegmentedControlChanged,
     this.scrollController,
+    this.horizontalScrollController,
   });
 
   double get _baseHeight => 60.0; // 标题行高度（包含padding）
-  double get _timelineExtraHeight => showTimeline ? 65.0 : 0.0; // 横向列表(54) + 间距(12+16)
+  double get _timelineExtraHeight =>
+      showTimeline ? 65.0 : 0.0; // 横向列表(54) + 间距(12+16)
 
   @override
   double get minExtent => _baseHeight + _timelineExtraHeight; // 最小高度（吸顶时的高度）
@@ -1599,7 +1618,10 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     // 吸顶时添加白色背景和圆角
     return Container(
       height: _baseHeight + _timelineExtraHeight,
@@ -1673,10 +1695,7 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
   }) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(
-          color: const Color(0xFFE0E0E0),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -1717,11 +1736,16 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
   Widget _buildTimelineAppSelector(AppUsageController controller) {
     return Obx(() {
       final latelyApps = controller.latelyUseAppData;
+
+      // 注意：滚动位置重置只在切换到时间轴视图时执行（在 onSegmentedControlChanged 中处理）
+      // 这里不要重置滚动位置，否则点击后面的 App 会导致列表跳回开头
+
       return SizedBox(
         height: 44, // 减少高度：44(图标) + 10(上下间距)
         child: Stack(
           children: [
             SingleChildScrollView(
+              controller: horizontalScrollController,
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               child: Row(
@@ -1734,14 +1758,13 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
                       margin: const EdgeInsets.only(right: 2),
                       width: 44,
                       height: 44,
-                     
+
                       alignment: Alignment.center,
                       child: AnimatedScale(
                         scale: isSelected ? 1.3 : 1.0,
                         duration: const Duration(milliseconds: 200),
                         child: app.appLogo.isNotEmpty
                             ? Container(
-
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(8),
                                   color: Colors.white,
@@ -1759,7 +1782,7 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
                                     imageUrl: app.appLogo,
                                     width: 30,
                                     height: 30,
-                                    fit: BoxFit.cover,
+                                    fit: BoxFit.contain,
                                     errorWidget: Image.asset(
                                       'assets/images/kissu4_logo.png',
                                       width: 30,
@@ -1817,4 +1840,3 @@ class _UsageRecordsHeaderDelegate extends SliverPersistentHeaderDelegate {
     return showTimeline != oldDelegate.showTimeline;
   }
 }
-

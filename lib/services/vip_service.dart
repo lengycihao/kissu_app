@@ -7,9 +7,12 @@ import 'package:kissu_app/network/public/api_request.dart';
 
 class VipService {
   /// 获取VIP套餐列表
-  Future<HttpResultN<List<VipPackageModel>>> getVipPackageList() async {
+  /// [isDiscount] 是否获取折扣套餐，传1表示获取折扣套餐
+  Future<HttpResultN<List<VipPackageModel>>> getVipPackageList({int? isDiscount}) async {
+    final Map<String, dynamic>? queryParams = isDiscount != null ? {'is_discount': isDiscount} : null;
     final result = await HttpManagerN.instance.executeGet(
       ApiRequest.vipPackageList,
+      queryParam: queryParams,
       paramEncrypt: false,
     );
  

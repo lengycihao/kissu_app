@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,12 +9,20 @@ import '../../../services/app_usage_auto_report_service.dart';
 import '../../../services/permission_service.dart';
 import '../../../utils/oktoast_util.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
 
 /// 系统权限页面控制器
 enum SystemPermissionGuideType {
   preventSleep,
   lockInBackground,
   allowBackgroundRun,
+  // 新增：权限类型的二级页面
+  location,
+  notification,
+  appUsage,
+  battery, // 电池权限设置
+  overlayWindow, // 悬浮窗权限
 }
 
 enum SupportedBrand { huawei, oppo, vivo, xiaomi, other }
@@ -21,15 +30,40 @@ enum SupportedBrand { huawei, oppo, vivo, xiaomi, other }
 class SystemPermissionController extends GetxController
     with WidgetsBindingObserver {
   final PermissionService _permissionService = PermissionService();
+  final LockPermissionApi _lockPermissionApi = LockPermissionApi();
 
   // 权限状态响应式变量
   final RxBool isLocationGranted = false.obs;
+  final RxBool isLocationAlwaysGranted = false.obs; // “始终允许”定位权限
   final RxBool isNotificationGranted = false.obs;
   final RxBool isBatteryOptimized = false.obs;
   final RxBool isUsageAccessGranted = false.obs;
+  final RxBool isOverlayGranted = false.obs;
 
   // 加载状态
   final RxBool isLoading = false.obs;
+  
+  // 闪烁提示状态（从锁机页面跳转时传入）
+  final RxBool flashOverlay = false.obs;
+  final RxBool flashUsage = false.obs;
+  
+  /// 检查某个权限类型是否需要闪烁提示
+  bool shouldFlash(SystemPermissionGuideType type) {
+    switch (type) {
+      case SystemPermissionGuideType.overlayWindow:
+        return flashOverlay.value;
+      case SystemPermissionGuideType.appUsage:
+        return flashUsage.value;
+      default:
+        return false;
+    }
+  }
+  
+  /// 清除闪烁状态
+  void clearFlashState() {
+    flashOverlay.value = false;
+    flashUsage.value = false;
+  }
 
   // 指引完成状态持久化 key
   static const _guidePreventSleepKey =
@@ -52,10 +86,20 @@ class SystemPermissionController extends GetxController
   SupportedBrand get currentBrand => _currentBrand.value;
   bool get isXiaomiDevice => currentBrand == SupportedBrand.xiaomi;
 
+  /// 是否为鸿蒙5.0+系统（HarmonyOS Next）
+  /// 鸿蒙5.0+的 version.release 为 "5.x.x"，不同于Android版本号（12/13/14）
+  final RxBool isHarmonyOS5Plus = false.obs;
+
   List<Map<String, dynamic>> get permissionItems {
     final items = List<Map<String, dynamic>>.from(_permissionItems);
     if (isXiaomiDevice) {
       items.removeWhere((item) => item['hideOnXiaomi'] == true);
+    }
+    // 鸿蒙5.0+：隐藏"防止程序休眠"和"重启后恢复运行"——这两项在鸿蒙5.0+上无意义
+    if (isHarmonyOS5Plus.value) {
+      items.removeWhere((item) =>
+          item['guideType'] == SystemPermissionGuideType.preventSleep ||
+          item['guideType'] == SystemPermissionGuideType.allowBackgroundRun);
     }
     return items;
   }
@@ -65,25 +109,7 @@ class SystemPermissionController extends GetxController
       "icon": "assets/images/kissu_setting_ssdw.webp",
       "title": "开启实时定位",
       "subtitle": "和ta持续分享你的位置",
-      "type": PermissionType.location,
-    },
-    {
-      "icon": "assets/images/kissu_setting_htyx.webp",
-      "title": "允许后台运行",
-      "subtitle": "应用后台常驻，确保数据同步",
-      "guideType": SystemPermissionGuideType.allowBackgroundRun,
-    },
-    {
-      "icon": "assets/images/kissu_setting_tztx.webp",
-      "title": "开启通知提醒",
-      "subtitle": "收到ta的实时动态提醒",
-      "type": PermissionType.notification,
-    },
-    {
-      "icon": "assets/images/kissu_setting_cc.webp",
-      "title": "允许获取应用使用权限",
-      "subtitle": "和ta分享手机使用报告",
-      "type": PermissionType.usage,
+      "guideType": SystemPermissionGuideType.location,
     },
     {
       "icon": "assets/images/kissu_setting_sleep.webp",
@@ -92,11 +118,41 @@ class SystemPermissionController extends GetxController
       "guideType": SystemPermissionGuideType.preventSleep,
     },
     {
+      "icon": "assets/images/kissu_setting_htyx.webp",
+      "title": "重启后恢复运行",
+      "subtitle": "系统唤醒时持续更新",
+      "guideType": SystemPermissionGuideType.allowBackgroundRun,
+    },
+    // {
+    //   "icon": "assets/images/kissu_setting_power.webp",
+    //   "title": "电池权限设置",
+    //   "subtitle": "低电量模式下,系统不会关闭Kissu",
+    //   "guideType": SystemPermissionGuideType.battery,
+    // },
+    {
+      "icon": "assets/images/kissu_setting_tztx.webp",
+      "title": "开启通知提醒",
+      "subtitle": "收到ta的实时动态提醒",
+      "guideType": SystemPermissionGuideType.notification,
+    },
+    {
+      "icon": "assets/images/kissu_setting_cc.webp",
+      "title": "允许获取应用使用权限",
+      "subtitle": "和ta分享手机使用报告",
+      "guideType": SystemPermissionGuideType.appUsage,
+    },
+
+    {
       "icon": "assets/images/kissu_setting_lock.webp",
       "title": "让程序锁在后台",
       "subtitle": "后台一直运行才能更新数据",
       "guideType": SystemPermissionGuideType.lockInBackground,
-      "hideOnXiaomi": true,
+    },
+    {
+      "icon": "assets/images/kissu_setting_window.webp",
+      "title": "开启悬浮窗权限",
+      "subtitle": "锁机功能需要悬浮窗权限",
+      "guideType": SystemPermissionGuideType.overlayWindow,
     },
   ];
 
@@ -113,7 +169,16 @@ class SystemPermissionController extends GetxController
       SupportedBrand.huawei: 'assets/setting/kissu_lock_huawei.webp',
       SupportedBrand.oppo: 'assets/setting/kissu_lock_oppo.webp',
       SupportedBrand.vivo: 'assets/setting/kissu_lock_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_lock_xiaomi.webp',
       SupportedBrand.other: 'assets/setting/kissu_lock_huawei.webp',
+    },
+    // 电池权限设置
+    SystemPermissionGuideType.battery: {
+      SupportedBrand.huawei: 'assets/setting/kissu_power_huawei.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_power_oppo.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_power_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_power_xiaomi.webp',
+      SupportedBrand.other: 'assets/setting/kissu_power_huawei.webp',
     },
     SystemPermissionGuideType.allowBackgroundRun: {
       SupportedBrand.huawei: 'assets/setting/kissu_back_huawei.webp',
@@ -121,6 +186,38 @@ class SystemPermissionController extends GetxController
       SupportedBrand.vivo: 'assets/setting/kissu_back_vivo.webp',
       SupportedBrand.xiaomi: 'assets/setting/kissu_back_xiaomi.webp',
       SupportedBrand.other: 'assets/setting/kissu_back_huawei.webp',
+    },
+    // 新增：开启实时定位（基础定位权限）
+    SystemPermissionGuideType.location: {
+      SupportedBrand.huawei: 'assets/setting/kissu_location_huawei.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_location_oppo.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_location_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_location_xiaomi.webp',
+      SupportedBrand.other: 'assets/setting/kissu_location_huawei.webp',
+    },
+    // 新增：开启通知提醒
+    SystemPermissionGuideType.notification: {
+      SupportedBrand.huawei: 'assets/setting/kissu_notice_huawei.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_notice_oppo.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_notice_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_notice_xiaomi.webp',
+      SupportedBrand.other: 'assets/setting/kissu_notice_huawei.webp',
+    },
+    // 新增：允许获取应用使用权限
+    SystemPermissionGuideType.appUsage: {
+      SupportedBrand.huawei: 'assets/setting/kissu_appuse_huawei.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_appuse_oppo.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_appuse_vivo.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_appuse_xiaomi.webp',
+      SupportedBrand.other: 'assets/setting/kissu_appuse_huawei.webp',
+    },
+    // 悬浮窗权限设置（所有品牌使用同一张图）
+    SystemPermissionGuideType.overlayWindow: {
+      SupportedBrand.huawei: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.oppo: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.vivo: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.xiaomi: 'assets/setting/kissu_xuanfuchuang.webp',
+      SupportedBrand.other: 'assets/setting/kissu_xuanfuchuang.webp',
     },
   };
 
@@ -133,12 +230,19 @@ class SystemPermissionController extends GetxController
     _loadGuideCompletedStatus();
     // 初始化时检查权限状态
     checkAllPermissions();
+    
+    // 读取闪烁参数（从锁机页面跳转时传入）
+    final args = Get.arguments;
+    if (args is Map<String, dynamic>) {
+      flashOverlay.value = args['flashOverlay'] == true;
+      flashUsage.value = args['flashUsage'] == true;
+    }
 
     // 监听App使用记录权限变化
     ever(isUsageAccessGranted, (bool hasPermission) async {
       if (hasPermission) {
         // 权限已开启，通知自动上报服务检查并启动
-        logDebug('检测到App使用记录权限已开启，通知自动上报服务', tag: 'SystemPermission');
+        // logDebug('检测到App使用记录权限已开启，通知自动上报服务', tag: 'SystemPermission');
         try {
           if (Get.isRegistered<AppUsageAutoReportService>()) {
             final service = Get.find<AppUsageAutoReportService>();
@@ -166,7 +270,69 @@ class SystemPermissionController extends GetxController
         final androidInfo = await deviceInfo.androidInfo;
         final brand = androidInfo.brand.toLowerCase();
         _currentBrand.value = _mapBrand(brand);
-        logDebug('检测到设备品牌: $brand', tag: 'SystemPermission');
+        
+        // 详细日志：输出所有关键设备信息字段，便于调试鸿蒙检测
+        final display = androidInfo.display;
+        final fingerprint = androidInfo.fingerprint;
+        final host = androidInfo.host;
+        final versionRelease = androidInfo.version.release;
+        // final sdkInt = androidInfo.version.sdkInt;
+        // final manufacturer = androidInfo.manufacturer;
+        
+        // logDebug('===== 设备信息详情 =====', tag: 'HarmonyOS');
+        // logDebug('brand: $brand', tag: 'HarmonyOS');
+        // logDebug('manufacturer: $manufacturer', tag: 'HarmonyOS');
+        // logDebug('display: $display', tag: 'HarmonyOS');
+        // logDebug('fingerprint: $fingerprint', tag: 'HarmonyOS');
+        // logDebug('host: $host', tag: 'HarmonyOS');
+        // logDebug('version.release: $versionRelease', tag: 'HarmonyOS');
+        // logDebug('version.sdkInt: $sdkInt', tag: 'HarmonyOS');
+        // logDebug('===== 设备信息结束 =====', tag: 'HarmonyOS');
+
+        // 鸿蒙系统检测：多种方式综合判断
+        final displayLower = display.toLowerCase();
+        final fingerprintLower = fingerprint.toLowerCase();
+        final hostLower = host.toLowerCase();
+        final osVersion = Platform.operatingSystemVersion.toLowerCase();
+        
+        // logDebug('Platform.operatingSystemVersion: ${Platform.operatingSystemVersion}', tag: 'HarmonyOS');
+        
+        // 方式1：检查是否包含 "harmony" / "ohos" 关键字
+        final containsHarmony = displayLower.contains('harmony') ||
+            fingerprintLower.contains('harmony') ||
+            hostLower.contains('harmony') ||
+            displayLower.contains('ohos') ||
+            fingerprintLower.contains('ohos') ||
+            osVersion.contains('harmony') ||
+            osVersion.contains('ohos');
+        
+        // 方式2：鸿蒙系统的 display / osVersion 以 "system" 开头
+        // 例如 "System 104.5.0.001(61DR)"，普通Android不会有这种格式
+        final isHuaweiOrHonor = brand.contains('huawei') || brand.contains('honor');
+        final displayStartsWithSystem = displayLower.startsWith('system') || osVersion.startsWith('system');
+        
+        // 方式3：华为/荣耀设备 version.release 为 "5.x.x" 格式
+        bool versionIs5Plus = false;
+        if (isHuaweiOrHonor) {
+          final parts = versionRelease.split('.');
+          final majorVersion = int.tryParse(parts[0]) ?? 0;
+          versionIs5Plus = majorVersion >= 5 && parts.length > 1;
+        }
+        
+        if (containsHarmony) {
+          isHarmonyOS5Plus.value = true;
+          // logDebug('✅ 检测到鸿蒙系统 (通过harmony/ohos关键字)', tag: 'HarmonyOS');
+        } else if (isHuaweiOrHonor && displayStartsWithSystem) {
+          isHarmonyOS5Plus.value = true;
+          // logDebug('✅ 检测到鸿蒙系统 (华为/荣耀设备 + display以System开头: $display)', tag: 'HarmonyOS');
+        } else if (versionIs5Plus) {
+          isHarmonyOS5Plus.value = true;
+          // logDebug('✅ 检测到鸿蒙5.0+系统 (通过版本号$versionRelease)', tag: 'HarmonyOS');
+        } else {
+          // logDebug('❌ 未检测到鸿蒙系统 (brand=$brand, display=$display, osVersion=${Platform.operatingSystemVersion})', tag: 'HarmonyOS');
+        }
+        
+        // logDebug('最终鸿蒙检测结果: isHarmonyOS5Plus=${isHarmonyOS5Plus.value}', tag: 'HarmonyOS');
       } else {
         _currentBrand.value = SupportedBrand.huawei;
       }
@@ -222,6 +388,16 @@ class SystemPermissionController extends GetxController
         return _backgroundRunCompleted.value;
       case SystemPermissionGuideType.lockInBackground:
         return _lockBackgroundCompleted.value;
+      case SystemPermissionGuideType.location:
+        return isLocationAlwaysGranted.value; // 定位权限以“始终允许”为准
+      case SystemPermissionGuideType.notification:
+        return isNotificationGranted.value;
+      case SystemPermissionGuideType.appUsage:
+        return isUsageAccessGranted.value;
+      case SystemPermissionGuideType.battery:
+        return isBatteryOptimized.value; // 电池权限以电池优化状态为准
+      case SystemPermissionGuideType.overlayWindow:
+        return isOverlayGranted.value;
     }
   }
 
@@ -237,6 +413,13 @@ class SystemPermissionController extends GetxController
       case SystemPermissionGuideType.lockInBackground:
         // 锁定后台没有“去设置”按钮，这里不需要记录
         break;
+      case SystemPermissionGuideType.location:
+      case SystemPermissionGuideType.notification:
+      case SystemPermissionGuideType.appUsage:
+      case SystemPermissionGuideType.battery:
+      case SystemPermissionGuideType.overlayWindow:
+        // 权限类型的指引不需要记录会话状态，因为权限状态是实时检查的
+        break;
     }
   }
 
@@ -248,6 +431,12 @@ class SystemPermissionController extends GetxController
         return _backgroundRunOpenedThisSession.value;
       case SystemPermissionGuideType.lockInBackground:
         return false;
+      case SystemPermissionGuideType.location:
+      case SystemPermissionGuideType.notification:
+      case SystemPermissionGuideType.appUsage:
+      case SystemPermissionGuideType.battery:
+      case SystemPermissionGuideType.overlayWindow:
+        return false; // 权限类型的指引不需要记录会话状态
     }
   }
 
@@ -268,6 +457,13 @@ class SystemPermissionController extends GetxController
           _lockBackgroundCompleted.value = true;
           await prefs.setBool(_guideLockBackgroundKey, true);
           break;
+        case SystemPermissionGuideType.location:
+        case SystemPermissionGuideType.notification:
+        case SystemPermissionGuideType.appUsage:
+        case SystemPermissionGuideType.battery:
+      case SystemPermissionGuideType.overlayWindow:
+          // 权限类型的指引不需要持久化保存，因为权限状态是实时检查的
+          break;
       }
     } catch (e) {
       logError('保存指引完成状态失败: $e', tag: 'SystemPermission', error: e);
@@ -281,7 +477,7 @@ class SystemPermissionController extends GetxController
 
     // 当应用从后台回到前台时，重新检查权限状态
     if (state == AppLifecycleState.resumed) {
-      logDebug('应用回到前台，重新检查权限状态', tag: 'SystemPermission');
+      // logDebug('应用回到前台，重新检查权限状态', tag: 'SystemPermission');
       // 延迟检查，确保页面完全激活
       Future.delayed(const Duration(milliseconds: 500), () {
         checkAllPermissions();
@@ -307,9 +503,19 @@ class SystemPermissionController extends GetxController
       final newBatteryOptimized = permissions[PermissionType.battery] ?? false;
       final newUsageAccessGranted = permissions[PermissionType.usage] ?? false;
 
+      // 检查悬浮窗权限
+      final newOverlayGranted = await LockScreenOverlayService.checkOverlayPermission();
+      if (isOverlayGranted.value != newOverlayGranted) {
+        isOverlayGranted.value = newOverlayGranted;
+      }
+
       // 只在状态真正改变时才更新
       if (isLocationGranted.value != newLocationGranted) {
         isLocationGranted.value = newLocationGranted;
+      }
+      // 更新"始终允许"定位权限状态
+      if (isLocationAlwaysGranted.value != newLocationAlwaysGranted) {
+        isLocationAlwaysGranted.value = newLocationAlwaysGranted;
       }
       if (isNotificationGranted.value != newNotificationGranted) {
         isNotificationGranted.value = newNotificationGranted;
@@ -339,16 +545,16 @@ class SystemPermissionController extends GetxController
       }
 
       // 记录后台位置权限状态（用于调试）
-      logDebug('后台位置权限: $newLocationAlwaysGranted', tag: 'SystemPermission');
+      // logDebug('后台位置权限: $newLocationAlwaysGranted', tag: 'SystemPermission');
 
-      logDebug('权限状态检查完成:', tag: 'SystemPermission');
-      logDebug('位置权限: ${isLocationGranted.value}', tag: 'SystemPermission');
-      logDebug('通知权限: ${isNotificationGranted.value}', tag: 'SystemPermission');
-      logDebug('电池优化: ${isBatteryOptimized.value}', tag: 'SystemPermission');
-      logDebug(
-        '使用情况访问: ${isUsageAccessGranted.value}',
-        tag: 'SystemPermission',
-      );
+      // logDebug('权限状态检查完成:', tag: 'SystemPermission');
+      // logDebug('位置权限: ${isLocationGranted.value}', tag: 'SystemPermission');
+      // logDebug('通知权限: ${isNotificationGranted.value}', tag: 'SystemPermission');
+      // logDebug('电池优化: ${isBatteryOptimized.value}', tag: 'SystemPermission');
+      // logDebug(
+      //   '使用情况访问: ${isUsageAccessGranted.value}',
+      //   tag: 'SystemPermission',
+      // );
     } catch (e) {
       logError('检查权限状态时发生错误: $e', tag: 'SystemPermission', error: e);
       OKToastUtil.showError('检查权限状态失败');
@@ -394,7 +600,7 @@ class SystemPermissionController extends GetxController
   /// 根据权限类型获取按钮颜色
   Color getButtonColor(PermissionType type) {
     final isGranted = getPermissionStatus(type);
-    return isGranted ? const Color(0xFFCCCCCC) : const Color(0xFFFF839E);
+    return isGranted ? const Color(0xFF999999) : const Color(0xFFFFA9E0);
   }
 
   /// 根据权限类型获取按钮是否可点击
@@ -420,7 +626,39 @@ class SystemPermissionController extends GetxController
     }
   }
 
+  // 始终定位权限的图片资源（已开启基础定位但未开启始终定位时使用）
+  static const Map<SupportedBrand, String> _locationAlwaysAssets = {
+    SupportedBrand.huawei: 'assets/setting/kissu_location_all_huawei.webp',
+    SupportedBrand.oppo: 'assets/setting/kissu_location_all_oppo.webp',
+    SupportedBrand.vivo: 'assets/setting/kissu_location_all_vivo.webp',
+    SupportedBrand.xiaomi: 'assets/setting/kissu_location_all_xiaomi.webp',
+    SupportedBrand.other: 'assets/setting/kissu_location_all_huawei.webp',
+  };
+
+  // 始终定位权限已完成的图片资源（已开启始终定位时使用）
+  static const Map<SupportedBrand, String> _locationDoneAssets = {
+    SupportedBrand.huawei: 'assets/setting/kissu_location_done_huawei.webp',
+    SupportedBrand.oppo: 'assets/setting/kissu_location_done_oppo.webp',
+    SupportedBrand.vivo: 'assets/setting/kissu_location_done_vivo.webp',
+    SupportedBrand.xiaomi: 'assets/setting/kissu_location_done_xiaomi.webp',
+    SupportedBrand.other: 'assets/setting/kissu_location_done_huawei.webp',
+  };
+
   String getGuideAsset(SystemPermissionGuideType type) {
+    // 定位权限特殊处理：根据权限状态返回不同图片
+    if (type == SystemPermissionGuideType.location) {
+      // 已开启始终定位：显示完成状态图片
+      if (isLocationAlwaysGranted.value) {
+        return _locationDoneAssets[currentBrand] ??
+            _locationDoneAssets[SupportedBrand.huawei]!;
+      }
+      // 已开启基础定位但未开启始终定位：显示始终定位指引图片
+      if (isLocationGranted.value) {
+        return _locationAlwaysAssets[currentBrand] ??
+            _locationAlwaysAssets[SupportedBrand.huawei]!;
+      }
+    }
+
     final assets = _guideAssets[type];
     if (assets == null) {
       return '';
@@ -428,17 +666,54 @@ class SystemPermissionController extends GetxController
     return assets[currentBrand] ?? assets[SupportedBrand.huawei]!;
   }
 
-  void openGuidePage(SystemPermissionGuideType type) {
+  Future<void> openGuidePage(SystemPermissionGuideType type) async {
     switch (type) {
       case SystemPermissionGuideType.preventSleep:
-        Get.toNamed(KissuRoutePath.systemPermissionPreventSleepGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionPreventSleepGuide);
         break;
       case SystemPermissionGuideType.lockInBackground:
-        Get.toNamed(KissuRoutePath.systemPermissionLockGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionLockGuide);
         break;
       case SystemPermissionGuideType.allowBackgroundRun:
-        Get.toNamed(KissuRoutePath.systemPermissionBackgroundGuide);
+        await Get.toNamed(KissuRoutePath.systemPermissionBackgroundGuide);
         break;
+      case SystemPermissionGuideType.location:
+        await Get.toNamed(KissuRoutePath.systemPermissionLocationGuide);
+        break;
+      case SystemPermissionGuideType.notification:
+        await Get.toNamed(KissuRoutePath.systemPermissionNotificationGuide);
+        break;
+      case SystemPermissionGuideType.appUsage:
+        await Get.toNamed(KissuRoutePath.systemPermissionAppUsageGuide);
+        break;
+      case SystemPermissionGuideType.battery:
+        await Get.toNamed(KissuRoutePath.systemPermissionBatteryGuide);
+        break;
+      case SystemPermissionGuideType.overlayWindow:
+        await Get.toNamed(KissuRoutePath.systemPermissionOverlayGuide);
+        break;
+    }
+    // 从单个权限设置页返回后，增量检查权限状态并上传到服务器
+    await checkAllPermissions();
+    _uploadPermissionStatus();
+  }
+
+  /// 上传当前权限状态到服务器（增量更新，从单个权限设置页返回时调用）
+  Future<void> _uploadPermissionStatus() async {
+    try {
+      final result = await _lockPermissionApi.setPermission(
+        isOpenLocation: isLocationGranted.value ? 1 : 0,
+        isOpenNoticeRemind: isNotificationGranted.value ? 1 : 0,
+        isOpenScreenUse: isUsageAccessGranted.value ? 1 : 0,
+        isOpenBackRun: 0,
+        isOpenPreventProgramSleep: isBatteryOptimized.value ? 1 : 0,
+        isOpenSelfStarting: 0,
+        isOpenProgramLock: 0,
+        isOpenSuspendWindow: isOverlayGranted.value ? 1 : 0,
+      );
+      // logDebug('增量上报权限状态: ${result.isSuccess ? "成功" : "失败: ${result.msg}"}', tag: 'SystemPermission');
+    } catch (e) {
+      logError('增量上报权限状态异常: $e', tag: 'SystemPermission', error: e);
     }
   }
 
@@ -461,8 +736,9 @@ class SystemPermissionController extends GetxController
 
     try {
       // 直接申请权限
-      final granted = await _permissionService.requestBatteryOptimizationPermission();
-      
+      final granted = await _permissionService
+          .requestBatteryOptimizationPermission();
+
       if (granted) {
         // 申请成功，标记为已完成
         await markGuideCompleted(SystemPermissionGuideType.preventSleep);
@@ -484,31 +760,117 @@ class SystemPermissionController extends GetxController
       // 不同指引跳转到不同的系统页面
       switch (type) {
         case SystemPermissionGuideType.preventSleep:
-          // 防止程序休眠：
-          // 这里不再静默申请，而是用户点击「去设置」时，
-          // 主动弹出忽略电池优化的系统对话框。
-          final granted = await _permissionService.requestBatteryOptimizationPermission();
-          if (granted) {
-            // 申请成功，标记为已完成并刷新权限状态
-            await markGuideCompleted(SystemPermissionGuideType.preventSleep);
-            await checkAllPermissions();
-          } else {
-            // 如果用户拒绝，可以再引导到通用电池优化设置页（可选）
+          // 防止程序休眠：直接跳转到系统设置页面，不主动申请权限
+          await _permissionService.openBatteryOptimizationSettings();
+          await checkAllPermissions();
+          break;
+        case SystemPermissionGuideType.battery:
+          // 电池权限设置：主动申请电池优化权限
+          final isAlreadyGranted = await _permissionService
+              .isBatteryOptimizationDisabled();
+          if (isAlreadyGranted) {
+            // 权限已开启，跳转到系统电池优化设置页面
             await _permissionService.openBatteryOptimizationSettings();
+          } else {
+            // 权限未开启，申请权限
+            final granted = await _permissionService
+                .requestBatteryOptimizationPermission();
+            if (granted) {
+              // 申请成功，刷新权限状态
+              await checkAllPermissions();
+            } else {
+              // 如果用户拒绝，引导到通用电池优化设置页
+              await _permissionService.openBatteryOptimizationSettings();
+            }
           }
+          await checkAllPermissions();
           break;
         case SystemPermissionGuideType.allowBackgroundRun:
-          // 统一跳转到应用详情页，避免各品牌回退到系统首页
-          await _permissionService.openSystemSettingsPage();
+          // 跳转到手机设置中的App详情页面
+          await _permissionService.openAppSettingsPage();
           break;
         case SystemPermissionGuideType.lockInBackground:
           // 其他指引：保持原有行为，跳转到应用详情页
           await _permissionService.openAppSettingsPage();
+          break;
+        case SystemPermissionGuideType.location:
+          // 定位权限：分步骤申请
+          // 1. 先检查是否有"始终允许"权限
+          final hasAlwaysLocation = await _permissionService
+              .isLocationAlwaysPermissionGranted();
+          if (hasAlwaysLocation) {
+            // 已有"始终允许"权限，跳转到系统定位权限设置页面
+            await _permissionService.openLocationSettings();
+          } else {
+            // 2. 检查是否有基本定位权限
+            final hasBasicLocation = await _permissionService
+                .isLocationPermissionGranted();
+            if (!hasBasicLocation) {
+              // 没有基本定位权限，先申请基本定位权限
+              await _permissionService.requestLocationPermission();
+            } else {
+              // 有基本定位权限，申请"始终允许"权限
+              await _permissionService.requestLocationAlwaysPermission();
+            }
+          }
+          await checkAllPermissions();
+          break;
+        case SystemPermissionGuideType.notification:
+          // 通知权限：先检查是否已开启
+          final hasNotification = await _permissionService
+              .isNotificationPermissionGranted();
+          if (hasNotification) {
+            // 权限已开启，跳转到系统通知权限设置页面
+            await _permissionService.openNotificationSettings();
+          } else {
+            // 权限未开启，申请通知权限
+            await _permissionService.requestNotificationPermission();
+          }
+          await checkAllPermissions();
+          break;
+        case SystemPermissionGuideType.appUsage:
+          // 应用使用权限：跳转到系统设置
+          await _permissionService.openUsageAccessSettings();
+          await checkAllPermissions();
+          break;
+        case SystemPermissionGuideType.overlayWindow:
+          // 悬浮窗权限：直接请求
+          await _handleOverlayPermissionTap();
           break;
       }
     } catch (e) {
       logError('打开教程关联设置失败: $e', tag: 'SystemPermission', error: e);
       OKToastUtil.showError('无法打开设置页面，请手动前往系统设置');
     }
+  }
+
+  /// 处理悬浮窗权限点击
+  Future<void> _handleOverlayPermissionTap() async {
+    final granted = await LockScreenOverlayService.requestOverlayPermission();
+    if (granted) {
+      isOverlayGranted.value = true;
+    }
+    await checkAllPermissions();
+  }
+
+  /// 检查是否所有权限都已开启
+  /// 根据实际显示的权限项数量动态判断（小米设备只有5项，其他设备6项）
+  bool areAllPermissionsEnabled() {
+    // 检查基础权限（定位权限以"始终允许"为准）
+    final basicPermissionsEnabled =
+        isLocationAlwaysGranted.value &&
+        isNotificationGranted.value &&
+        isBatteryOptimized.value &&
+        isUsageAccessGranted.value;
+
+    // 检查指引完成状态
+    // 小米设备：只需检查防休眠和后台运行两个指引（共5项权限）
+    // 其他设备：需要检查防休眠、后台运行、锁定后台三个指引（共6项权限）
+    final guidesCompleted =
+        _preventSleepCompleted.value &&
+        _backgroundRunCompleted.value &&
+        (isXiaomiDevice || _lockBackgroundCompleted.value);
+
+    return basicPermissionsEnabled && guidesCompleted;
   }
 }

@@ -15,6 +15,16 @@ class KissuRoutePath {
       '/kisssu_app/system_permission/lock_guide';
   static const systemPermissionBackgroundGuide =
       '/kisssu_app/system_permission/background_guide';
+  static const systemPermissionLocationGuide =
+      '/kisssu_app/system_permission/location_guide';
+  static const systemPermissionNotificationGuide =
+      '/kisssu_app/system_permission/notification_guide';
+  static const systemPermissionAppUsageGuide =
+      '/kisssu_app/system_permission/app_usage_guide';
+  static const systemPermissionBatteryGuide =
+      '/kisssu_app/system_permission/battery_guide';
+  static const systemPermissionOverlayGuide =
+      '/kisssu_app/system_permission/overlay_guide';
   static const permissionSetting = '/kisssu_app/permission_setting';
   static const agreementWebView = '/kisssu_app/agreement_webview';
   static const qrScanPage = '/kisssu_app/qr_scan';
@@ -37,11 +47,36 @@ class KissuRoutePath {
   static const interactionMessage = '/kisssu_app/interaction_message';
   static const track = '/kisssu_app/track';
   static const trackPlayTest = '/kisssu_app/track_play_test';
-  static const dialogShowcase = '/kisssu_app/dialog_showcase';
   static const appIconSelector = '/kisssu_app/app_icon_selector';
   static const deviceUsage = '/kisssu_app/device_usage';
   static const appUsageDetail = '/kisssu_app/app_usage_detail';
   static const appUsage = '/kisssu_app/app_usage';
   static const notificationSettings = '/kisssu_app/notification_settings';
   static const appUsageInfo = '/kisssu_app/app_usage_detail';
+  static const chat = '/kisssu_app/chat';
+  static const chatSettings = '/kisssu_app/chat_settings';
+  static const chatBackground = '/kisssu_app/chat_background';
+  static const chatBubble = '/kisssu_app/chat_bubble';
+  static const chatTheme = '/kisssu_app/chat_theme';
+  static const imNotificationSettings = '/kisssu_app/im_notification_settings';
+  static const checkIn188 = '/kisssu_app/check_in_188';
+  static const checkIn188Progress = '/kisssu_app/check_in_188_progress';
+  static const checkIn188RecoveryCard = '/kisssu_app/check_in_188_recovery_card';
+  static const checkIn188CardLog = '/kisssu_app/check_in_188_card_log';
+  static const checkIn188Activity = '/kisssu_app/check_in_188_activity';
+  static const lockScreen = '/kisssu_app/lock_screen';
+  static const lockScreenQuestion = '/kisssu_app/lock_screen_question';
+  static const widgetCenter = '/kisssu_app/widget_center';
+  static const widgetAddGuide = '/kisssu_app/widget_add_guide';
+  static const guessGame = '/kisssu_app/guess_game';
+  static const guessGameV2Home = '/kisssu_app/guess_game_v2/home';
+  static const guessGameV2TopicSelection = '/kisssu_app/guess_game_v2/topic_selection';
+  static const guessGameV2Play = '/kisssu_app/guess_game_v2/game_play';
+  static const guessGameV2Success = '/kisssu_app/guess_game_v2/success';
+  static const guessGameV2Failed = '/kisssu_app/guess_game_v2/failed';
+  static const guessGameV2PenaltyPhoto = '/kisssu_app/guess_game_v2/penalty_photo';
+  static const guessGameV2PenaltyAudio = '/kisssu_app/guess_game_v2/penalty_audio';
+  static const guessGameV2PenaltyWait = '/kisssu_app/guess_game_v2/penalty_wait';
+  static const guessGameV2PenaltyRecord = '/kisssu_app/guess_game_v2/penalty_record';
+  static const guessGameV2PenaltySelect = '/kisssu_app/guess_game_v2/penalty_select';
 }

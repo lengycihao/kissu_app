@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kissu_app/models/poi_model.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 高德地图POI搜索服务
 class AMapPoiService {
@@ -47,29 +48,28 @@ class AMapPoiService {
         queryParams['sortrule'] = 'distance'; // 按距离排序，这样会返回distance字段
       }
 
-      debugPrint('🔍 准备发送POI搜索请求: $queryParams');
+      logger.debug('🔍 准备发送POI搜索请求: $queryParams');
 
       final response = await _dio.get(
         _poiSearchUrl,
         queryParameters: queryParams,
       );
 
-      debugPrint('🔍 API响应状态码: ${response.statusCode}');
+      logger.debug('🔍 API响应状态码: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = response.data;
-        debugPrint('🔍 API响应数据: status=${data['status']}, info=${data['info']}, count=${data['count']}');
-        
+         
         // 检查返回状态
         if (data['status'] == '1' && data['pois'] != null) {
           final List<dynamic> pois = data['pois'];
-          debugPrint('🔍 返回POI数量: ${pois.length}');
+          // logger.debug('🔍 返回POI数量: ${pois.length}');
           
           // 调试：打印第一个POI的完整数据（只看关键字段）
-          if (pois.isNotEmpty) {
-            final firstPoi = pois[0];
-            debugPrint('🔍 第一个POI数据: name=${firstPoi['name']}, distance=${firstPoi['distance']}, location=${firstPoi['location']}');
-          }
+          // if (pois.isNotEmpty) {
+          //   final firstPoi = pois[0];
+          //   logger.debug('🔍 第一个POI数据: name=${firstPoi['name']}, distance=${firstPoi['distance']}, location=${firstPoi['location']}');
+          // }
           
           // 如果传递了location参数，但API没有返回正确的distance，则手动计算
           if (location != null && location.isNotEmpty) {
@@ -109,15 +109,15 @@ class AMapPoiService {
           
           return pois.map((poi) => PoiModel.fromJson(poi)).toList();
         } else {
-          debugPrint('❌ POI搜索失败: ${data['info']}');
+          logger.error('❌ POI搜索失败: ${data['info']}');
           return [];
         }
       } else {
-        debugPrint('❌ POI搜索请求失败: ${response.statusCode}');
+        logger.error('❌ POI搜索请求失败: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      debugPrint('❌ POI搜索异常: $e');
+      logger.error('❌ POI搜索异常: $e');
       return [];
     }
   }

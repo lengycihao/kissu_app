@@ -307,6 +307,25 @@ class LogManager {
     return [];
   }
 
+  /// 获取指定分类的日志文件
+  Future<List<File>> getLogFilesByCategory(String categoryName) async {
+    for (final appender in _appenders) {
+      if (appender is FileAppender) {
+        return await appender.getLogFilesByCategory(categoryName);
+      }
+    }
+    return [];
+  }
+
+  /// 手动 flush 所有文件日志
+  Future<void> flushAll() async {
+    for (final appender in _appenders) {
+      if (appender is FileAppender) {
+        await appender.flushAll();
+      }
+    }
+  }
+
   Future<String> readLogFile(File file) async {
     for (final appender in _appenders) {
       if (appender is FileAppender) {

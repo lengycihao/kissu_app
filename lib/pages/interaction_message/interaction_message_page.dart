@@ -5,28 +5,6 @@ import 'interaction_message_controller.dart';
 class InteractionMessagePage extends GetView<InteractionMessageController> {
   const InteractionMessagePage({super.key});
 
-  /// 顶部导航栏
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: controller.onBackTap,
-            child: Image.asset(
-              "assets/images/kissu_mine_back.webp",
-              width: 22,
-              height: 22,
-            ),
-          ),
-          const Expanded(
-            child: Center(child: Text("互动消息", style: TextStyle(fontSize: 18))),
-          ),
-          const SizedBox(width: 22), // 占位保持居中
-        ],
-      ),
-    );
-  }
 
   /// 构建日期分组标题
   Widget _buildDateHeader(String date) {
@@ -49,7 +27,7 @@ class InteractionMessagePage extends GetView<InteractionMessageController> {
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.8), // 半透明背景，让背景图片透出来
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -173,7 +151,7 @@ class InteractionMessagePage extends GetView<InteractionMessageController> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
-                "assets/images/kissu_notice_empty.webp",
+                "assets/images/kissu_message_empty.webp",
                 width: 128,
                 height: 128,
               ),
@@ -207,22 +185,69 @@ class InteractionMessagePage extends GetView<InteractionMessageController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF8F9FF),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 顶部导航栏
-            _buildTopBar(),
-            // 消息列表
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: controller.refreshMessages,
-                color: const Color(0xffFF6B6B),
-                child: _buildMessageList(),
-              ),
+      backgroundColor: const Color(0xFFF6f6f6), // 和消息页面保持一致的灰色背景
+      body: Stack(
+        children: [
+          // 背景图片 - 和消息页面保持一致
+          Positioned.fill(
+            child: Image.asset(
+              "assets/4.0/kissu4_new_use_bg.webp",
+              fit: BoxFit.fitWidth,
+              height: 140,
+              alignment: Alignment.topCenter,
             ),
-          ],
-        ),
+          ),
+          Column(
+              children: [
+                // 顶部导航栏 - 调整结构和消息页面保持一致
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 12,
+                    left: 6,
+                    right: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: controller.onBackTap,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Image.asset(
+                            "assets/images/kissu_mine_back.webp",
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
+                      ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            "互动消息",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Color(0xcc000000),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 22),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10), // 减少间距，避免标题距离顶部太远
+                // 消息列表
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: controller.refreshMessages,
+                    color: const Color(0xffFF6B6B),
+                    child: _buildMessageList(),
+                  ),
+                ),
+              ],
+            ),
+         
+        ],
       ),
     );
   }

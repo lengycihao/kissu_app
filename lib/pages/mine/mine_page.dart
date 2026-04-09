@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/widgets/dialogs/custom_feedback_dialog.dart';
 import 'mine_controller.dart';
 import 'widgets/mine_top_bar.dart';
 import 'widgets/mine_user_info.dart';
@@ -10,8 +11,40 @@ import 'widgets/mine_settings.dart';
 import 'sub_pages/system_permission_page.dart';
 import 'sub_pages/system_permission_binding.dart';
 
-class MinePage extends GetView<MineController> {
+class MinePage extends StatefulWidget {
   const MinePage({super.key});
+
+  @override
+  State<MinePage> createState() => _MinePageState();
+}
+
+class _MinePageState extends State<MinePage> with WidgetsBindingObserver {
+  late MineController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<MineController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.onAppResumed();
+    }
+  }
 
   // 会员模块 - 根据状态选择显示哪个卡片
   Widget _buildVipCard() {
@@ -34,6 +67,10 @@ class MinePage extends GetView<MineController> {
         onRenewTap: controller.onRenewTap,
         areAllPermissionsGranted: controller.areAllPermissionsGranted.value,
         onPermissionSettingTap: () async {
+          // 埋点：记录权限模块点击
+          controller.trackPermissionModuleClick();
+
+          controller.onNavigateToNextPage?.call();
           await Get.to(
             () => const SystemPermissionPage(),
             binding: SystemPermissionBinding(),
@@ -71,51 +108,47 @@ class MinePage extends GetView<MineController> {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: controller.onRefresh,
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        controller.handleScroll(notification);
-                        return false;
-                      },
-                      child: SingleChildScrollView(
-                        controller: controller.scrollController,
-                        physics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: 15),
-                            Obx(() => MineUserInfo(
-                                  nickname: controller.nickname.value,
-                                  partnerNickname:
-                                      controller.partnerNickname.value,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: 15),
+                          Obx(
+                            () => MineUserInfo(
+                              nickname: controller.nickname.value,
+                              partnerNickname: controller.partnerNickname.value,
+                              isBound: controller.isBound.value,
+                              days: controller.days.value,
+                              onLabelTap: controller.onLabelTap,
+                              onQuarrelChatTap: () => _showQuarrelChatDialog(),
+                              avatarSection: Obx(
+                                () => MineAvatarSection(
+                                  userAvatar: controller.userAvatar.value,
+                                  partnerAvatar: controller.partnerAvatar.value,
                                   isBound: controller.isBound.value,
-                                  days: controller.days.value,
-                                  onLabelTap: controller.onLabelTap,
-                                  avatarSection: Obx(() => MineAvatarSection(
-                                        userAvatar: controller.userAvatar.value,
-                                        partnerAvatar:
-                                            controller.partnerAvatar.value,
-                                        isBound: controller.isBound.value,
-                                        onAvatarTap: controller.onAvatarTap,
-                                        onPartnerAvatarTap:
-                                            controller.onPartnerAvatarTap,
-                                      )),
-                                )),
-                            const SizedBox(height: 16),
-                            _buildVipCard(),
-                            const SizedBox(height: 16),
-                            // 常用功能模块
-                            MineCommonFunctions(
-                              items: controller.commonFunctionItems,
+                                  onAvatarTap: controller.onAvatarTap,
+                                  onPartnerAvatarTap:
+                                      controller.onPartnerAvatarTap,
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            MineSettings(
-                              items: controller.settingItems,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildVipCard(),
+                          const SizedBox(height: 16),
+                          // 常用功能模块
+                          Obx(
+                            () => MineCommonFunctions(
+                              items: controller.commonFunctionItems.toList(),
                             ),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 16),
+                          MineSettings(items: controller.settingItems),
+                          const SizedBox(height: 20),
+                        ],
                       ),
                     ),
                   ),
@@ -123,9 +156,13 @@ class MinePage extends GetView<MineController> {
               ],
             ),
           ),
+          
         ],
       ),
     );
   }
+
+  void _showQuarrelChatDialog() {
+    QuarrelChatDialog.show();
+  }
 }
- 

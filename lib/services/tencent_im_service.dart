@@ -1,13 +1,24 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/analytics/analytics_page_ids.dart';
+import 'package:kissu_app/constants/app_constants.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimSDKListener.dart';
 import 'package:tencent_cloud_chat_sdk/enum/log_level_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_msg_create_info_result.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_receipt.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart';
+import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimAdvancedMsgListener.dart';
+import 'package:tencent_cloud_chat_sdk/enum/V2TimFriendshipListener.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/services/relationship_animation_service.dart';
@@ -19,7 +30,19 @@ import 'package:kissu_app/network/http_managerN.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/chat_new_message_banner.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
+import 'package:tencent_cloud_chat_push/tencent_cloud_chat_push.dart';
+import 'package:kissu_app/services/lock_screen_overlay_service.dart';
+import 'package:kissu_app/pages/chat/chat_controller.dart';
+import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+part 'tencent_im_service_messaging.dart';
+part 'tencent_im_service_lock.dart';
+part 'tencent_im_service_relationship.dart';
+part 'tencent_im_service_push.dart';
 
 /// 腾讯IM服务
 /// 
@@ -31,7 +54,11 @@ class TencentIMService extends GetxService {
   static TencentIMService get instance => Get.find<TencentIMService>();
   
   // IM SDK AppID
-  static const int sdkAppID = 1600095370;
+  static const int sdkAppID = AppConstants.tencentIMSdkAppID;
+  
+  // 🔥 腾讯云IM推送服务客户端密钥（从IM控制台 > 推送服务Push > 接入设置 获取）
+  // 注意：这个appKey是腾讯云IM推送专用的，不是极光推送的appKey
+  static const String pushAppKey = AppConstants.tencentIMPushAppKey;
   
   // 是否已初始化
   bool _isInitialized = false;
@@ -44,42 +71,93 @@ class TencentIMService extends GetxService {
   // 当前登录的用户ID
   String? _currentUserID;
   String? get currentUserID => _currentUserID;
+  
+  // 🔥 修复：用户切换标志位，防止切换账号时自动重连干扰新用户登录
+  bool _isUserSwitching = false;
 
   // 消息接收回调
-  final Rx<Function(List<V2TimMessage>)?> onReceiveNewMessage = Rx<Function(List<V2TimMessage>)?>(null);
+  final Rx<Function(List<V2TimMessage>)?> onReceiveNewMessage =
+      Rx<Function(List<V2TimMessage>)?>(null);
+
+  /// 单聊未读消息数量（当前应用只支持另一半的单聊，会话未读总数）
+  final RxInt c2cUnreadCount = 0.obs;
   
   // 消息撤回回调
-  final Rx<Function(String)?> onRecvMessageRevoked = Rx<Function(String)?>(null);
+  final Rx<Function(String)?> onRecvMessageRevoked =
+      Rx<Function(String)?>(null);
+
+  // 单聊消息已读回执回调
+  final Rx<Function(List<V2TimMessageReceipt>)?> onRecvC2CReadReceiptCallback =
+      Rx<Function(List<V2TimMessageReceipt>)?>(null);
 
   // 绑定消息接收回调（当收到绑定消息时触发，用于自动关闭绑定弹窗等操作）
   final Rx<Function()?> onBindMessageReceived = Rx<Function()?>(null);
 
+  // 🔥 被锁方解锁通知回调（锁机方收到后重置锁机页面，参数为答题次数）
+  final Rx<Function(int)?> onUnlockPhoneReceived = Rx<Function(int)?>(null);
+
+  // ===== 模块化处理器 =====
+  late final _IMMessageHandler _messageHandler = _IMMessageHandler(this);
+  late final _IMLockScreenHandler _lockHandler = _IMLockScreenHandler(this);
+  late final _IMRelationshipHandler _relationshipHandler = _IMRelationshipHandler(this);
+  late final _IMPushHandler _pushHandler = _IMPushHandler(this);
+
   @override
   void onInit() {
     super.onInit();
-    _initIM();
+    // 🔥 修复：延迟初始化IM SDK，等待用户同意隐私政策后再初始化
+    // 不在 onInit 中立即初始化，避免在用户未同意隐私政策前获取设备信息
+    // IM SDK 将在用户同意隐私政策后，由 PrivacyComplianceManager 调用初始化
   }
 
+  // 🔥 用于等待SDK初始化完成的Completer
+  Completer<bool>? _initCompleter;
+
+  // 🔥 用于防止并发调用 ensureIMLoginStatus 的Completer
+  Completer<void>? _ensureLoginCompleter;
+
+  // 🔥 记录SDK Listener是否已注册，避免重复注册导致回调触发多次
+  bool _sdkListenerRegistered = false;
+  
   /// 初始化IM SDK
-  Future<bool> _initIM() async {
+  /// 🔥 修复：公开此方法，供 PrivacyComplianceManager 在用户同意隐私政策后调用
+  Future<bool> initIM() async {
     if (_isInitialized) {
       logger.info('IM SDK 已经初始化', tag: 'TencentIMService');
       return true;
     }
+    
+    // 🔥 如果正在初始化中，等待初始化完成
+    if (_initCompleter != null && !_initCompleter!.isCompleted) {
+      logger.info('IM SDK正在初始化中，等待完成...', tag: 'TencentIMService');
+      return await _initCompleter!.future;
+    }
+    
+    _initCompleter = Completer<bool>();
 
     try {
       logger.info('开始初始化腾讯IM SDK...', tag: 'TencentIMService');
       
-      // 初始化SDK
-      V2TimValueCallback<bool> initResult = await TencentImSDKPlugin.v2TIMManager.initSDK(
-        sdkAppID: sdkAppID,
-        loglevel: LogLevelEnum.V2TIM_LOG_DEBUG,
-        listener: V2TimSDKListener(
+      // 🔥 修复：先调用unInitSDK重置Flutter插件内部缓存状态
+      // 否则Flutter插件认为已初始化，initSDK会返回成功但不会真正调用native层
+      try {
+        await TencentImSDKPlugin.v2TIMManager.unInitSDK();
+        logger.debug('已重置Flutter插件SDK状态', tag: 'TencentIMService');
+      } catch (e) {
+        logger.debug('重置Flutter插件SDK状态(忽略错误): $e', tag: 'TencentIMService');
+      }
+      
+      // 🔥 修复：只在首次注册SDK Listener，避免重复注册导致回调触发多次
+      // 每次initIM都会被调用（因为被踢下线后_isInitialized=false），
+      // 如果每次都传新的listener，会导致onKickedOffline被调用N次
+      V2TimSDKListener? sdkListener;
+      if (!_sdkListenerRegistered) {
+        sdkListener = V2TimSDKListener(
           onConnecting: () {
-            logger.info('IM正在连接...', tag: 'TencentIMService');
+            logger.debug('IM正在连接...', tag: 'TencentIMService');
           },
           onConnectSuccess: () {
-            logger.info('IM连接成功', tag: 'TencentIMService');
+            logger.debug('IM连接成功', tag: 'TencentIMService');
           },
           onConnectFailed: (code, error) {
             logger.error('IM连接失败: code=$code, error=$error', tag: 'TencentIMService');
@@ -88,31 +166,61 @@ class TencentIMService extends GetxService {
             logger.warning('IM账号被踢下线', tag: 'TencentIMService');
             _isLoggedIn = false;
             _currentUserID = null;
+            // 🔥 重要：被踢下线时SDK会被内部卸载，需要重置初始化状态
+            _isInitialized = false;
+            // 🔥 修复：如果是用户主动切换账号，不要自动重连，避免干扰新用户登录
+            if (_isUserSwitching) {
+              logger.info('用户正在切换账号，跳过自动重连', tag: 'TencentIMService');
+              return;
+            }
+            // 🔥 修复：被踢下线（多设备登录）时不自动重连
+            // 因为同一账号在多设备登录会导致互相踢下线形成死循环
+            // 用户需要手动刷新或重新进入聊天页面来触发重新登录
+            logger.info('账号在其他设备登录，不自动重连', tag: 'TencentIMService');
           },
           onUserSigExpired: () {
             logger.warning('IM UserSig已过期', tag: 'TencentIMService');
             _isLoggedIn = false;
             _currentUserID = null;
+            // 🔥 修复：签名过期后尝试自动重新登录
+            Future.microtask(() => _attemptReconnect());
           },
           onSelfInfoUpdated: (info) {
-            logger.info('IM个人资料更新', tag: 'TencentIMService');
+            logger.debug('IM个人资料更新', tag: 'TencentIMService');
           },
-        ),
+        );
+        _sdkListenerRegistered = true;
+      }
+
+      // 初始化SDK
+      V2TimValueCallback<bool> initResult = await TencentImSDKPlugin.v2TIMManager.initSDK(
+        sdkAppID: sdkAppID,
+        loglevel: LogLevelEnum.V2TIM_LOG_DEBUG,
+        listener: sdkListener,
       );
 
       if (initResult.code == 0) {
         _isInitialized = true;
-        logger.info('腾讯IM SDK初始化成功', tag: 'TencentIMService');
+        logger.debug('腾讯IM SDK初始化成功', tag: 'TencentIMService');
+        
+        // 🔥 修复：等待SDK内部初始化完成
+        // initSDK返回成功只是表示调用成功，需要等待一小段时间让SDK内部完成初始化
+        await Future.delayed(const Duration(milliseconds: 500));
+        logger.debug('IM SDK初始化等待完成', tag: 'TencentIMService');
+        
+        _initCompleter?.complete(true);
         return true;
       } else {
         logger.error(
           'IM SDK初始化失败: ${initResult.desc}',
           tag: 'TencentIMService',
         );
+        _initCompleter?.complete(false);
         return false;
       }
     } catch (e) {
       logger.error('IM SDK初始化异常: $e', tag: 'TencentIMService');
+      _initCompleter?.complete(false);
       return false;
     }
   }
@@ -121,38 +229,56 @@ class TencentIMService extends GetxService {
   /// 
   /// [user] 登录用户信息，需要包含uniqueId和imSign
   Future<bool> loginIM(LoginModel user) async {
+    // 🔥 增强日志：记录登录参数状态
+    logger.info(
+      'IM登录请求 - uniqueId: ${user.uniqueId ?? "null"}, hasImSign: ${user.imSign != null && user.imSign!.isNotEmpty}, userId: ${user.id}',
+      tag: 'TencentIMService',
+    );
+    
+    // 🔥 修复：强制重新初始化SDK，确保SDK状态正确
+    // 因为SDK可能被内部卸载（如被踢下线后），但_isInitialized变量没有更新
     if (!_isInitialized) {
       logger.warning('IM SDK未初始化，尝试先初始化', tag: 'TencentIMService');
-      final initSuccess = await _initIM();
+      final initSuccess = await initIM();
       if (!initSuccess) {
         logger.error('IM SDK初始化失败，无法登录', tag: 'TencentIMService');
         return false;
       }
+    } else {
+      // 🔥 即使_isInitialized为true，也尝试重新初始化以确保SDK状态正确
+      // initIM内部会检查是否已初始化，如果已初始化会直接返回true
+      // 但如果SDK被内部卸载了，重新初始化可以修复状态
+      logger.debug('IM SDK标记为已初始化，验证SDK状态...', tag: 'TencentIMService');
     }
 
     // 检查必要参数
     if (user.uniqueId == null || user.uniqueId!.isEmpty) {
-      logger.error('IM登录失败: uniqueId为空', tag: 'TencentIMService');
+      logger.error('IM登录失败: uniqueId为空, userId=${user.id}', tag: 'TencentIMService');
       return false;
     }
 
     if (user.imSign == null || user.imSign!.isEmpty) {
-      logger.error('IM登录失败: imSign为空', tag: 'TencentIMService');
+      logger.error('IM登录失败: imSign为空, uniqueId=${user.uniqueId}, userId=${user.id}', tag: 'TencentIMService');
       return false;
     }
 
     // 如果已经登录同一个用户，不需要重复登录，但要确保监听器已设置
     if (_isLoggedIn && _currentUserID == user.uniqueId) {
-      logger.info('IM已登录该用户: ${user.uniqueId}', tag: 'TencentIMService');
+      logger.debug('IM已登录该用户: ${user.uniqueId}', tag: 'TencentIMService');
       
       // 确保消息监听器已设置（应对应用重启或热重载的情况）
       _setupMessageListener();
+      
+      // 🔥 重新注册推送服务（应对App被杀后重启的情况）
+      // 即使已经登录，每次App启动时都需要重新注册推送，确保设备token有效
+      await _pushHandler.registerPushService();
+      logger.debug('已重新注册推送服务（App重启场景）', tag: 'TencentIMService');
       
       return true;
     }
 
     try {
-      logger.info(
+      logger.debug(
         '开始登录腾讯IM: userID=${user.uniqueId}',
         tag: 'TencentIMService',
       );
@@ -165,23 +291,62 @@ class TencentIMService extends GetxService {
       if (loginResult.code == 0) {
         _isLoggedIn = true;
         _currentUserID = user.uniqueId;
-        logger.info(
+        // 🔥 修复：登录成功后重置用户切换标志位
+        _isUserSwitching = false;
+        logger.debug(
           'IM登录成功: userID=${user.uniqueId}',
           tag: 'TencentIMService',
         );
         
-        // 设置用户资料
-        if (user.nickname != null || user.headPortrait != null) {
-          await _updateUserProfile(
-            nickname: user.nickname,
-            avatarUrl: user.headPortrait,
-          );
-        }
-
-        // 设置消息监听器
+        // 🔥 保存IM凭证到SharedPreferences供原生层保活锁屏使用
+        _saveImCredentialsForNative(user.uniqueId!, user.imSign!);
+        
+        // 设置消息监听器（同步操作，立即完成）
         _setupMessageListener();
+
+        // 设置好友关系监听器（同步操作，立即完成）
+        _setupFriendshipListener();
+
+        // 🔥 修复：推送注册和用户资料更新改为异步不等待
+        // 避免在await期间被其他设备踢下线导致登录状态丢失
+        _postLoginAsyncTasks(user);
         
         return true;
+      } else if (loginResult.code == 6013) {
+        // 🔥 修复：SDK未初始化错误，强制重新初始化后重试
+        logger.warning('IM登录失败(6013: not initialized)，强制重新初始化SDK', tag: 'TencentIMService');
+        _isInitialized = false; // 重置初始化状态
+        final reinitSuccess = await initIM();
+        if (reinitSuccess) {
+          // 重新初始化成功，再次尝试登录
+          logger.debug('SDK重新初始化成功，再次尝试登录', tag: 'TencentIMService');
+          V2TimCallback retryResult = await TencentImSDKPlugin.v2TIMManager.login(
+            userID: user.uniqueId!,
+            userSig: user.imSign!,
+          );
+          if (retryResult.code == 0) {
+            _isLoggedIn = true;
+            _currentUserID = user.uniqueId;
+            // 🔥 修复：登录成功后重置用户切换标志位
+            _isUserSwitching = false;
+            logger.debug('IM重新登录成功: userID=${user.uniqueId}', tag: 'TencentIMService');
+            
+            // 🔥 保存IM凭证到SharedPreferences供原生层保活锁屏使用
+            _saveImCredentialsForNative(user.uniqueId!, user.imSign!);
+            
+            _setupMessageListener();
+            _setupFriendshipListener();
+            // 🔥 修复：推送注册和用户资料更新改为异步不等待
+            _postLoginAsyncTasks(user);
+            return true;
+          } else {
+            logger.error('IM重新登录失败: code=${retryResult.code}, desc=${retryResult.desc}', tag: 'TencentIMService');
+            return false;
+          }
+        } else {
+          logger.error('SDK重新初始化失败', tag: 'TencentIMService');
+          return false;
+        }
       } else {
         logger.error(
           'IM登录失败: code=${loginResult.code}, desc=${loginResult.desc}',
@@ -193,6 +358,41 @@ class TencentIMService extends GetxService {
       logger.error('IM登录异常: $e', tag: 'TencentIMService');
       return false;
     }
+  }
+
+  /// 🔥 保存IM凭证到SharedPreferences供原生层使用（保活状态下原生IM登录）
+  void _saveImCredentialsForNative(String userId, String userSig) {
+    Future(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('im_user_id', userId);
+        await prefs.setString('im_user_sig', userSig);
+        logger.debug('IM凭证已保存供原生层使用', tag: 'TencentIMService');
+      } catch (e) {
+        logger.warning('保存IM凭证失败: $e', tag: 'TencentIMService');
+      }
+    });
+  }
+
+  /// 🔥 修复：登录成功后的异步任务（不阻塞loginIM返回）
+  /// 包括用户资料更新和推送服务注册，这些操作耗时较长
+  /// 如果在这些操作期间被踢下线，不影响loginIM已经返回true的结果
+  void _postLoginAsyncTasks(LoginModel user) {
+    Future(() async {
+      try {
+        // 更新用户资料
+        if (user.nickname != null || user.headPortrait != null) {
+          await _updateUserProfile(
+            nickname: user.nickname,
+            avatarUrl: user.headPortrait,
+          );
+        }
+        // 注册推送服务
+        await _pushHandler.registerPushService();
+      } catch (e) {
+        logger.error('登录后异步任务异常: $e', tag: 'TencentIMService');
+      }
+    });
   }
 
   /// 更新用户资料
@@ -209,34 +409,98 @@ class TencentIMService extends GetxService {
           faceUrl: avatarUrl,
         ),
       );
-      logger.info('IM用户资料更新成功', tag: 'TencentIMService');
+      logger.debug('IM用户资料更新成功', tag: 'TencentIMService');
     } catch (e) {
       logger.error('IM用户资料更新失败: $e', tag: 'TencentIMService');
     }
   }
 
+  /// 获取用户信息（包含昵称、头像等）
+  Future<V2TimUserFullInfo?> getUsersInfo(String userID) async {
+    if (!_isInitialized) return null;
+    try {
+      final res = await TencentImSDKPlugin.v2TIMManager.getUsersInfo(userIDList: [userID]);
+      if (res.code == 0 && res.data != null && res.data!.isNotEmpty) {
+        return res.data![0];
+      }
+    } catch (e) {
+      logger.error('获取IM用户信息失败: $e', tag: 'TencentIMService');
+    }
+    return null;
+  }
+
+  /// 获取好友资料（包含备注）
+  Future<V2TimFriendInfo?> getFriendInfo(String userID) async {
+    if (!_isInitialized) return null;
+    try {
+      final res = await TencentImSDKPlugin.v2TIMManager.getFriendshipManager().getFriendsInfo(userIDList: [userID]);
+      if (res.code == 0 && res.data != null && res.data!.isNotEmpty) {
+        return res.data![0].friendInfo;
+      }
+    } catch (e) {
+      logger.error('获取IM好友信息失败: $e', tag: 'TencentIMService');
+    }
+    return null;
+  }
+
+  /// 设置好友备注
+  Future<bool> setFriendRemark(String userID, String remark) async {
+    if (!_isInitialized) return false;
+    try {
+      final res = await TencentImSDKPlugin.v2TIMManager.getFriendshipManager().setFriendInfo(
+        userID: userID,
+        friendRemark: remark,
+      );
+      return res.code == 0;
+    } catch (e) {
+      logger.error('设置IM好友备注失败: $e', tag: 'TencentIMService');
+    }
+    return false;
+  }
+
+  /// 对外暴露的“仅更新昵称”方法（供设置页等调用）
+  Future<void> updateSelfNickname(String nickname) async {
+    // 直接复用内部资料更新逻辑，只传入昵称
+    await _updateUserProfile(nickname: nickname);
+  }
+
   /// 退出登录IM
-  Future<bool> logoutIM() async {
+  /// [isUserSwitching] 是否是用户主动切换账号，如果是则设置标志位防止自动重连
+  Future<bool> logoutIM({bool isUserSwitching = false}) async {
+    // 🔥 修复：设置用户切换标志位，防止被踢下线时自动重连干扰新用户登录
+    if (isUserSwitching) {
+      _isUserSwitching = true;
+      logger.debug('用户切换账号，设置切换标志位', tag: 'TencentIMService');
+    }
+    
     if (!_isLoggedIn) {
-      logger.info('IM未登录，无需退出', tag: 'TencentIMService');
+      logger.debug('IM未登录，无需退出', tag: 'TencentIMService');
       return true;
     }
 
     try {
-      logger.info('开始退出IM登录...', tag: 'TencentIMService');
+      logger.debug('开始退出IM登录...', tag: 'TencentIMService');
       
       // 移除消息监听器
       _removeMessageListener();
-      
+
+      // 移除好友关系监听器
+      _removeFriendshipListener();
+
       // 清除回调
       clearCallbacks();
+      
+      // 🔥 反注册推送服务
+      await _pushHandler.unRegisterPushService();
       
       V2TimCallback result = await TencentImSDKPlugin.v2TIMManager.logout();
       
       if (result.code == 0) {
         _isLoggedIn = false;
         _currentUserID = null;
-        logger.info('IM退出登录成功', tag: 'TencentIMService');
+        // 🔥 修复：logout后SDK会自动InternalUninit，必须重置初始化状态
+        _isInitialized = false;
+        logger.debug('IM退出登录成功', tag: 'TencentIMService');
         return true;
       } else {
         logger.error(
@@ -251,6 +515,223 @@ class TencentIMService extends GetxService {
     }
   }
 
+  // 🔥 重连控制变量
+  bool _isReconnecting = false;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 3;
+  static const Duration _reconnectDelay = Duration(seconds: 2);
+
+  /// 🔥 新增：尝试重新连接 IM（带重试机制）
+  Future<void> _attemptReconnect() async {
+    // 🔥 修复：如果用户正在切换账号，跳过自动重连
+    if (_isUserSwitching) {
+      logger.debug('用户正在切换账号，跳过自动重连', tag: 'TencentIMService');
+      return;
+    }
+    
+    // 防止重复重连
+    if (_isReconnecting) {
+      logger.debug('IM正在重连中，跳过重复调用', tag: 'TencentIMService');
+      return;
+    }
+    
+    _isReconnecting = true;
+    _reconnectAttempts = 0;
+    
+    try {
+      // 🔥 修复：如果SDK未初始化，先初始化
+      if (!_isInitialized) {
+        logger.debug('IM SDK未初始化，尝试重新初始化', tag: 'TencentIMService');
+        final initSuccess = await initIM();
+        if (!initSuccess) {
+          logger.error('IM SDK重新初始化失败，放弃重连', tag: 'TencentIMService');
+          return;
+        }
+      }
+      
+      while (_reconnectAttempts < _maxReconnectAttempts) {
+        _reconnectAttempts++;
+        logger.debug('开始尝试重新连接IM (第$_reconnectAttempts次)...', tag: 'TencentIMService');
+        
+        // 🔥 修复：AuthService 是通过 GetIt 注册的，不是 GetX
+        if (!getIt.isRegistered<AuthService>()) {
+          logger.warning('AuthService未注册，无法重新登录IM', tag: 'TencentIMService');
+          break;
+        }
+        
+        final authService = getIt<AuthService>();
+        if (!authService.isLoggedIn || authService.currentUser == null) {
+          logger.info('无已登录用户，跳过IM自动重新登录', tag: 'TencentIMService');
+          break;
+        }
+        
+        // 检查本地缓存的 imSign 是否存在
+        final user = authService.currentUser!;
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.warning('本地缓存的imSign为空，尝试刷新用户信息', tag: 'TencentIMService');
+          final refreshSuccess = await authService.refreshUserInfoFromServer();
+          if (!refreshSuccess) {
+            logger.error('刷新用户信息失败', tag: 'TencentIMService');
+            // 等待后重试
+            if (_reconnectAttempts < _maxReconnectAttempts) {
+              await Future.delayed(_reconnectDelay);
+              continue;
+            }
+            break;
+          }
+        }
+        
+        // 使用最新的用户信息重新登录
+        final latestUser = authService.currentUser!;
+        
+        // 再次检查 imSign
+        if (latestUser.imSign == null || latestUser.imSign!.isEmpty) {
+          logger.error('imSign仍然为空，无法登录IM', tag: 'TencentIMService');
+          if (_reconnectAttempts < _maxReconnectAttempts) {
+            await Future.delayed(_reconnectDelay);
+            continue;
+          }
+          break;
+        }
+        
+        logger.debug('尝试重新登录IM: ${latestUser.uniqueId}', tag: 'TencentIMService');
+        
+        // 重新登录
+        final success = await loginIM(latestUser);
+        if (success) {
+          logger.debug('IM自动重新登录成功 (第$_reconnectAttempts次尝试)', tag: 'TencentIMService');
+          break;
+        } else {
+          logger.warning('IM自动重新登录失败 (第$_reconnectAttempts次尝试)', tag: 'TencentIMService');
+          if (_reconnectAttempts < _maxReconnectAttempts) {
+            await Future.delayed(_reconnectDelay);
+          }
+        }
+      }
+      
+      if (_reconnectAttempts >= _maxReconnectAttempts && !_isLoggedIn) {
+        logger.error('IM重连已达最大尝试次数($_maxReconnectAttempts)，放弃重连', tag: 'TencentIMService');
+      }
+    } catch (e) {
+      logger.error('IM自动重新登录异常: $e', tag: 'TencentIMService');
+    } finally {
+      _isReconnecting = false;
+    }
+  }
+
+  /// 🔥 新增：确保 IM 登录状态（App 恢复前台时 / 聊天页面调用）
+  /// 检查当前 IM 状态，如果未登录则尝试重新登录
+  /// 包含重试机制：如果登录后被其他设备踢下线，等待后重试
+  /// 🔥 使用 Completer 防止多个调用方并发执行，避免重复登录
+  Future<void> ensureIMLoginStatus() async {
+    // 防止重复调用（_attemptReconnect正在执行）
+    if (_isReconnecting) {
+      logger.debug('IM正在重连中，跳过ensureIMLoginStatus', tag: 'TencentIMService');
+      return;
+    }
+    
+    // 🔥 修复：如果已有ensureLogin正在执行，等待它完成而不是重复执行
+    if (_ensureLoginCompleter != null && !_ensureLoginCompleter!.isCompleted) {
+      logger.debug('ensureIMLoginStatus已在执行中，等待完成...', tag: 'TencentIMService');
+      await _ensureLoginCompleter!.future;
+      return;
+    }
+    
+    // 如果已经登录，不需要处理
+    if (_isLoggedIn && _currentUserID != null) {
+      logger.debug('IM已登录，无需重新连接: $_currentUserID', tag: 'TencentIMService');
+      return;
+    }
+    
+    _ensureLoginCompleter = Completer<void>();
+    
+    try {
+      // 🔥 修复：AuthService 是通过 GetIt 注册的，不是 GetX
+      if (!getIt.isRegistered<AuthService>()) {
+        logger.debug('AuthService未注册，跳过IM状态检查', tag: 'TencentIMService');
+        return;
+      }
+      
+      final authService = getIt<AuthService>();
+      if (!authService.isLoggedIn || authService.currentUser == null) {
+        logger.debug('用户未登录，跳过IM状态检查', tag: 'TencentIMService');
+        return;
+      }
+      
+      // 🔥 修复：增加重试次数和等待时间
+      // 场景：A手机运行旧代码会在被踢后自动重连，导致互踢循环
+      // 旧代码_attemptReconnect最多重试3次，每次间隔约3秒，总计~9秒
+      // 所以B手机需要更持久：5次重试，每次间隔3秒，总计~15秒
+      const int maxRetries = 4;
+      for (int attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          // 🔥 递增等待时间：第2次3秒，第3次3秒，第4次4秒，第5次5秒
+          final waitSeconds = attempt <= 2 ? 3 : attempt + 1;
+          logger.debug('IM登录被踢下线，等待$waitSeconds秒后第${attempt + 1}次尝试...', tag: 'TencentIMService');
+          await Future.delayed(Duration(seconds: waitSeconds));
+          
+          // 等待后再次检查是否已登录（可能其他流程已经登录成功）
+          if (_isLoggedIn && _currentUserID != null) {
+            logger.debug('等待期间IM已恢复登录: $_currentUserID', tag: 'TencentIMService');
+            return;
+          }
+        }
+        
+        // 如果SDK未初始化，先初始化
+        if (!_isInitialized) {
+          logger.debug('IM SDK未初始化，尝试重新初始化', tag: 'TencentIMService');
+          final initSuccess = await initIM();
+          if (!initSuccess) {
+            logger.error('IM SDK重新初始化失败', tag: 'TencentIMService');
+            return;
+          }
+        }
+        
+        logger.debug('检测到IM未登录，尝试重新连接（第${attempt + 1}次）...', tag: 'TencentIMService');
+        
+        // 获取最新用户信息
+        var user = authService.currentUser!;
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.warning('本地imSign为空，尝试刷新用户信息', tag: 'TencentIMService');
+          await authService.refreshUserInfoFromServer();
+          user = authService.currentUser!;
+        }
+        
+        if (user.imSign == null || user.imSign!.isEmpty) {
+          logger.error('imSign为空，无法登录IM', tag: 'TencentIMService');
+          return;
+        }
+        
+        // 使用最新的用户信息登录
+        final success = await loginIM(user);
+        if (!success) {
+          logger.error('IM重新连接失败', tag: 'TencentIMService');
+          return;
+        }
+        
+        // 🔥 关键：登录成功后等待一小段时间，检查是否被其他设备踢下线
+        // 因为loginIM现在不等待推送注册，所以很快返回
+        // 但其他设备的自动重连可能在几百毫秒内把我们踢下线
+        await Future.delayed(const Duration(milliseconds: 800));
+        
+        if (_isLoggedIn && _currentUserID != null) {
+          logger.debug('IM重新连接成功，状态稳定: $_currentUserID', tag: 'TencentIMService');
+          return;
+        }
+        
+        // 被踢下线了，继续重试
+        logger.debug('IM登录后被踢下线，将重试（第${attempt + 1}/${maxRetries + 1}次）', tag: 'TencentIMService');
+      }
+      
+      logger.error('IM重新连接最终失败，已重试${maxRetries + 1}次', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('确保IM登录状态异常: $e', tag: 'TencentIMService');
+    } finally {
+      _ensureLoginCompleter?.complete();
+      _ensureLoginCompleter = null;
+    }
+  }
+
   /// 卸载IM SDK
   Future<void> unInitIM() async {
     if (!_isInitialized) return;
@@ -260,71 +741,76 @@ class TencentIMService extends GetxService {
       _isInitialized = false;
       _isLoggedIn = false;
       _currentUserID = null;
-      logger.info('IM SDK已卸载', tag: 'TencentIMService');
+      logger.debug('IM SDK已卸载', tag: 'TencentIMService');
     } catch (e) {
       logger.error('IM SDK卸载失败: $e', tag: 'TencentIMService');
     }
   }
 
-  /// 发送文本消息
-  /// 
-  /// [receiverID] 接收者ID
-  /// [text] 消息文本
-  /// [isGroup] 是否是群聊，默认false（单聊）
+  /// 🔥 兜底：IM未登录时尝试重新初始化和登录
+  /// 不直接退出到登录页，而是尝试重新连接
+  void _handleIMNotLoggedIn() {
+    logger.warning('🔥 IM未登录，尝试重新初始化和登录', tag: 'TencentIMService');
+    
+    // 尝试重新连接IM（异步执行，不阻塞当前操作）
+    Future.microtask(() async {
+      // 如果SDK未初始化，先初始化
+      if (!_isInitialized) {
+        logger.debug('IM SDK未初始化，尝试重新初始化', tag: 'TencentIMService');
+        final initSuccess = await initIM();
+        if (!initSuccess) {
+          logger.error('IM SDK重新初始化失败', tag: 'TencentIMService');
+          return;
+        }
+      }
+      
+      // 尝试重新登录
+      await _attemptReconnect();
+    });
+  }
+
+  // ===== 消息收发（委托给 _IMMessageHandler） =====
+
   Future<V2TimValueCallback<V2TimMessage>?> sendTextMessage({
     required String receiverID,
     required String text,
     bool isGroup = false,
-  }) async {
-    if (!_isLoggedIn) {
-      logger.warning('IM未登录，无法发送消息', tag: 'TencentIMService');
-      return null;
-    }
+  }) => _messageHandler.sendTextMessage(receiverID: receiverID, text: text, isGroup: isGroup);
 
-    try {
-      logger.info(
-        '发送文本消息: receiverID=$receiverID, text=$text, isGroup=$isGroup',
-        tag: 'TencentIMService',
-      );
+  Future<V2TimValueCallback<V2TimMessage>?> sendImageMessage({
+    required String receiverID,
+    required String imagePath,
+    bool isGroup = false,
+  }) => _messageHandler.sendImageMessage(receiverID: receiverID, imagePath: imagePath, isGroup: isGroup);
 
-      // 先创建文本消息
-      V2TimValueCallback createResult = 
-          await TencentImSDKPlugin.v2TIMManager
-              .getMessageManager()
-              .createTextMessage(text: text);
+  Future<V2TimCallback?> deleteMessageFromLocal({required String msgID}) =>
+      _messageHandler.deleteMessageFromLocal(msgID: msgID);
 
-      if (createResult.code != 0) {
-        logger.error(
-          '创建消息失败: ${createResult.desc}',
-          tag: 'TencentIMService',
-        );
-        return null;
-      }
+  Future<V2TimCallback?> deleteMessagesFromCloud({required List<String> msgIDs}) =>
+      _messageHandler.deleteMessagesFromCloud(msgIDs: msgIDs);
 
-      // 发送消息
-      V2TimValueCallback<V2TimMessage> sendResult = 
-          await TencentImSDKPlugin.v2TIMManager
-              .getMessageManager()
-              .sendMessage(
-                receiver: isGroup ? '' : receiverID,
-                groupID: isGroup ? receiverID : '',
-              );
+  Future<V2TimCallback?> revokeMessage({required String msgID}) =>
+      _messageHandler.revokeMessage(msgID: msgID);
 
-      if (sendResult.code == 0) {
-        logger.info('消息发送成功', tag: 'TencentIMService');
-      } else {
-        logger.error(
-          '消息发送失败: ${sendResult.desc}',
-          tag: 'TencentIMService',
-        );
-      }
+  Future<V2TimValueCallback<V2TimMessage>?> sendCustomMessage({
+    required String receiverID,
+    required String customData,
+    bool isGroup = false,
+  }) => _messageHandler.sendCustomMessage(receiverID: receiverID, customData: customData, isGroup: isGroup);
 
-      return sendResult;
-    } catch (e) {
-      logger.error('发送消息异常: $e', tag: 'TencentIMService');
-      return null;
-    }
-  }
+  Future<void> sendTypingOnlineMessage({required String receiverID}) =>
+      _messageHandler.sendTypingOnlineMessage(receiverID: receiverID);
+
+  Future<V2TimValueCallback<List<V2TimMessage>>?> getC2CHistoryMessages({
+    required String userID,
+    int count = 20,
+    String? lastMsgID,
+  }) => _messageHandler.getC2CHistoryMessages(userID: userID, count: count, lastMsgID: lastMsgID);
+
+  Future<V2TimCallback?> markC2CMessageAsRead({
+    required String userID,
+    List<String>? messageIDList,
+  }) => _messageHandler.markC2CMessageAsRead(userID: userID, messageIDList: messageIDList);
 
   /// 设置消息监听器
   void _setupMessageListener() {
@@ -345,47 +831,46 @@ class TencentIMService extends GetxService {
       TencentImSDKPlugin.v2TIMManager.getMessageManager().addAdvancedMsgListener(
         listener: V2TimAdvancedMsgListener(
           onRecvNewMessage: (message) {
-            logger.info('📨 收到新消息', tag: 'TencentIMService');
-            logger.info(
+            logger.debug('📨 收到新消息', tag: 'TencentIMService');
+            logger.debug(
               '消息基本信息 - ID: ${message.msgID}, 发送者: ${message.sender}, 类型: ${message.elemType}',
               tag: 'TencentIMService',
             );
             
             // 处理文本消息
             if (message.textElem != null && message.textElem!.text != null) {
-              logger.info('📝 文本消息: ${message.textElem!.text}', tag: 'TencentIMService');
+              logger.debug('📝 文本消息: ${message.textElem!.text}', tag: 'TencentIMService');
             }
             
-            // 处理自定义消息（在elemList中）
-            if (message.elemList.isNotEmpty) {
-              logger.info('📋 消息包含 ${message.elemList.length} 个元素', tag: 'TencentIMService');
-              for (int i = 0; i < message.elemList.length; i++) {
-                final elem = message.elemList[i];
-                logger.info(
-                  '  元素[$i] - 类型: ${elem.elemType}, 自定义数据: ${elem.data}, 扩展: ${elem.extension}',
-                  tag: 'TencentIMService',
-                );
-                
-                // 如果是自定义消息（类型为2），详细打印并处理
-                if (elem.elemType == 2 && elem.data != null) {
-                  logger.info(
-                    '  🎯 自定义消息 - data: ${elem.data}, desc: ${elem.desc}, extension: ${elem.extension}',
+            // 处理自定义消息（customElem）
+            if (message.customElem != null && message.customElem!.data != null) {
+              final custom = message.customElem!;
+                logger.debug(
+                '🎯 自定义消息 - data: ${custom.data}, desc: ${custom.desc}, extension: ${custom.extension}',
                     tag: 'TencentIMService',
                   );
                   
                   // 处理绑定/解绑关系消息
-                  _handleRelationshipMessage(elem.data);
-                }
+              _relationshipHandler.handleRelationshipMessage(custom.data);
+              
+              // 处理锁机相关指令（对方发来的消息）
+              if (!(message.isSelf ?? false)) {
+                _lockHandler.handleLockScreenCommand(custom.data);
+                _lockHandler.handleUnlockPhoneSend(custom.data);
+                _lockHandler.handleUnlockPhoneReceive(custom.data);
               }
             }
             
+            // 收到对方的聊天消息时，显示顶部全局新消息 Banner（不在聊天页时才弹）
+            _showGlobalChatBannerIfNeeded(message);
+
             // 触发回调（将单个消息包装成列表）
             if (onReceiveNewMessage.value != null) {
               onReceiveNewMessage.value!([message]);
             }
           },
           onRecvMessageRevoked: (msgID) {
-            logger.info('🔙 消息被撤回: $msgID', tag: 'TencentIMService');
+            logger.debug('🔙 消息被撤回: $msgID', tag: 'TencentIMService');
             
             // 触发回调
             if (onRecvMessageRevoked.value != null) {
@@ -393,17 +878,144 @@ class TencentIMService extends GetxService {
             }
           },
           onRecvC2CReadReceipt: (receiptList) {
-            logger.info('✅ 收到单聊消息已读回执', tag: 'TencentIMService');
+            logger.debug('✅ 收到单聊消息已读回执', tag: 'TencentIMService');
+            for (final receipt in receiptList) {
+              logger.debug(
+                'C2C已读 - userID: ${receipt.userID}, msgID: ${receipt.msgID}, isPeerRead: ${receipt.isPeerRead}, timestamp: ${receipt.timestamp}',
+                tag: 'TencentIMService',
+              );
+            }
+
+            // 转发给业务层
+            if (onRecvC2CReadReceiptCallback.value != null) {
+              onRecvC2CReadReceiptCallback.value!(receiptList);
+            }
           },
           onRecvMessageModified: (message) {
-            logger.info('✏️ 消息被修改: ${message.msgID}', tag: 'TencentIMService');
+            logger.debug('✏️ 消息被修改: ${message.msgID}', tag: 'TencentIMService');
           },
         ),
       );
       
-      logger.info('✅ 消息监听器已成功设置', tag: 'TencentIMService');
+      logger.debug('✅ 消息监听器已成功设置', tag: 'TencentIMService');
     } catch (e) {
       logger.error('❌ 设置消息监听器失败: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 收到 C2C 聊天消息时，在非聊天页面展示顶部 Banner
+  void _showGlobalChatBannerIfNeeded(V2TimMessage message) {
+    try {
+      // 仅处理单聊消息
+      if ((message.groupID ?? '').isNotEmpty) return;
+
+      // 没有全局 context 时无法展示
+      final context = Get.context;
+      if (context == null) return;
+
+      // 当前就在聊天页面时不展示
+      if (Get.currentRoute == KissuRoutePath.chat) return;
+
+      // 只处理对方发来的消息（排除自己发送回调）
+      final currentId = _currentUserID;
+      if (message.sender == null || message.sender == currentId) return;
+
+      // 仅处理文本、图片和特定自定义消息，其它类型暂不展示
+      String preview;
+      if (message.textElem != null &&
+          message.textElem!.text != null &&
+          message.textElem!.text!.isNotEmpty) {
+        preview = '对方发来一条新消息，点击查看';
+      } else if (message.imageElem != null) {
+        preview = '对方发来一条新消息，点击查看';
+      } else if (message.customElem != null &&
+          message.customElem!.data != null &&
+          message.customElem!.data!.isNotEmpty) {
+        // 处理自定义消息，如"一起便便"、锁机提醒等
+        try {
+          final dynamic decoded = jsonDecode(message.customElem!.data!);
+          if (decoded is Map<String, dynamic>) {
+            final String? msgBubble = decoded['msg_bubble'] as String?;
+            final String? msgLock = decoded['msg_lock'] as String?;
+            final String? msgType = decoded['msg_type'] as String?;
+            if (msgBubble == 'defecate' || msgBubble == 'endDefecate') {
+              preview = '对方发来一条新消息，点击查看';
+            } else if (msgLock == 'lock_phone' || msgLock == 'phone_use' || msgLock == 'connect_app') {
+              // 🔥 锁机提醒消息也要增加未读数和显示Banner
+              preview = '对方发来一条新消息，点击查看';
+            } else if (msgType == 'chat_say_guess') {
+              preview = '[快来和我一起玩你说我猜游戏吧~]';
+            } else {
+              return; // 其它自定义消息暂不展示
+            }
+          } else {
+            return;
+          }
+        } catch (_) {
+          return;
+        }
+      } else {
+        // 其他类型暂不展示
+        return;
+      }
+
+      // 非聊天页收到对方消息时，增加未读计数
+      c2cUnreadCount.value = c2cUnreadCount.value + 1;
+
+      // 从用户信息中获取另一半昵称和头像
+      final user = UserManager.currentUser;
+      final half = user?.halfUserInfo;
+      final nickname = (half?.nickname ?? '').isNotEmpty
+          ? half!.nickname!
+          : 'Ta';
+      final avatarUrl = (half?.headPortrait ?? '').isNotEmpty
+          ? half!.headPortrait!
+          : 'assets/3.0/kissu3_love_avater.webp';
+
+      // 使用 Overlay 弹出 2 秒自动消失的 Banner
+      // 优先使用 Get.overlayContext 获取全局 Overlay，避免 Overlay.of 抛异常
+      OverlayState? overlay;
+      final overlayContext = Get.overlayContext;
+      if (overlayContext != null) {
+        overlay = overlayContext.findAncestorStateOfType<OverlayState>();
+      }
+      if (overlay == null) return;
+
+      late OverlayEntry entry;
+      bool removed = false;
+
+      void removeEntry() {
+        if (removed) return;
+        removed = true;
+        try {
+          entry.remove();
+        } catch (_) {}
+      }
+
+      entry = OverlayEntry(
+        builder: (ctx) {
+          return Stack(
+            children: [
+              ChatNewMessageBanner(
+                avatarUrl: avatarUrl,
+                nickname: nickname,
+                messagePreview: preview,
+                onTapNavigate: () {
+                  removeEntry();
+                  if (Get.currentRoute != KissuRoutePath.chat) {
+                    Get.toNamed(KissuRoutePath.chat);
+                  }
+                },
+                onAutoDismiss: removeEntry,
+              ),
+            ],
+          );
+        },
+      );
+
+      overlay.insert(entry);
+    } catch (e) {
+      logger.error('显示聊天新消息 Banner 失败: $e', tag: 'TencentIMService');
     }
   }
 
@@ -413,9 +1025,71 @@ class TencentIMService extends GetxService {
 
     try {
       TencentImSDKPlugin.v2TIMManager.getMessageManager().removeAdvancedMsgListener();
-      logger.info('消息监听器已移除', tag: 'TencentIMService');
+      logger.debug('消息监听器已移除', tag: 'TencentIMService');
     } catch (e) {
       logger.error('移除消息监听器失败: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 设置好友关系监听器
+  void _setupFriendshipListener() {
+    if (!_isInitialized) {
+      logger.warning('IM SDK未初始化，无法添加好友关系监听器', tag: 'TencentIMService');
+      return;
+    }
+
+    try {
+      // 先移除旧的监听器（避免重复添加）
+      try {
+        TencentImSDKPlugin.v2TIMManager.getFriendshipManager().removeFriendListener();
+      } catch (e) {
+        // 忽略移除失败的错误
+      }
+
+      // 添加新的好友关系监听器
+      TencentImSDKPlugin.v2TIMManager.getFriendshipManager().addFriendListener(
+        listener: V2TimFriendshipListener(
+          onFriendListAdded: (friendInfoList) {
+            logger.debug('📨 检测到好友添加事件', tag: 'TencentIMService');
+            for (final friendInfo in friendInfoList) {
+              logger.debug(
+                '新好友: userID=${friendInfo.userID}, nickname=${friendInfo.userProfile?.nickName}',
+                tag: 'TencentIMService',
+              );
+            }
+            // 触发绑定消息处理逻辑
+            _relationshipHandler.handleBindEvent();
+          },
+          onFriendListDeleted: (userIDList) {
+            logger.debug('📨 检测到好友删除事件', tag: 'TencentIMService');
+            for (final userID in userIDList) {
+              logger.debug('删除好友: userID=$userID', tag: 'TencentIMService');
+            }
+            // 触发解绑消息处理逻辑
+            _relationshipHandler.handleUnbindEvent();
+          },
+          onFriendApplicationListAdded: (applicationList) {
+            logger.debug('📨 收到好友申请', tag: 'TencentIMService');
+            // 这里可以处理好友申请的通知，但当前主要关注绑定/解绑事件
+          },
+        ),
+      );
+
+      logger.debug('✅ 好友关系监听器已成功设置', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('❌ 设置好友关系监听器失败: $e', tag: 'TencentIMService');
+    }
+  }
+
+  /// 移除好友关系监听器
+  void _removeFriendshipListener() {
+    if (!_isInitialized) return;
+
+    try {
+      TencentImSDKPlugin.v2TIMManager.getFriendshipManager().removeFriendListener();
+      logger.debug('好友关系监听器已移除', tag: 'TencentIMService');
+    } catch (e) {
+      logger.error('移除好友关系监听器失败: $e', tag: 'TencentIMService');
     }
   }
 
@@ -433,7 +1107,14 @@ class TencentIMService extends GetxService {
   /// ```
   void setOnReceiveNewMessage(Function(List<V2TimMessage>) callback) {
     onReceiveNewMessage.value = callback;
-    logger.info('已设置新消息接收回调', tag: 'TencentIMService');
+    logger.debug('已设置新消息接收回调', tag: 'TencentIMService');
+  }
+
+  /// 设置单聊消息已读回执回调
+  void setOnRecvC2CReadReceipt(
+      Function(List<V2TimMessageReceipt>) callback) {
+    onRecvC2CReadReceiptCallback.value = callback;
+    logger.debug('已设置单聊消息已读回执回调', tag: 'TencentIMService');
   }
 
   /// 设置消息撤回回调
@@ -448,7 +1129,7 @@ class TencentIMService extends GetxService {
   /// ```
   void setOnRecvMessageRevoked(Function(String) callback) {
     onRecvMessageRevoked.value = callback;
-    logger.info('已设置消息撤回回调', tag: 'TencentIMService');
+    logger.debug('已设置消息撤回回调', tag: 'TencentIMService');
   }
 
   /// 设置绑定消息接收回调
@@ -463,7 +1144,7 @@ class TencentIMService extends GetxService {
   /// ```
   void setOnBindMessageReceived(Function() callback) {
     onBindMessageReceived.value = callback;
-    logger.info('已设置绑定消息接收回调', tag: 'TencentIMService');
+    logger.debug('已设置绑定消息接收回调', tag: 'TencentIMService');
   }
 
   /// 清除所有回调
@@ -471,463 +1152,56 @@ class TencentIMService extends GetxService {
     onReceiveNewMessage.value = null;
     onRecvMessageRevoked.value = null;
     onBindMessageReceived.value = null;
-    logger.info('已清除所有回调', tag: 'TencentIMService');
+    onRecvC2CReadReceiptCallback.value = null;
+    logger.debug('已清除所有回调', tag: 'TencentIMService');
   }
 
-  /// 处理情侣关系绑定/解绑消息
-  /// 
-  /// [customData] 自定义消息数据（JSON字符串）
-  void _handleRelationshipMessage(String? customData) async {
-    if (customData == null || customData.isEmpty) {
-      return;
-    }
-
+  /// 清空单聊未读数（进入聊天页面或手动清零时调用）
+  void clearC2CUnreadCount() {
+    c2cUnreadCount.value = 0;
+    // 同步将当前情侣单聊会话标记为已读，避免服务端未读数与本地角标不同步
     try {
-      // 解析JSON数据
-      final Map<String, dynamic> data = jsonDecode(customData);
-      final String? msgType = data['msg_type'];
-
-      logger.info('处理关系消息 - msg_type: $msgType', tag: 'TencentIMService');
-
-      if (msgType == null) {
+      if (!_isLoggedIn) {
         return;
       }
-
-      // 已绑定用户不再处理绑定申请/拒绝类消息，避免重复弹窗/干扰
-      try {
-        final authService = getIt<AuthService>();
-        final user = authService.currentUser;
-        final bindStatus = user?.bindStatus?.toString();
-        final bool isBound = bindStatus == "1";
-
-        if (isBound && (msgType == 'bindRequest' || msgType == 'refuseRequest')) {
-          logger.info(
-            '当前用户已绑定，忽略关系消息: $msgType',
-            tag: 'TencentIMService',
-          );
-          return;
-        }
-      } catch (e) {
-        logger.warning('检查绑定状态失败，继续按默认逻辑处理关系消息: $e', tag: 'TencentIMService');
-      }
-
-      // 尝试获取动画服务并按消息类型处理
-      try {
-        final animationService = RelationshipAnimationService.instance;
-        
-        // 根据消息类型播放对应的GIF动画
-        switch (msgType) {
-          case 'bindAndroid':
-          // 兼容服务端可能返回的 msg_type = "bind"
-          case 'bind':
-            logger.info('🎉 收到绑定消息 (bindAndroid/bind)，A和B都会收到此消息，统一处理绑定逻辑', tag: 'TencentIMService');
-            await _handleBindMessage(animationService);
-            break;
-          case 'unbind':
-            logger.info('💔 收到解绑关系消息，处理解绑逻辑', tag: 'TencentIMService');
-            await _handleUnbindMessage(animationService);
-            break;
-          case 'refuseRequest':
-            logger.info('💔 收到拒绝绑定消息', tag: 'TencentIMService');
-            await _handleRefuseRequestMessage(data);
-            break;
-          case 'bindRequest':
-            logger.info('💌 收到绑定申请', tag: 'TencentIMService');
-            await _handleBindRequestMessage(data);
-            break;
-          default:
-            logger.info('未知的消息类型: $msgType', tag: 'TencentIMService');
-        }
-      } catch (e) {
-        logger.warning('动画服务未初始化或调用失败: $e', tag: 'TencentIMService');
-      }
-    } catch (e) {
-      logger.error('解析关系消息失败: $e, 原始数据: $customData', tag: 'TencentIMService');
-    }
-  }
-
-  /// 处理绑定消息（bindAndroid 类型）
-  /// 当A给B发绑定申请，B点击确认后，服务器会发送 bindAndroid 消息给A和B
-  /// 无论A还是B，收到该消息后都会执行以下逻辑：
-  /// 1. 触发绑定消息回调（用于关闭绑定弹窗）
-  /// 2. 刷新用户信息
-  /// 3. 刷新当前页面
-  /// 4. 播放绑定动画
-  /// 5. 动画完成后判断自己是否是会员，如果不是则跳转到VIP页面
-  Future<void> _handleBindMessage(RelationshipAnimationService animationService) async {
-    try {
-      // 0. 先触发绑定消息回调（关闭可能存在的绑定弹窗）
-      logger.info('💬 触发绑定消息回调，准备关闭绑定弹窗...', tag: 'TencentIMService');
-      if (onBindMessageReceived.value != null) {
-        onBindMessageReceived.value!();
-        logger.info('✅ 绑定消息回调已触发', tag: 'TencentIMService');
-        // 等待弹窗关闭动画完成
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
-      
-      // 1. 先刷新用户信息
-      logger.info('📥 开始刷新用户信息...', tag: 'TencentIMService');
-      final authService = getIt<AuthService>();
-      await authService.refreshUserInfoFromServer();
-      logger.info('✅ 用户信息刷新成功', tag: 'TencentIMService');
-      
-      // 2. 刷新当前页面
-      animationService.refreshCurrentPage();
-      
-      // 3. 播放绑定动画，动画完成后根据会员状态决定是否跳转到VIP页面
-      logger.info('🎬 开始播放绑定动画', tag: 'TencentIMService');
-      animationService.showBindAnimation(onComplete: () {
-        logger.info('🎯 绑定动画播放完成回调被触发', tag: 'TencentIMService');
-        try {
-          final isVip = authService.isVip;
-          logger.info('当前用户VIP状态: $isVip', tag: 'TencentIMService');
-          if (!isVip) {
-            logger.info('📍 当前为非会员用户，准备跳转到VIP页面...', tag: 'TencentIMService');
-            final result = Get.toNamed(
-              KissuRoutePath.vip,
-              arguments: {
-                'previousPageName': 'IM绑定消息',
-                'previousPageId': 'im_bind_message',
-              },
-            );
-            logger.info('✅ VIP页面跳转已触发，返回值: $result', tag: 'TencentIMService');
-          } else {
-            logger.info('🎉 当前用户已是VIP，不跳转开通会员页面', tag: 'TencentIMService');
-          }
-        } catch (e) {
-          logger.error('❌ 处理绑定动画完成后的跳转逻辑失败: $e', tag: 'TencentIMService');
-        }
-      });
-    } catch (e) {
-      logger.error('❌ 处理绑定消息失败: $e', tag: 'TencentIMService');
-      // 即使失败也播放动画
-      animationService.showBindAnimation();
-    }
-  }
-
-  /// 处理解绑消息
-  /// 1. 刷新用户信息
-  /// 2. 播放解绑动画
-  /// 3. 刷新当前页面
-  Future<void> _handleUnbindMessage(RelationshipAnimationService animationService) async {
-    try {
-      // 1. 先刷新用户信息
-      logger.info('📥 开始刷新用户信息...', tag: 'TencentIMService');
-      final authService = getIt<AuthService>();
-      await authService.refreshUserInfoFromServer();
-      logger.info('✅ 用户信息刷新成功', tag: 'TencentIMService');
-      
-      // 2. 刷新当前页面
-      animationService.refreshCurrentPage();
-      
-      // 3. 播放解绑动画
-      logger.info('🎬 开始播放解绑动画', tag: 'TencentIMService');
-      animationService.showUnbindAnimation();
-    } catch (e) {
-      logger.error('❌ 处理解绑消息失败: $e', tag: 'TencentIMService');
-      // 即使失败也播放动画
-      animationService.showUnbindAnimation();
-    }
-  }
-
-  /// 处理绑定申请消息（bindRequest）
-  /// 显示绑定申请弹窗，使用到的字段：
-  /// - nickname: 对方昵称
-  /// - head_portrait: 头像 URL（可能为空）
-  /// - ext.system_notice_id: 系统通知ID（用于同意/拒绝接口）
-  Future<void> _handleBindRequestMessage(Map<String, dynamic> data) async {
-    try {
-      final nickname = (data['nickname'] ?? '') as String;
-      final headPortrait = (data['head_portrait'] ?? '') as String;
-      final ext = (data['ext'] ?? {}) as Map<String, dynamic>;
-      final systemNoticeId = (ext['system_notice_id'] ?? '') as String;
-
-      logger.info(
-        '处理绑定申请消息: nickname=$nickname, headPortrait=$headPortrait, systemNoticeId=$systemNoticeId',
-        tag: 'TencentIMService',
-      );
-
-      if (Get.context == null) {
-        logger.warning('当前没有可用的 BuildContext，无法显示绑定申请弹窗', tag: 'TencentIMService');
+      final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+      if (partnerId == null || partnerId.isEmpty) {
         return;
       }
+      // 异步调用即可，不需要阻塞当前流程
+      markC2CMessageAsRead(userID: partnerId);
+    } catch (e) {
+      logger.warning('清空单聊未读数时标记已读失败: $e', tag: 'TencentIMService');
+    }
+  }
 
-      // 构造头像 ImageProvider
-      ImageProvider avatarImage;
-      if (headPortrait.isNotEmpty) {
-        avatarImage = NetworkImage(headPortrait);
+  /// 主动同步单聊未读数（处理离线消息或首次进入首页时）
+  Future<void> syncC2CUnreadCount() async {
+    try {
+      if (!_isLoggedIn) return;
+
+      // 只关注情侣单聊会话：c2c_{partnerId}
+      final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+      if (partnerId == null || partnerId.isEmpty) return;
+
+      final conversationId = 'c2c_$partnerId';
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getConversationManager()
+          .getConversation(conversationID: conversationId);
+
+      if (res.code == 0 && res.data != null) {
+        final unread = res.data!.unreadCount ?? 0;
+        c2cUnreadCount.value = unread;
+        logger.debug('✅ 同步未读数成功: $unread', tag: 'TencentIMService');
       } else {
-        avatarImage = const AssetImage('assets/3.0/kissu3_love_avater.webp');
-      }
-
-      final context = Get.context!;
-
-      await DialogManager.showBindRequest(
-        context: context,
-        avatarImage: avatarImage,
-        nickname: nickname.isNotEmpty ? nickname : 'Ta',
-        onAccept: () async {
-          // 点击同意 -> 调用 /affirm/bind
-          try {
-            logger.info(
-              '用户点击同意绑定，开始调用 affirmBind, system_notice_id=$systemNoticeId',
-              tag: 'TencentIMService',
-            );
-            if (systemNoticeId.isEmpty) {
-              logger.error('system_notice_id 为空，无法调用 affirmBind', tag: 'TencentIMService');
-              CustomToast.show(context, '操作失败，缺少必要参数');
-              return;
-            }
-
-            final result = await HttpManagerN.instance.executePost(
-              ApiRequest.affirmBind,
-              jsonParam: {'system_notice_id': systemNoticeId},
-              paramEncrypt: false,
-            );
-
-            if (result.isSuccess) {
-              CustomToast.show(context, result.msg ?? '申请成功');
-              // 注意：不再在这里执行刷新用户信息、刷新页面、播放动画和跳转会员页面的逻辑
-              // 这些逻辑统一由 bindAndroid 消息类型来处理，A和B都会收到该消息
-              logger.info('✅ 绑定接口调用成功，等待 bindAndroid 消息处理后续逻辑', tag: 'TencentIMService');
-            } else {
-              CustomToast.show(context, result.msg ?? '绑定失败');
-            }
-          } catch (e) {
-            logger.error('调用 affirmBind 接口异常: $e', tag: 'TencentIMService');
-            CustomToast.show(context, '绑定失败: $e');
-          }
-        },
-        onReject: () async {
-          // 点击拒绝按钮 -> 先弹确认拒绝的小弹窗，再决定是否真正调用 /refuse/bind
-          try {
-            logger.info('用户点击拒绝绑定，展示二次确认弹窗', tag: 'TencentIMService');
-
-            final result = await _showSmallConfirmDialog(
-              content: '你确定拒绝“$nickname”绑定申请？',
-              confirmText: '确定',
-              cancelText: '再想想',
-              barrierDismissible: false,
-            );
-
-            if (result == true) {
-              // 确认拒绝 -> 调用 /refuse/bind
-              if (systemNoticeId.isEmpty) {
-                logger.error('system_notice_id 为空，无法调用 refuseBind', tag: 'TencentIMService');
-                CustomToast.show(context, '操作失败，缺少必要参数');
-                return;
-              }
-
-              logger.info(
-                '用户确认拒绝绑定，开始调用 refuseBind, system_notice_id=$systemNoticeId',
-                tag: 'TencentIMService',
-              );
-
-              final apiResult = await HttpManagerN.instance.executePost(
-                ApiRequest.refuseBind,
-                jsonParam: {'system_notice_id': systemNoticeId},
-                paramEncrypt: false,
-              );
-
-              if (apiResult.isSuccess) {
-                CustomToast.show(context, '已拒绝绑定');
-              } else {
-                CustomToast.show(context, apiResult.msg ?? '操作失败');
-              }
-            } else {
-              logger.info('用户选择再想想，不执行拒绝绑定接口', tag: 'TencentIMService');
-            }
-          } catch (e) {
-            logger.error('处理拒绝绑定确认流程异常: $e', tag: 'TencentIMService');
-          }
-        },
-        barrierDismissible: false,
-      );
-    } catch (e) {
-      logger.error('处理绑定申请消息失败: $e, data=$data', tag: 'TencentIMService');
-    }
-  }
-
-  /// 处理拒绝绑定通知消息（refuseRequest）
-  /// 使用到的字段：
-  /// - friend_code: 好友邀请码（再次发起绑定时使用）
-  Future<void> _handleRefuseRequestMessage(Map<String, dynamic> data) async {
-    try {
-      final friendCode = (data['friend_code'] ?? '') as String;
-
-      logger.info(
-        '处理拒绝绑定通知消息: friend_code=$friendCode',
-        tag: 'TencentIMService',
-      );
-
-      if (Get.context == null) {
-        logger.warning('当前没有可用的 BuildContext，无法显示拒绝绑定提示弹窗', tag: 'TencentIMService');
-        return;
-      }
-
-      final context = Get.context!;
-
-      final result = await _showSmallConfirmDialog(
-        content: '很遗憾，对方拒绝了你的绑定申请！',
-        confirmText: '知道了',
-        cancelText: '再次发起',
-      );
-
-      // 这里约定：true 表示点击“知道了”，false 表示点击“再次发起”
-      if (result == false) {
-        // 再次发起绑定
-        if (friendCode.isEmpty) {
-          logger.error('friend_code 为空，无法再次发起绑定', tag: 'TencentIMService');
-          CustomToast.show(context, '无法再次发起绑定，缺少好友码');
-          return;
-        }
-
-        try {
-          logger.info('用户选择再次发起绑定，调用 /start/bind, friend_code=$friendCode', tag: 'TencentIMService');
-          final authApi = AuthApi();
-          final bindResult = await authApi.bindPartner(friendCode: friendCode);
-
-          if (bindResult.isSuccess) {
-            CustomToast.show(context, '已再次发起绑定申请');
-          } else {
-            CustomToast.show(context, bindResult.msg ?? '再次发起绑定失败');
-          }
-        } catch (e) {
-          logger.error('再次发起绑定异常: $e', tag: 'TencentIMService');
-          CustomToast.show(context, '再次发起绑定失败: $e');
-        }
-      } else {
-        logger.info('用户点击“知道了”，不再发起绑定', tag: 'TencentIMService');
+        logger.warning(
+          '同步未读数失败: code=${res.code}, desc=${res.desc}',
+          tag: 'TencentIMService',
+        );
       }
     } catch (e) {
-      logger.error('处理拒绝绑定通知消息失败: $e, data=$data', tag: 'TencentIMService');
+      logger.error('同步未读数异常: $e', tag: 'TencentIMService');
     }
-  }
-
-  /// 使用小背景图 kisuu4_dialog_small_bg 的二次确认弹窗
-  /// 返回 true 表示点击右侧粉色按钮（confirmText），false 表示点击左侧灰色按钮（cancelText），null 表示关闭
-  Future<bool?> _showSmallConfirmDialog({
-    required String content,
-    required String confirmText,
-    required String cancelText,
-    bool barrierDismissible = true,
-  }) {
-    return Get.dialog<bool>(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/dialog/kissu4_dialog_small_bg.webp'),
-              fit: BoxFit.fill,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  content,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF000000),
-                    fontWeight: FontWeight.w500,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Get.back(result: true);
-                        },
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFffffff),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF999999),
-                              width: 1,
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            confirmText,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xff999999),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),const SizedBox(width: 12),Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Get.back(result: false);
-                        },
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF9AD9),
-                            borderRadius: BorderRadius.circular(20),
-                            
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cancelText,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFFffffff),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: barrierDismissible,
-    );
-  }
-
-  /// 手动强制设置消息监听器
-  /// 
-  /// 如果发现收不到消息，可以调用此方法手动设置监听器
-  /// 
-  /// 示例：
-  /// ```dart
-  /// TencentIMService.instance.forceSetupMessageListener();
-  /// ```
-  void forceSetupMessageListener() {
-    logger.info('🔄 手动强制设置消息监听器', tag: 'TencentIMService');
-    _setupMessageListener();
-  }
-
-  /// 检查IM状态并打印详细信息
-  /// 
-  /// 用于调试，查看当前IM的状态
-  void checkIMStatus() {
-    logger.info('====== IM状态检查 ======', tag: 'TencentIMService');
-    logger.info('SDK已初始化: $_isInitialized', tag: 'TencentIMService');
-    logger.info('已登录: $_isLoggedIn', tag: 'TencentIMService');
-    logger.info('当前用户ID: $_currentUserID', tag: 'TencentIMService');
-    logger.info('新消息回调已设置: ${onReceiveNewMessage.value != null}', tag: 'TencentIMService');
-    logger.info('消息撤回回调已设置: ${onRecvMessageRevoked.value != null}', tag: 'TencentIMService');
-    logger.info('========================', tag: 'TencentIMService');
   }
 
   @override

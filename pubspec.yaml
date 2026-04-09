@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.10+10
+version: 1.2.3+1002003
 
 environment:
   sdk: ^3.8.0
@@ -65,11 +65,12 @@ dependencies:
     path: plugins/amap_flutter_location-3.0.0
   amap_flutter_base:
     path: plugins/amap_flutter_base-3.0.0
-  jpush_flutter: 3.3.6
+  # jpush_flutter: 3.3.6
   oktoast: ^3.3.1  # Toast插件
   webview_flutter: ^4.4.2  # WebView插件
   url_launcher: ^6.2.6  # URL启动器，用于打开系统设置页面
   share_plus: ^10.0.2  # 系统分享面板
+  photo_manager: ^3.5.0  # 保存图片到相册
   mobile_scanner: ^6.0.2  # 二维码扫描（替代 qr_code_scanner，支持新AGP）
   connectivity_plus: ^6.0.5  # 网络状态监听
   battery_plus: ^7.0.0  # 电池状态监听
@@ -78,7 +79,6 @@ dependencies:
   openinstall_flutter_plugin: ^2.5.4  # OpenInstall 渠道统计和携带参数安装
   crop_your_image: ^2.0.0  # 图片裁剪（纯Flutter实现，可自定义UI）
   lottie: ^3.1.2  # Lottie 动画
-  audioplayers: ^6.1.0  # 音频播放插件
   usage_stats: ^1.3.1  # 屏幕使用时长统计
   flutter_android_oaid_plugin: ^0.0.4  # OAID 获取插件
   # 防偷拍网络扫描
@@ -86,12 +86,16 @@ dependencies:
     path: plugins/ping_discover_network_forked-0.0.1
   # Intl for date formatting
   intl: ^0.20.2
-  shimmer: ^3.0.0  # Shimmer 加载动画效果
   # 腾讯IM SDK
   tencent_cloud_chat_sdk: ^8.2.6325
   # fl_chart: ^0.69.0  # 专业图表库
   sensors_plus: ^6.0.1  # 手机传感器（陀螺仪、磁力计）
   cached_network_image: ^3.3.1  # 网络图片缓存
+  # chat_bubbles: ^1.7.0  # 聊天气泡组件
+  tencent_cloud_chat_push: ^8.8.7357
+  archive: ^3.6.1  # 日志文件压缩打包
+  record: ^6.0.0  # 录音
+  audioplayers: ^6.1.0  # 音频播放
 
 dev_dependencies:
   flutter_test:
@@ -122,6 +126,9 @@ flutter:
     - family: LiuHuanKaTongShouShu
       fonts:
         - asset: assets/font/LiuHuanKaTongShouShu.ttf
+    - family: Resource-Han-Rounded
+      fonts:
+        - asset: assets/font/Resource-Han-Rounded-CN.ttf
     - family: AlimamaShuHeiTi
       fonts:
         - asset: assets/font/AlimamaShuHeiTi-Bold.ttf
@@ -142,3 +149,6 @@ flutter:
     - assets/home/
     - assets/json/
     - assets/setting/
+    - assets/188/
+    - assets/lock/
+    - assets/say_guess/

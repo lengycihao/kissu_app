@@ -229,24 +229,67 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   }
   
   /// 检查WiFi连接状态
+  /// 兼容鸿蒙5.0+：先用 connectivity_plus 判断连接状态（无需权限），
+  /// 再尝试获取WiFi名称（需要定位权限，鸿蒙5.0+严格执行）
   Future<void> _checkWifiConnection() async {
     try {
-      final wifiName = await _networkInfo.getWifiName();
-      final wifiBSSID = await _networkInfo.getWifiBSSID();
+      // 第一步：用 connectivity_plus 判断是否连接WiFi（不需要定位权限）
+      final connectivityResults = await Connectivity().checkConnectivity();
+      final hasWifi = connectivityResults.contains(ConnectivityResult.wifi);
       
-      if (wifiName != null && wifiName.isNotEmpty) {
-        isWifiConnected.value = true;
-        currentWifiName.value = wifiName.replaceAll('"', ''); // 移除引号
-        currentWifiSSID.value = wifiBSSID ?? '';
-      } else {
+      if (!hasWifi) {
+        // 确实未连接WiFi
         isWifiConnected.value = false;
         currentWifiName.value = "未连接WiFi";
         currentWifiSSID.value = "";
+        return;
+      }
+      
+      // 第二步：已确认连接WiFi，标记为已连接
+      isWifiConnected.value = true;
+      
+      // 第三步：尝试获取WiFi名称（需要定位权限，鸿蒙5.0+可能返回null）
+      String? wifiName;
+      String? wifiBSSID;
+      try {
+        wifiName = await _networkInfo.getWifiName();
+        wifiBSSID = await _networkInfo.getWifiBSSID();
+      } catch (e) {
+        logDebug('获取WiFi名称失败（可能缺少定位权限）: $e', tag: 'AntiSpy');
+      }
+      
+      if (wifiName != null && wifiName.isNotEmpty && wifiName != '<unknown ssid>') {
+        currentWifiName.value = wifiName.replaceAll('"', '');
+        currentWifiSSID.value = wifiBSSID ?? '';
+      } else {
+        // WiFi已连接但无法获取名称（鸿蒙5.0+未授予定位权限时）
+        currentWifiName.value = "已连接WiFi";
+        currentWifiSSID.value = "";
       }
     } catch (e) {
-      logError('获取WiFi信息失败: $e', tag: 'AntiSpy', error: e);
+      logError('检查WiFi连接失败: $e', tag: 'AntiSpy', error: e);
+      // 出错时也尝试用 IP 判断
+      try {
+        final wifiIP = await _networkInfo.getWifiIP();
+        if (wifiIP != null && wifiIP.isNotEmpty) {
+          isWifiConnected.value = true;
+          currentWifiName.value = "已连接WiFi";
+          return;
+        }
+      } catch (_) {}
       isWifiConnected.value = false;
       currentWifiName.value = "获取WiFi信息失败";
+    }
+  }
+  
+  /// 请求位置权限
+  Future<void> _requestLocationPermission() async {
+    final status = await Permission.location.status;
+    if (!status.isGranted) {
+      final result = await Permission.location.request();
+      if (!result.isGranted) {
+        logError('未授予位置权限', tag: 'AntiSpy');
+      }
     }
   }
   
@@ -256,30 +299,23 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       return;
     }
     
-    // 检查WiFi连接
+    // 先检查位置权限（鸿蒙5.0+必须先授权，否则WiFi信息获取为空）
+    if (Platform.isAndroid) {
+      await _requestLocationPermission();
+    }
+    
+    // 权限就绪后再检查WiFi连接
     await _checkWifiConnection();
     if (!isWifiConnected.value) {
       scanState.value = ScanState.failed;
       return;
     }
     
-    // 检查位置权限（Android需要位置权限来获取WiFi信息）
-    if (Platform.isAndroid) {
-      final status = await Permission.location.status;
-      if (!status.isGranted) {
-        final result = await Permission.location.request();
-        if (!result.isGranted) {
-          scanState.value = ScanState.failed;
-          return;
-        }
-      }
-    }
-    
     scanState.value = ScanState.scanning;
     discoveredDevices.clear();
     suspiciousDevices.clear();
     scanProgress.value = 0.0;
-    logDebug('🚀 开始扫描，清空设备列表 (当前设备数: ${discoveredDevices.length})', tag: 'AntiSpy');
+    // logDebug('🚀 开始扫描，清空设备列表 (当前设备数: ${discoveredDevices.length})', tag: 'AntiSpy');
     
     // 启动动画
     radarAnimationController.repeat();
@@ -310,7 +346,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       }
       
       final subnet = '${ipParts[0]}.${ipParts[1]}.${ipParts[2]}';
-      logDebug('开始扫描子网: $subnet', tag: 'AntiSpy');
+      // logDebug('开始扫描子网: $subnet', tag: 'AntiSpy');
       
       // 第一阶段：PING扫描发现在线设备
       await _performPingScan(subnet);
@@ -332,7 +368,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 执行PING扫描发现在线设备 - 优化版本
   Future<void> _performPingScan(String subnet) async {
-    logDebug('开始快速设备发现...', tag: 'AntiSpy');
+    // logDebug('开始快速设备发现...', tag: 'AntiSpy');
     
     // 精简PING端口，只用最有效的几个
     final pingPorts = [80, 443, 22, 5555]; // 减少到4个最有效端口
@@ -342,7 +378,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
     for (final port in pingPorts) {
       if (scanState.value != ScanState.scanning) break;
       
-      logDebug('快速扫描端口: $port', tag: 'AntiSpy');
+      // logDebug('快速扫描端口: $port', tag: 'AntiSpy');
       
       _scanSubscription = NetworkAnalyzer.discover2(
         subnet, 
@@ -367,7 +403,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 执行端口扫描 - 优化版本
   Future<void> _performPortScan(String subnet) async {
-    logDebug('开始智能端口扫描...', tag: 'AntiSpy');
+    // logDebug('开始智能端口扫描...', tag: 'AntiSpy');
     
     // 分层扫描策略：先扫描高价值端口，快速识别设备类型
     final priorityPorts = [
@@ -473,7 +509,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// ARP表扫描（补充发现方法）
   Future<void> _performArpScan(String subnet) async {
-    logDebug('开始ARP表扫描...', tag: 'AntiSpy');
+    // logDebug('开始ARP表扫描...', tag: 'AntiSpy');
     try {
       // 在Android/Linux上尝试读取ARP表
       if (Platform.isAndroid || Platform.isLinux) {
@@ -538,7 +574,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
       
       // 添加设备并立即更新UI
       discoveredDevices.add(device);
-      logDebug('🔍 PING发现新设备: $ip - $deviceName (总数: ${discoveredDevices.length})', tag: 'AntiSpy');
+      // logDebug('🔍 PING发现新设备: $ip - $deviceName (总数: ${discoveredDevices.length})', tag: 'AntiSpy');
       update(); // 实时更新UI，PING扫描到一个显示一个
       
       // ⚠️ 移除冗余的延迟更新，避免过度刷新UI影响动画
@@ -749,7 +785,7 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// HTTP指纹扫描
   Future<void> _performHttpFingerprintScan(double startProgress, double endProgress) async {
-    logDebug('开始HTTP指纹扫描...', tag: 'AntiSpy');
+    // logDebug('开始HTTP指纹扫描...', tag: 'AntiSpy');
     
     int totalDevices = discoveredDevices.length;
     int completedDevices = 0;
@@ -807,12 +843,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         openPorts: [port],
       );
       discoveredDevices.add(device);
-      logDebug('🔍 端口扫描发现新设备: $ip:$port - $deviceName (总数: ${discoveredDevices.length})', tag: 'AntiSpy');
+      // logDebug('🔍 端口扫描发现新设备: $ip:$port - $deviceName (总数: ${discoveredDevices.length})', tag: 'AntiSpy');
       
       // 判断是否为可疑设备（摄像头常用端口）
       if (_isSuspiciousDevice(port)) {
         suspiciousDevices.add(device);
-        logWarning('⚠️ 发现可疑设备: $ip:$port - $deviceName', tag: 'AntiSpy');
+        // logWarning('⚠️ 发现可疑设备: $ip:$port - $deviceName', tag: 'AntiSpy');
       }
       
       // 🎯 批量更新UI，减少刷新频率，避免影响动画
@@ -840,12 +876,12 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
         
         final index = discoveredDevices.indexOf(existingDevice);
         discoveredDevices[index] = updatedDevice;
-        logDebug('🔄 更新设备端口: $ip:$port - ${updatedDevice.name}', tag: 'AntiSpy');
+        // logDebug('🔄 更新设备端口: $ip:$port - ${updatedDevice.name}', tag: 'AntiSpy');
         
         // 重新检查是否为可疑设备
         if (_isSuspiciousDevice(port) && !suspiciousDevices.any((d) => d.ip == ip)) {
           suspiciousDevices.add(updatedDevice);
-          logWarning('⚠️ 更新后发现可疑设备: $ip:$port - ${updatedDevice.name}', tag: 'AntiSpy');
+          // logWarning('⚠️ 更新后发现可疑设备: $ip:$port - ${updatedDevice.name}', tag: 'AntiSpy');
         }
       }
     }
@@ -1228,77 +1264,77 @@ class AntiSpyController extends GetxController with GetTickerProviderStateMixin 
   
   /// 综合识别设备类型
   
-  /// 综合设备分析
-  DeviceIdentificationScore _comprehensiveDeviceAnalysis(String ip, int port, String? httpFingerprint) {
-    DeviceIdentificationScore score = DeviceIdentificationScore();
+  // /// 综合设备分析
+  // DeviceIdentificationScore _comprehensiveDeviceAnalysis(String ip, int port, String? httpFingerprint) {
+  //   DeviceIdentificationScore score = DeviceIdentificationScore();
     
-    // 1. 端口特征分析
-    var portScore = _analyzePortSignature(port);
-    score.portSignatureScore = portScore.portSignatureScore;
+  //   // 1. 端口特征分析
+  //   var portScore = _analyzePortSignature(port);
+  //   score.portSignatureScore = portScore.portSignatureScore;
     
-    // 2. IP模式分析
-    var ipScore = _analyzeIpPattern(ip);
-    score.ipPatternScore = ipScore.ipPatternScore;
+  //   // 2. IP模式分析
+  //   var ipScore = _analyzeIpPattern(ip);
+  //   score.ipPatternScore = ipScore.ipPatternScore;
     
-    // 3. HTTP指纹分析
-    if (httpFingerprint != null) {
-      score.httpFingerprintScore = _analyzeHttpFingerprint(httpFingerprint);
-    }
+  //   // 3. HTTP指纹分析
+  //   if (httpFingerprint != null) {
+  //     score.httpFingerprintScore = _analyzeHttpFingerprint(httpFingerprint);
+  //   }
     
-    // 4. 综合判断设备类型
-    if (score.httpFingerprintScore > 0.8) {
-      // HTTP指纹最可靠
-      score.suggestedType = DeviceType.camera;
-    } else if (score.portSignatureScore > 0.8) {
-      // 端口特征次之
-      score.suggestedType = portScore.suggestedType;
-    } else if (score.portSignatureScore > 0.6 && score.ipPatternScore > 0.6) {
-      // 综合判断
-      score.suggestedType = portScore.suggestedType;
-    } else {
-      score.suggestedType = DeviceType.unknown;
-    }
+  //   // 4. 综合判断设备类型
+  //   if (score.httpFingerprintScore > 0.8) {
+  //     // HTTP指纹最可靠
+  //     score.suggestedType = DeviceType.camera;
+  //   } else if (score.portSignatureScore > 0.8) {
+  //     // 端口特征次之
+  //     score.suggestedType = portScore.suggestedType;
+  //   } else if (score.portSignatureScore > 0.6 && score.ipPatternScore > 0.6) {
+  //     // 综合判断
+  //     score.suggestedType = portScore.suggestedType;
+  //   } else {
+  //     score.suggestedType = DeviceType.unknown;
+  //   }
     
-    return score;
-  }
+  //   return score;
+  // }
   
-  /// 分析HTTP指纹
-  double _analyzeHttpFingerprint(String fingerprint) {
-    double score = 0.0;
-    String lowerFingerprint = fingerprint.toLowerCase();
+  // /// 分析HTTP指纹
+  // double _analyzeHttpFingerprint(String fingerprint) {
+  //   double score = 0.0;
+  //   String lowerFingerprint = fingerprint.toLowerCase();
     
-    // 检查摄像头厂商标识
-    if (lowerFingerprint.contains('cameravendor:')) {
-      score += 0.9;
-    }
+  //   // 检查摄像头厂商标识
+  //   if (lowerFingerprint.contains('cameravendor:')) {
+  //     score += 0.9;
+  //   }
     
-    // 检查摄像头内容特征
-    if (lowerFingerprint.contains('cameracontent:')) {
-      score += 0.7;
-    }
+  //   // 检查摄像头内容特征
+  //   if (lowerFingerprint.contains('cameracontent:')) {
+  //     score += 0.7;
+  //   }
     
-    // 检查摄像头登录页面
-    if (lowerFingerprint.contains('cameralogin:')) {
-      score += 0.8;
-    }
+  //   // 检查摄像头登录页面
+  //   if (lowerFingerprint.contains('cameralogin:')) {
+  //     score += 0.8;
+  //   }
     
-    // 检查服务器标识中的摄像头关键词
-    if (lowerFingerprint.contains('server:')) {
-      if (lowerFingerprint.contains('hikvision') || 
-          lowerFingerprint.contains('dahua') ||
-          lowerFingerprint.contains('axis') ||
-          lowerFingerprint.contains('vivotek') ||
-          lowerFingerprint.contains('foscam')) {
-        score += 0.95;
-      } else if (lowerFingerprint.contains('camera') ||
-                 lowerFingerprint.contains('ipcam') ||
-                 lowerFingerprint.contains('webcam')) {
-        score += 0.8;
-      }
-    }
+  //   // 检查服务器标识中的摄像头关键词
+  //   if (lowerFingerprint.contains('server:')) {
+  //     if (lowerFingerprint.contains('hikvision') || 
+  //         lowerFingerprint.contains('dahua') ||
+  //         lowerFingerprint.contains('axis') ||
+  //         lowerFingerprint.contains('vivotek') ||
+  //         lowerFingerprint.contains('foscam')) {
+  //       score += 0.95;
+  //     } else if (lowerFingerprint.contains('camera') ||
+  //                lowerFingerprint.contains('ipcam') ||
+  //                lowerFingerprint.contains('webcam')) {
+  //       score += 0.8;
+  //     }
+  //   }
     
-    return score > 1.0 ? 1.0 : score;
-  }
+  //   return score > 1.0 ? 1.0 : score;
+  // }
   
    
   

@@ -4,9 +4,9 @@ import 'dart:ui' as ui;
 import 'package:get/get.dart';
 import 'package:amap_flutter_base/amap_flutter_base.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/usage_report/widgets/map_marker_util.dart';
-import 'package:kissu_app/utils/debug_util.dart';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
+ import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/pages/location/services/marker_builder.dart';
 
 /// 轨迹页面回放管理器
@@ -71,6 +71,10 @@ class TrackReplayManager extends GetxController {
   DateTime? _replayStartTime;
   double _cumulativeDistance = 0.0; // 累计距离（米）
 
+  /// 相机跟随节流计数器（每 6 帧更新一次相机 = 300ms）
+  int _cameraFollowCounter = 0;
+  static const int _cameraFollowInterval = 6;
+
   /// 外部依赖回调
   Function(LatLng)? onMapMove;
   Function(LatLng)? onMapMoveSmooth;
@@ -106,7 +110,7 @@ class TrackReplayManager extends GetxController {
 
   /// 地图PlatformView销毁时的清理逻辑
   void onMapDisposed() {
-    DebugUtil.warning('🧹 轨迹播放：地图控制器已销毁，停止回放定时器');
+    // logDebug('🧹 轨迹播放：地图控制器已销毁，停止回放定时器');
     _mapController = null;
     _replayTimer?.cancel();
     _replayTimer = null;
@@ -135,11 +139,11 @@ class TrackReplayManager extends GetxController {
 
     // 🎭 清除播放头像和底座标记
     if (replayAvatarMarker.value != null) {
-      DebugUtil.info('🧹 清除播放头像标记');
+      // logDebug('🧹 清除播放头像标记');
       replayAvatarMarker.value = null;
     }
     if (replayPedestalMarker.value != null) {
-      DebugUtil.info('🧹 清除播放底座标记');
+      // logDebug('🧹 清除播放底座标记');
       replayPedestalMarker.value = null;
     }
 
@@ -153,12 +157,21 @@ class TrackReplayManager extends GetxController {
       // 获取当前查看的用户头像
       final avatarUrl = getCurrentUserAvatar?.call() ?? '';
 
-      DebugUtil.info('🎭 创建播放头像标记，头像URL: $avatarUrl');
+      // logDebug('🎭 创建播放头像标记，头像URL: $avatarUrl');
+
+      // 🔧 根据设备像素比计算头像尺寸，确保在所有设备上显示一致
+      final dpr = ui.window.devicePixelRatio;
+      final screenWidth = ui.window.physicalSize.width / dpr;
+      const designWidth = 375.0;
+      const designAvatarSize = 60.0; // 设计稿头像尺寸
+      final screenScale = screenWidth / designWidth;
+      final avatarSize = designAvatarSize * screenScale * dpr;
+      // logDebug('📍 回放头像marker尺寸: $avatarSize (dpr=$dpr, screenScale=$screenScale)');
 
       // 使用 MapMarkerUtil 创建圆形头像标记（与定位页面一致的双层边框）
       final avatarIcon = await MapMarkerUtil.createCircleAvatarMarker(
         avatarUrl,
-        size: 180.0, // 🎯 放大三倍（原80.0 → 240.0）
+        size: avatarSize,
       );
 
       final marker = Marker(
@@ -170,14 +183,14 @@ class TrackReplayManager extends GetxController {
       marker.setIdForCopy('replay_avatar_marker'); // 🎯 设置ID用于动画控制
       replayAvatarMarker.value = marker;
 
-      DebugUtil.success('✅ 播放头像标记创建成功');
+      // logDebug('✅ 播放头像标记创建成功');
 
       // 🎯 延迟启动iOS原版呼吸动画（等待marker添加到地图）
       Future.delayed(const Duration(milliseconds: 300), () {
         _startReplayAvatarAnimation();
       });
     } catch (e) {
-      DebugUtil.error('❌ 创建播放头像标记失败: $e');
+      logError('❌ 创建播放头像标记失败: $e');
       replayAvatarMarker.value = null;
     }
   }
@@ -192,7 +205,7 @@ class TrackReplayManager extends GetxController {
     
     // 🎯 关键：完全依赖原生动画，不更新任何会触发UI重建的value
     if (_mapController == null) {
-      DebugUtil.warning('⚠️ MapController未初始化，跳过marker更新');
+      logWarning('⚠️ MapController未初始化，跳过marker更新');
       return;
     }
     
@@ -210,12 +223,12 @@ class TrackReplayManager extends GetxController {
       
       // 降低日志频率
       if ((currentReplayIndex.value % 100) == 0) {
-        DebugUtil.info(
-          '🎯 原生平滑移动头像: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
-        );
+        // logDebug(
+        //   '🎯 原生平滑移动头像: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
+        // );
       }
     } catch (e) {
-      DebugUtil.error('❌ 原生平滑移动失败: $e');
+      logError('❌ 原生平滑移动失败: $e');
     }
   }
 
@@ -245,9 +258,9 @@ class TrackReplayManager extends GetxController {
       marker.setIdForCopy('replay_pedestal_marker');
       replayPedestalMarker.value = marker;
 
-      DebugUtil.success('✅ 播放底座标记创建成功，旋转角度: $rotation');
+      // logDebug('✅ 播放底座标记创建成功，旋转角度: $rotation');
     } catch (e) {
-      DebugUtil.error('❌ 创建播放底座标记失败: $e');
+      logError('❌ 创建播放底座标记失败: $e');
       replayPedestalMarker.value = null;
     }
   }
@@ -281,12 +294,12 @@ class TrackReplayManager extends GetxController {
         rotation: rotation,
       );
       
-      // 降低日志频率
-      if ((currentReplayIndex.value % 100) == 0) {
-        DebugUtil.info('🎯 原生平滑移动底座，旋转: ${rotation.toStringAsFixed(1)}°');
-      }
+      // // 降低日志频率
+      // if ((currentReplayIndex.value % 100) == 0) {
+      //   // logDebug('🎯 原生平滑移动底座，旋转: ${rotation.toStringAsFixed(1)}°');
+      // }
     } catch (e) {
-      DebugUtil.error('❌ 更新播放底座标记失败: $e');
+      logError('❌ 更新播放底座标记失败: $e');
     }
   }
 
@@ -393,7 +406,7 @@ class TrackReplayManager extends GetxController {
   /// 🎯 计算匀速移动参数（基于距离的匀速播放）
   void _calculatePlaybackDuration() {
     if (trackPoints.isEmpty) {
-      DebugUtil.warning('⚠️ 轨迹点为空，无法计算播放时长');
+      // logDebug('⚠️ 轨迹点为空，无法计算播放时长');
       _totalDistance = 0.0;
       _uniformSpeed = 130.0;
       _totalPlaybackDuration = Duration(seconds: 10);
@@ -413,12 +426,12 @@ class TrackReplayManager extends GetxController {
     );
 
     // 应用播放速度
-    final actualDuration =
-        _totalPlaybackDuration!.inSeconds / replaySpeed.value;
+    // final actualDuration =
+    //     _totalPlaybackDuration!.inSeconds / replaySpeed.value;
 
-    DebugUtil.info(
-      '🎬 匀速移动参数: 总距离=${(_totalDistance / 1000).toStringAsFixed(2)}km, 匀速=${_uniformSpeed.toStringAsFixed(1)}m/s, 播放时长=${actualDuration.toStringAsFixed(1)}秒',
-    );
+    // logDebug(
+    //   '🎬 匀速移动参数: 总距离=${(_totalDistance / 1000).toStringAsFixed(2)}km, 匀速=${_uniformSpeed.toStringAsFixed(1)}m/s, 播放时长=${actualDuration.toStringAsFixed(1)}秒',
+    // );
   }
 
   /// 🎯 计算自适应匀速（参考iOS算法）
@@ -490,6 +503,7 @@ class TrackReplayManager extends GetxController {
 
     // 更新当前位置
     currentPosition.value = trackPoints[safeIndex];
+    _cameraFollowCounter = 0;
     onMapMove?.call(trackPoints[safeIndex]);
 
     // 如果存在播放头像标记，更新其位置
@@ -526,7 +540,7 @@ class TrackReplayManager extends GetxController {
       return;
     }
 
-    DebugUtil.info('🎬 开始播放回放...');
+    // logDebug('🎬 开始播放回放...');
 
     // 停止之前的播放
     _replayTimer?.cancel();
@@ -535,7 +549,7 @@ class TrackReplayManager extends GetxController {
     _calculatePlaybackDuration();
 
     if (trackPoints.isEmpty) {
-      DebugUtil.error('❌ 轨迹点为空，无法播放');
+      logError('❌ 轨迹点为空，无法播放');
       return;
     }
 
@@ -546,9 +560,10 @@ class TrackReplayManager extends GetxController {
     _replayStartTime = DateTime.now();
     _cumulativeDistance = 0.0;
     replayProgress.value = 0.0;
+    _cameraFollowCounter = 0;
 
     // 🎯 调整地图视角以显示完整轨迹
-    DebugUtil.info('🗺️ 调整地图视角以显示完整轨迹');
+    // logDebug('🗺️ 调整地图视角以显示完整轨迹');
     onFitMapToTrack?.call(trackPoints);
 
     // 创建播放头像和底座标记
@@ -561,16 +576,16 @@ class TrackReplayManager extends GetxController {
     // 🎯 启动播放定时器，简单直接按轨迹点播放（参考iOS方案）
     _replayTimer = Timer.periodic(_frameInterval, _onReplayTimerUpdate);
 
-    DebugUtil.success('🎬 轨迹回放已启动');
-    DebugUtil.info(
-      '📊 播放参数: 总时长=${_totalPlaybackDuration!.inSeconds}秒, 轨迹点=${trackPoints.length}个, 播放速度=${replaySpeed.value}x',
-    );
-    DebugUtil.info(
-      '📊 实际播放时长=${(_totalPlaybackDuration!.inSeconds / replaySpeed.value).toStringAsFixed(1)}秒',
-    );
-    DebugUtil.info(
-      '📊 总距离=${(_calculateTotalTrackDistance() / 1000).toStringAsFixed(2)}公里',
-    );
+    // logDebug('🎬 轨迹回放已启动');
+    // logDebug(
+    //   '📊 播放参数: 总时长=${_totalPlaybackDuration!.inSeconds}秒, 轨迹点=${trackPoints.length}个, 播放速度=${replaySpeed.value}x',
+    // );
+    // logDebug(
+    //   '📊 实际播放时长=${(_totalPlaybackDuration!.inSeconds / replaySpeed.value).toStringAsFixed(1)}秒',
+    // );
+    // logDebug(
+    //   '📊 总距离=${(_calculateTotalTrackDistance() / 1000).toStringAsFixed(2)}公里',
+    // );
   }
 
   /// 🎯 基于时间的平滑插值播放定时器回调（真正的iOS方案）
@@ -620,9 +635,13 @@ class TrackReplayManager extends GetxController {
     _updateReplayAvatarMarkerSync(interpolatedPosition);
     _updateReplayPedestalMarkerSync(interpolatedPosition);
 
-    // 🎯 根据设置决定是否移动地图视角
+    // 🎯 相机跟随：每 6 帧（300ms）才移动一次，Marker 动画保持 20fps
     if (enableCameraFollow.value) {
-      onMapMoveSmooth?.call(interpolatedPosition);
+      _cameraFollowCounter++;
+      if (_cameraFollowCounter >= _cameraFollowInterval) {
+        _cameraFollowCounter = 0;
+        onMapMoveSmooth?.call(interpolatedPosition);
+      }
     }
 
     // 更新进度条
@@ -706,7 +725,7 @@ class TrackReplayManager extends GetxController {
 
   /// 🎯 播放完成处理
   void _onPlaybackComplete() {
-    DebugUtil.info('🎯 轨迹回放完成');
+    // logDebug('🎯 轨迹回放完成');
     isReplaying.value = false;
     _replayTimer?.cancel();
     _replayTimer = null;
@@ -767,7 +786,7 @@ class TrackReplayManager extends GetxController {
               stopPointName = (stopPoint as dynamic).locationName ?? '未知位置';
             }
           } catch (e) {
-            DebugUtil.warning('⚠️ 无法解析停留点坐标: $e');
+            logWarning('⚠️ 无法解析停留点坐标: $e');
             continue;
           }
         }
@@ -777,14 +796,14 @@ class TrackReplayManager extends GetxController {
 
           // 如果距离小于50米，认为经过了停留点
           if (distance < 50) {
-            DebugUtil.info(
-              '🎯 经过停留点: $stopPointName (距离: ${distance.toStringAsFixed(1)}m)',
-            );
+            // logDebug(
+            //   '🎯 经过停留点: $stopPointName (距离: ${distance.toStringAsFixed(1)}m)',
+            // );
             break;
           }
         }
       } catch (e) {
-        DebugUtil.warning('⚠️ 检查停留点时发生错误: $e');
+        logWarning('⚠️ 检查停留点时发生错误: $e');
         continue;
       }
     }
@@ -803,7 +822,7 @@ class TrackReplayManager extends GetxController {
     isReplaying.value = false;
     _replayTimer?.cancel();
     _replayTimer = null;
-    DebugUtil.info('轨迹回放已暂停');
+    // logDebug('轨迹回放已暂停');
   }
 
   /// 停止并重置
@@ -836,7 +855,7 @@ class TrackReplayManager extends GetxController {
 
     _replayStartTime = null;
     _playbackStartTime = null;
-    DebugUtil.info('轨迹回放已停止并重置');
+    // logDebug('轨迹回放已停止并重置');
   }
 
   /// 关闭播放器并重置动画
@@ -846,14 +865,14 @@ class TrackReplayManager extends GetxController {
 
     // 清除播放头像标记
     if (replayAvatarMarker.value != null) {
-      DebugUtil.info('🧹 关闭播放器时清除播放头像标记');
+      // logDebug('🧹 关闭播放器时清除播放头像标记');
       replayAvatarMarker.value = null;
     }
 
     // 恢复显示当前位置标记
     currentPosition.value = null;
 
-    DebugUtil.info('播放器已关闭');
+    // logDebug('播放器已关闭');
   }
 
   /// 切换播放速度（快进）
@@ -879,7 +898,7 @@ class TrackReplayManager extends GetxController {
       seekReplay(currentProgress);
     }
 
-    DebugUtil.info('播放速度切换为: ${replaySpeed.value}x');
+    // logDebug('播放速度切换为: ${replaySpeed.value}x');
   }
 
   /// 根据进度跳转（用于进度条拖动）
@@ -926,14 +945,14 @@ class TrackReplayManager extends GetxController {
   /// 🎯 切换相机跟随模式（已禁用）
   void toggleCameraFollow() {
     // 相机跟随功能已禁用，不执行任何操作（保留方法签名以兼容未来扩展）
-    DebugUtil.info('🎯 相机跟随功能已禁用');
+    logDebug('🎯 相机跟随功能已禁用');
   }
 
   /// 🎯 设置相机跟随模式（已禁用）
   void setCameraFollow(bool enabled) {
     // 相机跟随功能已禁用，强制保持关闭状态（保留方法签名以兼容未来扩展）
     enableCameraFollow.value = false;
-    DebugUtil.info('🎯 相机跟随功能已禁用，忽略设置请求');
+    // logDebug('🎯 相机跟随功能已禁用，忽略设置请求');
   }
 
   /// 🎯 启动播放头像的原生呼吸动画（iOS原版效果）
@@ -945,7 +964,7 @@ class TrackReplayManager extends GetxController {
   /// - 动画时长：0.4秒（与iOS原版完全一致）
   void _startReplayAvatarAnimation() async {
     if (_mapController == null) {
-      DebugUtil.warning('⚠️ MapController未初始化，跳过启动动画');
+      logWarning('⚠️ MapController未初始化，跳过启动动画');
       return;
     }
 
@@ -956,12 +975,12 @@ class TrackReplayManager extends GetxController {
       );
 
       if (success) {
-        DebugUtil.success('✅ 播放头像呼吸动画已启动(iOS原版效果)');
+        // logDebug('✅ 播放头像呼吸动画已启动(iOS原版效果)');
       } else {
-        DebugUtil.warning('⚠️ 播放头像呼吸动画启动失败');
+        logWarning('⚠️ 播放头像呼吸动画启动失败');
       }
     } catch (e) {
-      DebugUtil.error('❌ 启动播放头像动画失败: $e');
+      logError('❌ 启动播放头像动画失败: $e');
     }
   }
 
@@ -973,9 +992,9 @@ class TrackReplayManager extends GetxController {
       await _mapController!.stopMarkerBreathAnimation(
         markerId: 'replay_avatar_marker',
       );
-      DebugUtil.success('✅ 播放头像呼吸动画已停止');
+      // logDebug('✅ 播放头像呼吸动画已停止');
     } catch (e) {
-      DebugUtil.error('❌ 停止播放头像动画失败: $e');
+      logError('❌ 停止播放头像动画失败: $e');
     }
   }
 

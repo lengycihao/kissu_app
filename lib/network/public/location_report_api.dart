@@ -30,11 +30,11 @@ class LocationReportApi {
       final locationsJsonList = validLocations.map((e) => e.toJson()).toList();
       final locationsString = jsonEncode(locationsJsonList);
 
-      // 添加调试信息
-      logDebug('🚀 位置上报API调用开始', tag: 'LocationReportApi');
-      logDebug('📝 API端点: ${ApiRequest.reportLocation}', tag: 'LocationReportApi');
-      logDebug('📦 请求数据: $locationsString', tag: 'LocationReportApi');
-      logDebug('📊 有效位置数据数量: ${validLocations.length}', tag: 'LocationReportApi');
+      // // 添加调试信息
+      // logDebug('🚀 位置上报API调用开始', tag: 'LocationReportApi');
+      // logDebug('📝 API端点: ${ApiRequest.reportLocation}', tag: 'LocationReportApi');
+      // logDebug('📦 请求数据: $locationsString', tag: 'LocationReportApi');
+      // logDebug('📊 有效位置数据数量: ${validLocations.length}', tag: 'LocationReportApi');
 
       // 发送位置上报请求
       final result = await HttpManagerN.instance.executePost(
@@ -44,12 +44,12 @@ class LocationReportApi {
         },
       );
 
-      logDebug('📡 API响应状态: ${result.isSuccess}', tag: 'LocationReportApi');
-      logDebug('📡 API响应码: ${result.code}', tag: 'LocationReportApi');
-      logDebug('📡 API响应消息: ${result.msg}', tag: 'LocationReportApi');
-      logDebug('📡 原始响应dataJson: ${result.dataJson}', tag: 'LocationReportApi');
-      logDebug('📡 原始响应listJson: ${result.listJson}', tag: 'LocationReportApi');
-      logDebug('📡 完整响应对象: ${result.toString()}', tag: 'LocationReportApi');
+      // logDebug('📡 API响应状态: ${result.isSuccess}', tag: 'LocationReportApi');
+      // logDebug('📡 API响应码: ${result.code}', tag: 'LocationReportApi');
+      // logDebug('📡 API响应消息: ${result.msg}', tag: 'LocationReportApi');
+      // logDebug('📡 原始响应dataJson: ${result.dataJson}', tag: 'LocationReportApi');
+      // logDebug('📡 原始响应listJson: ${result.listJson}', tag: 'LocationReportApi');
+      // logDebug('📡 完整响应对象: ${result.toString()}', tag: 'LocationReportApi');
 
       if (result.isSuccess) {
         logInfo('✅ 位置上报成功', tag: 'LocationReportApi');

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../routers/kissu_route_path.dart';
-import '../../../services/tracking_service.dart';
+import '../../../routers/kissu_route_path.dart'; 
 import '../location_v2_controller.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 右侧浮动按钮组
 /// 包含位置提醒、轨迹、状态等功能按钮
@@ -25,8 +25,8 @@ class FloatingActionButtons extends StatelessWidget {
       // 计算下半屏当前的顶部位置（从屏幕底部算起）
       final sheetHeight = screenHeight * sheetPercent;
       
-      // 按钮固定在下半屏上方更高位置，避免与离线提示重叠
-      final buttonBottom = sheetHeight + 60;
+      // 🔧 修复：与轨迹页面保持一致的固定高度
+      final buttonBottom = sheetHeight + 50;
 
       // 🔧 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final isBindPartner = controller.isBindPartner.value;
@@ -62,12 +62,18 @@ class FloatingActionButtons extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 状态按钮
+                // 状态按钮（我的心情）
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_state_an.png',
                   onTap: () {
-                    // 埋点：当前状态按钮点击
-                    TrackingService.trackCurrentStateButton();
+                    // 埋点：我的心情按钮点击
+                    // 需要检查是否设置了状态
+                    final hasSetStatus = controller.myFace.value != null && controller.myFace.value!.isValid;
+                    AnalyticsHelper.trackLocationCurrentState(hasSet: hasSetStatus);
+                    
+                    // 埋点：页面离开（进入下一页）
+                    controller.onNavigateToNextPage?.call();
+                    
                     Get.toNamed(KissuRoutePath.locationState);
                   },
                 ),
@@ -78,7 +84,11 @@ class FloatingActionButtons extends StatelessWidget {
                   assetPath: 'assets/location/kissu3_location_track_an.png',
                   onTap: () {
                     // 埋点：Ta的足迹按钮点击
-                    TrackingService.trackHerTrackButton();
+                    AnalyticsHelper.trackLocationHerTrack();
+                    
+                    // 埋点：页面离开（进入下一页）
+                    controller.onNavigateToNextPage?.call();
+                    
                     Get.toNamed(KissuRoutePath.track);
                   },
                 ),
@@ -88,6 +98,9 @@ class FloatingActionButtons extends StatelessWidget {
                 FloatingButton(
                   assetPath: 'assets/location/kissu3_location_knock_an.png',
                   onTap: () {
+                    // 埋点：位置提醒按钮点击
+                    AnalyticsHelper.trackLocationKnock();
+                    
                     controller.onLocationReminderButtonTap();
                   },
                 ),

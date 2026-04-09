@@ -3,6 +3,8 @@ import 'package:kissu_app/network/http_resultN.dart';
 import 'package:kissu_app/network/enum/cache_control.dart';
 import 'package:kissu_app/network/public/api_request.dart';
 import 'package:kissu_app/utils/debug_util.dart';
+import 'package:kissu_app/models/usage_record_api_model.dart'
+    as usage_record_model;
 
 /// 首页数据响应模型
 class IndexResponseModel {
@@ -15,6 +17,9 @@ class IndexResponseModel {
   final PhotoData photo;
   final WeatherData weather;
   final VipData? vipData;
+  final usage_record_model.HalfUserData? halfUserData;
+  final CrapGameData? crapGame;
+  final SeedingData? seeding;
 
   IndexResponseModel({
     required this.isRedDot,
@@ -26,6 +31,9 @@ class IndexResponseModel {
     required this.photo,
     required this.weather,
     this.vipData,
+    this.halfUserData,
+    this.crapGame,
+    this.seeding,
   });
 
   factory IndexResponseModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +48,16 @@ class IndexResponseModel {
       weather: WeatherData.fromJson(json['weather'] ?? {}),
       vipData: json['vip_data'] != null
           ? VipData.fromJson(json['vip_data'])
+          : null,
+      halfUserData: json['half_user_data'] != null
+          ? usage_record_model.HalfUserData.fromJson(
+              json['half_user_data'] as Map<String, dynamic>)
+          : null,
+      crapGame: json['crap_game'] != null
+          ? CrapGameData.fromJson(json['crap_game'] as Map<String, dynamic>)
+          : null,
+      seeding: json['seeding'] != null
+          ? SeedingData.fromJson(json['seeding'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -153,6 +171,45 @@ class VipData {
       type: json['type'] ?? 0,
       desc: json['desc'] ?? '',
       expireDays: json['expireDays'] ?? 0,
+    );
+  }
+}
+
+/// 拉屎游戏数据模型
+class CrapGameData {
+  final String crapLink;
+  final String crapStatus; // "1"展示 "0"不展示
+
+  CrapGameData({
+    required this.crapLink,
+    required this.crapStatus,
+  });
+
+  factory CrapGameData.fromJson(Map<String, dynamic> json) {
+    return CrapGameData(
+      crapLink: json['crap_link'] ?? '',
+      crapStatus: json['crap_status'] ?? '0',
+    );
+  }
+}
+
+/// 种草数据模型
+class SeedingData {
+  final String seedingLink;
+  final String seedingStatus; // "1"展示 "0"不展示
+  final String seedingIcon;
+
+  SeedingData({
+    required this.seedingLink,
+    required this.seedingStatus,
+    required this.seedingIcon,
+  });
+
+  factory SeedingData.fromJson(Map<String, dynamic> json) {
+    return SeedingData(
+      seedingLink: json['seeding_link'] ?? '',
+      seedingStatus: json['seeding_status'] ?? '0',
+      seedingIcon: json['seeding_icon'] ?? '',
     );
   }
 }
@@ -310,7 +367,7 @@ class IndexApi {
   /// 包含红点信息、活动信息、位置信息、用户信息、照片信息、天气信息
   Future<HttpResultN<IndexResponseModel>> getIndexData() async {
     try {
-      DebugUtil.info('🏠 开始请求首页数据...');
+      // DebugUtil.info('🏠 开始请求首页数据...');
 
       final result = await HttpManagerN.instance.executeGet(
         ApiRequest.index,
@@ -321,8 +378,8 @@ class IndexApi {
 
       if (result.isSuccess) {
         final rawJson = result.getDataJson();
-        DebugUtil.success('🏠 首页数据请求成功');
-        DebugUtil.info('首页数据结构: ${rawJson.keys.toList()}');
+        // DebugUtil.success('🏠 首页数据请求成功');
+        // DebugUtil.info('首页数据结构: ${rawJson.keys.toList()}');
 
         return result.convert(data: IndexResponseModel.fromJson(rawJson));
       } else {

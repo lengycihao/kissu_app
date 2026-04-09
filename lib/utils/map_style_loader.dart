@@ -29,7 +29,7 @@ class MapStyleLoader {
         styleExtraData: styleExtraData,
       );
 
-      logger.info('✅ 地图自定义样式加载成功', tag: 'MapStyleLoader');
+      logger.debug('✅ 地图自定义样式加载成功', tag: 'MapStyleLoader');
       logger.debug('   style.data 大小: ${styleData.length} bytes', tag: 'MapStyleLoader');
       logger.debug('   style_extra.data 大小: ${styleExtraData.length} bytes', tag: 'MapStyleLoader');
 
@@ -52,7 +52,7 @@ class MapStyleLoader {
   static Future<void> preloadMapStyle() async {
     try {
       await getCustomMapStyle();
-      logger.info('✅ 地图样式预加载完成', tag: 'MapStyleLoader');
+      logger.debug('✅ 地图样式预加载完成', tag: 'MapStyleLoader');
     } catch (e) {
       logger.error('❌ 地图样式预加载失败: $e', tag: 'MapStyleLoader', error: e);
     }

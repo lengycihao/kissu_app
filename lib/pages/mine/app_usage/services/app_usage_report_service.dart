@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/mine/app_usage/models/app_usage_record.dart';
@@ -49,7 +50,7 @@ class AppUsageReportService {
     
     // 如果强制全量上报（换账号等情况），清除上报状态
     if (forceFullReport) {
-      logger.info('🔄 强制全量上报：清除之前的上报状态', tag: _tag);
+      // logDebug('🔄 强制全量上报：清除之前的上报状态', tag: _tag);
       await _clearReportStatus();
     } else {
       await _loadLastReportedSessions();
@@ -65,14 +66,14 @@ class AppUsageReportService {
     // 设置午夜上报
     _startMidnightTimer();
     
-    logger.info('✅ App使用记录上报服务已启动（自动采集所有应用，每2分钟自动上报）', tag: _tag);
+    logInfo('✅ App使用记录上报服务已启动（自动采集所有应用，每2分钟自动上报）', tag: _tag);
   }
   
   /// 停止服务
   void stop() {
     _reportTimer?.cancel();
     _midnightTimer?.cancel();
-    logger.info('⏹️ App使用记录上报服务已停止', tag: _tag);
+    logInfo('⏹️ App使用记录上报服务已停止', tag: _tag);
   }
   
   /// 清除上报状态（用于换账号等情况）
@@ -84,9 +85,9 @@ class AppUsageReportService {
       await prefs.remove('last_report_date');
       _lastReportedSessions.clear();
       _hasReportedToday = false;
-      logger.info('✅ 上报状态已清除', tag: _tag);
+      // logDebug('✅ 上报状态已清除', tag: _tag);
     } catch (e) {
-      logger.error('清除上报状态失败: $e', tag: _tag, error: e);
+      logError('清除上报状态失败: $e', tag: _tag, error: e);
     }
   }
   
@@ -109,25 +110,25 @@ class AppUsageReportService {
         _hasReportedToday = prefs.getBool('has_reported_today') ?? false;
       }
     } catch (e) {
-      logger.error('检查并清除旧数据失败: $e', tag: _tag, error: e);
+      logError('检查并清除旧数据失败: $e', tag: _tag, error: e);
     }
   }
   
   /// 执行当天首次上报（全量上报）
   Future<void> _performFirstReportOfDay() async {
     if (_hasReportedToday) {
-      logger.info('今天已完成首次上报，跳过', tag: _tag);
+      // logDebug('今天已完成首次上报，跳过', tag: _tag);
       return;
     }
     
     try {
-      logger.info('📤 开始执行当天首次全量上报...', tag: _tag);
+      // logDebug('📤 开始执行当天首次全量上报...', tag: _tag);
       
       // 首次上报时传入 isFirstReport=true，增加延迟和重试
       final records = await _collectUsageData(isFirstReport: true);
       
       if (records.isEmpty) {
-        logger.info('暂无使用记录需要上报', tag: _tag);
+        // logDebug('暂无使用记录需要上报', tag: _tag);
         _hasReportedToday = true;
         await _saveReportStatus();
         return;
@@ -149,26 +150,53 @@ class AppUsageReportService {
   void _startReportTimer() {
     _reportTimer?.cancel();
     _reportTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      // 🔥 修复：每次定时上报前检查是否跨天
+      _checkAndHandleDayChange();
       _performIncrementalReport();
     });
-    logger.info('⏰ 定时上报已启动（每2分钟）', tag: _tag);
+    // logDebug('⏰ 定时上报已启动（每2分钟）', tag: _tag);
+  }
+  
+  /// 🔥 新增：检查并处理跨天情况
+  Future<void> _checkAndHandleDayChange() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastReportDate = prefs.getString('last_report_date') ?? '';
+      final today = _getTodayString();
+      
+      if (lastReportDate.isNotEmpty && lastReportDate != today) {
+        // 检测到跨天，需要清除旧数据并触发新一天的首次上报
+        logInfo('🆕 定时检查检测到跨天：$lastReportDate -> $today，触发新一天首次上报', tag: _tag);
+        
+        // 清除旧数据
+        await prefs.remove('last_reported_sessions');
+        await prefs.setString('last_report_date', today);
+        _lastReportedSessions.clear();
+        _hasReportedToday = false;
+        
+        // 执行新一天的首次上报
+        await _performFirstReportOfDay();
+      }
+    } catch (e) {
+      logError('检查跨天失败: $e', tag: _tag, error: e);
+    }
   }
   
   /// 执行增量上报
   Future<void> _performIncrementalReport() async {
     if (!_hasReportedToday) {
-      logger.info('尚未完成首次上报，跳过增量上报', tag: _tag);
+      // logDebug('尚未完成首次上报，跳过增量上报', tag: _tag);
       return;
     }
     
     try {
-      logger.info('📤 开始执行增量上报...', tag: _tag);
+      // logDebug('📤 开始执行增量上报...', tag: _tag);
       
       // 采集当天全量数据
       final allRecords = await _collectUsageData();
       
       if (allRecords.isEmpty) {
-        logger.info('暂无使用记录', tag: _tag);
+        // logDebug('暂无使用记录', tag: _tag);
         return;
       }
       
@@ -176,7 +204,7 @@ class AppUsageReportService {
       final incrementalRecords = _filterIncrementalData(allRecords);
       
       if (incrementalRecords.isEmpty) {
-        logger.info('暂无新增使用记录', tag: _tag);
+        // logDebug('暂无新增使用记录', tag: _tag);
         return;
       }
       
@@ -186,7 +214,7 @@ class AppUsageReportService {
       // 更新上报记录
       await _saveLastReportedSessions(allRecords);
     } catch (e) {
-      logger.error('执行增量上报异常: $e', tag: _tag, error: e);
+      logError('执行增量上报异常: $e', tag: _tag, error: e);
     }
   }
   
@@ -212,13 +240,13 @@ class AppUsageReportService {
       _startMidnightTimer();
     });
     
-    logger.info('🌙 午夜定时器已设置，将在 ${duration.inHours}小时${duration.inMinutes.remainder(60)}分钟后触发', tag: _tag);
+    // logDebug('🌙 午夜定时器已设置，将在 ${duration.inHours}小时${duration.inMinutes.remainder(60)}分钟后触发', tag: _tag);
   }
   
   /// 执行午夜上报并清空记录
   Future<void> _performMidnightReport() async {
     try {
-      logger.info('🌙 执行午夜上报并清空记录...', tag: _tag);
+      // logDebug('🌙 执行午夜上报并清空记录...', tag: _tag);
       
       // 最后一次增量上报
       await _performIncrementalReport();
@@ -230,9 +258,51 @@ class AppUsageReportService {
       _lastReportedSessions.clear();
       _hasReportedToday = false;
       
-      logger.info('✅ 午夜上报完成，本地记录已清空（logo缓存保留）', tag: _tag);
+      // 🔥 修复：更新last_report_date为新的一天
+      final tomorrow = DateTime.now().add(const Duration(seconds: 2)); // 加2秒确保已经过了午夜
+      final newDateStr = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+      await prefs.setString('last_report_date', newDateStr);
+      
+      // logDebug('✅ 午夜上报完成，本地记录已清空（logo缓存保留）', tag: _tag);
+      
+      // 🔥 修复：延迟几秒后触发新一天的首次上报
+      // 确保已经过了午夜12点，系统数据已更新
+      Future.delayed(const Duration(seconds: 5), () {
+        _performFirstReportOfNewDay();
+      });
     } catch (e) {
-      logger.error('执行午夜上报异常: $e', tag: _tag, error: e);
+      logError('执行午夜上报异常: $e', tag: _tag, error: e);
+    }
+  }
+  
+  /// 🔥 新增：执行新一天的首次上报（午夜后自动触发）
+  Future<void> _performFirstReportOfNewDay() async {
+    try {
+      // logDebug('🌅 开始执行新一天的首次上报...', tag: _tag);
+      
+      // 等待系统数据准备好
+      await Future.delayed(const Duration(seconds: 3));
+      
+      final records = await _collectUsageData(isFirstReport: true);
+      
+      if (records.isEmpty) {
+        // logDebug('新一天暂无使用记录需要上报', tag: _tag);
+        _hasReportedToday = true;
+        await _saveReportStatus();
+        return;
+      }
+      
+      // 上报数据
+      await _reportUsageData(records);
+      
+      // 保存上报记录
+      await _saveLastReportedSessions(records);
+      _hasReportedToday = true;
+      await _saveReportStatus();
+      
+      // logDebug('✅ 新一天首次上报完成', tag: _tag);
+    } catch (e) {
+      logError('新一天首次上报异常: $e', tag: _tag, error: e);
     }
   }
   
@@ -243,7 +313,7 @@ class AppUsageReportService {
     try {
       // 如果是首次上报且是第一次尝试，增加延迟让系统有时间准备数据
       if (isFirstReport && retryCount == 0) {
-        logger.info('⏳ 首次上报：等待3秒让系统准备数据...', tag: _tag);
+        // logDebug('⏳ 首次上报：等待3秒让系统准备数据...', tag: _tag);
         await Future.delayed(const Duration(seconds: 3));
       }
       
@@ -276,31 +346,31 @@ class AppUsageReportService {
             date: map['date'] as String,
             hourlyRecords: hourlyRecords,
           ));
-          logger.info('✅ $appName: ${hourlyRecords.length}个小时记录', tag: _tag);
+          // logDebug('✅ $appName: ${hourlyRecords.length}个小时记录', tag: _tag);
         } else {
           appsWithoutData++;
-          logger.info('⚠️ $appName: 无使用记录', tag: _tag);
+          // logDebug('⚠️ $appName: 无使用记录', tag: _tag);
         }
       }
       
-      logger.info('📊 采集完成: 总共$totalApps个应用, 有数据$appsWithData个, 无数据$appsWithoutData个', tag: _tag);
+      logInfo('📊 采集完成: 总共$totalApps个应用, 有数据$appsWithData个, 无数据$appsWithoutData个', tag: _tag);
       
       // 如果第一次采集没有数据，且是首次上报，增加延迟后重试（最多重试2次）
       if (records.isEmpty && isFirstReport && retryCount < 2) {
         final delaySeconds = (retryCount + 1) * 3; // 第1次重试延迟3秒，第2次延迟6秒
-        logger.info('⚠️ 首次采集无数据（重试${retryCount + 1}/2），可能是权限刚开启或系统数据未准备好，等待${delaySeconds}秒后重试...', tag: _tag);
+        // logDebug('⚠️ 首次采集无数据（重试${retryCount + 1}/2），可能是权限刚开启或系统数据未准备好，等待${delaySeconds}秒后重试...', tag: _tag);
         await Future.delayed(Duration(seconds: delaySeconds));
         return await _collectUsageData(retryCount: retryCount + 1, isFirstReport: isFirstReport);
       }
       
       return records;
     } catch (e) {
-      logger.error('采集使用数据失败: $e', tag: _tag, error: e);
+      logError('采集使用数据失败: $e', tag: _tag, error: e);
       
       // 如果是首次上报且重试次数未达上限，增加延迟后重试
       if (isFirstReport && retryCount < 2) {
         final delaySeconds = (retryCount + 1) * 3; // 第1次重试延迟3秒，第2次延迟6秒
-        logger.info('⚠️ 采集数据异常（重试${retryCount + 1}/2），等待${delaySeconds}秒后重试...', tag: _tag);
+        logWarning('⚠️ 采集数据异常（重试${retryCount + 1}/2），等待${delaySeconds}秒后重试...', tag: _tag);
         await Future.delayed(Duration(seconds: delaySeconds));
         return await _collectUsageData(retryCount: retryCount + 1, isFirstReport: isFirstReport);
       }
@@ -334,12 +404,12 @@ class AppUsageReportService {
             // 但上报时我们只会上报closeTime（operate_type=0）
             // 所以我们需要标记这个会话只上报closeTime
             sessionsToReport.add(session);
-            logger.info('📈 ${record.appName}: 会话 ${session.openTime} 的closeTime需要上报', tag: _tag);
+            // logDebug('📈 ${record.appName}: 会话 ${session.openTime} 的closeTime需要上报', tag: _tag);
           }
         } else {
           // openTime未上报，上报整个会话（包括openTime和closeTime）
           sessionsToReport.add(session);
-          logger.info('📈 ${record.appName}: 新会话 ${session.openTime} 需要上报', tag: _tag);
+          // logDebug('📈 ${record.appName}: 新会话 ${session.openTime} 需要上报', tag: _tag);
         }
       }
       
@@ -379,7 +449,7 @@ class AppUsageReportService {
         hourlyRecords: newHourlyRecords,
       ));
       
-      logger.info('📈 ${record.appName}: 需要上报 ${sessionsToReport.length} 条会话记录', tag: _tag);
+      // logDebug('📈 ${record.appName}: 需要上报 ${sessionsToReport.length} 条会话记录', tag: _tag);
     }
     
     return incrementalRecords;
@@ -423,9 +493,9 @@ class AppUsageReportService {
       final json = jsonEncode(serializableMap);
       await prefs.setString('last_reported_sessions', json);
       
-      logger.info('💾 已保存上报记录: ${_lastReportedSessions.length}个应用', tag: _tag);
+      // logDebug('💾 已保存上报记录: ${_lastReportedSessions.length}个应用', tag: _tag);
     } catch (e) {
-      logger.error('保存上报记录失败: $e', tag: _tag, error: e);
+      logError('保存上报记录失败: $e', tag: _tag, error: e);
     }
   }
   
@@ -453,10 +523,10 @@ class AppUsageReportService {
           }
         });
         
-        logger.info('📂 已加载上报记录: ${_lastReportedSessions.length}个应用', tag: _tag);
+        // logDebug('📂 已加载上报记录: ${_lastReportedSessions.length}个应用', tag: _tag);
       }
     } catch (e) {
-      logger.error('加载上报记录失败: $e', tag: _tag, error: e);
+      logError('加载上报记录失败: $e', tag: _tag, error: e);
       // 如果解析失败，尝试兼容旧格式（Map<String, int>）
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -470,10 +540,10 @@ class AppUsageReportService {
               _lastReportedSessions[packageName] = {lastOpenTime: false}; // closeTime未上报
             }
           });
-          logger.info('📂 已从旧格式加载上报记录: ${_lastReportedSessions.length}个应用', tag: _tag);
+          // logDebug('📂 已从旧格式加载上报记录: ${_lastReportedSessions.length}个应用', tag: _tag);
         }
       } catch (e2) {
-        logger.error('兼容旧格式加载失败: $e2', tag: _tag, error: e2);
+        logError('兼容旧格式加载失败: $e2', tag: _tag, error: e2);
       }
     }
   }
@@ -484,7 +554,7 @@ class AppUsageReportService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('has_reported_today', _hasReportedToday);
     } catch (e) {
-      logger.error('保存上报状态失败: $e', tag: _tag, error: e);
+      logError('保存上报状态失败: $e', tag: _tag, error: e);
     }
   }
   
@@ -539,7 +609,7 @@ class AppUsageReportService {
         'data': records,
       };
     } catch (e) {
-      logger.error('[调试] 全量上报异常: $e', tag: _tag, error: e);
+      logError('[调试] 全量上报异常: $e', tag: _tag, error: e);
       return {
         'success': false,
         'message': '上报异常: $e',
@@ -551,7 +621,7 @@ class AppUsageReportService {
   /// 手动触发增量上报（用于调试）
   Future<Map<String, dynamic>> debugIncrementalReport() async {
     try {
-      logger.info('🔧 [调试] 手动触发增量上报', tag: _tag);
+      logDebug('🔧 [调试] 手动触发增量上报', tag: _tag);
       
       final allRecords = await _collectUsageData();
       
@@ -581,7 +651,7 @@ class AppUsageReportService {
         'data': incrementalRecords,
       };
     } catch (e) {
-      logger.error('[调试] 增量上报异常: $e', tag: _tag, error: e);
+      logError('[调试] 增量上报异常: $e', tag: _tag, error: e);
       return {
         'success': false,
         'message': '上报异常: $e',
@@ -593,7 +663,7 @@ class AppUsageReportService {
   /// 查看待上报数据（用于调试）
   Future<Map<String, dynamic>> debugViewPendingData() async {
     try {
-      logger.info('🔧 [调试] 查看待上报数据', tag: _tag);
+      logDebug('🔧 [调试] 查看待上报数据', tag: _tag);
       
       final allRecords = await _collectUsageData();
       
@@ -617,7 +687,7 @@ class AppUsageReportService {
         'lastReportedSessions': _lastReportedSessions,
       };
     } catch (e) {
-      logger.error('[调试] 查看待上报数据异常: $e', tag: _tag, error: e);
+      logError('[调试] 查看待上报数据异常: $e', tag: _tag, error: e);
       return {
         'success': false,
         'message': '加载失败: $e',
@@ -631,7 +701,7 @@ class AppUsageReportService {
   /// 清空本地记录（用于调试）
   Future<void> debugClearLocalData() async {
     try {
-      logger.info('🔧 [调试] 清空本地记录', tag: _tag);
+      logDebug('🔧 [调试] 清空本地记录', tag: _tag);
       
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('last_reported_sessions');
@@ -641,9 +711,9 @@ class AppUsageReportService {
       _lastReportedSessions.clear();
       _hasReportedToday = false;
       
-      logger.info('✅ 本地记录已清空', tag: _tag);
+      logDebug('✅ 本地记录已清空', tag: _tag);
     } catch (e) {
-      logger.error('[调试] 清空本地记录失败: $e', tag: _tag, error: e);
+      logError('[调试] 清空本地记录失败: $e', tag: _tag, error: e);
     }
   }
   
@@ -696,7 +766,7 @@ class AppUsageReportService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('native_app_usage_reporting') ?? false;
     } catch (e) {
-      logger.error('检查原生层上报状态失败: $e', tag: _tag, error: e);
+      logError('检查原生层上报状态失败: $e', tag: _tag, error: e);
       return false;
     }
   }
@@ -704,18 +774,25 @@ class AppUsageReportService {
   /// 上报使用数据（自动上报）
   Future<void> _reportUsageData(List<AppUsageRecord> records) async {
     if (records.isEmpty) {
-      logger.info('没有可上报的数据', tag: _tag);
+      // logDebug('没有可上报的数据', tag: _tag);
       return;
     }
     
     // 🔥 检查原生层是否正在上报，如果是则跳过Flutter层上报
     if (await _isNativeReporting()) {
-      logger.info('⏸️ 原生层正在上报，跳过Flutter层上报', tag: _tag);
+      // logDebug('⏸️ 原生层正在上报，跳过Flutter层上报', tag: _tag);
       return;
     }
     
     try {
-      logger.info('📤 开始自动上报: ${records.length}个应用', tag: _tag);
+      // logDebug('📤 开始自动上报: ${records.length}个应用', tag: _tag);
+      
+      // 记录每个应用的详细信息
+      for (final record in records) {
+        final totalMin = record.totalDuration ~/ 1000 ~/ 60;
+        final totalSec = (record.totalDuration ~/ 1000) % 60;
+        logInfo('📱 ${record.appName} (${record.packageName}): ${record.sessionCount}个会话, 使用${totalMin}分${totalSec}秒', tag: _tag);
+      }
       
       // 处理每个应用的数据转换
       final appUseRecordData = <Map<String, dynamic>>[];
@@ -726,19 +803,19 @@ class AppUsageReportService {
         String? logoUrl = _logoCacheService.getCachedLogoUrl(record.packageName);
         
         if (logoUrl != null && logoUrl.isNotEmpty) {
-          logger.info('✅ ${record.appName}: 使用缓存的logo', tag: _tag);
+          // logDebug('✅ ${record.appName}: 使用缓存的logo', tag: _tag);
         } else {
           // 缓存中没有，尝试上传
           if (record.iconBase64 != null && record.iconBase64!.isNotEmpty) {
-            logger.info('📤 ${record.appName}: 缓存中没有logo，尝试上传', tag: _tag);
+            // logDebug('📤 ${record.appName}: 缓存中没有logo，尝试上传', tag: _tag);
             logoUrl = await _uploadLogoFromBase64(record.packageName, record.iconBase64!);
             if (logoUrl != null && logoUrl.isNotEmpty) {
-              logger.info('✅ ${record.appName}: logo上传成功', tag: _tag);
+              // logDebug('✅ ${record.appName}: logo上传成功', tag: _tag);
             } else {
-              logger.warning('⚠️ ${record.appName}: logo上传失败', tag: _tag);
+              logWarning('⚠️ ${record.appName}: logo上传失败', tag: _tag);
             }
           } else {
-            logger.warning('⚠️ ${record.appName}: 缓存中没有logo且iconBase64为空，无法上传logo', tag: _tag);
+            logWarning('⚠️ ${record.appName}: 缓存中没有logo且iconBase64为空，无法上传logo', tag: _tag);
           }
         }
         
@@ -754,7 +831,7 @@ class AppUsageReportService {
       }
       
       if (appUseRecordData.isEmpty) {
-        logger.warning('转换后的数据为空，跳过上报', tag: _tag);
+        logWarning('转换后的数据为空，跳过上报', tag: _tag);
         return;
       }
       
@@ -762,12 +839,12 @@ class AppUsageReportService {
       final result = await AppUsageApi.reportAppUsage(appUseRecordData, dateInt!);
       
       if (result.isSuccess) {
-        logger.info('✅ 自动上报成功: ${records.length}个应用', tag: _tag);
+        // logDebug('✅ 自动上报成功: ${records.length}个应用', tag: _tag);
       } else {
-        logger.error('自动上报失败: ${result.msg}', tag: _tag);
+        logError('自动上报失败: ${result.msg}', tag: _tag);
       }
     } catch (e) {
-      logger.error('自动上报异常: $e', tag: _tag, error: e);
+      logError('自动上报异常: $e', tag: _tag, error: e);
     }
   }
   
@@ -778,7 +855,7 @@ class AppUsageReportService {
       final iconBytes = base64Decode(iconBase64);
       
       if (iconBytes.isEmpty) {
-        logger.warning('logo数据为空: $packageName', tag: _tag);
+        logWarning('logo数据为空: $packageName', tag: _tag);
         return null;
       }
       
@@ -799,17 +876,17 @@ class AppUsageReportService {
         try {
           await tempFile.delete();
         } catch (e) {
-          logger.warning('删除临时文件失败: $e', tag: _tag);
+          logWarning('删除临时文件失败: $e', tag: _tag);
         }
         
         if (result.isSuccess && result.data != null) {
           final logoUrl = result.data!;
           // 缓存URL
           await _logoCacheService.cacheLogoUrl(packageName, logoUrl);
-          logger.info('✅ logo上传成功: $packageName -> $logoUrl', tag: _tag);
+          // logDebug('✅ logo上传成功: $packageName -> $logoUrl', tag: _tag);
           return logoUrl;
         } else {
-          logger.error('logo上传失败: ${result.msg}', tag: _tag);
+          logError('logo上传失败: ${result.msg}', tag: _tag);
           return null;
         }
       } catch (e) {
@@ -822,7 +899,7 @@ class AppUsageReportService {
         rethrow;
       }
     } catch (e) {
-      logger.error('上传logo失败: $packageName, $e', tag: _tag, error: e);
+      logError('上传logo失败: $packageName, $e', tag: _tag, error: e);
       return null;
     }
   }

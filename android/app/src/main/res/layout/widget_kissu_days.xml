@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/kissu_compoent22_bg">
+
+    <!-- 我们相伴 / Kissu相伴 - 左上角（动态文本） -->
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|top"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="14dp"
+        android:text="Kissu相伴"
+        android:textSize="14sp"
+        android:textColor="#FF802145"
+        android:textStyle="bold" />
+
+    <!-- 天数 + 天 - 正中间 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:gravity="bottom">
+
+        <TextView
+            android:id="@+id/tv_days"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textSize="40sp"
+            android:textColor="#FF802145"
+            android:textStyle="bold"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginBottom="8dp"
+            android:text="天"
+            android:textSize="12sp"
+            android:textColor="#FF802145"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 绑定日期 - 左下角 -->
+    <TextView
+        android:id="@+id/tv_bind_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|bottom"
+        android:layout_marginStart="12dp"
+        android:layout_marginBottom="12dp"
+        android:text="2024-1-1"
+        android:textSize="10sp"
+        android:textColor="#FF802145" />
+
+</FrameLayout>

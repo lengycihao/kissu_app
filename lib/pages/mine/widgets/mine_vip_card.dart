@@ -293,8 +293,10 @@ class MineVipCard extends StatelessWidget {
     String buttonText;
     switch (cardType) {
       case VipCardType.foreverVip:
-      case VipCardType.normalVip:
         buttonText = "会员中心";
+        break;
+      case VipCardType.normalVip:
+        buttonText = "去续费";
         break;
       case VipCardType.unbound:
         buttonText = "立即绑定";

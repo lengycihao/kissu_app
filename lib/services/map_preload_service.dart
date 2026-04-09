@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:amap_flutter_map/amap_flutter_map.dart';
 import 'dart:ui' as ui;
 
+import 'package:kissu_app/network/tools/logging/log_manager.dart';
+
 /// 地图资源预加载服务
 /// 用于在应用启动时预加载地图相关资源，提升地图页面打开速度
 class MapPreloadService {
@@ -26,7 +28,7 @@ class MapPreloadService {
   /// 在应用启动时调用此方法预加载地图资源
   Future<void> preloadMapResources() async {
     if (_isPreloaded || _isPreloading) {
-      debugPrint('🗺️ 地图资源已预加载或正在预加载中，跳过');
+      logger.debug('🗺️ 地图资源已预加载或正在预加载中，跳过');
       return;
     }
 
@@ -34,7 +36,7 @@ class MapPreloadService {
     final startTime = DateTime.now();
 
     try {
-      debugPrint('🚀 开始预加载地图资源...');
+      logger.debug('🚀 开始预加载地图资源...');
 
       // 并行预加载所有常用图片资源
       await Future.wait([
@@ -48,9 +50,9 @@ class MapPreloadService {
 
       _isPreloaded = true;
       final duration = DateTime.now().difference(startTime);
-      debugPrint('✅ 地图资源预加载完成，耗时: ${duration.inMilliseconds}ms');
+      logger.debug('✅ 地图资源预加载完成，耗时: ${duration.inMilliseconds}ms');
     } catch (e) {
-      debugPrint('❌ 地图资源预加载失败: $e');
+      logger.error('❌ 地图资源预加载失败: $e');
     } finally {
       _isPreloading = false;
     }
@@ -64,9 +66,9 @@ class MapPreloadService {
       final ui.Codec codec = await ui.instantiateImageCodec(bytes);
       final ui.FrameInfo frame = await codec.getNextFrame();
       _imageCache[assetPath] = frame.image;
-      debugPrint('  ✓ 预加载图片: $assetPath');
+      logger.debug('  ✓ 预加载图片: $assetPath');
     } catch (e) {
-      debugPrint('  ✗ 预加载图片失败 $assetPath: $e');
+      logger.error('  ✗ 预加载图片失败 $assetPath: $e');
     }
   }
 
@@ -78,14 +80,14 @@ class MapPreloadService {
   /// 缓存Marker（用于跨页面复用）
   void cacheMarker(String key, BitmapDescriptor marker) {
     _markerCache[key] = marker;
-    debugPrint('💾 缓存Marker: $key (总缓存数: ${_markerCache.length})');
+    logger.debug('💾 缓存Marker: $key (总缓存数: ${_markerCache.length})');
   }
 
   /// 获取缓存的Marker
   BitmapDescriptor? getCachedMarker(String key) {
     final marker = _markerCache[key];
     if (marker != null) {
-      debugPrint('🎯 命中Marker缓存: $key');
+      logger.debug('🎯 命中Marker缓存: $key');
     }
     return marker;
   }
@@ -103,7 +105,7 @@ class MapPreloadService {
     _markerCache.clear();
     _imageCache.clear();
     _isPreloaded = false;
-    debugPrint('🗑️ 已清空地图资源缓存');
+    logger.debug('🗑️ 已清空地图资源缓存');
   }
 
   /// 获取缓存统计信息

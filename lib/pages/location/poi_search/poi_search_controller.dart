@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kissu_app/models/city_model.dart';
 import 'package:kissu_app/models/poi_model.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/amap_poi_service.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/pages/location/city_list/city_list_page.dart';
@@ -11,8 +12,9 @@ import 'package:kissu_app/utils/oktoast_util.dart';
 /// POI搜索Controller
 class PoiSearchController extends GetxController {
   final CityModel? initialCity;
+  final String? initialLocation; // 🔥 初始位置（格式：经度,纬度）
 
-  PoiSearchController({this.initialCity});
+  PoiSearchController({this.initialCity, this.initialLocation});
 
   final AMapPoiService _poiService = AMapPoiService();
 
@@ -72,26 +74,33 @@ class PoiSearchController extends GetxController {
     _debounceTimer?.cancel();
     
     final keyword = searchController.text.trim();
-    debugPrint('🔍 输入框变化: "$keyword"');
+    // logDebug('🔍 输入框变化: "$keyword"');
     
     // 如果输入为空，清空搜索结果
     if (keyword.isEmpty) {
       searchResults.clear();
       hasSearched.value = false;
-      debugPrint('✅ 已清空搜索结果');
+      // logDebug('✅ 已清空搜索结果');
       return;
     }
     
     // 设置新的防抖定时器（500ms后执行搜索）
-    debugPrint('⏱️ 设置500ms后自动搜索');
+    // logDebug('⏱️ 设置500ms后自动搜索');
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      debugPrint('🚀 开始自动搜索: "$keyword"');
+      // logDebug('🚀 开始自动搜索: "$keyword"');
       search(showLoading: false); // 自动搜索不显示loading
     });
   }
 
   /// 获取当前位置字符串（格式：经度,纬度）
   String? _getCurrentLocationString() {
+    // 🔥 优先使用传入的初始位置
+    if (initialLocation != null && initialLocation!.isNotEmpty) {
+      // logDebug('✅ 使用传入的初始位置: $initialLocation');
+      return initialLocation;
+    }
+    
+    // 其次尝试从定位服务获取
     try {
       final locationService = Get.find<SimpleLocationService>();
       final currentLoc = locationService.currentLocation.value;
@@ -100,7 +109,7 @@ class PoiSearchController extends GetxController {
         return '${currentLoc.longitude},${currentLoc.latitude}';
       }
     } catch (e) {
-      debugPrint('⚠️ 获取当前位置失败: $e');
+      logError('⚠️ 获取当前位置失败: $e');
     }
     return null;
   }
@@ -111,17 +120,17 @@ class PoiSearchController extends GetxController {
     final keyword = searchController.text.trim();
 
     if (keyword.isEmpty) {
-      debugPrint('⚠️ 关键词为空，跳过搜索');
+      // logDebug('⚠️ 关键词为空，跳过搜索');
       return; // 静默返回，不显示提示
     }
 
     if (selectedCity.value == null) {
-      debugPrint('⚠️ 未选择城市，跳过搜索');
+      // logDebug('⚠️ 未选择城市，跳过搜索');
       return; // 静默返回，不显示提示
     }
 
     try {
-      debugPrint('🔍 开始搜索 POI: 关键词="$keyword", 城市=${selectedCity.value!.cityName}');
+      // logDebug('🔍 开始搜索 POI: 关键词="$keyword", 城市=${selectedCity.value!.cityName}');
       if (showLoading) {
         isSearching.value = true;
       }
@@ -129,7 +138,7 @@ class PoiSearchController extends GetxController {
 
       // 获取当前位置（用于计算距离）
       final currentLocation = _getCurrentLocationString();
-      debugPrint('📍 当前位置: $currentLocation');
+      // logDebug('📍 当前位置: $currentLocation');
 
       final results = await _poiService.searchPoi(
         keyword: keyword,
@@ -139,14 +148,14 @@ class PoiSearchController extends GetxController {
         location: currentLocation, // 传递当前位置
       );
 
-      debugPrint('✅ 搜索完成，找到 ${results.length} 条结果');
+      // logDebug('✅ 搜索完成，找到 ${results.length} 条结果');
       searchResults.value = results;
       hasSearched.value = true;
       
       // 判断是否还有更多数据
       hasMore.value = results.length >= pageSize;
     } catch (e) {
-      debugPrint('❌ POI搜索失败: $e');
+      logError('❌ POI搜索失败: $e');
       OKToastUtil.showError('搜索失败，请稍后重试');
     } finally {
       if (showLoading) {
@@ -159,7 +168,7 @@ class PoiSearchController extends GetxController {
   Future<void> loadMore() async {
     // 如果正在加载或没有更多数据，直接返回
     if (isLoadingMore.value || !hasMore.value) {
-      debugPrint('⚠️ 跳过加载更多: isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
+      // logDebug('⚠️ 跳过加载更多: isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
       return;
     }
     
@@ -169,7 +178,7 @@ class PoiSearchController extends GetxController {
     try {
       isLoadingMore.value = true;
       currentPage++;
-      debugPrint('📄 加载第 $currentPage 页数据');
+      // logDebug('📄 加载第 $currentPage 页数据');
 
       // 获取当前位置（用于计算距离）
       final currentLocation = _getCurrentLocationString();
@@ -182,13 +191,13 @@ class PoiSearchController extends GetxController {
         location: currentLocation, // 传递当前位置
       );
 
-      debugPrint('✅ 加载更多完成，新增 ${results.length} 条结果');
+      // logDebug('✅ 加载更多完成，新增 ${results.length} 条结果');
       searchResults.addAll(results);
       
       // 判断是否还有更多数据
       hasMore.value = results.length >= pageSize;
     } catch (e) {
-      debugPrint('❌ 加载更多失败: $e');
+      logError('❌ 加载更多失败: $e');
       currentPage--;
       OKToastUtil.showError('加载失败，请稍后重试');
     } finally {
@@ -205,7 +214,7 @@ class PoiSearchController extends GetxController {
     if (result != null && result is CityModel) {
       selectedCity.value = result;
       cityChanged.value = true; // 标记城市已变化
-      debugPrint('🏙️ POI搜索页切换城市: ${result.cityName}');
+      // logDebug('🏙️ POI搜索页切换城市: ${result.cityName}');
     }
   }
 

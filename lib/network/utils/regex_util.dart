@@ -1,6 +1,14 @@
 class RegexUtil {
   static bool isLocalImagePath(String path) {
-    return RegExp(r'^/.+').hasMatch(path);
+    final lower = path.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.bmp') ||
+        lower.endsWith('.heic') ||
+        lower.endsWith('.heif');
   }
 
   static bool isNetworkImagePath(String path) {

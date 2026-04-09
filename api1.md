@@ -1,15 +1,160 @@
-[
-        {
-            "_id": "693793a0e898f3145038620c",
-            "app_name": "快手",
-            "app_logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/45/fe/0b/45fe0b80-9625-ff28-b1c8-e5dc69a504b0/AppIcon-0-0-1x_U007emarketing-0-8-0-0-sRGB-85-220.png/100x100bb.jpg",
-            "app_pkg": "com.jiangjia.gif"
-        },
-        {
-            "_id": "693793befd25db42880f2716",
-            "app_name": "高德地图-高德打车,导航公交地铁出行",
-            "app_logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/52/ed/68/52ed68fd-6762-feff-8d13-21e222039464/AppIcon-0-0-1x_U007epad-0-1-0-0-85-220.png/100x100bb.jpg",
-            "app_pkg": "com.autonavi.amap"
-        },
-       
-    ]
+{"level":"INFO","message":"日志系统初始化完成","tag":"Logger","timestamp":"2026-04-09T18:02:27.276396","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"应用启动初始化完成","tag":"App","timestamp":"2026-04-09T18:02:27.276496","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"开始初始化腾讯IM SDK...","tag":"TencentIMService","timestamp":"2026-04-09T18:02:28.756988","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"PrivacyComplianceManager 是否注册: true","tag":"OaidUtil","timestamp":"2026-04-09T18:02:31.014757","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"隐私政策是否同意: true","tag":"OaidUtil","timestamp":"2026-04-09T18:02:31.014772","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"检测到code 43000，token失效或账号异常，需要重新登录","tag":"ApiInterceptor","timestamp":"2026-04-09T18:02:33.468849","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ Token失效处理开始: 请登录！","tag":"ApiInterceptor","timestamp":"2026-04-09T18:02:33.468856","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"检测到code 43000，token失效或账号异常，需要重新登录","tag":"ApiInterceptor","timestamp":"2026-04-09T18:02:55.931974","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ Token失效处理开始: 请登录！","tag":"ApiInterceptor","timestamp":"2026-04-09T18:02:55.931994","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"检测到code 43000，token失效或账号异常，需要重新登录","tag":"ApiInterceptor","timestamp":"2026-04-09T18:03:07.867676","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ Token失效处理开始: 请登录！","tag":"ApiInterceptor","timestamp":"2026-04-09T18:03:07.867682","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"使用手动提供的邀请码登录","tag":"AuthService","timestamp":"2026-04-09T18:03:11.025176","error":null,"stackTrace":null,"extra":{"friendCode":"1042546","phone":"17827828819"}}
+{"level":"INFO","message":"登录成功","tag":"AuthService","timestamp":"2026-04-09T18:03:11.518688","error":null,"stackTrace":null,"extra":{"userId":42543,"nickname":"kissu8819"}}
+{"level":"INFO","message":"🔄 准备登录腾讯IM...","tag":"AuthService","timestamp":"2026-04-09T18:03:11.538583","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM登录请求 - uniqueId: 261b100a9e6c44efbda5555893fe8469, hasImSign: true, userId: 42543","tag":"TencentIMService","timestamp":"2026-04-09T18:03:11.538629","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 首页Controller未找到: \"HomeController\" not found. You need to call \"Get.put(HomeController())\" or \"Get.lazyPut(()=>HomeController())\"","tag":"InfoSetting","timestamp":"2026-04-09T18:03:42.322931","error":"\"HomeController\" not found. You need to call \"Get.put(HomeController())\" or \"Get.lazyPut(()=>HomeController())\"","stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 我的页面Controller未找到: \"MineController\" not found. You need to call \"Get.put(MineController())\" or \"Get.lazyPut(()=>MineController())\"","tag":"InfoSetting","timestamp":"2026-04-09T18:03:42.322956","error":"\"MineController\" not found. You need to call \"Get.put(MineController())\" or \"Get.lazyPut(()=>MineController())\"","stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 没有预设位置，使用默认居中偏移","tag":"App","timestamp":"2026-04-09T18:03:42.330143","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: DioException [unknown]: null\nError: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/upload/point","tag":"UncaughtError","timestamp":"2026-04-09T18:03:51.461539","error":"DioException [unknown]: null\nError: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/upload/point","stackTrace":"","extra":null}
+{"level":"ERROR","message":"🔍 [Unknown Network Error] 详细信息:","tag":"App","timestamp":"2026-04-09T18:03:51.462871","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"❌ 埋点上报失败: 网络连接异常，请检查网络状态","tag":"App","timestamp":"2026-04-09T18:03:51.463034","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📍 请求地址: https://service-api.ikissu.cn/upload/point","tag":"App","timestamp":"2026-04-09T18:03:51.462938","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📡 请求方法: POST","tag":"App","timestamp":"2026-04-09T18:03:51.462939","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📋 请求头: {network_debounce: true, content-type: application/json, token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJraXNzdSIsImF1ZCI6Imtpc3N1IiwiaWF0IjoxNzc1NzI4OTkwLCJuYmYiOjE3NzU3Mjg5OTAsImV4cCI6IjE4MDcyNjQ5OTAiLCJ1aWQiOjQyNTQzfQ.1mVcDZYWTwc2LfczCf6F-EPQSqCD1fDs1dNJse66jwo, version: 1.2.2, pkg: com.yuluo.kissu, os: 1, deviceid: android-1775729031362, oaid: aadc25c6f8d954d1, androidid: 0f933a76a035965b, mobile-model: Redmi 25053RT47C, brand: Redmi, is-open-location: 0, channel: kissu_xiaomi, network-name: wifi, power: 51, timestamp: 1775729031362, sign: 48CBA0FCAB20E1702B8D5362D4032A71, content-length: 487}","tag":"App","timestamp":"2026-04-09T18:03:51.462955","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  💬 错误消息: null","tag":"App","timestamp":"2026-04-09T18:03:51.462957","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  🔧 错误类型: HttpException","tag":"App","timestamp":"2026-04-09T18:03:51.462966","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📊 错误对象: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/upload/point","tag":"App","timestamp":"2026-04-09T18:03:51.462969","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📊 事件上报失败，已保存到本地","tag":"App","timestamp":"2026-04-09T18:03:51.464980","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"用户信息已更新","tag":"AuthService","timestamp":"2026-04-09T18:03:54.246085","error":null,"stackTrace":null,"extra":{"userId":42543,"nickname":"淇"}}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T18:03:54.246809","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T18:03:54.373931","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"WARNING","message":"⚠️ 用户信息刷新失败，第1次重试...","tag":"TencentIMService","timestamp":"2026-04-09T18:03:54.373937","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:04:29.859423","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T18:06:20.809172","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"INFO","message":"用户信息已更新","tag":"AuthService","timestamp":"2026-04-09T18:06:33.705720","error":null,"stackTrace":null,"extra":{"userId":42543,"nickname":"淇"}}
+{"level":"WARNING","message":"CustomToast: Failed to get overlay from context: Null check operator used on a null value","tag":"CustomToast","timestamp":"2026-04-09T18:06:33.705826","error":"Null check operator used on a null value","stackTrace":null,"extra":null}
+{"level":"WARNING","message":"CustomToast: Failed to get root overlay: Null check operator used on a null value","tag":"CustomToast","timestamp":"2026-04-09T18:06:33.705845","error":"Null check operator used on a null value","stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:08:09.344810","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:08:13.092284","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T18:08:19.789578","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:08:22.073701","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"推送ext不是JSON格式: ","tag":"TencentIMService","timestamp":"2026-04-09T18:10:22.041493","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:16:09.188606","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:16:44.891836","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T18:16:58.715839","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"ERROR","message":"推送ext不是JSON格式: ","tag":"TencentIMService","timestamp":"2026-04-09T18:18:32.495781","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:19:25.120814","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:19:37.795601","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: PlatformException(Thumbnail request error, java.util.concurrent.ExecutionException: com.bumptech.glide.load.engine.GlideException: Failed to load resource\nThere were 3 root causes:\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\n call GlideException#logRootCauses(String) for more detail, null, null)","tag":"UncaughtError","timestamp":"2026-04-09T18:21:57.853653","error":"PlatformException(Thumbnail request error, java.util.concurrent.ExecutionException: com.bumptech.glide.load.engine.GlideException: Failed to load resource\nThere were 3 root causes:\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\n call GlideException#logRootCauses(String) for more detail, null, null)","stackTrace":"#0      StandardMethodCodec.decodeEnvelope (package:flutter/src/services/message_codecs.dart:653)\n#1      MethodChannel._invokeMethod (package:flutter/src/services/platform_channel.dart:367)\n<asynchronous suspension>\n#2      _ThumbnailWidgetState._loadThumbnail (package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart:603)\n<asynchronous suspension>\n","extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:24:06.905362","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: PlatformException(Thumbnail request error, java.util.concurrent.ExecutionException: com.bumptech.glide.load.engine.GlideException: Failed to load resource\nThere were 3 root causes:\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\n call GlideException#logRootCauses(String) for more detail, null, null)","tag":"UncaughtError","timestamp":"2026-04-09T18:24:16.500304","error":"PlatformException(Thumbnail request error, java.util.concurrent.ExecutionException: com.bumptech.glide.load.engine.GlideException: Failed to load resource\nThere were 3 root causes:\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\njava.lang.RuntimeException(setDataSource failed: status = 0xFFFFFFEA)\n call GlideException#logRootCauses(String) for more detail, null, null)","stackTrace":"#0      StandardMethodCodec.decodeEnvelope (package:flutter/src/services/message_codecs.dart:653)\n#1      MethodChannel._invokeMethod (package:flutter/src/services/platform_channel.dart:367)\n<asynchronous suspension>\n#2      _ThumbnailWidgetState._loadThumbnail (package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart:603)\n<asynchronous suspension>\n","extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:26:02.823745","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:26:14.933833","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:26:19.673086","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:26:21.110804","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:26:24.234723","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: Null check operator used on a null value","tag":"UncaughtError","timestamp":"2026-04-09T18:26:25.636011","error":"Null check operator used on a null value","stackTrace":"#0      DraggableScrollableController.animateTo (package:flutter/src/widgets/draggable_scrollable_sheet.dart:133)\n#1      TrackUIManager.expandToMiddlePosition (package:kissu_app/pages/track/managers/track_ui_manager.dart:127)\n#2      TrackMarkerManager.checkAutoShowInfoWindow.<anonymous closure>.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:kissu_app/pages/track/managers/track_marker_manager.dart:207)\n#3      new Future.delayed.<anonymous closure> (dart:async/future.dart:440)\n#4      _rootRun (dart:async/zone.dart:1517)\n#5      _CustomZone.run (dart:async/zone.dart:1422)\n#6      _CustomZone.runGuarded (dart:async/zone.dart:1321)\n#7      _CustomZone.bindCallbackGuarded.<anonymous closure> (dart:async/zone.dart:1362)\n#8      _rootRun (dart:async/zone.dart:1525)\n#9      _CustomZone.run (dart:async/zone.dart:1422)\n#10     _CustomZone.bindCallback.<anonymous closure> (dart:async/zone.dart:1345)\n#11     TickerFuture.whenCompleteOrCancel.thunk (package:flutter/src/scheduler/ticker.dart:450)\n#12     _Timer._runTimers (dart:isolate-patch/timer_impl.dart:423)\n#13     _Timer._handleMessage (dart:isolate-patch/timer_impl.dart:454)\n#14     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:193)\n","extra":null}
+{"level":"INFO","message":"🔒 已存储锁屏数据: lockPrompt=我试一下，, bgLocalPath=","tag":"TencentIMService","timestamp":"2026-04-09T18:26:46.585957","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"锁屏请求已发送: 2000分钟, lockText=我试一下，, bgImagePath=","tag":"LockScreenOverlay","timestamp":"2026-04-09T18:26:46.592604","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"🔒 已存储锁屏数据: lockPrompt=1, bgLocalPath=","tag":"TencentIMService","timestamp":"2026-04-09T18:29:20.888644","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"锁屏请求已发送: 2000分钟, lockText=1, bgImagePath=","tag":"LockScreenOverlay","timestamp":"2026-04-09T18:29:20.905670","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:31:09.819817","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:32:01.566447","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:32:04.666586","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:32:06.237559","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:32:12.307254","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"日志系统初始化完成","tag":"Logger","timestamp":"2026-04-09T18:33:35.844103","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"应用启动初始化完成","tag":"App","timestamp":"2026-04-09T18:33:35.844197","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"开始初始化腾讯IM SDK...","tag":"TencentIMService","timestamp":"2026-04-09T18:33:35.944798","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM登录请求 - uniqueId: 261b100a9e6c44efbda5555893fe8469, hasImSign: true, userId: 42543","tag":"TencentIMService","timestamp":"2026-04-09T18:33:35.947302","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"IM SDK未初始化，尝试先初始化","tag":"TencentIMService","timestamp":"2026-04-09T18:33:35.947307","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM SDK正在初始化中，等待完成...","tag":"TencentIMService","timestamp":"2026-04-09T18:33:35.947307","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"PrivacyComplianceManager 是否注册: true","tag":"OaidUtil","timestamp":"2026-04-09T18:33:36.640965","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"隐私政策是否同意: true","tag":"OaidUtil","timestamp":"2026-04-09T18:33:36.640969","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 没有预设位置，使用默认居中偏移","tag":"App","timestamp":"2026-04-09T18:33:37.221287","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T18:33:54.501745","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:31.729365","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:37.654299","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:38.543125","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:39.916036","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:40.320495","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:40.520155","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:40.724066","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:34:58.627514","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"地图未就绪或控制器为空，无法调整视图","tag":"App","timestamp":"2026-04-09T18:38:25.289202","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:38:25.343672","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:40:46.432099","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:40:54.103294","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:41:45.972364","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:42:09.349624","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:42:14.567592","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T18:52:04.160667","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T18:52:32.103733","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: DioException [unknown]: null\nError: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/v4/reporting/sensitive/record","tag":"UncaughtError","timestamp":"2026-04-09T19:00:22.573363","error":"DioException [unknown]: null\nError: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/v4/reporting/sensitive/record","stackTrace":"","extra":null}
+{"level":"ERROR","message":"🔍 [Unknown Network Error] 详细信息:","tag":"App","timestamp":"2026-04-09T19:00:22.575007","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📍 请求地址: https://service-api.ikissu.cn/v4/reporting/sensitive/record","tag":"App","timestamp":"2026-04-09T19:00:22.575028","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📡 请求方法: POST","tag":"App","timestamp":"2026-04-09T19:00:22.575037","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📋 请求头: {network_debounce: true, content-type: application/json, token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJraXNzdSIsImF1ZCI6Imtpc3N1IiwiaWF0IjoxNzc1NzI4OTkwLCJuYmYiOjE3NzU3Mjg5OTAsImV4cCI6IjE4MDcyNjQ5OTAiLCJ1aWQiOjQyNTQzfQ.1mVcDZYWTwc2LfczCf6F-EPQSqCD1fDs1dNJse66jwo, version: 1.2.2, pkg: com.yuluo.kissu, os: 1, deviceid: android-1775732224318, oaid: aadc25c6f8d954d1, androidid: 0f933a76a035965b, mobile-model: Redmi 25053RT47C, brand: Redmi, is-open-location: 1, channel: kissu_xiaomi, network-name: wifi_manjiangqiu_5G, power: 40, timestamp: 1775732224318, sign: 516407438F24228FE86BE7E6B314DF7F, content-length: 53}","tag":"App","timestamp":"2026-04-09T19:00:22.575137","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  💬 错误消息: null","tag":"App","timestamp":"2026-04-09T19:00:22.575138","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  🔧 错误类型: HttpException","tag":"App","timestamp":"2026-04-09T19:00:22.575164","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📊 错误对象: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/v4/reporting/sensitive/record","tag":"App","timestamp":"2026-04-09T19:00:22.575166","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"从服务器刷新用户信息失败","tag":"AuthService","timestamp":"2026-04-09T19:00:40.207012","error":null,"stackTrace":null,"extra":{"error":"Empty response data","code":210}}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:02:19.671963","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:07:54.738579","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:07:57.842999","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T19:07:59.892629","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"推送ext不是JSON格式: ","tag":"TencentIMService","timestamp":"2026-04-09T19:08:55.835639","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"推送ext不是JSON格式: ","tag":"TencentIMService","timestamp":"2026-04-09T19:09:42.420574","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"推送ext不是JSON格式: ","tag":"TencentIMService","timestamp":"2026-04-09T19:21:56.492973","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: DioException [receive timeout]: The request took longer than 0:00:30.000000 to receive data. It was aborted. To get rid of this exception, try raising the RequestOptions.receiveTimeout above the duration of 0:00:30.000000 or improve the response time of the server.","tag":"UncaughtError","timestamp":"2026-04-09T19:44:13.615376","error":"DioException [receive timeout]: The request took longer than 0:00:30.000000 to receive data. It was aborted. To get rid of this exception, try raising the RequestOptions.receiveTimeout above the duration of 0:00:30.000000 or improve the response time of the server.","stackTrace":"","extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:44:45.746813","error":null,"stackTrace":null,"extra":null}
+{"level":"FATAL","message":"未捕获的异步异常: DioException [unknown]: null\nError: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/v4/reporting/sensitive/record","tag":"UncaughtError","timestamp":"2026-04-09T19:47:13.426814","error":"DioException [unknown]: null\nError: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/v4/reporting/sensitive/record","stackTrace":"","extra":null}
+{"level":"ERROR","message":"🔍 [Unknown Network Error] 详细信息:","tag":"App","timestamp":"2026-04-09T19:47:13.427073","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📍 请求地址: https://service-api.ikissu.cn/v4/reporting/sensitive/record","tag":"App","timestamp":"2026-04-09T19:47:13.427080","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📡 请求方法: POST","tag":"App","timestamp":"2026-04-09T19:47:13.427080","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📋 请求头: {network_debounce: true, content-type: application/json, token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJraXNzdSIsImF1ZCI6Imtpc3N1IiwiaWF0IjoxNzc1NzI4OTkwLCJuYmYiOjE3NzU3Mjg5OTAsImV4cCI6IjE4MDcyNjQ5OTAiLCJ1aWQiOjQyNTQzfQ.1mVcDZYWTwc2LfczCf6F-EPQSqCD1fDs1dNJse66jwo, version: 1.2.2, pkg: com.yuluo.kissu, os: 1, deviceid: android-1775735155928, oaid: aadc25c6f8d954d1, androidid: 0f933a76a035965b, mobile-model: Redmi 25053RT47C, brand: Redmi, is-open-location: 1, channel: kissu_xiaomi, network-name: wifi_manjiangqiu_5G, power: 31, timestamp: 1775735155929, sign: DD44D05F0BCDFC5FCB4A7A4FAAC8459F, content-length: 53}","tag":"App","timestamp":"2026-04-09T19:47:13.427099","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  💬 错误消息: null","tag":"App","timestamp":"2026-04-09T19:47:13.427101","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  🔧 错误类型: HttpException","tag":"App","timestamp":"2026-04-09T19:47:13.427106","error":null,"stackTrace":null,"extra":null}
+{"level":"ERROR","message":"  📊 错误对象: HttpException: Software caused connection abort, uri = https://service-api.ikissu.cn/v4/reporting/sensitive/record","tag":"App","timestamp":"2026-04-09T19:47:13.427107","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:49:06.893562","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"日志系统初始化完成","tag":"Logger","timestamp":"2026-04-09T19:51:59.157458","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"应用启动初始化完成","tag":"App","timestamp":"2026-04-09T19:51:59.157569","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM登录请求 - uniqueId: 261b100a9e6c44efbda5555893fe8469, hasImSign: true, userId: 42543","tag":"TencentIMService","timestamp":"2026-04-09T19:51:59.286790","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"IM SDK未初始化，尝试先初始化","tag":"TencentIMService","timestamp":"2026-04-09T19:51:59.286797","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"开始初始化腾讯IM SDK...","tag":"TencentIMService","timestamp":"2026-04-09T19:51:59.286811","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM SDK正在初始化中，等待完成...","tag":"TencentIMService","timestamp":"2026-04-09T19:51:59.585290","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"PrivacyComplianceManager 是否注册: true","tag":"OaidUtil","timestamp":"2026-04-09T19:52:00.102897","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"隐私政策是否同意: true","tag":"OaidUtil","timestamp":"2026-04-09T19:52:00.102903","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 没有预设位置，使用默认居中偏移","tag":"App","timestamp":"2026-04-09T19:52:00.735276","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:52:04.487286","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"日志系统初始化完成","tag":"Logger","timestamp":"2026-04-09T19:53:51.957102","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"应用启动初始化完成","tag":"App","timestamp":"2026-04-09T19:53:51.957261","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM登录请求 - uniqueId: 261b100a9e6c44efbda5555893fe8469, hasImSign: true, userId: 42543","tag":"TencentIMService","timestamp":"2026-04-09T19:53:52.142980","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"IM SDK未初始化，尝试先初始化","tag":"TencentIMService","timestamp":"2026-04-09T19:53:52.142985","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"开始初始化腾讯IM SDK...","tag":"TencentIMService","timestamp":"2026-04-09T19:53:52.142998","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM SDK正在初始化中，等待完成...","tag":"TencentIMService","timestamp":"2026-04-09T19:53:52.401404","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"PrivacyComplianceManager 是否注册: true","tag":"OaidUtil","timestamp":"2026-04-09T19:53:52.913271","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"隐私政策是否同意: true","tag":"OaidUtil","timestamp":"2026-04-09T19:53:52.913275","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 没有预设位置，使用默认居中偏移","tag":"App","timestamp":"2026-04-09T19:53:53.480943","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:53:56.607413","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:54:06.832349","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:54:26.502349","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"日志系统初始化完成","tag":"Logger","timestamp":"2026-04-09T19:55:31.421194","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"应用启动初始化完成","tag":"App","timestamp":"2026-04-09T19:55:31.421293","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM登录请求 - uniqueId: 261b100a9e6c44efbda5555893fe8469, hasImSign: true, userId: 42543","tag":"TencentIMService","timestamp":"2026-04-09T19:55:31.562979","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"IM SDK未初始化，尝试先初始化","tag":"TencentIMService","timestamp":"2026-04-09T19:55:31.562991","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"开始初始化腾讯IM SDK...","tag":"TencentIMService","timestamp":"2026-04-09T19:55:31.562992","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"IM SDK正在初始化中，等待完成...","tag":"TencentIMService","timestamp":"2026-04-09T19:55:31.566525","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"PrivacyComplianceManager 是否注册: true","tag":"OaidUtil","timestamp":"2026-04-09T19:55:32.258421","error":null,"stackTrace":null,"extra":null}
+{"level":"INFO","message":"隐私政策是否同意: true","tag":"OaidUtil","timestamp":"2026-04-09T19:55:32.258432","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"⚠️ 没有预设位置，使用默认居中偏移","tag":"App","timestamp":"2026-04-09T19:55:32.838857","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:34.676182","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:37.247214","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:38.272309","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:38.422578","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:38.615173","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"数据版本不匹配，放弃当前加载结果","tag":"App","timestamp":"2026-04-09T19:55:43.120581","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:49.743557","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:49.935756","error":null,"stackTrace":null,"extra":null}
+{"level":"WARNING","message":"📍 [LocationDataHelper] 经纬度为空字符串","tag":"App","timestamp":"2026-04-09T19:55:50.124801","error":null,"stackTrace":null,"extra":null}

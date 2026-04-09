@@ -50,45 +50,45 @@ class LoggingInterceptor extends Interceptor {
     options.extra['request_start_time'] = startTime;
 
     // Simple request log
-    logger.debug('${options.method} ${options.uri}', tag: tag);
+    // logger.debug('${options.method} ${options.uri}', tag: tag);
 
-    if (logHeaders && options.headers.isNotEmpty) {
-      final sanitizedHeaders = _sanitizeHeaders(options.headers);
-      logger.debug('Headers: $sanitizedHeaders', tag: tag);
-    }
+    // if (logHeaders && options.headers.isNotEmpty) {
+    //   final sanitizedHeaders = _sanitizeHeaders(options.headers);
+    //   logger.debug('Headers: $sanitizedHeaders', tag: tag);
+    // }
 
-    if (logRequestBody && options.data != null) {
-      final bodyInfo = _getBodyInfo(options.data);
-      if (bodyInfo.isNotEmpty) {
-        logger.debug('Request: $bodyInfo', tag: tag);
-      }
-    }
+    // if (logRequestBody && options.data != null) {
+    //   final bodyInfo = _getBodyInfo(options.data);
+    //   if (bodyInfo.isNotEmpty) {
+    //     logger.debug('Request: $bodyInfo', tag: tag);
+    //   }
+    // }
 
     super.onRequest(options, handler);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    final endTime = DateTime.now();
-    final startTime =
-        response.requestOptions.extra['request_start_time'] as DateTime?;
-    final duration = startTime != null ? endTime.difference(startTime) : null;
+    // final endTime = DateTime.now();
+    // final startTime =
+    //     response.requestOptions.extra['request_start_time'] as DateTime?;
+    // final duration = startTime != null ? endTime.difference(startTime) : null;
 
-    // Simple success log
-    final durationText = duration != null
-        ? ' (${duration.inMilliseconds}ms)'
-        : '';
-    logger.info(
-      '${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}$durationText',
-      tag: tag,
-    );
+    // // Simple success log
+    // final durationText = duration != null
+    //     ? ' (${duration.inMilliseconds}ms)'
+    //     : '';
+    // logger.info(
+    //   '${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}$durationText',
+    //   tag: tag,
+    // );
 
-    if (logResponseBody && response.data != null) {
-      final bodyInfo = _getBodyInfo(response.data);
-      if (bodyInfo.isNotEmpty) {
-        logger.debug('Response: $bodyInfo', tag: tag);
-      }
-    }
+    // if (logResponseBody && response.data != null) {
+    //   final bodyInfo = _getBodyInfo(response.data);
+    //   if (bodyInfo.isNotEmpty) {
+    //     logger.debug('Response: $bodyInfo', tag: tag);
+    //   }
+    // }
 
     super.onResponse(response, handler);
   }

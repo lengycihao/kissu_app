@@ -13,6 +13,7 @@ import com.umeng.socialize.media.UMImage
 import com.umeng.socialize.media.UMWeb
 import io.flutter.plugin.common.MethodChannel
 import java.net.URLEncoder
+import com.yuluo.kissu.constants.AppConstants
 
 /**
  * 分享处理器
@@ -30,10 +31,17 @@ class ShareHandler(private val activity: Activity) {
     fun handleMethodCall(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             // 友盟分享 SDK 初始化（Flutter 侧在用户同意隐私之后调用）
-            // 目前主要依赖统计侧的 UMConfigure.init，这里不重复初始化，只做日志标记
+            // 🔥 隐私合规修复：在用户同意隐私政策后才初始化友盟SDK
             "umInit" -> {
-                Log.d(TAG, "收到 umInit 调用（初始化在 AnalyticsHandler 中统一处理）")
-                result.success(null)
+                try {
+                    Log.d(TAG, "收到 umInit 调用，开始初始化友盟SDK...")
+                    com.yuluo.kissu.KissuApplication.initUmengSdk(activity.applicationContext)
+                    Log.d(TAG, "✅ 友盟SDK初始化完成")
+                    result.success(null)
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ 友盟SDK初始化失败", e)
+                    result.error("INIT_FAILED", "友盟SDK初始化失败: ${e.message}", null)
+                }
             }
 
             // 配置微信 / QQ 平台
@@ -42,14 +50,17 @@ class ShareHandler(private val activity: Activity) {
                 try {
                     // 微信配置
                     PlatformConfig.setWeixin(
-                        "wxca15128b8c388c13",
-                        "e0d2d1e8c3f4e5f6a7b8c9d0e1f2a3b4"
+                        AppConstants.WECHAT_APP_ID,
+                        AppConstants.WECHAT_APP_SECRET
                     )
+                    
+                    // 🔥 关键修复：设置微信FileProvider，否则微信分享回调不会触发
+                    PlatformConfig.setWXFileProvider(AppConstants.WECHAT_FILE_PROVIDER)
 
                     // QQ / QQ 空间配置
                     PlatformConfig.setQQZone(
-                        "102797447",
-                        "c5KJ2VipiMRMCpJf"
+                        AppConstants.QQ_APP_KEY,
+                        AppConstants.QQ_APP_SECRET
                     )
 
                     Log.d(TAG, "友盟分享平台配置完成（WeChat / QQ）")
@@ -138,6 +149,11 @@ class ShareHandler(private val activity: Activity) {
     
     /**
      * 分享到微信
+     * 
+     * 🔥 重要修复说明：
+     * 1. 友盟SDK的微信分享回调机制不稳定，和QQ分享类似，成功分享后可能只触发onCancel而不是onResult
+     * 2. 微信分享回调依赖于WXEntryActivity正确处理微信的返回
+     * 3. 添加超时机制，防止回调永远不返回导致Flutter层一直等待
      */
     private fun shareToWechat(
         title: String,
@@ -148,7 +164,7 @@ class ShareHandler(private val activity: Activity) {
         result: MethodChannel.Result
     ) {
         try {
-            Log.d(TAG, "分享到微信: title=$title, scene=$scene")
+            Log.d(TAG, "分享到微信: title=$title, scene=$scene, webUrl=$webUrl")
             
             val web = UMWeb(webUrl)
             web.title = title
@@ -157,30 +173,93 @@ class ShareHandler(private val activity: Activity) {
             
             val platform = if (scene == 0) SHARE_MEDIA.WEIXIN else SHARE_MEDIA.WEIXIN_CIRCLE
             
+            // 🔥 使用标志位防止重复回调
+            var hasReturned = false
+            
+            // 🔥 记录分享开始时间，用于判断用户是否真的进入了微信
+            val shareStartTime = System.currentTimeMillis()
+            
+            // 🔥 监听App恢复到前台（用户从微信返回）
+            val lifecycleCallback = object : android.app.Application.ActivityLifecycleCallbacks {
+                override fun onActivityResumed(resumedActivity: android.app.Activity) {
+                    if (resumedActivity == activity && !hasReturned) {
+                        val elapsed = System.currentTimeMillis() - shareStartTime
+                        Log.d(TAG, "📱 App恢复到前台，距离分享开始: ${elapsed}ms")
+                        
+                        // 如果用户在微信停留超过2秒，认为可能已完成分享
+                        // 如果少于2秒，可能是直接返回（取消分享）
+                        if (elapsed > 2000) {
+                            hasReturned = true
+                            activity.application.unregisterActivityLifecycleCallbacks(this)
+                            Log.d(TAG, "✅ 用户从微信返回，视为分享成功（停留${elapsed}ms）")
+                            result.success(mapOf("success" to true, "message" to "分享完成"))
+                        }
+                        // 如果少于2秒，等待友盟SDK的回调或超时
+                    }
+                }
+                override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
+                override fun onActivityStarted(activity: android.app.Activity) {}
+                override fun onActivityPaused(activity: android.app.Activity) {}
+                override fun onActivityStopped(activity: android.app.Activity) {}
+                override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) {}
+                override fun onActivityDestroyed(activity: android.app.Activity) {}
+            }
+            activity.application.registerActivityLifecycleCallbacks(lifecycleCallback)
+            
+            // 🔥 添加超时机制：如果60秒内没有收到回调，视为分享成功
+            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            val timeoutRunnable = Runnable {
+                if (!hasReturned) {
+                    hasReturned = true
+                    activity.application.unregisterActivityLifecycleCallbacks(lifecycleCallback)
+                    Log.d(TAG, "⏰ 微信分享超时，视为分享成功")
+                    result.success(mapOf("success" to true, "message" to "分享完成"))
+                }
+            }
+            handler.postDelayed(timeoutRunnable, 60000) // 60秒超时
+            
             ShareAction(activity)
                 .setPlatform(platform)
                 .withMedia(web)
                 .setCallback(object : UMShareListener {
                     override fun onStart(platform: SHARE_MEDIA?) {
-                        Log.d(TAG, "分享开始: $platform")
+                        Log.d(TAG, "微信分享开始: $platform")
                     }
                     
                     override fun onResult(platform: SHARE_MEDIA?) {
-                        Log.d(TAG, "分享成功: $platform")
-                        result.success(mapOf("success" to true, "message" to "分享成功"))
+                        Log.d(TAG, "✅ 微信分享成功回调: $platform")
+                        handler.removeCallbacks(timeoutRunnable)
+                        activity.application.unregisterActivityLifecycleCallbacks(lifecycleCallback)
+                        if (!hasReturned) {
+                            hasReturned = true
+                            result.success(mapOf("success" to true, "message" to "分享成功"))
+                        }
                     }
                     
                     override fun onError(platform: SHARE_MEDIA?, t: Throwable?) {
-                        Log.e(TAG, "分享失败: $platform", t)
-                        result.success(mapOf("success" to false, "message" to "分享失败: ${t?.message}"))
+                        Log.e(TAG, "❌ 微信分享失败回调: $platform", t)
+                        handler.removeCallbacks(timeoutRunnable)
+                        activity.application.unregisterActivityLifecycleCallbacks(lifecycleCallback)
+                        if (!hasReturned) {
+                            hasReturned = true
+                            result.success(mapOf("success" to false, "message" to "分享失败: ${t?.message}"))
+                        }
                     }
                     
                     override fun onCancel(platform: SHARE_MEDIA?) {
-                        Log.d(TAG, "分享取消: $platform")
-                        result.success(mapOf("success" to false, "message" to "用户取消分享"))
+                        Log.d(TAG, "📤 微信分享onCancel回调: $platform")
+                        handler.removeCallbacks(timeoutRunnable)
+                        activity.application.unregisterActivityLifecycleCallbacks(lifecycleCallback)
+                        if (!hasReturned) {
+                            hasReturned = true
+                            Log.d(TAG, "❌ 微信分享取消（用户未分享就返回）")
+                            result.success(mapOf("success" to false, "message" to "用户取消分享"))
+                        }
                     }
                 })
                 .share()
+                
+            Log.d(TAG, "微信分享已发起，监听App恢复事件...")
         } catch (e: Exception) {
             Log.e(TAG, "分享到微信异常", e)
             result.success(mapOf("success" to false, "message" to "分享失败: ${e.message}"))
@@ -215,6 +294,8 @@ class ShareHandler(private val activity: Activity) {
             web.description = description
             web.setThumb(UMImage(activity, imageUrl))
             
+            var hasReturned = false
+            
             ShareAction(activity)
                 .setPlatform(SHARE_MEDIA.QQ)
                 .withMedia(web)
@@ -237,17 +318,29 @@ class ShareHandler(private val activity: Activity) {
                     
                     override fun onResult(platform: SHARE_MEDIA?) {
                         Log.d(TAG, "分享成功: $platform")
-                        result.success(mapOf("success" to true, "message" to "分享成功"))
+                        if (!hasReturned) {
+                            hasReturned = true
+                            result.success(mapOf("success" to true, "message" to "分享成功"))
+                        }
                     }
                     
                     override fun onError(platform: SHARE_MEDIA?, t: Throwable?) {
                         Log.e(TAG, "分享失败: $platform", t)
-                        result.success(mapOf("success" to false, "message" to "分享失败: ${t?.message}"))
+                        if (!hasReturned) {
+                            hasReturned = true
+                            result.success(mapOf("success" to false, "message" to "分享失败: ${t?.message}"))
+                        }
                     }
                     
                     override fun onCancel(platform: SHARE_MEDIA?) {
-                        Log.d(TAG, "分享取消: $platform")
-                        result.success(mapOf("success" to false, "message" to "用户取消分享"))
+                        Log.d(TAG, "分享回调: $platform (QQ分享成功也会触发此回调)")
+                        // 🔥 关键修复：QQ分享成功时只会触发onCancel，不会触发onResult
+                        // 因此将onCancel视为成功，而不是取消
+                        if (!hasReturned) {
+                            hasReturned = true
+                            Log.d(TAG, "✅ QQ分享完成，视为成功")
+                            result.success(mapOf("success" to true, "message" to "分享成功"))
+                        }
                     }
                 })
                 .share()

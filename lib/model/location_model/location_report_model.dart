@@ -25,7 +25,8 @@ class LocationReportModel {
       locationTime: json['location_time']?.toString() ?? '0',
       speed: json['speed']?.toString() ?? '0.0',
       altitude: json['altitude']?.toString() ?? '0.0',
-      locationName: json['location_name']?.toString() ?? '',
+      // locationName: json['location_name']?.toString() ?? '1',
+      locationName: "",
       accuracy: json['accuracy']?.toString() ?? '0.0',
     );
   }

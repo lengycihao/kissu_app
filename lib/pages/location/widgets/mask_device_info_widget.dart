@@ -13,21 +13,21 @@ class MaskDeviceInfoWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 92,
+      height: 93,
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.symmetric(
-        horizontal: 19,
-        vertical: 8,
+        horizontal: 12,
+        vertical: 10,
       ).copyWith(bottom: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         color: Colors.white,
       ),
       child: Column(
         children: [
           // 位置信息行
           _buildLocationRow(),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           // 设备信息行
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -102,26 +102,54 @@ class MaskDeviceInfoWidget extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF2C4),
+            color: const Color(0xFFFFF18D),
             borderRadius: BorderRadius.circular(4),
           ),
           child: const Text(
             "位置",
             style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF000000),
-              fontFamily: 'LiuhuanKatongShoushu',
+              fontSize: 12,
+              color: Color(0xe6333333),
+              fontFamily: 'AlimamaShuHeiTi',
             ),
           ),
         ),
         const SizedBox(width: 15),
         Expanded(
           child: Obx(() {
-            return Text(
-              controller.currentLocationText.value,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF333333)),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            final text = controller.currentLocationText.value;
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                const baseStyle = TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF333333),
+                );
+
+                // 使用 TextPainter 计算文本在单行 12pt 下的宽度，判断是否会换行
+                final painter = TextPainter(
+                  text: TextSpan(
+                    text: text,
+                    style: baseStyle,
+                  ),
+                  maxLines: 1,
+                  textDirection: TextDirection.ltr,
+                );
+
+                // 不限制最大宽度，获取完整单行文本宽度
+                painter.layout();
+                final isSingleLine = painter.width <= constraints.maxWidth;
+
+                final effectiveStyle = baseStyle.copyWith(
+                  fontSize: isSingleLine ? 12 : 10,
+                );
+
+                return Text(
+                  text,
+                  style: effectiveStyle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
             );
           }),
         ),

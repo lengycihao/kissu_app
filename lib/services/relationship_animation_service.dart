@@ -6,6 +6,7 @@ import 'package:kissu_app/network/tools/logging/log_manager.dart';
 import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/location/location_v2_controller.dart';
 import 'package:kissu_app/pages/track/track_controller.dart';
+import 'package:kissu_app/pages/mine/love_info/love_info_controller.dart';
 
 /// 情侣关系动画服务
 /// 负责显示绑定/解绑关系时的GIF动画
@@ -34,12 +35,23 @@ class RelationshipAnimationService extends GetxService {
   /// 显示解绑成功动画（2秒）
   /// 
   /// [onComplete] 动画播放完成后的回调
-  void showUnbindAnimation({VoidCallback? onComplete}) {
+  /// [shouldReturnToRoot] 动画完成后是否返回到根路由，默认为true
+  void showUnbindAnimation({VoidCallback? onComplete, bool shouldReturnToRoot = true}) {
     _showAnimation(
       unbindGifPath, 
       '解绑成功', 
       const Duration(seconds: 2),
-      onComplete: onComplete,
+      onComplete: () {
+        // 先执行外部回调
+        onComplete?.call();
+        
+        // 返回到根路由
+        if (shouldReturnToRoot) {
+          logger.debug('🔙 解绑动画完成，返回到根路由', tag: 'RelationshipAnimationService');
+          Get.until((route) => route.isFirst);
+          logger.debug('✅ 已返回到根路由', tag: 'RelationshipAnimationService');
+        }
+      },
     );
   }
 
@@ -57,12 +69,12 @@ class RelationshipAnimationService extends GetxService {
   }) {
     // 如果已经在显示动画，不重复显示
     if (_isShowingAnimation) {
-      logger.warning('动画正在播放中，跳过本次请求', tag: 'RelationshipAnimationService');
+      logger.debug('动画正在播放中，跳过本次请求', tag: 'RelationshipAnimationService');
       return;
     }
 
     _isShowingAnimation = true;
-    logger.info('显示$animationType动画: $gifPath, 时长: ${duration.inSeconds}秒', tag: 'RelationshipAnimationService');
+    logger.debug('显示$animationType动画: $gifPath, 时长: ${duration.inSeconds}秒', tag: 'RelationshipAnimationService');
 
     // 使用Get的overlay显示动画
     Get.dialog(
@@ -72,7 +84,7 @@ class RelationshipAnimationService extends GetxService {
         onAnimationComplete: () async {
           // 动画完成后关闭对话框
           _isShowingAnimation = false;
-          logger.info('$animationType动画播放完成，准备关闭对话框', tag: 'RelationshipAnimationService');
+          logger.debug('$animationType动画播放完成，准备关闭对话框', tag: 'RelationshipAnimationService');
           
           if (Get.isDialogOpen == true) {
             Get.back();
@@ -81,7 +93,7 @@ class RelationshipAnimationService extends GetxService {
           // 等待对话框关闭动画完成
           await Future.delayed(const Duration(milliseconds: 100));
           
-          logger.info('对话框已关闭，执行完成回调', tag: 'RelationshipAnimationService');
+          logger.debug('对话框已关闭，执行完成回调', tag: 'RelationshipAnimationService');
           
           // 调用外部传入的完成回调
           onComplete?.call();
@@ -95,38 +107,45 @@ class RelationshipAnimationService extends GetxService {
   /// 刷新当前活动页面的数据
   /// 尝试刷新所有已注册的页面控制器
   void refreshCurrentPage() {
-    logger.info('🔄 开始刷新当前页面...', tag: 'RelationshipAnimationService');
+    logger.debug('🔄 开始刷新当前页面...', tag: 'RelationshipAnimationService');
     
     try {
       // 刷新首页
       if (Get.isRegistered<HomeController>()) {
         final homeController = Get.find<HomeController>();
         homeController.loadUserInfo();
-        logger.info('✅ 首页数据已刷新', tag: 'RelationshipAnimationService');
+        logger.debug('✅ 首页数据已刷新', tag: 'RelationshipAnimationService');
       }
       
       // 刷新我的页面
       if (Get.isRegistered<MineController>()) {
         final mineController = Get.find<MineController>();
         mineController.loadUserInfo();
-        logger.info('✅ 我的页面数据已刷新', tag: 'RelationshipAnimationService');
+        logger.debug('✅ 我的页面数据已刷新', tag: 'RelationshipAnimationService');
       }
       
       // 刷新定位页面
       if (Get.isRegistered<LocationV2Controller>()) {
         final locationController = Get.find<LocationV2Controller>();
         locationController.refreshUserInfo();
-        logger.info('✅ 定位页面数据已刷新', tag: 'RelationshipAnimationService');
+        logger.debug('✅ 定位页面数据已刷新', tag: 'RelationshipAnimationService');
       }
       
       // 刷新足迹页面
       if (Get.isRegistered<TrackController>()) {
         final trackController = Get.find<TrackController>();
         trackController.refreshCurrentUserData();
-        logger.info('✅ 足迹页面数据已刷新', tag: 'RelationshipAnimationService');
+        logger.debug('✅ 足迹页面数据已刷新', tag: 'RelationshipAnimationService');
       }
       
-      logger.info('✅ 页面刷新完成', tag: 'RelationshipAnimationService');
+      // 🔥 修复：刷新恋爱信息页面
+      if (Get.isRegistered<LoveInfoController>()) {
+        final loveInfoController = Get.find<LoveInfoController>();
+        loveInfoController.refreshUserInfo();
+        logger.debug('✅ 恋爱信息页面数据已刷新', tag: 'RelationshipAnimationService');
+      }
+      
+      logger.debug('✅ 页面刷新完成', tag: 'RelationshipAnimationService');
     } catch (e) {
       logger.error('❌ 刷新页面失败: $e', tag: 'RelationshipAnimationService');
     }

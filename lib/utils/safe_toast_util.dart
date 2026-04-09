@@ -100,7 +100,7 @@ class SafeToastUtil {
     // 方法4: 尝试从Navigator获取
     try {
       context = Navigator.of(Get.context!, rootNavigator: true).context;
-      if (context != null && context.mounted) {
+      if (context.mounted) {
         return context;
       }
     } catch (e) {

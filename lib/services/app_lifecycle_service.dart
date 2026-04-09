@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/services/simple_location_service.dart';
 import 'package:kissu_app/network/interceptor/business_header_interceptor.dart';
 import 'package:kissu_app/services/permission_service.dart';
 import 'package:kissu_app/services/sensitive_data_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/services/screen_lock_service.dart';
+import 'package:kissu_app/services/version_service.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
 
 /// 应用生命周期服务
 class AppLifecycleService extends GetxService with WidgetsBindingObserver {
@@ -14,6 +20,9 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   // 通知权限状态（用于监听变化）
   bool? _lastNotificationPermissionStatus;
+
+  // 前台期间 5 分钟定期刷新小组件的计时器
+  Timer? _widgetRefreshTimer;
   
   @override
   void onInit() {
@@ -37,6 +46,7 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   @override
   void onClose() {
+    _widgetRefreshTimer?.cancel();
     // 移除生命周期观察者
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
@@ -70,36 +80,81 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
   
   /// 应用恢复前台
   void _onAppResumed() {
-    debugPrint('🔄 应用恢复前台，优化前台策略');
+    logger.debug('🔄 应用恢复前台，优化前台策略');
     
     // 🔧 修复：App恢复前台时清除网络信息缓存，避免使用过期数据
     try {
       BusinessHeaderInterceptor.clearNetworkCache();
-      debugPrint('📡 已清除过期的网络信息缓存');
+      logger.debug('📡 已清除过期的网络信息缓存');
     } catch (e) {
-      debugPrint('❌ 清除网络缓存失败: $e');
+      logger.error('❌ 清除网络缓存失败: $e');
     }
     
     // 🔧 修复：App恢复前台时清除电量缓存，确保获取最新电量
     try {
       BusinessHeaderInterceptor.clearBatteryCache();
-      debugPrint('🔋 已清除过期的电量缓存');
+      logger.debug('🔋 已清除过期的电量缓存');
     } catch (e) {
-      debugPrint('❌ 清除电量缓存失败: $e');
+      logger.error('❌ 清除电量缓存失败: $e');
     }
     
     // 检查通知权限变化
     _checkNotificationPermissionChange();
+    
+    // 🔥 新增：检查并确保 IM 登录状态
+    _ensureIMLoginStatus();
+    
+    // 🔥 新增：检查并确保锁屏监听服务正常运行
+    _ensureScreenLockListening();
+    
+    // 🔥 新增：后台切回前台时检查版本更新
+    _checkVersionUpdate();
+    
+    // 🔥 新增：同步小组件数据
+    _syncWidgetData();
+    _startWidgetRefreshTimer();
     
     try {
       final simpleLocationService = SimpleLocationService.instance;
       if (simpleLocationService.isLocationEnabled.value) {
         // 应用回到前台，优化前台策略
         _optimizeForegroundStrategy();
-        debugPrint('✅ 前台策略已优化');
+        logger.debug('✅ 前台策略已优化');
       }
     } catch (e) {
-      debugPrint('❌ 前台策略优化失败: $e');
+      logger.error('❌ 前台策略优化失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：确保 IM 登录状态
+  Future<void> _ensureIMLoginStatus() async {
+    try {
+      if (Get.isRegistered<TencentIMService>()) {
+        final imService = Get.find<TencentIMService>();
+        await imService.ensureIMLoginStatus();
+      }
+    } catch (e) {
+      logger.error('❌ 检查IM登录状态失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：确保锁屏监听服务正常运行
+  void _ensureScreenLockListening() {
+    try {
+      if (Get.isRegistered<ScreenLockService>()) {
+        final screenLockService = Get.find<ScreenLockService>();
+        final status = screenLockService.getServiceStatus();
+        
+        // 如果服务未初始化或订阅已丢失，重新启动监听
+        if (status['isInitialized'] != true || status['hasSubscription'] != true) {
+          logger.debug('🔒 锁屏监听服务状态异常，尝试重新启动...');
+          screenLockService.startListening();
+        } else {
+          logger.debug('🔒 锁屏监听服务运行正常');
+        }
+      }
+    } catch (e) {
+      logger.error('❌ 检查锁屏监听服务失败: $e');
     }
   }
   
@@ -112,13 +167,13 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       // 如果是第一次检查，只记录状态
       if (_lastNotificationPermissionStatus == null) {
         _lastNotificationPermissionStatus = currentStatus;
-        debugPrint('📱 首次检查通知权限: $currentStatus');
+        logger.debug('📱 首次检查通知权限: $currentStatus');
         return;
       }
       
       // 检查是否发生变化
       if (_lastNotificationPermissionStatus != currentStatus) {
-        debugPrint('📱 通知权限发生变化: $_lastNotificationPermissionStatus -> $currentStatus');
+        logger.debug('📱 通知权限发生变化: $_lastNotificationPermissionStatus -> $currentStatus');
         
         // 上报权限变化事件
         final sensitiveDataService = SensitiveDataService.instance;
@@ -133,65 +188,66 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
         // 更新状态
         _lastNotificationPermissionStatus = currentStatus;
       } else {
-        debugPrint('📱 通知权限无变化: $currentStatus');
+        logger.debug('📱 通知权限无变化: $currentStatus');
       }
     } catch (e) {
-      debugPrint('❌ 检查通知权限变化失败: $e');
+      logger.error('❌ 检查通知权限变化失败: $e');
     }
   }
   
   /// 应用进入后台
   void _onAppPaused() {
-    debugPrint('📱 应用进入后台，启动增强后台策略');
+    _widgetRefreshTimer?.cancel();
+    logger.debug('📱 应用进入后台，启动增强后台策略');
     
     // 继续使用SimpleLocationService进行后台定位
     try {
       final simpleLocationService = SimpleLocationService.instance;
       if (!simpleLocationService.isLocationEnabled.value) {
         simpleLocationService.startLocation();
-        debugPrint('✅ 启动后台定位服务');
+        logger.debug('✅ 启动后台定位服务');
       } else {
-        debugPrint('ℹ️ 后台定位服务已在运行，继续定位');
+        logger.debug('ℹ️ 后台定位服务已在运行，继续定位');
       }
       
       // 确保后台增强策略已启动
       _ensureBackgroundStrategyActive();
     } catch (e) {
-      debugPrint('❌ 后台定位服务失败: $e');
+      logger.error('❌ 后台定位服务失败: $e');
     }
   }
   
   /// 应用变为非活跃状态
   void _onAppInactive() {
-    debugPrint('⏸️ 应用变为非活跃状态');
+    logger.debug('⏸️ 应用变为非活跃状态');
   }
   
   /// 应用被分离
   void _onAppDetached() {
-    debugPrint('🔌 应用被分离');
+    logger.debug('🔌 应用被分离');
     
     // 停止定位服务
     try {
       final simpleLocationService = SimpleLocationService.instance;
       if (simpleLocationService.isLocationEnabled.value) {
         simpleLocationService.stopLocation();
-        debugPrint('✅ 已停止SimpleLocationService');
+        logger.debug('✅ 已停止SimpleLocationService');
       } else {
-        debugPrint('ℹ️ SimpleLocationService未运行，无需停止');
+        logger.debug('ℹ️ SimpleLocationService未运行，无需停止');
       }
     } catch (e) {
-      debugPrint('❌ 停止定位服务失败: $e');
+      logger.error('❌ 停止定位服务失败: $e');
     }
   }
   
   /// 应用被隐藏
   void _onAppHidden() {
-    debugPrint('👁️ 应用被隐藏');
+    logger.debug('👁️ 应用被隐藏');
     
     // 🔧 修复：hidden状态下不重复启动后台策略
     // 因为 paused 状态已经启动了后台策略
     // 避免重复调用导致通知频繁弹出
-    debugPrint('ℹ️ 应用已隐藏，后台策略应该已在paused状态启动');
+    logger.debug('ℹ️ 应用已隐藏，后台策略应该已在paused状态启动');
   }
   
   /// 获取当前应用状态
@@ -211,12 +267,12 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       final simpleLocationService = SimpleLocationService.instance;
       if (!simpleLocationService.isLocationEnabled.value) {
         await simpleLocationService.startLocation();
-        debugPrint('✅ 根据应用状态启动定位服务: ${appState.value}');
+        logger.debug('✅ 根据应用状态启动定位服务: ${appState.value}');
       } else {
-        debugPrint('ℹ️ 定位服务已在运行，当前应用状态: ${appState.value}');
+        logger.debug('ℹ️ 定位服务已在运行，当前应用状态: ${appState.value}');
       }
     } catch (e) {
-      debugPrint('❌ 启动定位服务失败: $e');
+      logger.error('❌ 启动定位服务失败: $e');
     }
   }
   
@@ -226,12 +282,12 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
       final simpleLocationService = SimpleLocationService.instance;
       if (simpleLocationService.isLocationEnabled.value) {
         simpleLocationService.stopLocation();
-        debugPrint('✅ 停止定位服务');
+        logger.debug('✅ 停止定位服务');
       } else {
-        debugPrint('ℹ️ 定位服务未运行，无需停止');
+        logger.debug('ℹ️ 定位服务未运行，无需停止');
       }
     } catch (e) {
-      debugPrint('❌ 停止定位服务失败: $e');
+      logger.error('❌ 停止定位服务失败: $e');
     }
   }
   
@@ -251,9 +307,39 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     try {
       final simpleLocationService = SimpleLocationService.instance;
       simpleLocationService.ensureBackgroundStrategyActive();
-      debugPrint('✅ 后台增强策略已确保激活');
+      logger.debug('✅ 后台增强策略已确保激活');
     } catch (e) {
-      debugPrint('❌ 激活后台策略失败: $e');
+      logger.error('❌ 激活后台策略失败: $e');
+    }
+  }
+  
+  /// 🔥 新增：后台切回前台时检查版本更新
+  Future<void> _checkVersionUpdate() async {
+    try {
+      if (Get.isRegistered<VersionService>()) {
+        final versionService = Get.find<VersionService>();
+        await versionService.checkVersionOnResume();
+      }
+    } catch (e) {
+      logger.error('❌ 前台恢复版本检查失败: $e');
+    }
+  }
+  
+  /// 启动前台期间小组件 5 分钟定期刷新计时器
+  void _startWidgetRefreshTimer() {
+    _widgetRefreshTimer?.cancel();
+    _widgetRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      _syncWidgetData();
+    });
+  }
+
+  /// 同步小组件数据
+  Future<void> _syncWidgetData() async {
+    try {
+      await WidgetCenterController.syncWidgetDataOnResume();
+      logger.debug('✅ 小组件数据已同步');
+    } catch (e) {
+      logger.error('❌ 同步小组件数据失败: $e');
     }
   }
   
@@ -262,9 +348,9 @@ class AppLifecycleService extends GetxService with WidgetsBindingObserver {
     try {
       final simpleLocationService = SimpleLocationService.instance;
       simpleLocationService.optimizeForegroundStrategy();
-      debugPrint('✅ 前台策略已优化');
+      logger.debug('✅ 前台策略已优化');
     } catch (e) {
-      debugPrint('❌ 优化前台策略失败: $e');
+      logger.error('❌ 优化前台策略失败: $e');
     }
   }
   

@@ -2,35 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:kissu_app/pages/mine/mine_controller.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/widgets/dialogs/dialog_manager.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/network/public/auth_api.dart';
 import 'package:kissu_app/network/public/file_upload_api.dart';
 import 'package:kissu_app/model/login_model/login_model.dart';
- import 'package:kissu_app/pages/home/home_controller.dart';
+import 'package:kissu_app/pages/home/home_controller.dart';
 import 'package:kissu_app/pages/mine/sub_pages/break_relationship_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'phone_change_page.dart';
 import 'dart:io';
+import 'dart:math';
 import 'package:kissu_app/utils/debug_util.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:kissu_app/services/permission_service.dart';
-import 'package:kissu_app/widgets/dialogs/permission_request_dialog.dart';
+import 'package:kissu_app/pages/widget_center/widget_center_controller.dart';
+import 'package:kissu_app/pages/chat/widgets/chat_image_picker_page.dart';
+import 'package:kissu_app/utils/media_picker_util.dart';
 import 'package:kissu_app/widgets/dialogs/image_source_dialog.dart';
 import 'package:kissu_app/pages/common/image_crop_page.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
-import 'package:kissu_app/services/tracking_service.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
 
 class LoveInfoController extends GetxController {
   // 绑定状态
   var isBindPartner = false.obs;
-  
-  // 权限服务
-  final PermissionService _permissionService = PermissionService();
 
   // 用户信息
   var myAvatar = "".obs;
@@ -69,7 +68,7 @@ class LoveInfoController extends GetxController {
   
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    DebugUtil.info('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
+    // logDebug('💑 恋爱信息页面重新获得焦点，静默刷新用户信息');
     // 先用本地数据（已经在onInit中加载）
     // 然后静默刷新用户信息
     _silentRefreshUserInfo();
@@ -78,7 +77,7 @@ class LoveInfoController extends GetxController {
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      DebugUtil.info('🔄 恋爱信息页面：静默刷新用户信息');
+      // logDebug('🔄 恋爱信息页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
@@ -91,20 +90,39 @@ class LoveInfoController extends GetxController {
 
   /// 刷新用户信息（供外部调用，例如绑定成功后）
   void refreshUserInfo() {
-    DebugUtil.info('🔄 刷新恋爱信息页用户数据...');
+  //  logDebug('🔄 刷新恋爱信息页用户数据...');
     _loadUserInfo();
+  }
+  
+  /// 🔥 从服务器刷新用户信息（绑定成功后调用，确保获取最新数据）
+  Future<void> refreshFromServer() async {
+    // logDebug('🔄 恋爱信息页：从服务器刷新用户信息');
+    try {
+      final success = await UserManager.refreshUserInfo();
+      if (success) {
+        // logDebug('✅ 恋爱信息页：服务器数据刷新成功');
+        _loadUserInfo();
+      } else {
+        logWarning('⚠️ 恋爱信息页：服务器数据刷新失败，使用本地缓存');
+        _loadUserInfo();
+      }
+    } catch (e) {
+      DebugUtil.error('❌ 恋爱信息页：从服务器刷新用户信息失败: $e');
+      // 即使失败也尝试加载本地数据
+      _loadUserInfo();
+    }
   }
 
   void _loadUserInfo() {
     final user = UserManager.currentUser;
     if (user != null) {
-      DebugUtil.info('Loading user info: ${user.nickname}');
+      // logDebug('Loading user info: ${user.nickname}');
 
       // 绑定状态处理 (1绑定，2未绑定，0初始未绑定)
       final bindStatus = user.bindStatus.toString();
       isBindPartner.value = bindStatus.toString() == "1";
       // isBindPartner.value  = false;
-      DebugUtil.info('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
+      // logDebug('Bind status: $bindStatus, isBindPartner: ${isBindPartner.value}');
 
       // 我的信息
       myAvatar.value = user.headPortrait ?? "";
@@ -118,7 +136,7 @@ class LoveInfoController extends GetxController {
       myPhone.value = user.phone ?? "";
 
       if (isBindPartner.value) {
-        DebugUtil.info('Processing bound state...');
+        // logDebug('Processing bound state...');
         // 已绑定状态 - 处理伴侣信息和恋爱信息
         _handleBoundState(user);
       }
@@ -126,11 +144,11 @@ class LoveInfoController extends GetxController {
   }
 
   void _handleBoundState(user) {
-    DebugUtil.info('Handling bound state...');
+    // logDebug('Handling bound state...');
 
     // 处理伴侣信息
     if (user.halfUserInfo != null) {
-      DebugUtil.info('Using halfUserInfo for partner data');
+      // logDebug('Using halfUserInfo for partner data');
       final half = user.halfUserInfo!;
       partnerAvatar.value = half.headPortrait ?? "";
       partnerNickname.value = half.nickname ?? "";
@@ -142,9 +160,9 @@ class LoveInfoController extends GetxController {
       partnerBirthday.value = half.birthday ?? "未选择";
       partnerPhone.value = half.phone ?? "";
 
-      DebugUtil.info(
-        'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
-      );
+      // logDebug(
+      //   'Partner info from halfUserInfo - nickname: ${partnerNickname.value}, gender: ${partnerGender.value}',
+      // );
     }
     
     // 处理恋爱信息和日期 - 与MineController保持一致的逻辑
@@ -154,33 +172,33 @@ class LoveInfoController extends GetxController {
   void _handleDateAndDays(user) {
     // 只使用LoverInfo中的接口数据，不做本地计算
     if (user.loverInfo != null) {
-      DebugUtil.info('Using loverInfo for love data');
+      // logDebug('Using loverInfo for love data');
       final lover = user.loverInfo!;
       
       // 绑定日期
       if (lover.bindDate != null && lover.bindDate!.isNotEmpty) {
         bindDate.value = lover.bindDate!;
-        DebugUtil.info('Bind date from loverInfo: ${bindDate.value}');
+        // logDebug('Bind date from loverInfo: ${bindDate.value}');
       }
       
       // 相恋时间
       if (lover.loveTime != null && lover.loveTime!.isNotEmpty) {
         loveTime.value = lover.loveTime!;
-        DebugUtil.info('Love time from loverInfo: ${loveTime.value}');
+        // logDebug('Love time from loverInfo: ${loveTime.value}');
       }
 
       // 恋爱天数 - 直接使用服务器数据
       if (lover.loveDays != null) {
         loveDays.value = lover.loveDays!;
         togetherDays.value = lover.loveDays!;
-        DebugUtil.info('✅ Love days from loverInfo API: ${loveDays.value}');
+        // logDebug('✅ Love days from loverInfo API: ${loveDays.value}');
       } else {
         loveDays.value = 0;
         togetherDays.value = 0;
-        DebugUtil.info('❌ Love days is null, set to 0');
+        // logDebug('❌ Love days is null, set to 0');
       }
     } else {
-      DebugUtil.info('No loverInfo data available, keeping default value: 0');
+      // logDebug('No loverInfo data available, keeping default value: 0');
       loveDays.value = 0;
       togetherDays.value = 0;
     }
@@ -201,7 +219,8 @@ class LoveInfoController extends GetxController {
     // 显示绑定弹窗
     CustomBottomDialog.show(
       context: context,
-      caller: BindingDialogCaller.loveInfo,
+      caller: SourcePageUtilsCaller.loveInfo,
+      sourceEvent: MyPageEvents.avatar, // 从我的页面头像进入恋爱信息页面
     );
   }
 
@@ -235,57 +254,15 @@ class LoveInfoController extends GetxController {
   /// 选择头像
   Future<void> pickImage() async {
     try {
-      // 检查是否已有相册和相机权限
-      final hasPhotoPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      final hasCameraPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
-      
-      // 如果两个权限都有，直接显示选择来源对话框
-      if (hasPhotoPermission && hasCameraPermission) {
-        final result = await ImageSourceDialog.show(Get.context!);
-        if (result == null) return;
-        
-        // 处理选择结果
-        if (result.systemAvatarPath != null) {
-          // 选择了系统头像，直接使用
-          await _updateAvatarWithPath(result.systemAvatarPath!);
-        } else if (result.imageSource != null) {
-          // 选择了相册或相机
-          await _pickImageFromSource(result.imageSource!);
-        }
-        return;
-      }
-      
-      // 如果没有权限，先显示权限说明弹窗
-      final shouldContinue = await PermissionRequestDialog.showPhotosPermissionDialog(Get.context!);
-      if (shouldContinue != true) return;
-      
-      // 申请权限
-      bool photoPermissionGranted = hasPhotoPermission;
-      bool cameraPermissionGranted = hasCameraPermission;
-      
-      if (!hasPhotoPermission) {
-        photoPermissionGranted = await _permissionService.requestPhotosPermission();
-      }
-      
-      if (!hasCameraPermission) {
-        cameraPermissionGranted = await _permissionService.requestCameraPermission();
-      }
-      
-      // 如果至少有一个权限被授予，显示选择来源对话框
-      if (photoPermissionGranted || cameraPermissionGranted) {
-        final result = await ImageSourceDialog.show(Get.context!);
-        if (result == null) return;
-        
-        // 处理选择结果
-        if (result.systemAvatarPath != null) {
-          // 选择了系统头像，直接使用
-          await _updateAvatarWithPath(result.systemAvatarPath!);
-        } else if (result.imageSource != null) {
-          // 选择了相册或相机
-          await _pickImageFromSource(result.imageSource!);
-        }
-      } else {
-        CustomToast.show(Get.context!, '权限未授予，无法选择图片');
+      // 直接显示选择来源对话框（系统头像/相册/拍照）
+      // 权限由 ChatImagePickerPage 和 MediaPickerUtil 内部处理
+      final result = await ImageSourceDialog.show(Get.context!);
+      if (result == null) return;
+
+      if (result.systemAvatarPath != null) {
+        await _updateAvatarWithPath(result.systemAvatarPath!);
+      } else if (result.imageSource != null) {
+        await _pickImageFromSource(result.imageSource!);
       }
     } catch (e) {
       logError('选择头像失败: $e', tag: 'LoveInfo', error: e);
@@ -338,6 +315,7 @@ class LoveInfoController extends GetxController {
       
       if (result.isSuccess) {
         myAvatar.value = networkAvatarUrl;
+        WidgetCenterController.syncWidgetDataOnResume();
 
         // 更新本地用户信息
         final currentUser = UserManager.currentUser;
@@ -389,7 +367,7 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('System avatar updated, mine page refreshed');
+          // DebugUtil.success('System avatar updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
@@ -398,13 +376,14 @@ class LoveInfoController extends GetxController {
         try {
           final homeController = Get.find<HomeController>();
           homeController.loadUserInfo();
-          DebugUtil.success('System avatar updated, home page refreshed');
+          // DebugUtil.success('System avatar updated, home page refreshed');
         } catch (e) {
           DebugUtil.error('Home controller not found: $e');
         }
 
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
+        logError(result.msg ?? '头像更新失败');
         CustomToast.show(Get.context!, result.msg ?? '头像更新失败');
       }
     } catch (e) {
@@ -412,6 +391,7 @@ class LoveInfoController extends GetxController {
       if (Get.isDialogOpen == true) {
         Get.back();
       }
+      logError('头像更新失败：$e');
       CustomToast.show(Get.context!, '头像更新失败：$e');
     }
   }
@@ -419,31 +399,21 @@ class LoveInfoController extends GetxController {
   /// 从指定来源选择图片
   Future<void> _pickImageFromSource(ImageSource source) async {
     try {
-      // 再次检查权限状态（防止用户在选择来源时权限被撤销）
-      bool hasPermission = false;
-      if (source == ImageSource.camera) {
-        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.camera);
+      if (source == ImageSource.gallery) {
+        // 使用统一的图片选择器（和聊天页一致），权限由 ChatImagePickerPage 内部处理
+        final files = await ChatImagePickerPage.open(Get.context!, maxCount: 1);
+        if (files != null && files.isNotEmpty) {
+          await _navigateToCropPage(files.first.path);
+        }
       } else {
-        hasPermission = await _permissionService.checkPermissionStatus(PermissionType.photos);
-      }
-
-      if (!hasPermission) {
-        CustomToast.show(Get.context!, '权限未授予，无法选择图片');
-        return;
-      }
-
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: source,
-        // 不设置imageQuality和maxWidth/maxHeight，保持原始图片质量
-        // 压缩将在裁剪后上传时进行
-      );
-
-      if (pickedFile != null) {
-        // 直接进入图片裁剪页面（会预加载图片，裁剪页面有自己的loading）
-        await _navigateToCropPage(pickedFile.path);
+        // 使用统一的拍照工具（和聊天页一致），权限由 MediaPickerUtil 内部处理
+        final file = await MediaPickerUtil.takePhoto(imageQuality: 92);
+        if (file != null) {
+          await _navigateToCropPage(file.path);
+        }
       }
     } catch (e) {
+      logError('选择图片失败: $e');
       CustomToast.show(Get.context!, '选择图片失败: $e');
     }
   }
@@ -501,11 +471,11 @@ class LoveInfoController extends GetxController {
         // 更新用户信息
         await _updateUserAvatar(result.data!);
         
-        // 上报头像更换埋点（更换成功）
-        await TrackingService.trackPersonalInfoAvatar(isAvatarChanged: true);
+   
         
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
+        logError(result.msg ?? '头像上传失败');
         CustomToast.show(Get.context!, result.msg ?? '头像上传失败');
       }
     } catch (e) {
@@ -513,6 +483,7 @@ class LoveInfoController extends GetxController {
       if (Get.isDialogOpen == true) {
         Get.back();
       }
+      logError('上传头像失败：$e');
       CustomToast.show(Get.context!, '上传头像失败：$e');
     }
   }
@@ -587,16 +558,18 @@ class LoveInfoController extends GetxController {
         try {
           final homeController = Get.find<HomeController>();
           homeController.loadUserInfo();
-          DebugUtil.success('Avatar updated, home page refreshed');
+          // DebugUtil.success('Avatar updated, home page refreshed');
         } catch (e) {
           DebugUtil.error('Home controller not found: $e');
         }
 
         CustomToast.show(Get.context!, '头像更新成功');
       } else {
+        logError(result.msg ?? '头像更新失败');
         CustomToast.show(Get.context!, result.msg ?? '头像更新失败');
       }
     } catch (e) {
+      logError('头像更新失败：$e');
       CustomToast.show(Get.context!, '头像更新失败：$e');
     }
   }
@@ -662,7 +635,7 @@ class LoveInfoController extends GetxController {
             try {
               final mineController = Get.find<MineController>();
               mineController.loadUserInfo();
-              DebugUtil.success('Phone changed, mine page refreshed');
+              // DebugUtil.success('Phone changed, mine page refreshed');
             } catch (e) {
               DebugUtil.error('Mine page not found: $e');
             }
@@ -737,16 +710,18 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('Nickname updated, mine page refreshed');
+          // DebugUtil.success('Nickname updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '昵称更新成功');
       } else {
+        logError(result.msg ?? '昵称更新失败');
         CustomToast.show(Get.context!, result.msg ?? '昵称更新失败');
       }
     } catch (e) {
+      logError('昵称更新失败：$e');
       CustomToast.show(Get.context!, '昵称更新失败：$e');
     }
   }
@@ -768,8 +743,7 @@ class LoveInfoController extends GetxController {
         // 更新本地数据
         myGender.value = genderText;
 
-        // 上报性别选择埋点
-        await TrackingService.trackPersonalInfoGender(gender: genderText);
+ 
 
         // 更新用户缓存
         final currentUser = UserManager.currentUser;
@@ -821,16 +795,18 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('Gender updated, mine page refreshed');
+          // DebugUtil.success('Gender updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '性别更新成功');
       } else {
+        logError(result.msg ?? '性别更新失败');
         CustomToast.show(Get.context!, result.msg ?? '性别更新失败');
       }
     } catch (e) {
+      logError('性别更新失败：$e');
       CustomToast.show(Get.context!, '性别更新失败：$e');
     }
   }
@@ -984,9 +960,7 @@ class LoveInfoController extends GetxController {
         // 更新本地数据
         myBirthday.value = birthdayStr;
 
-        // 上报生日选择埋点
-        await TrackingService.trackPersonalInfoBirth(birth: birthdayStr);
-
+     
         // 更新用户缓存
         final currentUser = UserManager.currentUser;
         if (currentUser != null) {
@@ -1037,16 +1011,18 @@ class LoveInfoController extends GetxController {
         try {
           final mineController = Get.find<MineController>();
           mineController.loadUserInfo();
-          DebugUtil.success('Birthday updated, mine page refreshed');
+          // DebugUtil.success('Birthday updated, mine page refreshed');
         } catch (e) {
           DebugUtil.error('Mine page not found: $e');
         }
 
         CustomToast.show(Get.context!, '生日更新成功');
       } else {
+        logError(result.msg ?? '生日更新失败');
         CustomToast.show(Get.context!, result.msg ?? '生日更新失败');
       }
     } catch (e) {
+      logError('生日更新失败：$e');
       CustomToast.show(Get.context!, '生日更新失败：$e');
     }
   }
@@ -1140,11 +1116,11 @@ class LoveInfoController extends GetxController {
 
       if (result.isSuccess) {
         // 🔄 先从服务器刷新用户信息，获取最新的恋爱天数
-        DebugUtil.info('相恋时间更新成功，开始刷新用户信息...');
+        // DebugUtil.info('相恋时间更新成功，开始刷新用户信息...');
         final refreshSuccess = await UserManager.refreshUserInfo();
         
         if (refreshSuccess) {
-          DebugUtil.success('用户信息刷新成功，开始更新各页面显示');
+          // DebugUtil.success('用户信息刷新成功，开始更新各页面显示');
           
           // 重新加载本页面的用户信息
           _loadUserInfo();
@@ -1153,7 +1129,7 @@ class LoveInfoController extends GetxController {
           try {
             final mineController = Get.find<MineController>();
             mineController.loadUserInfo();
-            DebugUtil.success('Love time updated, mine page refreshed');
+            // DebugUtil.success('Love time updated, mine page refreshed');
           } catch (e) {
             DebugUtil.error('Mine page not found: $e');
           }
@@ -1162,7 +1138,7 @@ class LoveInfoController extends GetxController {
           try {
             final homeController = Get.find<HomeController>();
             await homeController.loadIndexData();
-            DebugUtil.success('Love time updated, home page refreshed');
+            // DebugUtil.success('Love time updated, home page refreshed');
           } catch (e) {
             DebugUtil.error('Home controller not found: $e');
           }
@@ -1171,11 +1147,12 @@ class LoveInfoController extends GetxController {
           try {
             final breakController = Get.find<BreakRelationshipController>();
             breakController.loadUserData();
-            DebugUtil.success('Love time updated, break relationship page refreshed');
+            // DebugUtil.success('Love time updated, break relationship page refreshed');
           } catch (e) {
             DebugUtil.info('Break relationship controller not found: $e');
           }
 
+          WidgetCenterController.syncWidgetDataOnResume();
           CustomToast.show(Get.context!, '相恋时间更新成功');
         } else {
           DebugUtil.warning('用户信息刷新失败，但仍更新本地显示');
@@ -1183,9 +1160,11 @@ class LoveInfoController extends GetxController {
           CustomToast.show(Get.context!, '相恋时间更新成功');
         }
       } else {
+        logError(result.msg ?? '相恋时间更新失败');
         CustomToast.show(Get.context!, result.msg ?? '相恋时间更新失败');
       }
     } catch (e) {
+      logError('相恋时间更新失败：$e');
       CustomToast.show(Get.context!, '相恋时间更新失败：$e');
     }
   }
@@ -1196,7 +1175,13 @@ class LoveInfoController extends GetxController {
   }
 
   /// 构建自定义日期选择器（显示阿拉伯数字月份）
+  /// 🔥 修复：限制只能选择今天及之前的日期，不能选择未来时间
   Widget _buildCustomDatePicker(DateTime selectedDate, Function(DateTime) onDateChanged) {
+    final now = DateTime.now();
+    const int startYear = 1980;
+    final int endYear = now.year; // 最大只能选择当前年份
+    final int yearCount = endYear - startYear + 1;
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -1205,15 +1190,36 @@ class LoveInfoController extends GetxController {
           child: CupertinoPicker.builder(
             itemExtent: 32.0,
             scrollController: FixedExtentScrollController(
-              initialItem: selectedDate.year - 1900,
+              initialItem: selectedDate.year - startYear,
             ),
             onSelectedItemChanged: (int index) {
-              final newYear = 1900 + index;
-              onDateChanged(DateTime(newYear, selectedDate.month, selectedDate.day));
+              final newYear = startYear + index;
+              // 如果选择的年份是当前年份，需要限制月份和日期
+              var newMonth = selectedDate.month;
+              var newDay = selectedDate.day;
+              
+              if (newYear == now.year) {
+                // 当前年份：月份不能超过当前月份
+                if (newMonth > now.month) {
+                  newMonth = now.month;
+                }
+                // 如果是当前年月，日期不能超过今天
+                if (newMonth == now.month && newDay > now.day) {
+                  newDay = now.day;
+                }
+              }
+              
+              // 确保日期在该月份有效
+              final daysInMonth = DateTime(newYear, newMonth + 1, 0).day;
+              if (newDay > daysInMonth) {
+                newDay = daysInMonth;
+              }
+              
+              onDateChanged(DateTime(newYear, newMonth, newDay));
             },
-            childCount: 200, // 1900-2099
+            childCount: yearCount,
             itemBuilder: (context, index) {
-              final year = 1900 + index;
+              final year = startYear + index;
               return Center(
                 child: Text(
                   '${year}年',
@@ -1232,17 +1238,38 @@ class LoveInfoController extends GetxController {
             ),
             onSelectedItemChanged: (int index) {
               final newMonth = index + 1;
+              var newDay = selectedDate.day;
+              
+              // 如果是当前年份，检查月份是否超过当前月份
+              if (selectedDate.year == now.year && newMonth > now.month) {
+                // 不允许选择未来月份，回调时使用当前月份
+                onDateChanged(DateTime(selectedDate.year, now.month, min(newDay, now.day)));
+                return;
+              }
+              
+              // 如果是当前年月，日期不能超过今天
+              if (selectedDate.year == now.year && newMonth == now.month && newDay > now.day) {
+                newDay = now.day;
+              }
+              
               final daysInMonth = DateTime(selectedDate.year, newMonth + 1, 0).day;
-              final newDay = selectedDate.day > daysInMonth ? daysInMonth : selectedDate.day;
+              if (newDay > daysInMonth) {
+                newDay = daysInMonth;
+              }
               onDateChanged(DateTime(selectedDate.year, newMonth, newDay));
             },
             childCount: 12,
             itemBuilder: (context, index) {
               final month = index + 1;
+              // 如果是当前年份且月份超过当前月份，显示灰色
+              final isDisabled = selectedDate.year == now.year && month > now.month;
               return Center(
                 child: Text(
                   '${month}月',
-                  style: const TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDisabled ? const Color(0xFFCCCCCC) : Colors.black,
+                  ),
                 ),
               );
             },
@@ -1257,15 +1284,30 @@ class LoveInfoController extends GetxController {
             ),
             onSelectedItemChanged: (int index) {
               final newDay = index + 1;
+              
+              // 如果是当前年月，日期不能超过今天
+              if (selectedDate.year == now.year && selectedDate.month == now.month && newDay > now.day) {
+                // 不允许选择未来日期，回调时使用今天
+                onDateChanged(DateTime(selectedDate.year, selectedDate.month, now.day));
+                return;
+              }
+              
               onDateChanged(DateTime(selectedDate.year, selectedDate.month, newDay));
             },
             childCount: DateTime(selectedDate.year, selectedDate.month + 1, 0).day,
             itemBuilder: (context, index) {
               final day = index + 1;
+              // 如果是当前年月且日期超过今天，显示灰色
+              final isDisabled = selectedDate.year == now.year && 
+                                 selectedDate.month == now.month && 
+                                 day > now.day;
               return Center(
                 child: Text(
                   '${day}日',
-                  style: const TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDisabled ? const Color(0xFFCCCCCC) : Colors.black,
+                  ),
                 ),
               );
             },

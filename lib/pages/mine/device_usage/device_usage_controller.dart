@@ -1,12 +1,22 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/network/public/lock_permission_api.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/services/permission_service.dart';
+import 'package:kissu_app/services/tencent_im_service.dart';
+import 'package:kissu_app/utils/oktoast_util.dart';
 import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/pages/mine/device_usage/models/phone_record_stat_model.dart' as api_model;
 import 'package:kissu_app/pages/mine/app_usage/services/app_logo_cache_service.dart';
 import 'device_usage_page.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// 用机记录控制器
 class DeviceUsageController extends GetxController {
@@ -47,20 +57,103 @@ class DeviceUsageController extends GetxController {
   // 用户会员状态
   var isUserVip = false.obs;
 
+  // 权限状态
+  var hasUsagePermission = false.obs;
+
+  // 对方权限状态（通过 /get/lock/permission 接口获取）
+  final isPartnerPermissionGranted = true.obs; // 默认 true 避免闪烁
+  final isLoadingPartnerPermission = true.obs;
+  final Rxn<Map<String, dynamic>> _partnerPermissionData = Rxn();
+
+  /// 对方系统："ios" | "android"
+  String get _partnerOs =>
+      (_partnerPermissionData.value?['os'] as String? ?? 'android').toLowerCase();
+  bool get _isPartnerIos => _partnerOs == 'ios';
+
   // 另一半用户设备信息
   var halfUserData = Rxn<api_model.HalfUserData>();
 
+  // 用机记录引导图是否显示
+  final RxBool showGuideOverlay = false.obs;
+
   final _usageRecordApi = UsageRecordApi();
+  final _lockPermissionApi = LockPermissionApi();
   final _logoCacheService = AppLogoCacheService();
+  
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
+  
+  /// App进入后台时调用
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// App从后台恢复时调用
+  void onAppResumed() {
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
 
   @override
   void onInit() {
     super.onInit();
+    
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
+    
     // 初始化 App Logo 缓存
     _logoCacheService.initialize();
     // 初始化绑定状态和会员状态
     _updateBindStatus();
     _loadData(); // 加载真实数据
+    // 检查并显示用机记录引导图（首次进入立即检查）
+    _checkAndShowGuide();
+    // 启动使用情况访问权限监听（轮询检测，直到授权或页面关闭）
+    _startUsagePermissionMonitor();
+    // 获取对方权限状态
+    _fetchPartnerPermission();
+  }
+  
+  /// 检查并显示用机记录引导图
+  Future<void> _checkAndShowGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownGuide =
+          prefs.getBool('has_shown_device_usage_guide') ?? false;
+
+      // logDebug('🔍 检查用机记录引导图显示状态: $hasShownGuide');
+
+      if (!hasShownGuide) {
+        // logDebug('📱 首次进入用机记录页面，显示引导图');
+
+        // 立即标记已显示，防止重复显示
+        await prefs.setBool('has_shown_device_usage_guide', true);
+
+        // 直接显示覆盖层（不再延迟）
+        if (!isClosed) {
+          showGuideOverlay.value = true;
+        }
+      }
+    } catch (e) {
+      logError('❌ 检查用机记录引导图状态失败: $e');
+    }
+  }
+
+  /// 隐藏用机记录引导图
+  void hideGuideOverlay() {
+    showGuideOverlay.value = false;
   }
 
   @override
@@ -68,6 +161,72 @@ class DeviceUsageController extends GetxController {
     super.onReady();
     // 页面准备就绪时，刷新状态（处理从其他页面返回的情况）
     _refreshStatusAndData();
+  }
+
+  Timer? _usagePermissionTimer;
+
+  /// 启动对“使用情况访问”权限的轮询检测（仅 Android 有效）
+  void _startUsagePermissionMonitor() {
+    // 先做一次快速检查
+    _checkUsagePermissionOnce();
+
+    // 如果已授权则不再启动定时器
+    if (hasUsagePermission.value) return;
+
+    // 每 2 秒检查一次，直到授权或控制器销毁
+    _usagePermissionTimer?.cancel();
+    _usagePermissionTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      await _checkUsagePermissionOnce();
+      if (hasUsagePermission.value) {
+        _usagePermissionTimer?.cancel();
+        _usagePermissionTimer = null;
+      }
+    });
+  }
+
+  /// 检查使用情况访问权限一次并更新状态
+  Future<void> _checkUsagePermissionOnce() async {
+    try {
+      final permissionService = PermissionService();
+      final granted = await permissionService.isUsageAccessGranted();
+      hasUsagePermission.value = granted;
+    } catch (e) {
+      logError('检查使用情况访问权限失败: $e', tag: 'DeviceUsage', error: e);
+    }
+  }
+
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    AnalyticsManager.instance.trackPageView(
+      pageId: PhoneHistoryEvents.pageId,
+      eventId: PhoneHistoryEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  @override
+  void onClose() {
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
+    
+    _usagePermissionTimer?.cancel();
+    _usagePermissionTimer = null;
+    super.onClose();
   }
 
   /// 更新绑定状态和会员状态
@@ -90,7 +249,7 @@ class DeviceUsageController extends GetxController {
     try {
       await UserManager.refreshUserInfo();
     } catch (e) {
-      logDebug('刷新用户信息失败: $e', tag: 'DeviceUsage');
+      logWarning('刷新用户信息失败: $e', tag: 'DeviceUsage');
     }
     
     // 更新绑定和会员状态
@@ -100,7 +259,7 @@ class DeviceUsageController extends GetxController {
     
     // 如果绑定状态或会员状态发生变化，重新加载数据
     if (oldBound != isUserBound.value || oldVip != isUserVip.value) {
-      logDebug('绑定或会员状态发生变化，重新加载数据', tag: 'DeviceUsage');
+      // logDebug('绑定或会员状态发生变化，重新加载数据', tag: 'DeviceUsage');
       await _loadData();
     }
   }
@@ -140,7 +299,7 @@ class DeviceUsageController extends GetxController {
       // 检查是否已绑定
       final userInfo = UserManager.getUserBasicInfo();
       if (!userInfo['isBound']) {
-        logDebug('用户未绑定，不加载数据', tag: 'DeviceUsage');
+        // logDebug('用户未绑定，不加载数据', tag: 'DeviceUsage');
         return;
       }
 
@@ -238,7 +397,7 @@ class DeviceUsageController extends GetxController {
         // 保存另一半用户设备信息
         halfUserData.value = data.halfUserData;
 
-        logInfo('用机记录数据加载成功', tag: 'DeviceUsage');
+        // logInfo('用机记录数据加载成功', tag: 'DeviceUsage');
       } else {
         logWarning('用机记录数据加载失败: ${result.msg}', tag: 'DeviceUsage');
         // 加载失败时使用空数据
@@ -308,6 +467,72 @@ class DeviceUsageController extends GetxController {
   Future<void> setDate(DateTime date) async {
     selectedDate.value = date;
     await _loadData();
+  }
+
+  /// 打开使用情况访问设置
+  Future<void> openUsageSettings() async {
+    try {
+      final permissionService = PermissionService();
+      await permissionService.openUsageAccessSettings();
+    } catch (e) {
+      logError('打开使用情况设置失败: $e', tag: 'DeviceUsage', error: e);
+    }
+  }
+
+  // ==================== 对方权限 ====================
+
+  /// 获取对方权限状态
+  Future<void> _fetchPartnerPermission() async {
+    // 优先使用全局缓存（避免闪烁）
+    final cached = LockPermissionApi.cachedPartnerPermission;
+    if (cached != null) {
+      _partnerPermissionData.value = cached;
+      isPartnerPermissionGranted.value = _computePartnerPermission();
+      isLoadingPartnerPermission.value = false;
+    }
+    // 后台静默刷新
+    try {
+      final result = await _lockPermissionApi.getLockPermission();
+      if (result.isSuccess && result.data != null) {
+        _partnerPermissionData.value = result.data;
+        isPartnerPermissionGranted.value = _computePartnerPermission();
+        LockPermissionApi.cachedPartnerPermission = result.data;
+      }
+    } catch (e) {
+      logError('获取对方权限状态失败: $e', tag: 'DeviceUsage', error: e);
+    } finally {
+      isLoadingPartnerPermission.value = false;
+    }
+  }
+
+  /// 计算对方权限是否满足
+  /// Android: 只需 is_open_screen_use == 1
+  /// iOS: 需要 is_open_screen_use == 1
+  bool _computePartnerPermission() {
+    final data = _partnerPermissionData.value;
+    if (data == null) return true; // 没数据时默认不显示横幅
+    final screenUse = data['is_open_screen_use'] as int? ?? 0;
+    if (_isPartnerIos) {
+      return screenUse == 1;
+    } else {
+      return screenUse == 1;
+    }
+  }
+
+  /// 发送 app 使用记录权限提醒消息给对方
+  Future<void> sendUsagePermissionReminder() async {
+    final partnerId = UserManager.currentUser?.halfUserInfo?.uniqueId;
+    if (partnerId == null || partnerId.isEmpty) return;
+    try {
+      final im = TencentIMService.instance;
+      await im.sendCustomMessage(
+        receiverID: partnerId,
+        customData: jsonEncode({'msg_lock': 'phone_use'}),
+      );
+      OKToastUtil.showSuccess('已通过聊天通知Ta');
+    } catch (e) {
+      logError('发送权限提醒失败: $e', tag: 'DeviceUsage', error: e);
+    }
   }
 }
 

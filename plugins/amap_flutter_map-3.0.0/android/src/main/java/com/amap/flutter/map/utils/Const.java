@@ -54,6 +54,12 @@ public class Const {
     public static final String METHOD_MARKER_START_RIPPLE_ANIMATION = "marker#startRippleAnimation";
     public static final String METHOD_MARKER_STOP_RIPPLE_ANIMATION = "marker#stopRippleAnimation";
     public static final String METHOD_MARKER_MOVE_SMOOTHLY = "marker#moveMarkerSmoothly";
+    public static final String METHOD_MARKER_START_GIF_ANIMATION = "marker#startGifAnimation";
+    public static final String METHOD_MARKER_STOP_GIF_ANIMATION = "marker#stopGifAnimation";
+    public static final String METHOD_MARKER_PRELOAD_GIF = "marker#preloadGif";
+    public static final String METHOD_MARKER_START_SWING_ANIMATION = "marker#startSwingAnimation";
+    public static final String METHOD_MARKER_STOP_SWING_ANIMATION = "marker#stopSwingAnimation";
+    public static final String METHOD_MARKER_START_SYNC_SWING_ANIMATION = "marker#startSyncSwingAnimation";
     public static final String[] METHOD_ID_LIST_FOR_MARKER = {
             METHOD_MARKER_UPDATE, 
             METHOD_SINGLE_MARKER_UPDATE,
@@ -61,7 +67,13 @@ public class Const {
             METHOD_MARKER_STOP_BREATH_ANIMATION,
             METHOD_MARKER_START_RIPPLE_ANIMATION,
             METHOD_MARKER_STOP_RIPPLE_ANIMATION,
-            METHOD_MARKER_MOVE_SMOOTHLY
+            METHOD_MARKER_MOVE_SMOOTHLY,
+            METHOD_MARKER_START_GIF_ANIMATION,
+            METHOD_MARKER_STOP_GIF_ANIMATION,
+            METHOD_MARKER_PRELOAD_GIF,
+            METHOD_MARKER_START_SWING_ANIMATION,
+            METHOD_MARKER_STOP_SWING_ANIMATION,
+            METHOD_MARKER_START_SYNC_SWING_ANIMATION
     };
 
     /**

@@ -116,19 +116,53 @@ class HttpEngine {
           final key = entry.key;
           final value = entry.value;
 
-          if (value.isNotEmpty && RegexUtil.isLocalImagePath(value)) {
+          if (value.isNotEmpty) {
             try {
               final file = File(value);
-              final fileSize = await file.length();
+              if (!await file.exists()) {
+                debugPrint('[HttpEngine] 文件不存在: $value');
+                continue; // 文件不存在，跳过
+              }
               
-              // 🔧 优化：对于小文件（< 500KB）或应用图标（512x512），不压缩或使用高质量
-              // 应用图标通常是 512x512 的 PNG，文件大小通常在 50-200KB 之间
-              if (fileSize < 500 * 1024) {
-                // 小文件直接上传，不压缩，保持原始质量
-                final bytes = await file.readAsBytes();
-                map[key] = MultipartFile.fromBytes(bytes, filename: "file.png");
+              // 获取文件扩展名
+              final fileName = file.path.split(Platform.pathSeparator).last;
+              final isImage = RegexUtil.isLocalImagePath(value);
+              
+              if (isImage) {
+                // 图片文件：根据大小决定是否压缩
+                final fileSize = await file.length();
+                
+                // 🔧 优化：对于小文件（< 500KB）或应用图标（512x512），不压缩或使用高质量
+                // 应用图标通常是 512x512 的 PNG，文件大小通常在 50-200KB 之间
+                if (fileSize < 500 * 1024) {
+                  // 小文件直接上传，不压缩，保持原始质量
+                  final bytes = await file.readAsBytes();
+                  map[key] = MultipartFile.fromBytes(bytes, filename: fileName);
+                } else {
+                  // 大文件才压缩
+                  Uint8List? stream = await FlutterImageCompress.compressWithFile(
+                    value,
+                    minWidth: 1000,
+                    minHeight: 1000,
+                    quality: 80,
+                  );
+
+                  //传入压缩之后的流对象
+                  if (stream != null) {
+                    map[key] = MultipartFile.fromBytes(stream, filename: fileName);
+                  }
+                }
               } else {
-                // 大文件才压缩
+                // 非图片文件：直接上传，不压缩
+                // 使用 fromFile 而不是 fromBytes，确保正确设置 Content-Type
+                map[key] = await MultipartFile.fromFile(
+                  value,
+                  filename: fileName,
+                );
+              }
+            } catch (e) {
+              // 如果是图片且读取失败，尝试压缩
+              if (RegexUtil.isLocalImagePath(value)) {
                 Uint8List? stream = await FlutterImageCompress.compressWithFile(
                   value,
                   minWidth: 1000,
@@ -136,22 +170,13 @@ class HttpEngine {
                   quality: 80,
                 );
 
-                //传入压缩之后的流对象
                 if (stream != null) {
-                  map[key] = MultipartFile.fromBytes(stream, filename: "file");
+                  final fileName = value.split(Platform.pathSeparator).last;
+                  map[key] = MultipartFile.fromBytes(stream, filename: fileName);
                 }
-              }
-            } catch (e) {
-              // 如果读取文件失败，尝试压缩
-              Uint8List? stream = await FlutterImageCompress.compressWithFile(
-                value,
-                minWidth: 1000,
-                minHeight: 1000,
-                quality: 80,
-              );
-
-              if (stream != null) {
-                map[key] = MultipartFile.fromBytes(stream, filename: "file");
+              } else {
+                // 非图片文件读取失败，记录错误并抛出异常
+                rethrow;
               }
             }
           }

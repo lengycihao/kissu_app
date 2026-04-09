@@ -1,6 +1,7 @@
 import 'package:amap_flutter_base/amap_flutter_base.dart';
-import 'package:get/get.dart';
+ import 'package:get/get.dart';
 import 'package:kissu_app/model/location_model/location_model.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 
 /// 位置数据更新助手
 /// 
@@ -27,6 +28,9 @@ class LocationDataHelper {
     required UserLocationMobileDevice userData,
     required Rx<LatLng?> location,
   }) {
+    // 🔥 调试：打印原始经纬度值
+    // logDebug('📍 [LocationDataHelper] 更新位置 - latitude: "${userData.latitude}", longitude: "${userData.longitude}"');
+    
     if (userData.latitude != null && userData.longitude != null) {
       // 检查是否为空字符串
       final latStr = userData.latitude!.trim();
@@ -36,10 +40,17 @@ class LocationDataHelper {
         final lat = double.tryParse(latStr);
         final lng = double.tryParse(lngStr);
         if (lat != null && lng != null) {
+          // logDebug('📍 [LocationDataHelper] 解析成功 - LatLng($lat, $lng)');
           location.value = LatLng(lat, lng);
           return;
+        } else {
+          logWarning('📍 [LocationDataHelper] 解析失败 - lat: $lat, lng: $lng');
         }
+      } else {
+        logWarning('📍 [LocationDataHelper] 经纬度为空字符串');
       }
+    } else {
+      logWarning('📍 [LocationDataHelper] 经纬度为null');
     }
     // 🚀 修复：如果经纬度为空或解析失败，清空位置数据
     location.value = null;

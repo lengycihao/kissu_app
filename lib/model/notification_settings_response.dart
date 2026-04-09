@@ -17,6 +17,13 @@ class NotificationSettingsResponse {
           [],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'classify_title': classifyTitle,
+      'status_list': statusList.map((item) => item.toJson()).toList(),
+    };
+  }
 }
 
 /// 通知状态项
@@ -40,6 +47,15 @@ class NotificationStatusItem {
       subTitle: json['sub_title'] ?? '',
       status: json['status'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'field': field,
+      'title': title,
+      'sub_title': subTitle,
+      'status': status,
+    };
   }
 
   bool get isEnabled => status == 1;

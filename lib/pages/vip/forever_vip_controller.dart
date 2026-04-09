@@ -45,7 +45,7 @@ class ForeverVipController extends GetxController {
         if (user.halfUserInfo != null) {
           partnerNickname.value = user.halfUserInfo!.nickname ?? "另一半";
           partnerAvatar.value = user.halfUserInfo!.headPortrait ?? "";
-          DebugUtil.info('ForeverVipController: 从halfUserInfo获取 - nickname=${partnerNickname.value}, avatar=${partnerAvatar.value}');
+          // DebugUtil.info('ForeverVipController: 从halfUserInfo获取 - nickname=${partnerNickname.value}, avatar=${partnerAvatar.value}');
         }
         
         // 然后用loverInfo覆盖（如果有的话）
@@ -56,12 +56,12 @@ class ForeverVipController extends GetxController {
           if (user.loverInfo!.headPortrait != null && user.loverInfo!.headPortrait!.isNotEmpty) {
             partnerAvatar.value = user.loverInfo!.headPortrait!;
           }
-          DebugUtil.info('ForeverVipController: loverInfo覆盖后 - nickname=${partnerNickname.value}, avatar=${partnerAvatar.value}');
+          // DebugUtil.info('ForeverVipController: loverInfo覆盖后 - nickname=${partnerNickname.value}, avatar=${partnerAvatar.value}');
         }
       } else {
         partnerNickname.value = "等待配对";
         partnerAvatar.value = "";
-        DebugUtil.info('ForeverVipController: 未绑定');
+        // DebugUtil.info('ForeverVipController: 未绑定');
       }
     }
   }

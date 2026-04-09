@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:kissu_app/network/tools/logging/logging.dart';
+import 'package:kissu_app/constants/app_constants.dart';
 
 /// 签名工具类
 /// 提供请求签名相关的功能
@@ -12,7 +13,7 @@ class SignatureUtils {
   /// [secretKey] 签名密钥
   static String generateSignature({
     required RequestOptions options,
-    String secretKey = 'TYXHTRrGeP8xy095q0iY', // 正确的签名密钥
+    String secretKey = AppConstants.apiSignatureSecretKey,
   }) {
     // 构建签名字符串
     final signString = _buildSignString(options, secretKey);
@@ -149,7 +150,7 @@ class SignatureUtils {
   static bool verifySignature({
     required String signature,
     required RequestOptions options,
-    String secretKey = 'TYXHTRrGeP8xy095q0iY',
+    String secretKey = AppConstants.apiSignatureSecretKey,
   }) {
     final expectedSignature = generateSignature(
       options: options,
@@ -216,7 +217,7 @@ class SignatureUtils {
     };
     
     final sortedKeys = allParams.keys.toList()..sort();
-    final signString = sortedKeys.map((key) => allParams[key]).join('') + 'TYXHTRrGeP8xy095q0iY';
+    final signString = sortedKeys.map((key) => allParams[key]).join('') + AppConstants.apiSignatureSecretKey;
     
     logDebug('排序后的参数: $sortedKeys', tag: 'SignatureUtils');
     logDebug('拼接字符串: $signString', tag: 'SignatureUtils');

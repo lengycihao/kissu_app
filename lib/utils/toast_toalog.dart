@@ -308,7 +308,7 @@ class ToastDialog {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // _buildTitle(title),
+                _buildTitle(title),
                 SizedBox(height: 50),
                 Padding(
                   padding: const EdgeInsets.only(

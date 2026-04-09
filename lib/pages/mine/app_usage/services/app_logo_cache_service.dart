@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kissu_app/network/tools/logging/log_manager.dart';
-
+ 
 /// App Logo缓存服务
 /// 用于缓存已上传的app logo URL，避免重复上传
 class AppLogoCacheService {
@@ -34,18 +34,18 @@ class AppLogoCacheService {
           if (url.isNotEmpty) {
             _cache[key] = url;
           } else {
-            logger.warning('发现空的logo缓存，已过滤: $key', tag: _tag);
+            logWarning('发现空的logo缓存，已过滤: $key', tag: _tag);
           }
         });
-        logger.info('已加载logo缓存: ${_cache.length}个应用', tag: _tag);
+        // logDebug('已加载logo缓存: ${_cache.length}个应用', tag: _tag);
       } else {
         _cache = {};
-        logger.info('logo缓存为空', tag: _tag);
+        // logDebug('logo缓存为空', tag: _tag);
       }
       
       _isLoaded = true;
     } catch (e) {
-      logger.error('加载logo缓存失败: $e', tag: _tag, error: e);
+      logError('加载logo缓存失败: $e', tag: _tag, error: e);
       _cache = {};
       _isLoaded = true;
     }
@@ -57,7 +57,7 @@ class AppLogoCacheService {
   String? getCachedLogoUrl(String packageName) {
     // 如果缓存未加载，返回null（避免在初始化完成前使用）
     if (!_isLoaded) {
-      logger.warning('缓存未初始化，无法获取logo: $packageName', tag: _tag);
+      logWarning('缓存未初始化，无法获取logo: $packageName', tag: _tag);
       return null;
     }
     
@@ -77,15 +77,15 @@ class AppLogoCacheService {
     try {
       // 确保URL不为空才缓存
       if (logoUrl.isEmpty) {
-        logger.warning('尝试缓存空的logo URL: $packageName', tag: _tag);
+        logWarning('尝试缓存空的logo URL: $packageName', tag: _tag);
         return;
       }
       
       _cache[packageName] = logoUrl;
       await _saveCache();
-      logger.info('已缓存logo: $packageName -> $logoUrl', tag: _tag);
+      // logDebug('已缓存logo: $packageName -> $logoUrl', tag: _tag);
     } catch (e) {
-      logger.error('缓存logo失败: $e', tag: _tag, error: e);
+      logError('缓存logo失败: $e', tag: _tag, error: e);
     }
   }
   
@@ -96,7 +96,7 @@ class AppLogoCacheService {
       final json = jsonEncode(_cache);
       await prefs.setString(_cacheKey, json);
     } catch (e) {
-      logger.error('保存logo缓存失败: $e', tag: _tag, error: e);
+      logError('保存logo缓存失败: $e', tag: _tag, error: e);
     }
   }
   
@@ -106,9 +106,9 @@ class AppLogoCacheService {
       _cache.clear();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_cacheKey);
-      logger.info('已清除所有logo缓存', tag: _tag);
+      // logDebug('已清除所有logo缓存', tag: _tag);
     } catch (e) {
-      logger.error('清除logo缓存失败: $e', tag: _tag, error: e);
+      logError('清除logo缓存失败: $e', tag: _tag, error: e);
     }
   }
   

@@ -1,15 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:kissu_app/widgets/common_back_button.dart';
 import 'package:kissu_app/widgets/custom_refresh_header.dart';
 import 'package:kissu_app/widgets/selector/date_selector.dart';
 
 import 'usage_report_controller.dart';
 import 'widgets/usage_record_item.dart';
 
-class UsageReportPage extends GetView<UsageReportController> {
+class UsageReportPage extends StatefulWidget {
   const UsageReportPage({super.key});
+
+  @override
+  State<UsageReportPage> createState() => _UsageReportPageState();
+}
+
+class _UsageReportPageState extends State<UsageReportPage> with WidgetsBindingObserver {
+  late UsageReportController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<UsageReportController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // 切换到后台
+      controller.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      // 从后台返回
+      controller.onAppResumed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +55,6 @@ class UsageReportPage extends GetView<UsageReportController> {
           children: [
             _buildBackground(),
             SafeArea(child: _buildMainContent()),
-            // 敏感操作记录引导图覆盖层（全屏，包含状态栏区域）
-            Obx(() => _buildGuideOverlay()),
           ],
         ),
       ),
@@ -81,16 +111,6 @@ class UsageReportPage extends GetView<UsageReportController> {
         _buildFloatingFilterButton(),
       ],
     );
-  }
-
-  /// 格式化时间（对外给 item 复用）
-  static String formatTime(String createTime) {
-    try {
-      final dateTime = DateTime.parse(createTime);
-      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return createTime;
-    }
   }
 
   // 构建记录列表
@@ -259,149 +279,47 @@ class UsageReportPage extends GetView<UsageReportController> {
     );
   }
 
-  /// 构建敏感操作记录引导图覆盖层
-  Widget _buildGuideOverlay() {
-    if (!controller.showGuideOverlay.value) {
-      return const SizedBox.shrink();
-    }
-
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.7),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => controller.hideGuideOverlay(),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 35,
-                right: 10,
-                child: Image.asset(
-                  'assets/setting/kissu_guide_setting.webp',
-                  width: 32,
-                  height: 52,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              Positioned(
-                top: 82,
-                right: 44,
-                child: // 竖线
-                Image.asset(
-                  'assets/setting/kissu_guide_line.webp',
-                  width: 44,
-                  height: 32,
-                  fit: BoxFit.contain,
-                ),
-              ),
-               Positioned(
-                top: 120,
-                right: 240,
-                child: // 竖线
-                Image.asset(
-                  'assets/setting/kissu_guide_laba.webp',
-                  width: 14,
-                  height: 14,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              // 引导图：参考系统权限引导的样式，放在右上角区域
-              Positioned(
-                top: 125, // 适配头部和筛选区域高度
-                right: 20,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    // 气泡 + 提示文字
-                    Text(
-                      '敏感信息接收设置都在这里哦~',
-                      textAlign: TextAlign.left,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'AlimamaShuHeiTi',
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Image.asset(
-                          'assets/setting/kissu_guide_tips.webp',
-                          width: 53,
-                          height: 18,
-                          fit: BoxFit.contain,
-                        ),
-                        SizedBox(width: 8),
-                        const Text(
-                          '可以手动设置提示的类型',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                   
-                  ],
-                ),
-               const SizedBox(height: 20),
-                 GestureDetector(
-                      onTap: () => controller.hideGuideOverlay(),
-                      child: Image.asset(
-                        'assets/setting/kissu_guide_know.webp',
-                        width: 90,
-                        height: 30,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ],
-                )
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // 构建顶部标题栏
   Widget _buildHeader() {
-    return Container(
+    return SizedBox(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6).copyWith(right: 12),
-      child: Row(
+      child: Stack(
         children: [
-          CommonBackButton(
-            onTap: () => Get.back(),
-            assetPath: 'assets/images/kissu_mine_back.webp',
-            iconSize: 22,
-          ),
-          const Expanded(
-            child: Center(
-              child: Text(
-                '敏感操作记录',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF333333),
+          // 返回按钮
+          Positioned(
+            left: 5,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/images/kissu_mine_back.webp',
+                  width: 22,
+                  height: 22,
                 ),
               ),
             ),
           ),
-          GestureDetector(
-            onTap: () => controller.showSettingDialog(),
-            child: Image.asset(
-              'assets/phone_history/kissu_phone_setting.webp',
-              width: 24,
-              height: 24,
+          // 标题 - 绝对居中
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text(
+                '敏感操作记录',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333),
+                ),
+              ),
             ),
           ),
         ],

@@ -5,20 +5,29 @@ import 'package:get/get.dart';
 class DeleteLocationReminderDialog extends StatelessWidget {
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
+  final String? title;
+  final String? content;
+  final String? confirmText;
+  final String? cancelText;
 
   const DeleteLocationReminderDialog({
-    Key? key,
+    super.key,
     this.onConfirm,
     this.onCancel,
-  }) : super(key: key);
+    this.title,
+    this.confirmText="确认",
+    this.cancelText="取消",
+    this.content,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 320,
+        width: 270,
         height: 255,
+        margin: EdgeInsets.only(bottom: 100),
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/location/kissu3_state_delete_bg.webp'),
@@ -33,8 +42,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // 标题
-              const Text(
-                '确定要删除吗？',
+              Text(
+                title ?? '确定要删除吗？',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF333333),
@@ -45,8 +54,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
               const SizedBox(height: 8),
               
               // 内容
-              const Text(
-                '删除数据后将无法恢复数据，请谨慎操作！',
+              Text(
+                content ?? '删除数据后将无法恢复数据，请谨慎操作！',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -78,8 +87,8 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                           ),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
-                          '取消',
+                        child: Text(
+                          cancelText! ,
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF999999),
@@ -89,7 +98,7 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                     ),
                   ),
                   
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
                   
                   // 确认按钮
                   Expanded(
@@ -101,12 +110,12 @@ class DeleteLocationReminderDialog extends StatelessWidget {
                       child: Container(
                         height: 36,
                         decoration: BoxDecoration(
-                          color: Color(0xFFFF408D),
+                          color: Color(0xFFFFA9E0),
                           borderRadius: BorderRadius.circular(18),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
-                          '确认',
+                        child:   Text(
+                          confirmText!,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white,
@@ -131,11 +140,18 @@ class DeleteLocationReminderDialogUtil {
   static Future<bool?> show({
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
+    String title = "确定要删除吗？",
+    String content = "删除数据后将无法恢复数据，请谨慎操作！",
+    String confirmText = "确定",
+    String cancelText = "取消",
   }) {
     return Get.dialog<bool>(
       DeleteLocationReminderDialog(
         onConfirm: onConfirm,
         onCancel: onCancel,
+        title: title,
+        content: content, 
+        confirmText:confirmText,cancelText:cancelText,
       ),
       barrierDismissible: false,
     );

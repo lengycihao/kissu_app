@@ -1,694 +1,1727 @@
 ﻿<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+
     xmlns:tools="http://schemas.android.com/tools"
+
     package="com.yuluo.kissu">
+
     
+
   
+
     <application
+
         android:label="Kissu"
-        android:name="${applicationName}"
+
+        android:name="com.yuluo.kissu.KissuApplication"
+
         android:icon="@mipmap/ic_launcher"
+
         android:networkSecurityConfig="@xml/network_security_config"
+
         android:usesCleartextTraffic="true"
+
         android:enableOnBackInvokedCallback="true"
+
         android:dataExtractionRules="@xml/data_extraction_rules"
+
         android:fullBackupContent="@xml/backup_rules"
+
         android:requestLegacyExternalStorage="false"
+
         android:preserveLegacyExternalStorage="false">
+
         <!-- 友盟分享配置 -->
+
         <meta-data
+
             android:name="UMENG_APPKEY"
+
             android:value="6879fba679267e0210b67bde" />
+
         <meta-data
+
             android:name="UMENG_CHANNEL"
+
             android:value="Umeng" />
+
         <activity
+
             android:name="com.yuluo.kissu.MainActivity"
+
             android:exported="true"
+
             android:launchMode="singleTop"
+
             android:theme="@style/LaunchTheme"
+
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+
             android:hardwareAccelerated="true"
+
             android:windowSoftInputMode="adjustResize">
+
             <!-- Specifies an Android theme to apply to this Activity as soon as
+
                  the Android process has started. This theme is visible to the user
+
                  while the Flutter UI initializes. After that, this theme continues
+
                  to determine the Window background behind the Flutter UI. -->
+
             <meta-data
+
               android:name="io.flutter.embedding.android.NormalTheme"
+
               android:resource="@style/NormalTheme"
+
               />
 
+            
+
             <!-- 支付宝支付回调 -->
+
             <intent-filter>
+
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="alipaykissu" />
+
             </intent-filter>
+
             
+
             <!-- OpenInstall Scheme配置 -->
+
             <intent-filter>
+
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="eb24o3" />
+
             </intent-filter>
+
             
+
             <!-- 极光推送通知点击打开Activity配置（参考官方demo） -->
+
             <!-- 用于处理极光推送通知点击后打开app -->
+
             <!-- 注意：必须同时包含VIEW action和自定义action，才能被极光推送正确识别 -->
+
             <intent-filter>
+
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <action android:name="com.yuluo.kissu.OpenClickActivity" />
+
             </intent-filter>
-            
+
+            <!-- <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter> -->
+
             <!-- Flutter requires MAIN/LAUNCHER intent-filter for launch activity detection -->
+
             
+
         </activity>
+
+
 
         <!-- ================= 动态桌面图标配置（通过 activity-alias 实现） ================= -->
 
+
+
         <!-- 默认图标 kissu_icon -> ic_launcher.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityDefault"
+
             android:enabled="true"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_2 -> ic_launcher_2.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon2"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_2"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_3 -> ic_launcher_3.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon3"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_3"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_4 -> ic_launcher_4.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon4"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_4"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_5 -> ic_launcher_5.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon5"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_5"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_6 -> ic_launcher_6.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon6"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_6"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_7 -> ic_launcher_7.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon7"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_7"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_8 -> ic_launcher_8.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon8"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_8"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_9 -> ic_launcher_9.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon9"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_9"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
+
+
 
         <!-- kissu_logo_10 -> ic_launcher_10.png -->
+
         <activity-alias
+
             android:name="com.yuluo.kissu.MainActivityIcon10"
+
             android:enabled="false"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher_10"
+
             android:label="Kissu"
+
             android:targetActivity="com.yuluo.kissu.MainActivity">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
- 
-        
-        <!-- 微信回调 Activity：支付/分享/登录 -->
-        <activity
-            android:name="com.yuluo.kissu.wxapi.WXPayEntryActivity"
+
+
+
+        <!-- kissu_logo_11 -> ic_launcher_11.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon11"
+
+            android:enabled="false"
+
             android:exported="true"
-            android:launchMode="singleTop"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+            android:icon="@mipmap/ic_launcher_11"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_12 -> ic_launcher_12.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon12"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_12"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_13 -> ic_launcher_13.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon13"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_13"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_14 -> ic_launcher_14.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon14"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_14"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_15 -> ic_launcher_15.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon15"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_15"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_16 -> ic_launcher_16.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon16"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_16"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_17 -> ic_launcher_17.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon17"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_17"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+
+
+        <!-- kissu_logo_18 -> ic_launcher_18.png -->
+
+        <activity-alias
+
+            android:name="com.yuluo.kissu.MainActivityIcon18"
+
+            android:enabled="false"
+
+            android:exported="true"
+
+            android:icon="@mipmap/ic_launcher_18"
+
+            android:label="Kissu"
+
+            android:targetActivity="com.yuluo.kissu.MainActivity">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+
+            </intent-filter>
+
+        </activity-alias>
+
+ 
+
+        
+
+        <!-- 微信回调 Activity：支付/分享/登录 -->
 
         <activity
-            android:name="com.yuluo.kissu.wxapi.WXEntryActivity"
+
+            android:name="com.yuluo.kissu.wxapi.WXPayEntryActivity"
+
             android:exported="true"
+
             android:launchMode="singleTop"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="wxca15128b8c388c13" />
-            </intent-filter>
-            <!-- 微信Universal Link配置 -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https"
-                      android:host="ulink.ikissu.cn" />
-            </intent-filter>
-        </activity>
-        
-        <!-- 友盟微信分享回调Activity -->
-        <activity
-            android:name="com.yuluo.kissu.wxapi.UMWXEntryActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
+
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-            
-        <!-- QQ分享回调Activity - 使用友盟推荐的配置 -->
+
+
+
         <activity
-            android:name="com.yuluo.kissu.qqapi.QQEntryActivity"
+
+            android:name="com.yuluo.kissu.wxapi.WXEntryActivity"
+
             android:exported="true"
+
             android:launchMode="singleTop"
+
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="tencent102797447" />
+
+                <data android:scheme="wxca15128b8c388c13" />
+
             </intent-filter>
+
+            <!-- 微信Universal Link配置 -->
+
+            <intent-filter android:autoVerify="true">
+
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https"
+
+                      android:host="ulink.ikissu.cn" />
+
+            </intent-filter>
+
         </activity>
+
         
-        <!-- 腾讯官方QQ回调Activity - 作为备用 -->
+
+        <!-- 友盟微信分享回调Activity -->
+
         <activity
-            android:name="com.tencent.tauth.AuthActivity"
+
+            android:name="com.yuluo.kissu.wxapi.UMWXEntryActivity"
+
             android:exported="true"
-            android:noHistory="true"
-            android:launchMode="singleTask">
+
+            android:launchMode="singleTop"
+
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+            
+
+        <!-- QQ分享回调Activity - 使用友盟推荐的配置 -->
+
+        <activity
+
+            android:name="com.yuluo.kissu.qqapi.QQEntryActivity"
+
+            android:exported="true"
+
+            android:launchMode="singleTop"
+
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="tencent102797447" />
+
             </intent-filter>
+
         </activity>
+
+        
+
+        <!-- 腾讯官方QQ回调Activity - 作为备用 -->
+
+        <activity
+
+            android:name="com.tencent.tauth.AuthActivity"
+
+            android:exported="true"
+
+            android:noHistory="true"
+
+            android:launchMode="singleTask">
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="tencent102797447" />
+
+            </intent-filter>
+
+        </activity>
+
+
 
         <!-- QQ SDK 必需的辅助 Activity -->
+
         <activity
+
             android:name="com.tencent.connect.common.AssistActivity"
+
             android:screenOrientation="behind"
+
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
+
             android:configChanges="orientation|keyboardHidden" />
+
             
+
         <!-- 支付宝支付Activity -->
+
         <activity
+
             android:name="com.alipay.sdk.app.H5PayActivity"
+
             android:exported="false"
+
             android:launchMode="singleTop"
+
             android:screenOrientation="behind"
+
             android:windowSoftInputMode="adjustResize|stateHidden" />
+
             
+
         <!-- 支付宝授权Activity -->
+
         <activity
+
             android:name="com.alipay.sdk.app.H5AuthActivity"
+
             android:exported="false"
+
             android:launchMode="singleTop"
+
             android:screenOrientation="behind"
+
             android:windowSoftInputMode="adjustResize|stateHidden" />
+
             
+
         <!-- 支付宝支付回调Activity -->
+
         <activity
+
             android:name="com.yuluo.kissu.pay.AlipayActivity"
+
             android:exported="true"
+
             android:launchMode="singleTop"
+
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         
+
         <!-- 企业微信SDK Activity -->
+
         <activity
+
             android:name="com.tencent.wework.api.WWAPIActivity"
+
             android:exported="true"
+
             android:launchMode="singleTop"
+
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
             <intent-filter>
+
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <category android:name="android.intent.category.BROWSABLE" />
+
             </intent-filter>
+
         </activity>
+
             
+
             
+
         <!-- Don't delete the meta-data below.
+
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+
         <meta-data
+
             android:name="flutterEmbedding"
+
             android:value="2" />
+
         <meta-data
+
             android:name="io.flutter.embedding.android.EnableImpeller"
+
             android:value="true" />
+
         <!-- 微信/QQ 配置 -->
+
         <meta-data
+
             android:name="WECHAT_APP_ID"
+
             android:value="wxca15128b8c388c13" />
+
         <meta-data
+
             android:name="TENCENT_QQ_APPID"
+
             android:value="102797447" />
+
         <meta-data
+
             android:name="TENCENT_QQ_APPKEY"
+
             android:value="c5KJ2VipiMRMCpJf" />
+
             
+
         <!-- 支付宝配置 -->
+
         <meta-data
+
             android:name="ALIPAY_SCHEME"
+
             android:value="alipaykissu" />
+
             
+
         <!-- 高德地图API Key -->
+
         <meta-data
+
             android:name="com.amap.api.v2.apikey"
-            android:value="38edb925a25f22e3aae2f86ce7f2ff3b" />
+
+            android:value="7623ef33c6617f0c00aceca537b97516" />
+
             
-        <!-- 极光推送配置 -->
+
+        <!-- 🔥 已废弃：极光推送配置（推送现在走腾讯IM）
+
         <meta-data
+
             android:name="JPUSH_CHANNEL"
+
             android:value="developer-default"
+
             tools:replace="android:value" />
+
         <meta-data
+
             android:name="JPUSH_APPKEY"
+
             android:value="4ee497251fc479522e1e6b7d"
+
             tools:replace="android:value" />
-            
-        <!-- ================= 极光推送厂商通道配置 ================= -->
-        <!-- 小米推送配置 -->
-        <meta-data
-            android:name="JPUSH_MI_APPID"
-            android:value="${JPUSH_MI_APPID}" />
-        <meta-data
-            android:name="JPUSH_MI_APPKEY"
-            android:value="${JPUSH_MI_APPKEY}" />
-            
-        <!-- OPPO推送配置 -->
-        <meta-data
-            android:name="JPUSH_OPPO_APPID"
-            android:value="${JPUSH_OPPO_APPID}" />
-        <meta-data
-            android:name="JPUSH_OPPO_APPKEY"
-            android:value="${JPUSH_OPPO_APPKEY}" />
-        <meta-data
-            android:name="JPUSH_OPPO_APPSECRET"
-            android:value="${JPUSH_OPPO_APPSECRET}" />
-            
-        <!-- vivo推送配置 -->
-        <meta-data
-            android:name="JPUSH_VIVO_APPID"
-            android:value="${JPUSH_VIVO_APPID}" />
-        <meta-data
-            android:name="JPUSH_VIVO_APPKEY"
-            android:value="${JPUSH_VIVO_APPKEY}" />
-        <meta-data
-            android:name="JPUSH_VIVO_APPSECRET"
-            android:value="${JPUSH_VIVO_APPSECRET}" />
-            
-        <!-- 魅族推送配置 -->
-        <meta-data
-            android:name="JPUSH_MEIZU_APPID"
-            android:value="${JPUSH_MEIZU_APPID}" />
-        <meta-data
-            android:name="JPUSH_MEIZU_APPKEY"
-            android:value="${JPUSH_MEIZU_APPKEY}" />
-        <!-- ================= 厂商通道配置结束 ================= -->
-            
-        <!-- 自定义通知样式配置 -->
-        <meta-data
-            android:name="JPUSH_NOTIFICATION_ICON"
-            android:resource="@drawable/ic_notification" />
-        <meta-data
-            android:name="JPUSH_NOTIFICATION_COLOR"
-            android:resource="@color/notification_color" />
-            
-        <!-- 极光推送核心接收器 - 重要的系统接收器 -->
-        <receiver
-            android:name="cn.jpush.android.service.PushReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter android:priority="1000">
-                <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED_PROXY" />
-                <category android:name="com.yuluo.kissu" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.USER_PRESENT" />
-                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.PACKAGE_ADDED" />
-                <action android:name="android.intent.action.PACKAGE_REMOVED" />
-                <data android:scheme="package" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- 极光推送警报接收器 -->
-        <receiver
-            android:name="cn.jpush.android.service.AlarmReceiver"
-            android:exported="false" />
-        
-        <!-- 自定义推送接收器 -->
-        <!-- Android 12+ 要求含 intent-filter 的广播接收器必须显式 exported。
-             将其设为 true 确保极光的系统进程能分发点击/到达事件，否则通知点击不会回调。 -->
-        <receiver
-            android:name="com.yuluo.kissu.JPushReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter android:priority="1001">
-                <!-- 同时兼容老的 *_ACTION 写法，避免厂商 ROM/SDK 差异 -->
-                <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED" />
-                <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED_ACTION" />
-                <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED" />
-                <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED_ACTION" />
-                <!-- 兼容部分 ROM 可能使用的 PROXY 广播 -->
-                <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED_PROXY" />
-                <action android:name="cn.jpush.android.intent.REGISTRATION_ID" />
-                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED" />
-                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_ACTION" />
-                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_PROXY" />
-                <action android:name="cn.jpush.android.intent.CONNECTION_CHANGE" />
-                <category android:name="com.yuluo.kissu" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- 🔥 开机自启动接收器 - 用于恢复定位服务 -->
-        <receiver
-            android:name="com.yuluo.kissu.BootCompletedReceiver"
-            android:enabled="true"
-            android:exported="true"
-            android:directBootAware="true">
-            <intent-filter android:priority="999">
-                <!-- 系统启动完成 -->
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <!-- 应用更新完成 -->
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <!-- 用户解锁屏幕（部分厂商需要） -->
-                <action android:name="android.intent.action.USER_PRESENT" />
-                <!-- 快速启动模式（部分厂商支持） -->
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- 高德定位服务 -->
-        <service android:name="com.amap.api.location.APSService" />
-        
-        <!-- 极光推送核心服务 - 这是关键的服务 -->
-        <service
-            android:name="cn.jpush.android.service.PushService"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="cn.jpush.android.intent.REGISTER" />
-                <action android:name="cn.jpush.android.intent.REPORT" />
-                <action android:name="cn.jpush.android.intent.PushService" />
-                <action android:name="cn.jpush.android.intent.PUSH_TIME" />
-            </intent-filter>
-        </service>
-        
-        <!-- 极光推送消息服务 -->
-        <service
-            android:name="cn.jpush.android.service.JPushMessageService"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_ACTION" />
-            </intent-filter>
-        </service>
-        
-        <!-- 自定义JPush后台服务 -->
-        <service
-            android:name="com.yuluo.kissu.JPushService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:permission="android.permission.BIND_JOB_SERVICE"
-            android:stopWithTask="false" />
-        
-        <!-- 前台定位服务 -->
-        <!-- 同时声明 location 和 dataSync 类型，用于权限不足时的降级处理 -->
-        <service
-            android:name="com.yuluo.kissu.ForegroundLocationService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location|dataSync"
-            android:stopWithTask="false" />
-        
-        <!-- 极光推送Activity -->
-        <activity
-            android:name="cn.jpush.android.ui.PushActivity"
-            android:configChanges="orientation|keyboardHidden"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            tools:replace="android:exported,android:theme" />
-            
-        <!-- 极光推送通知点击Activity -->
-        <activity
-            android:name="cn.jpush.android.ui.PopWinActivity"
-            android:configChanges="orientation|keyboardHidden"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            tools:replace="android:exported,android:theme" />
-            
-        <!-- 🔥 极光推送通知点击启动Activity - 关键配置 -->
-        <!-- 这是极光推送用于处理通知点击的关键Activity，必须配置 -->
-        <!-- 注意：极光推送要求必须使用 @style/JPushTheme 主题，否则服务无法正常工作 -->
-        <!-- 官方配置：taskAffinity必须为空字符串，否则离线通知无法打开app -->
-        <activity
-            android:name="cn.jpush.android.service.JNotifyActivity"
-            android:exported="true"
-            android:taskAffinity=""
-            android:theme="@style/JPushTheme">
-            <intent-filter>
-                <action android:name="cn.jpush.android.intent.JNotifyActivity" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="${applicationId}" />
-            </intent-filter>
-        </activity>
-            
-        <!-- 极光推送数据提供者 -->
-        <provider
-            android:name="cn.jpush.android.service.DataProvider"
-            android:authorities="com.yuluo.kissu.DataProvider"
-            android:exported="false" />
-            
-        <!-- 极光推送初始化Provider - 隐私合规：禁用自动初始化 -->
-        <!-- 
-        <provider
-            android:name="cn.jpush.android.service.InitProvider"
-            android:authorities="${applicationId}.jpush.initprovider"
-            android:exported="false"
-            tools:replace="android:authorities" />
+
         -->
+
             
-        <!-- 微信分享FileProvider配置 -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
+
+        <!-- 🔥 已废弃：极光推送厂商通道配置（推送现在走腾讯IM）
+
+        <meta-data
+
+            android:name="JPUSH_MI_APPID"
+
+            android:value="${JPUSH_MI_APPID}" />
+
+        <meta-data
+
+            android:name="JPUSH_MI_APPKEY"
+
+            android:value="${JPUSH_MI_APPKEY}" />
+
+        <meta-data
+
+            android:name="JPUSH_OPPO_APPID"
+
+            android:value="${JPUSH_OPPO_APPID}" />
+
+        <meta-data
+
+            android:name="JPUSH_OPPO_APPKEY"
+
+            android:value="${JPUSH_OPPO_APPKEY}" />
+
+        <meta-data
+
+            android:name="JPUSH_OPPO_APPSECRET"
+
+            android:value="${JPUSH_OPPO_APPSECRET}" />
+
+        <meta-data
+
+            android:name="JPUSH_VIVO_APPID"
+
+            android:value="${JPUSH_VIVO_APPID}" />
+
+        <meta-data
+
+            android:name="JPUSH_VIVO_APPKEY"
+
+            android:value="${JPUSH_VIVO_APPKEY}" />
+
+        <meta-data
+
+            android:name="JPUSH_VIVO_APPSECRET"
+
+            android:value="${JPUSH_VIVO_APPSECRET}" />
+
+        <meta-data
+
+            android:name="JPUSH_MEIZU_APPID"
+
+            android:value="${JPUSH_MEIZU_APPID}" />
+
+        <meta-data
+
+            android:name="JPUSH_MEIZU_APPKEY"
+
+            android:value="${JPUSH_MEIZU_APPKEY}" />
+
+        -->
+
         
-        <!-- 图片裁剪Activity -->
+
+        <!-- ================= 腾讯IM离线推送厂商配置 ================= -->
+
+        <!-- vivo推送配置（腾讯IM离线推送） -->
+
+        <meta-data 
+
+            tools:replace="android:value"
+
+            android:name="com.vivo.push.api_key" 
+
+            android:value="fa541d6f32b359e1d8c34d99e2d6d07a" />
+
+        <meta-data 
+
+            tools:replace="android:value"
+
+            android:name="com.vivo.push.app_id" 
+
+            android:value="105947238" />
+
+        <!-- 荣耀推送配置（腾讯IM离线推送） -->
+
+        <meta-data 
+
+            tools:replace="android:value"
+
+            android:name="com.hihonor.push.app_id" 
+
+            android:value="104512674" />
+
+        <!-- OPPO SDK版本冲突解决（极光推送和腾讯IM推送使用不同版本） -->
+
+        <meta-data
+
+            tools:replace="android:value"
+
+            android:name="sdkVersion"
+
+            android:value="3701" />
+
+        <!-- 荣耀推送SDK版本冲突解决（极光推送8.0.12.307 vs 腾讯IM推送7.0.61.302） -->
+
+        <meta-data
+
+            tools:replace="android:value"
+
+            android:name="com.hihonor.push.sdk_version"
+
+            android:value="8.0.12.307" />
+
+        <!-- ================= 腾讯IM离线推送厂商配置结束 ================= -->
+
+        
+
+        <!-- 腾讯IM推送通知图标配置 -->
+
+        <meta-data
+
+            android:name="com.tencent.timpush.small_icon"
+
+            android:resource="@drawable/ic_notification" />
+
+            
+
+        <!-- 🔥 已废弃：极光推送通知样式配置（推送现在走腾讯IM）
+
+        <meta-data
+
+            android:name="JPUSH_NOTIFICATION_ICON"
+
+            android:resource="@drawable/ic_notification" />
+
+        <meta-data
+
+            android:name="JPUSH_NOTIFICATION_COLOR"
+
+            android:resource="@color/notification_color" />
+
+        -->
+
+            
+
+        <!-- 🔥 已废弃：极光推送核心接收器（推送现在走腾讯IM）
+
+        <receiver
+
+            android:name="cn.jpush.android.service.PushReceiver"
+
+            android:enabled="true"
+
+            android:exported="false">
+
+            <intent-filter android:priority="1000">
+
+                <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED_PROXY" />
+
+                <category android:name="com.yuluo.kissu" />
+
+            </intent-filter>
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.USER_PRESENT" />
+
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+
+            </intent-filter>
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+
+                <data android:scheme="package" />
+
+            </intent-filter>
+
+            <intent-filter>
+
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+
+            </intent-filter>
+
+        </receiver>
+
+        <receiver
+
+            android:name="cn.jpush.android.service.AlarmReceiver"
+
+            android:exported="false" />
+
+        <receiver
+
+            android:name="com.yuluo.kissu.JPushReceiver"
+
+            android:enabled="true"
+
+            android:exported="true">
+
+            <intent-filter android:priority="1001">
+
+                <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED" />
+
+                <action android:name="cn.jpush.android.intent.NOTIFICATION_RECEIVED_ACTION" />
+
+                <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED" />
+
+                <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED_ACTION" />
+
+                <action android:name="cn.jpush.android.intent.NOTIFICATION_OPENED_PROXY" />
+
+                <action android:name="cn.jpush.android.intent.REGISTRATION_ID" />
+
+                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED" />
+
+                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_ACTION" />
+
+                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_PROXY" />
+
+                <action android:name="cn.jpush.android.intent.CONNECTION_CHANGE" />
+
+                <category android:name="com.yuluo.kissu" />
+
+            </intent-filter>
+
+        </receiver>
+
+        -->
+
+        
+
+        <!-- 🔥 开机自启动接收器 - 用于恢复定位服务 -->
+
+        <receiver
+
+            android:name="com.yuluo.kissu.BootCompletedReceiver"
+
+            android:enabled="true"
+
+            android:exported="true"
+
+            android:directBootAware="true">
+
+            <intent-filter android:priority="999">
+
+                <!-- 系统启动完成 -->
+
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+
+                <!-- 应用更新完成 -->
+
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+
+                <!-- 用户解锁屏幕（部分厂商需要） -->
+
+                <action android:name="android.intent.action.USER_PRESENT" />
+
+                <!-- 快速启动模式（部分厂商支持） -->
+
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+
+            </intent-filter>
+
+        </receiver>
+
+        
+
+        <!-- 高德定位服务 -->
+
+        <service android:name="com.amap.api.location.APSService" />
+
+        
+
+        <!-- 🔥 已废弃：极光推送服务（推送现在走腾讯IM）
+
+        <service
+
+            android:name="cn.jpush.android.service.PushService"
+
+            android:enabled="true"
+
+            android:exported="false">
+
+            <intent-filter>
+
+                <action android:name="cn.jpush.android.intent.REGISTER" />
+
+                <action android:name="cn.jpush.android.intent.REPORT" />
+
+                <action android:name="cn.jpush.android.intent.PushService" />
+
+                <action android:name="cn.jpush.android.intent.PUSH_TIME" />
+
+            </intent-filter>
+
+        </service>
+
+        <service
+
+            android:name="cn.jpush.android.service.JPushMessageService"
+
+            android:enabled="true"
+
+            android:exported="false">
+
+            <intent-filter>
+
+                <action android:name="cn.jpush.android.intent.MESSAGE_RECEIVED_ACTION" />
+
+            </intent-filter>
+
+        </service>
+
+        <service
+
+            android:name="com.yuluo.kissu.JPushService"
+
+            android:enabled="true"
+
+            android:exported="false"
+
+            android:foregroundServiceType="dataSync"
+
+            android:permission="android.permission.BIND_JOB_SERVICE"
+
+            android:stopWithTask="false" />
+
+        -->
+
+        
+
+        <!-- WorkManager 前台服务（Android 14+ 必须声明类型，否则抛 InvalidForegroundServiceTypeException） -->
+
+        <service
+
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+
+            android:enabled="true"
+
+            android:exported="false"
+
+            android:foregroundServiceType="dataSync|location"
+
+            tools:node="merge"
+
+            tools:replace="android:enabled" />
+
+        
+
+        <!-- 前台定位服务 -->
+
+        <!-- 同时声明 location 和 dataSync 类型，用于权限不足时的降级处理 -->
+
+        <service
+
+            android:name="com.yuluo.kissu.ForegroundLocationService"
+
+            android:enabled="true"
+
+            android:exported="false"
+
+            android:foregroundServiceType="location|dataSync"
+
+            android:stopWithTask="false" />
+
+        
+
+        <!-- 锁机悬浮窗服务 -->
+
+        <service
+
+            android:name="com.yuluo.kissu.LockScreenOverlayService"
+
+            android:enabled="true"
+
+            android:exported="false"
+
+            android:foregroundServiceType="dataSync"
+
+            android:stopWithTask="false" />
+
+        
+
+        <!-- 锁机服务重启广播接收器 -->
+
+        <receiver
+
+            android:name="com.yuluo.kissu.LockServiceRestartReceiver"
+
+            android:enabled="true"
+
+            android:exported="false">
+
+            <intent-filter>
+
+                <action android:name="com.yuluo.kissu.RESTART_LOCK_SERVICE" />
+
+            </intent-filter>
+
+        </receiver>
+
+        
+
+        <!-- 🔥 已废弃：极光推送Activity和Provider（推送现在走腾讯IM）
+
         <activity
+
+            android:name="cn.jpush.android.ui.PushActivity"
+
+            android:configChanges="orientation|keyboardHidden"
+
+            android:exported="false"
+
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+
+            tools:replace="android:exported,android:theme" />
+
+        <activity
+
+            android:name="cn.jpush.android.ui.PopWinActivity"
+
+            android:configChanges="orientation|keyboardHidden"
+
+            android:exported="false"
+
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+
+            tools:replace="android:exported,android:theme" />
+
+        <activity
+
+            android:name="cn.jpush.android.service.JNotifyActivity"
+
+            android:exported="true"
+
+            android:taskAffinity=""
+
+            android:theme="@style/JPushTheme">
+
+            <intent-filter>
+
+                <action android:name="cn.jpush.android.intent.JNotifyActivity" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <category android:name="${applicationId}" />
+
+            </intent-filter>
+
+        </activity>
+
+        <provider
+
+            android:name="cn.jpush.android.service.DataProvider"
+
+            android:authorities="com.yuluo.kissu.DataProvider"
+
+            android:exported="false" />
+
+        -->
+
+            
+
+        <!-- 微信分享FileProvider配置 -->
+
+        <provider
+
+            android:name="androidx.core.content.FileProvider"
+
+            android:authorities="${applicationId}.fileprovider"
+
+            android:exported="false"
+
+            android:grantUriPermissions="true">
+
+            <meta-data
+
+                android:name="android.support.FILE_PROVIDER_PATHS"
+
+                android:resource="@xml/file_paths" />
+
+        </provider>
+
+        
+
+        <!-- 图片裁剪Activity -->
+
+        <activity
+
             android:name="com.yalantis.ucrop.UCropActivity"
+
             android:screenOrientation="portrait"
+
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+        <!-- ================= Kissu 桌面小组件 ================= -->
+        <!-- 4×2 详情小组件 -->
+        <receiver
+            android:name="com.yuluo.kissu.widget.KissuWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_kissu_info" />
+        </receiver>
+
+        <!-- 小组件 AlarmManager 备份接收器 -->
+        <receiver
+            android:name="com.yuluo.kissu.widget.WidgetAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- 2×2 相伴天数小组件 -->
+        <receiver
+            android:name="com.yuluo.kissu.widget.KissuWidgetDaysProvider"
+            android:exported="true"
+            android:label="@string/widget_days_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_kissu_days" />
+        </receiver>
+
     </application>
 
+
+
     <!-- 极光推送核心权限：定义并使用应用专属权限，避免广播被系统拦截 -->
+
     <permission
+
         android:name="com.yuluo.kissu.permission.JPUSH_MESSAGE"
+
         android:protectionLevel="signature" />
+
     <uses-permission android:name="com.yuluo.kissu.permission.JPUSH_MESSAGE" />
+
     <!-- 保留官方的公共权限声明，兼容旧版 ROM/SDK -->
+
     <uses-permission android:name="cn.jpush.android.permission.JPUSH_MESSAGE" />
 
+
+
     <!-- 相机权限：用于拍照上传头像、图片等功能 -->
+
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- 存储权限：用于读取和保存图片、文件等（Android 12及以下） -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+
+    <!-- 存储权限强制移除：图片/视频选取通过系统Picker实现，无需传统存储权限 -->
+    <!-- 第三方插件(photo_manager/image_picker等)会自动合并这些权限，必须显式移除 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+
     
+
     <!-- 网络状态权限：用于检测网络连接状态，确保地图加载和数据同步 -->
+
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     
+
     <!-- WiFi状态权限：用于获取WIFI信息进行网络定位（高德SDK必需） -->
+
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
     <!-- WiFi变更权限：用于网络优化 -->
+
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
     <!-- 手机状态权限：用于获取基站信息进行网络定位（高德SDK必需） -->
+
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
     <!-- 唤醒锁权限：保持CPU运行，用于后台定位和推送服务 -->
+
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- 震动权限：用于通知提醒和交互反馈 -->
+
     <uses-permission android:name="android.permission.VIBRATE" />
+
     
+
     <!-- 粗略定位权限：用于获取大致位置信息，提供基于位置的服务 -->
+
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- 精确定位权限：用于获取精确位置信息，实现定位打卡等功能 -->
+
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <!-- 定位扩展命令权限：用于高级定位功能 -->
+
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
+
     <!-- 定位更新控制权限：用于控制定位服务的更新频率 -->
+
     <uses-permission android:name="android.permission.CONTROL_LOCATION_UPDATES" />
+
     <!-- 后台定位权限：用于在应用后台时继续获取位置信息，实现智能提醒功能 -->
+
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
     <!-- 网络访问权限：用于数据传输、API调用、地图服务等 -->
+
     <uses-permission android:name="android.permission.INTERNET" />
+
     
+
     <!-- 极光推送相关权限 -->
+
  
-    <!-- 开机自启权限：用于在设备重启后自动启动推送服务 -->
+
+    <!-- 开机自启权限：用于在设备重启后自动启动服务 -->
+
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- 网络状态变更权限：用于推送服务网络状态监听（已在WiFi权限部分声明） -->
-    <!-- 外部存储写入权限：用于推送消息的缓存和日志（已在存储权限部分声明） -->
+
+
+
     <!-- 获取任务列表权限：用于检测应用运行状态（已弃用，保留兼容性） -->
+
     <uses-permission android:name="android.permission.GET_TASKS" />
+
     <!-- 系统窗口权限：用于显示悬浮窗通知（需用户手动授权） -->
+
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- 忽略电池优化权限：确保后台服务不被系统杀死 -->
+
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     
+
     <!-- 前台服务权限：用于运行长期后台任务 -->
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <!-- 前台定位服务权限：用于前台定位服务（Android 10+必需） -->
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <!-- 前台数据同步服务权限：用于推送服务（Android 14+必需） -->
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <!-- 任务调度权限：用于后台服务（Android 14+优化） -->
+
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- 读取媒体图片权限：Android 13+替代READ_EXTERNAL_STORAGE -->
+
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
     
+
     <!-- Android 16 新增权限 -->
+
     <!-- Android 13+ 相册选择权限：允许用户选择部分照片访问 -->
+
     <!-- 必须声明此权限，否则Android 14+只会弹出相机权限对话框 -->
+
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
     <!-- 通知权限：Android 13+必需，Android 16更严格 -->
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     
+
     <!-- 精确闹钟权限：Android 16+优化 -->
+
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     
+
     <!-- 使用情况访问权限：用于获取应用使用时长统计（需用户手动授权） -->
+
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
+
+
     <!-- Required to query activities that can process text, see:
+
          https://developer.android.com/training/package-visibility and
+
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
+
+
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+
     <queries>
+
         <intent>
+
             <action android:name="android.intent.action.PROCESS_TEXT"/>
+
             <data android:mimeType="text/plain"/>
+
         </intent>
+
         <!-- 查询微信 / QQ 应用是否存在，用于可用性检查与调起 -->
+
         <package android:name="com.tencent.mm" />
+
         <package android:name="com.tencent.mobileqq" />
+
         <package android:name="com.tencent.tim" />
+
         <package android:name="com.tencent.qqlite" />
+
         <!-- QQ SSO/分享使用的自定义协议，Android 11+ 需显式声明 -->
+
+        <intent>
+
+            <action android:name="android.intent.action.VIEW" />
+
+            <data android:scheme="mqqapi" />
+
+        </intent>
+
+        <!-- 覆盖国际版QQ包名 -->
+
+        <package android:name="com.tencent.mobileqqi" />
+
+        <!-- 查询支付宝应用是否存在，用于支付功能 -->
+
+        <package android:name="com.eg.android.AlipayGphone" />
+
+        <!-- 各品牌应用市场 scheme 声明（Android 11+ 包可见性） -->
+
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="mqqapi" />
+            <data android:scheme="mimarket" />
         </intent>
-        <!-- 覆盖国际版QQ包名 -->
-        <package android:name="com.tencent.mobileqqi" />
-        <!-- 查询支付宝应用是否存在，用于支付功能 -->
-        <package android:name="com.eg.android.AlipayGphone" />
-        <!-- 查询所有已安装的应用，用于app使用时长统计功能 -->
+
         <intent>
-            <action android:name="android.intent.action.MAIN" />
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="appmarket" />
         </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="vivomarket" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mstore" />
+        </intent>
+
+        <!-- 查询所有已安装的应用，用于app使用时长统计功能 -->
+
+        <intent>
+
+            <action android:name="android.intent.action.MAIN" />
+
+        </intent>
+
     </queries>
+
 </manifest>
+

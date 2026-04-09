@@ -7,7 +7,9 @@ class VipPackageModel {
   final String vipPrice;
   final String vipOriginalPrice;
   final int vipDays;
+  final String dailyAveragePrice;
   final String productId;
+  final int isChecked;
   final int isSubscribe;
   final int isDiscounts;
   final String discountsImg;
@@ -23,8 +25,10 @@ class VipPackageModel {
     required this.vipPrice,
     required this.vipOriginalPrice,
     required this.vipDays,
+    required this.dailyAveragePrice,
     required this.productId,
     required this.isSubscribe,
+    required this.isChecked,
     required this.isDiscounts,
     required this.discountsImg,
     required this.activityDesc,
@@ -41,6 +45,8 @@ class VipPackageModel {
       vipPrice: json['vip_price'] ?? '0.00',
       vipOriginalPrice: json['vip_original_price'] ?? '0.00',
       vipDays: json['vip_days'] ?? 0,
+      dailyAveragePrice: json['daily_average_price'] ?? '',
+      isChecked: json['is_checked'] ?? 0,
       productId: json['product_id'] ?? '',
       isSubscribe: json['is_subscribe'] ?? 0,
       isDiscounts: json['is_discounts'] ?? 0,
@@ -60,8 +66,10 @@ class VipPackageModel {
       'vip_price': vipPrice,
       'vip_original_price': vipOriginalPrice,
       'vip_days': vipDays,
+      'daily_average_price': dailyAveragePrice,
       'product_id': productId,
       'is_subscribe': isSubscribe,
+      'is_checked': isChecked,
       'is_discounts': isDiscounts,
       'discounts_img': discountsImg,
       'activity_desc': activityDesc,

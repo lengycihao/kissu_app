@@ -25,6 +25,8 @@ buildscript {
             isAllowInsecureProtocol = false
         }
         
+        // 荣耀推送插件仓库
+        maven { url = uri("https://developer.hihonor.com/repo/") }
         
         // Maven Central
         mavenCentral()
@@ -35,6 +37,8 @@ buildscript {
         classpath("com.android.tools.build:gradle:8.6.1")
         // 华为 AGConnect 配置插件（用于 agconnect-services.json）
         classpath("com.huawei.agconnect:agcp:1.9.1.301")
+        // 荣耀推送插件（腾讯IM离线推送需要）
+        classpath("com.hihonor.mcs:asplugin:2.0.1.300")
     }
 }
 
@@ -77,6 +81,14 @@ allprojects {
         // OpenInstall 官方仓库
         maven { url = uri("https://maven.openinstall.io/repository/maven-public/") }
         
+        //巨量（使用mavenPom避免Gradle Module Metadata导致的API可见性限制）
+        maven {
+            url = uri("https://artifact.bytedance.com/repository/Volcengine/")
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
         // 友盟官方仓库 - 完全移除，因为POM文件格式有问题
         // maven { 
         //     url = uri("https://developer.umeng.com/repo/")

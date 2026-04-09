@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/pages/location/location_v2_page.dart';
 import 'package:kissu_app/pages/location/location_v2_binding.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/utils/debug_util.dart';
 
 /// VIP导航助手类
 /// 用于统一处理需要会员权限的页面跳转
@@ -10,18 +10,18 @@ class VipNavigationHelper {
   /// 检查会员状态并导航到定位页面
   /// 在入口处获取会员信息 is_vip, is_for_ever_vip, vip_end_time
   static void navigateToLocationWithVipCheck() {
-    DebugUtil.info('🔍 检查会员状态后导航到定位页面');
+    logDebug('🔍 检查会员状态后导航到定位页面');
     
     // 检查用户是否已登录
     if (!UserManager.isLoggedIn) {
-      DebugUtil.warning('用户未登录，无法进入定位页面');
+      logWarning('用户未登录，无法进入定位页面');
       // 可以在这里添加登录提示或跳转到登录页面
       return;
     }
     
     final user = UserManager.currentUser;
     if (user == null) {
-      DebugUtil.error('用户信息为空');
+      logError('用户信息为空', tag: 'VipNavigationHelper');
       return;
     }
     
@@ -30,7 +30,7 @@ class VipNavigationHelper {
     final isForEverVip = user.isForEverVip; // is_for_ever_vip  
     final vipEndTime = user.vipEndTime; // vip_end_time (10位时间戳)
     
-    DebugUtil.info('📊 会员信息 - isVip: $isVip, isForEverVip: $isForEverVip, vipEndTime: $vipEndTime');
+    logDebug('📊 会员信息 - isVip: $isVip, isForEverVip: $isForEverVip, vipEndTime: $vipEndTime');
     
     // 直接跳转到定位页面，让 LocationTipsManager 根据这些字段处理会员到期提示
     _navigateToLocationPage();

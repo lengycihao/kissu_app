@@ -48,8 +48,8 @@ class _AgreementRichTextState extends State<AgreementRichText> {
   @override
   Widget build(BuildContext context) {
     // 字体大小使用 20.0（Flutter 的逻辑像素），颜色按你的要求
-    const normalStyle = TextStyle(fontSize: 14.0, color: Color(0xFF333333), height: 1.7);
-    const linkStyle = TextStyle(fontSize: 14.0, color: Color(0xFFFF7C98));
+    const normalStyle = TextStyle(fontSize: 12.0, color: Color(0xFF666666), height: 1.7);
+    const linkStyle = TextStyle(fontSize: 12.0, color: Color(0xFFFF9DC4));
 
     return RichText(
       textAlign: widget.textAlign,
@@ -63,7 +63,7 @@ class _AgreementRichTextState extends State<AgreementRichText> {
           TextSpan(text: '《用户协议》', style: linkStyle, recognizer: _agreementTap),
           const TextSpan(text: ' '),
           TextSpan(text: '《隐私政策》', style: linkStyle, recognizer: _privacyTap),
-          const TextSpan(text: '，当您选择同意并继续则表示您已充分阅读、理解并接受前述所有内容。'),
+          const TextSpan(text: '，当您选择同意并继续则表示您已充分阅读、理解并接受前述所有内容'),
         ],
       ),
     );

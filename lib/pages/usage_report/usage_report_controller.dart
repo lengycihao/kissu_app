@@ -3,21 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:kissu_app/models/usage_record_api_model.dart';
-import 'package:kissu_app/model/system_info_model.dart';
 import 'package:kissu_app/network/public/usage_record_api.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import 'package:kissu_app/utils/oktoast_util.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
 import 'package:kissu_app/utils/user_manager.dart';
-import 'package:kissu_app/widgets/custom_toast_widget.dart';
 import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
-import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog_controller.dart';
 import 'package:kissu_app/routers/kissu_route_path.dart';
 import 'package:kissu_app/utils/vip_navigation_helper.dart';
-import 'package:kissu_app/services/tracking_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_manager.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/pages/usage_report/widgets/filter_bottom_sheet.dart';
 
 class UsageReportController extends GetxController {
   final UsageRecordApi _usageRecordApi = UsageRecordApi();
-  // final PhoneHistoryApi _phoneHistoryApi = PhoneHistoryApi();
 
   // 防抖Timer
   Timer? _debounceTimer;
@@ -27,16 +28,8 @@ class UsageReportController extends GetxController {
 
   // 当前选中的日期
   final selectedDate = DateTime.now().obs;
- 
 
-    final isLoading = false.obs;
-
- 
-
-  // 系统设置相关
-  final systemInfo = Rxn<SystemInfoModel>();
-  final isSystemInfoLoading = false.obs;
-  final isSystemSwitchLoading = false.obs;
+  final isLoading = false.obs;
 
   // 用户绑定状态（响应式）
   final isUserBound = false.obs;
@@ -44,17 +37,19 @@ class UsageReportController extends GetxController {
   // 用户会员状态（响应式）
   final isUserVip = false.obs;
 
- 
-
   // 页面Context（用于Overlay）
   late BuildContext pageContext;
 
-  // 页面浏览时长统计
-  DateTime? _pageEnterTime;
+  // 埋点相关
+  int? _pageEnterTime;
+  int _exitType = ExitTypeValue.back;
+  bool _hasTrackedExit = false; // 是否已上报离开埋点
+  
+  // 页面离开回调
+  VoidCallback? onNavigateToNextPage;
 
   // 筛选选项（改为多选）
-  final selectedFilters = <String>['位置轨迹', 'Kissu', '手机状态', 'App使用统计'].obs; // 已选中的筛选项列表，默认4个都勾选
-  final tempSelectedFilters = <String>[].obs; // 临时选中的筛选项列表（用于对话框）
+  final selectedFilters = <String>['位置轨迹', 'Kissu', '手机状态', 'App使用统计'].obs;
   final filterOptions = ['位置轨迹', 'Kissu', '手机状态', 'App使用统计'];
 
   // 分页相关
@@ -73,9 +68,6 @@ class UsageReportController extends GetxController {
   // 另一半用户设备信息
   final halfUserData = Rxn<HalfUserData>();
 
-  /// 敏感操作记录引导图是否显示
-  final RxBool showGuideOverlay = false.obs;
-  
   // 设备信息展开状态：null表示未展开，其他值表示当前展开的项类型
   final selectedDeviceInfoType = Rxn<String>(); // 'distance', 'mobileModel', 'network', 'power'
 
@@ -119,10 +111,15 @@ class UsageReportController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    debugPrint('📊 UsageReportController 初始化');
+    logDebug('📊 UsageReportController 初始化');
 
-    // 记录页面进入时间（用于计算停留时长）
-    _pageEnterTime = DateTime.now();
+    // 埋点：记录页面进入时间（十位时间戳）
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // 注册页面离开回调
+    onNavigateToNextPage = () {
+      _trackPageExit(ExitTypeValue.nextPage);
+    };
 
     // 初始化用户绑定状态（使用本地数据）
     _updateUserBindStatus();
@@ -137,80 +134,73 @@ class UsageReportController extends GetxController {
         loadData();
       }
     });
-
-    // 检查并显示敏感操作记录引导图（首次进入立即检查，不再额外延迟）
-    _checkAndShowGuide();
-
-    // // 检查并请求屏幕使用时长权限
-    // _checkAndRequestPermission();
-  }
-
-  @override
-  void onReady() {
-    super.onReady();
-    // 页面准备就绪时，确保已经静默刷新
   }
 
   /// 页面重新获得焦点时的回调（从其他页面返回时会调用）
   void onPageResumed() {
-    debugPrint('📊 用机记录页面重新获得焦点，静默刷新用户信息');
-  
-    // 然后静默刷新用户信息
     _silentRefreshUserInfo();
   }
 
   /// 静默刷新用户信息（不阻塞UI）
   Future<void> _silentRefreshUserInfo() async {
     try {
-      debugPrint('🔄 用机记录页面：静默刷新用户信息');
       final success = await UserManager.refreshUserInfo();
       if (success) {
         // 刷新成功后重新加载本地数据到UI
         _updateUserBindStatus();
       }
     } catch (e) {
-      debugPrint('❌ 用机记录页面：静默刷新用户信息失败: $e');
+      logError('❌ 用机记录页面：静默刷新用户信息失败: $e');
     }
   }
 
+  /// 上报页面离开埋点
+  void _trackPageExit(int exitType) {
+    if (_hasTrackedExit || _pageEnterTime == null) return;
+    _hasTrackedExit = true;
+    
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final duration = currentTime - _pageEnterTime!;
+    
+    // 上报埋点：sensitive_page_event
+    AnalyticsManager.instance.trackPageView(
+      pageId: SensitiveEvents.pageId,
+      eventId: SensitiveEvents.page,
+      enterTime: _pageEnterTime!,
+      duration: duration,
+      exitType: exitType,
+    );
+    
+    // 如果是进入下一页，立即重置状态，为从下一页返回后的埋点做准备
+    if (exitType == ExitTypeValue.nextPage) {
+      _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _hasTrackedExit = false;
+      _exitType = ExitTypeValue.back;
+    }
+  }
+  
+  /// 应用切换到后台
+  void onAppPaused() {
+    _exitType = ExitTypeValue.toBackground;
+    _trackPageExit(ExitTypeValue.toBackground);
+  }
+  
+  /// 应用从后台返回
+  void onAppResumed() {
+    // 重置状态，准备下次埋点
+    _pageEnterTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _hasTrackedExit = false;
+    _exitType = ExitTypeValue.back;
+  }
+  
   @override
   void onClose() {
-    // 上报页面浏览埋点（计算停留时长）
-    _trackPageView();
+    // 埋点：记录页面离开事件（返回）
+    _trackPageExit(_exitType);
 
     _debounceTimer?.cancel();
     _deviceInfoTooltipTimer?.cancel();
-    debugPrint('📊 UsageReportController 销毁');
     super.onClose();
-  }
-
-  /// 上报页面浏览埋点
-  Future<void> _trackPageView() async {
-    if (_pageEnterTime == null) return;
-
-    try {
-      // 计算停留时长
-      final duration = DateTime.now().difference(_pageEnterTime!);
-      final seconds = duration.inSeconds;
-      final stayDuration = '${seconds}s';
-
-      // 获取绑定状态和会员状态
-      final isBind = isUserBound.value;
-      final isVip = UserManager.isVip;
-
-      // 上报埋点
-      await TrackingService.trackDeviceUsageRecordPageView(
-        stayDuration: stayDuration,
-        isBind: isBind,
-        isVip: isVip,
-      );
-
-      debugPrint(
-        '✅ 用机记录页面浏览埋点上报成功: 停留时长=$stayDuration, 绑定状态=${isBind ? "已绑定" : "未绑定"}, 会员状态=${isVip ? "已充值" : "未充值"}',
-      );
-    } catch (e) {
-      debugPrint('❌ 用机记录页面浏览埋点上报失败: $e');
-    }
   }
 
   /// 切换日期
@@ -220,7 +210,6 @@ class UsageReportController extends GetxController {
     final currentDateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
 
     if (newDateStr == currentDateStr) {
-      debugPrint('📊 相同日期，跳过切换: $newDateStr');
       return;
     }
 
@@ -231,7 +220,6 @@ class UsageReportController extends GetxController {
 
     // 使用防抖加载数据，避免连续点击时多次请求
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      debugPrint('📊 防抖Timer触发，开始加载数据');
       loadData();
     });
   }
@@ -239,7 +227,6 @@ class UsageReportController extends GetxController {
   /// 加载数据（重置分页）
   Future<void> loadData({bool isRefresh = false}) async {
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    debugPrint('📊 加载数据: $dateStr, isRefresh: $isRefresh');
 
     try {
       // 只在非刷新时显示loading
@@ -257,21 +244,16 @@ class UsageReportController extends GetxController {
       );
 
       if (result.isSuccess && result.data != null) {
-        debugPrint('✅ 数据加载成功，共${result.data!.list.length}条记录');
-        // 刷新时直接替换数据，不清空再添加
         sensitiveRecordList.value = result.data!.list;
         hasMore.value = result.data!.hasMore;
-        // 保存设备信息
         halfUserData.value = result.data!.halfUserData;
-        debugPrint('📄 是否有更多数据: ${hasMore.value}');
-        debugPrint('📱 设备信息: ${result.data!.halfUserData?.mobileModel ?? "未知"}');
       } else {
-        debugPrint('❌ 数据加载失败: ${result.msg}');
-        _showToastSafely(result.msg ?? '数据加载失败');
+        logError('❌ 数据加载失败: ${result.msg}');
+        _showToast(result.msg ?? '数据加载失败');
       }
     } catch (e) {
-      debugPrint('💥 数据加载异常: $e');
-      _showToastSafely('数据加载异常: $e');
+      logError('💥 数据加载异常: $e');
+      _showToast('数据加载异常: $e');
     } finally {
       if (!isRefresh) {
         isLoading.value = false;
@@ -279,45 +261,15 @@ class UsageReportController extends GetxController {
     }
   }
 
-  /// 检查并显示敏感操作记录引导图
-  Future<void> _checkAndShowGuide() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasShownGuide =
-          prefs.getBool('has_shown_sensitive_record_guide') ?? false;
-
-      debugPrint('🔍 检查敏感操作记录引导图显示状态: $hasShownGuide');
-
-      if (!hasShownGuide) {
-        debugPrint('📱 首次进入敏感操作记录页面，显示引导图');
-
-        // 立即标记已显示，防止重复显示
-        await prefs.setBool('has_shown_sensitive_record_guide', true);
-
-        // 直接显示覆盖层（不再延迟）
-        if (!isClosed) {
-          showGuideOverlay.value = true;
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 检查敏感操作记录引导图状态失败: $e');
-    }
-  }
-
-  /// 隐藏敏感操作记录引导图
-  void hideGuideOverlay() {
-    showGuideOverlay.value = false;
-  }
 
   /// 加载更多数据
   Future<void> loadMoreData() async {
     if (isLoadingMore.value || !hasMore.value) {
-      debugPrint('⚠️ 无法加载更多：isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
+      logWarning('⚠️ 无法加载更多：isLoadingMore=${isLoadingMore.value}, hasMore=${hasMore.value}');
       return;
     }
 
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
-    debugPrint('📊 加载更多数据，当前页: ${currentPage.value}');
 
     try {
       isLoadingMore.value = true;
@@ -331,38 +283,27 @@ class UsageReportController extends GetxController {
       );
 
       if (result.isSuccess && result.data != null) {
-        debugPrint('✅ 加载更多成功，新增${result.data!.list.length}条记录');
         sensitiveRecordList.addAll(result.data!.list);
         hasMore.value = result.data!.hasMore;
-        // 更新设备信息（加载更多时也可能更新）
         if (result.data!.halfUserData != null) {
           halfUserData.value = result.data!.halfUserData;
         }
-        debugPrint('📄 是否还有更多数据: ${hasMore.value}');
       } else {
-        debugPrint('❌ 加载更多失败: ${result.msg}');
+        logError('❌ 加载更多失败: ${result.msg}');
         currentPage.value--; // 恢复页码
-        _showToastSafely(result.msg ?? '加载更多失败');
+        _showToast(result.msg ?? '加载更多失败');
       }
     } catch (e) {
-      debugPrint('💥 加载更多异常: $e');
+      logError('💥 加载更多异常: $e');
       currentPage.value--; // 恢复页码
-      _showToastSafely('加载更多异常: $e');
+      _showToast('加载更多异常: $e');
     } finally {
       isLoadingMore.value = false;
     }
   }
 
-  /// 切换筛选类型（已废弃，改用多选）
-  @Deprecated('使用多选筛选，直接在showFilterDialog中处理')
-  void changeFilter(String filter) {
-    debugPrint('🔄 切换筛选类型: $filter');
-    // 已改为多选，此方法不再使用
-  }
-
   /// 下拉刷新
   Future<void> onRefresh() async {
-    debugPrint('🔄 下拉刷新');
     isPullingRefresh.value = true;
     await loadData(isRefresh: true);
     // 更新刷新时间
@@ -373,9 +314,10 @@ class UsageReportController extends GetxController {
   /// 处理记录item点击
   void handleRecordItemClick(SensitiveRecordItem record) {
     if (record.needsVip) {
-      // 需要VIP权限，跳转到VIP页面
-      debugPrint('🔒 需要VIP权限，跳转到VIP页面');
-      _navigateToVipPage();
+      // 埋点：记录敏感操作记录item上的vip按钮点击
+      AnalyticsHelper.trackSensitiveItemVipBtn();
+      
+      _navigateToVipPageWithEvent(SensitiveEvents.itemVipBtn);
     } else if (record.showJumpButton) {
       // 有跳转按钮，处理跳转
       handleJumpPageClick(record.jumpPage);
@@ -384,88 +326,59 @@ class UsageReportController extends GetxController {
 
   /// 处理跳转按钮点击
   void handleJumpPageClick(String jumpPage) {
-    debugPrint('🔗 跳转页面: $jumpPage');
-    
+    onNavigateToNextPage?.call();
+
     switch (jumpPage) {
       case 'appUsePage':
-        // 跳转到app使用统计页面
-        debugPrint('📱 跳转到App使用统计页面');
         Get.toNamed(KissuRoutePath.appUsage);
         break;
       case 'tracePage':
-        // 跳转到足迹页面
-        debugPrint('👣 跳转到足迹页面');
         Get.toNamed(KissuRoutePath.track);
         break;
       case 'unlockPhonePage':
-        // 跳转到设备使用记录页面（包含解锁记录）
-        debugPrint('📲 跳转到设备使用记录页面');
         Get.toNamed(KissuRoutePath.appUsageInfo);
         break;
+      case 'locationPage':
+        Get.toNamed(KissuRoutePath.location);
+        break;
+      case 'mobileUse':
+        Get.toNamed(KissuRoutePath.deviceUsage, arguments: {'source_event': SensitiveEvents.page});
+        break;
+      case 'locationReminder':
+        Get.toNamed(KissuRoutePath.locationReminder);
+        break;
       default:
-        debugPrint('⚠️ 未知的跳转页面类型: $jumpPage');
+        logDebug('⚠️ 未知的跳转页面类型: $jumpPage');
     }
   }
 
-  /// 跳转到VIP页面
-  Future<void> _navigateToVipPage() async {
-    debugPrint('💎 跳转到VIP页面');
-    
-    // 跳转到VIP页面
-    final result = await Get.toNamed(KissuRoutePath.vip);
-    
-    // 如果开通成功，刷新数据
+  /// 跳转到VIP页面（带来源事件参数）
+  Future<void> _navigateToVipPageWithEvent(String sourceEvent) async {
+    onNavigateToNextPage?.call();
+
+    final result = await Get.toNamed(
+      KissuRoutePath.vip,
+      arguments: {'source_page': SourcePageUtilsCaller.usageReport, 'source_event': sourceEvent},
+    );
+
     if (result == true) {
-      debugPrint('✅ VIP开通成功，刷新数据');
       await loadData();
     }
   }
 
-  /// 安全地显示Toast
-  void _showToastSafely(String message) {
-    try {
-      // 优先使用pageContext（已在页面中保存）
-      CustomToast.show(pageContext, message);
-    } catch (e) {
-      debugPrint('⚠️ 使用pageContext显示Toast失败，尝试其他方式: $e');
-      // fallback到Get.context
-      try {
-        if (Get.context != null) {
-          CustomToast.show(Get.context!, message);
-        } else {
-          // 最终fallback：使用OKToastUtil
-          OKToastUtil.show(message);
-        }
-      } catch (e2) {
-        debugPrint('⚠️ 所有Toast显示方式都失败: $e2');
-        // 最后使用print输出
-        print('Toast消息: $message');
-      }
-    }
+  /// 显示Toast提示
+  void _showToast(String message) {
+    OKToastUtil.show(message);
   }
 
   /// 显示设置对话框
   void showSettingDialog() async {
+    // 埋点：页面离开（进入下一页）
+    onNavigateToNextPage?.call();
+    
     // 跳转到用机设置页面
     Get.toNamed(KissuRoutePath.notificationSettings);
   }
-
-  /// 获取系统信息设置
-  // Future<void> loadSystemInfo() async {
-  //   isSystemInfoLoading.value = true;
-  //   try {
-  //     final result = await _phoneHistoryApi.getSystemInfo();
-  //     if (result.isSuccess && result.data != null) {
-  //       systemInfo.value = result.data!;
-  //     } else {
-  //       OKToastUtil.show('获取系统设置失败: ${result.msg}');
-  //     }
-  //   } catch (e) {
-  //     OKToastUtil.show('获取系统设置异常: $e');
-  //   } finally {
-  //     isSystemInfoLoading.value = false;
-  //   }
-  // }
 
   /// 更新用户绑定状态
   void _updateUserBindStatus() {
@@ -479,78 +392,35 @@ class UsageReportController extends GetxController {
       }
     }
     isUserBound.value = bound;
-    isUserVip.value = UserManager.isVip; // 同时更新会员状态
-    debugPrint('📊 用户绑定状态更新: $bound, 会员状态: ${isUserVip.value}');
-  }
-
-  /// 检查用户是否已绑定（保持向后兼容）
-  bool isUserBoundSync() {
-    return isUserBound.value;
+    isUserVip.value = UserManager.isVip;
   }
 
   /// 处理距离按钮点击事件
   void handleDistanceButtonClick() {
     if (isUserBound.value) {
-      // 已绑定，跳转到定位页面（添加会员检查）
-      debugPrint('📍 用户已绑定，跳转到定位页面（检查会员状态）');
       VipNavigationHelper.navigateToLocationWithVipCheck();
     } else {
-      // 未绑定，显示绑定弹窗
-      debugPrint('💑 用户未绑定，显示绑定弹窗');
       showBindingDialog();
     }
   }
 
-  /// 处理绑定按钮点击事件
-  void handleBindButtonClick() async {
-    debugPrint('💑 立即绑定按钮被点击');
-
-    // 上报新版埋点：用机记录-立刻去绑定
-    try {
-      await TrackingService.trackHistoryToBind();
-      debugPrint('✅ 用机记录页面-立刻去绑定埋点上报成功');
-    } catch (e) {
-      debugPrint('❌ 用机记录页面-立刻去绑定埋点上报失败: $e');
-    }
-
-    showBindingDialog();
-  }
-
   /// 处理开通会员按钮点击事件
   void handleVipButtonClick() async {
-    debugPrint('💎 开通会员按钮被点击');
-
-    // 上报新版埋点：用机记录-立刻开通会员
-    try {
-      await TrackingService.trackHistoryToVip();
-      debugPrint('✅ 用机记录页面-立刻开通会员埋点上报成功');
-    } catch (e) {
-      debugPrint('❌ 用机记录页面-立刻开通会员埋点上报失败: $e');
-    }
-
-    // 跳转到VIP页面
     await Get.toNamed(
       KissuRoutePath.vip,
-      arguments: {
-        'previousPageName': '用机记录页面',
-        'previousPageId': 'usage_report',
-      },
+      arguments: {'source_page': SourcePageUtilsCaller.usageReport, 'source_event': PhoneHistoryEvents.appUseModule},
     );
 
-    // 从VIP页面返回后，刷新用户信息
-    debugPrint('📊 从VIP页面返回，刷新用户信息');
     try {
       final success = await UserManager.refreshUserInfo();
       if (success) {
-        _updateUserBindStatus(); // 更新绑定状态和会员状态
+        _updateUserBindStatus();
         if (isUserBound.value && isUserVip.value) {
-          // 如果已绑定且已开通会员，刷新数据
-          debugPrint('💎 用户已开通会员，刷新页面数据');
           loadData();
         }
       }
     } catch (e) {
-      debugPrint('❌ 刷新用户信息失败: $e');
+      logError('❌ 刷新用户信息失败: $e');
     }
   }
 
@@ -560,134 +430,30 @@ class UsageReportController extends GetxController {
     if (currentContext != null) {
       CustomBottomDialog.show(
         context: currentContext,
-        caller: BindingDialogCaller.usageReport,
-        onClose: () {
-          debugPrint('💑 绑定弹窗已关闭');
-        },
+        caller: SourcePageUtilsCaller.usageReport,
+        sourceEvent: PhoneHistoryEvents.pageId, // 用机记录页面统一传mobile_use_page
+        onClose: () {},
       ).then((result) {
         // 绑定弹窗关闭后，更新绑定状态并检查是否需要刷新页面
         _updateUserBindStatus();
         if (isUserBound.value) {
-          debugPrint('💑 用户已绑定，刷新页面数据');
           loadData();
         }
       });
     } else {
-      debugPrint('❌ 无法获取Context，跳过显示绑定弹窗');
+      logError('❌ 无法获取Context，跳过显示绑定弹窗');
     }
   }
- 
 
-  
   /// 显示筛选对话框
   void showFilterDialog() {
-    // 初始化临时选中项为当前选中项
-    tempSelectedFilters.value = List.from(selectedFilters);
-    
-    Get.bottomSheet(
-      Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            Container(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '事件筛选',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF333333),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 筛选选项列表
-            ...filterOptions.map((option) {
-              return Obx(() {
-                final isSelected = tempSelectedFilters.contains(option);
-                return InkWell(
-                  onTap: () {
-                    // 多选逻辑：点击切换选中状态
-                    if (isSelected) {
-                      tempSelectedFilters.remove(option);
-                    } else {
-                      tempSelectedFilters.add(option);
-                    }
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    margin: EdgeInsets.symmetric(horizontal: 36),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(width: 1, color: Color(0xffF6F6F6)),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            option,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                        ),
-                        Image(
-                          image: AssetImage(
-                            isSelected
-                                ? 'assets/phone_history/kissu3_history_seting_sel.webp'
-                                : 'assets/phone_history/kissu3_history_seting_unsel.webp',
-                          ),
-                          width: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              });
-            }) ,
-            SizedBox(height: 20),
-            GestureDetector(
-              onTap: () {
-                Get.back();
-                // 应用筛选条件，重新加载数据
-                selectedFilters.value = List.from(tempSelectedFilters);
-                loadData();
-              },
-              child: Container(
-                height: 42,
-                width: double.infinity,
-                margin: EdgeInsets.symmetric(horizontal: 36),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(21),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  "确定",
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
-      isScrollControlled: true,
+    FilterBottomSheet.show(
+      filterOptions: filterOptions,
+      currentFilters: selectedFilters,
+      onConfirm: (selected) {
+        selectedFilters.value = selected;
+        loadData();
+      },
     );
   }
   

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/network/tools/logging/logging.dart';
 import '../../../network/public/auth_api.dart';
 import '../../../utils/user_manager.dart';
 import '../../../routers/kissu_route_path.dart';
@@ -104,12 +105,14 @@ class PhoneVerificationController extends GetxController {
           '验证码已发送', 
         );
       } else {
+        logError('发送验证码失败: ${result.msg}', tag: 'PhoneVerificationController');
         CustomToast.show(
           Get.context!,
           result.msg ?? '发送验证码失败',
         );
       }
     } catch (e) {
+      logError('发送验证码失败: $e', tag: 'PhoneVerificationController');
       CustomToast.show(
         Get.context!,
         '发送验证码失败：$e',
@@ -205,12 +208,14 @@ class PhoneVerificationController extends GetxController {
           );
         });
       } else {
+        logError('注销失败: ${result.msg}', tag: 'PhoneVerificationController');
         CustomToast.show(
           Get.context!,
           result.msg ?? '注销失败，请重试',
         );
       }
     } catch (e) {
+      logError('注销失败: $e', tag: 'PhoneVerificationController');
       CustomToast.show(
         Get.context!,
         '注销失败：$e',

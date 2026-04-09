@@ -47,7 +47,7 @@ class AppInfoService {
     }
 
     try {
-      logger.debug('🔍 正在获取 ${packageNames.length} 个应用的名称...', tag: 'AppInfoService');
+      // logger.debug('🔍 正在获取 ${packageNames.length} 个应用的名称...', tag: 'AppInfoService');
       final result = await _channel.invokeMethod('getAppNames', {
         'packageNames': packageNames,
       });
@@ -58,7 +58,7 @@ class AppInfoService {
           key.toString(),
           value.toString(),
         ));
-        logger.debug('✅ 成功获取应用名称: $appNamesMap', tag: 'AppInfoService');
+        // logger.debug('✅ 成功获取应用名称: $appNamesMap', tag: 'AppInfoService');
         return appNamesMap;
       }
       

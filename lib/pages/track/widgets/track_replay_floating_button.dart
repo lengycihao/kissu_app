@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kissu_app/routers/kissu_route_path.dart';
+import 'package:kissu_app/services/analytics/analytics_events.dart';
+import 'package:kissu_app/utils/source_page_utils.dart';
+import 'package:kissu_app/utils/user_manager.dart';
 import 'package:kissu_app/widgets/custom_toast_widget.dart';
+import 'package:kissu_app/widgets/dialogs/custom_bottom_dialog.dart';
 import '../track_controller.dart';
 import '../track_replay_page/track_replay_controller.dart';
 import '../track_replay_page/track_replay_page.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
 
 /// 轨迹播放浮动按钮
 /// 参考定位页面的右侧浮动按钮实现，跟随下半屏滑动渐变
@@ -26,8 +32,8 @@ class TrackReplayFloatingButton extends StatelessWidget {
       // 🔧 修复：跟随下半屏滑动，与定位页面保持一致
       final sheetHeight = screenHeight * sheetPercent;
       
-      // 右侧按钮的bottom位置（在下半屏顶部上方70px）
-      final buttonBottom = sheetHeight + 70;
+      // 右侧按钮的bottom位置（在下半屏顶部上方30px）
+      final buttonBottom = sheetHeight + 30;
 
       // 根据绑定状态动态计算中间吸顶位置（与DraggableScrollableSheet的snapSize保持一致）
       final actualBindStatus = controller.getActualBindStatus();
@@ -81,6 +87,32 @@ class TrackReplayFloatingButton extends StatelessWidget {
 
   /// 播放按钮点击事件
   void _onPlayButtonTap(BuildContext context) {
+    // 埋点：轨迹回放按钮点击
+    AnalyticsHelper.trackTrackHistoryReplay();
+    
+    final isBindPartner = controller.isBindPartner.value;
+    final isVip = UserManager.isVip;
+    
+    // 🔥 未绑定时弹绑定弹窗，已绑定但非会员时跳转VIP页面
+    if (!isBindPartner) {
+      // 未绑定：弹绑定弹窗
+      _showBindingDialog(context);
+      return;
+    }
+    
+    if (!isVip) {
+      // 已绑定但非会员：跳转VIP页面
+      controller.onNavigateToNextPage?.call();
+      Get.toNamed(
+        KissuRoutePath.vip,
+        arguments: {
+          'source_page': SourcePageUtilsCaller.track,
+          'source_event': TrackEvents.historyReplay,
+        },
+      );
+      return;
+    }
+    
     // 检查是否有有效的轨迹数据
     if (controller.trackPoints.length < 3) {
       CustomToast.show(context, '暂无足够的轨迹数据可回放');
@@ -98,6 +130,9 @@ class TrackReplayFloatingButton extends StatelessWidget {
     // 注册控制器
     Get.put(replayController);
 
+    // 埋点：页面离开（进入下一页）
+    controller.onNavigateToNextPage?.call();
+
     // 跳转到播放页面
     Get.to(
       () => const TrackReplayPage(),
@@ -106,6 +141,15 @@ class TrackReplayFloatingButton extends StatelessWidget {
       // 返回时删除控制器
       Get.delete<TrackReplayController>();
     });
+  }
+
+  /// 显示绑定弹窗
+  void _showBindingDialog(BuildContext context) {
+    CustomBottomDialog.show(
+      context: context,
+      caller: SourcePageUtilsCaller.track,
+      sourceEvent: TrackEvents.historyReplay,
+    );
   }
 
   /// 获取当前用户头像

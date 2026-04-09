@@ -71,7 +71,8 @@ class ConfirmDialog extends BaseDialog {
                 DialogButton(
                   text: cancelText ?? '取消',
                   width: 110,
-                  backgroundImage: 'assets/images/kissu_dialop_common_cancel_bg.webp',
+                  backgroundImage:
+                      'assets/images/kissu_dialop_common_cancel_bg.webp',
                   onTap: () {
                     Navigator.of(context).pop(false);
                     onCancel?.call();
@@ -82,7 +83,8 @@ class ConfirmDialog extends BaseDialog {
               DialogButton(
                 text: confirmText,
                 width: 110,
-                backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
+                backgroundImage:
+                    'assets/images/kissu_dialop_common_sure_bg.webp',
                 onTap: () {
                   Navigator.of(context).pop(true);
                   onConfirm?.call();
@@ -142,29 +144,21 @@ class _LogoutConfirmDialogContent extends BaseDialog {
   @override
   Widget buildContent(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
-      width: 300,
-      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+      backgroundImage: 'assets/dialog/kissu4_dialog_small_bg.webp',
+      width: 270,
+    height: 145,
+      padding: const EdgeInsets.symmetric(horizontal: 15 ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 标题
-          const Text(
-            '提示',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF333333),
-            ),
-          ),
-          const SizedBox(height: 15),
-          const Text(
+           const Text(
             '确定要退出登录吗？',
             textAlign: TextAlign.left,
             style: TextStyle(
-              fontSize: 14,
-              height: 1.7,
+              fontSize: 16,
               color: Color(0xFF333333),
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 25),
@@ -173,24 +167,44 @@ class _LogoutConfirmDialogContent extends BaseDialog {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               // 左边：确认按钮（执行退出操作）
-              DialogButton(
-                text: '确认',
-                width: 110,
-                backgroundImage:
-                    'assets/images/kissu_dialop_common_cancel_bg.webp', // 退出确认用红色背景
+              GestureDetector(
                 onTap: () {
-                  Navigator.of(context).pop(true); // 返回 true 表示确认退出
+                  Navigator.of(context).pop(true);
                 },
+                child: Container(
+                  width: 106,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xFF999999), width: 1),
+                     borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '确认',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+                    ),
+                  ),
+                ),
               ),
               // 右边：我再想想按钮（取消操作）
-              DialogButton(
-                text: '我再想想',
-                width: 110,
-                backgroundImage:
-                    'assets/images/kissu_dialop_common_sure_bg.webp', // 取消退出用绿色背景
+              GestureDetector(
                 onTap: () {
-                  Navigator.of(context).pop(false); // 返回 false 表示取消
+                  Navigator.of(context).pop(false);
                 },
+                child: Container(
+                  width: 106,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Color(0xffFFA9E0),
+                     borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '我再想想',
+                      style: TextStyle(fontSize: 14, color: Color(0xFFffffff)),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -208,6 +222,14 @@ class PhoneChangeConfirmDialog {
       dialog: _PhoneChangeDialog(phoneNumber: phoneNumber),
     );
   }
+
+  /// 格式化手机号显示，中间部分用星号遮挡
+  static String formatPhoneNumber(String phoneNumber) {
+    if (phoneNumber.length < 7) return phoneNumber; // 手机号长度不够，返回原值
+
+    // 前3位 + **** + 后4位
+    return '${phoneNumber.substring(0, 3)}****${phoneNumber.substring(phoneNumber.length - 4)}';
+  }
 }
 
 /// 手机号更改弹窗内容（按钮上下排列）
@@ -220,9 +242,9 @@ class _PhoneChangeDialog extends BaseDialog {
   @override
   Widget buildContent(BuildContext context) {
     return DialogContainer(
-      backgroundImage: 'assets/images/kissu_dialog_sex_bg.webp',
-      width: 300,
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
+      backgroundImage: 'assets/dialog/kissu_toast_bg.webp',
+      width: 270,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 25),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -230,8 +252,8 @@ class _PhoneChangeDialog extends BaseDialog {
           const Text(
             '要更改绑定的手机号吗？',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
               color: Color(0xFF333333),
             ),
           ),
@@ -239,34 +261,49 @@ class _PhoneChangeDialog extends BaseDialog {
           const Text(
             '当前的手机号为',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
+            style: TextStyle(fontSize: 14, color: Color(0xFF777777)),
           ),
           const SizedBox(height: 8),
           Text(
-            phoneNumber,
+            PhoneChangeConfirmDialog.formatPhoneNumber(phoneNumber),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 14, color: Color(0xFF999999)),
           ),
           const SizedBox(height: 25),
           // 按钮（上下排列）
-          Column(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              DialogButton(
-                text: '确定',
-                backgroundImage: 'assets/images/kissu_dialop_common_sure_bg.webp',
-                width: 200,
-                onTap: () {
-                  Navigator.of(context).pop(true);
-                },
-              ),
-              const SizedBox(height: 12),
-              DialogButton(
-                text: '取消',
-                backgroundImage: 'assets/images/kissu_dialop_common_cancel_bg.webp',
-                width: 200,
+              GestureDetector(
                 onTap: () {
                   Navigator.of(context).pop(false);
                 },
+                child: Container(
+                  width: 106,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Color(0xFF999999), width: 1),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '取消',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
+                    ),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).pop(true);
+                },
+                child: Image(
+                  image: AssetImage(
+                    'assets/images/kissu_dialop_common_sure_bg.webp',
+                  ),
+                  width: 106,
+                  height: 36,
+                ),
               ),
             ],
           ),

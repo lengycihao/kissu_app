@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kissu_app/utils/network_image_helper.dart';
 import 'package:kissu_app/models/vip_package_model.dart';
+import 'package:kissu_app/services/analytics/analytics_helper.dart';
+import 'package:kissu_app/services/analytics/analytics_params.dart';
 
 /// 折扣底部弹窗组件
 class DiscountBottomSheet extends StatefulWidget {
@@ -23,31 +25,44 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-         image: DecorationImage(
-                image: AssetImage('assets/3.0/kissu3_vip_sale_bg.webp'),
-                fit: BoxFit.cover,
-              ),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      padding: EdgeInsets.only(left: 34, right: 34, bottom: 30),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 顶部拖拽指示器
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(top: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
+    return WillPopScope(
+      onWillPop: () async {
+        // 埋点：记录19元弹窗关闭（点击空白区域或返回键，使用YesNoValue.no表示关闭）
+        AnalyticsHelper.trackPopup19Dialog(btnStatus: YesNoValue.no);
+        return true;
+      },
+      child: Container(
+        decoration: const BoxDecoration(
+           image: DecorationImage(
+                  image: AssetImage('assets/3.0/kissu3_vip_sale_bg.webp'),
+                  fit: BoxFit.cover,
+                ),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
+        ),
+        padding: EdgeInsets.only(left: 34, right: 34, bottom: 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 顶部拖拽指示器
+            GestureDetector(
+              onTap: () {
+                // 埋点：记录19元弹窗关闭（使用YesNoValue.no表示关闭）
+                AnalyticsHelper.trackPopup19Dialog(btnStatus: YesNoValue.no);
+                Navigator.of(context).pop();
+              },
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
           
           const SizedBox(height: 20),
           
@@ -88,7 +103,11 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
           
           // 立即支付按钮
          GestureDetector(
-              onTap: () => widget.onPayment(selectedPaymentMethod),
+              onTap: () {
+                // 埋点：记录19元弹窗立即支付按钮点击（使用YesNoValue.yes表示立即支付）
+                AnalyticsHelper.trackPopup19Dialog(btnStatus: YesNoValue.yes);
+                widget.onPayment(selectedPaymentMethod);
+              },
               child: Container(
                 width: double.infinity,
                 height: 50,
@@ -133,9 +152,10 @@ class _DiscountBottomSheetState extends State<DiscountBottomSheet> {
               ],
             ),
           
-          // 底部安全区域
-          SizedBox(height: MediaQuery.of(context).padding.bottom ),
-        ],
+            // 底部安全区域
+            SizedBox(height: MediaQuery.of(context).padding.bottom ),
+          ],
+        ),
       ),
     );
   }
